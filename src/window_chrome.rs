@@ -167,6 +167,7 @@ pub(crate) fn titlebar_maximize_icon(is_maximized: bool, is_fullscreen: bool) ->
 pub(crate) fn render_custom_titlebar<T: 'static>(
     id: &'static str,
     title: SharedString,
+    left_content: Option<AnyElement>,
     theme: &Theme,
     window: &Window,
     cx: &mut Context<T>,
@@ -242,10 +243,14 @@ pub(crate) fn render_custom_titlebar<T: 'static>(
         .border_color(c.dialog_border);
 
     let root = match layout.controls {
-        TitlebarControlMode::NativeTrafficLights => root
-            .child(div().w(px(MAC_TRAFFIC_LIGHT_RESERVED_WIDTH)).h_full())
-            .child(drag_title)
-            .child(div().w(px(MAC_TRAFFIC_LIGHT_RESERVED_WIDTH)).h_full()),
+        TitlebarControlMode::NativeTrafficLights => {
+            let mut r = root.child(div().w(px(MAC_TRAFFIC_LIGHT_RESERVED_WIDTH)).h_full());
+            if let Some(left) = left_content {
+                r = r.child(left);
+            }
+            r.child(drag_title)
+                .child(div().w(px(MAC_TRAFFIC_LIGHT_RESERVED_WIDTH)).h_full())
+        }
         TitlebarControlMode::AppControls => {
             let close_entity = entity.clone();
             let mut controls_row = div().h_full().flex().items_center().flex_shrink_0();
@@ -331,7 +336,11 @@ pub(crate) fn render_custom_titlebar<T: 'static>(
                     }),
             );
 
-            root.child(drag_title).child(controls_row)
+            if let Some(left) = left_content {
+                root.child(left).child(drag_title).child(controls_row)
+            } else {
+                root.child(drag_title).child(controls_row)
+            }
         }
     };
 

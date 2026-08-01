@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use gpui::*;
 
-use super::{Editor, InfoDialogKind, workspace::workspace_panel_width_for_viewport};
+use super::{Editor, InfoDialogKind};
 use crate::app_menu::dispatch_menu_action_for_editor;
 use crate::components::CalloutVariant;
 use crate::components::{AddLanguageConfig, AddThemeConfig, Block, NoRecentFiles};
@@ -173,7 +173,7 @@ fn estimated_menu_label_width(label: &str, text_size: f32) -> f32 {
             } else if ch.is_ascii_punctuation() {
                 text_size * 0.45
             } else if ch.is_ascii() {
-                text_size * 0.62
+                text_size * 0.54
             } else if is_wide_menu_char(ch) {
                 text_size
             } else {
@@ -183,10 +183,14 @@ fn estimated_menu_label_width(label: &str, text_size: f32) -> f32 {
         .sum()
 }
 
+const TITLEBAR_MENU_BUTTON_PADDING_X: f32 = 5.0;
+const TITLEBAR_MENU_BUTTON_GAP: f32 = 2.0;
+const TITLEBAR_MENU_START_X: f32 = 32.0;
+
 fn menu_bar_button_width(label: &str, dimensions: &ThemeDimensions) -> f32 {
     let content_width = estimated_menu_label_width(label, dimensions.menu_text_size)
-        + dimensions.menu_bar_button_padding_x * 2.0;
-    dimensions.menu_bar_button_width.max(content_width.ceil())
+        + TITLEBAR_MENU_BUTTON_PADDING_X * 2.0;
+    content_width.ceil().max(20.0)
 }
 
 fn supports_in_window_menu_for_target_os(target_os: &str) -> bool {
@@ -198,15 +202,11 @@ fn supports_in_window_menu() -> bool {
 }
 
 fn in_window_menu_bar_height_for_target_os(
-    target_os: &str,
-    has_menus: bool,
-    dimensions: &ThemeDimensions,
+    _target_os: &str,
+    _has_menus: bool,
+    _dimensions: &ThemeDimensions,
 ) -> f32 {
-    if has_menus && supports_in_window_menu_for_target_os(target_os) {
-        dimensions.menu_bar_height
-    } else {
-        0.0
-    }
+    0.0
 }
 
 fn menu_panel_left<S: AsRef<str>>(
@@ -219,7 +219,7 @@ fn menu_panel_left<S: AsRef<str>>(
         .take(open_index)
         .map(|label| menu_bar_button_width(label.as_ref(), dimensions))
         .sum();
-    dimensions.menu_bar_padding_x + prior_width + dimensions.menu_bar_gap * open_index as f32
+    TITLEBAR_MENU_START_X + prior_width + TITLEBAR_MENU_BUTTON_GAP * open_index as f32
 }
 
 fn menu_panel_width_for_labels<S: AsRef<str>>(labels: &[S], dimensions: &ThemeDimensions) -> f32 {
@@ -577,17 +577,12 @@ impl Editor {
         }
     }
 
-    /// Renders the in-window fallback menu bar backed by the app menus
-    /// registered through `App::set_menus`. `menus` and `menu_labels` are
-    /// fetched and computed once at the caller and shared with
-    /// [`Self::render_in_window_menu_panel`].
-    fn render_in_window_menu_bar(
+    fn render_inline_titlebar_menu(
         &self,
         theme: &Theme,
         cx: &mut Context<Self>,
         menus: Option<&[gpui::OwnedMenu]>,
         menu_labels: &[SharedString],
-        top_offset: f32,
     ) -> Option<AnyElement> {
         let menus = menus?;
         if menus.is_empty() {
@@ -598,40 +593,69 @@ impl Editor {
         let d = &theme.dimensions;
         let t = &theme.typography;
         let editor = cx.entity().downgrade();
-        let button_widths = menu_labels
-            .iter()
-            .map(|label| menu_bar_button_width(label, d))
-            .collect::<Vec<_>>();
 
-        Some(
-            div()
-                .id("app-menu-bar")
-                .absolute()
-                .top(px(top_offset))
-                .left_0()
-                .right_0()
-                .h(px(d.menu_bar_height))
-                .occlude()
-                .flex()
-                .items_center()
-                .gap(px(d.menu_bar_gap))
-                .px(px(d.menu_bar_padding_x))
-                .py(px(d.menu_bar_padding_y))
-                .bg(c.dialog_surface)
-                .border_b(px(theme.dimensions.dialog_border_width))
-                .border_color(c.dialog_border)
-                .on_hover(cx.listener(Self::on_menu_bar_hover))
-                .children(menu_labels.iter().enumerate().map(|(index, label)| {
-                    let label = label.clone();
-                    let is_open = self.menu_bar_open == Some(index);
-                    let button_editor = editor.clone();
-                    let button_width = button_widths[index];
+        let is_expanded = self.menu_bar_expanded || self.menu_bar_open.is_some();
 
+        let mut row = div()
+            .id("titlebar-menu-inline")
+            .h_full()
+            .flex()
+            .items_center()
+            .gap(px(TITLEBAR_MENU_BUTTON_GAP))
+            .px(px(6.0));
+
+        let app_button_editor = editor.clone();
+        let app_button = div()
+            .id("titlebar-app-icon-button")
+            .size(px(22.0))
+            .mr(px(2.0))
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded_full()
+            .bg(if is_expanded {
+                c.dialog_secondary_button_hover
+            } else {
+                hsla(0.0, 0.0, 0.0, 0.0)
+            })
+            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+            .active(|this| this.opacity(0.88))
+            .cursor_pointer()
+            .child(
+                div()
+                    .size(px(10.0))
+                    .rounded_full()
+                    .border(px(1.5))
+                    .border_color(if is_expanded { c.dialog_title } else { c.dialog_secondary_button_text })
+                    .bg(if is_expanded { c.dialog_title } else { hsla(0.0, 0.0, 0.0, 0.0) }),
+            )
+            .on_click(move |_, _window, cx| {
+                let _ = app_button_editor.update(cx, |ed, cx| {
+                    ed.toggle_menu_bar_expanded(cx);
+                });
+            });
+
+        row = row.child(app_button);
+
+        if is_expanded && !menu_labels.is_empty() {
+            let button_widths = menu_labels
+                .iter()
+                .map(|label| menu_bar_button_width(label, d))
+                .collect::<Vec<_>>();
+
+            for (index, label) in menu_labels.iter().enumerate() {
+                let label = label.clone();
+                let is_open = self.menu_bar_open == Some(index);
+                let button_editor = editor.clone();
+                let click_editor = editor.clone();
+                let button_width = button_widths[index];
+
+                row = row.child(
                     div()
                         .id(("app-menu-button", index))
                         .h(px(d.menu_bar_button_height))
                         .w(px(button_width))
-                        .px(px(d.menu_bar_button_padding_x))
+                        .px(px(TITLEBAR_MENU_BUTTON_PADDING_X))
                         .flex()
                         .flex_shrink_0()
                         .items_center()
@@ -640,7 +664,7 @@ impl Editor {
                         .bg(if is_open {
                             c.dialog_secondary_button_hover
                         } else {
-                            c.dialog_surface
+                            hsla(0.0, 0.0, 0.0, 0.0)
                         })
                         .hover(|this| this.bg(c.dialog_secondary_button_hover))
                         .active(|this| this.opacity(0.92))
@@ -656,9 +680,15 @@ impl Editor {
                                     .update(cx, |editor, cx| editor.open_menu_bar(index, cx));
                             }
                         })
-                }))
-                .into_any_element(),
-        )
+                        .on_click(move |_, _window, cx| {
+                            let _ = click_editor
+                                .update(cx, |editor, cx| editor.open_menu_bar(index, cx));
+                        }),
+                );
+            }
+        }
+
+        Some(row.into_any_element())
     }
 
     fn render_in_window_menu_item(
@@ -1489,6 +1519,795 @@ impl Editor {
                     ),
             )
     }
+
+    pub(crate) fn render_tiled_layout(
+        &mut self,
+        content_area: AnyElement,
+        theme: &Theme,
+        strings: &I18nStrings,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        use crate::editor::area_layout::*;
+
+        let root = self.area_layout.root.clone();
+        let leaf_count = root.count_leaves();
+        let mut primary_content = Some(content_area);
+
+        let layout_tree = if let Some(maximized_id) = self.area_layout.maximized_leaf {
+            if let Some(area_type) = root.find_leaf_area(maximized_id) {
+                self.render_area_tile(
+                    maximized_id,
+                    area_type,
+                    &mut primary_content,
+                    theme,
+                    strings,
+                    leaf_count,
+                    true,
+                    cx,
+                )
+            } else {
+                self.render_tiled_layout_node(&root, &mut primary_content, theme, strings, leaf_count, cx)
+            }
+        } else {
+            self.render_tiled_layout_node(&root, &mut primary_content, theme, strings, leaf_count, cx)
+        };
+
+        let root_editor_move = cx.entity().downgrade();
+        let root_editor_up = cx.entity().downgrade();
+
+        let container = div()
+            .id("tiled-layout-root")
+            .w_full()
+            .h_full()
+            .relative()
+            .on_mouse_move(move |event, _window, cx| {
+                let pos = event.position;
+                let _ = root_editor_move.update(cx, |ed, cx| {
+                    let mut changed = false;
+                    if let Some(drag) = ed.area_layout.active_splitter_drag {
+                        let current_pos = match drag.direction {
+                            SplitDirection::Horizontal => f32::from(pos.x),
+                            SplitDirection::Vertical => f32::from(pos.y),
+                        };
+                        ed.area_layout.update_splitter_drag(current_pos);
+                        changed = true;
+                    }
+                    if let Some(corner_drag) = ed.area_layout.active_corner_drag {
+                        let dx = f32::from(pos.x - corner_drag.start_pos.x);
+                        let dy = f32::from(pos.y - corner_drag.start_pos.y);
+                        if dx * dx + dy * dy > 225.0 {
+                            let dir = if dx.abs() >= dy.abs() {
+                                SplitDirection::Horizontal
+                            } else {
+                                SplitDirection::Vertical
+                            };
+                            ed.area_layout.active_corner_drag = None;
+                            ed.area_layout.split_area(corner_drag.leaf_id, dir);
+                            changed = true;
+                        }
+                    }
+                    if changed {
+                        cx.notify();
+                    }
+                });
+            })
+            .on_mouse_up(MouseButton::Left, move |_event, _window, cx| {
+                let _ = root_editor_up.update(cx, |ed, cx| {
+                    if ed.area_layout.active_splitter_drag.is_some() || ed.area_layout.active_corner_drag.is_some() {
+                        ed.area_layout.end_splitter_drag();
+                        ed.area_layout.active_corner_drag = None;
+                        cx.notify();
+                    }
+                });
+            })
+            .child(layout_tree);
+
+        if let Some(border_menu) = self.area_layout.active_border_menu {
+            let menu_overlay = self.render_border_context_menu_overlay(border_menu, theme, cx);
+            container.child(menu_overlay).into_any_element()
+        } else {
+            container.into_any_element()
+        }
+    }
+
+    fn render_tiled_layout_node(
+        &mut self,
+        node: &crate::editor::area_layout::LayoutNode,
+        primary_content: &mut Option<AnyElement>,
+        theme: &Theme,
+        strings: &I18nStrings,
+        leaf_count: usize,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        use crate::editor::area_layout::*;
+
+        let c = &theme.colors;
+        let editor = cx.entity().downgrade();
+
+        match node {
+            LayoutNode::Leaf { id, area_type } => {
+                self.render_area_tile(*id, *area_type, primary_content, theme, strings, leaf_count, false, cx)
+            }
+            LayoutNode::Split { id, direction, ratio, first, second } => {
+                let split_id = *id;
+                let dir = *direction;
+                let r = *ratio;
+
+                let first_elem = self.render_tiled_layout_node(first, primary_content, theme, strings, leaf_count, cx);
+                let second_elem = self.render_tiled_layout_node(second, primary_content, theme, strings, leaf_count, cx);
+
+                match direction {
+                    SplitDirection::Horizontal => {
+                        let bar_editor = editor.clone();
+                        let menu_editor = editor.clone();
+
+                        div()
+                            .id(("tiled-split-h", split_id))
+                            .w_full()
+                            .h_full()
+                            .flex()
+                            .flex_row()
+                            .min_w(px(0.0))
+                            .min_h(px(0.0))
+                            .child(
+                                div()
+                                    .w(relative(r))
+                                    .h_full()
+                                    .flex()
+                                    .flex_col()
+                                    .flex_1()
+                                    .min_w(px(0.0))
+                                    .child(first_elem)
+                            )
+                            .child(
+                                div()
+                                    .id(("tiled-splitter-bar-h", split_id))
+                                    .w(px(5.0))
+                                    .h_full()
+                                    .flex_shrink_0()
+                                    .bg(c.dialog_border)
+                                    .hover(|this| this.bg(c.selection))
+                                    .cursor_col_resize()
+                                    .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
+                                        let start_pos = f32::from(event.position.x);
+                                        let _ = bar_editor.update(cx, |ed, cx| {
+                                            ed.area_layout.active_splitter_drag = Some(SplitterDragSession {
+                                                split_id,
+                                                direction: SplitDirection::Horizontal,
+                                                start_pointer_pos: start_pos,
+                                                start_ratio: r,
+                                                total_span: 1000.0,
+                                            });
+                                            cx.notify();
+                                        });
+                                    })
+                                    .on_mouse_down(MouseButton::Right, move |event, _window, cx| {
+                                        let pos = event.position;
+                                        let _ = menu_editor.update(cx, |ed, cx| {
+                                            ed.area_layout.active_border_menu = Some(BorderMenuState {
+                                                split_id,
+                                                direction: dir,
+                                                position: pos,
+                                            });
+                                            cx.notify();
+                                        });
+                                    })
+                            )
+                            .child(
+                                div()
+                                    .w(relative(1.0 - r))
+                                    .h_full()
+                                    .flex()
+                                    .flex_col()
+                                    .flex_1()
+                                    .min_w(px(0.0))
+                                    .child(second_elem)
+                            )
+                            .into_any_element()
+                    }
+                    SplitDirection::Vertical => {
+                        let bar_editor = editor.clone();
+                        let menu_editor = editor.clone();
+
+                        div()
+                            .id(("tiled-split-v", split_id))
+                            .w_full()
+                            .h_full()
+                            .flex()
+                            .flex_col()
+                            .min_w(px(0.0))
+                            .min_h(px(0.0))
+                            .child(
+                                div()
+                                    .h(relative(r))
+                                    .w_full()
+                                    .flex()
+                                    .flex_col()
+                                    .flex_1()
+                                    .min_h(px(0.0))
+                                    .child(first_elem)
+                            )
+                            .child(
+                                div()
+                                    .id(("tiled-splitter-bar-v", split_id))
+                                    .h(px(5.0))
+                                    .w_full()
+                                    .flex_shrink_0()
+                                    .bg(c.dialog_border)
+                                    .hover(|this| this.bg(c.selection))
+                                    .cursor_row_resize()
+                                    .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
+                                        let start_pos = f32::from(event.position.y);
+                                        let _ = bar_editor.update(cx, |ed, cx| {
+                                            ed.area_layout.active_splitter_drag = Some(SplitterDragSession {
+                                                split_id,
+                                                direction: SplitDirection::Vertical,
+                                                start_pointer_pos: start_pos,
+                                                start_ratio: r,
+                                                total_span: 700.0,
+                                            });
+                                            cx.notify();
+                                        });
+                                    })
+                                    .on_mouse_down(MouseButton::Right, move |event, _window, cx| {
+                                        let pos = event.position;
+                                        let _ = menu_editor.update(cx, |ed, cx| {
+                                            ed.area_layout.active_border_menu = Some(BorderMenuState {
+                                                split_id,
+                                                direction: dir,
+                                                position: pos,
+                                            });
+                                            cx.notify();
+                                        });
+                                    })
+                            )
+                            .child(
+                                div()
+                                    .h(relative(1.0 - r))
+                                    .w_full()
+                                    .flex()
+                                    .flex_col()
+                                    .flex_1()
+                                    .min_h(px(0.0))
+                                    .child(second_elem)
+                            )
+                            .into_any_element()
+                    }
+                }
+            }
+        }
+    }
+
+    fn render_area_tile(
+        &mut self,
+        leaf_id: usize,
+        area_type: crate::editor::area_layout::AreaType,
+        primary_content: &mut Option<AnyElement>,
+        theme: &Theme,
+        strings: &I18nStrings,
+        leaf_count: usize,
+        is_maximized: bool,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        use crate::editor::area_layout::*;
+
+        let c = &theme.colors;
+        let header = self.render_area_header(leaf_id, area_type, theme, leaf_count, is_maximized, cx);
+
+        let body: AnyElement = match area_type {
+            AreaType::Block | AreaType::Wysiwyg | AreaType::Source => {
+                if let Some(content) = primary_content.take() {
+                    content
+                } else {
+                    div()
+                        .w_full()
+                        .h_full()
+                        .p(px(16.0))
+                        .flex()
+                        .flex_col()
+                        .items_center()
+                        .justify_center()
+                        .bg(c.editor_background)
+                        .child(
+                            div()
+                                .text_size(px(14.0))
+                                .text_color(c.dialog_muted)
+                                .child(format!("{} (Editor View)", area_type.name())),
+                        )
+                        .into_any_element()
+                }
+            }
+            AreaType::Explorer => {
+                self.render_tiled_workspace_files_panel(theme, strings, cx)
+            }
+            AreaType::Outline => {
+                self.render_tiled_outline_panel(theme, strings, cx)
+            }
+            AreaType::Settings => {
+                self.render_tiled_preferences_panel(theme, strings, cx)
+            }
+        };
+
+        let dropdown_open = self.area_layout.active_dropdown_leaf == Some(leaf_id);
+
+        let tile = div()
+            .id(("tiled-area-tile", leaf_id))
+            .w_full()
+            .h_full()
+            .flex()
+            .flex_col()
+            .relative()
+            .bg(c.editor_background)
+            .border_1()
+            .border_color(c.dialog_border)
+            .child(header)
+            .child(
+                div()
+                    .w_full()
+                    .flex_1()
+                    .min_h(px(0.0))
+                    .relative()
+                    .child(body),
+            );
+
+        if dropdown_open {
+            let menu = self.render_area_dropdown_menu(leaf_id, theme, cx);
+            tile.child(menu).into_any_element()
+        } else {
+            tile.into_any_element()
+        }
+    }
+
+    fn render_area_header(
+        &mut self,
+        leaf_id: usize,
+        area_type: crate::editor::area_layout::AreaType,
+        theme: &Theme,
+        leaf_count: usize,
+        is_maximized: bool,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        use crate::editor::area_layout::*;
+
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        let editor = cx.entity().downgrade();
+
+        let type_editor = editor.clone();
+        let type_button = div()
+            .id(("area-header-type", leaf_id))
+            .h(px(22.0))
+            .px(px(8.0))
+            .flex()
+            .items_center()
+            .gap(px(4.0))
+            .rounded(px(d.menu_item_radius))
+            .bg(c.dialog_secondary_button_bg)
+            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+            .cursor_pointer()
+            .text_size(px(12.0))
+            .text_color(c.text_default)
+            .child(format!("{} ▼", area_type.name()))
+            .on_click(move |_event, _window, cx| {
+                let _ = type_editor.update(cx, |ed, cx| {
+                    ed.area_layout.toggle_dropdown(leaf_id);
+                    cx.notify();
+                });
+            });
+
+        let split_h_editor = editor.clone();
+        let split_h_button = div()
+            .id(("area-btn-split-h", leaf_id))
+            .px(px(6.0))
+            .py(px(2.0))
+            .rounded(px(d.menu_item_radius))
+            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+            .cursor_pointer()
+            .text_size(px(11.0))
+            .text_color(c.dialog_muted)
+            .child("Split H")
+            .on_click(move |_event, _window, cx| {
+                let _ = split_h_editor.update(cx, |ed, cx| {
+                    ed.area_layout.split_area(leaf_id, SplitDirection::Horizontal);
+                    cx.notify();
+                });
+            });
+
+        let split_v_editor = editor.clone();
+        let split_v_button = div()
+            .id(("area-btn-split-v", leaf_id))
+            .px(px(6.0))
+            .py(px(2.0))
+            .rounded(px(d.menu_item_radius))
+            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+            .cursor_pointer()
+            .text_size(px(11.0))
+            .text_color(c.dialog_muted)
+            .child("Split V")
+            .on_click(move |_event, _window, cx| {
+                let _ = split_v_editor.update(cx, |ed, cx| {
+                    ed.area_layout.split_area(leaf_id, SplitDirection::Vertical);
+                    cx.notify();
+                });
+            });
+
+        let mut actions = div()
+            .flex()
+            .items_center()
+            .gap(px(4.0))
+            .child(split_h_button)
+            .child(split_v_button);
+
+        if leaf_count > 1 {
+            let max_editor = editor.clone();
+            let max_button = div()
+                .id(("area-btn-max", leaf_id))
+                .px(px(6.0))
+                .py(px(2.0))
+                .rounded(px(d.menu_item_radius))
+                .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                .cursor_pointer()
+                .text_size(px(11.0))
+                .text_color(c.dialog_muted)
+                .child(if is_maximized { "Restore" } else { "Max" })
+                .on_click(move |_event, _window, cx| {
+                    let _ = max_editor.update(cx, |ed, cx| {
+                        ed.area_layout.toggle_maximize(leaf_id);
+                        cx.notify();
+                    });
+                });
+
+            let close_editor = editor.clone();
+            let close_button = div()
+                .id(("area-btn-close", leaf_id))
+                .px(px(6.0))
+                .py(px(2.0))
+                .rounded(px(d.menu_item_radius))
+                .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                .cursor_pointer()
+                .text_size(px(11.0))
+                .text_color(c.dialog_muted)
+                .child("Close")
+                .on_click(move |_event, _window, cx| {
+                    let _ = close_editor.update(cx, |ed, cx| {
+                        ed.area_layout.close_area(leaf_id);
+                        cx.notify();
+                    });
+                });
+
+            actions = actions.child(max_button).child(close_button);
+        }
+
+        let corner_editor = editor.clone();
+        let corner_handle = div()
+            .id(("area-corner-handle", leaf_id))
+            .px(px(4.0))
+            .py(px(2.0))
+            .rounded(px(d.menu_item_radius))
+            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+            .cursor_crosshair()
+            .text_size(px(10.0))
+            .text_color(c.dialog_muted)
+            .child("///")
+            .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
+                let pos = event.position;
+                let _ = corner_editor.update(cx, |ed, cx| {
+                    ed.area_layout.active_corner_drag = Some(CornerDragSession {
+                        leaf_id,
+                        start_pos: pos,
+                    });
+                    cx.notify();
+                });
+            });
+
+        div()
+            .id(("area-header", leaf_id))
+            .h(px(28.0))
+            .w_full()
+            .flex()
+            .items_center()
+            .justify_between()
+            .px(px(8.0))
+            .bg(c.dialog_surface)
+            .border_b(px(1.0))
+            .border_color(c.dialog_border)
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(8.0))
+                    .child(type_button),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(6.0))
+                    .child(actions)
+                    .child(corner_handle),
+            )
+            .into_any_element()
+    }
+
+    fn render_area_dropdown_menu(
+        &mut self,
+        leaf_id: usize,
+        theme: &Theme,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        use crate::editor::area_layout::*;
+
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        let t = &theme.typography;
+        let editor = cx.entity().downgrade();
+
+        div()
+            .id(("area-dropdown-overlay", leaf_id))
+            .absolute()
+            .occlude()
+            .top(px(30.0))
+            .left(px(8.0))
+            .w(px(d.menu_panel_width))
+            .p(px(d.menu_panel_padding))
+            .flex()
+            .flex_col()
+            .gap(px(d.menu_panel_gap))
+            .bg(c.dialog_surface)
+            .border(px(d.dialog_border_width))
+            .border_color(c.dialog_border)
+            .rounded(px(d.menu_panel_radius))
+            .shadow_lg()
+            .children(AreaType::all().iter().enumerate().map(|(idx, area_type)| {
+                let area_type = *area_type;
+                let option_editor = editor.clone();
+                div()
+                    .id(("area-type-opt", idx))
+                    .w_full()
+                    .h(px(d.menu_item_height))
+                    .px(px(d.menu_item_padding_x))
+                    .flex()
+                    .items_center()
+                    .rounded(px(d.menu_item_radius))
+                    .bg(c.dialog_surface)
+                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                    .active(|this| this.opacity(0.92))
+                    .cursor_pointer()
+                    .text_size(px(d.menu_text_size))
+                    .font_weight(t.dialog_button_weight.to_font_weight())
+                    .text_color(c.dialog_secondary_button_text)
+                    .child(area_type.name())
+                    .on_click(move |_event, _window, cx| {
+                        let _ = option_editor.update(cx, |ed, cx| {
+                            ed.area_layout.change_area_type(leaf_id, area_type);
+                            match area_type {
+                                AreaType::Source => ed.set_view_mode(super::ViewMode::Source, cx),
+                                AreaType::Block | AreaType::Wysiwyg => ed.set_view_mode(super::ViewMode::Rendered, cx),
+                                _ => {}
+                            }
+                            cx.notify();
+                        });
+                    })
+                    .into_any_element()
+            }))
+            .into_any_element()
+    }
+
+    fn render_border_context_menu_overlay(
+        &mut self,
+        border_menu: crate::editor::area_layout::BorderMenuState,
+        theme: &Theme,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        use crate::editor::area_layout::*;
+
+        let c = &theme.colors;
+        let editor = cx.entity().downgrade();
+        let split_id = border_menu.split_id;
+
+        let left_pos = f32::from(border_menu.position.x);
+        let top_pos = f32::from(border_menu.position.y);
+
+        let split_h_ed = editor.clone();
+        let split_v_ed = editor.clone();
+        let swap_ed = editor.clone();
+        let close_ed = editor.clone();
+        let dismiss_ed = editor.clone();
+
+        div()
+            .id("tiled-border-context-menu-wrapper")
+            .absolute()
+            .top_0()
+            .left_0()
+            .right_0()
+            .bottom_0()
+            .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                let _ = dismiss_ed.update(cx, |ed, cx| {
+                    ed.area_layout.active_border_menu = None;
+                    cx.notify();
+                });
+            })
+            .child(
+                div()
+                    .id("tiled-border-context-menu")
+                    .absolute()
+                    .top(px(top_pos))
+                    .left(px(left_pos))
+                    .w(px(180.0))
+                    .py(px(4.0))
+                    .bg(c.dialog_surface)
+                    .border_1()
+                    .border_color(c.dialog_border)
+                    .rounded(px(6.0))
+                    .shadow_lg()
+                    .child(
+                        div()
+                            .id("border-menu-split-h")
+                            .px(px(10.0))
+                            .py(px(6.0))
+                            .flex()
+                            .items_center()
+                            .gap(px(8.0))
+                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                            .cursor_pointer()
+                            .text_size(px(12.0))
+                            .text_color(c.text_default)
+                            .child("Split Horizontally")
+                            .on_click(move |_event, _window, cx| {
+                                let _ = split_h_ed.update(cx, |ed, cx| {
+                                    ed.area_layout.split_area(split_id, SplitDirection::Horizontal);
+                                    cx.notify();
+                                });
+                            })
+                    )
+                    .child(
+                        div()
+                            .id("border-menu-split-v")
+                            .px(px(10.0))
+                            .py(px(6.0))
+                            .flex()
+                            .items_center()
+                            .gap(px(8.0))
+                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                            .cursor_pointer()
+                            .text_size(px(12.0))
+                            .text_color(c.text_default)
+                            .child("Split Vertically")
+                            .on_click(move |_event, _window, cx| {
+                                let _ = split_v_ed.update(cx, |ed, cx| {
+                                    ed.area_layout.split_area(split_id, SplitDirection::Vertical);
+                                    cx.notify();
+                                });
+                            })
+                    )
+                    .child(
+                        div()
+                            .id("border-menu-swap")
+                            .px(px(10.0))
+                            .py(px(6.0))
+                            .flex()
+                            .items_center()
+                            .gap(px(8.0))
+                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                            .cursor_pointer()
+                            .text_size(px(12.0))
+                            .text_color(c.text_default)
+                            .child("Swap Panels")
+                            .on_click(move |_event, _window, cx| {
+                                let _ = swap_ed.update(cx, |ed, cx| {
+                                    ed.area_layout.swap_split_children(split_id);
+                                    cx.notify();
+                                });
+                            })
+                    )
+                    .child(
+                        div()
+                            .id("border-menu-close")
+                            .px(px(10.0))
+                            .py(px(6.0))
+                            .flex()
+                            .items_center()
+                            .gap(px(8.0))
+                            .hover(|this| this.bg(hsla(0.0, 0.7, 0.5, 0.3)))
+                            .cursor_pointer()
+                            .text_size(px(12.0))
+                            .text_color(c.text_default)
+                            .child("Close Area")
+                            .on_click(move |_event, _window, cx| {
+                                let _ = close_ed.update(cx, |ed, cx| {
+                                    ed.area_layout.close_area(split_id);
+                                    cx.notify();
+                                });
+                            })
+                    )
+            )
+            .into_any_element()
+    }
+
+    fn render_tiled_workspace_files_panel(
+        &mut self,
+        theme: &Theme,
+        strings: &I18nStrings,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        self.sync_workspace_models(cx);
+        let editor = cx.entity().downgrade();
+        self.render_workspace_files_tree(theme, strings, &editor)
+    }
+
+    fn render_tiled_outline_panel(
+        &mut self,
+        theme: &Theme,
+        strings: &I18nStrings,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        self.sync_workspace_models(cx);
+        let editor = cx.entity().downgrade();
+        self.render_workspace_outline_tree(theme, strings, &editor)
+    }
+
+    fn render_tiled_preferences_panel(
+        &mut self,
+        theme: &Theme,
+        _strings: &I18nStrings,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let c = &theme.colors;
+
+        let total_blocks = self.document.visible_blocks().len();
+        let total_words = self.serialized_document_text(cx).split_whitespace().count();
+        let file_name = self.file_path.as_ref()
+            .and_then(|p| p.file_name())
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "Untitled.md".to_string());
+
+        div()
+            .w_full()
+            .h_full()
+            .p(px(16.0))
+            .flex()
+            .flex_col()
+            .gap(px(12.0))
+            .bg(c.editor_background)
+            .child(
+                div()
+                    .text_size(px(16.0))
+                    .font_weight(gpui::FontWeight::BOLD)
+                    .text_color(c.text_default)
+                    .child("Document & App Settings")
+            )
+            .child(
+                div()
+                    .p(px(10.0))
+                    .rounded(px(6.0))
+                    .bg(c.dialog_surface)
+                    .border_1()
+                    .border_color(c.dialog_border)
+                    .flex()
+                    .flex_col()
+                    .gap(px(6.0))
+                    .child(div().text_size(px(12.0)).font_weight(gpui::FontWeight::BOLD).text_color(c.text_default).child(format!("Active Document: {}", file_name)))
+                    .child(div().text_size(px(11.0)).text_color(c.dialog_muted).child(format!("Total Words: {}", total_words)))
+                    .child(div().text_size(px(11.0)).text_color(c.dialog_muted).child(format!("Total Blocks: {}", total_blocks)))
+                    .child(div().text_size(px(11.0)).text_color(c.dialog_muted).child(format!("Unsaved Changes: {}", if self.document_dirty { "Yes" } else { "No" })))
+            )
+            .child(
+                div()
+                    .p(px(10.0))
+                    .rounded(px(6.0))
+                    .bg(c.dialog_surface)
+                    .border_1()
+                    .border_color(c.dialog_border)
+                    .flex()
+                    .flex_col()
+                    .gap(px(6.0))
+                    .child(div().text_size(px(12.0)).font_weight(gpui::FontWeight::BOLD).text_color(c.text_default).child("Theme & Environment"))
+                    .child(div().text_size(px(11.0)).text_color(c.dialog_muted).child(format!("Theme: {}", theme.name)))
+                    .child(div().text_size(px(11.0)).text_color(c.dialog_muted).child(format!("View Mode: {:?}", self.view_mode)))
+            )
+            .into_any_element()
+    }
 }
 
 impl Render for Editor {
@@ -1518,7 +2337,7 @@ impl Render for Editor {
             .map(|menus| !menus.is_empty())
             .unwrap_or(false);
         let titlebar_height = custom_titlebar_height(window, d);
-        let menu_bar_height =
+        let _menu_bar_height =
             in_window_menu_bar_height_for_target_os(std::env::consts::OS, has_menus, d);
         let scroll_trigger_padding = (d.block_min_height * 0.75).max(16.0);
         let max_scroll_y = f32::from(self.scroll_handle.max_offset().height.max(px(0.0)));
@@ -2040,9 +2859,16 @@ impl Render for Editor {
             .unwrap_or_default();
         let window_title =
             Self::window_title(self.file_path.as_deref(), self.document_dirty, &strings);
+        let inline_menu = self.render_inline_titlebar_menu(
+            &theme,
+            cx,
+            menus.as_deref(),
+            &menu_labels,
+        );
         let base = if let Some(titlebar) = render_custom_titlebar(
             "editor-titlebar",
             window_title.into(),
+            inline_menu,
             &theme,
             window,
             cx,
@@ -2052,34 +2878,15 @@ impl Render for Editor {
         } else {
             base
         };
-        let base = if let Some(menu_bar) = self.render_in_window_menu_bar(
-            &theme,
-            cx,
-            menus.as_deref(),
-            &menu_labels,
-            titlebar_height,
-        ) {
-            base.child(menu_bar)
-        } else {
-            base
-        };
-        let workspace_width =
-            workspace_panel_width_for_viewport(f32::from(window.viewport_size().width));
         let main_content = div()
             .w_full()
             .flex_1()
             .min_h(px(0.0))
-            .pt(px(titlebar_height + menu_bar_height))
+            .pt(px(titlebar_height))
             .flex()
-            .min_w(px(0.0));
-        let main_content = if let Some(workspace_panel) =
-            self.render_workspace_panel(&theme, &strings, workspace_width, cx)
-        {
-            main_content.child(workspace_panel)
-        } else {
-            main_content
-        };
-        let base = base.child(main_content.child(content_area));
+            .min_w(px(0.0))
+            .child(self.render_tiled_layout(content_area.into_any_element(), &theme, &strings, window, cx));
+        let base = base.child(main_content);
         let base = if let Some(status_bar) = self.render_status_bar(&theme, &strings, window, cx) {
             base.child(status_bar)
         } else {

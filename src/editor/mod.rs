@@ -23,6 +23,7 @@ use crate::components::{
     TableAxisHighlight, TableAxisKind, TableAxisMarker, TableCellPosition, TableColumnAlignment,
     TableData, TableRuntime, UndoCaptureKind, serialize_table_cell_markdown,
 };
+mod area_layout;
 mod close;
 mod context_menu;
 mod document;
@@ -44,6 +45,7 @@ mod update;
 mod window_state;
 mod workspace;
 
+use self::area_layout::AreaLayoutState;
 use self::status_bar::StatusBarState;
 use self::workspace::WorkspaceState;
 
@@ -106,6 +108,7 @@ pub struct Editor {
     /// True while an online update check is running in the background.
     update_check_in_progress: bool,
     workspace: WorkspaceState,
+    pub(crate) area_layout: AreaLayoutState,
     status_bar: StatusBarState,
     context_menu: Option<ContextMenuState>,
     table_insert_dialog: Option<TableInsertDialogState>,
@@ -117,6 +120,7 @@ pub struct Editor {
     rendered_select_all_cycle: Option<RenderedSelectAllCycle>,
     /// Open top-level menu in the in-window fallback menu bar.
     menu_bar_open: Option<usize>,
+    pub(super) menu_bar_expanded: bool,
     /// Open child submenu inside the in-window fallback menu panel.
     menu_submenu_open: Option<usize>,
     menu_bar_hovered: bool,
@@ -251,7 +255,7 @@ pub(super) struct SourceTargetMapping {
 }
 
 /// The two editing views the editor can present.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ViewMode {
     /// Rich rendered view where each block is styled by its semantic kind.
     Rendered,
@@ -320,6 +324,7 @@ impl Editor {
             info_dialog: None,
             update_check_in_progress: false,
             workspace: WorkspaceState::default(),
+            area_layout: AreaLayoutState::default(),
             status_bar: StatusBarState::default(),
             context_menu: None,
             table_insert_dialog: None,
@@ -330,6 +335,7 @@ impl Editor {
             cross_block_drag: None,
             rendered_select_all_cycle: None,
             menu_bar_open: None,
+            menu_bar_expanded: false,
             menu_submenu_open: None,
             menu_bar_hovered: false,
             menu_panel_hovered: false,

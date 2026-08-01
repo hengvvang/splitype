@@ -161,18 +161,17 @@ impl Editor {
         strings: &crate::i18n::I18nStrings,
     ) -> String {
         let base_title = if let Some(path) = file_path {
-            format!(
-                "Velotype - {}",
-                path.file_name().map_or_else(
-                    || path.to_string_lossy().to_string(),
-                    |name| name.to_string_lossy().to_string()
-                )
+            path.file_name().map_or_else(
+                || path.to_string_lossy().to_string(),
+                |name| name.to_string_lossy().to_string(),
             )
         } else {
-            "Velotype".to_string()
+            String::new()
         };
 
-        if is_dirty && !strings.dirty_title_marker.is_empty() {
+        if base_title.is_empty() {
+            String::new()
+        } else if is_dirty && !strings.dirty_title_marker.is_empty() {
             format!("{} {}", strings.dirty_title_marker, base_title)
         } else {
             base_title
@@ -282,6 +281,12 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         crate::app_menu::uninstall_cli_tool(cx);
+    }
+
+    pub(crate) fn set_view_mode(&mut self, target_mode: ViewMode, cx: &mut Context<Self>) {
+        if self.view_mode != target_mode {
+            self.toggle_view_mode(cx);
+        }
     }
 
     pub(crate) fn toggle_view_mode(&mut self, cx: &mut Context<Self>) {

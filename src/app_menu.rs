@@ -721,67 +721,8 @@ fn build_menus(
             })
             .collect()
     };
-
-    #[cfg(target_os = "macos")]
-    let initial_menus = {
-        // On macOS, the first menu is the app menu (macOS overrides its title
-        // with the app name). File operations go in a separate "File" menu to
-        // match standard macOS conventions.
-        vec![
-            Menu {
-                name: "Velotype".into(),
-                items: vec![
-                    MenuItem::action(strings.menu_preferences.clone(), OpenPreferences),
-                    MenuItem::separator(),
-                    MenuItem::action(strings.menu_quit.clone(), QuitApplication),
-                ],
-            },
-            Menu {
-                name: strings.menu_file.into(),
-                items: vec![
-                    MenuItem::action(strings.menu_new_window.clone(), NewWindow),
-                    MenuItem::action(strings.menu_close_window.clone(), CloseWindow),
-                    MenuItem::action(strings.menu_open_file.clone(), OpenFile),
-                    MenuItem::submenu(Menu {
-                        name: strings.menu_open_recent_file.clone().into(),
-                        items: recent_items,
-                    }),
-                    MenuItem::separator(),
-                    MenuItem::action(strings.menu_save.clone(), SaveDocument),
-                    MenuItem::action(strings.menu_save_as.clone(), SaveDocumentAs),
-                ],
-            },
-        ]
-    };
-
-    #[cfg(not(target_os = "macos"))]
-    let initial_menus = {
-        vec![Menu {
-            name: strings.menu_file.into(),
-            items: vec![
-                MenuItem::action(strings.menu_new_window.clone(), NewWindow),
-                MenuItem::action(strings.menu_close_window.clone(), CloseWindow),
-                MenuItem::action(strings.menu_open_file.clone(), OpenFile),
-                MenuItem::submenu(Menu {
-                    name: strings.menu_open_recent_file.clone().into(),
-                    items: recent_items,
-                }),
-                MenuItem::action(strings.menu_preferences.clone(), OpenPreferences),
-                MenuItem::separator(),
-                MenuItem::action(strings.menu_save.clone(), SaveDocument),
-                MenuItem::action(strings.menu_save_as.clone(), SaveDocumentAs),
-                MenuItem::separator(),
-                MenuItem::action(strings.menu_quit.clone(), QuitApplication),
-            ],
-        }]
-    };
-
     #[cfg(target_os = "macos")]
     let help_items = {
-        // Show different menu item depending on whether CLI is already
-        // installed pointing to the current app.  Only portable
-        // installations (drag-installed .app bundles) need this —
-        // pkg-installed apps manage the symlink via postinstall.
         let cli_installed = is_cli_symlink_current_app();
         let mut items = vec![
             MenuItem::action(strings.menu_check_updates.clone(), CheckForUpdates),
@@ -809,36 +750,68 @@ fn build_menus(
         MenuItem::action(strings.menu_about.clone(), ShowAbout),
     ];
 
-    let mut menus = initial_menus;
-    menus.extend([
+    vec![
         Menu {
-            name: strings.menu_export.into(),
+            name: "Velotype".into(),
             items: vec![
-                MenuItem::action(strings.menu_export_html.clone(), ExportHtml),
-                MenuItem::action(strings.menu_export_pdf.clone(), ExportPdf),
+                MenuItem::action(strings.menu_preferences.clone(), OpenPreferences),
+                MenuItem::separator(),
+                MenuItem::action(strings.menu_about.clone(), ShowAbout),
+                MenuItem::action(strings.menu_check_updates.clone(), CheckForUpdates),
+                MenuItem::separator(),
+                MenuItem::action(strings.menu_quit.clone(), QuitApplication),
             ],
         },
         Menu {
-            name: strings.menu_language.into(),
-            items: language_items,
+            name: strings.menu_file.into(),
+            items: vec![
+                MenuItem::action(strings.menu_new_window.clone(), NewWindow),
+                MenuItem::action(strings.menu_close_window.clone(), CloseWindow),
+                MenuItem::action(strings.menu_open_file.clone(), OpenFile),
+                MenuItem::submenu(Menu {
+                    name: strings.menu_open_recent_file.clone().into(),
+                    items: recent_items,
+                }),
+                MenuItem::separator(),
+                MenuItem::action(strings.menu_save.clone(), SaveDocument),
+                MenuItem::action(strings.menu_save_as.clone(), SaveDocumentAs),
+                MenuItem::separator(),
+                MenuItem::submenu(Menu {
+                    name: strings.menu_export.clone().into(),
+                    items: vec![
+                        MenuItem::action(strings.menu_export_html.clone(), ExportHtml),
+                        MenuItem::action(strings.menu_export_pdf.clone(), ExportPdf),
+                    ],
+                }),
+            ],
         },
         Menu {
-            name: strings.menu_theme.into(),
-            items: theme_items,
-        },
-        Menu {
-            name: strings.menu_workspace.into(),
-            items: vec![MenuItem::action(
-                strings.menu_toggle_workspace.clone(),
-                ToggleWorkspace,
-            )],
+            name: strings.menu_view.into(),
+            items: vec![
+                MenuItem::submenu(Menu {
+                    name: strings.menu_workspace.clone().into(),
+                    items: vec![MenuItem::action(
+                        strings.menu_toggle_workspace.clone(),
+                        ToggleWorkspace,
+                    )],
+                }),
+                MenuItem::separator(),
+                MenuItem::submenu(Menu {
+                    name: strings.menu_theme.clone().into(),
+                    items: theme_items,
+                }),
+                MenuItem::separator(),
+                MenuItem::submenu(Menu {
+                    name: strings.menu_language.clone().into(),
+                    items: language_items,
+                }),
+            ],
         },
         Menu {
             name: strings.menu_help.into(),
             items: help_items,
         },
-    ]);
-    menus
+    ]
 }
 
 pub(crate) fn install_menus(cx: &mut App) {

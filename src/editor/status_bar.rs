@@ -32,27 +32,7 @@ impl Editor {
         let c = &theme.colors;
         let d = &theme.dimensions;
 
-        let mut left_items: Vec<AnyElement> = Vec::new();
-
-        if prefs.show_sidebar_toggle {
-            left_items.push(render_sidebar_toggle(
-                &mut self.status_bar,
-                self.workspace.is_open,
-                theme,
-                strings,
-                cx,
-            ));
-        }
-
-        if prefs.show_mode_switch {
-            left_items.push(render_mode_switch(
-                &mut self.status_bar,
-                self.view_mode,
-                theme,
-                strings,
-                cx,
-            ));
-        }
+        let left_items: Vec<AnyElement> = Vec::new();
 
         let mut right_items: Vec<AnyElement> = Vec::new();
 
@@ -133,6 +113,7 @@ impl Editor {
     }
 }
 
+#[allow(dead_code)]
 fn render_sidebar_toggle(
     state: &mut StatusBarState,
     _is_open: bool,
@@ -179,6 +160,7 @@ fn render_sidebar_toggle(
         .into_any_element()
 }
 
+#[allow(dead_code)]
 fn render_mode_switch(
     state: &mut StatusBarState,
     view_mode: super::ViewMode,

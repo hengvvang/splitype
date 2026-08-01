@@ -75,6 +75,8 @@ pub struct I18nStrings {
     pub help_about_star_message: String,
     /// Top-level File menu label.
     pub menu_file: String,
+    /// Top-level View menu label.
+    pub menu_view: String,
     /// Top-level Export menu label.
     pub menu_export: String,
     /// Top-level Language menu label.
@@ -356,6 +358,7 @@ struct I18nStringsDe {
     help_about_github_label: Option<String>,
     help_about_star_message: Option<String>,
     menu_file: Option<String>,
+    menu_view: Option<String>,
     menu_export: Option<String>,
     menu_language: Option<String>,
     menu_theme: Option<String>,
@@ -542,6 +545,7 @@ const I18N_STRING_KEYS: &[&str] = &[
     "help_about_github_label",
     "help_about_star_message",
     "menu_file",
+    "menu_view",
     "menu_export",
     "menu_language",
     "menu_theme",
@@ -778,6 +782,7 @@ impl I18nStringsDe {
                 .help_about_star_message
                 .unwrap_or(defaults.help_about_star_message),
             menu_file: self.menu_file.unwrap_or(defaults.menu_file),
+            menu_view: self.menu_view.unwrap_or(defaults.menu_view),
             menu_export: self.menu_export.unwrap_or(defaults.menu_export),
             menu_language: self.menu_language.unwrap_or(defaults.menu_language),
             menu_theme: self.menu_theme.unwrap_or(defaults.menu_theme),
@@ -1242,6 +1247,7 @@ impl I18nStrings {
             help_about_star_message: "如果本项目对您有帮助，那不妨给本项目一颗 Star⭐，十分感谢！"
                 .into(),
             menu_file: "文件".into(),
+            menu_view: "视图".into(),
             menu_export: "导出".into(),
             menu_language: "语言".into(),
             menu_theme: "主题".into(),
@@ -1446,6 +1452,7 @@ impl I18nStrings {
             help_about_star_message:
                 "If this project helps you, consider giving it a Star⭐. Thank you!".into(),
             menu_file: "File".into(),
+            menu_view: "View".into(),
             menu_export: "Export".into(),
             menu_language: "Language".into(),
             menu_theme: "Theme".into(),

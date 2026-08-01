@@ -93,7 +93,7 @@ impl Editor {
         }
     }
 
-    fn sync_workspace_models(&mut self, cx: &mut Context<Self>) {
+    pub(super) fn sync_workspace_models(&mut self, cx: &mut Context<Self>) {
         self.sync_workspace_file_tree();
         self.sync_workspace_outline(cx);
     }
@@ -282,7 +282,7 @@ impl Editor {
         )
     }
 
-    fn render_workspace_files_tree(
+    pub(super) fn render_workspace_files_tree(
         &self,
         theme: &Theme,
         strings: &I18nStrings,
@@ -316,7 +316,7 @@ impl Editor {
             .into_any_element()
     }
 
-    fn render_workspace_outline_tree(
+    pub(super) fn render_workspace_outline_tree(
         &self,
         theme: &Theme,
         strings: &I18nStrings,

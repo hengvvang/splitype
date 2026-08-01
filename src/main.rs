@@ -4,6 +4,7 @@
 //! file. With no arguments, a single empty window is created.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+#![recursion_limit = "256"]
 
 use std::borrow::Cow;
 use std::path::PathBuf;

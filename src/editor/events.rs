@@ -945,6 +945,16 @@ impl Editor {
         }
     }
 
+    pub(crate) fn toggle_menu_bar_expanded(&mut self, cx: &mut Context<Self>) {
+        self.menu_bar_expanded = !self.menu_bar_expanded;
+        if !self.menu_bar_expanded {
+            self.menu_bar_open = None;
+            self.menu_submenu_open = None;
+        }
+        cx.notify();
+    }
+
+    #[allow(dead_code)]
     pub(crate) fn on_menu_bar_hover(
         &mut self,
         hovered: &bool,

@@ -3346,17 +3346,27 @@ mod tests {
             I18nManager::init(cx);
             ThemeManager::init(cx);
         });
-        let (block, cx) = cx.add_window_view(|_window, cx| {
-            Block::with_record(
-                cx,
-                BlockRecord::new(
-                    BlockKind::CodeBlock {
-                        language: Some("rust".into()),
-                    },
-                    InlineTextTree::plain("fn main() {}\n"),
-                ),
-            )
-        });
+        let (block, cx) = cx.add_window_options_view(
+            WindowOptions {
+                window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
+                    None,
+                    size(px(800.0), px(600.0)),
+                    cx,
+                ))),
+                ..Default::default()
+            },
+            |_window, cx| {
+                Block::with_record(
+                    cx,
+                    BlockRecord::new(
+                        BlockKind::CodeBlock {
+                            language: Some("rust".into()),
+                        },
+                        InlineTextTree::plain("fn main() {}\n"),
+                    ),
+                )
+            },
+        );
 
         cx.update(|window, cx| {
             block.update(cx, |block, _cx| {
