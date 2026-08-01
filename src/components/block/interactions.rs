@@ -993,8 +993,9 @@ impl Block {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.code_toolbar_hovered != *hovered {
-            self.code_toolbar_hovered = *hovered;
+        let should_show = *hovered || self.code_language_picker_open;
+        if self.code_toolbar_hovered != should_show {
+            self.code_toolbar_hovered = should_show;
             cx.notify();
         }
     }
@@ -1007,6 +1008,7 @@ impl Block {
     ) {
         cx.stop_propagation();
         self.code_language_picker_open = !self.code_language_picker_open;
+        self.code_toolbar_hovered = self.code_language_picker_open;
         self.code_language_query.clear();
         self.code_language_selected_range = 0..0;
         self.code_language_selection_reversed = false;

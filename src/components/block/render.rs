@@ -2339,7 +2339,7 @@ impl Render for Block {
                     .relative()
                     .on_hover(cx.listener(Self::on_code_block_hover))
                     .bg(c.code_bg)
-                    .rounded_sm()
+                    .rounded(px(d.menu_item_radius))
                     .pl(px(d.code_block_padding_x))
                     .pr(px(d.code_block_padding_x))
                     .py(px(d.code_block_padding_y))
@@ -2353,24 +2353,26 @@ impl Render for Block {
                             .child(BlockTextElement::new(cx.entity(), is_placeholder)),
                     );
 
-                if !show_toolbar {
-                    code_panel.into_any_element()
-                } else {
-                    let toolbar_height = 32.0;
+                    let toolbar_height = 28.0;
                     let toolbar = div()
+                        .id(ElementId::Name(
+                            format!("code-toolbar-{}", self.record.id).into(),
+                        ))
                         .absolute()
-                        .top(px(d.code_language_input_gap))
-                        .right(px(d.code_language_input_gap))
-                        .occlude()
+                        .top(px(3.0))
+                        .right(px(3.0))
+                        .opacity(if show_toolbar { 1.0 } else { 0.0 })
                         .flex()
                         .items_center()
+                        .gap(px(2.0))
+                        .p(px(2.0))
                         .h(px(toolbar_height))
-                        .rounded(px(8.0))
-                        .border(px(d.code_language_input_border_width))
+                        .rounded(px(d.menu_item_radius))
+                        .border_1()
                         .border_color(c.code_language_input_border)
                         .bg(c.code_language_input_bg)
                         .shadow_sm()
-                        .text_size(px((t.code_size - 1.0).max(10.0)))
+                        .text_size(px(12.5))
                         .text_color(c.code_language_input_text)
                         .child(
                             div()
@@ -2380,9 +2382,9 @@ impl Render for Block {
                                 .h_full()
                                 .flex()
                                 .items_center()
-                                .gap(px(6.0))
-                                .px(px(10.0))
-                                .rounded_l(px(7.0))
+                                .gap(px(4.0))
+                                .px(px(8.0))
+                                .rounded(px(d.menu_item_radius - 2.0))
                                 .hover(|this| this.bg(c.dialog_secondary_button_hover))
                                 .active(|this| this.opacity(0.9))
                                 .cursor_pointer()
@@ -2392,16 +2394,16 @@ impl Render for Block {
                                 )
                                 .child(language_label)
                                 .child(
-                                    div()
-                                        .text_size(px((t.code_size - 2.0).max(9.0)))
-                                        .text_color(c.code_language_input_placeholder)
-                                        .child("⌄"),
+                                    svg()
+                                        .path("icon/panel/select-chevron.svg")
+                                        .size(px(13.0))
+                                        .text_color(c.dialog_muted),
                                 ),
                         )
                         .child(
                             div()
                                 .w(px(1.0))
-                                .h(px(18.0))
+                                .h(px(14.0))
                                 .bg(c.code_language_input_border),
                         )
                         .child(
@@ -2410,9 +2412,12 @@ impl Render for Block {
                                     format!("code-copy-{}", self.record.id).into(),
                                 ))
                                 .relative()
-                                .w(px(36.0))
+                                .w(px(26.0))
                                 .h_full()
-                                .rounded_r(px(7.0))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .rounded(px(d.menu_item_radius - 2.0))
                                 .hover(|this| this.bg(c.dialog_secondary_button_hover))
                                 .active(|this| this.opacity(0.9))
                                 .cursor_pointer()
@@ -2423,9 +2428,9 @@ impl Render for Block {
                                 .child(
                                     div()
                                         .absolute()
-                                        .left(px(11.0))
-                                        .top(px(8.0))
-                                        .size(px(11.0))
+                                        .left(px(6.0))
+                                        .top(px(5.0))
+                                        .size(px(10.0))
                                         .rounded(px(2.0))
                                         .border(px(1.0))
                                         .border_color(c.code_language_input_placeholder),
@@ -2433,9 +2438,9 @@ impl Render for Block {
                                 .child(
                                     div()
                                         .absolute()
-                                        .left(px(14.0))
-                                        .top(px(11.0))
-                                        .size(px(11.0))
+                                        .left(px(9.0))
+                                        .top(px(8.0))
+                                        .size(px(10.0))
                                         .rounded(px(2.0))
                                         .border(px(1.0))
                                         .border_color(c.code_language_input_text)
@@ -2450,24 +2455,25 @@ impl Render for Block {
                         let options = code_language_options_matching(&self.code_language_query);
                         let selected_language = current_language.to_string();
                         let picker = div()
+                            .id(ElementId::Name(
+                                format!("code-picker-container-{}", self.record.id).into(),
+                            ))
                             .absolute()
-                            .top(px(toolbar_height + d.code_language_input_gap * 2.0))
-                            .right(px(d.code_language_input_gap))
+                            .top(px(toolbar_height + 5.0))
+                            .right(px(3.0))
                             .occlude()
                             .block_mouse_except_scroll()
-                            .w(px(288.0))
-                            .max_h(px(360.0))
+                            .w(px(230.0))
+                            .max_h(px(320.0))
                             .flex()
                             .flex_col()
-                            .gap(px(6.0))
+                            .gap(px(4.0))
                             .p(px(6.0))
-                            .rounded(px(10.0))
-                            .border(px(d.code_language_input_border_width))
+                            .rounded(px(d.menu_panel_radius))
+                            .border_1()
                             .border_color(c.dialog_border)
                             .bg(c.dialog_surface)
                             .shadow_lg()
-                            .text_size(px((t.text_size - 1.0).max(11.0)))
-                            .text_color(c.dialog_body)
                             .child(
                                 div()
                                     .key_context(BLOCK_EDITOR_CONTEXT)
@@ -2504,14 +2510,16 @@ impl Render for Block {
                                     )
                                     .on_mouse_move(cx.listener(Self::on_code_language_mouse_move))
                                     .w_full()
-                                    .px(px(d.code_language_input_padding_x))
-                                    .py(px(d.code_language_input_padding_y + 2.0))
-                                    .rounded(px(d.code_language_input_radius))
-                                    .border(px(d.code_language_input_border_width))
-                                    .border_color(c.code_language_input_border)
-                                    .bg(c.code_language_input_bg)
-                                    .text_size(px((t.code_size - 1.0).max(10.0)))
-                                    .text_color(c.code_language_input_text)
+                                    .h(px(28.0))
+                                    .px(px(8.0))
+                                    .py(px(3.0))
+                                    .rounded(px(d.menu_item_radius))
+                                    .border_1()
+                                    .border_color(c.dialog_border)
+                                    .bg(c.dialog_secondary_button_bg)
+                                    .flex()
+                                    .items_center()
+                                    .text_size(px(12.5))
                                     .cursor(CursorStyle::IBeam)
                                     .child(CodeLanguageInputElement::new(
                                         cx.entity(),
@@ -2526,11 +2534,12 @@ impl Render for Block {
                                         format!("code-language-list-{}", self.record.id).into(),
                                     ))
                                     .w_full()
-                                    .max_h(px(300.0))
+                                    .max_h(px(250.0))
                                     .flex()
                                     .flex_col()
+                                    .gap(px(2.0))
                                     .overflow_y_scroll()
-                                    .scrollbar_width(px(6.0))
+                                    .scrollbar_width(px(4.0))
                                     .children(options.into_iter().enumerate().map(
                                         |(index, option)| {
                                             let option_block = cx.entity();
@@ -2538,7 +2547,7 @@ impl Render for Block {
                                             let is_selected =
                                                 code_language_display_name(&selected_language)
                                                     == option.label;
-                                            let item = div()
+                                            div()
                                                 .id(ElementId::Name(
                                                     format!(
                                                         "code-language-option-{}-{index}",
@@ -2547,12 +2556,18 @@ impl Render for Block {
                                                     .into(),
                                                 ))
                                                 .w_full()
-                                                .h(px(32.0))
+                                                .h(px(28.0))
                                                 .flex_shrink_0()
                                                 .flex()
                                                 .items_center()
-                                                .px(px(10.0))
-                                                .rounded(px(6.0))
+                                                .justify_between()
+                                                .px(px(8.0))
+                                                .rounded(px(d.menu_item_radius))
+                                                .bg(if is_selected {
+                                                    c.dialog_secondary_button_bg
+                                                } else {
+                                                    c.dialog_surface
+                                                })
                                                 .hover(|this| {
                                                     this.bg(c.dialog_secondary_button_hover)
                                                 })
@@ -2573,18 +2588,37 @@ impl Render for Block {
                                                         );
                                                     },
                                                 )
-                                                .child(option.label);
-                                            if is_selected {
-                                                item.bg(c.dialog_secondary_button_bg)
-                                            } else {
-                                                item
-                                            }
+                                                .child(
+                                                    div()
+                                                        .text_size(px(13.0))
+                                                        .font_weight(if is_selected {
+                                                            FontWeight::MEDIUM
+                                                        } else {
+                                                            FontWeight::NORMAL
+                                                        })
+                                                        .text_color(if is_selected {
+                                                            c.text_default
+                                                        } else {
+                                                            c.dialog_body
+                                                        })
+                                                        .child(option.label),
+                                                )
+                                                .children(if is_selected {
+                                                    Some(
+                                                        svg()
+                                                            .path("icon/panel/check.svg")
+                                                            .size(px(13.0))
+                                                            .text_color(c.dialog_primary_button_bg)
+                                                            .into_any_element(),
+                                                    )
+                                                } else {
+                                                    None
+                                                })
                                         },
                                     )),
                             );
                         code_panel.child(picker).into_any_element()
                     }
-                }
             }
             BlockKind::Table => {
                 let Some(runtime) = self.table_runtime.clone() else {
