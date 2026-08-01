@@ -532,6 +532,54 @@ pub struct BorderMenuState {
 pub const MODIFIER_THRESHOLD_PX: f32 = 4.0;
 
 // ---------------------------------------------------------------------------
+use std::collections::HashSet;
+
+// ---------------------------------------------------------------------------
+// Preferences UI tab & state
+// ---------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum PreferencesTab {
+    Display,     // Display & Theme
+    Editor,      // Editor & Typography
+    Interface,   // Language & Startup
+    Keybindings, // Keyboard Shortcuts
+    Document,    // Document Info
+}
+
+impl PreferencesTab {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Display => "Display & Theme",
+            Self::Editor => "Editor",
+            Self::Interface => "Interface & Language",
+            Self::Keybindings => "Keybindings",
+            Self::Document => "Document Info",
+        }
+    }
+
+    pub fn icon_path(&self) -> &'static str {
+        match self {
+            Self::Display => "icon/panel/split-h.svg",
+            Self::Editor => "icon/workspace/markdown.svg",
+            Self::Interface => "icon/workspace/folder.svg",
+            Self::Keybindings => "icon/titlebar/chrome-maximize.svg",
+            Self::Document => "icon/workspace/folder.svg",
+        }
+    }
+
+    pub fn all() -> &'static [PreferencesTab] {
+        &[
+            Self::Display,
+            Self::Editor,
+            Self::Interface,
+            Self::Keybindings,
+            Self::Document,
+        ]
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Area layout state
 // ---------------------------------------------------------------------------
 
@@ -547,10 +595,28 @@ pub struct AreaLayoutState {
     pub active_border_menu: Option<BorderMenuState>,
     /// Measured pixel size of the tiled-layout container.
     pub container_size: Option<Size<Pixels>>,
+    // --- Settings / Preferences Panel State ---
+    pub preferences_tab: PreferencesTab,
+    pub preferences_expanded_sections: HashSet<String>,
+    pub preferences_expanded_cards: HashSet<String>,
+    pub pref_show_status_bar: bool,
+    pub pref_show_word_count: bool,
+    pub pref_show_cursor_pos: bool,
+    pub pref_show_mode_switch: bool,
+    pub pref_show_table_headers: bool,
 }
 
 impl Default for AreaLayoutState {
     fn default() -> Self {
+        let mut sections = HashSet::new();
+        sections.insert("display".to_string());
+        sections.insert("editor".to_string());
+        sections.insert("interface".to_string());
+
+        let mut cards = HashSet::new();
+        cards.insert("status_bar".to_string());
+        cards.insert("markdown_options".to_string());
+
         Self {
             root: LayoutNode::Leaf {
                 id: 1,
@@ -563,6 +629,14 @@ impl Default for AreaLayoutState {
             active_corner_drag: None,
             active_border_menu: None,
             container_size: None,
+            preferences_tab: PreferencesTab::Display,
+            preferences_expanded_sections: sections,
+            preferences_expanded_cards: cards,
+            pref_show_status_bar: true,
+            pref_show_word_count: true,
+            pref_show_cursor_pos: true,
+            pref_show_mode_switch: true,
+            pref_show_table_headers: true,
         }
     }
 }
@@ -711,6 +785,24 @@ impl AreaLayoutState {
     pub fn change_area_type(&mut self, leaf_id: usize, new_type: AreaType) {
         self.root.set_leaf_area(leaf_id, new_type);
         self.active_dropdown_leaf = None;
+    }
+
+    pub fn toggle_preferences_section(&mut self, section_key: &str) {
+        if self.preferences_expanded_sections.contains(section_key) {
+            self.preferences_expanded_sections.remove(section_key);
+        } else {
+            self.preferences_expanded_sections
+                .insert(section_key.to_string());
+        }
+    }
+
+    pub fn toggle_preferences_card(&mut self, card_key: &str) {
+        if self.preferences_expanded_cards.contains(card_key) {
+            self.preferences_expanded_cards.remove(card_key);
+        } else {
+            self.preferences_expanded_cards
+                .insert(card_key.to_string());
+        }
     }
 
     // ------------------------------------------------------------------
