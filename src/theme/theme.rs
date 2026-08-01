@@ -467,6 +467,8 @@ pub struct ThemeDimensions {
     pub status_bar_item_gap: f32,
     /// Font size for status bar text.
     pub status_bar_text_size: f32,
+    pub area_tile_gap: f32,
+    pub area_tile_radius: f32,
 }
 
 /// All configurable typography settings (font sizes, weights, line heights).
@@ -946,6 +948,8 @@ struct ThemeDimensionsDe {
     status_bar_padding_x: Option<f32>,
     status_bar_item_gap: Option<f32>,
     status_bar_text_size: Option<f32>,
+    area_tile_gap: Option<f32>,
+    area_tile_radius: Option<f32>,
 }
 
 impl<'de> Deserialize<'de> for ThemeDimensions {
@@ -1073,6 +1077,8 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             status_bar_padding_x: raw.status_bar_padding_x.unwrap_or(12.0),
             status_bar_item_gap: raw.status_bar_item_gap.unwrap_or(12.0),
             status_bar_text_size: raw.status_bar_text_size.unwrap_or(11.0),
+            area_tile_gap: raw.area_tile_gap.unwrap_or(6.0),
+            area_tile_radius: raw.area_tile_radius.unwrap_or(3.0),
         })
     }
 }
@@ -1303,6 +1309,8 @@ impl Theme {
                 status_bar_padding_x: 12.0,
                 status_bar_item_gap: 12.0,
                 status_bar_text_size: 11.0,
+                area_tile_gap: 6.0,
+                area_tile_radius: 3.0,
             },
             typography: ThemeTypography {
                 text_size: 17.0,
