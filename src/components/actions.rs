@@ -167,6 +167,7 @@ pub(crate) enum ShortcutCommand {
 pub(crate) struct ShortcutDefinition {
     pub(crate) command: ShortcutCommand,
     pub(crate) id: &'static str,
+    #[allow(dead_code)]
     pub(crate) category: ShortcutCategory,
     pub(crate) default_keys: &'static [&'static str],
     pub(crate) context: Option<&'static str>,
@@ -526,6 +527,7 @@ const SHORTCUT_DEFINITIONS: &[ShortcutDefinition] = &[
     },
 ];
 
+#[allow(dead_code)]
 pub(crate) fn shortcut_definitions() -> &'static [ShortcutDefinition] {
     SHORTCUT_DEFINITIONS
 }
@@ -644,6 +646,7 @@ pub(crate) fn normalize_shortcut_config(
         .collect()
 }
 
+#[allow(dead_code)]
 pub(crate) fn resolved_shortcut_keys(
     config: &BTreeMap<String, Vec<String>>,
     command: ShortcutCommand,
@@ -659,6 +662,7 @@ pub(crate) fn resolved_shortcut_keys(
         .unwrap_or_else(|| default_keys(*definition))
 }
 
+#[allow(dead_code)]
 pub(crate) fn shortcut_conflict_for(
     command: ShortcutCommand,
     proposed_keys: &[String],

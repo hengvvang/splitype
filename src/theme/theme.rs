@@ -1470,9 +1470,9 @@ pub struct ThemeCatalogEntry {
 }
 
 const BUILTIN_THEME_VELOTYPE_ID: &str = "velotype";
-const BUILTIN_THEME_VELOTYPE_NAME: &str = "Velotype";
+const BUILTIN_THEME_VELOTYPE_NAME: &str = "Dark";
 const BUILTIN_THEME_VELOTYPE_LIGHT_ID: &str = "velotype-light";
-const BUILTIN_THEME_VELOTYPE_LIGHT_NAME: &str = "Velotype Light";
+const BUILTIN_THEME_VELOTYPE_LIGHT_NAME: &str = "Light";
 const CUSTOM_THEME_ID: &str = "custom";
 
 fn builtin_theme_catalog() -> Vec<ThemeCatalogEntry> {

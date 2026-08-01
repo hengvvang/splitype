@@ -586,8 +586,15 @@ pub struct AreaLayoutState {
     pub pref_show_status_bar: bool,
     pub pref_show_word_count: bool,
     pub pref_show_cursor_pos: bool,
+    pub pref_show_sidebar_toggle: bool,
     pub pref_show_mode_switch: bool,
     pub pref_show_table_headers: bool,
+    pub pref_font_size: u32,
+    pub pref_line_height: f32,
+    pub pref_image_paste_action: usize,
+    pub pref_startup_option: usize,
+    pub open_preferences_dropdown: Option<String>,
+    pub editing_preferences_stepper: Option<String>,
 }
 
 impl Default for AreaLayoutState {
@@ -623,8 +630,15 @@ impl Default for AreaLayoutState {
             pref_show_status_bar: true,
             pref_show_word_count: true,
             pref_show_cursor_pos: true,
+            pref_show_sidebar_toggle: true,
             pref_show_mode_switch: true,
             pref_show_table_headers: true,
+            pref_font_size: 14,
+            pref_line_height: 1.6,
+            pref_image_paste_action: 0,
+            pref_startup_option: 0,
+            open_preferences_dropdown: None,
+            editing_preferences_stepper: None,
         }
     }
 }
@@ -784,6 +798,7 @@ impl AreaLayoutState {
         }
     }
 
+    #[allow(dead_code)]
     pub fn toggle_preferences_card(&mut self, card_key: &str) {
         if self.preferences_expanded_cards.contains(card_key) {
             self.preferences_expanded_cards.remove(card_key);
