@@ -540,41 +540,25 @@ use std::collections::HashSet;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PreferencesTab {
-    Display,     // Display & Theme
-    Editor,      // Editor & Typography
-    Interface,   // Language & Startup
-    Keybindings, // Keyboard Shortcuts
-    Document,    // Document Info
+    Interface, // Interface, Theme & Status Bar
+    Editing,   // Editing, Typography & Startup
+    Keymap,    // Keymap / Keyboard Shortcuts
 }
 
 impl PreferencesTab {
     pub fn name(&self) -> &'static str {
         match self {
-            Self::Display => "Display & Theme",
-            Self::Editor => "Editor",
-            Self::Interface => "Interface & Language",
-            Self::Keybindings => "Keybindings",
-            Self::Document => "Document Info",
-        }
-    }
-
-    pub fn icon_path(&self) -> &'static str {
-        match self {
-            Self::Display => "icon/panel/split-h.svg",
-            Self::Editor => "icon/workspace/markdown.svg",
-            Self::Interface => "icon/workspace/folder.svg",
-            Self::Keybindings => "icon/titlebar/chrome-maximize.svg",
-            Self::Document => "icon/workspace/folder.svg",
+            Self::Interface => "Interface",
+            Self::Editing => "Editing",
+            Self::Keymap => "Keymap",
         }
     }
 
     pub fn all() -> &'static [PreferencesTab] {
         &[
-            Self::Display,
-            Self::Editor,
             Self::Interface,
-            Self::Keybindings,
-            Self::Document,
+            Self::Editing,
+            Self::Keymap,
         ]
     }
 }
@@ -609,9 +593,13 @@ pub struct AreaLayoutState {
 impl Default for AreaLayoutState {
     fn default() -> Self {
         let mut sections = HashSet::new();
-        sections.insert("display".to_string());
-        sections.insert("editor".to_string());
-        sections.insert("interface".to_string());
+        sections.insert("theme".to_string());
+        sections.insert("status_bar".to_string());
+        sections.insert("typography".to_string());
+        sections.insert("markdown".to_string());
+        sections.insert("startup".to_string());
+        sections.insert("doc_actions".to_string());
+        sections.insert("view_controls".to_string());
 
         let mut cards = HashSet::new();
         cards.insert("status_bar".to_string());
@@ -629,7 +617,7 @@ impl Default for AreaLayoutState {
             active_corner_drag: None,
             active_border_menu: None,
             container_size: None,
-            preferences_tab: PreferencesTab::Display,
+            preferences_tab: PreferencesTab::Interface,
             preferences_expanded_sections: sections,
             preferences_expanded_cards: cards,
             pref_show_status_bar: true,

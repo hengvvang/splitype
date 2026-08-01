@@ -88,6 +88,12 @@ impl AssetSource for VelotypeAssets {
             "icon/panel/split-v.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../assets/icon/panel/split-v.svg"
             )))),
+            "icon/panel/chevron-right.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../assets/icon/panel/chevron-right.svg"
+            )))),
+            "icon/panel/chevron-down.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../assets/icon/panel/chevron-down.svg"
+            )))),
             _ => Ok(None),
         }
     }
