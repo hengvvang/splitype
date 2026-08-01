@@ -124,6 +124,15 @@ impl AssetSource for VelotypeAssets {
             "icon/panel/moon.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../assets/icon/panel/moon.svg"
             )))),
+            "icon/table/plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../assets/icon/table/plus.svg"
+            )))),
+            "icon/table/handle-row.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../assets/icon/table/handle-row.svg"
+            )))),
+            "icon/table/handle-column.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../assets/icon/table/handle-column.svg"
+            )))),
             _ => Ok(None),
         }
     }

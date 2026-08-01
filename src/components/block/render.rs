@@ -2361,8 +2361,8 @@ impl Render for Block {
                             format!("code-toolbar-{}", self.record.id).into(),
                         ))
                         .absolute()
-                        .top(px(3.0))
-                        .right(px(3.0))
+                        .top(relative(0.02))
+                        .right(relative(0.02))
                         .opacity(if show_toolbar { 1.0 } else { 0.0 })
                         .flex()
                         .items_center()
@@ -2371,9 +2371,8 @@ impl Render for Block {
                         .h(px(toolbar_height))
                         .rounded(px(d.menu_item_radius))
                         .border_1()
-                        .border_color(c.code_language_input_border)
-                        .bg(c.code_language_input_bg)
-                        .shadow_sm()
+                        .border_color(c.table_border)
+                        .bg(gpui::transparent_black())
                         .text_size(px(12.5))
                         .text_color(c.code_language_input_text)
                         .child(
@@ -2406,7 +2405,7 @@ impl Render for Block {
                             div()
                                 .w(px(1.0))
                                 .h(px(14.0))
-                                .bg(c.code_language_input_border),
+                                .bg(c.table_border),
                         )
                         .child(
                             div()
@@ -2446,7 +2445,7 @@ impl Render for Block {
                                         .rounded(px(2.0))
                                         .border(px(1.0))
                                         .border_color(c.code_language_input_text)
-                                        .bg(c.code_language_input_bg),
+                                        .bg(gpui::transparent_black()),
                                 ),
                         );
 
@@ -3075,7 +3074,7 @@ impl Render for Block {
                                         .text_color(if column_button_hovered {
                                             c.table_append_button_text
                                         } else {
-                                            c.table_handle_icon
+                                            c.table_border
                                         }),
                                 ),
                         );
@@ -3127,7 +3126,7 @@ impl Render for Block {
                                         .text_color(if row_button_hovered {
                                             c.table_append_button_text
                                         } else {
-                                            c.table_handle_icon
+                                            c.table_border
                                         }),
                                 ),
                         );
@@ -3161,7 +3160,7 @@ impl Render for Block {
                             svg()
                                 .path("icon/table/plus.svg")
                                 .size(px(10.0))
-                                .text_color(c.table_handle_icon),
+                                .text_color(c.table_border),
                         );
 
                     let table_grid = div()
