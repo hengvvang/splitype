@@ -24,7 +24,7 @@ impl EntityInputHandler for Block {
         if self.code_language_focus_handle.is_focused(_window) {
             let range = self.code_language_range_from_utf16(&range_utf16);
             actual_range.replace(self.code_language_range_to_utf16(&range));
-            return Some(self.code_language_text()[range].to_string());
+            return Some(self.code_language_input_text()[range].to_string());
         }
 
         let range = self.range_from_utf16(&range_utf16);
@@ -210,7 +210,10 @@ impl EntityInputHandler for Block {
     ) -> Option<usize> {
         if self.code_language_focus_handle.is_focused(_window) {
             let index = self.code_language_index_for_mouse_position(pt);
-            return Some(Self::utf8_to_utf16_in(self.code_language_text(), index));
+            return Some(Self::utf8_to_utf16_in(
+                self.code_language_input_text(),
+                index,
+            ));
         }
 
         let bounds = self.last_bounds?;

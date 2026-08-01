@@ -1,6 +1,7 @@
 use std::ops::Range;
 use std::sync::Arc;
 
+use super::code_language_options_matching;
 use super::projection::{
     expanded_display_cursor_offset_for_clean, expanded_display_offset_for_clean,
 };
@@ -20,6 +21,18 @@ use gpui::{
     TestAppContext, point, px,
 };
 
+#[test]
+fn code_language_picker_filters_labels_values_and_aliases() {
+    let rust = code_language_options_matching("rs");
+    assert!(rust.iter().any(|option| option.label == "Rust"));
+
+    let csharp = code_language_options_matching("c#");
+    assert!(csharp.iter().any(|option| option.value == "csharp"));
+
+    let all = code_language_options_matching("");
+    assert!(all.len() > 50);
+}
+
 fn assert_only_code_range(block: &Block, expected: Range<usize>) {
     let code_ranges = block
         .inline_spans()
@@ -28,6 +41,50 @@ fn assert_only_code_range(block: &Block, expected: Range<usize>) {
         .map(|span| span.range.clone())
         .collect::<Vec<_>>();
     assert_eq!(code_ranges, vec![expected]);
+}
+
+#[gpui::test]
+async fn focused_headings_project_editable_atx_prefixes(cx: &mut TestAppContext) {
+    for level in 1..=6 {
+        let block = cx.new(|cx| {
+            Block::with_record(
+                cx,
+                BlockRecord::with_plain_text(BlockKind::Heading { level }, "title"),
+            )
+        });
+
+        block.update(cx, |block, _cx| {
+            block.sync_inline_projection_for_focus(true);
+            assert_eq!(
+                block.display_text(),
+                format!("{} title", "#".repeat(level as usize))
+            );
+            assert_eq!(block.visible_len(), level as usize + 1 + "title".len());
+        });
+    }
+}
+
+#[gpui::test]
+async fn editing_heading_prefix_updates_level_or_converts_to_paragraph(cx: &mut TestAppContext) {
+    let block = cx.new(|cx| {
+        Block::with_record(
+            cx,
+            BlockRecord::with_plain_text(BlockKind::Heading { level: 2 }, "title"),
+        )
+    });
+
+    block.update(cx, |block, cx| {
+        block.sync_inline_projection_for_focus(true);
+        block.replace_text_in_visible_range(0..1, "", None, false, cx);
+        assert_eq!(block.kind(), BlockKind::Heading { level: 1 });
+        assert_eq!(block.display_text(), "# title");
+        assert_eq!(block.record.title.visible_text(), "title");
+
+        block.replace_text_in_visible_range(1..2, "", None, false, cx);
+        assert_eq!(block.kind(), BlockKind::Paragraph);
+        assert_eq!(block.display_text(), "#title");
+        assert_eq!(block.record.title.visible_text(), "#title");
+    });
 }
 
 #[gpui::test]
@@ -2521,6 +2578,35 @@ async fn code_block_language_accepts_unknown_language_as_plain_rendering(cx: &mu
     block.read_with(cx, |block, _cx| {
         assert_eq!(block.code_language_text(), "unknown-lang");
         assert!(block.code_highlight_result().is_none());
+    });
+}
+
+#[gpui::test]
+async fn code_language_picker_query_does_not_change_language_until_selection(
+    cx: &mut TestAppContext,
+) {
+    let block = cx.new(|cx| {
+        Block::with_record(
+            cx,
+            BlockRecord::new(
+                BlockKind::CodeBlock {
+                    language: Some("rust".into()),
+                },
+                InlineTextTree::plain("fn main() {}"),
+            ),
+        )
+    });
+
+    block.update(cx, |block, cx| {
+        block.code_language_picker_open = true;
+        block.replace_code_language_text_in_range(0..0, "py", None, false, cx);
+        assert_eq!(block.code_language_query, "py");
+        assert_eq!(block.code_language_text(), "rust");
+
+        block.choose_code_language("python", cx);
+        assert_eq!(block.code_language_text(), "python");
+        assert!(!block.code_language_picker_open);
+        assert!(block.code_language_query.is_empty());
     });
 }
 

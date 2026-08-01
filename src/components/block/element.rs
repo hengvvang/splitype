@@ -674,7 +674,7 @@ impl Element for CodeLanguageInputElement {
     ) -> Self::PrepaintState {
         let theme = cx.global::<ThemeManager>().current_arc();
         let input = self.input.read(cx);
-        let content = input.code_language_text().to_string();
+        let content = input.code_language_input_text().to_string();
         let is_placeholder = content.is_empty();
         let display_text: SharedString = if is_placeholder {
             self.placeholder.clone()

@@ -2,6 +2,113 @@
 
 use super::*;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CodeLanguageOption {
+    pub(crate) label: &'static str,
+    pub(crate) value: &'static str,
+    aliases: &'static [&'static str],
+}
+
+macro_rules! language {
+    ($label:literal, $value:literal $(, $alias:literal)*) => {
+        CodeLanguageOption {
+            label: $label,
+            value: $value,
+            aliases: &[$($alias),*],
+        }
+    };
+}
+
+const CODE_LANGUAGE_OPTIONS: &[CodeLanguageOption] = &[
+    language!("ABAP", "abap"),
+    language!("Agda", "agda"),
+    language!("Arduino", "arduino", "ino"),
+    language!("ASCII Art", "ascii", "text art"),
+    language!("Assembly", "asm", "assembly"),
+    language!("Bash", "bash", "sh", "shell", "zsh"),
+    language!("BASIC", "basic"),
+    language!("BNF", "bnf"),
+    language!("C", "c"),
+    language!("C#", "csharp", "cs", "c#"),
+    language!("C++", "cpp", "cxx", "cc"),
+    language!("Clojure", "clojure", "clj"),
+    language!("CoffeeScript", "coffeescript", "coffee"),
+    language!("CSS", "css"),
+    language!("Dart", "dart"),
+    language!("Dhall", "dhall"),
+    language!("Diff", "diff", "patch"),
+    language!("Dockerfile", "dockerfile", "docker"),
+    language!("Elixir", "elixir", "ex"),
+    language!("Elm", "elm"),
+    language!("Erlang", "erlang", "erl"),
+    language!("F#", "fsharp", "fs", "f#"),
+    language!("Fortran", "fortran"),
+    language!("Go", "go", "golang"),
+    language!("GraphQL", "graphql", "gql"),
+    language!("Groovy", "groovy"),
+    language!("Haskell", "haskell", "hs"),
+    language!("HTML", "html"),
+    language!("Java", "java"),
+    language!("JavaScript", "javascript", "js"),
+    language!("JSON", "json"),
+    language!("JSX", "jsx"),
+    language!("Julia", "julia", "jl"),
+    language!("Kotlin", "kotlin", "kt"),
+    language!("LaTeX", "latex", "tex"),
+    language!("Lua", "lua"),
+    language!("Markdown", "markdown", "md"),
+    language!("Mermaid", "mermaid"),
+    language!("Nim", "nim"),
+    language!("Nix", "nix"),
+    language!("Objective-C", "objective-c", "objc"),
+    language!("OCaml", "ocaml", "ml"),
+    language!("Perl", "perl", "pl"),
+    language!("PHP", "php"),
+    language!("Plain Text", "text", "plain", "txt"),
+    language!("PowerShell", "powershell", "ps1"),
+    language!("Python", "python", "py"),
+    language!("R", "r"),
+    language!("Ruby", "ruby", "rb"),
+    language!("Rust", "rust", "rs"),
+    language!("Scala", "scala"),
+    language!("SQL", "sql"),
+    language!("Swift", "swift"),
+    language!("TOML", "toml"),
+    language!("TSX", "tsx"),
+    language!("TypeScript", "typescript", "ts"),
+    language!("Vue", "vue"),
+    language!("XML", "xml"),
+    language!("YAML", "yaml", "yml"),
+    language!("Zig", "zig"),
+];
+
+pub(crate) fn code_language_options_matching(query: &str) -> Vec<&'static CodeLanguageOption> {
+    let query = query.trim().to_lowercase();
+    CODE_LANGUAGE_OPTIONS
+        .iter()
+        .filter(|option| {
+            query.is_empty()
+                || option.label.to_lowercase().contains(&query)
+                || option.value.contains(&query)
+                || option.aliases.iter().any(|alias| alias.contains(&query))
+        })
+        .collect()
+}
+
+pub(crate) fn code_language_display_name(value: &str) -> &str {
+    CODE_LANGUAGE_OPTIONS
+        .iter()
+        .find(|option| {
+            option.value.eq_ignore_ascii_case(value)
+                || option
+                    .aliases
+                    .iter()
+                    .any(|alias| alias.eq_ignore_ascii_case(value))
+        })
+        .map(|option| option.label)
+        .unwrap_or(value)
+}
+
 fn normalize_code_language_input(text: &str) -> String {
     text.replace("\r\n", " ")
         .replace(['\r', '\n'], " ")
@@ -33,6 +140,14 @@ impl Block {
         }
     }
 
+    pub(crate) fn code_language_input_text(&self) -> &str {
+        if self.code_language_picker_open {
+            &self.code_language_query
+        } else {
+            self.code_language_text()
+        }
+    }
+
     pub(crate) fn code_language_cursor_offset(&self) -> usize {
         if self.code_language_selection_reversed {
             self.code_language_selected_range.start
@@ -42,18 +157,18 @@ impl Block {
     }
 
     pub(crate) fn code_language_range_to_utf16(&self, range: &Range<usize>) -> Range<usize> {
-        Self::utf8_range_to_utf16_in(self.code_language_text(), range)
+        Self::utf8_range_to_utf16_in(self.code_language_input_text(), range)
     }
 
     pub(crate) fn code_language_range_from_utf16(
         &self,
         range_utf16: &Range<usize>,
     ) -> Range<usize> {
-        Self::utf16_range_to_utf8_in(self.code_language_text(), range_utf16)
+        Self::utf16_range_to_utf8_in(self.code_language_input_text(), range_utf16)
     }
 
     pub(crate) fn previous_code_language_boundary(&self, offset: usize) -> usize {
-        self.code_language_text()
+        self.code_language_input_text()
             .grapheme_indices(true)
             .rev()
             .find_map(|(idx, _)| (idx < offset).then_some(idx))
@@ -61,14 +176,14 @@ impl Block {
     }
 
     pub(crate) fn next_code_language_boundary(&self, offset: usize) -> usize {
-        self.code_language_text()
+        self.code_language_input_text()
             .grapheme_indices(true)
             .find_map(|(idx, _)| (idx > offset).then_some(idx))
-            .unwrap_or(self.code_language_text().len())
+            .unwrap_or(self.code_language_input_text().len())
     }
 
     pub(crate) fn move_code_language_to(&mut self, offset: usize, cx: &mut Context<Self>) {
-        let clamped = offset.min(self.code_language_text().len());
+        let clamped = offset.min(self.code_language_input_text().len());
         self.code_language_selected_range = clamped..clamped;
         self.code_language_selection_reversed = false;
         self.code_language_marked_range = None;
@@ -77,7 +192,7 @@ impl Block {
     }
 
     pub(crate) fn select_code_language_to(&mut self, offset: usize, cx: &mut Context<Self>) {
-        let clamped = offset.min(self.code_language_text().len());
+        let clamped = offset.min(self.code_language_input_text().len());
         if self.code_language_selection_reversed {
             self.code_language_selected_range.start = clamped;
         } else {
@@ -101,6 +216,39 @@ impl Block {
         cx: &mut Context<Self>,
     ) {
         if !self.kind().is_code_block() {
+            return;
+        }
+
+        if self.code_language_picker_open {
+            let current = self.code_language_query.clone();
+            let range = range.start.min(current.len())..range.end.min(current.len());
+            let inserted = new_text.replace("\r\n", " ").replace(['\r', '\n'], " ");
+            self.code_language_query
+                .replace_range(range.clone(), &inserted);
+            let next_len = self.code_language_query.len();
+            let next_cursor = selected_range_relative
+                .as_ref()
+                .map(|relative| range.start + relative.end)
+                .unwrap_or(range.start + inserted.len())
+                .min(next_len);
+            self.code_language_selected_range = selected_range_relative
+                .as_ref()
+                .map(|relative| {
+                    let start = (range.start + relative.start).min(next_len);
+                    let end = (range.start + relative.end).min(next_len);
+                    start.min(end)..start.max(end)
+                })
+                .unwrap_or(next_cursor..next_cursor);
+            self.code_language_selection_reversed = selected_range_relative
+                .as_ref()
+                .is_some_and(|relative| relative.end < relative.start);
+            self.code_language_marked_range = if mark_inserted_text && !inserted.is_empty() {
+                Some(range.start..(range.start + inserted.len()).min(next_len))
+            } else {
+                None
+            };
+            self.cursor_blink_epoch = Instant::now();
+            cx.notify();
             return;
         }
 
@@ -174,8 +322,30 @@ impl Block {
         cx.notify();
     }
 
+    pub(crate) fn choose_code_language(&mut self, value: &str, cx: &mut Context<Self>) {
+        if !self.kind().is_code_block() {
+            return;
+        }
+
+        let old_language = self.code_language_text().to_string();
+        if old_language != value {
+            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
+            self.record.kind = BlockKind::CodeBlock {
+                language: (!value.is_empty()).then(|| SharedString::from(value.to_string())),
+            };
+            self.sync_code_highlight();
+            cx.emit(BlockEvent::Changed);
+        }
+        self.code_language_picker_open = false;
+        self.code_language_query.clear();
+        self.code_language_selected_range = 0..0;
+        self.code_language_selection_reversed = false;
+        self.code_language_marked_range = None;
+        cx.notify();
+    }
+
     pub(crate) fn code_language_index_for_mouse_position(&self, position: Point<Pixels>) -> usize {
-        let text = self.code_language_text();
+        let text = self.code_language_input_text();
         if text.is_empty() {
             return 0;
         }

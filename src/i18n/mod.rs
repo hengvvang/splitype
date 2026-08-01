@@ -299,8 +299,10 @@ pub struct I18nStrings {
     pub image_loading_without_alt: String,
     /// Loading label template for rendered images with alt text; `{alt}` is replaced.
     pub image_loading_with_alt_template: String,
-    /// Placeholder shown in the code-block language input when no language is set.
+    /// Placeholder shown in the code-block language button when no language is set.
     pub code_language_placeholder: String,
+    /// Placeholder shown in the code-block language picker search field.
+    pub code_language_search_placeholder: String,
     /// Label for the sidebar/files toggle button in the status bar.
     pub status_bar_files: String,
     /// Label for source mode in the status bar mode switch.
@@ -498,6 +500,7 @@ struct I18nStringsDe {
     image_loading_without_alt: Option<String>,
     image_loading_with_alt_template: Option<String>,
     code_language_placeholder: Option<String>,
+    code_language_search_placeholder: Option<String>,
     status_bar_files: Option<String>,
     status_bar_mode_source: Option<String>,
     status_bar_mode_rendered: Option<String>,
@@ -683,6 +686,7 @@ const I18N_STRING_KEYS: &[&str] = &[
     "image_loading_without_alt",
     "image_loading_with_alt_template",
     "code_language_placeholder",
+    "code_language_search_placeholder",
     "status_bar_files",
     "status_bar_mode_source",
     "status_bar_mode_rendered",
@@ -1158,6 +1162,9 @@ impl I18nStringsDe {
             code_language_placeholder: self
                 .code_language_placeholder
                 .unwrap_or(defaults.code_language_placeholder),
+            code_language_search_placeholder: self
+                .code_language_search_placeholder
+                .unwrap_or(defaults.code_language_search_placeholder),
             status_bar_files: self.status_bar_files.unwrap_or(defaults.status_bar_files),
             status_bar_mode_source: self
                 .status_bar_mode_source
@@ -1374,6 +1381,7 @@ impl I18nStrings {
             image_loading_without_alt: "正在加载图片...".into(),
             image_loading_with_alt_template: "正在加载 {alt}".into(),
             code_language_placeholder: "语言".into(),
+            code_language_search_placeholder: "搜索语言...".into(),
             status_bar_files: "侧边栏".into(),
             status_bar_mode_source: "源码".into(),
             status_bar_mode_rendered: "渲染".into(),
@@ -1588,7 +1596,8 @@ impl I18nStrings {
             image_placeholder: "Image".into(),
             image_loading_without_alt: "Loading image...".into(),
             image_loading_with_alt_template: "Loading {alt}".into(),
-            code_language_placeholder: "language".into(),
+            code_language_placeholder: "Language".into(),
+            code_language_search_placeholder: "Search languages...".into(),
             status_bar_files: "Sidebar".into(),
             status_bar_mode_source: "Source".into(),
             status_bar_mode_rendered: "Rendered".into(),

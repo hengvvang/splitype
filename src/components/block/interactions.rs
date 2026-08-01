@@ -10,6 +10,7 @@ use gpui::*;
 use super::CollapsedCaretAffinity;
 use super::{
     Block, BlockEvent, BlockKind, InlineFormat, InlineTextTree, PastedImageSource, UndoCaptureKind,
+    code_language_options_matching,
 };
 use crate::components::markdown::paste::should_split_plain_multiline_paste;
 use crate::components::{
@@ -986,6 +987,48 @@ impl Block {
         }
     }
 
+    pub(crate) fn on_code_block_hover(
+        &mut self,
+        hovered: &bool,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.code_toolbar_hovered != *hovered {
+            self.code_toolbar_hovered = *hovered;
+            cx.notify();
+        }
+    }
+
+    pub(crate) fn on_code_language_picker_toggle(
+        &mut self,
+        _: &MouseDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        cx.stop_propagation();
+        self.code_language_picker_open = !self.code_language_picker_open;
+        self.code_language_query.clear();
+        self.code_language_selected_range = 0..0;
+        self.code_language_selection_reversed = false;
+        self.code_language_marked_range = None;
+        if self.code_language_picker_open {
+            self.code_language_focus_handle.focus(window);
+        } else {
+            self.focus_handle.focus(window);
+        }
+        cx.notify();
+    }
+
+    pub(crate) fn on_code_copy_button_mouse_down(
+        &mut self,
+        _: &MouseDownEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        cx.stop_propagation();
+        cx.write_to_clipboard(ClipboardItem::new_string(self.record.title.visible_text()));
+    }
+
     pub(crate) fn on_code_language_newline(
         &mut self,
         _: &Newline,
@@ -996,6 +1039,17 @@ impl Block {
             return;
         }
         cx.stop_propagation();
+        if self.code_language_picker_open {
+            let value = code_language_options_matching(&self.code_language_query)
+                .first()
+                .map(|option| option.value);
+            if let Some(value) = value {
+                self.choose_code_language(value, cx);
+            } else {
+                self.code_language_picker_open = false;
+                self.code_language_query.clear();
+            }
+        }
         self.focus_handle.focus(window);
         cx.notify();
     }
@@ -1010,6 +1064,8 @@ impl Block {
             return;
         }
         cx.stop_propagation();
+        self.code_language_picker_open = false;
+        self.code_language_query.clear();
         self.focus_handle.focus(window);
         cx.notify();
     }
@@ -1123,7 +1179,7 @@ impl Block {
             return;
         }
         cx.stop_propagation();
-        self.move_code_language_to(self.code_language_text().len(), cx);
+        self.move_code_language_to(self.code_language_input_text().len(), cx);
     }
 
     pub(crate) fn on_code_language_select_left(
@@ -1169,7 +1225,7 @@ impl Block {
         }
         cx.stop_propagation();
         self.move_code_language_to(0, cx);
-        self.select_code_language_to(self.code_language_text().len(), cx);
+        self.select_code_language_to(self.code_language_input_text().len(), cx);
     }
 
     pub(crate) fn on_code_language_copy(
@@ -1184,7 +1240,8 @@ impl Block {
         cx.stop_propagation();
         if !self.code_language_selected_range.is_empty() {
             cx.write_to_clipboard(ClipboardItem::new_string(
-                self.code_language_text()[self.code_language_selected_range.clone()].to_string(),
+                self.code_language_input_text()[self.code_language_selected_range.clone()]
+                    .to_string(),
             ));
         }
     }
@@ -1201,7 +1258,8 @@ impl Block {
         cx.stop_propagation();
         if !self.code_language_selected_range.is_empty() {
             cx.write_to_clipboard(ClipboardItem::new_string(
-                self.code_language_text()[self.code_language_selected_range.clone()].to_string(),
+                self.code_language_input_text()[self.code_language_selected_range.clone()]
+                    .to_string(),
             ));
             self.replace_code_language_text_in_range(
                 self.code_language_selected_range.clone(),
@@ -1244,6 +1302,8 @@ impl Block {
             return;
         }
         cx.stop_propagation();
+        self.code_language_picker_open = false;
+        self.code_language_query.clear();
         self.focus_handle.focus(window);
         cx.notify();
     }
@@ -1258,6 +1318,9 @@ impl Block {
             return;
         }
         cx.stop_propagation();
+        if self.code_language_picker_open {
+            return;
+        }
         // Down from the language field leaves the code block: the editor focuses
         // the block below, creating a trailing paragraph first when the code
         // block is the last block. Enter does not exit (see on_code_language_newline).

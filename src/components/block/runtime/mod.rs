@@ -13,6 +13,7 @@ mod image;
 mod projection;
 mod table;
 
+pub(crate) use self::code::{code_language_display_name, code_language_options_matching};
 use self::projection::{
     ExpandedInlineProjection, ExpandedInlineSegment, ExpandedInlineSegmentKind, ExpandedLinkRun,
     ProjectedLinkSelectionSnapshot,
@@ -111,6 +112,9 @@ pub struct Block {
     pub(crate) code_language_last_layout: Option<ShapedLine>,
     pub(crate) code_language_last_bounds: Option<Bounds<Pixels>>,
     pub(crate) code_language_is_selecting: bool,
+    pub(crate) code_toolbar_hovered: bool,
+    pub(crate) code_language_picker_open: bool,
+    pub(crate) code_language_query: String,
     pub selected_range: Range<usize>,
     pub selection_reversed: bool,
     pub(crate) editor_selection_range: Option<Range<usize>>,
@@ -140,7 +144,7 @@ pub struct Block {
     /// `sync_inline_projection_for_focus` computes the same inputs, the
     /// rebuild is skipped — saves a full O(fragments + text) walk per
     /// render frame (cursor blink + every arrow keypress).
-    projection_cache_key: Option<(bool, Range<usize>, Option<Range<usize>>)>,
+    projection_cache_key: Option<(bool, Option<u8>, Range<usize>, Option<Range<usize>>)>,
     /// Display text held as a SharedString so renders can clone an Arc
     /// instead of re-allocating per frame. Refreshed in `sync_render_cache`,
     /// `rebuild_inline_projection`, and `clear_inline_projection`.
@@ -217,6 +221,9 @@ impl Block {
             code_language_last_layout: None,
             code_language_last_bounds: None,
             code_language_is_selecting: false,
+            code_toolbar_hovered: false,
+            code_language_picker_open: false,
+            code_language_query: String::new(),
             selected_range: 0..0,
             selection_reversed: false,
             editor_selection_range: None,
@@ -770,9 +777,14 @@ impl Block {
             .marked_range
             .clone()
             .map(|range| self.current_to_clean_range(range));
+        let heading_level = match self.kind() {
+            BlockKind::Heading { level } => Some(level),
+            _ => None,
+        };
         if self.projection_cache_key.as_ref()
             == Some(&(
                 supports_projection,
+                heading_level,
                 clean_selected.clone(),
                 clean_marked.clone(),
             ))
@@ -844,15 +856,22 @@ impl Block {
         clean_selected: Range<usize>,
         clean_marked: Option<Range<usize>>,
     ) {
+        let heading_level = match self.kind() {
+            BlockKind::Heading { level } => Some(level),
+            _ => None,
+        };
         self.projection_cache_key = Some((
             self.edit_mode.supports_inline_projection(),
+            heading_level,
             clean_selected.clone(),
             clean_marked.clone(),
         ));
-        self.projection = ExpandedInlineProjection::build(
+        let block_prefix = heading_level.map(|level| format!("{} ", "#".repeat(level as usize)));
+        self.projection = ExpandedInlineProjection::build_with_prefix(
             &self.record.title.fragments,
             clean_selected,
             clean_marked,
+            block_prefix.as_deref(),
         );
         self.refresh_cached_display_text();
     }
@@ -1615,6 +1634,156 @@ impl Block {
         cx.notify();
     }
 
+    fn heading_projection_prefix_range(&self) -> Option<Range<usize>> {
+        self.projection
+            .as_ref()
+            .and_then(|projection| projection.block_prefix_range.clone())
+    }
+
+    fn heading_source_offset_for_current_offset(
+        &self,
+        current_offset: usize,
+        prefix_len: usize,
+    ) -> usize {
+        if current_offset <= prefix_len {
+            current_offset
+        } else {
+            prefix_len
+                + self
+                    .current_range_to_markdown_range(current_offset..current_offset)
+                    .start
+        }
+    }
+
+    fn source_range_to_clean_range(
+        title: &InlineTextTree,
+        content_source_start: usize,
+        range: Range<usize>,
+    ) -> Range<usize> {
+        let map = title.markdown_offset_map();
+        map.markdown_to_visible_offset(range.start.saturating_sub(content_source_start))
+            ..map.markdown_to_visible_offset(range.end.saturating_sub(content_source_start))
+    }
+
+    fn source_offset_to_current_offset(
+        &self,
+        content_source_start: usize,
+        source_offset: usize,
+    ) -> usize {
+        if matches!(self.kind(), BlockKind::Heading { .. }) && source_offset <= content_source_start
+        {
+            source_offset
+        } else {
+            let clean = self
+                .record
+                .title
+                .markdown_offset_map()
+                .markdown_to_visible_offset(source_offset.saturating_sub(content_source_start));
+            self.clean_to_current_cursor_offset(clean)
+        }
+    }
+
+    fn apply_heading_prefix_edit(
+        &mut self,
+        visible_range: Range<usize>,
+        new_text: &str,
+        selected_range_relative: Option<Range<usize>>,
+        mark_inserted_text: bool,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let Some(prefix_range) = self.heading_projection_prefix_range() else {
+            return false;
+        };
+        if visible_range.start >= prefix_range.end {
+            return false;
+        }
+
+        let prefix_len = prefix_range.len();
+        let source_range = self
+            .heading_source_offset_for_current_offset(visible_range.start, prefix_len)
+            ..self.heading_source_offset_for_current_offset(visible_range.end, prefix_len);
+        let mut source = format!(
+            "{}{}",
+            &self.display_text()[prefix_range],
+            self.record.title.serialize_markdown()
+        );
+        source.replace_range(source_range.clone(), new_text);
+
+        let selected_source_range = selected_range_relative
+            .as_ref()
+            .map(|relative| source_range.start + relative.start..source_range.start + relative.end);
+        let cursor_source = selected_source_range
+            .as_ref()
+            .map(|range| range.end)
+            .unwrap_or(source_range.start + new_text.len());
+        let marked_source_range = if mark_inserted_text && !new_text.is_empty() {
+            Some(source_range.start..source_range.start + new_text.len())
+        } else {
+            None
+        };
+
+        let (next_kind, next_title, content_source_start) =
+            if let Some((level, content)) = BlockKind::parse_atx_heading_line(&source) {
+                (
+                    BlockKind::Heading { level },
+                    InlineTextTree::from_markdown_with_link_references(
+                        &content,
+                        &self.link_reference_definitions,
+                    ),
+                    level as usize + 1,
+                )
+            } else {
+                (
+                    BlockKind::Paragraph,
+                    InlineTextTree::from_markdown_with_link_references(
+                        &source,
+                        &self.link_reference_definitions,
+                    ),
+                    0,
+                )
+            };
+
+        let next_selected_source = selected_source_range
+            .clone()
+            .unwrap_or(cursor_source..cursor_source);
+        let next_selected_clean = Self::source_range_to_clean_range(
+            &next_title,
+            content_source_start,
+            next_selected_source.clone(),
+        );
+        let next_marked_clean = marked_source_range.as_ref().map(|range| {
+            Self::source_range_to_clean_range(&next_title, content_source_start, range.clone())
+        });
+        let old_kind = self.record.kind.clone();
+        let old_title = self.record.title.clone();
+
+        self.record.kind = next_kind;
+        self.record.set_title(next_title);
+        self.sync_edit_mode_from_kind();
+        self.sync_render_cache();
+        if self.edit_mode.supports_inline_projection() {
+            self.rebuild_inline_projection(next_selected_clean, next_marked_clean);
+        }
+
+        self.selected_range = self
+            .source_offset_to_current_offset(content_source_start, next_selected_source.start)
+            ..self.source_offset_to_current_offset(content_source_start, next_selected_source.end);
+        self.selection_reversed = false;
+        self.marked_range = marked_source_range.map(|range| {
+            self.source_offset_to_current_offset(content_source_start, range.start)
+                ..self.source_offset_to_current_offset(content_source_start, range.end)
+        });
+        self.collapsed_caret_affinity = CollapsedCaretAffinity::Default;
+        self.cursor_blink_epoch = Instant::now();
+        self.clear_vertical_motion();
+
+        if self.record.kind != old_kind || self.record.title != old_title {
+            cx.emit(BlockEvent::Changed);
+        }
+        cx.notify();
+        true
+    }
+
     /// Replace text in visible coordinates: splice `new_text` into the title
     /// at `visible_range`, re-parse inline markers, and update cursor state.
     /// When `mark_inserted_text` is true the inserted text becomes the IME
@@ -1632,6 +1801,16 @@ impl Block {
         cx: &mut Context<Self>,
     ) {
         if self.kind().is_separator() && !self.uses_raw_text_editing() {
+            return;
+        }
+
+        if self.apply_heading_prefix_edit(
+            visible_range.clone(),
+            new_text,
+            selected_range_relative.clone(),
+            mark_inserted_text,
+            cx,
+        ) {
             return;
         }
 

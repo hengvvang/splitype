@@ -9,7 +9,10 @@ use gpui::*;
 const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
 
 use super::element::{BlockTextElement, CodeLanguageInputElement};
-use super::{Block, BlockEvent, BlockKind, ImageResolvedSource, ImageRuntime};
+use super::{
+    Block, BlockEvent, BlockKind, ImageResolvedSource, ImageRuntime, code_language_display_name,
+    code_language_options_matching,
+};
 use crate::components::{
     Editor, HtmlCssColor, HtmlDocument, HtmlNode, HtmlNodeKind, InlineScript, TableAxisHighlight,
     TableAxisKind, TableAxisMarker, TableCellInlineImageSegment, TableColumnLayout, attr_value,
@@ -2321,10 +2324,20 @@ impl Render for Block {
                 }
             }
             BlockKind::CodeBlock { .. } => {
-                let show_language_input = focused || code_language_focused;
-                let language_placeholder =
-                    SharedString::from(strings.code_language_placeholder.clone());
+                let show_toolbar = self.code_toolbar_hovered
+                    || self.code_language_picker_open
+                    || code_language_focused;
+                let current_language = self.code_language_text();
+                let language_label: SharedString = if current_language.is_empty() {
+                    strings.code_language_placeholder.clone().into()
+                } else {
+                    code_language_display_name(current_language)
+                        .to_string()
+                        .into()
+                };
                 let code_panel = focused_base
+                    .relative()
+                    .on_hover(cx.listener(Self::on_code_block_hover))
                     .bg(c.code_bg)
                     .rounded_sm()
                     .pl(px(d.code_block_padding_x))
@@ -2340,72 +2353,237 @@ impl Render for Block {
                             .child(BlockTextElement::new(cx.entity(), is_placeholder)),
                     );
 
-                if show_language_input {
-                    let input_height = d.code_language_input_height
-                        + d.code_language_input_padding_y * 2.0
-                        + d.code_language_input_border_width * 2.0;
-                    div()
-                        .w_full()
-                        .relative()
-                        .pb(px(input_height + d.code_language_input_gap))
-                        .child(code_panel)
+                if !show_toolbar {
+                    code_panel.into_any_element()
+                } else {
+                    let toolbar_height = 32.0;
+                    let toolbar = div()
+                        .absolute()
+                        .top(px(d.code_language_input_gap))
+                        .right(px(d.code_language_input_gap))
+                        .occlude()
+                        .flex()
+                        .items_center()
+                        .h(px(toolbar_height))
+                        .rounded(px(8.0))
+                        .border(px(d.code_language_input_border_width))
+                        .border_color(c.code_language_input_border)
+                        .bg(c.code_language_input_bg)
+                        .shadow_sm()
+                        .text_size(px((t.code_size - 1.0).max(10.0)))
+                        .text_color(c.code_language_input_text)
                         .child(
                             div()
-                                .absolute()
-                                .right(px(d.code_language_input_gap))
-                                .bottom(px(0.0))
-                                .occlude()
-                                .key_context(BLOCK_EDITOR_CONTEXT)
-                                .track_focus(&self.code_language_focus_handle)
-                                .on_action(cx.listener(Self::on_code_language_newline))
-                                .on_action(cx.listener(Self::on_code_language_dismiss))
-                                .on_action(cx.listener(Self::on_code_language_delete_back))
-                                .on_action(cx.listener(Self::on_code_language_delete))
-                                .on_action(cx.listener(Self::on_code_language_focus_content))
-                                .on_action(cx.listener(Self::on_code_language_focus_next))
-                                .on_action(cx.listener(Self::on_code_language_move_left))
-                                .on_action(cx.listener(Self::on_code_language_move_right))
-                                .on_action(cx.listener(Self::on_code_language_home))
-                                .on_action(cx.listener(Self::on_code_language_end))
-                                .on_action(cx.listener(Self::on_code_language_select_left))
-                                .on_action(cx.listener(Self::on_code_language_select_right))
-                                .on_action(cx.listener(Self::on_code_language_select_all))
-                                .on_action(cx.listener(Self::on_code_language_copy))
-                                .on_action(cx.listener(Self::on_code_language_cut))
-                                .on_action(cx.listener(Self::on_code_language_paste))
-                                .on_action(cx.listener(Self::on_code_language_indent))
-                                .on_action(cx.listener(Self::on_code_language_outdent))
+                                .id(ElementId::Name(
+                                    format!("code-language-picker-{}", self.record.id).into(),
+                                ))
+                                .h_full()
+                                .flex()
+                                .items_center()
+                                .gap(px(6.0))
+                                .px(px(10.0))
+                                .rounded_l(px(7.0))
+                                .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                .active(|this| this.opacity(0.9))
+                                .cursor_pointer()
                                 .on_mouse_down(
                                     MouseButton::Left,
-                                    cx.listener(Self::on_code_language_mouse_down),
+                                    cx.listener(Self::on_code_language_picker_toggle),
                                 )
-                                .on_mouse_up(
-                                    MouseButton::Left,
-                                    cx.listener(Self::on_code_language_mouse_up),
-                                )
-                                .on_mouse_up_out(
-                                    MouseButton::Left,
-                                    cx.listener(Self::on_code_language_mouse_up_out),
-                                )
-                                .on_mouse_move(cx.listener(Self::on_code_language_mouse_move))
-                                .w(px(d.code_language_input_width))
-                                .px(px(d.code_language_input_padding_x))
-                                .py(px(d.code_language_input_padding_y))
-                                .rounded(px(d.code_language_input_radius))
-                                .border(px(d.code_language_input_border_width))
-                                .border_color(c.code_language_input_border)
-                                .bg(c.code_language_input_bg)
-                                .text_size(px((t.code_size - 1.0).max(10.0)))
-                                .text_color(c.code_language_input_text)
-                                .cursor(CursorStyle::IBeam)
-                                .child(CodeLanguageInputElement::new(
-                                    cx.entity(),
-                                    language_placeholder,
-                                )),
+                                .child(language_label)
+                                .child(
+                                    div()
+                                        .text_size(px((t.code_size - 2.0).max(9.0)))
+                                        .text_color(c.code_language_input_placeholder)
+                                        .child("⌄"),
+                                ),
                         )
-                        .into_any_element()
-                } else {
-                    code_panel.into_any_element()
+                        .child(
+                            div()
+                                .w(px(1.0))
+                                .h(px(18.0))
+                                .bg(c.code_language_input_border),
+                        )
+                        .child(
+                            div()
+                                .id(ElementId::Name(
+                                    format!("code-copy-{}", self.record.id).into(),
+                                ))
+                                .relative()
+                                .w(px(36.0))
+                                .h_full()
+                                .rounded_r(px(7.0))
+                                .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                .active(|this| this.opacity(0.9))
+                                .cursor_pointer()
+                                .on_mouse_down(
+                                    MouseButton::Left,
+                                    cx.listener(Self::on_code_copy_button_mouse_down),
+                                )
+                                .child(
+                                    div()
+                                        .absolute()
+                                        .left(px(11.0))
+                                        .top(px(8.0))
+                                        .size(px(11.0))
+                                        .rounded(px(2.0))
+                                        .border(px(1.0))
+                                        .border_color(c.code_language_input_placeholder),
+                                )
+                                .child(
+                                    div()
+                                        .absolute()
+                                        .left(px(14.0))
+                                        .top(px(11.0))
+                                        .size(px(11.0))
+                                        .rounded(px(2.0))
+                                        .border(px(1.0))
+                                        .border_color(c.code_language_input_text)
+                                        .bg(c.code_language_input_bg),
+                                ),
+                        );
+
+                    let code_panel = code_panel.child(toolbar);
+                    if !self.code_language_picker_open {
+                        code_panel.into_any_element()
+                    } else {
+                        let options = code_language_options_matching(&self.code_language_query);
+                        let selected_language = current_language.to_string();
+                        let picker = div()
+                            .absolute()
+                            .top(px(toolbar_height + d.code_language_input_gap * 2.0))
+                            .right(px(d.code_language_input_gap))
+                            .occlude()
+                            .block_mouse_except_scroll()
+                            .w(px(288.0))
+                            .max_h(px(360.0))
+                            .flex()
+                            .flex_col()
+                            .gap(px(6.0))
+                            .p(px(6.0))
+                            .rounded(px(10.0))
+                            .border(px(d.code_language_input_border_width))
+                            .border_color(c.dialog_border)
+                            .bg(c.dialog_surface)
+                            .shadow_lg()
+                            .text_size(px((t.text_size - 1.0).max(11.0)))
+                            .text_color(c.dialog_body)
+                            .child(
+                                div()
+                                    .key_context(BLOCK_EDITOR_CONTEXT)
+                                    .track_focus(&self.code_language_focus_handle)
+                                    .on_action(cx.listener(Self::on_code_language_newline))
+                                    .on_action(cx.listener(Self::on_code_language_dismiss))
+                                    .on_action(cx.listener(Self::on_code_language_delete_back))
+                                    .on_action(cx.listener(Self::on_code_language_delete))
+                                    .on_action(cx.listener(Self::on_code_language_focus_content))
+                                    .on_action(cx.listener(Self::on_code_language_focus_next))
+                                    .on_action(cx.listener(Self::on_code_language_move_left))
+                                    .on_action(cx.listener(Self::on_code_language_move_right))
+                                    .on_action(cx.listener(Self::on_code_language_home))
+                                    .on_action(cx.listener(Self::on_code_language_end))
+                                    .on_action(cx.listener(Self::on_code_language_select_left))
+                                    .on_action(cx.listener(Self::on_code_language_select_right))
+                                    .on_action(cx.listener(Self::on_code_language_select_all))
+                                    .on_action(cx.listener(Self::on_code_language_copy))
+                                    .on_action(cx.listener(Self::on_code_language_cut))
+                                    .on_action(cx.listener(Self::on_code_language_paste))
+                                    .on_action(cx.listener(Self::on_code_language_indent))
+                                    .on_action(cx.listener(Self::on_code_language_outdent))
+                                    .on_mouse_down(
+                                        MouseButton::Left,
+                                        cx.listener(Self::on_code_language_mouse_down),
+                                    )
+                                    .on_mouse_up(
+                                        MouseButton::Left,
+                                        cx.listener(Self::on_code_language_mouse_up),
+                                    )
+                                    .on_mouse_up_out(
+                                        MouseButton::Left,
+                                        cx.listener(Self::on_code_language_mouse_up_out),
+                                    )
+                                    .on_mouse_move(cx.listener(Self::on_code_language_mouse_move))
+                                    .w_full()
+                                    .px(px(d.code_language_input_padding_x))
+                                    .py(px(d.code_language_input_padding_y + 2.0))
+                                    .rounded(px(d.code_language_input_radius))
+                                    .border(px(d.code_language_input_border_width))
+                                    .border_color(c.code_language_input_border)
+                                    .bg(c.code_language_input_bg)
+                                    .text_size(px((t.code_size - 1.0).max(10.0)))
+                                    .text_color(c.code_language_input_text)
+                                    .cursor(CursorStyle::IBeam)
+                                    .child(CodeLanguageInputElement::new(
+                                        cx.entity(),
+                                        SharedString::from(
+                                            strings.code_language_search_placeholder.clone(),
+                                        ),
+                                    )),
+                            )
+                            .child(
+                                div()
+                                    .id(ElementId::Name(
+                                        format!("code-language-list-{}", self.record.id).into(),
+                                    ))
+                                    .w_full()
+                                    .max_h(px(300.0))
+                                    .flex()
+                                    .flex_col()
+                                    .overflow_y_scroll()
+                                    .scrollbar_width(px(6.0))
+                                    .children(options.into_iter().enumerate().map(
+                                        |(index, option)| {
+                                            let option_block = cx.entity();
+                                            let value = option.value;
+                                            let is_selected =
+                                                code_language_display_name(&selected_language)
+                                                    == option.label;
+                                            let item = div()
+                                                .id(ElementId::Name(
+                                                    format!(
+                                                        "code-language-option-{}-{index}",
+                                                        self.record.id
+                                                    )
+                                                    .into(),
+                                                ))
+                                                .w_full()
+                                                .h(px(32.0))
+                                                .flex_shrink_0()
+                                                .flex()
+                                                .items_center()
+                                                .px(px(10.0))
+                                                .rounded(px(6.0))
+                                                .hover(|this| {
+                                                    this.bg(c.dialog_secondary_button_hover)
+                                                })
+                                                .active(|this| this.opacity(0.9))
+                                                .cursor_pointer()
+                                                .on_mouse_down(
+                                                    MouseButton::Left,
+                                                    move |_event, window, cx| {
+                                                        let _ = option_block.update(
+                                                            cx,
+                                                            |block, block_cx| {
+                                                                block_cx.stop_propagation();
+                                                                block.choose_code_language(
+                                                                    value, block_cx,
+                                                                );
+                                                                block.focus_handle.focus(window);
+                                                            },
+                                                        );
+                                                    },
+                                                )
+                                                .child(option.label);
+                                            if is_selected {
+                                                item.bg(c.dialog_secondary_button_bg)
+                                            } else {
+                                                item
+                                            }
+                                        },
+                                    )),
+                            );
+                        code_panel.child(picker).into_any_element()
+                    }
                 }
             }
             BlockKind::Table => {
@@ -3163,7 +3341,7 @@ mod tests {
     }
 
     #[gpui::test]
-    async fn code_language_input_docks_to_right_edge(cx: &mut TestAppContext) {
+    async fn code_language_picker_opens_below_right_toolbar(cx: &mut TestAppContext) {
         cx.update(|cx| {
             I18nManager::init(cx);
             ThemeManager::init(cx);
@@ -3182,7 +3360,9 @@ mod tests {
 
         cx.update(|window, cx| {
             block.update(cx, |block, _cx| {
-                block.focus_handle.focus(window);
+                block.code_toolbar_hovered = true;
+                block.code_language_picker_open = true;
+                block.code_language_focus_handle.focus(window);
             });
             window.draw(cx).clear();
         });
@@ -3197,12 +3377,8 @@ mod tests {
             )
         });
         assert!(language_bounds.left() > text_bounds.left());
-        assert!(language_bounds.top() > text_bounds.bottom());
-        let right_gap = f32::from(language_bounds.right() - text_bounds.right());
-        assert!(
-            right_gap.abs() <= 12.0,
-            "expected language input to sit near the code block right edge; right_gap={right_gap}, text_bounds={text_bounds:?}, language_bounds={language_bounds:?}"
-        );
-        assert!(language_bounds.size.width <= px(156.0));
+        assert!(language_bounds.top() > text_bounds.top());
+        assert!(language_bounds.size.width >= px(260.0));
+        assert!(language_bounds.size.width <= px(288.0));
     }
 }

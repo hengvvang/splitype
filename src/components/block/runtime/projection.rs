@@ -113,6 +113,8 @@ impl ExpandedInlineKind {
 /// Display role of one projected inline segment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum ExpandedInlineSegmentKind {
+    /// Editable block-level syntax such as an ATX heading prefix.
+    BlockPrefix,
     /// Text with no projected inline syntax.
     PlainText,
     /// Text carrying projected style.
@@ -161,6 +163,7 @@ pub(super) struct ProjectedLinkSelectionSnapshot {
 pub(crate) struct ExpandedInlineProjection {
     pub(super) cache: InlineRenderCache,
     pub(super) segments: Vec<ExpandedInlineSegment>,
+    pub(super) block_prefix_range: Option<Range<usize>>,
     pub(super) clean_to_display_cursor: Vec<usize>,
     pub(super) display_to_clean: Vec<usize>,
     pub(super) link_runs: Vec<ExpandedLinkRun>,
@@ -253,10 +256,12 @@ impl ExpandedInlineProjection {
     // Projection is a temporary editing view over clean inline fragments. It
     // exposes delimiters only for the fragment touched by the caret, selection,
     // or IME marked range, while preserving maps back to clean text offsets.
-    pub(super) fn build(
+
+    pub(super) fn build_with_prefix(
         fragments: &[InlineFragment],
         clean_selected: Range<usize>,
         clean_marked: Option<Range<usize>>,
+        block_prefix: Option<&str>,
     ) -> Option<Self> {
         let clean_len = fragments
             .iter()
@@ -271,7 +276,34 @@ impl ExpandedInlineProjection {
         let mut clean_cursor = 0usize;
         let mut display_cursor = 0usize;
         let mut any_expanded = false;
+        let mut block_prefix_range = None;
         let mut fragment_index = 0usize;
+
+        if let Some(prefix) = block_prefix.filter(|prefix| !prefix.is_empty()) {
+            let prefix_len = prefix.len();
+            projected_fragments.push(InlineFragment {
+                text: prefix.to_string(),
+                style: InlineStyle::default(),
+                html_style: None,
+                link: None,
+                footnote: None,
+                math: None,
+            });
+            segments.push(ExpandedInlineSegment {
+                display_range: 0..prefix_len,
+                clean_range: 0..0,
+                fragment_index: 0,
+                link_group: None,
+                kind: ExpandedInlineSegmentKind::BlockPrefix,
+            });
+            for _ in 0..prefix_len {
+                display_to_clean.push(0);
+            }
+            clean_to_display_cursor.fill(prefix_len);
+            display_cursor = prefix_len;
+            block_prefix_range = Some(0..prefix_len);
+            any_expanded = true;
+        }
 
         while fragment_index < fragments.len() {
             let fragment = &fragments[fragment_index];
@@ -649,6 +681,7 @@ impl ExpandedInlineProjection {
         any_expanded.then(|| Self {
             cache: InlineTextTree::from_fragments(projected_fragments).render_cache(),
             segments,
+            block_prefix_range,
             clean_to_display_cursor,
             display_to_clean,
             link_runs,
