@@ -4,7 +4,7 @@
 //! file. With no arguments, a single empty window is created.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-#![recursion_limit = "256"]
+#![recursion_limit = "2048"]
 
 use std::borrow::Cow;
 use std::path::PathBuf;
@@ -81,6 +81,12 @@ impl AssetSource for VelotypeAssets {
             )))),
             "icon/titlebar/chrome-restore.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../assets/icon/titlebar/chrome-restore.svg"
+            )))),
+            "icon/panel/split-h.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../assets/icon/panel/split-h.svg"
+            )))),
+            "icon/panel/split-v.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../assets/icon/panel/split-v.svg"
             )))),
             _ => Ok(None),
         }

@@ -83,10 +83,6 @@ impl ScreenDirection {
     pub fn is_vertical(self) -> bool {
         matches!(self, Self::North | Self::South)
     }
-
-    pub fn is_horizontal(self) -> bool {
-        matches!(self, Self::East | Self::West)
-    }
 }
 
 /// Modifier key held during a corner drag.
@@ -95,6 +91,23 @@ pub enum CornerDragModifier {
     None,
     Swap,      // Ctrl  – swap area contents
     Duplicate, // Shift – duplicate area into a new window
+}
+
+/// Live preview state during a corner drag gesture.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum CornerDragPreview {
+    /// Still near the corner, not enough movement yet.
+    Dragging,
+    /// Showing a split preview line at the given ratio.
+    SplitPreview {
+        direction: SplitDirection,
+        ratio: f32,
+    },
+    /// Showing a join target highlight.
+    JoinPreview {
+        target_leaf_id: usize,
+        direction: ScreenDirection,
+    },
 }
 
 // ---------------------------------------------------------------------------
@@ -200,94 +213,7 @@ impl LayoutNode {
         }
     }
 
-    /// Returns the id of the nearest non-global leaf in the given direction,
-    /// based on rectangle adjacency. `leaf_rects` maps leaf_id → (x, y, w, h).
-    pub fn find_neighbor(
-        &self,
-        from_leaf_id: usize,
-        dir: ScreenDirection,
-        leaf_rects: &[(usize, f32, f32, f32, f32)],
-    ) -> Option<usize> {
-        // Find the rect of the source leaf.
-        let from_rect = leaf_rects.iter().find(|(id, ..)| *id == from_leaf_id)?;
-        let (_, fx, fy, fw, fh) = *from_rect;
-        let from_cx = fx + fw * 0.5;
-        let from_cy = fy + fh * 0.5;
 
-        let mut best_id: Option<usize> = None;
-        let mut best_dist = f32::MAX;
-
-        for &(lid, lx, ly, lw, lh) in leaf_rects {
-            if lid == from_leaf_id {
-                continue;
-            }
-
-            // Must overlap in the perpendicular axis.
-            let overlap = match dir {
-                ScreenDirection::North | ScreenDirection::South => {
-                    let overlap_left = fx.max(lx);
-                    let overlap_right = (fx + fw).min(lx + lw);
-                    if overlap_right <= overlap_left {
-                        continue;
-                    }
-                    overlap_right - overlap_left
-                }
-                ScreenDirection::East | ScreenDirection::West => {
-                    let overlap_bottom = fy.max(ly);
-                    let overlap_top = (fy + fh).min(ly + lh);
-                    if overlap_top <= overlap_bottom {
-                        continue;
-                    }
-                    overlap_top - overlap_bottom
-                }
-            };
-
-            // Must be in the right direction.
-            let dist = match dir {
-                ScreenDirection::North => {
-                    if ly + lh > fy + 0.5 {
-                        continue;
-                    } // Must be above us.
-                    from_cy - (ly + lh * 0.5)
-                }
-                ScreenDirection::South => {
-                    if ly < fy + fh - 0.5 {
-                        continue;
-                    } // Must be below us.
-                    (ly + lh * 0.5) - from_cy
-                }
-                ScreenDirection::East => {
-                    if lx < fx + fw - 0.5 {
-                        continue;
-                    } // Must be to the right.
-                    (lx + lw * 0.5) - from_cx
-                }
-                ScreenDirection::West => {
-                    if lx + lw > fx + 0.5 {
-                        continue;
-                    } // Must be to the left.
-                    from_cx - (lx + lw * 0.5)
-                }
-            };
-
-            // Prefer closer targets, tie-break by larger overlap.
-            if dist < best_dist || (dist - best_dist).abs() < 1.0 && overlap > 0.0 {
-                // If same distance, prefer the one with larger perpendicular overlap.
-                if (dist - best_dist).abs() < 1.0 {
-                    // Already using overlap as a secondary measure; just update if closer.
-                    if dist < best_dist {
-                        best_dist = dist;
-                        best_id = Some(lid);
-                    }
-                } else {
-                    best_dist = dist;
-                    best_id = Some(lid);
-                }
-            }
-        }
-
-        best_id
-    }
 
     /// Collect all leaf rectangles. Each entry: (leaf_id, x, y, width, height).
     /// Coordinates are in layout-space (normalized 0..1).
@@ -317,9 +243,51 @@ impl LayoutNode {
                         second.collect_leaf_rects(x + w * r, y, w * (1.0 - r), h, out);
                     }
                     SplitDirection::Vertical => {
-                        first.collect_leaf_rects(x, y + h * (1.0 - r), w, h * r, out);
-                        second.collect_leaf_rects(x, y, w, h * (1.0 - r), out);
+                        first.collect_leaf_rects(x, y, w, h * r, out);
+                        second.collect_leaf_rects(x, y + h * r, w, h * (1.0 - r), out);
                     }
+                }
+            }
+        }
+    }
+
+    /// Find layout-space span (0..1 width or height) for a target split node.
+    pub fn find_split_span(
+        &self,
+        target_split_id: usize,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+    ) -> Option<(SplitDirection, f32)> {
+        match self {
+            Self::Leaf { .. } => None,
+            Self::Split {
+                id,
+                direction,
+                ratio,
+                first,
+                second,
+            } => {
+                if *id == target_split_id {
+                    let span = match direction {
+                        SplitDirection::Horizontal => w,
+                        SplitDirection::Vertical => h,
+                    };
+                    return Some((*direction, span));
+                }
+                let r = ratio.clamp(0.0, 1.0);
+                match direction {
+                    SplitDirection::Horizontal => first
+                        .find_split_span(target_split_id, x, y, w * r, h)
+                        .or_else(|| {
+                            second.find_split_span(target_split_id, x + w * r, y, w * (1.0 - r), h)
+                        }),
+                    SplitDirection::Vertical => first
+                        .find_split_span(target_split_id, x, y, w, h * r)
+                        .or_else(|| {
+                            second.find_split_span(target_split_id, x, y + h * r, w, h * (1.0 - r))
+                        }),
                 }
             }
         }
@@ -331,6 +299,18 @@ impl LayoutNode {
         new_id: usize,
         direction: SplitDirection,
     ) -> bool {
+        self.split_leaf_with_ratio(target_id, new_id, direction, 0.5)
+    }
+
+    /// Split a leaf at a specific ratio (clamped to [0.15, 0.85]).
+    pub fn split_leaf_with_ratio(
+        &mut self,
+        target_id: usize,
+        new_id: usize,
+        direction: SplitDirection,
+        ratio: f32,
+    ) -> bool {
+        let ratio = ratio.clamp(0.15, 0.85);
         match self {
             Self::Leaf { id, area_type } => {
                 if *id == target_id {
@@ -346,7 +326,7 @@ impl LayoutNode {
                     *self = Self::Split {
                         id: new_id,
                         direction,
-                        ratio: 0.5,
+                        ratio,
                         first: Box::new(Self::Leaf {
                             id: *id,
                             area_type: old_type,
@@ -362,8 +342,8 @@ impl LayoutNode {
                 }
             }
             Self::Split { first, second, .. } => {
-                first.split_leaf(target_id, new_id, direction)
-                    || second.split_leaf(target_id, new_id, direction)
+                first.split_leaf_with_ratio(target_id, new_id, direction, ratio)
+                    || second.split_leaf_with_ratio(target_id, new_id, direction, ratio)
             }
         }
     }
@@ -532,6 +512,8 @@ pub struct CornerDragSession {
     pub gesture_dir: Option<ScreenDirection>,
     /// Modifier key held during the drag.
     pub modifier: CornerDragModifier,
+    /// Live preview state for the corner drag overlay.
+    pub preview: CornerDragPreview,
 }
 
 /// Context menu state for right-clicking a border divider bar between areas.
@@ -546,10 +528,6 @@ pub struct BorderMenuState {
 // Corner drag thresholds (in pixels)
 // ---------------------------------------------------------------------------
 
-/// Minimum drag distance before a join gesture is recognised.
-pub const JOIN_THRESHOLD_PX: f32 = 12.0;
-/// Minimum drag distance before a split gesture is recognised.
-pub const SPLIT_THRESHOLD_PX: f32 = 24.0;
 /// Minimum drag distance before swap / duplicate gesture.
 pub const MODIFIER_THRESHOLD_PX: f32 = 4.0;
 
@@ -704,6 +682,21 @@ impl AreaLayoutState {
         self.active_border_menu = None;
     }
 
+    /// Split a leaf area at a specific ratio.
+    pub fn split_area_with_ratio(
+        &mut self,
+        target_leaf_id: usize,
+        direction: SplitDirection,
+        ratio: f32,
+    ) {
+        let new_id = self.next_id;
+        self.next_id += 1;
+        self.root
+            .split_leaf_with_ratio(target_leaf_id, new_id, direction, ratio);
+        self.active_dropdown_leaf = None;
+        self.active_border_menu = None;
+    }
+
     pub fn close_area(&mut self, target_leaf_id: usize) {
         if self.root.count_leaves() > 1 {
             self.root.remove_leaf(target_leaf_id);
@@ -815,6 +808,7 @@ impl AreaLayoutState {
             start_pos: pos,
             gesture_dir: None,
             modifier,
+            preview: CornerDragPreview::Dragging,
         });
     }
 
@@ -822,16 +816,22 @@ impl AreaLayoutState {
     ///
     /// `current_pos`   – current mouse position in window coords.
     /// `container_size` – size of the tiled-layout container (used for
-    ///                    normalised hit-test rects).
+    ///                    normalised hit-test rects and split-ratio calc).
     ///
-    /// Returns `Some(action)` when the gesture crosses its threshold;
-    /// the caller should then call `end_corner_drag()`.
+    /// Updates the active session's preview state. Modifier-based actions
+    /// (Ctrl / Shift) still fire immediately when they cross their threshold
+    /// by returning `Some(action)`; the no-modifier split/join path only
+    /// updates the preview and always returns `None` so the caller can paint
+    /// the live overlay.
     pub fn update_corner_drag(
         &mut self,
         current_pos: Point<Pixels>,
         container_size: Size<Pixels>,
     ) -> Option<CornerDragAction> {
-        let session = self.active_corner_drag?;
+        let session = match self.active_corner_drag {
+            Some(ref s) => *s,
+            None => return None,
+        };
 
         let dx = f32::from(current_pos.x - session.start_pos.x);
         let dy = f32::from(current_pos.y - session.start_pos.y);
@@ -854,12 +854,16 @@ impl AreaLayoutState {
             }
         };
 
+        // Update gesture direction for cursor feedback.
+        self.active_corner_drag.as_mut().unwrap().gesture_dir = Some(dir);
+
         // --- Modifier-based actions (Ctrl / Shift) ---
+        // These remain immediate: once the threshold is crossed the action
+        // is returned so the caller can execute it straight away.
         if session.modifier != CornerDragModifier::None {
             if dist < MODIFIER_THRESHOLD_PX {
-                return None; // Not enough movement yet.
+                return None;
             }
-            // Find which leaf the cursor is now over.
             let leaf_rects = self.collect_leaf_rects(container_size);
             let over_id = leaf_id_from_point(&leaf_rects, current_pos);
 
@@ -885,38 +889,73 @@ impl AreaLayoutState {
             });
         }
 
-        // --- No modifier: split vs join ---
-        // Gather leaf rects (normalised 0..1) for hit-testing.
+        // --- No modifier: split vs join preview ---
         let leaf_rects = self.collect_leaf_rects(container_size);
         let over_id = leaf_id_from_point(&leaf_rects, current_pos);
 
         if over_id == Some(session.leaf_id) || over_id.is_none() {
             // Cursor is still in the same area (or outside).  Potential split.
-            if dist < SPLIT_THRESHOLD_PX {
-                // Return direction for cursor feedback even before threshold.
-                self.active_corner_drag.as_mut().unwrap().gesture_dir = Some(dir);
-                return None;
-            }
             let split_dir = if dir.is_vertical() {
                 SplitDirection::Vertical
             } else {
                 SplitDirection::Horizontal
             };
-            return Some(CornerDragAction::Split {
-                leaf_id: session.leaf_id,
-                direction: split_dir,
-            });
-        } else {
-            // Cursor is over a different area.  Potential join.
-            if dist < JOIN_THRESHOLD_PX {
-                self.active_corner_drag.as_mut().unwrap().gesture_dir = Some(dir);
-                return None;
+            // Calculate split ratio from cursor position within the leaf.
+            if let Some((_id, lx, ly, lw, lh)) =
+                self.get_leaf_pixel_rect(session.leaf_id, &leaf_rects)
+            {
+                if lw > 1.0 && lh > 1.0 {
+                    let ratio = match split_dir {
+                        SplitDirection::Horizontal => {
+                            let r = (f32::from(current_pos.x) - lx) / lw;
+                            r.clamp(0.15, 0.85)
+                        }
+                        SplitDirection::Vertical => {
+                            let r = (f32::from(current_pos.y) - ly) / lh;
+                            r.clamp(0.15, 0.85)
+                        }
+                    };
+                    self.active_corner_drag.as_mut().unwrap().preview =
+                        CornerDragPreview::SplitPreview {
+                            direction: split_dir,
+                            ratio,
+                        };
+                }
             }
-            return Some(CornerDragAction::Join {
-                from: session.leaf_id,
-                into: over_id.unwrap(),
-            });
+        } else if let Some(target_id) = over_id {
+            // Cursor is over a different area.  Potential join.
+            self.active_corner_drag.as_mut().unwrap().preview = CornerDragPreview::JoinPreview {
+                target_leaf_id: target_id,
+                direction: dir,
+            };
         }
+
+        None
+    }
+
+    /// Finish the corner-drag gesture on mouse release.
+    ///
+    /// Reads the active session's preview state and returns the appropriate
+    /// action, then clears the session.
+    pub fn finish_corner_drag(&mut self) -> Option<CornerDragAction> {
+        let session = self.active_corner_drag?;
+        let action = match session.preview {
+            CornerDragPreview::SplitPreview { direction, ratio } => Some(CornerDragAction::Split {
+                leaf_id: session.leaf_id,
+                direction,
+                ratio,
+            }),
+            CornerDragPreview::JoinPreview {
+                target_leaf_id,
+                direction: _,
+            } => Some(CornerDragAction::Join {
+                from: session.leaf_id,
+                into: target_leaf_id,
+            }),
+            CornerDragPreview::Dragging => Some(CornerDragAction::Cancel),
+        };
+        self.end_corner_drag();
+        action
     }
 
     /// End the corner-drag session, clearing state.
@@ -947,6 +986,38 @@ impl AreaLayoutState {
         rects
     }
 
+    /// Get the pixel-space rectangle for a specific leaf, given pre-computed
+    /// leaf rects from `collect_leaf_rects`.
+    pub fn get_leaf_pixel_rect(
+        &self,
+        leaf_id: usize,
+        rects: &[(usize, f32, f32, f32, f32)],
+    ) -> Option<(usize, f32, f32, f32, f32)> {
+        rects.iter().find(|&&(id, ..)| id == leaf_id).copied()
+    }
+
+    /// Calculate the pixel span (width or height) of a split container.
+    pub fn get_split_pixel_span(
+        &self,
+        split_id: usize,
+        container_size: Size<Pixels>,
+    ) -> Option<f32> {
+        let w = f32::from(container_size.width);
+        let h = f32::from(container_size.height);
+        if w > 0.0 && h > 0.0 {
+            if let Some((dir, span_norm)) =
+                self.root.find_split_span(split_id, 0.0, 0.0, 1.0, 1.0)
+            {
+                let pixel_span = match dir {
+                    SplitDirection::Horizontal => span_norm * w,
+                    SplitDirection::Vertical => span_norm * h,
+                };
+                return Some(pixel_span);
+            }
+        }
+        None
+    }
+
     // ------------------------------------------------------------------
     // Border context menu
     // ------------------------------------------------------------------
@@ -969,6 +1040,7 @@ pub enum CornerDragAction {
     Split {
         leaf_id: usize,
         direction: SplitDirection,
+        ratio: f32,
     },
     /// Join the dragged leaf into a neighbor (remove the dragged leaf).
     Join { from: usize, into: usize },

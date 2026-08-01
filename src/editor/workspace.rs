@@ -13,18 +13,8 @@ use crate::theme::Theme;
 
 const FOLDER_ICON: &str = "icon/workspace/folder.svg";
 const MARKDOWN_ICON: &str = "icon/workspace/markdown.svg";
-const WORKSPACE_PANEL_TARGET_RATIO: f32 = 0.15;
-const WORKSPACE_PANEL_MIN_WIDTH: f32 = 240.0;
-const WORKSPACE_PANEL_MAX_WIDTH: f32 = 360.0;
 const WORKSPACE_NODE_HEIGHT: f32 = 28.0;
 const WORKSPACE_NODE_INDENT: f32 = 18.0;
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(super) enum WorkspaceTab {
-    #[default]
-    Files,
-    Outline,
-}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum WorkspaceTreeKind {
@@ -50,7 +40,6 @@ enum WorkspaceSelection {
 #[derive(Default)]
 pub(super) struct WorkspaceState {
     pub(super) is_open: bool,
-    active_tab: WorkspaceTab,
     root: Option<PathBuf>,
     file_tree: Option<WorkspaceTreeNode>,
     file_error: Option<String>,
@@ -155,14 +144,6 @@ impl Editor {
         self.workspace.outline_source = Some(source);
     }
 
-    fn set_workspace_tab(&mut self, tab: WorkspaceTab, cx: &mut Context<Self>) {
-        if self.workspace.active_tab != tab {
-            self.workspace.active_tab = tab;
-            self.sync_workspace_models(cx);
-            cx.notify();
-        }
-    }
-
     fn toggle_workspace_node(&mut self, id: &str, cx: &mut Context<Self>) {
         if !self.workspace.expanded.remove(id) {
             self.workspace.expanded.insert(id.to_string());
@@ -180,107 +161,7 @@ impl Editor {
         self.request_dropped_markdown_replace(path, window, cx);
     }
 
-    pub(super) fn render_workspace_panel(
-        &mut self,
-        theme: &Theme,
-        strings: &I18nStrings,
-        panel_width: f32,
-        cx: &mut Context<Self>,
-    ) -> Option<AnyElement> {
-        if !self.workspace.is_open {
-            return None;
-        }
 
-        self.sync_workspace_models(cx);
-        let editor = cx.entity().downgrade();
-        let c = &theme.colors;
-        let d = &theme.dimensions;
-        let t = &theme.typography;
-
-        let tab = |label: String, tab: WorkspaceTab, active: bool| {
-            let tab_editor = editor.clone();
-            let tab_id = match tab {
-                WorkspaceTab::Files => "workspace-tab-files",
-                WorkspaceTab::Outline => "workspace-tab-outline",
-            };
-            div()
-                .id(tab_id)
-                .h(px(30.0))
-                .px(px(12.0))
-                .flex()
-                .items_center()
-                .justify_center()
-                .rounded(px(6.0))
-                .bg(if active {
-                    c.selection
-                } else {
-                    hsla(0.0, 0.0, 0.0, 0.0)
-                })
-                .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                .cursor_pointer()
-                .text_size(px(t.text_size * 0.88))
-                .text_color(if active {
-                    c.text_default
-                } else {
-                    c.dialog_muted
-                })
-                .child(label)
-                .on_click(move |_event, _window, cx| {
-                    let _ = tab_editor.update(cx, |editor, cx| {
-                        editor.set_workspace_tab(tab, cx);
-                    });
-                })
-        };
-
-        let body = match self.workspace.active_tab {
-            WorkspaceTab::Files => self.render_workspace_files_tree(theme, strings, &editor),
-            WorkspaceTab::Outline => self.render_workspace_outline_tree(theme, strings, &editor),
-        };
-
-        Some(
-            div()
-                .id("workspace-panel")
-                .h_full()
-                .w(px(panel_width))
-                .flex()
-                .flex_col()
-                .flex_shrink_0()
-                .bg(c.dialog_surface)
-                .border_r(px(d.dialog_border_width))
-                .border_color(c.dialog_border)
-                .child(
-                    div()
-                        .px(px(12.0))
-                        .pt(px(12.0))
-                        .pb(px(8.0))
-                        .flex()
-                        .gap(px(8.0))
-                        .border_b(px(d.dialog_border_width))
-                        .border_color(c.dialog_border)
-                        .child(tab(
-                            strings.workspace_tab_files.clone(),
-                            WorkspaceTab::Files,
-                            self.workspace.active_tab == WorkspaceTab::Files,
-                        ))
-                        .child(tab(
-                            strings.workspace_tab_outline.clone(),
-                            WorkspaceTab::Outline,
-                            self.workspace.active_tab == WorkspaceTab::Outline,
-                        )),
-                )
-                .child(
-                    div()
-                        .id("workspace-panel-scroll")
-                        .flex_1()
-                        .min_h(px(0.0))
-                        .overflow_y_scroll()
-                        .px(px(8.0))
-                        .py(px(10.0))
-                        .child(body),
-                )
-                .into_any_element(),
-        )
-    }
 
     pub(super) fn render_workspace_files_tree(
         &self,
@@ -570,10 +451,7 @@ fn stable_node_hash(id: &str) -> u64 {
     hasher.finish()
 }
 
-pub(super) fn workspace_panel_width_for_viewport(viewport_width: f32) -> f32 {
-    let target = viewport_width * WORKSPACE_PANEL_TARGET_RATIO;
-    target.clamp(WORKSPACE_PANEL_MIN_WIDTH, WORKSPACE_PANEL_MAX_WIDTH)
-}
+
 
 fn prune_outline_state(workspace: &mut WorkspaceState, outline: &[WorkspaceTreeNode]) {
     let mut current_ids = HashSet::new();

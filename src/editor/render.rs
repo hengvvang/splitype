@@ -1093,7 +1093,7 @@ impl Editor {
     }
 
     /// Builds the unsaved-changes dialog with backdrop, message, and three
-    /// action buttons (cancel, discard, save-and-close).
+    /// action buttons (save-and-close, discard, cancel).
     fn render_unsaved_changes_overlay(
         &self,
         theme: &Theme,
@@ -1111,11 +1111,10 @@ impl Editor {
             .left_0()
             .right_0()
             .bottom_0()
-            .occlude()
             .flex()
             .items_center()
             .justify_center()
-            .bg(c.dialog_backdrop)
+            .on_click(cx.listener(Self::on_cancel_close_dialog))
             .child(
                 div()
                     .w_full()
@@ -1134,8 +1133,10 @@ impl Editor {
                             .bg(c.dialog_surface)
                             .border(px(d.dialog_border_width))
                             .border_color(c.dialog_border)
-                            .rounded(px(d.dialog_radius))
+                            .rounded(px(d.menu_panel_radius))
                             .shadow_lg()
+                            .occlude()
+                            .on_click(|_, _, _| {})
                             .child(
                                 div()
                                     .text_size(px(t.dialog_title_size))
@@ -1158,41 +1159,39 @@ impl Editor {
                                     .gap(px(d.dialog_button_gap))
                                     .child(
                                         div()
-                                            .id("cancel-close-dialog")
-                                            .h(px(d.dialog_button_height))
-                                            .px(px(d.dialog_button_padding_x))
+                                            .id("save-and-close-dialog")
+                                            .h(px(26.0))
+                                            .px(px(10.0))
                                             .flex()
                                             .items_center()
                                             .justify_center()
-                                            .rounded(px((d.dialog_radius - 4.0).max(0.0)))
-                                            .border(px(d.dialog_border_width))
-                                            .border_color(c.dialog_border)
-                                            .bg(c.dialog_secondary_button_bg)
-                                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                            .rounded(px(d.menu_item_radius))
+                                            .bg(c.dialog_primary_button_bg)
+                                            .hover(|this| this.bg(c.dialog_primary_button_hover))
                                             .active(|this| this.opacity(0.92))
                                             .cursor_pointer()
-                                            .text_size(px(t.dialog_button_size))
+                                            .text_size(px(12.0))
                                             .font_weight(t.dialog_button_weight.to_font_weight())
-                                            .text_color(c.dialog_secondary_button_text)
-                                            .child(strings.unsaved_changes_cancel.clone())
-                                            .on_click(cx.listener(Self::on_cancel_close_dialog)),
+                                            .text_color(c.dialog_primary_button_text)
+                                            .child(strings.unsaved_changes_save_and_close.clone())
+                                            .on_click(cx.listener(Self::on_save_and_close)),
                                     )
                                     .child(
                                         div()
                                             .id("discard-and-close-dialog")
-                                            .h(px(d.dialog_button_height))
-                                            .px(px(d.dialog_button_padding_x))
+                                            .h(px(26.0))
+                                            .px(px(10.0))
                                             .flex()
                                             .items_center()
                                             .justify_center()
-                                            .rounded(px((d.dialog_radius - 4.0).max(0.0)))
+                                            .rounded(px(d.menu_item_radius))
                                             .border(px(d.dialog_border_width))
                                             .border_color(c.dialog_border)
                                             .bg(c.dialog_danger_button_bg)
                                             .hover(|this| this.bg(c.dialog_danger_button_hover))
                                             .active(|this| this.opacity(0.92))
                                             .cursor_pointer()
-                                            .text_size(px(t.dialog_button_size))
+                                            .text_size(px(12.0))
                                             .font_weight(t.dialog_button_weight.to_font_weight())
                                             .text_color(c.dialog_danger_button_text)
                                             .child(
@@ -1202,22 +1201,24 @@ impl Editor {
                                     )
                                     .child(
                                         div()
-                                            .id("save-and-close-dialog")
-                                            .h(px(d.dialog_button_height))
-                                            .px(px(d.dialog_button_padding_x))
+                                            .id("cancel-close-dialog")
+                                            .h(px(26.0))
+                                            .px(px(10.0))
                                             .flex()
                                             .items_center()
                                             .justify_center()
-                                            .rounded(px((d.dialog_radius - 4.0).max(0.0)))
-                                            .bg(c.dialog_primary_button_bg)
-                                            .hover(|this| this.bg(c.dialog_primary_button_hover))
+                                            .rounded(px(d.menu_item_radius))
+                                            .border(px(d.dialog_border_width))
+                                            .border_color(c.dialog_border)
+                                            .bg(c.dialog_secondary_button_bg)
+                                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
                                             .active(|this| this.opacity(0.92))
                                             .cursor_pointer()
-                                            .text_size(px(t.dialog_button_size))
+                                            .text_size(px(12.0))
                                             .font_weight(t.dialog_button_weight.to_font_weight())
-                                            .text_color(c.dialog_primary_button_text)
-                                            .child(strings.unsaved_changes_save_and_close.clone())
-                                            .on_click(cx.listener(Self::on_save_and_close)),
+                                            .text_color(c.dialog_secondary_button_text)
+                                            .child(strings.unsaved_changes_cancel.clone())
+                                            .on_click(cx.listener(Self::on_cancel_close_dialog)),
                                     ),
                             ),
                     ),
@@ -1243,11 +1244,10 @@ impl Editor {
             .left_0()
             .right_0()
             .bottom_0()
-            .occlude()
             .flex()
             .items_center()
             .justify_center()
-            .bg(c.dialog_backdrop)
+            .on_click(cx.listener(Self::on_cancel_drop_replace_dialog))
             .child(
                 div()
                     .w_full()
@@ -1266,8 +1266,10 @@ impl Editor {
                             .bg(c.dialog_surface)
                             .border(px(d.dialog_border_width))
                             .border_color(c.dialog_border)
-                            .rounded(px(d.dialog_radius))
+                            .rounded(px(d.menu_panel_radius))
                             .shadow_lg()
+                            .occlude()
+                            .on_click(|_, _, _| {})
                             .child(
                                 div()
                                     .text_size(px(t.dialog_title_size))
@@ -1290,68 +1292,74 @@ impl Editor {
                                     .gap(px(d.dialog_button_gap))
                                     .child(
                                         div()
-                                            .id("cancel-drop-replace-dialog")
-                                            .h(px(d.dialog_button_height))
-                                            .px(px(d.dialog_button_padding_x))
+                                            .id("save-and-replace-drop-dialog")
+                                            .h(px(26.0))
+                                            .px(px(10.0))
                                             .flex()
                                             .items_center()
                                             .justify_center()
-                                            .rounded(px((d.dialog_radius - 4.0).max(0.0)))
-                                            .border(px(d.dialog_border_width))
-                                            .border_color(c.dialog_border)
-                                            .bg(c.dialog_secondary_button_bg)
-                                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                            .rounded(px(d.menu_item_radius))
+                                            .bg(c.dialog_primary_button_bg)
+                                            .hover(|this| this.bg(c.dialog_primary_button_hover))
                                             .active(|this| this.opacity(0.92))
                                             .cursor_pointer()
-                                            .text_size(px(t.dialog_button_size))
+                                            .text_size(px(12.0))
                                             .font_weight(t.dialog_button_weight.to_font_weight())
-                                            .text_color(c.dialog_secondary_button_text)
-                                            .child(strings.drop_replace_cancel.clone())
+                                            .text_color(c.dialog_primary_button_text)
+                                            .child(strings.drop_replace_save_and_replace.clone())
                                             .on_click(
-                                                cx.listener(Self::on_cancel_drop_replace_dialog),
+                                                cx.listener(Self::on_save_and_replace_drop),
                                             ),
                                     )
                                     .child(
                                         div()
                                             .id("discard-and-replace-drop-dialog")
-                                            .h(px(d.dialog_button_height))
-                                            .px(px(d.dialog_button_padding_x))
+                                            .h(px(26.0))
+                                            .px(px(10.0))
                                             .flex()
                                             .items_center()
                                             .justify_center()
-                                            .rounded(px((d.dialog_radius - 4.0).max(0.0)))
+                                            .rounded(px(d.menu_item_radius))
                                             .border(px(d.dialog_border_width))
                                             .border_color(c.dialog_border)
                                             .bg(c.dialog_danger_button_bg)
                                             .hover(|this| this.bg(c.dialog_danger_button_hover))
                                             .active(|this| this.opacity(0.92))
                                             .cursor_pointer()
-                                            .text_size(px(t.dialog_button_size))
+                                            .text_size(px(12.0))
                                             .font_weight(t.dialog_button_weight.to_font_weight())
                                             .text_color(c.dialog_danger_button_text)
-                                            .child(strings.drop_replace_discard_and_replace.clone())
+                                            .child(
+                                                strings
+                                                    .drop_replace_discard_and_replace
+                                                    .clone(),
+                                            )
                                             .on_click(
                                                 cx.listener(Self::on_discard_and_replace_drop),
                                             ),
                                     )
                                     .child(
                                         div()
-                                            .id("save-and-replace-drop-dialog")
-                                            .h(px(d.dialog_button_height))
-                                            .px(px(d.dialog_button_padding_x))
+                                            .id("cancel-drop-replace-dialog")
+                                            .h(px(26.0))
+                                            .px(px(10.0))
                                             .flex()
                                             .items_center()
                                             .justify_center()
-                                            .rounded(px((d.dialog_radius - 4.0).max(0.0)))
-                                            .bg(c.dialog_primary_button_bg)
-                                            .hover(|this| this.bg(c.dialog_primary_button_hover))
+                                            .rounded(px(d.menu_item_radius))
+                                            .border(px(d.dialog_border_width))
+                                            .border_color(c.dialog_border)
+                                            .bg(c.dialog_secondary_button_bg)
+                                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
                                             .active(|this| this.opacity(0.92))
                                             .cursor_pointer()
-                                            .text_size(px(t.dialog_button_size))
+                                            .text_size(px(12.0))
                                             .font_weight(t.dialog_button_weight.to_font_weight())
-                                            .text_color(c.dialog_primary_button_text)
-                                            .child(strings.drop_replace_save_and_replace.clone())
-                                            .on_click(cx.listener(Self::on_save_and_replace_drop)),
+                                            .text_color(c.dialog_secondary_button_text)
+                                            .child(strings.drop_replace_cancel.clone())
+                                            .on_click(
+                                                cx.listener(Self::on_cancel_drop_replace_dialog),
+                                            ),
                                     ),
                             ),
                     ),
@@ -1582,6 +1590,9 @@ impl Editor {
             .id("tiled-layout-root")
             .w_full()
             .h_full()
+            .flex_1()
+            .min_w(px(0.0))
+            .min_h(px(0.0))
             .relative()
             .on_mouse_move(move |event, window, cx| {
                 let pos = event.position;
@@ -1592,35 +1603,42 @@ impl Editor {
                             SplitDirection::Horizontal => f32::from(pos.x),
                             SplitDirection::Vertical => f32::from(pos.y),
                         };
+                        let viewport = window.viewport_size();
+                        let span = ed
+                            .area_layout
+                            .get_split_pixel_span(drag.split_id, viewport)
+                            .unwrap_or_else(|| match drag.direction {
+                                SplitDirection::Horizontal => f32::from(viewport.width),
+                                SplitDirection::Vertical => f32::from(viewport.height),
+                            });
+
+                        if span > 1.0 {
+                            let mut session = drag;
+                            session.total_span = span;
+                            ed.area_layout.active_splitter_drag = Some(session);
+                        }
                         ed.area_layout.update_splitter_drag(current_pos);
                         changed = true;
-                    }
-                    if ed.area_layout.active_corner_drag.is_some() {
+                    } else if ed.area_layout.active_corner_drag.is_some() {
                         let viewport = window.viewport_size();
-                        match ed.area_layout.update_corner_drag(pos, viewport) {
-                            Some(CornerDragAction::Split { leaf_id, direction }) => {
-                                ed.area_layout.end_corner_drag();
-                                ed.area_layout.split_area(leaf_id, direction);
-                                changed = true;
-                            }
-                            Some(CornerDragAction::Join { from, into }) => {
-                                ed.area_layout.end_corner_drag();
-                                ed.area_layout.join_area(into, from);
-                                changed = true;
-                            }
-                            Some(CornerDragAction::Swap { from, to }) => {
-                                ed.area_layout.end_corner_drag();
-                                ed.area_layout.swap_area_types(from, to);
-                                changed = true;
-                            }
-                            Some(CornerDragAction::Duplicate { .. }) => {
-                                ed.area_layout.end_corner_drag();
-                                changed = true;
-                            }
-                            Some(CornerDragAction::Cancel) | None => {
-                                changed = true;
+                        let action = ed.area_layout.update_corner_drag(pos, viewport);
+                        // Modifier actions still execute immediately.
+                        if let Some(action) = action {
+                            match action {
+                                CornerDragAction::Swap { from, to } => {
+                                    ed.area_layout.end_corner_drag();
+                                    ed.area_layout.swap_area_types(from, to);
+                                }
+                                CornerDragAction::Duplicate { .. } => {
+                                    ed.area_layout.end_corner_drag();
+                                }
+                                CornerDragAction::Cancel => {
+                                    ed.area_layout.end_corner_drag();
+                                }
+                                _ => {} // Split/Join handled on mouse_up
                             }
                         }
+                        changed = true;
                     }
                     if changed {
                         cx.notify();
@@ -1629,16 +1647,146 @@ impl Editor {
             })
             .on_mouse_up(MouseButton::Left, move |_event, _window, cx| {
                 let _ = root_editor_up.update(cx, |ed, cx| {
-                    if ed.area_layout.active_splitter_drag.is_some()
-                        || ed.area_layout.active_corner_drag.is_some()
-                    {
+                    if ed.area_layout.active_splitter_drag.is_some() {
                         ed.area_layout.end_splitter_drag();
-                        ed.area_layout.end_corner_drag();
+                        cx.notify();
+                    }
+                    if ed.area_layout.active_corner_drag.is_some() {
+                        match ed.area_layout.finish_corner_drag() {
+                            Some(CornerDragAction::Split {
+                                leaf_id,
+                                direction,
+                                ratio,
+                            }) => {
+                                ed.area_layout
+                                    .split_area_with_ratio(leaf_id, direction, ratio);
+                            }
+                            Some(CornerDragAction::Join { from, into }) => {
+                                ed.area_layout.join_area(into, from);
+                            }
+                            Some(CornerDragAction::Swap { from, to }) => {
+                                ed.area_layout.swap_area_types(from, to);
+                            }
+                            _ => {}
+                        }
                         cx.notify();
                     }
                 });
             })
             .child(layout_tree);
+
+        // Build the preview overlay for corner drag gestures.
+        let preview_overlay = if let Some(drag) = &self.area_layout.active_corner_drag {
+            match drag.preview {
+                CornerDragPreview::SplitPreview { direction, ratio } => {
+                    // Calculate the pixel rect of the leaf being split.
+                    let viewport = _window.viewport_size();
+                    let leaf_rects = self.area_layout.collect_leaf_rects(viewport);
+                    let leaf_rect = self
+                        .area_layout
+                        .get_leaf_pixel_rect(drag.leaf_id, &leaf_rects);
+
+                    if let Some((_, lx, ly, lw, lh)) = leaf_rect {
+                        // Horizontal split = left|right → draw a VERTICAL line
+                        // Vertical split = top|bottom → draw a HORIZONTAL line
+                        let line = match direction {
+                            SplitDirection::Horizontal => div()
+                                .absolute()
+                                .left(px(lx + lw * ratio))
+                                .top(px(ly))
+                                .w(px(3.0))
+                                .h(px(lh))
+                                .bg(hsla(0.36, 0.73, 0.57, 0.8)),
+                            SplitDirection::Vertical => div()
+                                .absolute()
+                                .top(px(ly + lh * ratio))
+                                .left(px(lx))
+                                .h(px(3.0))
+                                .w(px(lw))
+                                .bg(hsla(0.36, 0.73, 0.57, 0.8)),
+                        };
+
+                        // Also draw a semi-transparent highlight over the leaf
+                        Some(
+                            div()
+                                .absolute()
+                                .inset(px(0.0))
+                                .child(
+                                    div()
+                                        .absolute()
+                                        .left(px(lx))
+                                        .top(px(ly))
+                                        .w(px(lw))
+                                        .h(px(lh))
+                                        .rounded(px(theme.dimensions.area_tile_radius))
+                                        .bg(hsla(0.36, 0.73, 0.57, 0.08)),
+                                )
+                                .child(line),
+                        )
+                    } else {
+                        None
+                    }
+                }
+                CornerDragPreview::JoinPreview {
+                    target_leaf_id,
+                    direction,
+                } => {
+                    let viewport = _window.viewport_size();
+                    let leaf_rects = self.area_layout.collect_leaf_rects(viewport);
+                    let target_rect = self
+                        .area_layout
+                        .get_leaf_pixel_rect(target_leaf_id, &leaf_rects);
+
+                    if let Some((_, rx, ry, rw, rh)) = target_rect {
+                        let arrow_symbol = match direction {
+                            ScreenDirection::North => "▲",
+                            ScreenDirection::South => "▼",
+                            ScreenDirection::East => "▶",
+                            ScreenDirection::West => "◀",
+                        };
+
+                        Some(
+                            div()
+                                .absolute()
+                                .left(px(rx))
+                                .top(px(ry))
+                                .w(px(rw))
+                                .h(px(rh))
+                                .rounded(px(theme.dimensions.area_tile_radius))
+                                .bg(hsla(0.36, 0.73, 0.57, 0.25))
+                                .border(px(2.0))
+                                .border_color(hsla(0.36, 0.73, 0.57, 0.8))
+                                .flex()
+                                .flex_col()
+                                .items_center()
+                                .justify_center()
+                                .child(
+                                    div()
+                                        .px(px(12.0))
+                                        .py(px(6.0))
+                                        .rounded_md()
+                                        .bg(hsla(0.0, 0.0, 0.0, 0.75))
+                                        .text_color(hsla(0.0, 0.0, 1.0, 0.95))
+                                        .text_size(px(15.0))
+                                        .font_weight(FontWeight::BOLD)
+                                        .child(format!("{} Join Area", arrow_symbol)),
+                                ),
+                        )
+                    } else {
+                        Some(
+                            div()
+                                .absolute()
+                                .inset(px(0.0))
+                                .bg(hsla(0.36, 0.73, 0.57, 0.15)),
+                        )
+                    }
+                }
+                CornerDragPreview::Dragging => None,
+            }
+        } else {
+            None
+        };
+        let container = container.children(preview_overlay);
 
         if let Some(border_menu) = self.area_layout.active_border_menu {
             let menu_overlay = self.render_border_context_menu_overlay(border_menu, theme, cx);
@@ -1660,7 +1808,6 @@ impl Editor {
         use crate::editor::area_layout::*;
 
         let c = &theme.colors;
-        let d = &theme.dimensions;
         let editor = cx.entity().downgrade();
 
         match node {
@@ -1706,7 +1853,6 @@ impl Editor {
                     SplitDirection::Horizontal => {
                         let bar_editor = editor.clone();
                         let menu_editor = editor.clone();
-                        let gap = d.area_tile_gap;
 
                         div()
                             .id(("tiled-split-h", split_id))
@@ -1720,25 +1866,24 @@ impl Editor {
                                 div()
                                     .w(relative(r))
                                     .h_full()
+                                    .overflow_hidden()
                                     .flex()
                                     .flex_col()
-                                    .flex_1()
+                                    .flex_shrink_0()
                                     .min_w(px(0.0))
+                                    .min_h(px(0.0))
                                     .child(first_elem),
                             )
                             .child(
-                                // Splitter bar sits in the gap between the two padded tiles.
+                                // Splitter bar between the two padded tiles.
                                 div()
                                     .id(("tiled-splitter-bar-h", split_id))
-                                    .w(px(gap * 2.0))
+                                    .w(px(2.0))
                                     .h_full()
-                                    .ml(px(-gap))
-                                    .mr(px(-gap))
                                     .flex_shrink_0()
-                                    .flex()
-                                    .flex_col()
-                                    .items_center()
                                     .cursor_col_resize()
+                                    .bg(c.dialog_border)
+                                    .hover(|this| this.bg(c.selection))
                                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                         let start_pos = f32::from(event.position.x);
                                         let _ = bar_editor.update(cx, |ed, cx| {
@@ -1753,34 +1898,31 @@ impl Editor {
                                             cx.notify();
                                         });
                                     })
-                                    .on_mouse_down(MouseButton::Right, move |event, _window, cx| {
-                                        let pos = event.position;
-                                        let _ = menu_editor.update(cx, |ed, cx| {
-                                            ed.area_layout.active_border_menu =
-                                                Some(BorderMenuState {
-                                                    split_id,
-                                                    direction: dir,
-                                                    position: pos,
-                                                });
-                                            cx.notify();
-                                        });
-                                    })
-                                    .child(
-                                        // Thin visible line centered in the gap
-                                        div()
-                                            .w(px(2.0))
-                                            .h_full()
-                                            .bg(c.dialog_border)
-                                            .hover(|this| this.bg(c.selection)),
+                                    .on_mouse_down(
+                                        MouseButton::Right,
+                                        move |event, _window, cx| {
+                                            let pos = event.position;
+                                            let _ = menu_editor.update(cx, |ed, cx| {
+                                                ed.area_layout.active_border_menu =
+                                                    Some(BorderMenuState {
+                                                        split_id,
+                                                        direction: dir,
+                                                        position: pos,
+                                                    });
+                                                cx.notify();
+                                            });
+                                        },
                                     ),
                             )
                             .child(
                                 div()
                                     .h_full()
+                                    .overflow_hidden()
                                     .flex()
                                     .flex_col()
                                     .flex_1()
                                     .min_w(px(0.0))
+                                    .min_h(px(0.0))
                                     .child(second_elem),
                             )
                             .into_any_element()
@@ -1788,7 +1930,6 @@ impl Editor {
                     SplitDirection::Vertical => {
                         let bar_editor = editor.clone();
                         let menu_editor = editor.clone();
-                        let gap = d.area_tile_gap;
 
                         div()
                             .id(("tiled-split-v", split_id))
@@ -1802,25 +1943,24 @@ impl Editor {
                                 div()
                                     .h(relative(r))
                                     .w_full()
+                                    .overflow_hidden()
                                     .flex()
                                     .flex_col()
-                                    .flex_1()
+                                    .flex_shrink_0()
+                                    .min_w(px(0.0))
                                     .min_h(px(0.0))
                                     .child(first_elem),
                             )
                             .child(
-                                // Splitter bar sits in the gap between the two padded tiles.
+                                // Splitter bar between the two padded tiles.
                                 div()
                                     .id(("tiled-splitter-bar-v", split_id))
-                                    .h(px(gap * 2.0))
+                                    .h(px(2.0))
                                     .w_full()
-                                    .mt(px(-gap))
-                                    .mb(px(-gap))
                                     .flex_shrink_0()
-                                    .flex()
-                                    .flex_row()
-                                    .items_center()
                                     .cursor_row_resize()
+                                    .bg(c.dialog_border)
+                                    .hover(|this| this.bg(c.selection))
                                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                         let start_pos = f32::from(event.position.y);
                                         let _ = bar_editor.update(cx, |ed, cx| {
@@ -1835,33 +1975,30 @@ impl Editor {
                                             cx.notify();
                                         });
                                     })
-                                    .on_mouse_down(MouseButton::Right, move |event, _window, cx| {
-                                        let pos = event.position;
-                                        let _ = menu_editor.update(cx, |ed, cx| {
-                                            ed.area_layout.active_border_menu =
-                                                Some(BorderMenuState {
-                                                    split_id,
-                                                    direction: dir,
-                                                    position: pos,
-                                                });
-                                            cx.notify();
-                                        });
-                                    })
-                                    .child(
-                                        // Thin visible line centered in the gap
-                                        div()
-                                            .h(px(2.0))
-                                            .w_full()
-                                            .bg(c.dialog_border)
-                                            .hover(|this| this.bg(c.selection)),
+                                    .on_mouse_down(
+                                        MouseButton::Right,
+                                        move |event, _window, cx| {
+                                            let pos = event.position;
+                                            let _ = menu_editor.update(cx, |ed, cx| {
+                                                ed.area_layout.active_border_menu =
+                                                    Some(BorderMenuState {
+                                                        split_id,
+                                                        direction: dir,
+                                                        position: pos,
+                                                    });
+                                                cx.notify();
+                                            });
+                                        },
                                     ),
                             )
                             .child(
                                 div()
                                     .w_full()
+                                    .overflow_hidden()
                                     .flex()
                                     .flex_col()
                                     .flex_1()
+                                    .min_w(px(0.0))
                                     .min_h(px(0.0))
                                     .child(second_elem),
                             )
@@ -1904,11 +2041,12 @@ impl Editor {
                         .p(px(16.0))
                         .flex()
                         .flex_col()
-                        .items_center()
                         .justify_center()
                         .bg(c.editor_background)
                         .child(
                             div()
+                                .w_full()
+                                .text_align(TextAlign::Center)
                                 .text_size(px(14.0))
                                 .text_color(c.dialog_muted)
                                 .child(format!("{} (Editor View)", area_type.name())),
@@ -1923,71 +2061,8 @@ impl Editor {
 
         let dropdown_open = self.area_layout.active_dropdown_leaf == Some(leaf_id);
 
-        // Corner drag handles at the four corners of every tile.
-        let editor_corner = cx.entity().downgrade();
-        let corner_handles = div()
-            .id(("area-corners", leaf_id))
-            .absolute()
-            .inset(px(-4.0))
-            .child(
-                // Top-left corner handle
-                div()
-                    .id(("area-corner-tl", leaf_id))
-                    .absolute()
-                    .top(px(0.0))
-                    .left(px(0.0))
-                    .size(px(12.0))
-                    .cursor_pointer(),
-            )
-            .child(
-                // Top-right corner handle
-                div()
-                    .id(("area-corner-tr", leaf_id))
-                    .absolute()
-                    .top(px(0.0))
-                    .right(px(0.0))
-                    .size(px(12.0))
-                    .cursor_pointer(),
-            )
-            .child(
-                // Bottom-left corner handle
-                div()
-                    .id(("area-corner-bl", leaf_id))
-                    .absolute()
-                    .bottom(px(0.0))
-                    .left(px(0.0))
-                    .size(px(12.0))
-                    .cursor_pointer(),
-            )
-            .child(
-                // Bottom-right corner handle
-                div()
-                    .id(("area-corner-br", leaf_id))
-                    .absolute()
-                    .bottom(px(0.0))
-                    .right(px(0.0))
-                    .size(px(12.0))
-                    .cursor_pointer(),
-            );
-
-        // Attach corner drag to all four corner handles.
-        let corner_handles =
-            corner_handles.on_mouse_down(MouseButton::Left, move |event, _window, cx| {
-                let pos = event.position;
-                let modifier = if event.modifiers.control {
-                    CornerDragModifier::Swap
-                } else if event.modifiers.shift {
-                    CornerDragModifier::Duplicate
-                } else {
-                    CornerDragModifier::None
-                };
-                let _ = editor_corner.update(cx, |ed, cx| {
-                    ed.area_layout.start_corner_drag(leaf_id, pos, modifier);
-                    cx.notify();
-                });
-            });
-
-        let tile = div()
+        // Tile card with overflow hidden (no corner handles inside, to avoid clipping).
+        let tile_card = div()
             .id(("tiled-area-card", leaf_id))
             .w_full()
             .h_full()
@@ -2008,17 +2083,66 @@ impl Editor {
                     .min_h(px(0.0))
                     .relative()
                     .child(body),
-            )
-            .child(corner_handles);
+            );
+
+        // Corner drag handles positioned at the four corners of the tile card.
+        // Attached only to the 4 specific corner hot-zones (top-left, top-right, bottom-left, bottom-right).
+        let editor_corner = cx.entity().downgrade();
+        let make_corner = |id_str: &'static str, top: bool, left: bool| {
+            let editor_corner = editor_corner.clone();
+            let mut corner_div = div()
+                .id((id_str, leaf_id))
+                .absolute()
+                .size(px(24.0))
+                .cursor_crosshair();
+
+            if top {
+                corner_div = corner_div.top(px(gap));
+            } else {
+                corner_div = corner_div.bottom(px(gap));
+            }
+            if left {
+                corner_div = corner_div.left(px(gap));
+            } else {
+                corner_div = corner_div.right(px(gap));
+            }
+
+            corner_div.on_mouse_down(MouseButton::Left, move |event, _window, cx| {
+                let pos = event.position;
+                let modifier = if event.modifiers.control {
+                    CornerDragModifier::Swap
+                } else if event.modifiers.shift {
+                    CornerDragModifier::Duplicate
+                } else {
+                    CornerDragModifier::None
+                };
+                let _ = editor_corner.update(cx, |ed, cx| {
+                    ed.area_layout.start_corner_drag(leaf_id, pos, modifier);
+                    cx.notify();
+                });
+            })
+        };
+
+        let corner_handles = div()
+            .id(("area-corners", leaf_id))
+            .absolute()
+            .inset(px(-gap))
+            .child(make_corner("area-corner-tl", true, true))
+            .child(make_corner("area-corner-tr", true, false))
+            .child(make_corner("area-corner-bl", false, true))
+            .child(make_corner("area-corner-br", false, false));
 
         // Wrap in a padded container so the gap is uniform.
         let wrapped = div()
             .id(("tiled-area-wrapper", leaf_id))
             .w_full()
             .h_full()
+            .min_w(px(0.0))
+            .min_h(px(0.0))
             .p(px(gap))
             .relative()
-            .child(tile);
+            .child(tile_card)
+            .child(corner_handles);
 
         if dropdown_open {
             let menu = self.render_area_dropdown_menu(leaf_id, theme, cx);
@@ -2068,14 +2192,16 @@ impl Editor {
         let split_h_editor = editor.clone();
         let split_h_button = div()
             .id(("area-btn-split-h", leaf_id))
-            .px(px(6.0))
-            .py(px(2.0))
+            .p(px(4.0))
             .rounded(px(d.menu_item_radius))
             .hover(|this| this.bg(c.dialog_secondary_button_hover))
             .cursor_pointer()
-            .text_size(px(11.0))
-            .text_color(c.dialog_muted)
-            .child("Split H")
+            .child(
+                svg()
+                    .path("icon/panel/split-h.svg")
+                    .size(px(14.0))
+                    .text_color(c.dialog_muted),
+            )
             .on_click(move |_event, _window, cx| {
                 let _ = split_h_editor.update(cx, |ed, cx| {
                     ed.area_layout
@@ -2087,14 +2213,16 @@ impl Editor {
         let split_v_editor = editor.clone();
         let split_v_button = div()
             .id(("area-btn-split-v", leaf_id))
-            .px(px(6.0))
-            .py(px(2.0))
+            .p(px(4.0))
             .rounded(px(d.menu_item_radius))
             .hover(|this| this.bg(c.dialog_secondary_button_hover))
             .cursor_pointer()
-            .text_size(px(11.0))
-            .text_color(c.dialog_muted)
-            .child("Split V")
+            .child(
+                svg()
+                    .path("icon/panel/split-v.svg")
+                    .size(px(14.0))
+                    .text_color(c.dialog_muted),
+            )
             .on_click(move |_event, _window, cx| {
                 let _ = split_v_editor.update(cx, |ed, cx| {
                     ed.area_layout.split_area(leaf_id, SplitDirection::Vertical);
@@ -2113,14 +2241,20 @@ impl Editor {
             let max_editor = editor.clone();
             let max_button = div()
                 .id(("area-btn-max", leaf_id))
-                .px(px(6.0))
-                .py(px(2.0))
+                .p(px(4.0))
                 .rounded(px(d.menu_item_radius))
                 .hover(|this| this.bg(c.dialog_secondary_button_hover))
                 .cursor_pointer()
-                .text_size(px(11.0))
-                .text_color(c.dialog_muted)
-                .child(if is_maximized { "Restore" } else { "Max" })
+                .child(
+                    svg()
+                        .path(if is_maximized {
+                            "icon/titlebar/chrome-restore.svg"
+                        } else {
+                            "icon/titlebar/chrome-maximize.svg"
+                        })
+                        .size(px(14.0))
+                        .text_color(c.dialog_muted),
+                )
                 .on_click(move |_event, _window, cx| {
                     let _ = max_editor.update(cx, |ed, cx| {
                         ed.area_layout.toggle_maximize(leaf_id);
@@ -2131,14 +2265,16 @@ impl Editor {
             let close_editor = editor.clone();
             let close_button = div()
                 .id(("area-btn-close", leaf_id))
-                .px(px(6.0))
-                .py(px(2.0))
+                .p(px(4.0))
                 .rounded(px(d.menu_item_radius))
                 .hover(|this| this.bg(c.dialog_secondary_button_hover))
                 .cursor_pointer()
-                .text_size(px(11.0))
-                .text_color(c.dialog_muted)
-                .child("Close")
+                .child(
+                    svg()
+                        .path("icon/titlebar/chrome-close.svg")
+                        .size(px(14.0))
+                        .text_color(c.dialog_muted),
+                )
                 .on_click(move |_event, _window, cx| {
                     let _ = close_editor.update(cx, |ed, cx| {
                         ed.area_layout.close_area(leaf_id);
@@ -2241,6 +2377,8 @@ impl Editor {
         use crate::editor::area_layout::*;
 
         let c = &theme.colors;
+        let d = &theme.dimensions;
+        let t = &theme.typography;
         let editor = cx.entity().downgrade();
         let split_id = border_menu.split_id;
 
@@ -2270,27 +2408,35 @@ impl Editor {
                 div()
                     .id("tiled-border-context-menu")
                     .absolute()
+                    .occlude()
                     .top(px(top_pos))
                     .left(px(left_pos))
-                    .w(px(180.0))
-                    .py(px(4.0))
+                    .w(px(d.menu_panel_width))
+                    .p(px(d.menu_panel_padding))
+                    .flex()
+                    .flex_col()
+                    .gap(px(d.menu_panel_gap))
                     .bg(c.dialog_surface)
-                    .border_1()
+                    .border(px(d.dialog_border_width))
                     .border_color(c.dialog_border)
-                    .rounded(px(6.0))
+                    .rounded(px(d.menu_panel_radius))
                     .shadow_lg()
                     .child(
                         div()
                             .id("border-menu-split-h")
-                            .px(px(10.0))
-                            .py(px(6.0))
+                            .w_full()
+                            .h(px(d.menu_item_height))
+                            .px(px(d.menu_item_padding_x))
                             .flex()
                             .items_center()
-                            .gap(px(8.0))
+                            .rounded(px(d.menu_item_radius))
+                            .bg(c.dialog_surface)
                             .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                            .active(|this| this.opacity(0.92))
                             .cursor_pointer()
-                            .text_size(px(12.0))
-                            .text_color(c.text_default)
+                            .text_size(px(d.menu_text_size))
+                            .font_weight(t.dialog_body_weight.to_font_weight())
+                            .text_color(c.dialog_secondary_button_text)
                             .child("Split Horizontally")
                             .on_click(move |_event, _window, cx| {
                                 let _ = split_h_ed.update(cx, |ed, cx| {
@@ -2303,15 +2449,19 @@ impl Editor {
                     .child(
                         div()
                             .id("border-menu-split-v")
-                            .px(px(10.0))
-                            .py(px(6.0))
+                            .w_full()
+                            .h(px(d.menu_item_height))
+                            .px(px(d.menu_item_padding_x))
                             .flex()
                             .items_center()
-                            .gap(px(8.0))
+                            .rounded(px(d.menu_item_radius))
+                            .bg(c.dialog_surface)
                             .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                            .active(|this| this.opacity(0.92))
                             .cursor_pointer()
-                            .text_size(px(12.0))
-                            .text_color(c.text_default)
+                            .text_size(px(d.menu_text_size))
+                            .font_weight(t.dialog_body_weight.to_font_weight())
+                            .text_color(c.dialog_secondary_button_text)
                             .child("Split Vertically")
                             .on_click(move |_event, _window, cx| {
                                 let _ = split_v_ed.update(cx, |ed, cx| {
@@ -2323,16 +2473,28 @@ impl Editor {
                     )
                     .child(
                         div()
+                            .id("border-menu-sep-1")
+                            .mx(px(d.menu_separator_margin_x))
+                            .my(px(d.menu_separator_margin_y))
+                            .h(px(d.menu_separator_height))
+                            .bg(c.dialog_border),
+                    )
+                    .child(
+                        div()
                             .id("border-menu-swap")
-                            .px(px(10.0))
-                            .py(px(6.0))
+                            .w_full()
+                            .h(px(d.menu_item_height))
+                            .px(px(d.menu_item_padding_x))
                             .flex()
                             .items_center()
-                            .gap(px(8.0))
+                            .rounded(px(d.menu_item_radius))
+                            .bg(c.dialog_surface)
                             .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                            .active(|this| this.opacity(0.92))
                             .cursor_pointer()
-                            .text_size(px(12.0))
-                            .text_color(c.text_default)
+                            .text_size(px(d.menu_text_size))
+                            .font_weight(t.dialog_body_weight.to_font_weight())
+                            .text_color(c.dialog_secondary_button_text)
                             .child("Swap Panels")
                             .on_click(move |_event, _window, cx| {
                                 let _ = swap_ed.update(cx, |ed, cx| {
@@ -2343,16 +2505,28 @@ impl Editor {
                     )
                     .child(
                         div()
+                            .id("border-menu-sep-2")
+                            .mx(px(d.menu_separator_margin_x))
+                            .my(px(d.menu_separator_margin_y))
+                            .h(px(d.menu_separator_height))
+                            .bg(c.dialog_border),
+                    )
+                    .child(
+                        div()
                             .id("border-menu-close")
-                            .px(px(10.0))
-                            .py(px(6.0))
+                            .w_full()
+                            .h(px(d.menu_item_height))
+                            .px(px(d.menu_item_padding_x))
                             .flex()
                             .items_center()
-                            .gap(px(8.0))
-                            .hover(|this| this.bg(hsla(0.0, 0.7, 0.5, 0.3)))
+                            .rounded(px(d.menu_item_radius))
+                            .bg(c.dialog_surface)
+                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                            .active(|this| this.opacity(0.92))
                             .cursor_pointer()
-                            .text_size(px(12.0))
-                            .text_color(c.text_default)
+                            .text_size(px(d.menu_text_size))
+                            .font_weight(t.dialog_body_weight.to_font_weight())
+                            .text_color(c.dialog_secondary_button_text)
                             .child("Close Area")
                             .on_click(move |_event, _window, cx| {
                                 let _ = close_ed.update(cx, |ed, cx| {
