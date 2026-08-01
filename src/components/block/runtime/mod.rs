@@ -170,6 +170,10 @@ pub struct Block {
     pub(crate) table_append_row_zone_hovered: bool,
     pub(crate) table_append_row_button_hovered: bool,
     pub(crate) table_append_row_close_task: Option<Task<()>>,
+    /// Which row is being hovered (for Anytype-style handle visibility).
+    pub(crate) table_hovered_row: Option<usize>,
+    /// Which column is being hovered (for Anytype-style handle visibility).
+    pub(crate) table_hovered_column: Option<usize>,
     image_runtime: Option<ImageRuntime>,
     image_edit_expanded: bool,
     image_expand_requested: bool,
@@ -268,6 +272,8 @@ impl Block {
             table_append_row_zone_hovered: false,
             table_append_row_button_hovered: false,
             table_append_row_close_task: None,
+            table_hovered_row: None,
+            table_hovered_column: None,
             image_runtime: None,
             image_edit_expanded: false,
             image_expand_requested: false,

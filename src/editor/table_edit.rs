@@ -744,4 +744,143 @@ impl Editor {
             }
         }
     }
+
+    pub(super) fn insert_table_column_at(
+        &mut self,
+        table_block: &Entity<Block>,
+        column: usize,
+        cx: &mut Context<Self>,
+    ) {
+        self.sync_table_record_from_runtime(table_block, cx);
+        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+            return;
+        };
+        let started_local_capture = if self.pending_undo_capture.is_none() {
+            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
+            true
+        } else {
+            false
+        };
+        table.insert_column_at(column, TableColumnAlignment::Default);
+        table_block.update(cx, move |block, _cx| {
+            block.record.table = Some(table.clone());
+        });
+        self.rebuild_table_runtimes(cx);
+        self.mark_dirty(cx);
+        if started_local_capture {
+            self.finalize_pending_undo_capture(cx);
+        }
+        cx.notify();
+    }
+
+    pub(super) fn insert_table_row_at(
+        &mut self,
+        table_block: &Entity<Block>,
+        visual_row: usize,
+        cx: &mut Context<Self>,
+    ) {
+        self.sync_table_record_from_runtime(table_block, cx);
+        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+            return;
+        };
+        let started_local_capture = if self.pending_undo_capture.is_none() {
+            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
+            true
+        } else {
+            false
+        };
+        table.insert_row_at(visual_row);
+        table_block.update(cx, move |block, _cx| {
+            block.record.table = Some(table.clone());
+        });
+        self.rebuild_table_runtimes(cx);
+        self.mark_dirty(cx);
+        if started_local_capture {
+            self.finalize_pending_undo_capture(cx);
+        }
+        cx.notify();
+    }
+
+    pub(super) fn duplicate_table_column(
+        &mut self,
+        table_block: &Entity<Block>,
+        column: usize,
+        cx: &mut Context<Self>,
+    ) {
+        self.sync_table_record_from_runtime(table_block, cx);
+        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+            return;
+        };
+        let started_local_capture = if self.pending_undo_capture.is_none() {
+            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
+            true
+        } else {
+            false
+        };
+        table.duplicate_column(column);
+        table_block.update(cx, move |block, _cx| {
+            block.record.table = Some(table.clone());
+        });
+        self.rebuild_table_runtimes(cx);
+        self.mark_dirty(cx);
+        if started_local_capture {
+            self.finalize_pending_undo_capture(cx);
+        }
+        cx.notify();
+    }
+
+    pub(super) fn duplicate_table_row(
+        &mut self,
+        table_block: &Entity<Block>,
+        visual_row: usize,
+        cx: &mut Context<Self>,
+    ) {
+        self.sync_table_record_from_runtime(table_block, cx);
+        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+            return;
+        };
+        let started_local_capture = if self.pending_undo_capture.is_none() {
+            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
+            true
+        } else {
+            false
+        };
+        table.duplicate_row(visual_row);
+        table_block.update(cx, move |block, _cx| {
+            block.record.table = Some(table.clone());
+        });
+        self.rebuild_table_runtimes(cx);
+        self.mark_dirty(cx);
+        if started_local_capture {
+            self.finalize_pending_undo_capture(cx);
+        }
+        cx.notify();
+    }
+
+    pub(super) fn expand_table_block(
+        &mut self,
+        table_block: &Entity<Block>,
+        cx: &mut Context<Self>,
+    ) {
+        self.sync_table_record_from_runtime(table_block, cx);
+        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+            return;
+        };
+        let started_local_capture = if self.pending_undo_capture.is_none() {
+            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
+            true
+        } else {
+            false
+        };
+        table.expand_table();
+        table_block.update(cx, move |block, _cx| {
+            block.record.table = Some(table.clone());
+        });
+        self.rebuild_table_runtimes(cx);
+        self.mark_dirty(cx);
+        if started_local_capture {
+            self.finalize_pending_undo_capture(cx);
+        }
+        cx.notify();
+    }
 }

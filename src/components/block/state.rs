@@ -809,6 +809,8 @@ pub enum BlockEvent {
     RequestAppendTableColumn,
     /// Append one empty body row to a native table.
     RequestAppendTableRow,
+    /// Expand table by appending 1 row and 1 column simultaneously.
+    RequestExpandTable,
     /// A native table axis handle was entered or left by the pointer.
     /// `hovered` distinguishes the two so the editor can ignore a leave
     /// that arrives after an adjacent handle has already taken the preview.

@@ -57,6 +57,8 @@ impl Block {
         self.table_append_row_zone_hovered = false;
         self.table_append_row_button_hovered = false;
         self.table_append_row_close_task = None;
+        self.table_hovered_row = None;
+        self.table_hovered_column = None;
     }
 
     pub(crate) fn set_table_axis_visual_state(

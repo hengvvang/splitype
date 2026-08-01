@@ -182,6 +182,12 @@ pub struct ThemeColors {
     pub table_append_button_hover: Hsla,
     /// Text colour of rendered-mode native table append controls.
     pub table_append_button_text: Hsla,
+    /// Background of table handle pills (row/column drag handles).
+    pub table_handle_bg: Hsla,
+    /// Icon colour of table handle dots.
+    pub table_handle_icon: Hsla,
+    /// Border colour of the selection frame around selected table columns/rows.
+    pub table_selection_border: Hsla,
     /// Background of image placeholders in rendered mode.
     pub image_placeholder_bg: Hsla,
     /// Border colour of image placeholders in rendered mode.
@@ -345,6 +351,14 @@ pub struct ThemeDimensions {
     pub table_append_button_inset: f32,
     /// Invisible activation overlap that keeps append controls easy to hover.
     pub table_append_activation_band: f32,
+    /// Outer corner radius of the table container.
+    pub table_border_radius: f32,
+    /// Width of the table handle pill.
+    pub table_handle_width: f32,
+    /// Height of the table handle pill.
+    pub table_handle_height: f32,
+    /// Border thickness of the selection frame around selected columns/rows.
+    pub table_selection_border_width: f32,
     /// Corner radius of rendered images and image placeholders.
     pub image_radius: f32,
     /// Maximum height of rendered root-paragraph images.
@@ -591,6 +605,9 @@ struct ThemeColorsDe {
     table_append_button_bg: Option<Hsla>,
     table_append_button_hover: Option<Hsla>,
     table_append_button_text: Option<Hsla>,
+    table_handle_bg: Option<Hsla>,
+    table_handle_icon: Option<Hsla>,
+    table_selection_border: Option<Hsla>,
     image_placeholder_bg: Option<Hsla>,
     image_placeholder_border: Option<Hsla>,
     image_placeholder_text: Option<Hsla>,
@@ -785,6 +802,15 @@ impl<'de> Deserialize<'de> for ThemeColors {
             table_append_button_text: raw
                 .table_append_button_text
                 .unwrap_or_else(|| Hsla::from(rgba(0xf4f4f5ff))),
+            table_handle_bg: raw
+                .table_handle_bg
+                .unwrap_or_else(|| Hsla::from(rgba(0x3f3f46ff))),
+            table_handle_icon: raw
+                .table_handle_icon
+                .unwrap_or_else(|| Hsla::from(rgba(0xa1a1aaff))),
+            table_selection_border: raw
+                .table_selection_border
+                .unwrap_or_else(|| Hsla::from(rgba(0x60a5faff))),
             image_placeholder_bg: raw
                 .image_placeholder_bg
                 .unwrap_or_else(|| Hsla::from(rgba(0x202024ff))),
@@ -887,6 +913,10 @@ struct ThemeDimensionsDe {
     table_append_button_extent: Option<f32>,
     table_append_button_inset: Option<f32>,
     table_append_activation_band: Option<f32>,
+    table_border_radius: Option<f32>,
+    table_handle_width: Option<f32>,
+    table_handle_height: Option<f32>,
+    table_selection_border_width: Option<f32>,
     image_radius: Option<f32>,
     image_root_max_height: Option<f32>,
     image_cell_max_height: Option<f32>,
@@ -1012,6 +1042,10 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             table_append_button_extent: raw.table_append_button_extent.unwrap_or(16.0),
             table_append_button_inset: raw.table_append_button_inset.unwrap_or(8.0),
             table_append_activation_band: raw.table_append_activation_band.unwrap_or(18.0),
+            table_border_radius: raw.table_border_radius.unwrap_or(4.0),
+            table_handle_width: raw.table_handle_width.unwrap_or(10.0),
+            table_handle_height: raw.table_handle_height.unwrap_or(36.0),
+            table_selection_border_width: raw.table_selection_border_width.unwrap_or(2.0),
             image_radius: raw.image_radius.unwrap_or(12.0),
             image_root_max_height: raw.image_root_max_height.unwrap_or(420.0),
             image_cell_max_height: raw.image_cell_max_height.unwrap_or(180.0),
@@ -1164,6 +1198,9 @@ impl Theme {
                 table_append_button_bg: Hsla::from(rgba(0x27272aff)),
                 table_append_button_hover: Hsla::from(rgba(0x3f3f46ff)),
                 table_append_button_text: Hsla::from(rgba(0xf4f4f5ff)),
+                table_handle_bg: Hsla::from(rgba(0x3f3f46ff)),
+                table_handle_icon: Hsla::from(rgba(0xa1a1aaff)),
+                table_selection_border: Hsla::from(rgba(0x60a5faff)),
                 image_placeholder_bg: Hsla::from(rgba(0x202024ff)),
                 image_placeholder_border: Hsla::from(rgba(0x52525bff)),
                 image_placeholder_text: Hsla::from(rgba(0xd4d4d8ff)),
@@ -1248,6 +1285,10 @@ impl Theme {
                 table_append_button_extent: 16.0,
                 table_append_button_inset: 8.0,
                 table_append_activation_band: 18.0,
+                table_border_radius: 4.0,
+                table_handle_width: 10.0,
+                table_handle_height: 36.0,
+                table_selection_border_width: 2.0,
                 image_radius: 12.0,
                 image_root_max_height: 420.0,
                 image_cell_max_height: 180.0,
@@ -1412,6 +1453,9 @@ impl Theme {
                 table_append_button_bg: Hsla::from(rgba(0xe2e8f0ff)),
                 table_append_button_hover: Hsla::from(rgba(0xcbd5e1ff)),
                 table_append_button_text: Hsla::from(rgba(0x334155ff)),
+                table_handle_bg: Hsla::from(rgba(0xcbd5e1ff)),
+                table_handle_icon: Hsla::from(rgba(0x64748bff)),
+                table_selection_border: Hsla::from(rgba(0x2563ebff)),
                 image_placeholder_bg: Hsla::from(rgba(0xf8fafcff)),
                 image_placeholder_border: Hsla::from(rgba(0xcbd5e1ff)),
                 image_placeholder_text: Hsla::from(rgba(0x475569ff)),

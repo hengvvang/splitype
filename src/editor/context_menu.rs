@@ -599,6 +599,120 @@ impl Editor {
         }
     }
 
+    pub(super) fn on_insert_table_column_left(
+        &mut self,
+        _event: &ClickEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(selection) = self.active_axis_menu_selection() else {
+            return;
+        };
+        if selection.kind != TableAxisKind::Column {
+            return;
+        }
+        let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
+            return;
+        };
+        self.close_context_menu(cx);
+        self.insert_table_column_at(&table_block, selection.index, cx);
+    }
+
+    pub(super) fn on_insert_table_column_right(
+        &mut self,
+        _event: &ClickEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(selection) = self.active_axis_menu_selection() else {
+            return;
+        };
+        if selection.kind != TableAxisKind::Column {
+            return;
+        }
+        let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
+            return;
+        };
+        self.close_context_menu(cx);
+        self.insert_table_column_at(&table_block, selection.index + 1, cx);
+    }
+
+    pub(super) fn on_duplicate_table_column(
+        &mut self,
+        _event: &ClickEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(selection) = self.active_axis_menu_selection() else {
+            return;
+        };
+        if selection.kind != TableAxisKind::Column {
+            return;
+        }
+        let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
+            return;
+        };
+        self.close_context_menu(cx);
+        self.duplicate_table_column(&table_block, selection.index, cx);
+    }
+
+    pub(super) fn on_insert_table_row_above(
+        &mut self,
+        _event: &ClickEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(selection) = self.active_axis_menu_selection() else {
+            return;
+        };
+        if selection.kind != TableAxisKind::Row {
+            return;
+        }
+        let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
+            return;
+        };
+        self.close_context_menu(cx);
+        self.insert_table_row_at(&table_block, selection.index, cx);
+    }
+
+    pub(super) fn on_insert_table_row_below(
+        &mut self,
+        _event: &ClickEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(selection) = self.active_axis_menu_selection() else {
+            return;
+        };
+        if selection.kind != TableAxisKind::Row {
+            return;
+        }
+        let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
+            return;
+        };
+        self.close_context_menu(cx);
+        self.insert_table_row_at(&table_block, selection.index + 1, cx);
+    }
+
+    pub(super) fn on_duplicate_table_row(
+        &mut self,
+        _event: &ClickEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(selection) = self.active_axis_menu_selection() else {
+            return;
+        };
+        if selection.kind != TableAxisKind::Row {
+            return;
+        }
+        let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
+            return;
+        };
+        self.close_context_menu(cx);
+        self.duplicate_table_row(&table_block, selection.index, cx);
+    }
+
     pub(super) fn on_toggle_table_headers(
         &mut self,
         _event: &ClickEvent,
@@ -832,6 +946,39 @@ impl Editor {
                     TableAxisKind::Column => vec![
                         Self::render_axis_menu_item(
                             theme,
+                            "table-axis-insert-column-left",
+                            "Insert Column Left".to_string(),
+                            true,
+                            false,
+                            Self::on_insert_table_column_left,
+                            cx,
+                        ),
+                        Self::render_axis_menu_item(
+                            theme,
+                            "table-axis-insert-column-right",
+                            "Insert Column Right".to_string(),
+                            true,
+                            false,
+                            Self::on_insert_table_column_right,
+                            cx,
+                        ),
+                        Self::render_axis_menu_item(
+                            theme,
+                            "table-axis-duplicate-column",
+                            "Duplicate Column".to_string(),
+                            true,
+                            false,
+                            Self::on_duplicate_table_column,
+                            cx,
+                        ),
+                        div()
+                            .mx(px(d.menu_separator_margin_x))
+                            .my(px(d.menu_separator_margin_y))
+                            .h(px(d.menu_separator_height))
+                            .bg(c.dialog_border)
+                            .into_any_element(),
+                        Self::render_axis_menu_item(
+                            theme,
                             "table-axis-align-column-left",
                             s.table_axis_align_column_left.clone(),
                             true,
@@ -901,6 +1048,41 @@ impl Editor {
                     ],
                     TableAxisKind::Row => {
                         let mut items: Vec<AnyElement> = Vec::new();
+                        items.push(Self::render_axis_menu_item(
+                            theme,
+                            "table-axis-insert-row-above",
+                            "Insert Row Above".to_string(),
+                            true,
+                            false,
+                            Self::on_insert_table_row_above,
+                            cx,
+                        ));
+                        items.push(Self::render_axis_menu_item(
+                            theme,
+                            "table-axis-insert-row-below",
+                            "Insert Row Below".to_string(),
+                            true,
+                            false,
+                            Self::on_insert_table_row_below,
+                            cx,
+                        ));
+                        items.push(Self::render_axis_menu_item(
+                            theme,
+                            "table-axis-duplicate-row",
+                            "Duplicate Row".to_string(),
+                            true,
+                            false,
+                            Self::on_duplicate_table_row,
+                            cx,
+                        ));
+                        items.push(
+                            div()
+                                .mx(px(d.menu_separator_margin_x))
+                                .my(px(d.menu_separator_margin_y))
+                                .h(px(d.menu_separator_height))
+                                .bg(c.dialog_border)
+                                .into_any_element(),
+                        );
                         // The header row (visual index 0) shares the normal row
                         // menu, with its Header Row styling toggle added on top.
                         if selection.index == 0 {

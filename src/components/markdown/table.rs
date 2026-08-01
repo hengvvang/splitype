@@ -216,6 +216,68 @@ impl TableData {
             row.remove(col_index);
         }
     }
+
+    /// Inserts an empty column at the given column index.
+    pub fn insert_column_at(&mut self, col_idx: usize, alignment: TableColumnAlignment) {
+        self.normalize_shape();
+        let columns = self.column_count();
+        let idx = col_idx.min(columns);
+        self.header.insert(idx, InlineTextTree::plain(String::new()));
+        self.alignments.insert(idx, alignment);
+        for row in &mut self.rows {
+            row.insert(idx, InlineTextTree::plain(String::new()));
+        }
+    }
+
+    /// Inserts an empty row at visual row index (0 = header, 1..=rows.len() = body rows).
+    pub fn insert_row_at(&mut self, visual_row: usize) {
+        self.normalize_shape();
+        let columns = self.column_count();
+        let new_row = (0..columns)
+            .map(|_| InlineTextTree::plain(String::new()))
+            .collect::<Vec<_>>();
+        if visual_row == 0 {
+            self.rows.insert(0, new_row);
+        } else {
+            let idx = visual_row.min(self.rows.len());
+            self.rows.insert(idx, new_row);
+        }
+    }
+
+    /// Duplicates a column at the given column index.
+    pub fn duplicate_column(&mut self, col_idx: usize) {
+        self.normalize_shape();
+        let columns = self.column_count();
+        if col_idx >= columns {
+            return;
+        }
+        let dup_header = self.header[col_idx].clone();
+        let dup_align = self.alignments[col_idx];
+        self.header.insert(col_idx + 1, dup_header);
+        self.alignments.insert(col_idx + 1, dup_align);
+        for row in &mut self.rows {
+            let dup_cell = row[col_idx].clone();
+            row.insert(col_idx + 1, dup_cell);
+        }
+    }
+
+    /// Duplicates a row at the given visual row index.
+    pub fn duplicate_row(&mut self, visual_row: usize) {
+        self.normalize_shape();
+        if visual_row == 0 {
+            let dup_header = self.header.clone();
+            self.rows.insert(0, dup_header);
+        } else if visual_row <= self.rows.len() {
+            let dup_row = self.rows[visual_row - 1].clone();
+            self.rows.insert(visual_row, dup_row);
+        }
+    }
+
+    /// Expands the table by adding 1 row and 1 column simultaneously (Anytype onPlus).
+    pub fn expand_table(&mut self) {
+        self.append_column(TableColumnAlignment::Default);
+        self.append_row();
+    }
 }
 
 /// Responsive width fractions shared by every row of a native table.

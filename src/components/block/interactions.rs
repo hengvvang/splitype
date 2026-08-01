@@ -1696,6 +1696,17 @@ impl Block {
         }
     }
 
+    pub(crate) fn on_expand_table(
+        &mut self,
+        _: &ClickEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.kind() == BlockKind::Table {
+            cx.emit(BlockEvent::RequestExpandTable);
+        }
+    }
+
     pub(crate) fn on_bold_selection(
         &mut self,
         _: &BoldSelection,

@@ -194,6 +194,7 @@ impl Editor {
                 | BlockEvent::ToggleTaskChecked
                 | BlockEvent::RequestAppendTableColumn
                 | BlockEvent::RequestAppendTableRow
+                | BlockEvent::RequestExpandTable
                 | BlockEvent::RequestDelete
         )
     }
@@ -2146,6 +2147,16 @@ impl Editor {
                         cx,
                     );
                     self.append_table_row(&block, cx);
+                    self.finalize_pending_undo_capture(cx);
+                }
+            }
+            BlockEvent::RequestExpandTable => {
+                if block.read(cx).kind() == BlockKind::Table {
+                    self.prepare_undo_capture(
+                        crate::components::UndoCaptureKind::NonCoalescible,
+                        cx,
+                    );
+                    self.expand_table_block(&block, cx);
                     self.finalize_pending_undo_capture(cx);
                 }
             }
