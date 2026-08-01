@@ -2573,24 +2573,17 @@ impl Editor {
         let d = &theme.dimensions;
         let active_tab = self.area_layout.preferences_tab;
 
-        // --- Left Sidebar (3 Main Tabs: Interface, Editing, Keymap - No Icons, No Auto-Saved Bar) ---
-        let mut left_nav = div()
-            .w(px(160.0))
-            .h_full()
-            .flex_shrink_0()
-            .p(px(8.0))
-            .border_r_1()
-            .border_color(c.dialog_border)
-            .flex()
-            .flex_col()
-            .gap(px(2.0));
+        let mut inner_border_color = c.dialog_border;
+        inner_border_color.a *= 0.4;
 
+        // --- Left Sidebar (3 Main Tabs: Interface, Editing, Keymap) ---
+        let mut left_nav_items = Vec::new();
         for (tab_idx, tab) in PreferencesTab::all().iter().enumerate() {
             let is_active = active_tab == *tab;
             let editor = cx.entity().downgrade();
             let tab_item = *tab;
 
-            left_nav = left_nav.child(
+            left_nav_items.push(
                 div()
                     .id(("pref-tab", tab_idx))
                     .px(px(12.0))
@@ -2625,12 +2618,678 @@ impl Editor {
                             ed.area_layout.preferences_tab = tab_item;
                             cx.notify();
                         });
-                    }),
+                    })
+                    .into_any_element(),
             );
         }
 
-        // --- Right Content Area (2 ~ 3 Collapsible Panels per Tab with SVG Chevrons) ---
-        let mut right_content = div()
+        let left_nav = div()
+            .w(px(160.0))
+            .h_full()
+            .flex_shrink_0()
+            .p(px(8.0))
+            .border_r_1()
+            .border_color(c.dialog_border)
+            .flex()
+            .flex_col()
+            .gap(px(2.0))
+            .children(left_nav_items);
+
+        // --- Right Content Area ---
+        let mut sections: Vec<AnyElement> = Vec::new();
+
+        // Helper closures / local constructors to produce shallow type-erased elements
+        let make_row = |title: &'static str,
+                        desc: &'static str,
+                        control: AnyElement,
+                        theme: &Theme,
+                        border_col: Hsla|
+         -> AnyElement {
+            let tc = &theme.colors;
+            let td = &theme.dimensions;
+            div()
+                .w_full()
+                .h(px(56.0))
+                .px(px(16.0))
+                .rounded(px(td.menu_panel_radius))
+                .bg(tc.dialog_surface)
+                .border_1()
+                .border_color(border_col)
+                .flex()
+                .items_center()
+                .justify_between()
+                .child(
+                    div()
+                        .flex()
+                        .flex_col()
+                        .gap(px(2.0))
+                        .child(
+                            div()
+                                .text_size(px(12.5))
+                                .font_weight(gpui::FontWeight::MEDIUM)
+                                .text_color(tc.text_default)
+                                .child(title),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(11.0))
+                                .text_color(tc.dialog_muted)
+                                .child(desc),
+                        ),
+                )
+                .child(control)
+                .into_any_element()
+        };
+
+        let make_section = |sec_id: &'static str,
+                            title: &'static str,
+                            is_expanded: bool,
+                            toggle_fn: Box<
+            dyn Fn(&gpui::ClickEvent, &mut Window, &mut App),
+        >,
+                            items: Vec<AnyElement>,
+                            theme: &Theme|
+         -> AnyElement {
+            let tc = &theme.colors;
+            let td = &theme.dimensions;
+
+            let header = div()
+                .id(sec_id)
+                .w_full()
+                .px(px(14.0))
+                .py(px(10.0))
+                .cursor_pointer()
+                .flex()
+                .items_center()
+                .gap(px(8.0))
+                .child(
+                    svg()
+                        .path(if is_expanded {
+                            "icon/panel/chevron-down.svg"
+                        } else {
+                            "icon/panel/chevron-right.svg"
+                        })
+                        .size(px(14.0))
+                        .text_color(tc.dialog_muted),
+                )
+                .child(
+                    div()
+                        .text_size(px(13.0))
+                        .font_weight(gpui::FontWeight::BOLD)
+                        .text_color(tc.text_default)
+                        .child(title),
+                )
+                .on_click(move |ev, window, cx| toggle_fn(ev, window, cx));
+
+            let mut card = div()
+                .w_full()
+                .rounded(px(td.menu_panel_radius))
+                .bg(tc.dialog_surface)
+                .border_2()
+                .border_color(tc.dialog_border)
+                .flex()
+                .flex_col()
+                .child(header);
+
+            if is_expanded && !items.is_empty() {
+                let body = div()
+                    .w_full()
+                    .px(px(10.0))
+                    .pb(px(10.0))
+                    .pt(px(2.0))
+                    .flex()
+                    .flex_col()
+                    .gap(px(8.0))
+                    .children(items);
+
+                card = card.child(body);
+            }
+
+            card.into_any_element()
+        };
+
+        match active_tab {
+            PreferencesTab::Interface => {
+                // Section 1: Visual Theme & Language
+                let sec1_key = "theme";
+                let is_sec1_expanded = self.area_layout.preferences_expanded_sections.contains(sec1_key);
+                let mut sec1_items = Vec::new();
+                if is_sec1_expanded {
+                    let ctrl_theme = div()
+                        .px(px(12.0))
+                        .py(px(5.0))
+                        .rounded(px(d.menu_item_radius))
+                        .bg(c.dialog_secondary_button_bg)
+                        .border_1()
+                        .border_color(c.dialog_border)
+                        .text_size(px(12.0))
+                        .text_color(c.text_default)
+                        .child(format!("{}  v", theme.name))
+                        .into_any_element();
+
+                    sec1_items.push(make_row(
+                        "Interface Theme",
+                        "Customize overall application color scheme and appearance",
+                        ctrl_theme,
+                        theme,
+                        inner_border_color,
+                    ));
+
+                    let ctrl_lang = div()
+                        .px(px(12.0))
+                        .py(px(5.0))
+                        .rounded(px(d.menu_item_radius))
+                        .bg(c.dialog_secondary_button_bg)
+                        .border_1()
+                        .border_color(c.dialog_border)
+                        .text_size(px(12.0))
+                        .text_color(c.text_default)
+                        .child("English (en-US)  v")
+                        .into_any_element();
+
+                    sec1_items.push(make_row(
+                        "Display Language",
+                        "Select preferred language for editor UI and dialogs",
+                        ctrl_lang,
+                        theme,
+                        inner_border_color,
+                    ));
+                }
+
+                let sec1_ed = cx.entity().downgrade();
+                sections.push(make_section(
+                    "pref-sec-theme",
+                    "Visual Theme & Language",
+                    is_sec1_expanded,
+                    Box::new(move |_ev, _win, cx| {
+                        let _ = sec1_ed.update(cx, |ed, cx| {
+                            ed.area_layout.toggle_preferences_section(sec1_key);
+                            cx.notify();
+                        });
+                    }),
+                    sec1_items,
+                    theme,
+                ));
+
+                // Section 2: Status Bar Options
+                let sec2_key = "status_bar";
+                let is_sec2_expanded = self.area_layout.preferences_expanded_sections.contains(sec2_key);
+                let mut sec2_items = Vec::new();
+
+                if is_sec2_expanded {
+                    let sub1_ed = cx.entity().downgrade();
+                    let ctrl_sb_main = div()
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(
+                            div()
+                                .w(px(16.0))
+                                .h(px(16.0))
+                                .rounded(px(3.0))
+                                .border_1()
+                                .border_color(c.dialog_border)
+                                .bg(if self.area_layout.pref_show_status_bar {
+                                    c.dialog_primary_button_bg
+                                } else {
+                                    c.dialog_surface
+                                })
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .text_size(px(11.0))
+                                .text_color(c.dialog_primary_button_text)
+                                .child(if self.area_layout.pref_show_status_bar { "✓" } else { "" }),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(12.0))
+                                .text_color(c.text_default)
+                                .child("Show Status Bar"),
+                        )
+                        .into_any_element();
+
+                    let row_sb_main = div()
+                        .id("pref-sb-sub1")
+                        .cursor_pointer()
+                        .on_click(move |_ev, _win, cx| {
+                            let _ = sub1_ed.update(cx, |ed, cx| {
+                                ed.area_layout.pref_show_status_bar = !ed.area_layout.pref_show_status_bar;
+                                cx.notify();
+                            });
+                        })
+                        .child(make_row(
+                            "Status Bar Visibility",
+                            "Show or hide the persistent bottom status bar across window",
+                            ctrl_sb_main,
+                            theme,
+                            inner_border_color,
+                        ))
+                        .into_any_element();
+
+                    sec2_items.push(row_sb_main);
+
+                    let sub2_ed = cx.entity().downgrade();
+                    let ctrl_sb_words = div()
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(
+                            div()
+                                .w(px(16.0))
+                                .h(px(16.0))
+                                .rounded(px(3.0))
+                                .border_1()
+                                .border_color(c.dialog_border)
+                                .bg(if self.area_layout.pref_show_word_count {
+                                    c.dialog_primary_button_bg
+                                } else {
+                                    c.dialog_surface
+                                })
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .text_size(px(11.0))
+                                .text_color(c.dialog_primary_button_text)
+                                .child(if self.area_layout.pref_show_word_count { "✓" } else { "" }),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(12.0))
+                                .text_color(c.text_default)
+                                .child("Show Word Count"),
+                        )
+                        .into_any_element();
+
+                    let row_sb_words = div()
+                        .id("pref-sb-sub2")
+                        .cursor_pointer()
+                        .on_click(move |_ev, _win, cx| {
+                            let _ = sub2_ed.update(cx, |ed, cx| {
+                                ed.area_layout.pref_show_word_count = !ed.area_layout.pref_show_word_count;
+                                cx.notify();
+                            });
+                        })
+                        .child(make_row(
+                            "Word Count Badge",
+                            "Display real-time document word count in status bar",
+                            ctrl_sb_words,
+                            theme,
+                            inner_border_color,
+                        ))
+                        .into_any_element();
+
+                    sec2_items.push(row_sb_words);
+
+                    let sub3_ed = cx.entity().downgrade();
+                    let ctrl_sb_pos = div()
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(
+                            div()
+                                .w(px(16.0))
+                                .h(px(16.0))
+                                .rounded(px(3.0))
+                                .border_1()
+                                .border_color(c.dialog_border)
+                                .bg(if self.area_layout.pref_show_cursor_pos {
+                                    c.dialog_primary_button_bg
+                                } else {
+                                    c.dialog_surface
+                                })
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .text_size(px(11.0))
+                                .text_color(c.dialog_primary_button_text)
+                                .child(if self.area_layout.pref_show_cursor_pos { "✓" } else { "" }),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(12.0))
+                                .text_color(c.text_default)
+                                .child("Show Position"),
+                        )
+                        .into_any_element();
+
+                    let row_sb_pos = div()
+                        .id("pref-sb-sub3")
+                        .cursor_pointer()
+                        .on_click(move |_ev, _win, cx| {
+                            let _ = sub3_ed.update(cx, |ed, cx| {
+                                ed.area_layout.pref_show_cursor_pos = !ed.area_layout.pref_show_cursor_pos;
+                                cx.notify();
+                            });
+                        })
+                        .child(make_row(
+                            "Cursor Position Badge",
+                            "Display line and column coordinates in status bar",
+                            ctrl_sb_pos,
+                            theme,
+                            inner_border_color,
+                        ))
+                        .into_any_element();
+
+                    sec2_items.push(row_sb_pos);
+                }
+
+                let sec2_ed = cx.entity().downgrade();
+                sections.push(make_section(
+                    "pref-sec-sb",
+                    "Status Bar Options",
+                    is_sec2_expanded,
+                    Box::new(move |_ev, _win, cx| {
+                        let _ = sec2_ed.update(cx, |ed, cx| {
+                            ed.area_layout.toggle_preferences_section(sec2_key);
+                            cx.notify();
+                        });
+                    }),
+                    sec2_items,
+                    theme,
+                ));
+            }
+            PreferencesTab::Editing => {
+                // Section 1: Typography & Formatting
+                let sec1_key = "typography";
+                let is_sec1_expanded = self.area_layout.preferences_expanded_sections.contains(sec1_key);
+                let mut sec1_items = Vec::new();
+                if is_sec1_expanded {
+                    let ctrl_font = div()
+                        .px(px(12.0))
+                        .py(px(5.0))
+                        .rounded(px(d.menu_item_radius))
+                        .bg(c.dialog_secondary_button_bg)
+                        .border_1()
+                        .border_color(c.dialog_border)
+                        .text_size(px(12.0))
+                        .text_color(c.text_default)
+                        .child("14 px")
+                        .into_any_element();
+
+                    sec1_items.push(make_row(
+                        "Editor Font Size",
+                        "Baseline font size in pixels for text editor content",
+                        ctrl_font,
+                        theme,
+                        inner_border_color,
+                    ));
+
+                    let ctrl_lh = div()
+                        .px(px(12.0))
+                        .py(px(5.0))
+                        .rounded(px(d.menu_item_radius))
+                        .bg(c.dialog_secondary_button_bg)
+                        .border_1()
+                        .border_color(c.dialog_border)
+                        .text_size(px(12.0))
+                        .text_color(c.text_default)
+                        .child("1.6")
+                        .into_any_element();
+
+                    sec1_items.push(make_row(
+                        "Line Height Multiplier",
+                        "Adjust vertical line spacing ratio for reading comfort",
+                        ctrl_lh,
+                        theme,
+                        inner_border_color,
+                    ));
+                }
+
+                let sec1_ed = cx.entity().downgrade();
+                sections.push(make_section(
+                    "pref-sec-typo",
+                    "Typography & Formatting",
+                    is_sec1_expanded,
+                    Box::new(move |_ev, _win, cx| {
+                        let _ = sec1_ed.update(cx, |ed, cx| {
+                            ed.area_layout.toggle_preferences_section(sec1_key);
+                            cx.notify();
+                        });
+                    }),
+                    sec1_items,
+                    theme,
+                ));
+
+                // Section 2: Markdown & Assets
+                let sec2_key = "markdown";
+                let is_sec2_expanded = self.area_layout.preferences_expanded_sections.contains(sec2_key);
+                let mut sec2_items = Vec::new();
+
+                if is_sec2_expanded {
+                    let sub1_ed = cx.entity().downgrade();
+                    let ctrl_tbl = div()
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .child(
+                            div()
+                                .w(px(16.0))
+                                .h(px(16.0))
+                                .rounded(px(3.0))
+                                .border_1()
+                                .border_color(c.dialog_border)
+                                .bg(if self.area_layout.pref_show_table_headers {
+                                    c.dialog_primary_button_bg
+                                } else {
+                                    c.dialog_surface
+                                })
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .text_size(px(11.0))
+                                .text_color(c.dialog_primary_button_text)
+                                .child(if self.area_layout.pref_show_table_headers { "✓" } else { "" }),
+                        )
+                        .child(
+                            div()
+                                .text_size(px(12.0))
+                                .text_color(c.text_default)
+                                .child("Show Headers"),
+                        )
+                        .into_any_element();
+
+                    let row_tbl = div()
+                        .id("pref-md-sub1")
+                        .cursor_pointer()
+                        .on_click(move |_ev, _win, cx| {
+                            let _ = sub1_ed.update(cx, |ed, cx| {
+                                ed.area_layout.pref_show_table_headers = !ed.area_layout.pref_show_table_headers;
+                                cx.notify();
+                            });
+                        })
+                        .child(make_row(
+                            "Table Column Headers",
+                            "Automatically render header row when formatting markdown tables",
+                            ctrl_tbl,
+                            theme,
+                            inner_border_color,
+                        ))
+                        .into_any_element();
+
+                    sec2_items.push(row_tbl);
+
+                    let ctrl_img = div()
+                        .px(px(12.0))
+                        .py(px(5.0))
+                        .rounded(px(d.menu_item_radius))
+                        .bg(c.dialog_secondary_button_bg)
+                        .border_1()
+                        .border_color(c.dialog_border)
+                        .text_size(px(12.0))
+                        .text_color(c.text_default)
+                        .child("Save to Local Assets  v")
+                        .into_any_element();
+
+                    sec2_items.push(make_row(
+                        "Image Paste Action",
+                        "Default storage location when pasting images into document",
+                        ctrl_img,
+                        theme,
+                        inner_border_color,
+                    ));
+                }
+
+                let sec2_ed = cx.entity().downgrade();
+                sections.push(make_section(
+                    "pref-sec-md",
+                    "Markdown & Assets",
+                    is_sec2_expanded,
+                    Box::new(move |_ev, _win, cx| {
+                        let _ = sec2_ed.update(cx, |ed, cx| {
+                            ed.area_layout.toggle_preferences_section(sec2_key);
+                            cx.notify();
+                        });
+                    }),
+                    sec2_items,
+                    theme,
+                ));
+
+                // Section 3: Startup Behavior
+                let sec3_key = "startup";
+                let is_sec3_expanded = self.area_layout.preferences_expanded_sections.contains(sec3_key);
+                let mut sec3_items = Vec::new();
+
+                if is_sec3_expanded {
+                    let ctrl_startup = div()
+                        .px(px(12.0))
+                        .py(px(5.0))
+                        .rounded(px(d.menu_item_radius))
+                        .bg(c.dialog_secondary_button_bg)
+                        .border_1()
+                        .border_color(c.dialog_border)
+                        .text_size(px(12.0))
+                        .text_color(c.text_default)
+                        .child("New Blank Document  v")
+                        .into_any_element();
+
+                    sec3_items.push(make_row(
+                        "On Startup",
+                        "Choose default document state when launching Velotype editor",
+                        ctrl_startup,
+                        theme,
+                        inner_border_color,
+                    ));
+                }
+
+                let sec3_ed = cx.entity().downgrade();
+                sections.push(make_section(
+                    "pref-sec-startup",
+                    "Startup Behavior",
+                    is_sec3_expanded,
+                    Box::new(move |_ev, _win, cx| {
+                        let _ = sec3_ed.update(cx, |ed, cx| {
+                            ed.area_layout.toggle_preferences_section(sec3_key);
+                            cx.notify();
+                        });
+                    }),
+                    sec3_items,
+                    theme,
+                ));
+            }
+            PreferencesTab::Keymap => {
+                // Section 1: Document Actions
+                let sec1_key = "doc_actions";
+                let is_sec1_expanded = self.area_layout.preferences_expanded_sections.contains(sec1_key);
+                let mut sec1_items = Vec::new();
+
+                if is_sec1_expanded {
+                    let doc_shortcuts = [
+                        ("Save Document", "Save active file changes to disk", "Ctrl + S"),
+                        ("Save Document As", "Save active document with a new name", "Ctrl + Shift + S"),
+                        ("New Window", "Open a new editor window instance", "Ctrl + N"),
+                        ("Close Window", "Close the currently focused editor window", "Ctrl + W"),
+                    ];
+
+                    for (name, desc, sc) in doc_shortcuts.iter() {
+                        let ctrl_sc = div()
+                            .px(px(8.0))
+                            .py(px(2.0))
+                            .rounded(px(d.menu_item_radius))
+                            .bg(c.dialog_secondary_button_hover)
+                            .text_size(px(11.0))
+                            .font_weight(gpui::FontWeight::BOLD)
+                            .text_color(c.text_default)
+                            .child(*sc)
+                            .into_any_element();
+
+                        sec1_items.push(make_row(
+                            *name,
+                            *desc,
+                            ctrl_sc,
+                            theme,
+                            inner_border_color,
+                        ));
+                    }
+                }
+
+                let sec1_ed = cx.entity().downgrade();
+                sections.push(make_section(
+                    "pref-sec-doc-actions",
+                    "Document Actions",
+                    is_sec1_expanded,
+                    Box::new(move |_ev, _win, cx| {
+                        let _ = sec1_ed.update(cx, |ed, cx| {
+                            ed.area_layout.toggle_preferences_section(sec1_key);
+                            cx.notify();
+                        });
+                    }),
+                    sec1_items,
+                    theme,
+                ));
+
+                // Section 2: Interface & View Controls
+                let sec2_key = "view_controls";
+                let is_sec2_expanded = self.area_layout.preferences_expanded_sections.contains(sec2_key);
+                let mut sec2_items = Vec::new();
+
+                if is_sec2_expanded {
+                    let view_shortcuts = [
+                        ("Toggle View Mode", "Switch between Edit, Preview, and Dual view layouts", "Ctrl + M"),
+                        ("Toggle Workspace Tree", "Show or collapse the left file navigation sidebar", "Ctrl + E"),
+                        ("Quit Application", "Safely exit application and save session", "Ctrl + Q"),
+                    ];
+
+                    for (name, desc, sc) in view_shortcuts.iter() {
+                        let ctrl_sc = div()
+                            .px(px(8.0))
+                            .py(px(2.0))
+                            .rounded(px(d.menu_item_radius))
+                            .bg(c.dialog_secondary_button_hover)
+                            .text_size(px(11.0))
+                            .font_weight(gpui::FontWeight::BOLD)
+                            .text_color(c.text_default)
+                            .child(*sc)
+                            .into_any_element();
+
+                        sec2_items.push(make_row(
+                            *name,
+                            *desc,
+                            ctrl_sc,
+                            theme,
+                            inner_border_color,
+                        ));
+                    }
+                }
+
+                let sec2_ed = cx.entity().downgrade();
+                sections.push(make_section(
+                    "pref-sec-view-controls",
+                    "Interface & View Controls",
+                    is_sec2_expanded,
+                    Box::new(move |_ev, _win, cx| {
+                        let _ = sec2_ed.update(cx, |ed, cx| {
+                            ed.area_layout.toggle_preferences_section(sec2_key);
+                            cx.notify();
+                        });
+                    }),
+                    sec2_items,
+                    theme,
+                ));
+            }
+        }
+
+        let right_content = div()
             .id("pref-right-content")
             .flex_1()
             .h_full()
@@ -2638,943 +3297,8 @@ impl Editor {
             .overflow_y_scroll()
             .flex()
             .flex_col()
-            .gap(px(12.0));
-
-        match active_tab {
-            PreferencesTab::Interface => {
-                // Panel 1: Visual Theme & Language
-                let sec1_key = "theme";
-                let is_sec1_expanded = self
-                    .area_layout
-                    .preferences_expanded_sections
-                    .contains(sec1_key);
-
-                let mut card1 = div()
-                    .w_full()
-                    .rounded(px(d.menu_panel_radius))
-                    .bg(c.dialog_surface)
-                    .border_1()
-                    .border_color(c.dialog_border)
-                    .flex()
-                    .flex_col();
-
-                let sec1_editor = cx.entity().downgrade();
-                let header1 = div()
-                    .id("pref-sec-theme")
-                    .w_full()
-                    .px(px(14.0))
-                    .py(px(10.0))
-                    .cursor_pointer()
-                    .flex()
-                    .items_center()
-                    .gap(px(8.0))
-                    .child(
-                        svg()
-                            .path(if is_sec1_expanded {
-                                "icon/panel/chevron-down.svg"
-                            } else {
-                                "icon/panel/chevron-right.svg"
-                            })
-                            .size(px(14.0))
-                            .text_color(c.dialog_muted),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(13.0))
-                            .font_weight(gpui::FontWeight::BOLD)
-                            .text_color(c.text_default)
-                            .child("Visual Theme & Language"),
-                    )
-                    .on_click(move |_event, _window, cx| {
-                        let _ = sec1_editor.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_preferences_section(sec1_key);
-                            cx.notify();
-                        });
-                    });
-
-                card1 = card1.child(header1);
-
-                if is_sec1_expanded {
-                    let body1 = div()
-                        .w_full()
-                        .border_t_1()
-                        .border_color(c.dialog_border)
-                        .px(px(16.0))
-                        .py(px(12.0))
-                        .flex()
-                        .flex_col()
-                        .gap(px(10.0))
-                        .child(
-                            div()
-                                .w_full()
-                                .flex()
-                                .items_center()
-                                .justify_between()
-                                .child(
-                                    div()
-                                        .w(px(160.0))
-                                        .text_size(px(12.0))
-                                        .font_weight(gpui::FontWeight::MEDIUM)
-                                        .text_color(c.text_default)
-                                        .child("Interface Theme"),
-                                )
-                                .child(
-                                    div()
-                                        .px(px(12.0))
-                                        .py(px(4.0))
-                                        .rounded(px(d.menu_item_radius))
-                                        .bg(c.dialog_secondary_button_bg)
-                                        .border_1()
-                                        .border_color(c.dialog_border)
-                                        .text_size(px(12.0))
-                                        .text_color(c.text_default)
-                                        .child(format!("{}  v", theme.name)),
-                                ),
-                        )
-                        .child(
-                            div()
-                                .w_full()
-                                .flex()
-                                .items_center()
-                                .justify_between()
-                                .child(
-                                    div()
-                                        .w(px(160.0))
-                                        .text_size(px(12.0))
-                                        .font_weight(gpui::FontWeight::MEDIUM)
-                                        .text_color(c.text_default)
-                                        .child("Display Language"),
-                                )
-                                .child(
-                                    div()
-                                        .px(px(12.0))
-                                        .py(px(4.0))
-                                        .rounded(px(d.menu_item_radius))
-                                        .bg(c.dialog_secondary_button_bg)
-                                        .border_1()
-                                        .border_color(c.dialog_border)
-                                        .text_size(px(12.0))
-                                        .text_color(c.text_default)
-                                        .child("English (en-US)  v"),
-                                ),
-                        );
-
-                    card1 = card1.child(body1);
-                }
-
-                // Panel 2: Status Bar Options
-                let sec2_key = "status_bar";
-                let is_sec2_expanded = self
-                    .area_layout
-                    .preferences_expanded_sections
-                    .contains(sec2_key);
-
-                let mut card2 = div()
-                    .w_full()
-                    .rounded(px(d.menu_panel_radius))
-                    .bg(c.dialog_surface)
-                    .border_1()
-                    .border_color(c.dialog_border)
-                    .flex()
-                    .flex_col();
-
-                let sec2_editor = cx.entity().downgrade();
-                let header2 = div()
-                    .id("pref-sec-sb")
-                    .w_full()
-                    .px(px(14.0))
-                    .py(px(10.0))
-                    .cursor_pointer()
-                    .flex()
-                    .items_center()
-                    .gap(px(8.0))
-                    .child(
-                        svg()
-                            .path(if is_sec2_expanded {
-                                "icon/panel/chevron-down.svg"
-                            } else {
-                                "icon/panel/chevron-right.svg"
-                            })
-                            .size(px(14.0))
-                            .text_color(c.dialog_muted),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(13.0))
-                            .font_weight(gpui::FontWeight::BOLD)
-                            .text_color(c.text_default)
-                            .child("Status Bar Options"),
-                    )
-                    .on_click(move |_event, _window, cx| {
-                        let _ = sec2_editor.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_preferences_section(sec2_key);
-                            cx.notify();
-                        });
-                    });
-
-                card2 = card2.child(header2);
-
-                if is_sec2_expanded {
-                    let sub1_ed = cx.entity().downgrade();
-                    let sub2_ed = cx.entity().downgrade();
-                    let sub3_ed = cx.entity().downgrade();
-
-                    let body2 = div()
-                        .w_full()
-                        .border_t_1()
-                        .border_color(c.dialog_border)
-                        .px(px(16.0))
-                        .py(px(12.0))
-                        .flex()
-                        .flex_col()
-                        .gap(px(10.0))
-                        .child(
-                            div()
-                                .id("pref-sb-sub1")
-                                .w_full()
-                                .flex()
-                                .items_center()
-                                .justify_between()
-                                .child(
-                                    div()
-                                        .w(px(160.0))
-                                        .text_size(px(12.0))
-                                        .font_weight(gpui::FontWeight::MEDIUM)
-                                        .text_color(c.text_default)
-                                        .child("Status Bar Visibility"),
-                                )
-                                .child(
-                                    div()
-                                        .cursor_pointer()
-                                        .flex()
-                                        .items_center()
-                                        .gap(px(8.0))
-                                        .child(
-                                            div()
-                                                .w(px(16.0))
-                                                .h(px(16.0))
-                                                .rounded(px(3.0))
-                                                .border_1()
-                                                .border_color(c.dialog_border)
-                                                .bg(if self.area_layout.pref_show_status_bar {
-                                                    c.dialog_primary_button_bg
-                                                } else {
-                                                    c.dialog_surface
-                                                })
-                                                .flex()
-                                                .items_center()
-                                                .justify_center()
-                                                .text_size(px(11.0))
-                                                .text_color(c.dialog_primary_button_text)
-                                                .child(if self.area_layout.pref_show_status_bar {
-                                                    "✓"
-                                                } else {
-                                                    ""
-                                                }),
-                                        )
-                                        .child(
-                                            div()
-                                                .text_size(px(12.0))
-                                                .text_color(c.text_default)
-                                                .child("Show Status Bar"),
-                                        ),
-                                )
-                                .on_click(move |_event, _window, cx| {
-                                    let _ = sub1_ed.update(cx, |ed, cx| {
-                                        ed.area_layout.pref_show_status_bar =
-                                            !ed.area_layout.pref_show_status_bar;
-                                        cx.notify();
-                                    });
-                                }),
-                        )
-                        .child(
-                            div()
-                                .id("pref-sb-sub2")
-                                .w_full()
-                                .flex()
-                                .items_center()
-                                .justify_between()
-                                .child(div().w(px(160.0)))
-                                .child(
-                                    div()
-                                        .cursor_pointer()
-                                        .flex()
-                                        .items_center()
-                                        .gap(px(8.0))
-                                        .child(
-                                            div()
-                                                .w(px(16.0))
-                                                .h(px(16.0))
-                                                .rounded(px(3.0))
-                                                .border_1()
-                                                .border_color(c.dialog_border)
-                                                .bg(if self.area_layout.pref_show_word_count {
-                                                    c.dialog_primary_button_bg
-                                                } else {
-                                                    c.dialog_surface
-                                                })
-                                                .flex()
-                                                .items_center()
-                                                .justify_center()
-                                                .text_size(px(11.0))
-                                                .text_color(c.dialog_primary_button_text)
-                                                .child(if self.area_layout.pref_show_word_count {
-                                                    "✓"
-                                                } else {
-                                                    ""
-                                                }),
-                                        )
-                                        .child(
-                                            div()
-                                                .text_size(px(12.0))
-                                                .text_color(c.text_default)
-                                                .child("Show Word Count Badge"),
-                                        ),
-                                )
-                                .on_click(move |_event, _window, cx| {
-                                    let _ = sub2_ed.update(cx, |ed, cx| {
-                                        ed.area_layout.pref_show_word_count =
-                                            !ed.area_layout.pref_show_word_count;
-                                        cx.notify();
-                                    });
-                                }),
-                        )
-                        .child(
-                            div()
-                                .id("pref-sb-sub3")
-                                .w_full()
-                                .flex()
-                                .items_center()
-                                .justify_between()
-                                .child(div().w(px(160.0)))
-                                .child(
-                                    div()
-                                        .cursor_pointer()
-                                        .flex()
-                                        .items_center()
-                                        .gap(px(8.0))
-                                        .child(
-                                            div()
-                                                .w(px(16.0))
-                                                .h(px(16.0))
-                                                .rounded(px(3.0))
-                                                .border_1()
-                                                .border_color(c.dialog_border)
-                                                .bg(if self.area_layout.pref_show_cursor_pos {
-                                                    c.dialog_primary_button_bg
-                                                } else {
-                                                    c.dialog_surface
-                                                })
-                                                .flex()
-                                                .items_center()
-                                                .justify_center()
-                                                .text_size(px(11.0))
-                                                .text_color(c.dialog_primary_button_text)
-                                                .child(if self.area_layout.pref_show_cursor_pos {
-                                                    "✓"
-                                                } else {
-                                                    ""
-                                                }),
-                                        )
-                                        .child(
-                                            div()
-                                                .text_size(px(12.0))
-                                                .text_color(c.text_default)
-                                                .child("Show Cursor Position"),
-                                        ),
-                                )
-                                .on_click(move |_event, _window, cx| {
-                                    let _ = sub3_ed.update(cx, |ed, cx| {
-                                        ed.area_layout.pref_show_cursor_pos =
-                                            !ed.area_layout.pref_show_cursor_pos;
-                                        cx.notify();
-                                    });
-                                }),
-                        );
-
-                    card2 = card2.child(body2);
-                }
-
-                right_content = right_content.child(card1).child(card2);
-            }
-            PreferencesTab::Editing => {
-                // Panel 1: Typography & Formatting
-                let sec1_key = "typography";
-                let is_sec1_expanded = self
-                    .area_layout
-                    .preferences_expanded_sections
-                    .contains(sec1_key);
-
-                let mut card1 = div()
-                    .w_full()
-                    .rounded(px(d.menu_panel_radius))
-                    .bg(c.dialog_surface)
-                    .border_1()
-                    .border_color(c.dialog_border)
-                    .flex()
-                    .flex_col();
-
-                let sec1_editor = cx.entity().downgrade();
-                let header1 = div()
-                    .id("pref-sec-typo")
-                    .w_full()
-                    .px(px(14.0))
-                    .py(px(10.0))
-                    .cursor_pointer()
-                    .flex()
-                    .items_center()
-                    .gap(px(8.0))
-                    .child(
-                        svg()
-                            .path(if is_sec1_expanded {
-                                "icon/panel/chevron-down.svg"
-                            } else {
-                                "icon/panel/chevron-right.svg"
-                            })
-                            .size(px(14.0))
-                            .text_color(c.dialog_muted),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(13.0))
-                            .font_weight(gpui::FontWeight::BOLD)
-                            .text_color(c.text_default)
-                            .child("Typography & Formatting"),
-                    )
-                    .on_click(move |_event, _window, cx| {
-                        let _ = sec1_editor.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_preferences_section(sec1_key);
-                            cx.notify();
-                        });
-                    });
-
-                card1 = card1.child(header1);
-
-                if is_sec1_expanded {
-                    let body1 = div()
-                        .w_full()
-                        .border_t_1()
-                        .border_color(c.dialog_border)
-                        .px(px(16.0))
-                        .py(px(12.0))
-                        .flex()
-                        .flex_col()
-                        .gap(px(10.0))
-                        .child(
-                            div()
-                                .w_full()
-                                .flex()
-                                .items_center()
-                                .justify_between()
-                                .child(
-                                    div()
-                                        .w(px(160.0))
-                                        .text_size(px(12.0))
-                                        .font_weight(gpui::FontWeight::MEDIUM)
-                                        .text_color(c.text_default)
-                                        .child("Editor Font Size"),
-                                )
-                                .child(
-                                    div()
-                                        .px(px(12.0))
-                                        .py(px(4.0))
-                                        .rounded(px(d.menu_item_radius))
-                                        .bg(c.dialog_secondary_button_bg)
-                                        .border_1()
-                                        .border_color(c.dialog_border)
-                                        .text_size(px(12.0))
-                                        .text_color(c.text_default)
-                                        .child("14 px"),
-                                ),
-                        )
-                        .child(
-                            div()
-                                .w_full()
-                                .flex()
-                                .items_center()
-                                .justify_between()
-                                .child(
-                                    div()
-                                        .w(px(160.0))
-                                        .text_size(px(12.0))
-                                        .font_weight(gpui::FontWeight::MEDIUM)
-                                        .text_color(c.text_default)
-                                        .child("Line Height Multiplier"),
-                                )
-                                .child(
-                                    div()
-                                        .px(px(12.0))
-                                        .py(px(4.0))
-                                        .rounded(px(d.menu_item_radius))
-                                        .bg(c.dialog_secondary_button_bg)
-                                        .border_1()
-                                        .border_color(c.dialog_border)
-                                        .text_size(px(12.0))
-                                        .text_color(c.text_default)
-                                        .child("1.6"),
-                                ),
-                        );
-
-                    card1 = card1.child(body1);
-                }
-
-                // Panel 2: Markdown & Assets
-                let sec2_key = "markdown";
-                let is_sec2_expanded = self
-                    .area_layout
-                    .preferences_expanded_sections
-                    .contains(sec2_key);
-
-                let mut card2 = div()
-                    .w_full()
-                    .rounded(px(d.menu_panel_radius))
-                    .bg(c.dialog_surface)
-                    .border_1()
-                    .border_color(c.dialog_border)
-                    .flex()
-                    .flex_col();
-
-                let sec2_editor = cx.entity().downgrade();
-                let header2 = div()
-                    .id("pref-sec-md")
-                    .w_full()
-                    .px(px(14.0))
-                    .py(px(10.0))
-                    .cursor_pointer()
-                    .flex()
-                    .items_center()
-                    .gap(px(8.0))
-                    .child(
-                        svg()
-                            .path(if is_sec2_expanded {
-                                "icon/panel/chevron-down.svg"
-                            } else {
-                                "icon/panel/chevron-right.svg"
-                            })
-                            .size(px(14.0))
-                            .text_color(c.dialog_muted),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(13.0))
-                            .font_weight(gpui::FontWeight::BOLD)
-                            .text_color(c.text_default)
-                            .child("Markdown & Assets"),
-                    )
-                    .on_click(move |_event, _window, cx| {
-                        let _ = sec2_editor.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_preferences_section(sec2_key);
-                            cx.notify();
-                        });
-                    });
-
-                card2 = card2.child(header2);
-
-                if is_sec2_expanded {
-                    let sub1_ed = cx.entity().downgrade();
-                    let body2 = div()
-                        .w_full()
-                        .border_t_1()
-                        .border_color(c.dialog_border)
-                        .px(px(16.0))
-                        .py(px(12.0))
-                        .flex()
-                        .flex_col()
-                        .gap(px(10.0))
-                        .child(
-                            div()
-                                .id("pref-md-sub1")
-                                .w_full()
-                                .flex()
-                                .items_center()
-                                .justify_between()
-                                .child(
-                                    div()
-                                        .w(px(160.0))
-                                        .text_size(px(12.0))
-                                        .font_weight(gpui::FontWeight::MEDIUM)
-                                        .text_color(c.text_default)
-                                        .child("Table Options"),
-                                )
-                                .child(
-                                    div()
-                                        .cursor_pointer()
-                                        .flex()
-                                        .items_center()
-                                        .gap(px(8.0))
-                                        .child(
-                                            div()
-                                                .w(px(16.0))
-                                                .h(px(16.0))
-                                                .rounded(px(3.0))
-                                                .border_1()
-                                                .border_color(c.dialog_border)
-                                                .bg(if self.area_layout.pref_show_table_headers {
-                                                    c.dialog_primary_button_bg
-                                                } else {
-                                                    c.dialog_surface
-                                                })
-                                                .flex()
-                                                .items_center()
-                                                .justify_center()
-                                                .text_size(px(11.0))
-                                                .text_color(c.dialog_primary_button_text)
-                                                .child(if self.area_layout.pref_show_table_headers {
-                                                    "✓"
-                                                } else {
-                                                    ""
-                                                }),
-                                        )
-                                        .child(
-                                            div()
-                                                .text_size(px(12.0))
-                                                .text_color(c.text_default)
-                                                .child("Show Table Column Headers"),
-                                        ),
-                                )
-                                .on_click(move |_event, _window, cx| {
-                                    let _ = sub1_ed.update(cx, |ed, cx| {
-                                        ed.area_layout.pref_show_table_headers =
-                                            !ed.area_layout.pref_show_table_headers;
-                                        cx.notify();
-                                    });
-                                }),
-                        )
-                        .child(
-                            div()
-                                .w_full()
-                                .flex()
-                                .items_center()
-                                .justify_between()
-                                .child(
-                                    div()
-                                        .w(px(160.0))
-                                        .text_size(px(12.0))
-                                        .font_weight(gpui::FontWeight::MEDIUM)
-                                        .text_color(c.text_default)
-                                        .child("Image Paste Action"),
-                                )
-                                .child(
-                                    div()
-                                        .px(px(12.0))
-                                        .py(px(4.0))
-                                        .rounded(px(d.menu_item_radius))
-                                        .bg(c.dialog_secondary_button_bg)
-                                        .border_1()
-                                        .border_color(c.dialog_border)
-                                        .text_size(px(12.0))
-                                        .text_color(c.text_default)
-                                        .child("Save to Local Assets  v"),
-                                ),
-                        );
-
-                    card2 = card2.child(body2);
-                }
-
-                // Panel 3: Startup Behavior
-                let sec3_key = "startup";
-                let is_sec3_expanded = self
-                    .area_layout
-                    .preferences_expanded_sections
-                    .contains(sec3_key);
-
-                let mut card3 = div()
-                    .w_full()
-                    .rounded(px(d.menu_panel_radius))
-                    .bg(c.dialog_surface)
-                    .border_1()
-                    .border_color(c.dialog_border)
-                    .flex()
-                    .flex_col();
-
-                let sec3_editor = cx.entity().downgrade();
-                let header3 = div()
-                    .id("pref-sec-startup")
-                    .w_full()
-                    .px(px(14.0))
-                    .py(px(10.0))
-                    .cursor_pointer()
-                    .flex()
-                    .items_center()
-                    .gap(px(8.0))
-                    .child(
-                        svg()
-                            .path(if is_sec3_expanded {
-                                "icon/panel/chevron-down.svg"
-                            } else {
-                                "icon/panel/chevron-right.svg"
-                            })
-                            .size(px(14.0))
-                            .text_color(c.dialog_muted),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(13.0))
-                            .font_weight(gpui::FontWeight::BOLD)
-                            .text_color(c.text_default)
-                            .child("Startup Behavior"),
-                    )
-                    .on_click(move |_event, _window, cx| {
-                        let _ = sec3_editor.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_preferences_section(sec3_key);
-                            cx.notify();
-                        });
-                    });
-
-                card3 = card3.child(header3);
-
-                if is_sec3_expanded {
-                    let body3 = div()
-                        .w_full()
-                        .border_t_1()
-                        .border_color(c.dialog_border)
-                        .px(px(16.0))
-                        .py(px(12.0))
-                        .flex()
-                        .flex_col()
-                        .gap(px(10.0))
-                        .child(
-                            div()
-                                .w_full()
-                                .flex()
-                                .items_center()
-                                .justify_between()
-                                .child(
-                                    div()
-                                        .w(px(160.0))
-                                        .text_size(px(12.0))
-                                        .font_weight(gpui::FontWeight::MEDIUM)
-                                        .text_color(c.text_default)
-                                        .child("On Startup"),
-                                )
-                                .child(
-                                    div()
-                                        .px(px(12.0))
-                                        .py(px(4.0))
-                                        .rounded(px(d.menu_item_radius))
-                                        .bg(c.dialog_secondary_button_bg)
-                                        .border_1()
-                                        .border_color(c.dialog_border)
-                                        .text_size(px(12.0))
-                                        .text_color(c.text_default)
-                                        .child("New Blank Document  v"),
-                                ),
-                        );
-
-                    card3 = card3.child(body3);
-                }
-
-                right_content = right_content.child(card1).child(card2).child(card3);
-            }
-            PreferencesTab::Keymap => {
-                // Panel 1: Document Actions
-                let sec1_key = "doc_actions";
-                let is_sec1_expanded = self
-                    .area_layout
-                    .preferences_expanded_sections
-                    .contains(sec1_key);
-
-                let mut card1 = div()
-                    .w_full()
-                    .rounded(px(d.menu_panel_radius))
-                    .bg(c.dialog_surface)
-                    .border_1()
-                    .border_color(c.dialog_border)
-                    .flex()
-                    .flex_col();
-
-                let sec1_editor = cx.entity().downgrade();
-                let header1 = div()
-                    .id("pref-sec-doc-actions")
-                    .w_full()
-                    .px(px(14.0))
-                    .py(px(10.0))
-                    .cursor_pointer()
-                    .flex()
-                    .items_center()
-                    .gap(px(8.0))
-                    .child(
-                        svg()
-                            .path(if is_sec1_expanded {
-                                "icon/panel/chevron-down.svg"
-                            } else {
-                                "icon/panel/chevron-right.svg"
-                            })
-                            .size(px(14.0))
-                            .text_color(c.dialog_muted),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(13.0))
-                            .font_weight(gpui::FontWeight::BOLD)
-                            .text_color(c.text_default)
-                            .child("Document Actions"),
-                    )
-                    .on_click(move |_event, _window, cx| {
-                        let _ = sec1_editor.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_preferences_section(sec1_key);
-                            cx.notify();
-                        });
-                    });
-
-                card1 = card1.child(header1);
-
-                if is_sec1_expanded {
-                    let doc_shortcuts = [
-                        ("Save Document", "Ctrl + S"),
-                        ("Save Document As", "Ctrl + Shift + S"),
-                        ("New Window", "Ctrl + N"),
-                        ("Close Window", "Ctrl + W"),
-                    ];
-
-                    let mut body1 = div()
-                        .w_full()
-                        .border_t_1()
-                        .border_color(c.dialog_border)
-                        .flex()
-                        .flex_col();
-
-                    for (idx, (name, sc)) in doc_shortcuts.iter().enumerate() {
-                        let mut row = div()
-                            .w_full()
-                            .px(px(16.0))
-                            .py(px(8.0))
-                            .flex()
-                            .items_center()
-                            .justify_between()
-                            .child(
-                                div()
-                                    .text_size(px(12.0))
-                                    .text_color(c.text_default)
-                                    .child(*name),
-                            )
-                            .child(
-                                div()
-                                    .px(px(8.0))
-                                    .py(px(2.0))
-                                    .rounded(px(d.menu_item_radius))
-                                    .bg(c.dialog_secondary_button_hover)
-                                    .text_size(px(11.0))
-                                    .font_weight(gpui::FontWeight::BOLD)
-                                    .text_color(c.text_default)
-                                    .child(*sc),
-                            );
-
-                        if idx > 0 {
-                            row = row.border_t_1().border_color(c.dialog_border);
-                        }
-
-                        body1 = body1.child(row);
-                    }
-
-                    card1 = card1.child(body1);
-                }
-
-                // Panel 2: Interface & View Controls
-                let sec2_key = "view_controls";
-                let is_sec2_expanded = self
-                    .area_layout
-                    .preferences_expanded_sections
-                    .contains(sec2_key);
-
-                let mut card2 = div()
-                    .w_full()
-                    .rounded(px(d.menu_panel_radius))
-                    .bg(c.dialog_surface)
-                    .border_1()
-                    .border_color(c.dialog_border)
-                    .flex()
-                    .flex_col();
-
-                let sec2_editor = cx.entity().downgrade();
-                let header2 = div()
-                    .id("pref-sec-view-controls")
-                    .w_full()
-                    .px(px(14.0))
-                    .py(px(10.0))
-                    .cursor_pointer()
-                    .flex()
-                    .items_center()
-                    .gap(px(8.0))
-                    .child(
-                        svg()
-                            .path(if is_sec2_expanded {
-                                "icon/panel/chevron-down.svg"
-                            } else {
-                                "icon/panel/chevron-right.svg"
-                            })
-                            .size(px(14.0))
-                            .text_color(c.dialog_muted),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(13.0))
-                            .font_weight(gpui::FontWeight::BOLD)
-                            .text_color(c.text_default)
-                            .child("Interface & View Controls"),
-                    )
-                    .on_click(move |_event, _window, cx| {
-                        let _ = sec2_editor.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_preferences_section(sec2_key);
-                            cx.notify();
-                        });
-                    });
-
-                card2 = card2.child(header2);
-
-                if is_sec2_expanded {
-                    let view_shortcuts = [
-                        ("Toggle View Mode", "Ctrl + M"),
-                        ("Toggle Workspace Tree", "Ctrl + E"),
-                        ("Quit Application", "Ctrl + Q"),
-                    ];
-
-                    let mut body2 = div()
-                        .w_full()
-                        .border_t_1()
-                        .border_color(c.dialog_border)
-                        .flex()
-                        .flex_col();
-
-                    for (idx, (name, sc)) in view_shortcuts.iter().enumerate() {
-                        let mut row = div()
-                            .w_full()
-                            .px(px(16.0))
-                            .py(px(8.0))
-                            .flex()
-                            .items_center()
-                            .justify_between()
-                            .child(
-                                div()
-                                    .text_size(px(12.0))
-                                    .text_color(c.text_default)
-                                    .child(*name),
-                            )
-                            .child(
-                                div()
-                                    .px(px(8.0))
-                                    .py(px(2.0))
-                                    .rounded(px(d.menu_item_radius))
-                                    .bg(c.dialog_secondary_button_hover)
-                                    .text_size(px(11.0))
-                                    .font_weight(gpui::FontWeight::BOLD)
-                                    .text_color(c.text_default)
-                                    .child(*sc),
-                            );
-
-                        if idx > 0 {
-                            row = row.border_t_1().border_color(c.dialog_border);
-                        }
-
-                        body2 = body2.child(row);
-                    }
-
-                    card2 = card2.child(body2);
-                }
-
-                right_content = right_content.child(card1).child(card2);
-            }
-        }
+            .gap(px(12.0))
+            .children(sections);
 
         // --- Main Root Layout ---
         div()
