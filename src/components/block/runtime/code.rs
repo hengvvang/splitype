@@ -136,6 +136,8 @@ impl Block {
             BlockKind::CodeBlock {
                 language: Some(language),
             } => language.as_ref(),
+            BlockKind::MathBlock => "math",
+            BlockKind::MermaidBlock => "mermaid",
             _ => "",
         }
     }
@@ -323,16 +325,25 @@ impl Block {
     }
 
     pub(crate) fn choose_code_language(&mut self, value: &str, cx: &mut Context<Self>) {
-        if !self.kind().is_code_block() {
+        if !matches!(
+            self.kind(),
+            BlockKind::CodeBlock { .. } | BlockKind::MathBlock | BlockKind::MermaidBlock
+        ) {
             return;
         }
 
         let old_language = self.code_language_text().to_string();
         if old_language != value {
             self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
-            self.record.kind = BlockKind::CodeBlock {
-                language: (!value.is_empty()).then(|| SharedString::from(value.to_string())),
-            };
+            if value.eq_ignore_ascii_case("math") || value.eq_ignore_ascii_case("latex") {
+                self.record.kind = BlockKind::MathBlock;
+            } else if value.eq_ignore_ascii_case("mermaid") {
+                self.record.kind = BlockKind::MermaidBlock;
+            } else {
+                self.record.kind = BlockKind::CodeBlock {
+                    language: (!value.is_empty()).then(|| SharedString::from(value.to_string())),
+                };
+            }
             self.sync_code_highlight();
             cx.emit(BlockEvent::Changed);
         }

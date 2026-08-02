@@ -663,6 +663,403 @@ impl Block {
         }
     }
 
+    fn render_code_editor_section(
+        &self,
+        show_toolbar: bool,
+        is_placeholder: bool,
+        theme: &Theme,
+        strings: &I18nStrings,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        let t = &theme.typography;
+
+        let current_language = self.code_language_text();
+        let language_label: SharedString = if current_language.is_empty() {
+            strings.code_language_placeholder.clone().into()
+        } else {
+            code_language_display_name(current_language)
+                .to_string()
+                .into()
+        };
+
+        let code_content_container = if self.show_code_line_numbers {
+            let line_count = self.display_text().split('\n').count().max(1);
+            let line_numbers_text = (1..=line_count)
+                .map(|i| i.to_string())
+                .collect::<Vec<_>>()
+                .join("\n");
+
+            div()
+                .w_full()
+                .flex()
+                .flex_row()
+                .child(
+                    div()
+                        .flex_none()
+                        .pr(px(10.0))
+                        .mr(px(8.0))
+                        .border_r_1()
+                        .border_color(c.table_border)
+                        .text_align(TextAlign::Right)
+                        .text_size(px(t.code_size))
+                        .line_height(rems(t.text_line_height))
+                        .text_color(c.dialog_muted)
+                        .child(SharedString::from(line_numbers_text)),
+                )
+                .child(
+                    div()
+                        .min_w(px(0.0))
+                        .flex_1()
+                        .child(BlockTextElement::new(cx.entity(), is_placeholder)),
+                )
+        } else {
+            div()
+                .min_w(px(0.0))
+                .w_full()
+                .child(BlockTextElement::new(cx.entity(), is_placeholder))
+        };
+
+        let toolbar = self.render_code_toolbar(show_toolbar, language_label, theme, cx);
+        let editor_section = div()
+            .relative()
+            .w_full()
+            .px(px(d.code_block_padding_x))
+            .py(px(d.code_block_padding_y))
+            .text_size(px(t.code_size))
+            .text_color(c.code_text)
+            .line_height(rems(t.text_line_height))
+            .child(code_content_container)
+            .child(toolbar);
+
+        if !self.code_language_picker_open {
+            editor_section.into_any_element()
+        } else {
+            let picker = self.render_code_language_picker(current_language, theme, strings, cx);
+            editor_section.child(picker).into_any_element()
+        }
+    }
+
+    fn render_code_toolbar(
+        &self,
+        show_toolbar: bool,
+        language_label: SharedString,
+        theme: &Theme,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        let toolbar_height = 28.0;
+
+        div()
+            .id(ElementId::Name(
+                format!("code-toolbar-{}", self.record.id).into(),
+            ))
+            .absolute()
+            .top(relative(0.02))
+            .right(relative(0.02))
+            .opacity(if show_toolbar { 1.0 } else { 0.0 })
+            .flex()
+            .items_center()
+            .gap(px(2.0))
+            .p(px(2.0))
+            .h(px(toolbar_height))
+            .rounded(px(d.menu_item_radius))
+            .border_1()
+            .border_color(c.table_border)
+            .bg(gpui::transparent_black())
+            .text_size(px(12.5))
+            .text_color(c.code_language_input_text)
+            .child(
+                div()
+                    .id(ElementId::Name(
+                        format!("code-language-picker-{}", self.record.id).into(),
+                    ))
+                    .h_full()
+                    .flex()
+                    .items_center()
+                    .gap(px(4.0))
+                    .px(px(8.0))
+                    .rounded(px(d.menu_item_radius - 2.0))
+                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                    .active(|this| this.opacity(0.9))
+                    .cursor_pointer()
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(Self::on_code_language_picker_toggle),
+                    )
+                    .child(language_label)
+                    .child(
+                        svg()
+                            .path("icon/panel/select-chevron.svg")
+                            .size(px(13.0))
+                            .text_color(c.dialog_muted),
+                    ),
+            )
+            .child(
+                div()
+                    .w(px(1.0))
+                    .h(px(14.0))
+                    .bg(c.table_border),
+            )
+            .child(
+                div()
+                    .id(ElementId::Name(
+                        format!("code-line-numbers-{}", self.record.id).into(),
+                    ))
+                    .relative()
+                    .w(px(26.0))
+                    .h_full()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .rounded(px(d.menu_item_radius - 2.0))
+                    .bg(if self.show_code_line_numbers {
+                        c.dialog_secondary_button_hover
+                    } else {
+                        gpui::transparent_black()
+                    })
+                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                    .active(|this| this.opacity(0.9))
+                    .cursor_pointer()
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(Self::on_code_line_numbers_toggle),
+                    )
+                    .child(
+                        svg()
+                            .path("icon/panel/line-numbers.svg")
+                            .size(px(14.0))
+                            .text_color(if self.show_code_line_numbers {
+                                c.code_language_input_text
+                            } else {
+                                c.code_language_input_placeholder
+                            }),
+                    ),
+            )
+            .child(
+                div()
+                    .id(ElementId::Name(
+                        format!("code-copy-{}", self.record.id).into(),
+                    ))
+                    .relative()
+                    .w(px(26.0))
+                    .h_full()
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .rounded(px(d.menu_item_radius - 2.0))
+                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                    .active(|this| this.opacity(0.9))
+                    .cursor_pointer()
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(Self::on_code_copy_button_mouse_down),
+                    )
+                    .child(
+                        div()
+                            .absolute()
+                            .left(px(6.0))
+                            .top(px(5.0))
+                            .size(px(10.0))
+                            .rounded(px(2.0))
+                            .border(px(1.0))
+                            .border_color(c.code_language_input_placeholder),
+                    )
+                    .child(
+                        div()
+                            .absolute()
+                            .left(px(9.0))
+                            .top(px(8.0))
+                            .size(px(10.0))
+                            .rounded(px(2.0))
+                            .border(px(1.0))
+                            .border_color(c.code_language_input_text)
+                            .bg(gpui::transparent_black()),
+                    ),
+            )
+            .into_any_element()
+    }
+
+    fn render_code_language_picker(
+        &self,
+        current_language: &str,
+        theme: &Theme,
+        strings: &I18nStrings,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        let toolbar_height = 28.0;
+        let options = code_language_options_matching(&self.code_language_query);
+        let selected_language = current_language.to_string();
+
+        div()
+            .id(ElementId::Name(
+                format!("code-picker-container-{}", self.record.id).into(),
+            ))
+            .absolute()
+            .top(px(toolbar_height + 5.0))
+            .right(px(3.0))
+            .occlude()
+            .block_mouse_except_scroll()
+            .w(px(230.0))
+            .max_h(px(320.0))
+            .flex()
+            .flex_col()
+            .gap(px(4.0))
+            .p(px(6.0))
+            .rounded(px(d.menu_panel_radius))
+            .border_1()
+            .border_color(c.dialog_border)
+            .bg(c.dialog_surface)
+            .shadow_lg()
+            .child(
+                div()
+                    .key_context(BLOCK_EDITOR_CONTEXT)
+                    .track_focus(&self.code_language_focus_handle)
+                    .on_action(cx.listener(Self::on_code_language_newline))
+                    .on_action(cx.listener(Self::on_code_language_dismiss))
+                    .on_action(cx.listener(Self::on_code_language_delete_back))
+                    .on_action(cx.listener(Self::on_code_language_delete))
+                    .on_action(cx.listener(Self::on_code_language_focus_content))
+                    .on_action(cx.listener(Self::on_code_language_focus_next))
+                    .on_action(cx.listener(Self::on_code_language_move_left))
+                    .on_action(cx.listener(Self::on_code_language_move_right))
+                    .on_action(cx.listener(Self::on_code_language_home))
+                    .on_action(cx.listener(Self::on_code_language_end))
+                    .on_action(cx.listener(Self::on_code_language_select_left))
+                    .on_action(cx.listener(Self::on_code_language_select_right))
+                    .on_action(cx.listener(Self::on_code_language_select_all))
+                    .on_action(cx.listener(Self::on_code_language_copy))
+                    .on_action(cx.listener(Self::on_code_language_cut))
+                    .on_action(cx.listener(Self::on_code_language_paste))
+                    .on_action(cx.listener(Self::on_code_language_indent))
+                    .on_action(cx.listener(Self::on_code_language_outdent))
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(Self::on_code_language_mouse_down),
+                    )
+                    .on_mouse_up(
+                        MouseButton::Left,
+                        cx.listener(Self::on_code_language_mouse_up),
+                    )
+                    .on_mouse_up_out(
+                        MouseButton::Left,
+                        cx.listener(Self::on_code_language_mouse_up_out),
+                    )
+                    .on_mouse_move(cx.listener(Self::on_code_language_mouse_move))
+                    .w_full()
+                    .h(px(28.0))
+                    .px(px(8.0))
+                    .py(px(3.0))
+                    .rounded(px(d.menu_item_radius))
+                    .border_1()
+                    .border_color(c.dialog_border)
+                    .bg(c.dialog_secondary_button_bg)
+                    .flex()
+                    .items_center()
+                    .text_size(px(12.5))
+                    .cursor(CursorStyle::IBeam)
+                    .child(CodeLanguageInputElement::new(
+                        cx.entity(),
+                        SharedString::from(
+                            strings.code_language_search_placeholder.clone(),
+                        ),
+                    )),
+            )
+            .child(
+                div()
+                    .id(ElementId::Name(
+                        format!("code-language-list-{}", self.record.id).into(),
+                    ))
+                    .w_full()
+                    .max_h(px(250.0))
+                    .flex()
+                    .flex_col()
+                    .gap(px(2.0))
+                    .overflow_y_scroll()
+                    .scrollbar_width(px(4.0))
+                    .children(options.into_iter().enumerate().map(
+                        |(index, option)| {
+                            let option_block = cx.entity();
+                            let value = option.value;
+                            let is_selected =
+                                code_language_display_name(&selected_language)
+                                    == option.label;
+                            div()
+                                .id(ElementId::Name(
+                                    format!(
+                                        "code-language-option-{}-{index}",
+                                        self.record.id
+                                    )
+                                    .into(),
+                                ))
+                                .w_full()
+                                .h(px(28.0))
+                                .flex_shrink_0()
+                                .flex()
+                                .items_center()
+                                .justify_between()
+                                .px(px(8.0))
+                                .rounded(px(d.menu_item_radius))
+                                .bg(if is_selected {
+                                    c.dialog_secondary_button_bg
+                                } else {
+                                    c.dialog_surface
+                                })
+                                .hover(|this| {
+                                    this.bg(c.dialog_secondary_button_hover)
+                                })
+                                .active(|this| this.opacity(0.9))
+                                .cursor_pointer()
+                                .on_mouse_down(
+                                    MouseButton::Left,
+                                    move |_event, window, cx| {
+                                        let _ = option_block.update(
+                                            cx,
+                                            |block, block_cx| {
+                                                block_cx.stop_propagation();
+                                                block.choose_code_language(
+                                                    value, block_cx,
+                                                );
+                                                block.focus_handle.focus(window);
+                                            },
+                                        );
+                                    },
+                                )
+                                .child(
+                                    div()
+                                        .text_size(px(13.0))
+                                        .font_weight(if is_selected {
+                                            FontWeight::MEDIUM
+                                        } else {
+                                            FontWeight::NORMAL
+                                        })
+                                        .text_color(if is_selected {
+                                            c.text_default
+                                        } else {
+                                            c.dialog_body
+                                        })
+                                        .child(option.label),
+                                )
+                                .children(if is_selected {
+                                    Some(
+                                        svg()
+                                            .path("icon/panel/select-check.svg")
+                                            .size(px(14.0))
+                                            .text_color(c.text_default),
+                                    )
+                                } else {
+                                    None
+                                })
+                        },
+                    )),
+            )
+            .into_any_element()
+    }
+
     fn render_text_or_mixed_inline_visuals(
         &self,
         theme: &Theme,
@@ -2415,363 +2812,20 @@ impl Render for Block {
                 let show_toolbar = self.code_toolbar_hovered
                     || self.code_language_picker_open
                     || code_language_focused;
-                let current_language = self.code_language_text();
-                let language_label: SharedString = if current_language.is_empty() {
-                    strings.code_language_placeholder.clone().into()
-                } else {
-                    code_language_display_name(current_language)
-                        .to_string()
-                        .into()
-                };
-                let code_content_container = if self.show_code_line_numbers {
-                    let line_count = self.display_text().split('\n').count().max(1);
-                    let line_numbers_text = (1..=line_count)
-                        .map(|i| i.to_string())
-                        .collect::<Vec<_>>()
-                        .join("\n");
-
-                    div()
-                        .w_full()
-                        .flex()
-                        .flex_row()
-                        .child(
-                            div()
-                                .flex_none()
-                                .pr(px(10.0))
-                                .mr(px(8.0))
-                                .border_r_1()
-                                .border_color(c.table_border)
-                                .text_align(TextAlign::Right)
-                                .text_size(px(t.code_size))
-                                .line_height(rems(t.text_line_height))
-                                .text_color(c.dialog_muted)
-                                .child(SharedString::from(line_numbers_text)),
-                        )
-                        .child(
-                            div()
-                                .min_w(px(0.0))
-                                .flex_1()
-                                .child(BlockTextElement::new(cx.entity(), is_placeholder)),
-                        )
-                } else {
-                    div()
-                        .min_w(px(0.0))
-                        .w_full()
-                        .child(BlockTextElement::new(cx.entity(), is_placeholder))
-                };
-                let code_panel = focused_base
+                let editor_section = self.render_code_editor_section(
+                    show_toolbar,
+                    is_placeholder,
+                    &theme,
+                    &strings,
+                    cx,
+                );
+                focused_base
                     .relative()
                     .on_hover(cx.listener(Self::on_code_block_hover))
                     .bg(c.code_bg)
                     .rounded(px(d.menu_item_radius))
-                    .pl(px(d.code_block_padding_x))
-                    .pr(px(d.code_block_padding_x))
-                    .py(px(d.code_block_padding_y))
-                    .text_size(px(t.code_size))
-                    .text_color(c.code_text)
-                    .line_height(rems(t.text_line_height))
-                    .child(code_content_container);
-
-                    let toolbar_height = 28.0;
-                    let toolbar = div()
-                        .id(ElementId::Name(
-                            format!("code-toolbar-{}", self.record.id).into(),
-                        ))
-                        .absolute()
-                        .top(relative(0.02))
-                        .right(relative(0.02))
-                        .opacity(if show_toolbar { 1.0 } else { 0.0 })
-                        .flex()
-                        .items_center()
-                        .gap(px(2.0))
-                        .p(px(2.0))
-                        .h(px(toolbar_height))
-                        .rounded(px(d.menu_item_radius))
-                        .border_1()
-                        .border_color(c.table_border)
-                        .bg(gpui::transparent_black())
-                        .text_size(px(12.5))
-                        .text_color(c.code_language_input_text)
-                        .child(
-                            div()
-                                .id(ElementId::Name(
-                                    format!("code-language-picker-{}", self.record.id).into(),
-                                ))
-                                .h_full()
-                                .flex()
-                                .items_center()
-                                .gap(px(4.0))
-                                .px(px(8.0))
-                                .rounded(px(d.menu_item_radius - 2.0))
-                                .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                                .active(|this| this.opacity(0.9))
-                                .cursor_pointer()
-                                .on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(Self::on_code_language_picker_toggle),
-                                )
-                                .child(language_label)
-                                .child(
-                                    svg()
-                                        .path("icon/panel/select-chevron.svg")
-                                        .size(px(13.0))
-                                        .text_color(c.dialog_muted),
-                                ),
-                        )
-                        .child(
-                            div()
-                                .w(px(1.0))
-                                .h(px(14.0))
-                                .bg(c.table_border),
-                        )
-                        .child(
-                            div()
-                                .id(ElementId::Name(
-                                    format!("code-line-numbers-{}", self.record.id).into(),
-                                ))
-                                .relative()
-                                .w(px(26.0))
-                                .h_full()
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .rounded(px(d.menu_item_radius - 2.0))
-                                .bg(if self.show_code_line_numbers {
-                                    c.dialog_secondary_button_hover
-                                } else {
-                                    gpui::transparent_black()
-                                })
-                                .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                                .active(|this| this.opacity(0.9))
-                                .cursor_pointer()
-                                .on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(Self::on_code_line_numbers_toggle),
-                                )
-                                .child(
-                                    svg()
-                                        .path("icon/panel/line-numbers.svg")
-                                        .size(px(14.0))
-                                        .text_color(if self.show_code_line_numbers {
-                                            c.code_language_input_text
-                                        } else {
-                                            c.code_language_input_placeholder
-                                        }),
-                                ),
-                        )
-                        .child(
-                            div()
-                                .id(ElementId::Name(
-                                    format!("code-copy-{}", self.record.id).into(),
-                                ))
-                                .relative()
-                                .w(px(26.0))
-                                .h_full()
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .rounded(px(d.menu_item_radius - 2.0))
-                                .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                                .active(|this| this.opacity(0.9))
-                                .cursor_pointer()
-                                .on_mouse_down(
-                                    MouseButton::Left,
-                                    cx.listener(Self::on_code_copy_button_mouse_down),
-                                )
-                                .child(
-                                    div()
-                                        .absolute()
-                                        .left(px(6.0))
-                                        .top(px(5.0))
-                                        .size(px(10.0))
-                                        .rounded(px(2.0))
-                                        .border(px(1.0))
-                                        .border_color(c.code_language_input_placeholder),
-                                )
-                                .child(
-                                    div()
-                                        .absolute()
-                                        .left(px(9.0))
-                                        .top(px(8.0))
-                                        .size(px(10.0))
-                                        .rounded(px(2.0))
-                                        .border(px(1.0))
-                                        .border_color(c.code_language_input_text)
-                                        .bg(gpui::transparent_black()),
-                                ),
-                        );
-
-                    let code_panel = code_panel.child(toolbar);
-                    if !self.code_language_picker_open {
-                        code_panel.into_any_element()
-                    } else {
-                        let options = code_language_options_matching(&self.code_language_query);
-                        let selected_language = current_language.to_string();
-                        let picker = div()
-                            .id(ElementId::Name(
-                                format!("code-picker-container-{}", self.record.id).into(),
-                            ))
-                            .absolute()
-                            .top(px(toolbar_height + 5.0))
-                            .right(px(3.0))
-                            .occlude()
-                            .block_mouse_except_scroll()
-                            .w(px(230.0))
-                            .max_h(px(320.0))
-                            .flex()
-                            .flex_col()
-                            .gap(px(4.0))
-                            .p(px(6.0))
-                            .rounded(px(d.menu_panel_radius))
-                            .border_1()
-                            .border_color(c.dialog_border)
-                            .bg(c.dialog_surface)
-                            .shadow_lg()
-                            .child(
-                                div()
-                                    .key_context(BLOCK_EDITOR_CONTEXT)
-                                    .track_focus(&self.code_language_focus_handle)
-                                    .on_action(cx.listener(Self::on_code_language_newline))
-                                    .on_action(cx.listener(Self::on_code_language_dismiss))
-                                    .on_action(cx.listener(Self::on_code_language_delete_back))
-                                    .on_action(cx.listener(Self::on_code_language_delete))
-                                    .on_action(cx.listener(Self::on_code_language_focus_content))
-                                    .on_action(cx.listener(Self::on_code_language_focus_next))
-                                    .on_action(cx.listener(Self::on_code_language_move_left))
-                                    .on_action(cx.listener(Self::on_code_language_move_right))
-                                    .on_action(cx.listener(Self::on_code_language_home))
-                                    .on_action(cx.listener(Self::on_code_language_end))
-                                    .on_action(cx.listener(Self::on_code_language_select_left))
-                                    .on_action(cx.listener(Self::on_code_language_select_right))
-                                    .on_action(cx.listener(Self::on_code_language_select_all))
-                                    .on_action(cx.listener(Self::on_code_language_copy))
-                                    .on_action(cx.listener(Self::on_code_language_cut))
-                                    .on_action(cx.listener(Self::on_code_language_paste))
-                                    .on_action(cx.listener(Self::on_code_language_indent))
-                                    .on_action(cx.listener(Self::on_code_language_outdent))
-                                    .on_mouse_down(
-                                        MouseButton::Left,
-                                        cx.listener(Self::on_code_language_mouse_down),
-                                    )
-                                    .on_mouse_up(
-                                        MouseButton::Left,
-                                        cx.listener(Self::on_code_language_mouse_up),
-                                    )
-                                    .on_mouse_up_out(
-                                        MouseButton::Left,
-                                        cx.listener(Self::on_code_language_mouse_up_out),
-                                    )
-                                    .on_mouse_move(cx.listener(Self::on_code_language_mouse_move))
-                                    .w_full()
-                                    .h(px(28.0))
-                                    .px(px(8.0))
-                                    .py(px(3.0))
-                                    .rounded(px(d.menu_item_radius))
-                                    .border_1()
-                                    .border_color(c.dialog_border)
-                                    .bg(c.dialog_secondary_button_bg)
-                                    .flex()
-                                    .items_center()
-                                    .text_size(px(12.5))
-                                    .cursor(CursorStyle::IBeam)
-                                    .child(CodeLanguageInputElement::new(
-                                        cx.entity(),
-                                        SharedString::from(
-                                            strings.code_language_search_placeholder.clone(),
-                                        ),
-                                    )),
-                            )
-                            .child(
-                                div()
-                                    .id(ElementId::Name(
-                                        format!("code-language-list-{}", self.record.id).into(),
-                                    ))
-                                    .w_full()
-                                    .max_h(px(250.0))
-                                    .flex()
-                                    .flex_col()
-                                    .gap(px(2.0))
-                                    .overflow_y_scroll()
-                                    .scrollbar_width(px(4.0))
-                                    .children(options.into_iter().enumerate().map(
-                                        |(index, option)| {
-                                            let option_block = cx.entity();
-                                            let value = option.value;
-                                            let is_selected =
-                                                code_language_display_name(&selected_language)
-                                                    == option.label;
-                                            div()
-                                                .id(ElementId::Name(
-                                                    format!(
-                                                        "code-language-option-{}-{index}",
-                                                        self.record.id
-                                                    )
-                                                    .into(),
-                                                ))
-                                                .w_full()
-                                                .h(px(28.0))
-                                                .flex_shrink_0()
-                                                .flex()
-                                                .items_center()
-                                                .justify_between()
-                                                .px(px(8.0))
-                                                .rounded(px(d.menu_item_radius))
-                                                .bg(if is_selected {
-                                                    c.dialog_secondary_button_bg
-                                                } else {
-                                                    c.dialog_surface
-                                                })
-                                                .hover(|this| {
-                                                    this.bg(c.dialog_secondary_button_hover)
-                                                })
-                                                .active(|this| this.opacity(0.9))
-                                                .cursor_pointer()
-                                                .on_mouse_down(
-                                                    MouseButton::Left,
-                                                    move |_event, window, cx| {
-                                                        let _ = option_block.update(
-                                                            cx,
-                                                            |block, block_cx| {
-                                                                block_cx.stop_propagation();
-                                                                block.choose_code_language(
-                                                                    value, block_cx,
-                                                                );
-                                                                block.focus_handle.focus(window);
-                                                            },
-                                                        );
-                                                    },
-                                                )
-                                                .child(
-                                                    div()
-                                                        .text_size(px(13.0))
-                                                        .font_weight(if is_selected {
-                                                            FontWeight::MEDIUM
-                                                        } else {
-                                                            FontWeight::NORMAL
-                                                        })
-                                                        .text_color(if is_selected {
-                                                            c.text_default
-                                                        } else {
-                                                            c.dialog_body
-                                                        })
-                                                        .child(option.label),
-                                                )
-                                                .children(if is_selected {
-                                                    Some(
-                                                        svg()
-                                                            .path("icon/panel/check.svg")
-                                                            .size(px(13.0))
-                                                            .text_color(c.dialog_primary_button_bg)
-                                                            .into_any_element(),
-                                                    )
-                                                } else {
-                                                    None
-                                                })
-                                        },
-                                    )),
-                            );
-                        code_panel.child(picker).into_any_element()
-                    }
+                    .child(editor_section)
+                    .into_any_element()
             }
             BlockKind::Table => {
                 let Some(runtime) = self.table_runtime.clone() else {
@@ -3339,10 +3393,17 @@ impl Render for Block {
 
                     focused_base.w_full().child(outer).into_any_element()
                 } else {
-                    let editor_input = BlockTextElement::new(cx.entity(), is_placeholder);
+                    let show_toolbar = self.code_toolbar_hovered
+                        || self.code_language_picker_open
+                        || code_language_focused;
+                    let editor_section = self.render_code_editor_section(
+                        show_toolbar,
+                        is_placeholder,
+                        &theme,
+                        &strings,
+                        cx,
+                    );
 
-                    // Focused: background applied directly on focused_base (full shell width)
-                    // with top rendered preview and bottom source editor inside
                     let container = div()
                         .w_full()
                         .flex()
@@ -3357,20 +3418,13 @@ impl Render for Block {
                                 .justify_center()
                                 .child(math_preview),
                         )
-                        .child(
-                            // Bottom: source code editor
-                            div()
-                                .w_full()
-                                .px(px(d.code_block_padding_x))
-                                .py(px(d.code_block_padding_y))
-                                .text_size(px(t.code_size))
-                                .text_color(c.code_text)
-                                .line_height(rems(t.text_line_height))
-                                .child(editor_input),
-                        );
+                        .child(editor_section);
 
                     focused_base
+                        .relative()
+                        .on_hover(cx.listener(Self::on_code_block_hover))
                         .bg(c.code_bg)
+                        .rounded(px(d.menu_item_radius))
                         .w_full()
                         .flex()
                         .flex_col()
@@ -3397,10 +3451,17 @@ impl Render for Block {
 
                     focused_base.w_full().child(outer).into_any_element()
                 } else {
-                    let editor_input = BlockTextElement::new(cx.entity(), is_placeholder);
+                    let show_toolbar = self.code_toolbar_hovered
+                        || self.code_language_picker_open
+                        || code_language_focused;
+                    let editor_section = self.render_code_editor_section(
+                        show_toolbar,
+                        is_placeholder,
+                        &theme,
+                        &strings,
+                        cx,
+                    );
 
-                    // Focused: background applied directly on focused_base (full shell width)
-                    // with top rendered preview and bottom source editor inside
                     let container = div()
                         .w_full()
                         .flex()
@@ -3415,20 +3476,13 @@ impl Render for Block {
                                 .justify_center()
                                 .child(mermaid_preview),
                         )
-                        .child(
-                            // Bottom: source code editor
-                            div()
-                                .w_full()
-                                .px(px(d.code_block_padding_x))
-                                .py(px(d.code_block_padding_y))
-                                .text_size(px(t.code_size))
-                                .text_color(c.code_text)
-                                .line_height(rems(t.text_line_height))
-                                .child(editor_input),
-                        );
+                        .child(editor_section);
 
                     focused_base
+                        .relative()
+                        .on_hover(cx.listener(Self::on_code_block_hover))
                         .bg(c.code_bg)
+                        .rounded(px(d.menu_item_radius))
                         .w_full()
                         .flex()
                         .flex_col()
