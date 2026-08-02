@@ -50,40 +50,57 @@ fn header_axis_emphasis(color: Hsla) -> Hsla {
         ..color
     }
 }
-
-fn fallback_image_label(alt: &str, strings: &I18nStrings) -> SharedString {
-    if alt.trim().is_empty() {
-        SharedString::from(strings.image_placeholder.clone())
-    } else {
-        SharedString::from(alt.to_string())
-    }
-}
-
 fn render_image_placeholder(
     runtime: &ImageRuntime,
     width: Length,
     height: Pixels,
     theme: &Theme,
-    strings: &I18nStrings,
+    _strings: &I18nStrings,
 ) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;
+
+    let target_name = if !runtime.src.trim().is_empty() {
+        runtime.src.trim()
+    } else if !runtime.alt.trim().is_empty() {
+        runtime.alt.trim()
+    } else {
+        "unnamed"
+    };
+
+    let title_text = if !runtime.alt.trim().is_empty() {
+        format!("Image Not Found: {}", runtime.alt.trim())
+    } else {
+        "Image Not Found".to_string()
+    };
+
     div()
+        .w_full()
         .w(width)
         .h(height)
         .flex()
+        .flex_col()
         .items_center()
         .justify_center()
-        .rounded(px(d.image_radius))
-        .border(px(1.0))
-        .border_color(c.image_placeholder_border)
+        .gap(px(4.0))
+        .rounded_none()
         .bg(c.image_placeholder_bg)
         .px(px(d.block_padding_x))
-        .text_center()
-        .text_size(px(t.text_size))
-        .text_color(c.image_placeholder_text)
-        .child(fallback_image_label(&runtime.alt, strings))
+        .py(px(16.0))
+        .child(
+            div()
+                .text_size(px(t.text_size))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(c.image_placeholder_text)
+                .child(SharedString::from(title_text)),
+        )
+        .child(
+            div()
+                .text_size(px(t.code_size))
+                .text_color(c.dialog_muted)
+                .child(SharedString::from(format!("({})", target_name))),
+        )
         .into_any_element()
 }
 
@@ -92,34 +109,44 @@ fn render_loading_placeholder(
     width: Length,
     height: Pixels,
     theme: &Theme,
-    strings: &I18nStrings,
+    _strings: &I18nStrings,
 ) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;
+
+    let target_name = if !runtime.src.trim().is_empty() {
+        runtime.src.trim()
+    } else {
+        "image"
+    };
+
     div()
+        .w_full()
         .w(width)
         .h(height)
         .flex()
+        .flex_col()
         .items_center()
         .justify_center()
-        .rounded(px(d.image_radius))
-        .border(px(1.0))
-        .border_color(c.image_placeholder_border)
+        .gap(px(4.0))
+        .rounded_none()
         .bg(c.image_placeholder_bg)
         .px(px(d.block_padding_x))
-        .text_center()
-        .text_size(px(t.code_size))
-        .text_color(c.image_placeholder_text)
-        .child(if runtime.alt.trim().is_empty() {
-            SharedString::from(strings.image_loading_without_alt.clone())
-        } else {
-            SharedString::from(
-                strings
-                    .image_loading_with_alt_template
-                    .replace("{alt}", &runtime.alt),
-            )
-        })
+        .py(px(16.0))
+        .child(
+            div()
+                .text_size(px(t.text_size))
+                .font_weight(FontWeight::MEDIUM)
+                .text_color(c.image_placeholder_text)
+                .child(SharedString::from("Loading image...")),
+        )
+        .child(
+            div()
+                .text_size(px(t.code_size))
+                .text_color(c.dialog_muted)
+                .child(SharedString::from(format!("({})", target_name))),
+        )
         .into_any_element()
 }
 
@@ -793,7 +820,7 @@ impl Block {
                     .child(
                         svg()
                             .path("icon/panel/select-chevron.svg")
-                            .size(px(13.0))
+                            .size(px(9.0))
                             .text_color(c.dialog_muted),
                     ),
             )
@@ -830,7 +857,7 @@ impl Block {
                     .child(
                         svg()
                             .path("icon/panel/line-numbers.svg")
-                            .size(px(14.0))
+                            .size(px(10.0))
                             .text_color(if self.show_code_line_numbers {
                                 c.code_language_input_text
                             } else {
@@ -860,20 +887,20 @@ impl Block {
                     .child(
                         div()
                             .absolute()
-                            .left(px(6.0))
-                            .top(px(5.0))
-                            .size(px(10.0))
-                            .rounded(px(2.0))
+                            .left(px(7.5))
+                            .top(px(6.5))
+                            .size(px(7.0))
+                            .rounded(px(1.5))
                             .border(px(1.0))
                             .border_color(c.code_language_input_placeholder),
                     )
                     .child(
                         div()
                             .absolute()
-                            .left(px(9.0))
-                            .top(px(8.0))
-                            .size(px(10.0))
-                            .rounded(px(2.0))
+                            .left(px(9.5))
+                            .top(px(8.5))
+                            .size(px(7.0))
+                            .rounded(px(1.5))
                             .border(px(1.0))
                             .border_color(c.code_language_input_text)
                             .bg(gpui::transparent_black()),
@@ -2335,16 +2362,62 @@ impl Render for Block {
             let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
             let max_width = px(effective_image_width(self, viewport_width, d));
             if let Some(runtime) = self.image_runtime() {
-                return focused_base
-                    .child(self.render_image_content(
-                        runtime,
-                        max_width.into(),
-                        px(d.image_root_max_height),
-                        px(d.image_root_placeholder_height),
-                        &theme,
-                        &strings,
-                    ))
-                    .into_any_element();
+                let image_preview = self.render_image_content(
+                    runtime,
+                    max_width.into(),
+                    px(d.image_root_max_height),
+                    px(d.image_root_placeholder_height),
+                    &theme,
+                    &strings,
+                );
+
+                if !focused {
+                    let outer = div()
+                        .w_full()
+                        .p(relative(0.005))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(image_preview);
+
+                    return focused_base.w_full().child(outer).into_any_element();
+                } else {
+                    let editor_input = BlockTextElement::new(cx.entity(), is_placeholder);
+                    let editor_section = div()
+                        .w_full()
+                        .px(px(d.code_block_padding_x))
+                        .py(px(d.code_block_padding_y))
+                        .text_size(px(t.text_size))
+                        .text_color(c.text_default)
+                        .line_height(rems(t.text_line_height))
+                        .child(editor_input);
+
+                    let container = div()
+                        .w_full()
+                        .flex()
+                        .flex_col()
+                        .child(
+                            div()
+                                .w_full()
+                                .p(relative(0.005))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(image_preview),
+                        )
+                        .child(editor_section);
+
+                    return focused_base
+                        .relative()
+                        .on_hover(cx.listener(Self::on_code_block_hover))
+                        .bg(c.code_bg)
+                        .rounded(px(d.menu_item_radius))
+                        .w_full()
+                        .flex()
+                        .flex_col()
+                        .child(container)
+                        .into_any_element();
+                }
             }
         }
 

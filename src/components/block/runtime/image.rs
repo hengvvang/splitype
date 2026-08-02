@@ -78,12 +78,14 @@ impl Block {
             .then_some(serialized)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn request_image_edit_expansion(&mut self) {
         if self.image_runtime.is_some() {
             self.image_expand_requested = true;
         }
     }
 
+    #[allow(dead_code)]
     pub(super) fn consume_requested_image_edit_expansion(&mut self) -> bool {
         if self.image_runtime.is_some() && self.image_expand_requested && !self.image_edit_expanded
         {
@@ -103,31 +105,11 @@ impl Block {
         false
     }
 
-    pub(crate) fn sync_image_focus_state(&mut self, focused: bool) -> bool {
-        if self.image_runtime.is_none() {
-            if self.image_edit_expanded || self.image_expand_requested {
-                self.image_edit_expanded = false;
-                self.image_expand_requested = false;
-                self.clear_inline_projection();
-                return true;
-            }
-            return false;
-        }
-
-        if focused {
-            return self.consume_requested_image_edit_expansion();
-        }
-
-        if self.image_edit_expanded {
-            self.image_edit_expanded = false;
-            self.clear_inline_projection();
-            return true;
-        }
-
+    pub(crate) fn sync_image_focus_state(&mut self, _focused: bool) -> bool {
         false
     }
 
     pub(crate) fn showing_rendered_image(&self) -> bool {
-        self.image_runtime.is_some() && !self.is_source_raw_mode() && !self.image_edit_expanded
+        self.image_runtime.is_some() && !self.is_source_raw_mode()
     }
 }
