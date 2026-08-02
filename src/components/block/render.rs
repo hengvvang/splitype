@@ -2805,7 +2805,7 @@ impl Render for Block {
                 let header_text = if show_static_default_label {
                     div()
                         .text_size(px(t.text_size))
-                        .font_weight(FontWeight::SEMIBOLD)
+                        .font_weight(FontWeight::LIGHT)
                         .text_color(accent)
                         .child(header_label.clone())
                         .into_any_element()
@@ -2814,7 +2814,7 @@ impl Render for Block {
                         .min_w(px(0.0))
                         .flex_grow()
                         .text_size(px(t.text_size))
-                        .font_weight(FontWeight::SEMIBOLD)
+                        .font_weight(FontWeight::LIGHT)
                         .text_color(accent)
                         .child(self.render_text_or_mixed_inline_visuals(
                             &theme,
@@ -2824,7 +2824,7 @@ impl Render for Block {
                             Some(accent),
                             accent,
                             t.text_size,
-                            FontWeight::SEMIBOLD,
+                            FontWeight::LIGHT,
                             cx,
                         ))
                         .into_any_element()
@@ -2835,13 +2835,6 @@ impl Render for Block {
                     .flex()
                     .flex_row()
                     .items_center()
-                    .gap(px(d.callout_header_gap))
-                    .child(
-                        svg()
-                            .path(variant.icon_path())
-                            .size(px(t.text_size))
-                            .text_color(accent),
-                    )
                     .child(header_text)
                     .into_any_element()
             }

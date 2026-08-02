@@ -43,14 +43,15 @@ impl CalloutVariant {
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::Note => "Note",
-            Self::Tip => "Tip",
-            Self::Important => "Important",
-            Self::Warning => "Warning",
-            Self::Caution => "Caution",
+            Self::Note => "NOTE",
+            Self::Tip => "TIP",
+            Self::Important => "IMPORTANT",
+            Self::Warning => "WARNING",
+            Self::Caution => "CAUTION",
         }
     }
 
+    #[allow(dead_code)]
     pub fn icon_path(self) -> &'static str {
         match self {
             Self::Note => "icon/callout/note.svg",
