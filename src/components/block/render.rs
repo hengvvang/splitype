@@ -1705,7 +1705,7 @@ impl Render for Block {
                 .w_full()
                 .h_full()
                 .min_h(px(d.table_cell_min_height))
-                .px(px(d.table_cell_padding_x))
+                .px(px(0.0))
                 .py(px(d.table_cell_padding_y))
                 .border(if focused { px(2.0) } else { px(1.0) })
                 .border_color(border_color)
@@ -1760,29 +1760,82 @@ impl Render for Block {
                 )
             };
 
+            let left_reserved_slot = div()
+                .flex_none()
+                .w(px(12.0))
+                .h_full();
+
+            let is_menu_open = self.table_axis_selection.is_some();
+            let menu_block = cx.entity();
+            let cell_pos = self.table_cell_position();
+
             let cell_menu = div()
-                .absolute()
-                .right(px(4.0))
-                .top(px(8.0))
-                .w(px(16.0))
-                .h(px(20.0))
+                .id(ElementId::Name(
+                    format!("table-cell-menu-{}", self.record.id).into(),
+                ))
+                .w(px(12.0))
+                .h_full()
                 .flex()
                 .items_center()
                 .justify_center()
-                .rounded(px(3.0))
-                .opacity(if focused { 1.0 } else { 0.0 })
+                .cursor_pointer()
+                .opacity(if focused || is_menu_open { 1.0 } else { 0.0 })
                 .hover(|this| this.bg(c.table_append_button_hover).opacity(1.0))
+                .on_mouse_down(
+                    MouseButton::Left,
+                    move |event, _window, cx| {
+                        if let Some(pos) = cell_pos {
+                            let _ = menu_block.update(cx, |_block, cx| {
+                                cx.stop_propagation();
+                                cx.emit(BlockEvent::RequestOpenTableAxisMenu {
+                                    kind: TableAxisKind::Row,
+                                    index: pos.row,
+                                    position: event.position,
+                                });
+                            });
+                        }
+                    },
+                )
                 .child(
                     svg()
-                        .path("icon/table/handle-row.svg")
-                        .size(px(12.0))
-                        .text_color(c.table_handle_icon),
+                        .path("icon/table/handle-row-solid.svg")
+                        .size(px(9.0))
+                        .text_color(if is_menu_open {
+                            c.table_append_button_text
+                        } else {
+                            c.table_handle_icon
+                        }),
                 );
+
+            let right_reserved_slot = div()
+                .flex_none()
+                .w(px(12.0))
+                .h_full()
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(cell_menu);
+
+            let cell_center_content = div()
+                .flex_1()
+                .min_w(px(0.0))
+                .h_full()
+                .flex()
+                .items_center()
+                .child(cell_content);
+
+            let cell_wrapper = div()
+                .w_full()
+                .h_full()
+                .flex()
+                .items_center()
+                .child(left_reserved_slot)
+                .child(cell_center_content)
+                .child(right_reserved_slot);
 
             return cell_base
                 .relative()
-                .child(cell_content)
-                .child(cell_menu)
+                .child(cell_wrapper)
                 .into_any_element();
         }
 
@@ -2725,27 +2778,14 @@ impl Render for Block {
                                 div()
                                     .w(px(d.table_handle_width))
                                     .h(relative(0.60))
-                                    .rounded(px(3.0))
+                                    .rounded(px(2.0))
                                     .bg(if is_header_selected {
                                         c.table_selection_border
                                     } else {
                                         c.table_handle_bg
                                     })
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
                                     .opacity(if show_header_handle { 1.0 } else { 0.0 })
-                                    .hover(|this| this.opacity(1.0))
-                                    .child(
-                                        svg()
-                                            .path("icon/table/handle-row.svg")
-                                            .size(px(12.0))
-                                            .text_color(if is_header_selected {
-                                                c.table_append_button_text
-                                            } else {
-                                                c.table_handle_icon
-                                            }),
-                                    ),
+                                    .hover(|this| this.opacity(1.0)),
                             ),
                     )
                     .children(header_cells.into_iter().enumerate().map(|(column, cell)| {
@@ -2780,7 +2820,7 @@ impl Render for Block {
                                     });
                                 }
                             })
-                            // Anytype Top Column Handle (···) on top border of column header
+                            // Anytype Top Column Handle on top border of column header
                             .child(
                                 div()
                                     .id(ElementId::Name(
@@ -2830,27 +2870,14 @@ impl Render for Block {
                                         div()
                                             .h(px(d.table_handle_width))
                                             .w(relative(0.40))
-                                            .rounded(px(3.0))
+                                            .rounded(px(2.0))
                                             .bg(if is_col_selected {
                                                 c.table_selection_border
                                             } else {
                                                 c.table_handle_bg
                                             })
-                                            .flex()
-                                            .items_center()
-                                            .justify_center()
                                             .opacity(if show_col_handle { 1.0 } else { 0.0 })
-                                            .hover(|this| this.opacity(1.0))
-                                            .child(
-                                                svg()
-                                                    .path("icon/table/handle-column.svg")
-                                                    .size(px(12.0))
-                                                    .text_color(if is_col_selected {
-                                                        c.table_append_button_text
-                                                    } else {
-                                                        c.table_handle_icon
-                                                    }),
-                                            ),
+                                            .hover(|this| this.opacity(1.0)),
                                     ),
                             )
                             .child(cell)
@@ -2892,7 +2919,7 @@ impl Render for Block {
                                         });
                                     }
                                 })
-                                // Anytype Left Row Handle (⋮) on left border
+                                // Anytype Left Row Handle on left border
                                 .child(
                                     div()
                                         .id(ElementId::Name(
@@ -2948,27 +2975,14 @@ impl Render for Block {
                                             div()
                                                 .w(px(d.table_handle_width))
                                                 .h(relative(0.60))
-                                                .rounded(px(3.0))
+                                                .rounded(px(2.0))
                                                 .bg(if is_row_selected {
                                                     c.table_selection_border
                                                 } else {
                                                     c.table_handle_bg
                                                 })
-                                                .flex()
-                                                .items_center()
-                                                .justify_center()
                                                 .opacity(if show_row_handle { 1.0 } else { 0.0 })
-                                                .hover(|this| this.opacity(1.0))
-                                                .child(
-                                                    svg()
-                                                        .path("icon/table/handle-row.svg")
-                                                        .size(px(12.0))
-                                                        .text_color(if is_row_selected {
-                                                            c.table_append_button_text
-                                                        } else {
-                                                            c.table_handle_icon
-                                                        }),
-                                                ),
+                                                .hover(|this| this.opacity(1.0)),
                                         ),
                                 )
                                 .children(row.into_iter().enumerate().map(|(column, cell)| {
