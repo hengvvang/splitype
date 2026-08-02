@@ -4,7 +4,6 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use anyhow::Context as _;
-use gpui::prelude::FluentBuilder;
 use gpui::*;
 use serde::{Deserialize, Serialize};
 
@@ -644,6 +643,7 @@ pub(crate) struct PreferencesWindow {
     saved_status_bar_show_cursor_position: bool,
     saved_status_bar_show_sidebar_toggle: bool,
     saved_status_bar_show_mode_switch: bool,
+    expanded_sections: std::collections::HashSet<String>,
 }
 
 impl PreferencesWindow {
@@ -663,6 +663,13 @@ impl PreferencesWindow {
         let startup_open = preferences.startup_open;
         let image_paste_behavior = preferences.image_paste_behavior;
         let keybindings = preferences.keybindings;
+
+        let mut expanded_sections = std::collections::HashSet::new();
+        expanded_sections.insert("theme".to_string());
+        expanded_sections.insert("status_bar".to_string());
+        expanded_sections.insert("editing".to_string());
+        expanded_sections.insert("keymap".to_string());
+
         Self {
             nav: PreferencesNav::Interface,
             startup_open,
@@ -690,6 +697,7 @@ impl PreferencesWindow {
             saved_status_bar_show_cursor_position: preferences.status_bar.show_cursor_position,
             saved_status_bar_show_sidebar_toggle: preferences.status_bar.show_sidebar_toggle,
             saved_status_bar_show_mode_switch: preferences.status_bar.show_mode_switch,
+            expanded_sections,
         }
     }
 
@@ -714,6 +722,7 @@ impl PreferencesWindow {
             || self.status_bar_show_mode_switch != self.saved_status_bar_show_mode_switch
     }
 
+    #[allow(dead_code)]
     fn cancel(&mut self, _: &ClickEvent, window: &mut Window, _: &mut Context<Self>) {
         window.remove_window();
     }
@@ -817,8 +826,8 @@ impl Render for PreferencesWindow {
         let strings = cx.global::<I18nManager>().strings().clone();
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let t = &theme.typography;
-        let can_save = self.has_unsaved_changes();
+        let _t = &theme.typography;
+        let _can_save = self.has_unsaved_changes();
         let window_title =
             SharedString::from(format!("Velotype - {}", strings.preferences_window_title));
         window.set_window_title(window_title.as_ref());
@@ -924,8 +933,50 @@ impl Render for PreferencesWindow {
                 .into_any_element()
         };
 
-        let make_section = |sec_id: &'static str, title: &'static str, items: Vec<AnyElement>| -> AnyElement {
-            div()
+        let make_section = |sec_id: &'static str, sec_key: &'static str, title: &'static str, items: Vec<AnyElement>| -> AnyElement {
+            let is_expanded = self.expanded_sections.contains(sec_key);
+            let sec_key_str = sec_key.to_string();
+            let toggle_ed = cx.entity().downgrade();
+
+            let header = div()
+                .id(sec_id)
+                .w_full()
+                .px(px(14.0))
+                .py(px(10.0))
+                .cursor_pointer()
+                .flex()
+                .items_center()
+                .gap(px(8.0))
+                .child(
+                    svg()
+                        .path(if is_expanded {
+                            "icon/panel/chevron-down.svg"
+                        } else {
+                            "icon/panel/chevron-right.svg"
+                        })
+                        .size(px(14.0))
+                        .text_color(c.text_default),
+                )
+                .child(
+                    div()
+                        .text_size(px(13.0))
+                        .font_weight(gpui::FontWeight::BOLD)
+                        .text_color(c.text_default)
+                        .child(title),
+                )
+                .on_click(move |_ev, _win, cx| {
+                    let key = sec_key_str.clone();
+                    let _ = toggle_ed.update(cx, |this, cx| {
+                        if this.expanded_sections.contains(&key) {
+                            this.expanded_sections.remove(&key);
+                        } else {
+                            this.expanded_sections.insert(key);
+                        }
+                        cx.notify();
+                    });
+                });
+
+            let mut card = div()
                 .relative()
                 .w_full()
                 .rounded(px(d.menu_panel_radius))
@@ -934,35 +985,23 @@ impl Render for PreferencesWindow {
                 .border_color(c.dialog_border)
                 .flex()
                 .flex_col()
-                .child(
-                    div()
-                        .id(sec_id)
-                        .w_full()
-                        .px(px(14.0))
-                        .py(px(10.0))
-                        .flex()
-                        .items_center()
-                        .gap(px(8.0))
-                        .child(
-                            div()
-                                .text_size(px(13.0))
-                                .font_weight(gpui::FontWeight::BOLD)
-                                .text_color(c.text_default)
-                                .child(title),
-                        ),
-                )
-                .child(
-                    div()
-                        .w_full()
-                        .px(px(10.0))
-                        .pb(px(10.0))
-                        .pt(px(2.0))
-                        .flex()
-                        .flex_col()
-                        .gap(px(8.0))
-                        .children(items),
-                )
-                .into_any_element()
+                .child(header);
+
+            if is_expanded && !items.is_empty() {
+                let body = div()
+                    .w_full()
+                    .px(px(10.0))
+                    .pb(px(10.0))
+                    .pt(px(2.0))
+                    .flex()
+                    .flex_col()
+                    .gap(px(8.0))
+                    .children(items);
+
+                card = card.child(body);
+            }
+
+            card.into_any_element()
         };
 
         let mut sections = Vec::new();
@@ -1065,7 +1104,7 @@ impl Render for PreferencesWindow {
                     ctrl_lang_btn,
                 ));
 
-                sections.push(make_section("win-sec-theme", "Visual Theme & Language", sec1_items));
+                sections.push(make_section("win-sec-theme", "theme", "Visual Theme & Language", sec1_items));
 
                 if self.theme_dropdown_open {
                     let mut menu_items = Vec::new();
@@ -1120,11 +1159,11 @@ impl Render for PreferencesWindow {
                                 } else {
                                     div().w(px(13.0)).into_any_element()
                                 })
-                                .on_click(move |_ev, _win, cx| {
+                                .on_click(move |ev, win, cx| {
                                     let _ = item_ed.update(cx, |this, cx| {
                                         this.selected_theme_id = t_id.clone();
                                         this.theme_dropdown_open = false;
-                                        cx.notify();
+                                        this.save(ev, win, cx);
                                     });
                                 })
                                 .into_any_element(),
@@ -1157,10 +1196,10 @@ impl Render for PreferencesWindow {
                 let sb_main_ed = cx.entity().downgrade();
                 let ctrl_sb_main = Switch::new("win-switch-sb-main")
                     .checked(self.status_bar_enabled)
-                    .on_click(move |_ev, _win, cx| {
+                    .on_click(move |ev, win, cx| {
                         let _ = sb_main_ed.update(cx, |this, cx| {
                             this.status_bar_enabled = !this.status_bar_enabled;
-                            cx.notify();
+                            this.save(ev, win, cx);
                         });
                     })
                     .into_any_element();
@@ -1170,10 +1209,10 @@ impl Render for PreferencesWindow {
                 let sb_words_ed = cx.entity().downgrade();
                 let ctrl_sb_words = Switch::new("win-switch-sb-words")
                     .checked(self.status_bar_show_word_count)
-                    .on_click(move |_ev, _win, cx| {
+                    .on_click(move |ev, win, cx| {
                         let _ = sb_words_ed.update(cx, |this, cx| {
                             this.status_bar_show_word_count = !this.status_bar_show_word_count;
-                            cx.notify();
+                            this.save(ev, win, cx);
                         });
                     })
                     .into_any_element();
@@ -1183,17 +1222,17 @@ impl Render for PreferencesWindow {
                 let sb_pos_ed = cx.entity().downgrade();
                 let ctrl_sb_pos = Switch::new("win-switch-sb-pos")
                     .checked(self.status_bar_show_cursor_position)
-                    .on_click(move |_ev, _win, cx| {
+                    .on_click(move |ev, win, cx| {
                         let _ = sb_pos_ed.update(cx, |this, cx| {
                             this.status_bar_show_cursor_position = !this.status_bar_show_cursor_position;
-                            cx.notify();
+                            this.save(ev, win, cx);
                         });
                     })
                     .into_any_element();
 
                 sec2_items.push(make_row("Cursor Position Badge", "Display line and column coordinates in status bar", ctrl_sb_pos));
 
-                sections.push(make_section("win-sec-sb", "Status Bar Options", sec2_items));
+                sections.push(make_section("win-sec-sb", "status_bar", "Status Bar Options", sec2_items));
             }
             PreferencesNav::Editing => {
                 // Startup and Image Paste
@@ -1276,7 +1315,7 @@ impl Render for PreferencesWindow {
 
                 sec1_items.push(make_row("Image Paste Action", "Default storage location when pasting images into document", ctrl_image_btn));
 
-                sections.push(make_section("win-sec-editing", "Editor & File Preferences", sec1_items));
+                sections.push(make_section("win-sec-editing", "editing", "Editor & File Preferences", sec1_items));
 
                 if self.startup_dropdown_open {
                     let startup_opts = [
@@ -1312,11 +1351,11 @@ impl Render for PreferencesWindow {
                                 } else {
                                     div().w(px(13.0)).into_any_element()
                                 })
-                                .on_click(move |_ev, _win, cx| {
+                                .on_click(move |ev, win, cx| {
                                     let _ = item_ed.update(cx, |this, cx| {
                                         this.startup_open = pref;
                                         this.startup_dropdown_open = false;
-                                        cx.notify();
+                                        this.save(ev, win, cx);
                                     });
                                 })
                                 .into_any_element(),
@@ -1377,11 +1416,11 @@ impl Render for PreferencesWindow {
                                 } else {
                                     div().w(px(13.0)).into_any_element()
                                 })
-                                .on_click(move |_ev, _win, cx| {
+                                .on_click(move |ev, win, cx| {
                                     let _ = item_ed.update(cx, |this, cx| {
                                         this.image_paste_behavior = pref;
                                         this.image_dropdown_open = false;
-                                        cx.notify();
+                                        this.save(ev, win, cx);
                                     });
                                 })
                                 .into_any_element(),
@@ -1434,14 +1473,16 @@ impl Render for PreferencesWindow {
                     sec1_items.push(make_row(*name, *desc, ctrl_sc));
                 }
 
-                sections.push(make_section("win-sec-keymap", "Document & Keymap Shortcuts", sec1_items));
+                sections.push(make_section("win-sec-keymap", "keymap", "Document & Keymap Shortcuts", sec1_items));
             }
         }
 
         let mut right_content = div()
             .id("win-pref-right-content")
             .relative()
+            .w_full()
             .flex_1()
+            .min_w(px(0.0))
             .h_full()
             .p(px(14.0))
             .overflow_y_scroll()
@@ -1454,75 +1495,9 @@ impl Render for PreferencesWindow {
             right_content = right_content.child(ol);
         }
 
-        // Bottom Action Bar (Cancel / Save)
-        let bottom_bar = div()
-            .w_full()
-            .px(px(14.0))
-            .py(px(10.0))
-            .border_t_1()
-            .border_color(c.dialog_border)
-            .flex()
-            .items_center()
-            .justify_end()
-            .gap(px(d.dialog_button_gap))
-            .child(
-                div()
-                    .id("preferences-cancel")
-                    .h(px(d.dialog_button_height))
-                    .px(px(d.dialog_button_padding_x))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .rounded(px((d.dialog_radius - 4.0).max(0.0)))
-                    .border(px(d.dialog_border_width))
-                    .border_color(c.dialog_border)
-                    .bg(c.dialog_secondary_button_bg)
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                    .cursor_pointer()
-                    .text_size(px(t.dialog_button_size))
-                    .font_weight(t.dialog_button_weight.to_font_weight())
-                    .text_color(c.dialog_secondary_button_text)
-                    .child(strings.preferences_cancel.clone())
-                    .on_click(cx.listener(Self::cancel)),
-            )
-            .child(
-                div()
-                    .id("preferences-save")
-                    .h(px(d.dialog_button_height))
-                    .px(px(d.dialog_button_padding_x))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .rounded(px((d.dialog_radius - 4.0).max(0.0)))
-                    .border(px(if can_save { 0.0 } else { d.dialog_border_width }))
-                    .border_color(c.dialog_border)
-                    .bg(if can_save {
-                        c.dialog_primary_button_bg
-                    } else {
-                        c.dialog_secondary_button_bg
-                    })
-                    .hover(move |this| {
-                        if can_save {
-                            this.bg(c.dialog_primary_button_hover)
-                        } else {
-                            this.bg(c.dialog_secondary_button_bg)
-                        }
-                    })
-                    .when(can_save, |this| this.cursor_pointer())
-                    .text_size(px(t.dialog_button_size))
-                    .font_weight(t.dialog_button_weight.to_font_weight())
-                    .text_color(if can_save {
-                        c.dialog_primary_button_text
-                    } else {
-                        c.dialog_secondary_button_text
-                    })
-                    .child(strings.preferences_save.clone())
-                    .on_click(cx.listener(Self::save)),
-            );
-
         let main_body = div()
-            .flex_1()
-            .min_h(px(0.0))
+            .w_full()
+            .h_full()
             .flex()
             .flex_row()
             .child(left_nav)
@@ -1537,8 +1512,7 @@ impl Render for PreferencesWindow {
             .track_focus(&self.focus_handle)
             .bg(c.editor_background)
             .text_color(c.dialog_body)
-            .child(main_body)
-            .child(bottom_bar);
+            .child(main_body);
 
         let root = div()
             .size_full()

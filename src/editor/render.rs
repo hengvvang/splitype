@@ -2793,7 +2793,7 @@ impl Editor {
                             "icon/panel/chevron-right.svg"
                         })
                         .size(px(14.0))
-                        .text_color(tc.dialog_muted),
+                        .text_color(tc.text_default),
                 )
                 .child(
                     div()
