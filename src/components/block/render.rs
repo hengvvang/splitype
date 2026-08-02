@@ -24,17 +24,35 @@ use crate::components::{
 use crate::i18n::{I18nManager, I18nStrings};
 use crate::theme::{Theme, ThemeDimensions, ThemeManager};
 
-// Unicode bullet glyphs for nested list depths.
-const BULLET_FILLED: &str = "\u{2022}";
-const BULLET_HOLLOW: &str = "\u{25E6}";
-const BULLET_SQUARE: &str = "\u{25A1}";
 const TASK_CHECKMARK: &str = "\u{2713}";
 
-fn bulleted_list_marker(depth: usize) -> &'static str {
-    match depth {
-        0 => BULLET_FILLED,
-        1 => BULLET_HOLLOW,
-        _ => BULLET_SQUARE,
+fn render_custom_bullet_marker(depth: usize, color: Hsla) -> AnyElement {
+    match depth % 3 {
+        0 => {
+            // Level 1: Solid Circle Disc (e.g. 5.5px)
+            div()
+                .size(px(5.5))
+                .rounded_full()
+                .bg(color)
+                .into_any_element()
+        }
+        1 => {
+            // Level 2: Hollow Circle (e.g. 5.5px outer, 1.2px stroke border)
+            div()
+                .size(px(5.5))
+                .rounded_full()
+                .border_1()
+                .border_color(color)
+                .into_any_element()
+        }
+        _ => {
+            // Level 3+: Solid Square (e.g. 4.5px x 4.5px solid square)
+            div()
+                .size(px(4.5))
+                .rounded(px(0.5))
+                .bg(color)
+                .into_any_element()
+        }
     }
 }
 
@@ -2566,19 +2584,25 @@ impl Render for Block {
                     cx,
                 ))
                 .into_any_element(),
-            BlockKind::BulletedListItem => focused_base
-                .text_size(px(t.text_size))
-                .text_color(c.text_default)
-                .line_height(rems(t.text_line_height))
-                .w_full()
-                .flex()
-                .flex_row()
-                .items_start()
-                .gap(px(d.list_marker_gap))
-                .children([
-                    div()
-                        .min_w(px(d.list_marker_width))
-                        .child(SharedString::new(bulleted_list_marker(self.render_depth))),
+            BlockKind::BulletedListItem => {
+                let first_line_height = t.text_size * t.text_line_height;
+                focused_base
+                    .text_size(px(t.text_size))
+                    .text_color(c.text_default)
+                    .line_height(rems(t.text_line_height))
+                    .w_full()
+                    .flex()
+                    .flex_row()
+                    .items_start()
+                    .gap(px(d.list_marker_gap))
+                    .children([
+                        div()
+                            .min_w(px(d.list_marker_width))
+                            .h(px(first_line_height))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .child(render_custom_bullet_marker(self.render_depth, c.text_default)),
                     if showing_rendered_image {
                         let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
                         let max_width =
@@ -2623,7 +2647,8 @@ impl Render for Block {
                         )
                     },
                 ])
-                .into_any_element(),
+                .into_any_element()
+            }
             BlockKind::TaskListItem { checked } => {
                 let marker_width = d.list_marker_width.max(d.task_checkbox_size);
                 let first_line_height = t.text_size * t.text_line_height;
