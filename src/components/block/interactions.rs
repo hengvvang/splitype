@@ -418,6 +418,11 @@ impl Block {
         }
 
         let cursor = self.cursor_offset();
+        if self.selected_range.is_empty() && cursor == 0 {
+            cx.emit(BlockEvent::RequestNewlineAbove);
+            return;
+        }
+
         let (leading, trailing) = self.split_title(cursor);
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.record.set_title(leading);

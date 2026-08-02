@@ -2914,6 +2914,32 @@ async fn enter_in_code_language_does_not_exit_block(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
+async fn newline_at_start_of_heading_moves_entire_heading_down(cx: &mut TestAppContext) {
+    init_editor_test_app(cx);
+    let (editor, cx) = cx.add_window_view(|_window, cx| {
+        Editor::from_markdown(cx, "## 1111".to_string(), None)
+    });
+
+    editor.update_in(cx, |editor, _window, cx| {
+        let block = editor.document.visible_blocks()[0].entity.clone();
+        block.update(cx, |block, block_cx| {
+            block.move_to(0, block_cx);
+        });
+        editor.on_block_event(block, &crate::components::BlockEvent::RequestNewlineAbove, cx);
+    });
+    redraw(cx);
+
+    editor.update(cx, |editor, cx| {
+        assert_eq!(editor.document.root_count(), 2);
+        let blocks = editor.document.visible_blocks();
+        assert_eq!(blocks[0].entity.read(cx).kind(), crate::components::BlockKind::Paragraph);
+        assert_eq!(blocks[0].entity.read(cx).display_text(), "");
+        assert_eq!(blocks[1].entity.read(cx).kind(), crate::components::BlockKind::Heading { level: 2 });
+        assert_eq!(blocks[1].entity.read(cx).display_text(), "1111");
+    });
+}
+
+#[gpui::test]
 async fn captured_tab_key_does_not_modify_code_language_input(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
     let (editor, cx) = cx.add_window_view(|_window, cx| {

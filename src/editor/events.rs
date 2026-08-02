@@ -182,6 +182,7 @@ impl Editor {
             event,
             BlockEvent::Changed
                 | BlockEvent::RequestNewline { .. }
+                | BlockEvent::RequestNewlineAbove
                 | BlockEvent::RequestEnterCalloutBody
                 | BlockEvent::RequestQuoteBreak
                 | BlockEvent::RequestCalloutBreak
@@ -1706,6 +1707,33 @@ impl Editor {
                 if current_kind.is_quote_container() {
                     self.normalize_rendered_quote_structure(cx);
                 }
+                self.mark_dirty(cx);
+                self.finalize_pending_undo_capture(cx);
+                cx.notify();
+            }
+            BlockEvent::RequestNewlineAbove => {
+                let Some(location) = self.document.find_block_location(block.entity_id()) else {
+                    return;
+                };
+                self.prepare_undo_capture(
+                    crate::components::UndoCaptureKind::NonCoalescible,
+                    cx,
+                );
+                let new_block = Self::new_block(
+                    cx,
+                    BlockRecord::new(BlockKind::Paragraph, InlineTextTree::plain(String::new())),
+                );
+                if self.view_mode == super::ViewMode::Source {
+                    new_block.update(cx, |block, _cx| block.set_source_document_mode());
+                }
+                self.document.insert_blocks_at(
+                    location.parent,
+                    location.index,
+                    vec![new_block],
+                    cx,
+                );
+                self.rebuild_image_runtimes(cx);
+                self.focus_block(block.entity_id());
                 self.mark_dirty(cx);
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();

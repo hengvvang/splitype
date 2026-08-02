@@ -752,6 +752,8 @@ pub enum BlockEvent {
         trailing: InlineTextTree,
         source_already_mutated: bool,
     },
+    /// The user pressed Enter at offset 0 of a block; an empty paragraph should be inserted above this block.
+    RequestNewlineAbove,
     /// The user pressed Enter on a callout header; the editor should ensure
     /// the callout owns a body entry and move focus into it.
     RequestEnterCalloutBody,
