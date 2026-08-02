@@ -3973,7 +3973,7 @@ impl Render for Editor {
                         .gap(px(0.0))
                         .px(px(d.callout_padding_x))
                         .py(px(d.callout_padding_y))
-                        .rounded(px(d.callout_radius))
+                        .rounded_r(px(d.callout_radius))
                         .border_l(px(d.callout_border_width))
                         .border_color(accent)
                         .bg(background)
