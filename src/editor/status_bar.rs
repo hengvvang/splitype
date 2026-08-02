@@ -5,7 +5,7 @@ use gpui::*;
 use unicode_segmentation::UnicodeSegmentation;
 
 use super::Editor;
-use crate::config::preferences::{StatusBarButton, StatusBarPreferences};
+use crate::config::settings::{StatusBarButton, StatusBarSettings};
 use crate::i18n::I18nStrings;
 use crate::theme::Theme;
 
@@ -24,7 +24,7 @@ impl Editor {
         _window: &Window,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
-        let prefs = self.status_bar_preferences(cx);
+        let prefs = self.status_bar_settings(cx);
         if !prefs.enabled {
             return None;
         }
@@ -95,8 +95,8 @@ impl Editor {
         Some(bar)
     }
 
-    fn status_bar_preferences(&self, cx: &App) -> StatusBarPreferences {
-        crate::config::preferences::EditorSettings::status_bar_preferences(cx)
+    fn status_bar_settings(&self, cx: &App) -> StatusBarSettings {
+        crate::config::settings::EditorSettings::status_bar_settings(cx)
     }
 
     /// Returns (line, col), both 1-based, from the source-mode selection snapshot.

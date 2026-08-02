@@ -4,13 +4,16 @@
 
 use std::time::{Duration, Instant};
 
+use gpui::prelude::FluentBuilder;
 use gpui::*;
 
 use super::{Editor, InfoDialogKind};
 use crate::app_menu::dispatch_menu_action_for_editor;
 use crate::components::CalloutVariant;
 use crate::components::switch::Switch;
-use crate::components::{AddLanguageConfig, AddThemeConfig, Block, NoRecentFiles};
+use crate::components::{
+    AddLanguageConfig, AddThemeConfig, Block, NoRecentFiles, SelectLanguage, SelectTheme,
+};
 use crate::i18n::{I18nManager, I18nStrings};
 use crate::theme::{Theme, ThemeDimensions, ThemeManager};
 use crate::window_chrome::{custom_titlebar_height, render_custom_titlebar};
@@ -706,6 +709,7 @@ impl Editor {
         item_index: usize,
         theme: &Theme,
         editor: WeakEntity<Self>,
+        cx: &Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
@@ -724,6 +728,40 @@ impl Editor {
                 let is_disabled = action.as_ref().as_any().is::<NoRecentFiles>();
                 let click_editor = editor.clone();
                 let hover_editor = editor.clone();
+
+                let mut is_selected = false;
+                let mut left_elem: Option<AnyElement> = None;
+
+                if let Some(act) = action.as_ref().as_any().downcast_ref::<SelectTheme>() {
+                    let current_theme_id = cx.global::<ThemeManager>().current_theme_id();
+                    is_selected = act.theme_id == current_theme_id;
+                    let item_icon = if name == "Light" {
+                        "icon/panel/sun.svg"
+                    } else {
+                        "icon/panel/moon.svg"
+                    };
+                    left_elem = Some(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(6.0))
+                            .child(
+                                svg()
+                                    .path(item_icon)
+                                    .size(px(13.0))
+                                    .text_color(c.text_default),
+                            )
+                            .child(name.clone())
+                            .into_any_element(),
+                    );
+                } else if let Some(act) = action.as_ref().as_any().downcast_ref::<SelectLanguage>() {
+                    let current_language_id = cx.global::<I18nManager>().current_language_id();
+                    is_selected = act.language_id == current_language_id;
+                }
+
+                let is_theme_or_lang = action.as_ref().as_any().is::<SelectTheme>()
+                    || action.as_ref().as_any().is::<SelectLanguage>();
+
                 let base = div()
                     .id(("app-menu-item", item_index))
                     .w_full()
@@ -732,8 +770,13 @@ impl Editor {
                     .px(px(d.menu_item_padding_x))
                     .flex()
                     .items_center()
+                    .when(is_theme_or_lang, |this| this.justify_between())
                     .rounded(px(d.menu_item_radius))
-                    .bg(c.dialog_surface)
+                    .bg(if is_selected {
+                        c.dialog_secondary_button_hover
+                    } else {
+                        c.dialog_surface
+                    })
                     .text_size(px(d.menu_text_size))
                     .font_weight(t.dialog_body_weight.to_font_weight())
                     .text_color(if is_disabled {
@@ -741,7 +784,18 @@ impl Editor {
                     } else {
                         c.dialog_secondary_button_text
                     })
-                    .child(name)
+                    .child(left_elem.unwrap_or_else(|| div().child(name.clone()).into_any_element()))
+                    .when(is_theme_or_lang, |this| {
+                        this.child(if is_selected {
+                            svg()
+                                .path("icon/panel/check.svg")
+                                .size(px(13.0))
+                                .text_color(c.dialog_primary_button_bg)
+                                .into_any_element()
+                        } else {
+                            div().w(px(13.0)).into_any_element()
+                        })
+                    })
                     .on_hover(move |hovered, _window, cx| {
                         if *hovered {
                             let _ =
@@ -791,7 +845,12 @@ impl Editor {
                     .font_weight(t.dialog_body_weight.to_font_weight())
                     .text_color(c.dialog_secondary_button_text)
                     .child(submenu.name.to_string())
-                    .child(">")
+                    .child(
+                        svg()
+                            .path("icon/panel/chevron-right.svg")
+                            .size(px(14.0))
+                            .text_color(c.dialog_secondary_button_text),
+                    )
                     .on_hover(move |hovered, _window, cx| {
                         if *hovered {
                             let _ = hover_editor
@@ -894,6 +953,40 @@ impl Editor {
                                     let is_disabled =
                                         action.as_ref().as_any().is::<NoRecentFiles>();
                                     let editor = editor.clone();
+
+                                    let mut is_selected = false;
+                                    let mut left_elem: Option<AnyElement> = None;
+
+                                    if let Some(act) = action.as_ref().as_any().downcast_ref::<SelectTheme>() {
+                                        let current_theme_id = cx.global::<ThemeManager>().current_theme_id();
+                                        is_selected = act.theme_id == current_theme_id;
+                                        let item_icon = if name == "Light" {
+                                            "icon/panel/sun.svg"
+                                        } else {
+                                            "icon/panel/moon.svg"
+                                        };
+                                        left_elem = Some(
+                                            div()
+                                                .flex()
+                                                .items_center()
+                                                .gap(px(6.0))
+                                                .child(
+                                                    svg()
+                                                        .path(item_icon)
+                                                        .size(px(13.0))
+                                                        .text_color(c.text_default),
+                                                )
+                                                .child(name.clone())
+                                                .into_any_element(),
+                                        );
+                                    } else if let Some(act) = action.as_ref().as_any().downcast_ref::<SelectLanguage>() {
+                                        let current_language_id = cx.global::<I18nManager>().current_language_id();
+                                        is_selected = act.language_id == current_language_id;
+                                    }
+
+                                    let is_theme_or_lang = action.as_ref().as_any().is::<SelectTheme>()
+                                        || action.as_ref().as_any().is::<SelectLanguage>();
+
                                     let base = div()
                                         .id(("app-submenu-item", submenu_index * 1000 + item_index))
                                         .w_full()
@@ -901,8 +994,13 @@ impl Editor {
                                         .px(px(d.menu_item_padding_x))
                                         .flex()
                                         .items_center()
+                                        .when(is_theme_or_lang, |this| this.justify_between())
                                         .rounded(px(d.menu_item_radius))
-                                        .bg(c.dialog_surface)
+                                        .bg(if is_selected {
+                                            c.dialog_secondary_button_hover
+                                        } else {
+                                            c.dialog_surface
+                                        })
                                         .text_size(px(d.menu_text_size))
                                         .font_weight(t.dialog_body_weight.to_font_weight())
                                         .text_color(if is_disabled {
@@ -910,7 +1008,18 @@ impl Editor {
                                         } else {
                                             c.dialog_secondary_button_text
                                         })
-                                        .child(name);
+                                        .child(left_elem.unwrap_or_else(|| div().child(name.clone()).into_any_element()))
+                                        .when(is_theme_or_lang, |this| {
+                                            this.child(if is_selected {
+                                                svg()
+                                                    .path("icon/panel/check.svg")
+                                                    .size(px(13.0))
+                                                    .text_color(c.dialog_primary_button_bg)
+                                                    .into_any_element()
+                                            } else {
+                                                div().w(px(13.0)).into_any_element()
+                                            })
+                                        });
 
                                     if is_disabled {
                                         base.into_any_element()
@@ -939,11 +1048,18 @@ impl Editor {
                                     .px(px(d.menu_item_padding_x))
                                     .flex()
                                     .items_center()
+                                    .justify_between()
                                     .rounded(px(d.menu_item_radius))
                                     .bg(c.dialog_surface)
                                     .text_size(px(d.menu_text_size))
                                     .text_color(c.dialog_muted)
                                     .child(submenu.name.to_string())
+                                    .child(
+                                        svg()
+                                            .path("icon/panel/chevron-right.svg")
+                                            .size(px(14.0))
+                                            .text_color(c.dialog_muted),
+                                    )
                                     .into_any_element(),
                                 OwnedMenuItem::SystemMenu(os_menu) => div()
                                     .id(("app-submenu-system", submenu_index * 1000 + item_index))
@@ -1035,6 +1151,7 @@ impl Editor {
                                         item_index,
                                         theme,
                                         editor.clone(),
+                                        cx,
                                     )
                                 },
                             )),
@@ -1052,6 +1169,7 @@ impl Editor {
                             split_index + footer_index,
                             theme,
                             editor.clone(),
+                            cx,
                         )
                     });
 
@@ -1065,7 +1183,7 @@ impl Editor {
                 .cloned()
                 .enumerate()
                 .map(|(item_index, item)| {
-                    self.render_in_window_menu_item(item, item_index, theme, editor.clone())
+                    self.render_in_window_menu_item(item, item_index, theme, editor.clone(), cx)
                 });
 
             main_panel.children(items).into_any_element()
@@ -2057,7 +2175,7 @@ impl Editor {
             }
             AreaType::Explorer => self.render_tiled_workspace_files_panel(theme, strings, cx),
             AreaType::Outline => self.render_tiled_outline_panel(theme, strings, cx),
-            AreaType::Settings => self.render_tiled_preferences_panel(theme, strings, cx),
+            AreaType::Settings => self.render_tiled_settings_panel(theme, strings, cx),
         };
 
         let dropdown_open = self.area_layout.active_dropdown_leaf == Some(leaf_id);
@@ -2562,7 +2680,7 @@ impl Editor {
         self.render_workspace_outline_tree(theme, strings, &editor)
     }
 
-    fn render_tiled_preferences_panel(
+    fn render_tiled_settings_panel(
         &mut self,
         theme: &Theme,
         _strings: &I18nStrings,
@@ -2572,14 +2690,14 @@ impl Editor {
 
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let active_tab = self.area_layout.preferences_tab;
+        let active_tab = self.area_layout.settings_tab;
 
         let mut inner_border_color = c.dialog_border;
         inner_border_color.a *= 0.4;
 
         // --- Left Sidebar (3 Main Tabs: Interface, Editing, Keymap) ---
         let mut left_nav_items = Vec::new();
-        for (tab_idx, tab) in PreferencesTab::all().iter().enumerate() {
+        for (tab_idx, tab) in SettingsTab::all().iter().enumerate() {
             let is_active = active_tab == *tab;
             let editor = cx.entity().downgrade();
             let tab_item = *tab;
@@ -2616,7 +2734,7 @@ impl Editor {
                     )
                     .on_click(move |_event, _window, cx| {
                         let _ = editor.update(cx, |ed, cx| {
-                            ed.area_layout.preferences_tab = tab_item;
+                            ed.area_layout.settings_tab = tab_item;
                             cx.notify();
                         });
                     })
@@ -2835,10 +2953,10 @@ impl Editor {
         let mut active_panel_overlay: Option<AnyElement> = None;
 
         match active_tab {
-            PreferencesTab::Interface => {
+            SettingsTab::Interface => {
                 // Section 1: Visual Theme & Language
                 let sec1_key = "theme";
-                let is_sec1_expanded = self.area_layout.preferences_expanded_sections.contains(sec1_key);
+                let is_sec1_expanded = self.area_layout.settings_expanded_sections.contains(sec1_key);
                 let mut sec1_items = Vec::new();
 
                 let theme_ed = cx.entity().downgrade();
@@ -2854,8 +2972,8 @@ impl Editor {
                 let lang_options = [("en-US", "English (en-US)"), ("zh-CN", "简体中文 (zh-CN)")];
                 let current_lang = "English (en-US)";
 
-                let is_theme_open = self.area_layout.open_preferences_dropdown.as_deref() == Some("theme");
-                let is_lang_open = self.area_layout.open_preferences_dropdown.as_deref() == Some("lang");
+                let is_theme_open = self.area_layout.open_settings_dropdown.as_deref() == Some("theme");
+                let is_lang_open = self.area_layout.open_settings_dropdown.as_deref() == Some("lang");
 
                 if is_sec1_expanded {
                     let theme_icon_path = if current_theme_name == "Light" {
@@ -2903,10 +3021,10 @@ impl Editor {
                             let theme_ed = theme_ed.clone();
                             move |_ev, _win, cx| {
                                 let _ = theme_ed.update(cx, |ed, cx| {
-                                    if ed.area_layout.open_preferences_dropdown.as_deref() == Some("theme") {
-                                        ed.area_layout.open_preferences_dropdown = None;
+                                    if ed.area_layout.open_settings_dropdown.as_deref() == Some("theme") {
+                                        ed.area_layout.open_settings_dropdown = None;
                                     } else {
-                                        ed.area_layout.open_preferences_dropdown = Some("theme".to_string());
+                                        ed.area_layout.open_settings_dropdown = Some("theme".to_string());
                                     }
                                     cx.notify();
                                 });
@@ -2949,10 +3067,10 @@ impl Editor {
                             let lang_ed = lang_ed.clone();
                             move |_ev, _win, cx| {
                                 let _ = lang_ed.update(cx, |ed, cx| {
-                                    if ed.area_layout.open_preferences_dropdown.as_deref() == Some("lang") {
-                                        ed.area_layout.open_preferences_dropdown = None;
+                                    if ed.area_layout.open_settings_dropdown.as_deref() == Some("lang") {
+                                        ed.area_layout.open_settings_dropdown = None;
                                     } else {
-                                        ed.area_layout.open_preferences_dropdown = Some("lang".to_string());
+                                        ed.area_layout.open_settings_dropdown = Some("lang".to_string());
                                     }
                                     cx.notify();
                                 });
@@ -3027,7 +3145,7 @@ impl Editor {
                                         cx.update_global::<ThemeManager, _>(|manager, _cx| {
                                             let _ = manager.set_theme_by_id(&t_id);
                                         });
-                                        ed.area_layout.open_preferences_dropdown = None;
+                                        ed.area_layout.open_settings_dropdown = None;
                                         cx.notify();
                                     });
                                 })
@@ -3086,7 +3204,7 @@ impl Editor {
                                 })
                                 .on_click(move |_ev, _win, cx| {
                                     let _ = item_ed.update(cx, |ed, cx| {
-                                        ed.area_layout.open_preferences_dropdown = None;
+                                        ed.area_layout.open_settings_dropdown = None;
                                         cx.notify();
                                     });
                                 })
@@ -3122,7 +3240,7 @@ impl Editor {
                     is_sec1_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec1_ed.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_preferences_section(sec1_key);
+                            ed.area_layout.toggle_settings_section(sec1_key);
                             cx.notify();
                         });
                     }),
@@ -3132,7 +3250,7 @@ impl Editor {
 
                 // Section 2: Status Bar Options
                 let sec2_key = "status_bar";
-                let is_sec2_expanded = self.area_layout.preferences_expanded_sections.contains(sec2_key);
+                let is_sec2_expanded = self.area_layout.settings_expanded_sections.contains(sec2_key);
                 let mut sec2_items = Vec::new();
 
                 if is_sec2_expanded {
@@ -3239,7 +3357,7 @@ impl Editor {
                     is_sec2_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec2_ed.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_preferences_section(sec2_key);
+                            ed.area_layout.toggle_settings_section(sec2_key);
                             cx.notify();
                         });
                     }),
@@ -3247,10 +3365,10 @@ impl Editor {
                     theme,
                 ));
             }
-            PreferencesTab::Editing => {
+            SettingsTab::Editing => {
                 // Section 1: Typography & Formatting
                 let sec1_key = "typography";
-                let is_sec1_expanded = self.area_layout.preferences_expanded_sections.contains(sec1_key);
+                let is_sec1_expanded = self.area_layout.settings_expanded_sections.contains(sec1_key);
                 let mut sec1_items = Vec::new();
 
                 if is_sec1_expanded {
@@ -3258,7 +3376,7 @@ impl Editor {
                     let font_inc = cx.entity().downgrade();
                     let font_ctr = cx.entity().downgrade();
                     let curr_size = self.area_layout.pref_font_size;
-                    let is_editing_font = self.area_layout.editing_preferences_stepper.as_deref() == Some("font");
+                    let is_editing_font = self.area_layout.editing_settings_stepper.as_deref() == Some("font");
 
                     let ctrl_font = render_zed_stepper(
                         "font-dec",
@@ -3267,7 +3385,7 @@ impl Editor {
                         is_editing_font,
                         Box::new(move |_ev, _win, cx| {
                             let _ = font_dec.update(cx, |ed, cx| {
-                                ed.area_layout.editing_preferences_stepper = None;
+                                ed.area_layout.editing_settings_stepper = None;
                                 if ed.area_layout.pref_font_size > 8 {
                                     ed.area_layout.pref_font_size -= 1;
                                     cx.notify();
@@ -3276,7 +3394,7 @@ impl Editor {
                         }),
                         Box::new(move |_ev, _win, cx| {
                             let _ = font_inc.update(cx, |ed, cx| {
-                                ed.area_layout.editing_preferences_stepper = None;
+                                ed.area_layout.editing_settings_stepper = None;
                                 if ed.area_layout.pref_font_size < 48 {
                                     ed.area_layout.pref_font_size += 1;
                                     cx.notify();
@@ -3285,7 +3403,7 @@ impl Editor {
                         }),
                         Box::new(move |_ev, _win, cx| {
                             let _ = font_ctr.update(cx, |ed, cx| {
-                                ed.area_layout.editing_preferences_stepper = Some("font".to_string());
+                                ed.area_layout.editing_settings_stepper = Some("font".to_string());
                                 cx.notify();
                             });
                         }),
@@ -3304,7 +3422,7 @@ impl Editor {
                     let lh_inc = cx.entity().downgrade();
                     let lh_ctr = cx.entity().downgrade();
                     let curr_lh = self.area_layout.pref_line_height;
-                    let is_editing_lh = self.area_layout.editing_preferences_stepper.as_deref() == Some("line_height");
+                    let is_editing_lh = self.area_layout.editing_settings_stepper.as_deref() == Some("line_height");
 
                     let ctrl_lh = render_zed_stepper(
                         "lh-dec",
@@ -3313,7 +3431,7 @@ impl Editor {
                         is_editing_lh,
                         Box::new(move |_ev, _win, cx| {
                             let _ = lh_dec.update(cx, |ed, cx| {
-                                ed.area_layout.editing_preferences_stepper = None;
+                                ed.area_layout.editing_settings_stepper = None;
                                 if ed.area_layout.pref_line_height > 1.05 {
                                     ed.area_layout.pref_line_height =
                                         (ed.area_layout.pref_line_height - 0.1).max(1.0);
@@ -3323,7 +3441,7 @@ impl Editor {
                         }),
                         Box::new(move |_ev, _win, cx| {
                             let _ = lh_inc.update(cx, |ed, cx| {
-                                ed.area_layout.editing_preferences_stepper = None;
+                                ed.area_layout.editing_settings_stepper = None;
                                 if ed.area_layout.pref_line_height < 3.0 {
                                     ed.area_layout.pref_line_height =
                                         (ed.area_layout.pref_line_height + 0.1).min(3.0);
@@ -3333,7 +3451,7 @@ impl Editor {
                         }),
                         Box::new(move |_ev, _win, cx| {
                             let _ = lh_ctr.update(cx, |ed, cx| {
-                                ed.area_layout.editing_preferences_stepper = Some("line_height".to_string());
+                                ed.area_layout.editing_settings_stepper = Some("line_height".to_string());
                                 cx.notify();
                             });
                         }),
@@ -3356,7 +3474,7 @@ impl Editor {
                     is_sec1_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec1_ed.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_preferences_section(sec1_key);
+                            ed.area_layout.toggle_settings_section(sec1_key);
                             cx.notify();
                         });
                     }),
@@ -3366,7 +3484,7 @@ impl Editor {
 
                 // Section 2: Markdown & Assets
                 let sec2_key = "markdown";
-                let is_sec2_expanded = self.area_layout.preferences_expanded_sections.contains(sec2_key);
+                let is_sec2_expanded = self.area_layout.settings_expanded_sections.contains(sec2_key);
                 let mut sec2_items = Vec::new();
 
                 let img_ed = cx.entity().downgrade();
@@ -3377,7 +3495,7 @@ impl Editor {
                 ];
                 let curr_img_idx = self.area_layout.pref_image_paste_action % img_options.len();
                 let curr_img_label = img_options[curr_img_idx].1;
-                let is_img_open = self.area_layout.open_preferences_dropdown.as_deref() == Some("image");
+                let is_img_open = self.area_layout.open_settings_dropdown.as_deref() == Some("image");
 
                 if is_sec2_expanded {
                     let tbl_ed = cx.entity().downgrade();
@@ -3387,7 +3505,7 @@ impl Editor {
                             let _ = tbl_ed.update(cx, |ed, cx| {
                                 ed.area_layout.pref_show_table_headers =
                                     !ed.area_layout.pref_show_table_headers;
-                                crate::config::preferences::EditorSettings::set_show_table_headers(
+                                crate::config::settings::EditorSettings::set_show_table_headers(
                                     cx,
                                     ed.area_layout.pref_show_table_headers,
                                 );
@@ -3431,10 +3549,10 @@ impl Editor {
                             let img_ed = img_ed.clone();
                             move |_ev, _win, cx| {
                                 let _ = img_ed.update(cx, |ed, cx| {
-                                    if ed.area_layout.open_preferences_dropdown.as_deref() == Some("image") {
-                                        ed.area_layout.open_preferences_dropdown = None;
+                                    if ed.area_layout.open_settings_dropdown.as_deref() == Some("image") {
+                                        ed.area_layout.open_settings_dropdown = None;
                                     } else {
-                                        ed.area_layout.open_preferences_dropdown = Some("image".to_string());
+                                        ed.area_layout.open_settings_dropdown = Some("image".to_string());
                                     }
                                     cx.notify();
                                 });
@@ -3484,7 +3602,7 @@ impl Editor {
                                 .on_click(move |_ev, _win, cx| {
                                     let _ = item_ed.update(cx, |ed, cx| {
                                         ed.area_layout.pref_image_paste_action = idx;
-                                        ed.area_layout.open_preferences_dropdown = None;
+                                        ed.area_layout.open_settings_dropdown = None;
                                         cx.notify();
                                     });
                                 })
@@ -3521,7 +3639,7 @@ impl Editor {
                     is_sec2_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec2_ed.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_preferences_section(sec2_key);
+                            ed.area_layout.toggle_settings_section(sec2_key);
                             cx.notify();
                         });
                     }),
@@ -3531,7 +3649,7 @@ impl Editor {
 
                 // Section 3: Startup Behavior
                 let sec3_key = "startup";
-                let is_sec3_expanded = self.area_layout.preferences_expanded_sections.contains(sec3_key);
+                let is_sec3_expanded = self.area_layout.settings_expanded_sections.contains(sec3_key);
                 let mut sec3_items = Vec::new();
 
                 let startup_ed = cx.entity().downgrade();
@@ -3541,7 +3659,7 @@ impl Editor {
                 ];
                 let curr_startup_idx = self.area_layout.pref_startup_option % startup_options.len();
                 let curr_startup_label = startup_options[curr_startup_idx].1;
-                let is_startup_open = self.area_layout.open_preferences_dropdown.as_deref() == Some("startup");
+                let is_startup_open = self.area_layout.open_settings_dropdown.as_deref() == Some("startup");
 
                 if is_sec3_expanded {
                     let ctrl_startup_btn = div()
@@ -3571,10 +3689,10 @@ impl Editor {
                             let startup_ed = startup_ed.clone();
                             move |_ev, _win, cx| {
                                 let _ = startup_ed.update(cx, |ed, cx| {
-                                    if ed.area_layout.open_preferences_dropdown.as_deref() == Some("startup") {
-                                        ed.area_layout.open_preferences_dropdown = None;
+                                    if ed.area_layout.open_settings_dropdown.as_deref() == Some("startup") {
+                                        ed.area_layout.open_settings_dropdown = None;
                                     } else {
-                                        ed.area_layout.open_preferences_dropdown = Some("startup".to_string());
+                                        ed.area_layout.open_settings_dropdown = Some("startup".to_string());
                                     }
                                     cx.notify();
                                 });
@@ -3624,7 +3742,7 @@ impl Editor {
                                 .on_click(move |_ev, _win, cx| {
                                     let _ = item_ed.update(cx, |ed, cx| {
                                         ed.area_layout.pref_startup_option = idx;
-                                        ed.area_layout.open_preferences_dropdown = None;
+                                        ed.area_layout.open_settings_dropdown = None;
                                         cx.notify();
                                     });
                                 })
@@ -3660,7 +3778,7 @@ impl Editor {
                     is_sec3_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec3_ed.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_preferences_section(sec3_key);
+                            ed.area_layout.toggle_settings_section(sec3_key);
                             cx.notify();
                         });
                     }),
@@ -3668,10 +3786,10 @@ impl Editor {
                     theme,
                 ));
             }
-            PreferencesTab::Keymap => {
+            SettingsTab::Keymap => {
                 // Section 1: Document Actions
                 let sec1_key = "doc_actions";
-                let is_sec1_expanded = self.area_layout.preferences_expanded_sections.contains(sec1_key);
+                let is_sec1_expanded = self.area_layout.settings_expanded_sections.contains(sec1_key);
                 let mut sec1_items = Vec::new();
 
                 if is_sec1_expanded {
@@ -3711,7 +3829,7 @@ impl Editor {
                     is_sec1_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec1_ed.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_preferences_section(sec1_key);
+                            ed.area_layout.toggle_settings_section(sec1_key);
                             cx.notify();
                         });
                     }),
@@ -3721,7 +3839,7 @@ impl Editor {
 
                 // Section 2: Interface & View Controls
                 let sec2_key = "view_controls";
-                let is_sec2_expanded = self.area_layout.preferences_expanded_sections.contains(sec2_key);
+                let is_sec2_expanded = self.area_layout.settings_expanded_sections.contains(sec2_key);
                 let mut sec2_items = Vec::new();
 
                 if is_sec2_expanded {
@@ -3760,7 +3878,7 @@ impl Editor {
                     is_sec2_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec2_ed.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_preferences_section(sec2_key);
+                            ed.area_layout.toggle_settings_section(sec2_key);
                             cx.notify();
                         });
                     }),

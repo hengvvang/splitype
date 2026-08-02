@@ -530,17 +530,17 @@ pub const MODIFIER_THRESHOLD_PX: f32 = 4.0;
 use std::collections::HashSet;
 
 // ---------------------------------------------------------------------------
-// Preferences UI tab & state
+// settings UI tab & state
 // ---------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum PreferencesTab {
+pub enum SettingsTab {
     Interface, // Interface, Theme & Status Bar
     Editing,   // Editing, Typography & Startup
     Keymap,    // Keymap / Keyboard Shortcuts
 }
 
-impl PreferencesTab {
+impl SettingsTab {
     pub fn name(&self) -> &'static str {
         match self {
             Self::Interface => "Interface",
@@ -549,7 +549,7 @@ impl PreferencesTab {
         }
     }
 
-    pub fn all() -> &'static [PreferencesTab] {
+    pub fn all() -> &'static [SettingsTab] {
         &[
             Self::Interface,
             Self::Editing,
@@ -574,10 +574,10 @@ pub struct AreaLayoutState {
     pub active_border_menu: Option<BorderMenuState>,
     /// Measured pixel size of the tiled-layout container.
     pub container_size: Option<Size<Pixels>>,
-    // --- Settings / Preferences Panel State ---
-    pub preferences_tab: PreferencesTab,
-    pub preferences_expanded_sections: HashSet<String>,
-    pub preferences_expanded_cards: HashSet<String>,
+    // --- Settings / settings Panel State ---
+    pub settings_tab: SettingsTab,
+    pub settings_expanded_sections: HashSet<String>,
+    pub settings_expanded_cards: HashSet<String>,
     pub pref_show_status_bar: bool,
     pub pref_show_word_count: bool,
     pub pref_show_cursor_pos: bool,
@@ -588,8 +588,8 @@ pub struct AreaLayoutState {
     pub pref_line_height: f32,
     pub pref_image_paste_action: usize,
     pub pref_startup_option: usize,
-    pub open_preferences_dropdown: Option<String>,
-    pub editing_preferences_stepper: Option<String>,
+    pub open_settings_dropdown: Option<String>,
+    pub editing_settings_stepper: Option<String>,
 }
 
 impl Default for AreaLayoutState {
@@ -619,9 +619,9 @@ impl Default for AreaLayoutState {
             active_corner_drag: None,
             active_border_menu: None,
             container_size: None,
-            preferences_tab: PreferencesTab::Interface,
-            preferences_expanded_sections: sections,
-            preferences_expanded_cards: cards,
+            settings_tab: SettingsTab::Interface,
+            settings_expanded_sections: sections,
+            settings_expanded_cards: cards,
             pref_show_status_bar: true,
             pref_show_word_count: true,
             pref_show_cursor_pos: true,
@@ -632,8 +632,8 @@ impl Default for AreaLayoutState {
             pref_line_height: 1.6,
             pref_image_paste_action: 0,
             pref_startup_option: 0,
-            open_preferences_dropdown: None,
-            editing_preferences_stepper: None,
+            open_settings_dropdown: None,
+            editing_settings_stepper: None,
         }
     }
 }
@@ -784,21 +784,21 @@ impl AreaLayoutState {
         self.active_dropdown_leaf = None;
     }
 
-    pub fn toggle_preferences_section(&mut self, section_key: &str) {
-        if self.preferences_expanded_sections.contains(section_key) {
-            self.preferences_expanded_sections.remove(section_key);
+    pub fn toggle_settings_section(&mut self, section_key: &str) {
+        if self.settings_expanded_sections.contains(section_key) {
+            self.settings_expanded_sections.remove(section_key);
         } else {
-            self.preferences_expanded_sections
+            self.settings_expanded_sections
                 .insert(section_key.to_string());
         }
     }
 
     #[allow(dead_code)]
-    pub fn toggle_preferences_card(&mut self, card_key: &str) {
-        if self.preferences_expanded_cards.contains(card_key) {
-            self.preferences_expanded_cards.remove(card_key);
+    pub fn toggle_settings_card(&mut self, card_key: &str) {
+        if self.settings_expanded_cards.contains(card_key) {
+            self.settings_expanded_cards.remove(card_key);
         } else {
-            self.preferences_expanded_cards
+            self.settings_expanded_cards
                 .insert(card_key.to_string());
         }
     }

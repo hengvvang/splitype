@@ -99,8 +99,8 @@ pub struct I18nStrings {
     pub menu_open_file: String,
     /// File menu item for opening a recent file submenu.
     pub menu_open_recent_file: String,
-    /// File menu item for opening app preferences.
-    pub menu_preferences: String,
+    /// File menu item for opening app settings.
+    pub menu_settings: String,
     /// Placeholder item shown when no recent files are recorded.
     pub menu_no_recent_files: String,
     /// File menu item for saving the current document.
@@ -143,94 +143,94 @@ pub struct I18nStrings {
     pub image_paste_failed_title: String,
     /// Title of the custom configuration import failure prompt.
     pub config_import_failed_title: String,
-    /// Preferences window title.
-    pub preferences_window_title: String,
-    /// File preferences navigation label.
-    pub preferences_nav_file: String,
-    /// Theme preferences navigation label.
-    pub preferences_nav_theme: String,
-    /// Image preferences navigation label.
-    pub preferences_nav_image: String,
-    /// Shortcut preferences navigation label.
-    pub preferences_nav_shortcuts: String,
+    /// settings window title.
+    pub settings_window_title: String,
+    /// File settings navigation label.
+    pub settings_nav_file: String,
+    /// Theme settings navigation label.
+    pub settings_nav_theme: String,
+    /// Image settings navigation label.
+    pub settings_nav_image: String,
+    /// Shortcut settings navigation label.
+    pub settings_nav_shortcuts: String,
     /// Startup option field label.
-    pub preferences_startup_option: String,
+    pub settings_startup_option: String,
     /// Startup option for creating a new Markdown document.
-    pub preferences_startup_new_file: String,
+    pub settings_startup_new_file: String,
     /// Startup option for opening the last opened Markdown document.
-    pub preferences_startup_last_opened_file: String,
+    pub settings_startup_last_opened_file: String,
     /// Theme preference field label.
-    pub preferences_local_theme: String,
+    pub settings_local_theme: String,
     /// Image paste behavior field label.
-    pub preferences_image_insert_behavior: String,
-    pub preferences_image_paste_none: String,
-    pub preferences_image_paste_copy_to_document_folder: String,
-    pub preferences_image_paste_copy_to_assets_folder: String,
-    pub preferences_image_paste_copy_to_named_assets_folder: String,
-    /// Save button label in the preferences window.
-    pub preferences_save: String,
-    /// Cancel button label in the preferences window.
-    pub preferences_cancel: String,
-    /// Title shown when preferences cannot be saved.
-    pub preferences_save_failed_title: String,
-    pub preferences_shortcuts_group_file: String,
-    pub preferences_shortcuts_group_edit: String,
-    pub preferences_shortcuts_group_navigation: String,
-    pub preferences_shortcuts_group_formatting: String,
-    pub preferences_shortcuts_group_block: String,
-    pub preferences_shortcuts_group_other: String,
-    pub preferences_shortcut_record: String,
-    pub preferences_shortcut_reset: String,
-    pub preferences_shortcut_recording: String,
-    pub preferences_shortcut_conflict_template: String,
-    pub preferences_shortcut_invalid_template: String,
-    pub preferences_shortcut_newline: String,
-    pub preferences_shortcut_delete_back: String,
-    pub preferences_shortcut_delete: String,
-    pub preferences_shortcut_word_delete_back: String,
-    pub preferences_shortcut_word_delete_forward: String,
-    pub preferences_shortcut_focus_prev: String,
-    pub preferences_shortcut_focus_next: String,
-    pub preferences_shortcut_move_left: String,
-    pub preferences_shortcut_move_right: String,
-    pub preferences_shortcut_word_move_left: String,
-    pub preferences_shortcut_word_move_right: String,
-    pub preferences_shortcut_home: String,
-    pub preferences_shortcut_end: String,
-    pub preferences_shortcut_block_up: String,
-    pub preferences_shortcut_block_down: String,
-    pub preferences_shortcut_page_up: String,
-    pub preferences_shortcut_page_down: String,
-    pub preferences_shortcut_jump_to_top: String,
-    pub preferences_shortcut_jump_to_bottom: String,
-    pub preferences_shortcut_select_left: String,
-    pub preferences_shortcut_select_right: String,
-    pub preferences_shortcut_word_select_left: String,
-    pub preferences_shortcut_word_select_right: String,
-    pub preferences_shortcut_select_home: String,
-    pub preferences_shortcut_select_end: String,
-    pub preferences_shortcut_select_all: String,
-    pub preferences_shortcut_copy: String,
-    pub preferences_shortcut_cut: String,
-    pub preferences_shortcut_paste: String,
-    pub preferences_shortcut_undo: String,
-    pub preferences_shortcut_redo: String,
-    pub preferences_shortcut_bold_selection: String,
-    pub preferences_shortcut_italic_selection: String,
-    pub preferences_shortcut_underline_selection: String,
-    pub preferences_shortcut_code_selection: String,
-    pub preferences_shortcut_indent_block: String,
-    pub preferences_shortcut_outdent_block: String,
-    pub preferences_shortcut_exit_code_block: String,
-    pub preferences_shortcut_save_document: String,
-    pub preferences_shortcut_save_document_as: String,
-    pub preferences_shortcut_new_window: String,
-    pub preferences_shortcut_open_file: String,
-    pub preferences_shortcut_quit_application: String,
-    pub preferences_shortcut_close_window: String,
-    pub preferences_shortcut_dismiss_transient_ui: String,
-    pub preferences_shortcut_toggle_view_mode: String,
-    pub preferences_shortcut_toggle_workspace: String,
+    pub settings_image_insert_behavior: String,
+    pub settings_image_paste_none: String,
+    pub settings_image_paste_copy_to_document_folder: String,
+    pub settings_image_paste_copy_to_assets_folder: String,
+    pub settings_image_paste_copy_to_named_assets_folder: String,
+    /// Save button label in the settings window.
+    pub settings_save: String,
+    /// Cancel button label in the settings window.
+    pub settings_cancel: String,
+    /// Title shown when settings cannot be saved.
+    pub settings_save_failed_title: String,
+    pub settings_shortcuts_group_file: String,
+    pub settings_shortcuts_group_edit: String,
+    pub settings_shortcuts_group_navigation: String,
+    pub settings_shortcuts_group_formatting: String,
+    pub settings_shortcuts_group_block: String,
+    pub settings_shortcuts_group_other: String,
+    pub settings_shortcut_record: String,
+    pub settings_shortcut_reset: String,
+    pub settings_shortcut_recording: String,
+    pub settings_shortcut_conflict_template: String,
+    pub settings_shortcut_invalid_template: String,
+    pub settings_shortcut_newline: String,
+    pub settings_shortcut_delete_back: String,
+    pub settings_shortcut_delete: String,
+    pub settings_shortcut_word_delete_back: String,
+    pub settings_shortcut_word_delete_forward: String,
+    pub settings_shortcut_focus_prev: String,
+    pub settings_shortcut_focus_next: String,
+    pub settings_shortcut_move_left: String,
+    pub settings_shortcut_move_right: String,
+    pub settings_shortcut_word_move_left: String,
+    pub settings_shortcut_word_move_right: String,
+    pub settings_shortcut_home: String,
+    pub settings_shortcut_end: String,
+    pub settings_shortcut_block_up: String,
+    pub settings_shortcut_block_down: String,
+    pub settings_shortcut_page_up: String,
+    pub settings_shortcut_page_down: String,
+    pub settings_shortcut_jump_to_top: String,
+    pub settings_shortcut_jump_to_bottom: String,
+    pub settings_shortcut_select_left: String,
+    pub settings_shortcut_select_right: String,
+    pub settings_shortcut_word_select_left: String,
+    pub settings_shortcut_word_select_right: String,
+    pub settings_shortcut_select_home: String,
+    pub settings_shortcut_select_end: String,
+    pub settings_shortcut_select_all: String,
+    pub settings_shortcut_copy: String,
+    pub settings_shortcut_cut: String,
+    pub settings_shortcut_paste: String,
+    pub settings_shortcut_undo: String,
+    pub settings_shortcut_redo: String,
+    pub settings_shortcut_bold_selection: String,
+    pub settings_shortcut_italic_selection: String,
+    pub settings_shortcut_underline_selection: String,
+    pub settings_shortcut_code_selection: String,
+    pub settings_shortcut_indent_block: String,
+    pub settings_shortcut_outdent_block: String,
+    pub settings_shortcut_exit_code_block: String,
+    pub settings_shortcut_save_document: String,
+    pub settings_shortcut_save_document_as: String,
+    pub settings_shortcut_new_window: String,
+    pub settings_shortcut_open_file: String,
+    pub settings_shortcut_quit_application: String,
+    pub settings_shortcut_close_window: String,
+    pub settings_shortcut_dismiss_transient_ui: String,
+    pub settings_shortcut_toggle_view_mode: String,
+    pub settings_shortcut_toggle_workspace: String,
     /// Workspace drawer Files tab.
     pub workspace_tab_files: String,
     /// Workspace drawer Outline tab.
@@ -313,18 +313,18 @@ pub struct I18nStrings {
     pub status_bar_mode_rendered: String,
     /// Suffix shown after the word count number.
     pub status_bar_word_count_suffix: String,
-    /// Nav label for the status bar preferences tab.
-    pub preferences_nav_status_bar: String,
+    /// Nav label for the status bar settings tab.
+    pub settings_nav_status_bar: String,
     /// Label for the status bar enabled toggle.
-    pub preferences_status_bar_enabled: String,
+    pub settings_status_bar_enabled: String,
     /// Label for the word count toggle.
-    pub preferences_status_bar_show_word_count: String,
+    pub settings_status_bar_show_word_count: String,
     /// Label for the cursor position toggle.
-    pub preferences_status_bar_show_cursor_position: String,
+    pub settings_status_bar_show_cursor_position: String,
     /// Label for the sidebar toggle visibility.
-    pub preferences_status_bar_show_sidebar_toggle: String,
+    pub settings_status_bar_show_sidebar_toggle: String,
     /// Label for the mode switch visibility.
-    pub preferences_status_bar_show_mode_switch: String,
+    pub settings_status_bar_show_mode_switch: String,
 }
 
 /// Partial string set used by JSON language packs.
@@ -370,7 +370,7 @@ struct I18nStringsDe {
     menu_close_window: Option<String>,
     menu_open_file: Option<String>,
     menu_open_recent_file: Option<String>,
-    menu_preferences: Option<String>,
+    menu_settings: Option<String>,
     menu_no_recent_files: Option<String>,
     menu_save: Option<String>,
     menu_save_as: Option<String>,
@@ -392,81 +392,81 @@ struct I18nStringsDe {
     export_failed_title: Option<String>,
     image_paste_failed_title: Option<String>,
     config_import_failed_title: Option<String>,
-    preferences_window_title: Option<String>,
-    preferences_nav_file: Option<String>,
-    preferences_nav_theme: Option<String>,
-    preferences_nav_image: Option<String>,
-    preferences_nav_shortcuts: Option<String>,
-    preferences_startup_option: Option<String>,
-    preferences_startup_new_file: Option<String>,
-    preferences_startup_last_opened_file: Option<String>,
-    preferences_local_theme: Option<String>,
-    preferences_image_insert_behavior: Option<String>,
-    preferences_image_paste_none: Option<String>,
-    preferences_image_paste_copy_to_document_folder: Option<String>,
-    preferences_image_paste_copy_to_assets_folder: Option<String>,
-    preferences_image_paste_copy_to_named_assets_folder: Option<String>,
-    preferences_save: Option<String>,
-    preferences_cancel: Option<String>,
-    preferences_save_failed_title: Option<String>,
-    preferences_shortcuts_group_file: Option<String>,
-    preferences_shortcuts_group_edit: Option<String>,
-    preferences_shortcuts_group_navigation: Option<String>,
-    preferences_shortcuts_group_formatting: Option<String>,
-    preferences_shortcuts_group_block: Option<String>,
-    preferences_shortcuts_group_other: Option<String>,
-    preferences_shortcut_record: Option<String>,
-    preferences_shortcut_reset: Option<String>,
-    preferences_shortcut_recording: Option<String>,
-    preferences_shortcut_conflict_template: Option<String>,
-    preferences_shortcut_invalid_template: Option<String>,
-    preferences_shortcut_newline: Option<String>,
-    preferences_shortcut_delete_back: Option<String>,
-    preferences_shortcut_delete: Option<String>,
-    preferences_shortcut_word_delete_back: Option<String>,
-    preferences_shortcut_word_delete_forward: Option<String>,
-    preferences_shortcut_focus_prev: Option<String>,
-    preferences_shortcut_focus_next: Option<String>,
-    preferences_shortcut_move_left: Option<String>,
-    preferences_shortcut_move_right: Option<String>,
-    preferences_shortcut_word_move_left: Option<String>,
-    preferences_shortcut_word_move_right: Option<String>,
-    preferences_shortcut_home: Option<String>,
-    preferences_shortcut_end: Option<String>,
-    preferences_shortcut_block_up: Option<String>,
-    preferences_shortcut_block_down: Option<String>,
-    preferences_shortcut_page_up: Option<String>,
-    preferences_shortcut_page_down: Option<String>,
-    preferences_shortcut_jump_to_top: Option<String>,
-    preferences_shortcut_jump_to_bottom: Option<String>,
-    preferences_shortcut_select_left: Option<String>,
-    preferences_shortcut_select_right: Option<String>,
-    preferences_shortcut_word_select_left: Option<String>,
-    preferences_shortcut_word_select_right: Option<String>,
-    preferences_shortcut_select_home: Option<String>,
-    preferences_shortcut_select_end: Option<String>,
-    preferences_shortcut_select_all: Option<String>,
-    preferences_shortcut_copy: Option<String>,
-    preferences_shortcut_cut: Option<String>,
-    preferences_shortcut_paste: Option<String>,
-    preferences_shortcut_undo: Option<String>,
-    preferences_shortcut_redo: Option<String>,
-    preferences_shortcut_bold_selection: Option<String>,
-    preferences_shortcut_italic_selection: Option<String>,
-    preferences_shortcut_underline_selection: Option<String>,
-    preferences_shortcut_code_selection: Option<String>,
-    preferences_shortcut_indent_block: Option<String>,
-    preferences_shortcut_outdent_block: Option<String>,
-    preferences_shortcut_exit_code_block: Option<String>,
-    preferences_shortcut_save_document: Option<String>,
-    preferences_shortcut_save_document_as: Option<String>,
-    preferences_shortcut_new_window: Option<String>,
-    preferences_shortcut_open_file: Option<String>,
-    preferences_shortcut_quit_application: Option<String>,
-    preferences_shortcut_close_window: Option<String>,
-    preferences_shortcut_dismiss_transient_ui: Option<String>,
-    preferences_shortcut_toggle_view_mode: Option<String>,
-    preferences_shortcut_toggle_workspace: Option<String>,
+    settings_window_title: Option<String>,
+    settings_nav_file: Option<String>,
+    settings_nav_theme: Option<String>,
+    settings_nav_image: Option<String>,
+    settings_nav_shortcuts: Option<String>,
+    settings_startup_option: Option<String>,
+    settings_startup_new_file: Option<String>,
+    settings_startup_last_opened_file: Option<String>,
+    settings_local_theme: Option<String>,
+    settings_image_insert_behavior: Option<String>,
+    settings_image_paste_none: Option<String>,
+    settings_image_paste_copy_to_document_folder: Option<String>,
+    settings_image_paste_copy_to_assets_folder: Option<String>,
+    settings_image_paste_copy_to_named_assets_folder: Option<String>,
+    settings_save: Option<String>,
+    settings_cancel: Option<String>,
+    settings_save_failed_title: Option<String>,
+    settings_shortcuts_group_file: Option<String>,
+    settings_shortcuts_group_edit: Option<String>,
+    settings_shortcuts_group_navigation: Option<String>,
+    settings_shortcuts_group_formatting: Option<String>,
+    settings_shortcuts_group_block: Option<String>,
+    settings_shortcuts_group_other: Option<String>,
+    settings_shortcut_record: Option<String>,
+    settings_shortcut_reset: Option<String>,
+    settings_shortcut_recording: Option<String>,
+    settings_shortcut_conflict_template: Option<String>,
+    settings_shortcut_invalid_template: Option<String>,
+    settings_shortcut_newline: Option<String>,
+    settings_shortcut_delete_back: Option<String>,
+    settings_shortcut_delete: Option<String>,
+    settings_shortcut_word_delete_back: Option<String>,
+    settings_shortcut_word_delete_forward: Option<String>,
+    settings_shortcut_focus_prev: Option<String>,
+    settings_shortcut_focus_next: Option<String>,
+    settings_shortcut_move_left: Option<String>,
+    settings_shortcut_move_right: Option<String>,
+    settings_shortcut_word_move_left: Option<String>,
+    settings_shortcut_word_move_right: Option<String>,
+    settings_shortcut_home: Option<String>,
+    settings_shortcut_end: Option<String>,
+    settings_shortcut_block_up: Option<String>,
+    settings_shortcut_block_down: Option<String>,
+    settings_shortcut_page_up: Option<String>,
+    settings_shortcut_page_down: Option<String>,
+    settings_shortcut_jump_to_top: Option<String>,
+    settings_shortcut_jump_to_bottom: Option<String>,
+    settings_shortcut_select_left: Option<String>,
+    settings_shortcut_select_right: Option<String>,
+    settings_shortcut_word_select_left: Option<String>,
+    settings_shortcut_word_select_right: Option<String>,
+    settings_shortcut_select_home: Option<String>,
+    settings_shortcut_select_end: Option<String>,
+    settings_shortcut_select_all: Option<String>,
+    settings_shortcut_copy: Option<String>,
+    settings_shortcut_cut: Option<String>,
+    settings_shortcut_paste: Option<String>,
+    settings_shortcut_undo: Option<String>,
+    settings_shortcut_redo: Option<String>,
+    settings_shortcut_bold_selection: Option<String>,
+    settings_shortcut_italic_selection: Option<String>,
+    settings_shortcut_underline_selection: Option<String>,
+    settings_shortcut_code_selection: Option<String>,
+    settings_shortcut_indent_block: Option<String>,
+    settings_shortcut_outdent_block: Option<String>,
+    settings_shortcut_exit_code_block: Option<String>,
+    settings_shortcut_save_document: Option<String>,
+    settings_shortcut_save_document_as: Option<String>,
+    settings_shortcut_new_window: Option<String>,
+    settings_shortcut_open_file: Option<String>,
+    settings_shortcut_quit_application: Option<String>,
+    settings_shortcut_close_window: Option<String>,
+    settings_shortcut_dismiss_transient_ui: Option<String>,
+    settings_shortcut_toggle_view_mode: Option<String>,
+    settings_shortcut_toggle_workspace: Option<String>,
     workspace_tab_files: Option<String>,
     workspace_tab_outline: Option<String>,
     workspace_no_file_title: Option<String>,
@@ -508,12 +508,12 @@ struct I18nStringsDe {
     status_bar_mode_source: Option<String>,
     status_bar_mode_rendered: Option<String>,
     status_bar_word_count_suffix: Option<String>,
-    preferences_nav_status_bar: Option<String>,
-    preferences_status_bar_enabled: Option<String>,
-    preferences_status_bar_show_word_count: Option<String>,
-    preferences_status_bar_show_cursor_position: Option<String>,
-    preferences_status_bar_show_sidebar_toggle: Option<String>,
-    preferences_status_bar_show_mode_switch: Option<String>,
+    settings_nav_status_bar: Option<String>,
+    settings_status_bar_enabled: Option<String>,
+    settings_status_bar_show_word_count: Option<String>,
+    settings_status_bar_show_cursor_position: Option<String>,
+    settings_status_bar_show_sidebar_toggle: Option<String>,
+    settings_status_bar_show_mode_switch: Option<String>,
 }
 
 const I18N_STRING_KEYS: &[&str] = &[
@@ -557,7 +557,7 @@ const I18N_STRING_KEYS: &[&str] = &[
     "menu_close_window",
     "menu_open_file",
     "menu_open_recent_file",
-    "menu_preferences",
+    "menu_settings",
     "menu_no_recent_files",
     "menu_save",
     "menu_save_as",
@@ -579,81 +579,81 @@ const I18N_STRING_KEYS: &[&str] = &[
     "export_failed_title",
     "image_paste_failed_title",
     "config_import_failed_title",
-    "preferences_window_title",
-    "preferences_nav_file",
-    "preferences_nav_theme",
-    "preferences_nav_image",
-    "preferences_nav_shortcuts",
-    "preferences_startup_option",
-    "preferences_startup_new_file",
-    "preferences_startup_last_opened_file",
-    "preferences_local_theme",
-    "preferences_image_insert_behavior",
-    "preferences_image_paste_none",
-    "preferences_image_paste_copy_to_document_folder",
-    "preferences_image_paste_copy_to_assets_folder",
-    "preferences_image_paste_copy_to_named_assets_folder",
-    "preferences_save",
-    "preferences_cancel",
-    "preferences_save_failed_title",
-    "preferences_shortcuts_group_file",
-    "preferences_shortcuts_group_edit",
-    "preferences_shortcuts_group_navigation",
-    "preferences_shortcuts_group_formatting",
-    "preferences_shortcuts_group_block",
-    "preferences_shortcuts_group_other",
-    "preferences_shortcut_record",
-    "preferences_shortcut_reset",
-    "preferences_shortcut_recording",
-    "preferences_shortcut_conflict_template",
-    "preferences_shortcut_invalid_template",
-    "preferences_shortcut_newline",
-    "preferences_shortcut_delete_back",
-    "preferences_shortcut_delete",
-    "preferences_shortcut_word_delete_back",
-    "preferences_shortcut_word_delete_forward",
-    "preferences_shortcut_focus_prev",
-    "preferences_shortcut_focus_next",
-    "preferences_shortcut_move_left",
-    "preferences_shortcut_move_right",
-    "preferences_shortcut_word_move_left",
-    "preferences_shortcut_word_move_right",
-    "preferences_shortcut_home",
-    "preferences_shortcut_end",
-    "preferences_shortcut_block_up",
-    "preferences_shortcut_block_down",
-    "preferences_shortcut_page_up",
-    "preferences_shortcut_page_down",
-    "preferences_shortcut_jump_to_top",
-    "preferences_shortcut_jump_to_bottom",
-    "preferences_shortcut_select_left",
-    "preferences_shortcut_select_right",
-    "preferences_shortcut_word_select_left",
-    "preferences_shortcut_word_select_right",
-    "preferences_shortcut_select_home",
-    "preferences_shortcut_select_end",
-    "preferences_shortcut_select_all",
-    "preferences_shortcut_copy",
-    "preferences_shortcut_cut",
-    "preferences_shortcut_paste",
-    "preferences_shortcut_undo",
-    "preferences_shortcut_redo",
-    "preferences_shortcut_bold_selection",
-    "preferences_shortcut_italic_selection",
-    "preferences_shortcut_underline_selection",
-    "preferences_shortcut_code_selection",
-    "preferences_shortcut_indent_block",
-    "preferences_shortcut_outdent_block",
-    "preferences_shortcut_exit_code_block",
-    "preferences_shortcut_save_document",
-    "preferences_shortcut_save_document_as",
-    "preferences_shortcut_new_window",
-    "preferences_shortcut_open_file",
-    "preferences_shortcut_quit_application",
-    "preferences_shortcut_close_window",
-    "preferences_shortcut_dismiss_transient_ui",
-    "preferences_shortcut_toggle_view_mode",
-    "preferences_shortcut_toggle_workspace",
+    "settings_window_title",
+    "settings_nav_file",
+    "settings_nav_theme",
+    "settings_nav_image",
+    "settings_nav_shortcuts",
+    "settings_startup_option",
+    "settings_startup_new_file",
+    "settings_startup_last_opened_file",
+    "settings_local_theme",
+    "settings_image_insert_behavior",
+    "settings_image_paste_none",
+    "settings_image_paste_copy_to_document_folder",
+    "settings_image_paste_copy_to_assets_folder",
+    "settings_image_paste_copy_to_named_assets_folder",
+    "settings_save",
+    "settings_cancel",
+    "settings_save_failed_title",
+    "settings_shortcuts_group_file",
+    "settings_shortcuts_group_edit",
+    "settings_shortcuts_group_navigation",
+    "settings_shortcuts_group_formatting",
+    "settings_shortcuts_group_block",
+    "settings_shortcuts_group_other",
+    "settings_shortcut_record",
+    "settings_shortcut_reset",
+    "settings_shortcut_recording",
+    "settings_shortcut_conflict_template",
+    "settings_shortcut_invalid_template",
+    "settings_shortcut_newline",
+    "settings_shortcut_delete_back",
+    "settings_shortcut_delete",
+    "settings_shortcut_word_delete_back",
+    "settings_shortcut_word_delete_forward",
+    "settings_shortcut_focus_prev",
+    "settings_shortcut_focus_next",
+    "settings_shortcut_move_left",
+    "settings_shortcut_move_right",
+    "settings_shortcut_word_move_left",
+    "settings_shortcut_word_move_right",
+    "settings_shortcut_home",
+    "settings_shortcut_end",
+    "settings_shortcut_block_up",
+    "settings_shortcut_block_down",
+    "settings_shortcut_page_up",
+    "settings_shortcut_page_down",
+    "settings_shortcut_jump_to_top",
+    "settings_shortcut_jump_to_bottom",
+    "settings_shortcut_select_left",
+    "settings_shortcut_select_right",
+    "settings_shortcut_word_select_left",
+    "settings_shortcut_word_select_right",
+    "settings_shortcut_select_home",
+    "settings_shortcut_select_end",
+    "settings_shortcut_select_all",
+    "settings_shortcut_copy",
+    "settings_shortcut_cut",
+    "settings_shortcut_paste",
+    "settings_shortcut_undo",
+    "settings_shortcut_redo",
+    "settings_shortcut_bold_selection",
+    "settings_shortcut_italic_selection",
+    "settings_shortcut_underline_selection",
+    "settings_shortcut_code_selection",
+    "settings_shortcut_indent_block",
+    "settings_shortcut_outdent_block",
+    "settings_shortcut_exit_code_block",
+    "settings_shortcut_save_document",
+    "settings_shortcut_save_document_as",
+    "settings_shortcut_new_window",
+    "settings_shortcut_open_file",
+    "settings_shortcut_quit_application",
+    "settings_shortcut_close_window",
+    "settings_shortcut_dismiss_transient_ui",
+    "settings_shortcut_toggle_view_mode",
+    "settings_shortcut_toggle_workspace",
     "workspace_tab_files",
     "workspace_tab_outline",
     "workspace_no_file_title",
@@ -695,12 +695,12 @@ const I18N_STRING_KEYS: &[&str] = &[
     "status_bar_mode_source",
     "status_bar_mode_rendered",
     "status_bar_word_count_suffix",
-    "preferences_nav_status_bar",
-    "preferences_status_bar_enabled",
-    "preferences_status_bar_show_word_count",
-    "preferences_status_bar_show_cursor_position",
-    "preferences_status_bar_show_sidebar_toggle",
-    "preferences_status_bar_show_mode_switch",
+    "settings_nav_status_bar",
+    "settings_status_bar_enabled",
+    "settings_status_bar_show_word_count",
+    "settings_status_bar_show_cursor_position",
+    "settings_status_bar_show_sidebar_toggle",
+    "settings_status_bar_show_mode_switch",
 ];
 
 impl I18nStringsDe {
@@ -800,7 +800,7 @@ impl I18nStringsDe {
             menu_open_recent_file: self
                 .menu_open_recent_file
                 .unwrap_or(defaults.menu_open_recent_file),
-            menu_preferences: self.menu_preferences.unwrap_or(defaults.menu_preferences),
+            menu_settings: self.menu_settings.unwrap_or(defaults.menu_settings),
             menu_no_recent_files: self
                 .menu_no_recent_files
                 .unwrap_or(defaults.menu_no_recent_files),
@@ -848,229 +848,229 @@ impl I18nStringsDe {
             config_import_failed_title: self
                 .config_import_failed_title
                 .unwrap_or(defaults.config_import_failed_title),
-            preferences_window_title: self
-                .preferences_window_title
-                .unwrap_or(defaults.preferences_window_title),
-            preferences_nav_file: self
-                .preferences_nav_file
-                .unwrap_or(defaults.preferences_nav_file),
-            preferences_nav_theme: self
-                .preferences_nav_theme
-                .unwrap_or(defaults.preferences_nav_theme),
-            preferences_nav_image: self
-                .preferences_nav_image
-                .unwrap_or(defaults.preferences_nav_image),
-            preferences_nav_shortcuts: self
-                .preferences_nav_shortcuts
-                .unwrap_or(defaults.preferences_nav_shortcuts),
-            preferences_startup_option: self
-                .preferences_startup_option
-                .unwrap_or(defaults.preferences_startup_option),
-            preferences_startup_new_file: self
-                .preferences_startup_new_file
-                .unwrap_or(defaults.preferences_startup_new_file),
-            preferences_startup_last_opened_file: self
-                .preferences_startup_last_opened_file
-                .unwrap_or(defaults.preferences_startup_last_opened_file),
-            preferences_local_theme: self
-                .preferences_local_theme
-                .unwrap_or(defaults.preferences_local_theme),
-            preferences_image_insert_behavior: self
-                .preferences_image_insert_behavior
-                .unwrap_or(defaults.preferences_image_insert_behavior),
-            preferences_image_paste_none: self
-                .preferences_image_paste_none
-                .unwrap_or(defaults.preferences_image_paste_none),
-            preferences_image_paste_copy_to_document_folder: self
-                .preferences_image_paste_copy_to_document_folder
-                .unwrap_or(defaults.preferences_image_paste_copy_to_document_folder),
-            preferences_image_paste_copy_to_assets_folder: self
-                .preferences_image_paste_copy_to_assets_folder
-                .unwrap_or(defaults.preferences_image_paste_copy_to_assets_folder),
-            preferences_image_paste_copy_to_named_assets_folder: self
-                .preferences_image_paste_copy_to_named_assets_folder
-                .unwrap_or(defaults.preferences_image_paste_copy_to_named_assets_folder),
-            preferences_save: self.preferences_save.unwrap_or(defaults.preferences_save),
-            preferences_cancel: self
-                .preferences_cancel
-                .unwrap_or(defaults.preferences_cancel),
-            preferences_save_failed_title: self
-                .preferences_save_failed_title
-                .unwrap_or(defaults.preferences_save_failed_title),
-            preferences_shortcuts_group_file: self
-                .preferences_shortcuts_group_file
-                .unwrap_or(defaults.preferences_shortcuts_group_file),
-            preferences_shortcuts_group_edit: self
-                .preferences_shortcuts_group_edit
-                .unwrap_or(defaults.preferences_shortcuts_group_edit),
-            preferences_shortcuts_group_navigation: self
-                .preferences_shortcuts_group_navigation
-                .unwrap_or(defaults.preferences_shortcuts_group_navigation),
-            preferences_shortcuts_group_formatting: self
-                .preferences_shortcuts_group_formatting
-                .unwrap_or(defaults.preferences_shortcuts_group_formatting),
-            preferences_shortcuts_group_block: self
-                .preferences_shortcuts_group_block
-                .unwrap_or(defaults.preferences_shortcuts_group_block),
-            preferences_shortcuts_group_other: self
-                .preferences_shortcuts_group_other
-                .unwrap_or(defaults.preferences_shortcuts_group_other),
-            preferences_shortcut_record: self
-                .preferences_shortcut_record
-                .unwrap_or(defaults.preferences_shortcut_record),
-            preferences_shortcut_reset: self
-                .preferences_shortcut_reset
-                .unwrap_or(defaults.preferences_shortcut_reset),
-            preferences_shortcut_recording: self
-                .preferences_shortcut_recording
-                .unwrap_or(defaults.preferences_shortcut_recording),
-            preferences_shortcut_conflict_template: self
-                .preferences_shortcut_conflict_template
-                .unwrap_or(defaults.preferences_shortcut_conflict_template),
-            preferences_shortcut_invalid_template: self
-                .preferences_shortcut_invalid_template
-                .unwrap_or(defaults.preferences_shortcut_invalid_template),
-            preferences_shortcut_newline: self
-                .preferences_shortcut_newline
-                .unwrap_or(defaults.preferences_shortcut_newline),
-            preferences_shortcut_delete_back: self
-                .preferences_shortcut_delete_back
-                .unwrap_or(defaults.preferences_shortcut_delete_back),
-            preferences_shortcut_delete: self
-                .preferences_shortcut_delete
-                .unwrap_or(defaults.preferences_shortcut_delete),
-            preferences_shortcut_word_delete_back: self
-                .preferences_shortcut_word_delete_back
-                .unwrap_or(defaults.preferences_shortcut_word_delete_back),
-            preferences_shortcut_word_delete_forward: self
-                .preferences_shortcut_word_delete_forward
-                .unwrap_or(defaults.preferences_shortcut_word_delete_forward),
-            preferences_shortcut_focus_prev: self
-                .preferences_shortcut_focus_prev
-                .unwrap_or(defaults.preferences_shortcut_focus_prev),
-            preferences_shortcut_focus_next: self
-                .preferences_shortcut_focus_next
-                .unwrap_or(defaults.preferences_shortcut_focus_next),
-            preferences_shortcut_move_left: self
-                .preferences_shortcut_move_left
-                .unwrap_or(defaults.preferences_shortcut_move_left),
-            preferences_shortcut_move_right: self
-                .preferences_shortcut_move_right
-                .unwrap_or(defaults.preferences_shortcut_move_right),
-            preferences_shortcut_word_move_left: self
-                .preferences_shortcut_word_move_left
-                .unwrap_or(defaults.preferences_shortcut_word_move_left),
-            preferences_shortcut_word_move_right: self
-                .preferences_shortcut_word_move_right
-                .unwrap_or(defaults.preferences_shortcut_word_move_right),
-            preferences_shortcut_home: self
-                .preferences_shortcut_home
-                .unwrap_or(defaults.preferences_shortcut_home),
-            preferences_shortcut_end: self
-                .preferences_shortcut_end
-                .unwrap_or(defaults.preferences_shortcut_end),
-            preferences_shortcut_block_up: self
-                .preferences_shortcut_block_up
-                .unwrap_or(defaults.preferences_shortcut_block_up),
-            preferences_shortcut_block_down: self
-                .preferences_shortcut_block_down
-                .unwrap_or(defaults.preferences_shortcut_block_down),
-            preferences_shortcut_page_up: self
-                .preferences_shortcut_page_up
-                .unwrap_or(defaults.preferences_shortcut_page_up),
-            preferences_shortcut_page_down: self
-                .preferences_shortcut_page_down
-                .unwrap_or(defaults.preferences_shortcut_page_down),
-            preferences_shortcut_jump_to_top: self
-                .preferences_shortcut_jump_to_top
-                .unwrap_or(defaults.preferences_shortcut_jump_to_top),
-            preferences_shortcut_jump_to_bottom: self
-                .preferences_shortcut_jump_to_bottom
-                .unwrap_or(defaults.preferences_shortcut_jump_to_bottom),
-            preferences_shortcut_select_left: self
-                .preferences_shortcut_select_left
-                .unwrap_or(defaults.preferences_shortcut_select_left),
-            preferences_shortcut_select_right: self
-                .preferences_shortcut_select_right
-                .unwrap_or(defaults.preferences_shortcut_select_right),
-            preferences_shortcut_word_select_left: self
-                .preferences_shortcut_word_select_left
-                .unwrap_or(defaults.preferences_shortcut_word_select_left),
-            preferences_shortcut_word_select_right: self
-                .preferences_shortcut_word_select_right
-                .unwrap_or(defaults.preferences_shortcut_word_select_right),
-            preferences_shortcut_select_home: self
-                .preferences_shortcut_select_home
-                .unwrap_or(defaults.preferences_shortcut_select_home),
-            preferences_shortcut_select_end: self
-                .preferences_shortcut_select_end
-                .unwrap_or(defaults.preferences_shortcut_select_end),
-            preferences_shortcut_select_all: self
-                .preferences_shortcut_select_all
-                .unwrap_or(defaults.preferences_shortcut_select_all),
-            preferences_shortcut_copy: self
-                .preferences_shortcut_copy
-                .unwrap_or(defaults.preferences_shortcut_copy),
-            preferences_shortcut_cut: self
-                .preferences_shortcut_cut
-                .unwrap_or(defaults.preferences_shortcut_cut),
-            preferences_shortcut_paste: self
-                .preferences_shortcut_paste
-                .unwrap_or(defaults.preferences_shortcut_paste),
-            preferences_shortcut_undo: self
-                .preferences_shortcut_undo
-                .unwrap_or(defaults.preferences_shortcut_undo),
-            preferences_shortcut_redo: self
-                .preferences_shortcut_redo
-                .unwrap_or(defaults.preferences_shortcut_redo),
-            preferences_shortcut_bold_selection: self
-                .preferences_shortcut_bold_selection
-                .unwrap_or(defaults.preferences_shortcut_bold_selection),
-            preferences_shortcut_italic_selection: self
-                .preferences_shortcut_italic_selection
-                .unwrap_or(defaults.preferences_shortcut_italic_selection),
-            preferences_shortcut_underline_selection: self
-                .preferences_shortcut_underline_selection
-                .unwrap_or(defaults.preferences_shortcut_underline_selection),
-            preferences_shortcut_code_selection: self
-                .preferences_shortcut_code_selection
-                .unwrap_or(defaults.preferences_shortcut_code_selection),
-            preferences_shortcut_indent_block: self
-                .preferences_shortcut_indent_block
-                .unwrap_or(defaults.preferences_shortcut_indent_block),
-            preferences_shortcut_outdent_block: self
-                .preferences_shortcut_outdent_block
-                .unwrap_or(defaults.preferences_shortcut_outdent_block),
-            preferences_shortcut_exit_code_block: self
-                .preferences_shortcut_exit_code_block
-                .unwrap_or(defaults.preferences_shortcut_exit_code_block),
-            preferences_shortcut_save_document: self
-                .preferences_shortcut_save_document
-                .unwrap_or(defaults.preferences_shortcut_save_document),
-            preferences_shortcut_save_document_as: self
-                .preferences_shortcut_save_document_as
-                .unwrap_or(defaults.preferences_shortcut_save_document_as),
-            preferences_shortcut_new_window: self
-                .preferences_shortcut_new_window
-                .unwrap_or(defaults.preferences_shortcut_new_window),
-            preferences_shortcut_open_file: self
-                .preferences_shortcut_open_file
-                .unwrap_or(defaults.preferences_shortcut_open_file),
-            preferences_shortcut_quit_application: self
-                .preferences_shortcut_quit_application
-                .unwrap_or(defaults.preferences_shortcut_quit_application),
-            preferences_shortcut_close_window: self
-                .preferences_shortcut_close_window
-                .unwrap_or(defaults.preferences_shortcut_close_window),
-            preferences_shortcut_dismiss_transient_ui: self
-                .preferences_shortcut_dismiss_transient_ui
-                .unwrap_or(defaults.preferences_shortcut_dismiss_transient_ui),
-            preferences_shortcut_toggle_view_mode: self
-                .preferences_shortcut_toggle_view_mode
-                .unwrap_or(defaults.preferences_shortcut_toggle_view_mode),
-            preferences_shortcut_toggle_workspace: self
-                .preferences_shortcut_toggle_workspace
-                .unwrap_or(defaults.preferences_shortcut_toggle_workspace),
+            settings_window_title: self
+                .settings_window_title
+                .unwrap_or(defaults.settings_window_title),
+            settings_nav_file: self
+                .settings_nav_file
+                .unwrap_or(defaults.settings_nav_file),
+            settings_nav_theme: self
+                .settings_nav_theme
+                .unwrap_or(defaults.settings_nav_theme),
+            settings_nav_image: self
+                .settings_nav_image
+                .unwrap_or(defaults.settings_nav_image),
+            settings_nav_shortcuts: self
+                .settings_nav_shortcuts
+                .unwrap_or(defaults.settings_nav_shortcuts),
+            settings_startup_option: self
+                .settings_startup_option
+                .unwrap_or(defaults.settings_startup_option),
+            settings_startup_new_file: self
+                .settings_startup_new_file
+                .unwrap_or(defaults.settings_startup_new_file),
+            settings_startup_last_opened_file: self
+                .settings_startup_last_opened_file
+                .unwrap_or(defaults.settings_startup_last_opened_file),
+            settings_local_theme: self
+                .settings_local_theme
+                .unwrap_or(defaults.settings_local_theme),
+            settings_image_insert_behavior: self
+                .settings_image_insert_behavior
+                .unwrap_or(defaults.settings_image_insert_behavior),
+            settings_image_paste_none: self
+                .settings_image_paste_none
+                .unwrap_or(defaults.settings_image_paste_none),
+            settings_image_paste_copy_to_document_folder: self
+                .settings_image_paste_copy_to_document_folder
+                .unwrap_or(defaults.settings_image_paste_copy_to_document_folder),
+            settings_image_paste_copy_to_assets_folder: self
+                .settings_image_paste_copy_to_assets_folder
+                .unwrap_or(defaults.settings_image_paste_copy_to_assets_folder),
+            settings_image_paste_copy_to_named_assets_folder: self
+                .settings_image_paste_copy_to_named_assets_folder
+                .unwrap_or(defaults.settings_image_paste_copy_to_named_assets_folder),
+            settings_save: self.settings_save.unwrap_or(defaults.settings_save),
+            settings_cancel: self
+                .settings_cancel
+                .unwrap_or(defaults.settings_cancel),
+            settings_save_failed_title: self
+                .settings_save_failed_title
+                .unwrap_or(defaults.settings_save_failed_title),
+            settings_shortcuts_group_file: self
+                .settings_shortcuts_group_file
+                .unwrap_or(defaults.settings_shortcuts_group_file),
+            settings_shortcuts_group_edit: self
+                .settings_shortcuts_group_edit
+                .unwrap_or(defaults.settings_shortcuts_group_edit),
+            settings_shortcuts_group_navigation: self
+                .settings_shortcuts_group_navigation
+                .unwrap_or(defaults.settings_shortcuts_group_navigation),
+            settings_shortcuts_group_formatting: self
+                .settings_shortcuts_group_formatting
+                .unwrap_or(defaults.settings_shortcuts_group_formatting),
+            settings_shortcuts_group_block: self
+                .settings_shortcuts_group_block
+                .unwrap_or(defaults.settings_shortcuts_group_block),
+            settings_shortcuts_group_other: self
+                .settings_shortcuts_group_other
+                .unwrap_or(defaults.settings_shortcuts_group_other),
+            settings_shortcut_record: self
+                .settings_shortcut_record
+                .unwrap_or(defaults.settings_shortcut_record),
+            settings_shortcut_reset: self
+                .settings_shortcut_reset
+                .unwrap_or(defaults.settings_shortcut_reset),
+            settings_shortcut_recording: self
+                .settings_shortcut_recording
+                .unwrap_or(defaults.settings_shortcut_recording),
+            settings_shortcut_conflict_template: self
+                .settings_shortcut_conflict_template
+                .unwrap_or(defaults.settings_shortcut_conflict_template),
+            settings_shortcut_invalid_template: self
+                .settings_shortcut_invalid_template
+                .unwrap_or(defaults.settings_shortcut_invalid_template),
+            settings_shortcut_newline: self
+                .settings_shortcut_newline
+                .unwrap_or(defaults.settings_shortcut_newline),
+            settings_shortcut_delete_back: self
+                .settings_shortcut_delete_back
+                .unwrap_or(defaults.settings_shortcut_delete_back),
+            settings_shortcut_delete: self
+                .settings_shortcut_delete
+                .unwrap_or(defaults.settings_shortcut_delete),
+            settings_shortcut_word_delete_back: self
+                .settings_shortcut_word_delete_back
+                .unwrap_or(defaults.settings_shortcut_word_delete_back),
+            settings_shortcut_word_delete_forward: self
+                .settings_shortcut_word_delete_forward
+                .unwrap_or(defaults.settings_shortcut_word_delete_forward),
+            settings_shortcut_focus_prev: self
+                .settings_shortcut_focus_prev
+                .unwrap_or(defaults.settings_shortcut_focus_prev),
+            settings_shortcut_focus_next: self
+                .settings_shortcut_focus_next
+                .unwrap_or(defaults.settings_shortcut_focus_next),
+            settings_shortcut_move_left: self
+                .settings_shortcut_move_left
+                .unwrap_or(defaults.settings_shortcut_move_left),
+            settings_shortcut_move_right: self
+                .settings_shortcut_move_right
+                .unwrap_or(defaults.settings_shortcut_move_right),
+            settings_shortcut_word_move_left: self
+                .settings_shortcut_word_move_left
+                .unwrap_or(defaults.settings_shortcut_word_move_left),
+            settings_shortcut_word_move_right: self
+                .settings_shortcut_word_move_right
+                .unwrap_or(defaults.settings_shortcut_word_move_right),
+            settings_shortcut_home: self
+                .settings_shortcut_home
+                .unwrap_or(defaults.settings_shortcut_home),
+            settings_shortcut_end: self
+                .settings_shortcut_end
+                .unwrap_or(defaults.settings_shortcut_end),
+            settings_shortcut_block_up: self
+                .settings_shortcut_block_up
+                .unwrap_or(defaults.settings_shortcut_block_up),
+            settings_shortcut_block_down: self
+                .settings_shortcut_block_down
+                .unwrap_or(defaults.settings_shortcut_block_down),
+            settings_shortcut_page_up: self
+                .settings_shortcut_page_up
+                .unwrap_or(defaults.settings_shortcut_page_up),
+            settings_shortcut_page_down: self
+                .settings_shortcut_page_down
+                .unwrap_or(defaults.settings_shortcut_page_down),
+            settings_shortcut_jump_to_top: self
+                .settings_shortcut_jump_to_top
+                .unwrap_or(defaults.settings_shortcut_jump_to_top),
+            settings_shortcut_jump_to_bottom: self
+                .settings_shortcut_jump_to_bottom
+                .unwrap_or(defaults.settings_shortcut_jump_to_bottom),
+            settings_shortcut_select_left: self
+                .settings_shortcut_select_left
+                .unwrap_or(defaults.settings_shortcut_select_left),
+            settings_shortcut_select_right: self
+                .settings_shortcut_select_right
+                .unwrap_or(defaults.settings_shortcut_select_right),
+            settings_shortcut_word_select_left: self
+                .settings_shortcut_word_select_left
+                .unwrap_or(defaults.settings_shortcut_word_select_left),
+            settings_shortcut_word_select_right: self
+                .settings_shortcut_word_select_right
+                .unwrap_or(defaults.settings_shortcut_word_select_right),
+            settings_shortcut_select_home: self
+                .settings_shortcut_select_home
+                .unwrap_or(defaults.settings_shortcut_select_home),
+            settings_shortcut_select_end: self
+                .settings_shortcut_select_end
+                .unwrap_or(defaults.settings_shortcut_select_end),
+            settings_shortcut_select_all: self
+                .settings_shortcut_select_all
+                .unwrap_or(defaults.settings_shortcut_select_all),
+            settings_shortcut_copy: self
+                .settings_shortcut_copy
+                .unwrap_or(defaults.settings_shortcut_copy),
+            settings_shortcut_cut: self
+                .settings_shortcut_cut
+                .unwrap_or(defaults.settings_shortcut_cut),
+            settings_shortcut_paste: self
+                .settings_shortcut_paste
+                .unwrap_or(defaults.settings_shortcut_paste),
+            settings_shortcut_undo: self
+                .settings_shortcut_undo
+                .unwrap_or(defaults.settings_shortcut_undo),
+            settings_shortcut_redo: self
+                .settings_shortcut_redo
+                .unwrap_or(defaults.settings_shortcut_redo),
+            settings_shortcut_bold_selection: self
+                .settings_shortcut_bold_selection
+                .unwrap_or(defaults.settings_shortcut_bold_selection),
+            settings_shortcut_italic_selection: self
+                .settings_shortcut_italic_selection
+                .unwrap_or(defaults.settings_shortcut_italic_selection),
+            settings_shortcut_underline_selection: self
+                .settings_shortcut_underline_selection
+                .unwrap_or(defaults.settings_shortcut_underline_selection),
+            settings_shortcut_code_selection: self
+                .settings_shortcut_code_selection
+                .unwrap_or(defaults.settings_shortcut_code_selection),
+            settings_shortcut_indent_block: self
+                .settings_shortcut_indent_block
+                .unwrap_or(defaults.settings_shortcut_indent_block),
+            settings_shortcut_outdent_block: self
+                .settings_shortcut_outdent_block
+                .unwrap_or(defaults.settings_shortcut_outdent_block),
+            settings_shortcut_exit_code_block: self
+                .settings_shortcut_exit_code_block
+                .unwrap_or(defaults.settings_shortcut_exit_code_block),
+            settings_shortcut_save_document: self
+                .settings_shortcut_save_document
+                .unwrap_or(defaults.settings_shortcut_save_document),
+            settings_shortcut_save_document_as: self
+                .settings_shortcut_save_document_as
+                .unwrap_or(defaults.settings_shortcut_save_document_as),
+            settings_shortcut_new_window: self
+                .settings_shortcut_new_window
+                .unwrap_or(defaults.settings_shortcut_new_window),
+            settings_shortcut_open_file: self
+                .settings_shortcut_open_file
+                .unwrap_or(defaults.settings_shortcut_open_file),
+            settings_shortcut_quit_application: self
+                .settings_shortcut_quit_application
+                .unwrap_or(defaults.settings_shortcut_quit_application),
+            settings_shortcut_close_window: self
+                .settings_shortcut_close_window
+                .unwrap_or(defaults.settings_shortcut_close_window),
+            settings_shortcut_dismiss_transient_ui: self
+                .settings_shortcut_dismiss_transient_ui
+                .unwrap_or(defaults.settings_shortcut_dismiss_transient_ui),
+            settings_shortcut_toggle_view_mode: self
+                .settings_shortcut_toggle_view_mode
+                .unwrap_or(defaults.settings_shortcut_toggle_view_mode),
+            settings_shortcut_toggle_workspace: self
+                .settings_shortcut_toggle_workspace
+                .unwrap_or(defaults.settings_shortcut_toggle_workspace),
             workspace_tab_files: self
                 .workspace_tab_files
                 .unwrap_or(defaults.workspace_tab_files),
@@ -1180,24 +1180,24 @@ impl I18nStringsDe {
             status_bar_word_count_suffix: self
                 .status_bar_word_count_suffix
                 .unwrap_or(defaults.status_bar_word_count_suffix),
-            preferences_nav_status_bar: self
-                .preferences_nav_status_bar
-                .unwrap_or(defaults.preferences_nav_status_bar),
-            preferences_status_bar_enabled: self
-                .preferences_status_bar_enabled
-                .unwrap_or(defaults.preferences_status_bar_enabled),
-            preferences_status_bar_show_word_count: self
-                .preferences_status_bar_show_word_count
-                .unwrap_or(defaults.preferences_status_bar_show_word_count),
-            preferences_status_bar_show_cursor_position: self
-                .preferences_status_bar_show_cursor_position
-                .unwrap_or(defaults.preferences_status_bar_show_cursor_position),
-            preferences_status_bar_show_sidebar_toggle: self
-                .preferences_status_bar_show_sidebar_toggle
-                .unwrap_or(defaults.preferences_status_bar_show_sidebar_toggle),
-            preferences_status_bar_show_mode_switch: self
-                .preferences_status_bar_show_mode_switch
-                .unwrap_or(defaults.preferences_status_bar_show_mode_switch),
+            settings_nav_status_bar: self
+                .settings_nav_status_bar
+                .unwrap_or(defaults.settings_nav_status_bar),
+            settings_status_bar_enabled: self
+                .settings_status_bar_enabled
+                .unwrap_or(defaults.settings_status_bar_enabled),
+            settings_status_bar_show_word_count: self
+                .settings_status_bar_show_word_count
+                .unwrap_or(defaults.settings_status_bar_show_word_count),
+            settings_status_bar_show_cursor_position: self
+                .settings_status_bar_show_cursor_position
+                .unwrap_or(defaults.settings_status_bar_show_cursor_position),
+            settings_status_bar_show_sidebar_toggle: self
+                .settings_status_bar_show_sidebar_toggle
+                .unwrap_or(defaults.settings_status_bar_show_sidebar_toggle),
+            settings_status_bar_show_mode_switch: self
+                .settings_status_bar_show_mode_switch
+                .unwrap_or(defaults.settings_status_bar_show_mode_switch),
         }
     }
 }
@@ -1259,7 +1259,7 @@ impl I18nStrings {
             menu_close_window: "关闭窗口".into(),
             menu_open_file: "打开文件".into(),
             menu_open_recent_file: "打开最近文件".into(),
-            menu_preferences: "偏好设置".into(),
+            menu_settings: "设置".into(),
             menu_no_recent_files: "无最近文件".into(),
             menu_save: "保存".into(),
             menu_save_as: "另存为".into(),
@@ -1281,75 +1281,75 @@ impl I18nStrings {
             save_failed_title: "保存失败".into(),
             export_failed_title: "导出失败".into(),
             config_import_failed_title: "配置导入失败".into(),
-            preferences_window_title: "偏好设置".into(),
-            preferences_nav_file: "文件".into(),
-            preferences_nav_theme: "主题".into(),
-            preferences_nav_shortcuts: "快捷键".into(),
-            preferences_startup_option: "启动选项".into(),
-            preferences_startup_new_file: "新 md 文件".into(),
-            preferences_startup_last_opened_file: "上一次打开的 md 文件".into(),
-            preferences_local_theme: "本地主题".into(),
-            preferences_save: "保存".into(),
-            preferences_cancel: "取消".into(),
-            preferences_save_failed_title: "保存偏好设置失败".into(),
-            preferences_shortcuts_group_file: "文件".into(),
-            preferences_shortcuts_group_edit: "编辑".into(),
-            preferences_shortcuts_group_navigation: "移动与选择".into(),
-            preferences_shortcuts_group_formatting: "格式化".into(),
-            preferences_shortcuts_group_block: "块操作".into(),
-            preferences_shortcuts_group_other: "其他".into(),
-            preferences_shortcut_record: "录制".into(),
-            preferences_shortcut_reset: "重置".into(),
-            preferences_shortcut_recording: "按下快捷键...".into(),
-            preferences_shortcut_conflict_template: "该快捷键已被“{command}”使用".into(),
-            preferences_shortcut_invalid_template: "无法使用快捷键“{shortcut}”".into(),
-            preferences_shortcut_newline: "换行".into(),
-            preferences_shortcut_delete_back: "向前删除".into(),
-            preferences_shortcut_delete: "向后删除".into(),
-            preferences_shortcut_word_delete_back: "向前删除单词".into(),
-            preferences_shortcut_word_delete_forward: "向后删除单词".into(),
-            preferences_shortcut_focus_prev: "上移".into(),
-            preferences_shortcut_focus_next: "下移".into(),
-            preferences_shortcut_move_left: "光标左移".into(),
-            preferences_shortcut_move_right: "光标右移".into(),
-            preferences_shortcut_word_move_left: "按词左移".into(),
-            preferences_shortcut_word_move_right: "按词右移".into(),
-            preferences_shortcut_home: "行首".into(),
-            preferences_shortcut_end: "行尾".into(),
-            preferences_shortcut_block_up: "上一块开头".into(),
-            preferences_shortcut_block_down: "下一块开头".into(),
-            preferences_shortcut_page_up: "上翻一页".into(),
-            preferences_shortcut_page_down: "下翻一页".into(),
-            preferences_shortcut_jump_to_top: "跳至开头".into(),
-            preferences_shortcut_jump_to_bottom: "跳至末尾".into(),
-            preferences_shortcut_select_left: "向左选择".into(),
-            preferences_shortcut_select_right: "向右选择".into(),
-            preferences_shortcut_word_select_left: "向左选择单词".into(),
-            preferences_shortcut_word_select_right: "向右选择单词".into(),
-            preferences_shortcut_select_home: "选择到行首".into(),
-            preferences_shortcut_select_end: "选择到行尾".into(),
-            preferences_shortcut_select_all: "全选".into(),
-            preferences_shortcut_copy: "复制".into(),
-            preferences_shortcut_cut: "剪切".into(),
-            preferences_shortcut_paste: "粘贴".into(),
-            preferences_shortcut_undo: "撤销".into(),
-            preferences_shortcut_redo: "重做".into(),
-            preferences_shortcut_bold_selection: "加粗".into(),
-            preferences_shortcut_italic_selection: "斜体".into(),
-            preferences_shortcut_underline_selection: "下划线".into(),
-            preferences_shortcut_code_selection: "行内代码".into(),
-            preferences_shortcut_indent_block: "缩进块".into(),
-            preferences_shortcut_outdent_block: "取消缩进块".into(),
-            preferences_shortcut_exit_code_block: "退出代码块".into(),
-            preferences_shortcut_save_document: "保存文档".into(),
-            preferences_shortcut_save_document_as: "另存为".into(),
-            preferences_shortcut_new_window: "新建窗口".into(),
-            preferences_shortcut_open_file: "打开文件".into(),
-            preferences_shortcut_quit_application: "退出应用".into(),
-            preferences_shortcut_close_window: "关闭窗口".into(),
-            preferences_shortcut_dismiss_transient_ui: "关闭临时界面".into(),
-            preferences_shortcut_toggle_view_mode: "切换视图模式".into(),
-            preferences_shortcut_toggle_workspace: "切换工作区".into(),
+            settings_window_title: "设置".into(),
+            settings_nav_file: "文件".into(),
+            settings_nav_theme: "主题".into(),
+            settings_nav_shortcuts: "快捷键".into(),
+            settings_startup_option: "启动选项".into(),
+            settings_startup_new_file: "新 md 文件".into(),
+            settings_startup_last_opened_file: "上一次打开的 md 文件".into(),
+            settings_local_theme: "本地主题".into(),
+            settings_save: "保存".into(),
+            settings_cancel: "取消".into(),
+            settings_save_failed_title: "保存偏好设置失败".into(),
+            settings_shortcuts_group_file: "文件".into(),
+            settings_shortcuts_group_edit: "编辑".into(),
+            settings_shortcuts_group_navigation: "移动与选择".into(),
+            settings_shortcuts_group_formatting: "格式化".into(),
+            settings_shortcuts_group_block: "块操作".into(),
+            settings_shortcuts_group_other: "其他".into(),
+            settings_shortcut_record: "录制".into(),
+            settings_shortcut_reset: "重置".into(),
+            settings_shortcut_recording: "按下快捷键...".into(),
+            settings_shortcut_conflict_template: "该快捷键已被“{command}”使用".into(),
+            settings_shortcut_invalid_template: "无法使用快捷键“{shortcut}”".into(),
+            settings_shortcut_newline: "换行".into(),
+            settings_shortcut_delete_back: "向前删除".into(),
+            settings_shortcut_delete: "向后删除".into(),
+            settings_shortcut_word_delete_back: "向前删除单词".into(),
+            settings_shortcut_word_delete_forward: "向后删除单词".into(),
+            settings_shortcut_focus_prev: "上移".into(),
+            settings_shortcut_focus_next: "下移".into(),
+            settings_shortcut_move_left: "光标左移".into(),
+            settings_shortcut_move_right: "光标右移".into(),
+            settings_shortcut_word_move_left: "按词左移".into(),
+            settings_shortcut_word_move_right: "按词右移".into(),
+            settings_shortcut_home: "行首".into(),
+            settings_shortcut_end: "行尾".into(),
+            settings_shortcut_block_up: "上一块开头".into(),
+            settings_shortcut_block_down: "下一块开头".into(),
+            settings_shortcut_page_up: "上翻一页".into(),
+            settings_shortcut_page_down: "下翻一页".into(),
+            settings_shortcut_jump_to_top: "跳至开头".into(),
+            settings_shortcut_jump_to_bottom: "跳至末尾".into(),
+            settings_shortcut_select_left: "向左选择".into(),
+            settings_shortcut_select_right: "向右选择".into(),
+            settings_shortcut_word_select_left: "向左选择单词".into(),
+            settings_shortcut_word_select_right: "向右选择单词".into(),
+            settings_shortcut_select_home: "选择到行首".into(),
+            settings_shortcut_select_end: "选择到行尾".into(),
+            settings_shortcut_select_all: "全选".into(),
+            settings_shortcut_copy: "复制".into(),
+            settings_shortcut_cut: "剪切".into(),
+            settings_shortcut_paste: "粘贴".into(),
+            settings_shortcut_undo: "撤销".into(),
+            settings_shortcut_redo: "重做".into(),
+            settings_shortcut_bold_selection: "加粗".into(),
+            settings_shortcut_italic_selection: "斜体".into(),
+            settings_shortcut_underline_selection: "下划线".into(),
+            settings_shortcut_code_selection: "行内代码".into(),
+            settings_shortcut_indent_block: "缩进块".into(),
+            settings_shortcut_outdent_block: "取消缩进块".into(),
+            settings_shortcut_exit_code_block: "退出代码块".into(),
+            settings_shortcut_save_document: "保存文档".into(),
+            settings_shortcut_save_document_as: "另存为".into(),
+            settings_shortcut_new_window: "新建窗口".into(),
+            settings_shortcut_open_file: "打开文件".into(),
+            settings_shortcut_quit_application: "退出应用".into(),
+            settings_shortcut_close_window: "关闭窗口".into(),
+            settings_shortcut_dismiss_transient_ui: "关闭临时界面".into(),
+            settings_shortcut_toggle_view_mode: "切换视图模式".into(),
+            settings_shortcut_toggle_workspace: "切换工作区".into(),
             workspace_tab_files: "文件".into(),
             workspace_tab_outline: "大纲".into(),
             workspace_no_file_title: "未打开 Markdown 文件".into(),
@@ -1395,18 +1395,18 @@ impl I18nStrings {
             ..Self::en_us()
         };
         strings.image_paste_failed_title = "图片粘贴失败".into();
-        strings.preferences_nav_image = "图像".into();
-        strings.preferences_nav_status_bar = "状态栏".into();
-        strings.preferences_status_bar_enabled = "显示状态栏".into();
-        strings.preferences_status_bar_show_word_count = "字数统计".into();
-        strings.preferences_status_bar_show_cursor_position = "光标位置".into();
-        strings.preferences_status_bar_show_sidebar_toggle = "侧边栏".into();
-        strings.preferences_status_bar_show_mode_switch = "模式切换".into();
-        strings.preferences_image_insert_behavior = "插入图片时...".into();
-        strings.preferences_image_paste_none = "无特殊操作".into();
-        strings.preferences_image_paste_copy_to_document_folder = "复制图片到 ./ 文件夹".into();
-        strings.preferences_image_paste_copy_to_assets_folder = "复制图片到 ./assets 文件夹".into();
-        strings.preferences_image_paste_copy_to_named_assets_folder =
+        strings.settings_nav_image = "图像".into();
+        strings.settings_nav_status_bar = "状态栏".into();
+        strings.settings_status_bar_enabled = "显示状态栏".into();
+        strings.settings_status_bar_show_word_count = "字数统计".into();
+        strings.settings_status_bar_show_cursor_position = "光标位置".into();
+        strings.settings_status_bar_show_sidebar_toggle = "侧边栏".into();
+        strings.settings_status_bar_show_mode_switch = "模式切换".into();
+        strings.settings_image_insert_behavior = "插入图片时...".into();
+        strings.settings_image_paste_none = "无特殊操作".into();
+        strings.settings_image_paste_copy_to_document_folder = "复制图片到 ./ 文件夹".into();
+        strings.settings_image_paste_copy_to_assets_folder = "复制图片到 ./assets 文件夹".into();
+        strings.settings_image_paste_copy_to_named_assets_folder =
             "复制图片到 ./${filename}.assets 文件夹".into();
         strings
     }
@@ -1464,7 +1464,7 @@ impl I18nStrings {
             menu_close_window: "Close Window".into(),
             menu_open_file: "Open File".into(),
             menu_open_recent_file: "Open Recent File".into(),
-            menu_preferences: "Preferences".into(),
+            menu_settings: "Settings".into(),
             menu_no_recent_files: "No Recent Files".into(),
             menu_save: "Save".into(),
             menu_save_as: "Save As".into(),
@@ -1487,85 +1487,85 @@ impl I18nStrings {
             export_failed_title: "Export Failed".into(),
             image_paste_failed_title: "Image Paste Failed".into(),
             config_import_failed_title: "Config Import Failed".into(),
-            preferences_window_title: "Preferences".into(),
-            preferences_nav_file: "File".into(),
-            preferences_nav_theme: "Theme".into(),
-            preferences_nav_image: "Image".into(),
-            preferences_nav_shortcuts: "Shortcuts".into(),
-            preferences_startup_option: "Startup Option".into(),
-            preferences_startup_new_file: "New Markdown File".into(),
-            preferences_startup_last_opened_file: "Last Opened Markdown File".into(),
-            preferences_local_theme: "Local Theme".into(),
-            preferences_image_insert_behavior: "When inserting images...".into(),
-            preferences_image_paste_none: "No special action".into(),
-            preferences_image_paste_copy_to_document_folder:
+            settings_window_title: "Settings".into(),
+            settings_nav_file: "File".into(),
+            settings_nav_theme: "Theme".into(),
+            settings_nav_image: "Image".into(),
+            settings_nav_shortcuts: "Shortcuts".into(),
+            settings_startup_option: "Startup Option".into(),
+            settings_startup_new_file: "New Markdown File".into(),
+            settings_startup_last_opened_file: "Last Opened Markdown File".into(),
+            settings_local_theme: "Local Theme".into(),
+            settings_image_insert_behavior: "When inserting images...".into(),
+            settings_image_paste_none: "No special action".into(),
+            settings_image_paste_copy_to_document_folder:
                 "Copy image to ./ folder".into(),
-            preferences_image_paste_copy_to_assets_folder:
+            settings_image_paste_copy_to_assets_folder:
                 "Copy image to ./assets folder".into(),
-            preferences_image_paste_copy_to_named_assets_folder:
+            settings_image_paste_copy_to_named_assets_folder:
                 "Copy image to ./${filename}.assets folder".into(),
-            preferences_save: "Save".into(),
-            preferences_cancel: "Cancel".into(),
-            preferences_save_failed_title: "Save Preferences Failed".into(),
-            preferences_shortcuts_group_file: "File".into(),
-            preferences_shortcuts_group_edit: "Edit".into(),
-            preferences_shortcuts_group_navigation: "Move and Select".into(),
-            preferences_shortcuts_group_formatting: "Formatting".into(),
-            preferences_shortcuts_group_block: "Block Operations".into(),
-            preferences_shortcuts_group_other: "Other".into(),
-            preferences_shortcut_record: "Record".into(),
-            preferences_shortcut_reset: "Reset".into(),
-            preferences_shortcut_recording: "Press shortcut...".into(),
-            preferences_shortcut_conflict_template: "This shortcut is already used by {command}"
+            settings_save: "Save".into(),
+            settings_cancel: "Cancel".into(),
+            settings_save_failed_title: "Save settings Failed".into(),
+            settings_shortcuts_group_file: "File".into(),
+            settings_shortcuts_group_edit: "Edit".into(),
+            settings_shortcuts_group_navigation: "Move and Select".into(),
+            settings_shortcuts_group_formatting: "Formatting".into(),
+            settings_shortcuts_group_block: "Block Operations".into(),
+            settings_shortcuts_group_other: "Other".into(),
+            settings_shortcut_record: "Record".into(),
+            settings_shortcut_reset: "Reset".into(),
+            settings_shortcut_recording: "Press shortcut...".into(),
+            settings_shortcut_conflict_template: "This shortcut is already used by {command}"
                 .into(),
-            preferences_shortcut_invalid_template: "Cannot use shortcut {shortcut}".into(),
-            preferences_shortcut_newline: "Newline".into(),
-            preferences_shortcut_delete_back: "Delete Backward".into(),
-            preferences_shortcut_delete: "Delete Forward".into(),
-            preferences_shortcut_word_delete_back: "Word Delete Backward".into(),
-            preferences_shortcut_word_delete_forward: "Word Delete Forward".into(),
-            preferences_shortcut_focus_prev: "Move Up".into(),
-            preferences_shortcut_focus_next: "Move Down".into(),
-            preferences_shortcut_move_left: "Move Left".into(),
-            preferences_shortcut_move_right: "Move Right".into(),
-            preferences_shortcut_word_move_left: "Word Move Left".into(),
-            preferences_shortcut_word_move_right: "Word Move Right".into(),
-            preferences_shortcut_home: "Line Start".into(),
-            preferences_shortcut_end: "Line End".into(),
-            preferences_shortcut_block_up: "Block Up".into(),
-            preferences_shortcut_block_down: "Block Down".into(),
-            preferences_shortcut_page_up: "Page Up".into(),
-            preferences_shortcut_page_down: "Page Down".into(),
-            preferences_shortcut_jump_to_top: "Jump to Top".into(),
-            preferences_shortcut_jump_to_bottom: "Jump to Bottom".into(),
-            preferences_shortcut_select_left: "Select Left".into(),
-            preferences_shortcut_select_right: "Select Right".into(),
-            preferences_shortcut_word_select_left: "Word Select Left".into(),
-            preferences_shortcut_word_select_right: "Word Select Right".into(),
-            preferences_shortcut_select_home: "Select to Line Start".into(),
-            preferences_shortcut_select_end: "Select to Line End".into(),
-            preferences_shortcut_select_all: "Select All".into(),
-            preferences_shortcut_copy: "Copy".into(),
-            preferences_shortcut_cut: "Cut".into(),
-            preferences_shortcut_paste: "Paste".into(),
-            preferences_shortcut_undo: "Undo".into(),
-            preferences_shortcut_redo: "Redo".into(),
-            preferences_shortcut_bold_selection: "Bold".into(),
-            preferences_shortcut_italic_selection: "Italic".into(),
-            preferences_shortcut_underline_selection: "Underline".into(),
-            preferences_shortcut_code_selection: "Inline Code".into(),
-            preferences_shortcut_indent_block: "Indent Block".into(),
-            preferences_shortcut_outdent_block: "Outdent Block".into(),
-            preferences_shortcut_exit_code_block: "Exit Code Block".into(),
-            preferences_shortcut_save_document: "Save Document".into(),
-            preferences_shortcut_save_document_as: "Save Document As".into(),
-            preferences_shortcut_new_window: "New Window".into(),
-            preferences_shortcut_open_file: "Open File".into(),
-            preferences_shortcut_quit_application: "Quit Application".into(),
-            preferences_shortcut_close_window: "Close Window".into(),
-            preferences_shortcut_dismiss_transient_ui: "Dismiss Temporary UI".into(),
-            preferences_shortcut_toggle_view_mode: "Toggle View Mode".into(),
-            preferences_shortcut_toggle_workspace: "Toggle Workspace".into(),
+            settings_shortcut_invalid_template: "Cannot use shortcut {shortcut}".into(),
+            settings_shortcut_newline: "Newline".into(),
+            settings_shortcut_delete_back: "Delete Backward".into(),
+            settings_shortcut_delete: "Delete Forward".into(),
+            settings_shortcut_word_delete_back: "Word Delete Backward".into(),
+            settings_shortcut_word_delete_forward: "Word Delete Forward".into(),
+            settings_shortcut_focus_prev: "Move Up".into(),
+            settings_shortcut_focus_next: "Move Down".into(),
+            settings_shortcut_move_left: "Move Left".into(),
+            settings_shortcut_move_right: "Move Right".into(),
+            settings_shortcut_word_move_left: "Word Move Left".into(),
+            settings_shortcut_word_move_right: "Word Move Right".into(),
+            settings_shortcut_home: "Line Start".into(),
+            settings_shortcut_end: "Line End".into(),
+            settings_shortcut_block_up: "Block Up".into(),
+            settings_shortcut_block_down: "Block Down".into(),
+            settings_shortcut_page_up: "Page Up".into(),
+            settings_shortcut_page_down: "Page Down".into(),
+            settings_shortcut_jump_to_top: "Jump to Top".into(),
+            settings_shortcut_jump_to_bottom: "Jump to Bottom".into(),
+            settings_shortcut_select_left: "Select Left".into(),
+            settings_shortcut_select_right: "Select Right".into(),
+            settings_shortcut_word_select_left: "Word Select Left".into(),
+            settings_shortcut_word_select_right: "Word Select Right".into(),
+            settings_shortcut_select_home: "Select to Line Start".into(),
+            settings_shortcut_select_end: "Select to Line End".into(),
+            settings_shortcut_select_all: "Select All".into(),
+            settings_shortcut_copy: "Copy".into(),
+            settings_shortcut_cut: "Cut".into(),
+            settings_shortcut_paste: "Paste".into(),
+            settings_shortcut_undo: "Undo".into(),
+            settings_shortcut_redo: "Redo".into(),
+            settings_shortcut_bold_selection: "Bold".into(),
+            settings_shortcut_italic_selection: "Italic".into(),
+            settings_shortcut_underline_selection: "Underline".into(),
+            settings_shortcut_code_selection: "Inline Code".into(),
+            settings_shortcut_indent_block: "Indent Block".into(),
+            settings_shortcut_outdent_block: "Outdent Block".into(),
+            settings_shortcut_exit_code_block: "Exit Code Block".into(),
+            settings_shortcut_save_document: "Save Document".into(),
+            settings_shortcut_save_document_as: "Save Document As".into(),
+            settings_shortcut_new_window: "New Window".into(),
+            settings_shortcut_open_file: "Open File".into(),
+            settings_shortcut_quit_application: "Quit Application".into(),
+            settings_shortcut_close_window: "Close Window".into(),
+            settings_shortcut_dismiss_transient_ui: "Dismiss Temporary UI".into(),
+            settings_shortcut_toggle_view_mode: "Toggle View Mode".into(),
+            settings_shortcut_toggle_workspace: "Toggle Workspace".into(),
             workspace_tab_files: "Files".into(),
             workspace_tab_outline: "Outline".into(),
             workspace_no_file_title: "No Markdown File Open".into(),
@@ -1609,12 +1609,12 @@ impl I18nStrings {
             status_bar_mode_source: "Source".into(),
             status_bar_mode_rendered: "Rendered".into(),
             status_bar_word_count_suffix: "words".into(),
-            preferences_nav_status_bar: "Status Bar".into(),
-            preferences_status_bar_enabled: "Show Status Bar".into(),
-            preferences_status_bar_show_word_count: "Word Count".into(),
-            preferences_status_bar_show_cursor_position: "Cursor Position".into(),
-            preferences_status_bar_show_sidebar_toggle: "Sidebar Toggle".into(),
-            preferences_status_bar_show_mode_switch: "Mode Switch".into(),
+            settings_nav_status_bar: "Status Bar".into(),
+            settings_status_bar_enabled: "Show Status Bar".into(),
+            settings_status_bar_show_word_count: "Word Count".into(),
+            settings_status_bar_show_cursor_position: "Cursor Position".into(),
+            settings_status_bar_show_sidebar_toggle: "Sidebar Toggle".into(),
+            settings_status_bar_show_mode_switch: "Mode Switch".into(),
         }
     }
 
@@ -1743,7 +1743,7 @@ fn is_valid_custom_language_id(language_id: &str) -> bool {
 }
 
 /// Selects a built-in language id from preferred system locales.
-pub fn language_id_for_locale_preferences<I, S>(locales: I) -> &'static str
+pub fn language_id_for_locale_settings<I, S>(locales: I) -> &'static str
 where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
@@ -1799,8 +1799,8 @@ impl I18nManager {
     /// Installs the configured UI language into GPUI's global state.
     #[allow(dead_code)]
     pub fn init(cx: &mut App) {
-        let language_id = crate::config::read_app_preferences()
-            .map(|preferences| preferences.default_language_id)
+        let language_id = crate::config::read_app_settings()
+            .map(|settings| settings.default_language_id)
             .unwrap_or_else(|_| BUILTIN_LANGUAGE_EN_US_ID.into());
         Self::init_with_language_id(cx, &language_id);
     }
@@ -2012,7 +2012,7 @@ fn required_string(object: &Map<String, Value>, key: &str) -> anyhow::Result<Str
 
 #[cfg(test)]
 mod tests {
-    use super::{I18nLanguagePack, I18nManager, I18nStrings, language_id_for_locale_preferences};
+    use super::{I18nLanguagePack, I18nManager, I18nStrings, language_id_for_locale_settings};
     use crate::config::VelotypeConfigDirs;
     use crate::theme::ThemeManager;
 
@@ -2091,23 +2091,23 @@ mod tests {
     }
 
     #[test]
-    fn locale_preferences_map_to_builtin_languages() {
-        assert_eq!(language_id_for_locale_preferences(["zh-CN"]), "zh-CN");
-        assert_eq!(language_id_for_locale_preferences(["zh-HK"]), "zh-CN");
-        assert_eq!(language_id_for_locale_preferences(["zh-Hant-TW"]), "zh-CN");
-        assert_eq!(language_id_for_locale_preferences(["zh_SG.UTF-8"]), "zh-CN");
-        assert_eq!(language_id_for_locale_preferences(["en-US"]), "en-US");
-        assert_eq!(language_id_for_locale_preferences(["en_GB.UTF-8"]), "en-US");
+    fn locale_settings_map_to_builtin_languages() {
+        assert_eq!(language_id_for_locale_settings(["zh-CN"]), "zh-CN");
+        assert_eq!(language_id_for_locale_settings(["zh-HK"]), "zh-CN");
+        assert_eq!(language_id_for_locale_settings(["zh-Hant-TW"]), "zh-CN");
+        assert_eq!(language_id_for_locale_settings(["zh_SG.UTF-8"]), "zh-CN");
+        assert_eq!(language_id_for_locale_settings(["en-US"]), "en-US");
+        assert_eq!(language_id_for_locale_settings(["en_GB.UTF-8"]), "en-US");
         assert_eq!(
-            language_id_for_locale_preferences(["fr-FR", "zh-CN"]),
+            language_id_for_locale_settings(["fr-FR", "zh-CN"]),
             "zh-CN"
         );
         assert_eq!(
-            language_id_for_locale_preferences(Vec::<&str>::new()),
+            language_id_for_locale_settings(Vec::<&str>::new()),
             "en-US"
         );
-        assert_eq!(language_id_for_locale_preferences(["fr-FR"]), "en-US");
-        assert_eq!(language_id_for_locale_preferences(["!!!"]), "en-US");
+        assert_eq!(language_id_for_locale_settings(["fr-FR"]), "en-US");
+        assert_eq!(language_id_for_locale_settings(["!!!"]), "en-US");
     }
 
     #[test]

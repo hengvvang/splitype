@@ -18,7 +18,7 @@ use crate::components::{
     OutdentBlock, PastedImageSource, TableCellPosition, is_table_row_candidate,
     parse_root_table_region, parse_table_body_row,
 };
-use crate::config::{ImagePasteBehavior, read_app_preferences};
+use crate::config::{ImagePasteBehavior, read_app_settings};
 
 impl Editor {
     fn focused_block_for_tab_key(
@@ -235,7 +235,7 @@ impl Editor {
     }
 
     fn current_image_paste_behavior() -> ImagePasteBehavior {
-        read_app_preferences()
+        read_app_settings()
             .map(|preferences| preferences.image_paste_behavior)
             .unwrap_or(ImagePasteBehavior::None)
     }

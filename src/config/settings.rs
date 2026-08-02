@@ -1,4 +1,4 @@
-//! Persistent app preferences and the preferences window.
+//! Persistent app settings and the settings window.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -11,7 +11,7 @@ use super::{VelotypeConfigDirs, read_recent_files};
 use crate::components::{
     ShortcutCommand, install_keybindings, normalize_shortcut_config, switch::Switch,
 };
-use crate::i18n::{I18nManager, language_id_for_locale_preferences};
+use crate::i18n::{I18nManager, language_id_for_locale_settings};
 use crate::theme::{ThemeCatalogEntry, ThemeManager};
 use crate::window_chrome::{
     custom_titlebar_height, render_custom_titlebar, velotype_window_options,
@@ -30,7 +30,7 @@ pub(crate) struct StatusBarButton {
 
 /// Status bar visibility and component toggles.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct StatusBarPreferences {
+pub(crate) struct StatusBarSettings {
     pub enabled: bool,
     pub show_word_count: bool,
     pub show_cursor_position: bool,
@@ -39,7 +39,7 @@ pub(crate) struct StatusBarPreferences {
     pub custom_buttons: Vec<StatusBarButton>,
 }
 
-impl Default for StatusBarPreferences {
+impl Default for StatusBarSettings {
     fn default() -> Self {
         Self {
             enabled: true,
@@ -54,12 +54,12 @@ impl Default for StatusBarPreferences {
 
 /// Startup document selection stored in `config.toml`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum StartupOpenPreference {
+pub(crate) enum StartupOpenSetting {
     NewFile,
     LastOpenedFile,
 }
 
-impl StartupOpenPreference {
+impl StartupOpenSetting {
     pub(crate) fn as_str(self) -> &'static str {
         match self {
             Self::NewFile => "new_file",
@@ -104,44 +104,35 @@ impl ImagePasteBehavior {
     }
 }
 
-/// User preferences persisted under the app config directory.
+/// User settings persisted under the app config directory.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct AppPreferences {
-    pub(crate) startup_open: StartupOpenPreference,
+pub(crate) struct AppSettings {
+    pub(crate) startup_open: StartupOpenSetting,
     pub(crate) default_language_id: String,
     pub(crate) default_theme_id: String,
     pub(crate) show_table_headers: bool,
     pub(crate) image_paste_behavior: ImagePasteBehavior,
     pub(crate) keybindings: BTreeMap<String, Vec<String>>,
-    pub(crate) status_bar: StatusBarPreferences,
+    pub(crate) status_bar: StatusBarSettings,
 }
 
-impl Default for AppPreferences {
+impl Default for AppSettings {
     fn default() -> Self {
         Self {
-            startup_open: StartupOpenPreference::NewFile,
+            startup_open: StartupOpenSetting::NewFile,
             default_language_id: DEFAULT_LANGUAGE_ID.into(),
             default_theme_id: DEFAULT_THEME_ID.into(),
             show_table_headers: true,
             image_paste_behavior: ImagePasteBehavior::None,
             keybindings: BTreeMap::new(),
-            status_bar: StatusBarPreferences::default(),
+            status_bar: StatusBarSettings::default(),
         }
     }
 }
 
-/// Status Bar Settings
-struct StatusBarSettings {
-    status_bar_enabled: bool,
-    status_bar_show_word_count: bool,
-    status_bar_show_cursor_position: bool,
-    status_bar_show_sidebar_toggle: bool,
-    status_bar_show_mode_switch: bool,
-}
-
-/// Runtime-accessible editor settings mirrored from [`AppPreferences`] so the
+/// Runtime-accessible editor settings mirrored from [`AppSettings`] so the
 /// render path can read them without touching disk. Toggling persists the new
-/// value back to the preferences file.
+/// value back to the settings file.
 pub struct EditorSettings {
     show_table_headers: bool,
     status_bar_settings: StatusBarSettings,
@@ -151,22 +142,23 @@ impl Global for EditorSettings {}
 
 impl EditorSettings {
     pub fn init(cx: &mut App, show_table_headers: bool) {
-        let status_bar = read_app_preferences()
+        let status_bar = read_app_settings()
             .ok()
             .map(|p| p.status_bar)
             .unwrap_or_default();
         Self::set_global(cx, show_table_headers, &status_bar);
     }
 
-    fn set_global(cx: &mut App, show_table_headers: bool, status_bar: &StatusBarPreferences) {
+    fn set_global(cx: &mut App, show_table_headers: bool, status_bar: &StatusBarSettings) {
         cx.set_global(Self {
             show_table_headers,
             status_bar_settings: StatusBarSettings {
-                status_bar_enabled: status_bar.enabled,
-                status_bar_show_word_count: status_bar.show_word_count,
-                status_bar_show_cursor_position: status_bar.show_cursor_position,
-                status_bar_show_sidebar_toggle: status_bar.show_sidebar_toggle,
-                status_bar_show_mode_switch: status_bar.show_mode_switch,
+                enabled: status_bar.enabled,
+                show_word_count: status_bar.show_word_count,
+                show_cursor_position: status_bar.show_cursor_position,
+                show_sidebar_toggle: status_bar.show_sidebar_toggle,
+                show_mode_switch: status_bar.show_mode_switch,
+                custom_buttons: Vec::new(),
             },
         });
     }
@@ -182,35 +174,35 @@ impl EditorSettings {
     pub fn set_show_table_headers(cx: &mut App, show_table_headers: bool) {
         let status_bar = cx
             .try_global::<Self>()
-            .map(|s| StatusBarPreferences {
-                enabled: s.status_bar_settings.status_bar_enabled,
-                show_word_count: s.status_bar_settings.status_bar_show_word_count,
-                show_cursor_position: s.status_bar_settings.status_bar_show_cursor_position,
-                show_sidebar_toggle: s.status_bar_settings.status_bar_show_sidebar_toggle,
-                show_mode_switch: s.status_bar_settings.status_bar_show_mode_switch,
+            .map(|s| StatusBarSettings {
+                enabled: s.status_bar_settings.enabled,
+                show_word_count: s.status_bar_settings.show_word_count,
+                show_cursor_position: s.status_bar_settings.show_cursor_position,
+                show_sidebar_toggle: s.status_bar_settings.show_sidebar_toggle,
+                show_mode_switch: s.status_bar_settings.show_mode_switch,
                 custom_buttons: Vec::new(),
             })
             .unwrap_or_default();
         Self::set_global(cx, show_table_headers, &status_bar);
-        match read_app_preferences() {
-            Ok(mut preferences) => {
-                preferences.show_table_headers = show_table_headers;
-                if let Err(err) = save_app_preferences(&preferences) {
-                    eprintln!("failed to save table header preference: {err}");
+        match read_app_settings() {
+            Ok(mut settings) => {
+                settings.show_table_headers = show_table_headers;
+                if let Err(err) = save_app_settings(&settings) {
+                    eprintln!("failed to save table header setting: {err}");
                 }
             }
-            Err(err) => eprintln!("failed to read table header preference: {err}"),
+            Err(err) => eprintln!("failed to read table header setting: {err}"),
         }
     }
 
-    pub fn status_bar_preferences(cx: &App) -> StatusBarPreferences {
+    pub fn status_bar_settings(cx: &App) -> StatusBarSettings {
         cx.try_global::<Self>()
-            .map(|s| StatusBarPreferences {
-                enabled: s.status_bar_settings.status_bar_enabled,
-                show_word_count: s.status_bar_settings.status_bar_show_word_count,
-                show_cursor_position: s.status_bar_settings.status_bar_show_cursor_position,
-                show_sidebar_toggle: s.status_bar_settings.status_bar_show_sidebar_toggle,
-                show_mode_switch: s.status_bar_settings.status_bar_show_mode_switch,
+            .map(|s| StatusBarSettings {
+                enabled: s.status_bar_settings.enabled,
+                show_word_count: s.status_bar_settings.show_word_count,
+                show_cursor_position: s.status_bar_settings.show_cursor_position,
+                show_sidebar_toggle: s.status_bar_settings.show_sidebar_toggle,
+                show_mode_switch: s.status_bar_settings.show_mode_switch,
                 custom_buttons: Vec::new(),
             })
             .unwrap_or_default()
@@ -218,38 +210,38 @@ impl EditorSettings {
 }
 
 #[derive(Serialize)]
-struct PreferencesFile {
-    startup: StartupPreferencesFile,
-    language: LanguagePreferencesFile,
-    theme: ThemePreferencesFile,
-    editor: EditorPreferencesFile,
-    status_bar: StatusBarPreferencesFile,
+struct SettingsFile {
+    startup: StartupSettingsFile,
+    language: LanguageSettingsFile,
+    theme: ThemeSettingsFile,
+    editor: EditorSettingsFile,
+    status_bar: StatusBarSettingsFile,
     keybindings: BTreeMap<String, Vec<String>>,
 }
 
 #[derive(Serialize)]
-struct StartupPreferencesFile {
+struct StartupSettingsFile {
     open: String,
 }
 
 #[derive(Serialize)]
-struct EditorPreferencesFile {
+struct EditorSettingsFile {
     show_table_headers: bool,
     image_paste_behavior: String,
 }
 
 #[derive(Serialize)]
-struct LanguagePreferencesFile {
+struct LanguageSettingsFile {
     default_language_id: String,
 }
 
 #[derive(Serialize)]
-struct ThemePreferencesFile {
+struct ThemeSettingsFile {
     default_theme_id: String,
 }
 
 #[derive(Serialize)]
-struct StatusBarPreferencesFile {
+struct StatusBarSettingsFile {
     enabled: bool,
     show_word_count: bool,
     show_cursor_position: bool,
@@ -259,8 +251,8 @@ struct StatusBarPreferencesFile {
     custom_buttons: Vec<StatusBarButton>,
 }
 
-impl From<&StatusBarPreferences> for StatusBarPreferencesFile {
-    fn from(value: &StatusBarPreferences) -> Self {
+impl From<&StatusBarSettings> for StatusBarSettingsFile {
+    fn from(value: &StatusBarSettings) -> Self {
         Self {
             enabled: value.enabled,
             show_word_count: value.show_word_count,
@@ -272,67 +264,67 @@ impl From<&StatusBarPreferences> for StatusBarPreferencesFile {
     }
 }
 
-impl From<&AppPreferences> for PreferencesFile {
-    fn from(value: &AppPreferences) -> Self {
+impl From<&AppSettings> for SettingsFile {
+    fn from(value: &AppSettings) -> Self {
         Self {
-            startup: StartupPreferencesFile {
+            startup: StartupSettingsFile {
                 open: value.startup_open.as_str().into(),
             },
-            language: LanguagePreferencesFile {
+            language: LanguageSettingsFile {
                 default_language_id: value.default_language_id.clone(),
             },
-            theme: ThemePreferencesFile {
+            theme: ThemeSettingsFile {
                 default_theme_id: value.default_theme_id.clone(),
             },
-            editor: EditorPreferencesFile {
+            editor: EditorSettingsFile {
                 show_table_headers: value.show_table_headers,
                 image_paste_behavior: value.image_paste_behavior.as_str().into(),
             },
-            status_bar: StatusBarPreferencesFile::from(&value.status_bar),
+            status_bar: StatusBarSettingsFile::from(&value.status_bar),
             keybindings: normalize_shortcut_config(&value.keybindings),
         }
     }
 }
 
-pub(crate) fn read_app_preferences() -> anyhow::Result<AppPreferences> {
-    read_app_preferences_with_dirs(&VelotypeConfigDirs::from_system()?)
+pub(crate) fn read_app_settings() -> anyhow::Result<AppSettings> {
+    read_app_settings_with_dirs(&VelotypeConfigDirs::from_system()?)
 }
 
-pub(crate) fn read_app_preferences_with_dirs(
+pub(crate) fn read_app_settings_with_dirs(
     dirs: &VelotypeConfigDirs,
-) -> anyhow::Result<AppPreferences> {
+) -> anyhow::Result<AppSettings> {
     let path = dirs.app_config_file();
     let text = match std::fs::read_to_string(&path) {
         Ok(text) => text,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(AppPreferences::default());
+            return Ok(AppSettings::default());
         }
         Err(err) => {
             return Err(err).with_context(|| format!("failed to read '{}'", path.display()));
         }
     };
     let Ok(value) = toml::from_str::<toml::Value>(&text) else {
-        return Ok(AppPreferences::default());
+        return Ok(AppSettings::default());
     };
 
-    Ok(app_preferences_from_toml_value(&value, DEFAULT_LANGUAGE_ID))
+    Ok(app_settings_from_toml_value(&value, DEFAULT_LANGUAGE_ID))
 }
 
-pub(crate) fn load_or_create_app_preferences() -> anyhow::Result<AppPreferences> {
+pub(crate) fn load_or_create_app_settings() -> anyhow::Result<AppSettings> {
     let dirs = VelotypeConfigDirs::from_system()?;
-    load_or_create_app_preferences_with_dirs_and_locales(&dirs, sys_locale::get_locales())
+    load_or_create_app_settings_with_dirs_and_locales(&dirs, sys_locale::get_locales())
 }
 
-fn app_preferences_from_toml_value(
+fn app_settings_from_toml_value(
     value: &toml::Value,
     fallback_language_id: &str,
-) -> AppPreferences {
+) -> AppSettings {
     let startup_open = value
         .get("startup")
         .and_then(|startup| startup.get("open"))
         .and_then(|open| open.as_str())
-        .map(StartupOpenPreference::from_str)
-        .unwrap_or(StartupOpenPreference::NewFile);
+        .map(StartupOpenSetting::from_str)
+        .unwrap_or(StartupOpenSetting::NewFile);
     let default_language_id = value
         .get("language")
         .and_then(|language| language.get("default_language_id"))
@@ -421,7 +413,7 @@ fn app_preferences_from_toml_value(
                         .collect()
                 })
                 .unwrap_or_default();
-            StatusBarPreferences {
+            StatusBarSettings {
                 enabled,
                 show_word_count,
                 show_cursor_position,
@@ -432,7 +424,7 @@ fn app_preferences_from_toml_value(
         })
         .unwrap_or_default();
 
-    AppPreferences {
+    AppSettings {
         startup_open,
         default_language_id,
         default_theme_id,
@@ -448,44 +440,44 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
-    language_id_for_locale_preferences(locales)
+    language_id_for_locale_settings(locales)
 }
 
-fn load_or_create_app_preferences_with_dirs_and_locales<I, S>(
+fn load_or_create_app_settings_with_dirs_and_locales<I, S>(
     dirs: &VelotypeConfigDirs,
     locales: I,
-) -> anyhow::Result<AppPreferences>
+) -> anyhow::Result<AppSettings>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
     let detected_language_id = detected_language_id_from_locales(locales);
     let path = dirs.app_config_file();
-    let preferences = match std::fs::read_to_string(&path) {
+    let settings = match std::fs::read_to_string(&path) {
         Ok(text) => toml::from_str::<toml::Value>(&text)
-            .map(|value| app_preferences_from_toml_value(&value, detected_language_id))
-            .unwrap_or_else(|_| AppPreferences {
+            .map(|value| app_settings_from_toml_value(&value, detected_language_id))
+            .unwrap_or_else(|_| AppSettings {
                 default_language_id: detected_language_id.into(),
-                ..AppPreferences::default()
+                ..AppSettings::default()
             }),
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => AppPreferences {
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => AppSettings {
             default_language_id: detected_language_id.into(),
-            ..AppPreferences::default()
+            ..AppSettings::default()
         },
         Err(err) => {
             return Err(err).with_context(|| format!("failed to read '{}'", path.display()));
         }
     };
-    save_app_preferences_with_dirs(&preferences, dirs)?;
-    Ok(preferences)
+    save_app_settings_with_dirs(&settings, dirs)?;
+    Ok(settings)
 }
 
-pub(crate) fn save_app_preferences(preferences: &AppPreferences) -> anyhow::Result<()> {
-    save_app_preferences_with_dirs(preferences, &VelotypeConfigDirs::from_system()?)
+pub(crate) fn save_app_settings(settings: &AppSettings) -> anyhow::Result<()> {
+    save_app_settings_with_dirs(settings, &VelotypeConfigDirs::from_system()?)
 }
 
-pub(crate) fn save_app_preferences_with_dirs(
-    preferences: &AppPreferences,
+pub(crate) fn save_app_settings_with_dirs(
+    settings: &AppSettings,
     dirs: &VelotypeConfigDirs,
 ) -> anyhow::Result<()> {
     let path = dirs.app_config_file();
@@ -493,7 +485,7 @@ pub(crate) fn save_app_preferences_with_dirs(
         std::fs::create_dir_all(parent)
             .with_context(|| format!("failed to create '{}'", parent.display()))?;
     }
-    let text = toml::to_string_pretty(&PreferencesFile::from(preferences))?;
+    let text = toml::to_string_pretty(&SettingsFile::from(settings))?;
     std::fs::write(&path, text).with_context(|| format!("failed to write '{}'", path.display()))
 }
 
@@ -512,8 +504,8 @@ pub(crate) fn apply_configured_language(cx: &mut App, language_id: &str) -> anyh
     if !applied {
         return Ok(false);
     }
-    update_app_preferences(|preferences| {
-        preferences.default_language_id = language_id.into();
+    update_app_settings(|settings| {
+        settings.default_language_id = language_id.into();
     })?;
     Ok(changed)
 }
@@ -528,8 +520,8 @@ pub(crate) fn apply_configured_theme(cx: &mut App, theme_id: &str) -> anyhow::Re
     if !applied {
         return Ok(false);
     }
-    update_app_preferences(|preferences| {
-        preferences.default_theme_id = theme_id.into();
+    update_app_settings(|settings| {
+        settings.default_theme_id = theme_id.into();
     })?;
     Ok(changed)
 }
@@ -541,8 +533,8 @@ pub(crate) fn import_language_config_and_select(
     let imported_id = cx.update_global::<I18nManager, _>(|i18n_manager, _cx| {
         i18n_manager.import_language_config(path)
     })?;
-    update_app_preferences(|preferences| {
-        preferences.default_language_id = imported_id.clone();
+    update_app_settings(|settings| {
+        settings.default_language_id = imported_id.clone();
     })?;
     Ok(imported_id)
 }
@@ -554,21 +546,21 @@ pub(crate) fn import_theme_config_and_select(
     let imported_id = cx.update_global::<ThemeManager, _>(|theme_manager, _cx| {
         theme_manager.import_theme_config(path)
     })?;
-    update_app_preferences(|preferences| {
-        preferences.default_theme_id = imported_id.clone();
+    update_app_settings(|settings| {
+        settings.default_theme_id = imported_id.clone();
     })?;
     Ok(imported_id)
 }
 
-pub(crate) fn save_preferences_from_window(
-    startup_open: StartupOpenPreference,
+pub(crate) fn save_settings_from_window(
+    startup_open: StartupOpenSetting,
     default_theme_id: &str,
     image_paste_behavior: ImagePasteBehavior,
     keybindings: BTreeMap<String, Vec<String>>,
-    status_bar: &StatusBarPreferences,
-) -> anyhow::Result<AppPreferences> {
+    status_bar: &StatusBarSettings,
+) -> anyhow::Result<AppSettings> {
     let dirs = VelotypeConfigDirs::from_system()?;
-    save_preferences_from_window_with_dirs(
+    save_settings_from_window_with_dirs(
         startup_open,
         default_theme_id,
         image_paste_behavior,
@@ -578,49 +570,49 @@ pub(crate) fn save_preferences_from_window(
     )
 }
 
-fn save_preferences_from_window_with_dirs(
-    startup_open: StartupOpenPreference,
+fn save_settings_from_window_with_dirs(
+    startup_open: StartupOpenSetting,
     default_theme_id: &str,
     image_paste_behavior: ImagePasteBehavior,
     keybindings: BTreeMap<String, Vec<String>>,
-    status_bar: &StatusBarPreferences,
+    status_bar: &StatusBarSettings,
     dirs: &VelotypeConfigDirs,
-) -> anyhow::Result<AppPreferences> {
-    let mut preferences =
-        load_or_create_app_preferences_with_dirs_and_locales(dirs, sys_locale::get_locales())?;
-    preferences.startup_open = startup_open;
-    preferences.default_theme_id = default_theme_id.into();
-    preferences.image_paste_behavior = image_paste_behavior;
-    preferences.keybindings = normalize_shortcut_config(&keybindings);
-    preferences.status_bar = status_bar.clone();
-    save_app_preferences_with_dirs(&preferences, dirs)?;
-    Ok(preferences)
+) -> anyhow::Result<AppSettings> {
+    let mut settings =
+        load_or_create_app_settings_with_dirs_and_locales(dirs, sys_locale::get_locales())?;
+    settings.startup_open = startup_open;
+    settings.default_theme_id = default_theme_id.into();
+    settings.image_paste_behavior = image_paste_behavior;
+    settings.keybindings = normalize_shortcut_config(&keybindings);
+    settings.status_bar = status_bar.clone();
+    save_app_settings_with_dirs(&settings, dirs)?;
+    Ok(settings)
 }
 
-fn update_app_preferences(
-    update: impl FnOnce(&mut AppPreferences),
-) -> anyhow::Result<AppPreferences> {
-    let mut preferences = load_or_create_app_preferences()?;
-    update(&mut preferences);
-    save_app_preferences(&preferences)?;
-    Ok(preferences)
+fn update_app_settings(
+    update: impl FnOnce(&mut AppSettings),
+) -> anyhow::Result<AppSettings> {
+    let mut settings = load_or_create_app_settings()?;
+    update(&mut settings);
+    save_app_settings(&settings)?;
+    Ok(settings)
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum PreferencesNav {
+enum SettingsNav {
     Interface,
     Editing,
     Keymap,
 }
 
-/// Independent preferences window view.
-pub(crate) struct PreferencesWindow {
-    nav: PreferencesNav,
-    startup_open: StartupOpenPreference,
+/// Independent settings window view.
+pub(crate) struct SettingsWindow {
+    nav: SettingsNav,
+    startup_open: StartupOpenSetting,
     selected_theme_id: String,
     image_paste_behavior: ImagePasteBehavior,
     keybindings: BTreeMap<String, Vec<String>>,
-    saved_startup_open: StartupOpenPreference,
+    saved_startup_open: StartupOpenSetting,
     saved_theme_id: String,
     saved_image_paste_behavior: ImagePasteBehavior,
     saved_keybindings: BTreeMap<String, Vec<String>>,
@@ -646,23 +638,23 @@ pub(crate) struct PreferencesWindow {
     expanded_sections: std::collections::HashSet<String>,
 }
 
-impl PreferencesWindow {
+impl SettingsWindow {
     fn new(
-        preferences: AppPreferences,
+        settings: AppSettings,
         theme_options: Vec<ThemeCatalogEntry>,
         cx: &mut Context<Self>,
     ) -> Self {
         let selected_theme_id = if theme_options
             .iter()
-            .any(|entry| entry.id == preferences.default_theme_id)
+            .any(|entry| entry.id == settings.default_theme_id)
         {
-            preferences.default_theme_id
+            settings.default_theme_id
         } else {
             DEFAULT_THEME_ID.into()
         };
-        let startup_open = preferences.startup_open;
-        let image_paste_behavior = preferences.image_paste_behavior;
-        let keybindings = preferences.keybindings;
+        let startup_open = settings.startup_open;
+        let image_paste_behavior = settings.image_paste_behavior;
+        let keybindings = settings.keybindings;
 
         let mut expanded_sections = std::collections::HashSet::new();
         expanded_sections.insert("theme".to_string());
@@ -671,7 +663,7 @@ impl PreferencesWindow {
         expanded_sections.insert("keymap".to_string());
 
         Self {
-            nav: PreferencesNav::Interface,
+            nav: SettingsNav::Interface,
             startup_open,
             selected_theme_id: selected_theme_id.clone(),
             image_paste_behavior,
@@ -687,16 +679,16 @@ impl PreferencesWindow {
             image_dropdown_open: false,
             recording_shortcut: None,
             shortcut_error: None,
-            status_bar_enabled: preferences.status_bar.enabled,
-            status_bar_show_word_count: preferences.status_bar.show_word_count,
-            status_bar_show_cursor_position: preferences.status_bar.show_cursor_position,
-            status_bar_show_sidebar_toggle: preferences.status_bar.show_sidebar_toggle,
-            status_bar_show_mode_switch: preferences.status_bar.show_mode_switch,
-            saved_status_bar_enabled: preferences.status_bar.enabled,
-            saved_status_bar_show_word_count: preferences.status_bar.show_word_count,
-            saved_status_bar_show_cursor_position: preferences.status_bar.show_cursor_position,
-            saved_status_bar_show_sidebar_toggle: preferences.status_bar.show_sidebar_toggle,
-            saved_status_bar_show_mode_switch: preferences.status_bar.show_mode_switch,
+            status_bar_enabled: settings.status_bar.enabled,
+            status_bar_show_word_count: settings.status_bar.show_word_count,
+            status_bar_show_cursor_position: settings.status_bar.show_cursor_position,
+            status_bar_show_sidebar_toggle: settings.status_bar.show_sidebar_toggle,
+            status_bar_show_mode_switch: settings.status_bar.show_mode_switch,
+            saved_status_bar_enabled: settings.status_bar.enabled,
+            saved_status_bar_show_word_count: settings.status_bar.show_word_count,
+            saved_status_bar_show_cursor_position: settings.status_bar.show_cursor_position,
+            saved_status_bar_show_sidebar_toggle: settings.status_bar.show_sidebar_toggle,
+            saved_status_bar_show_mode_switch: settings.status_bar.show_mode_switch,
             expanded_sections,
         }
     }
@@ -743,12 +735,12 @@ impl PreferencesWindow {
             return;
         }
 
-        let preferences = match save_preferences_from_window(
+        let settings = match save_settings_from_window(
             self.startup_open,
             &self.selected_theme_id,
             self.image_paste_behavior,
             self.keybindings.clone(),
-            &StatusBarPreferences {
+            &StatusBarSettings {
                 enabled: self.status_bar_enabled,
                 show_word_count: self.status_bar_show_word_count,
                 show_cursor_position: self.status_bar_show_cursor_position,
@@ -757,14 +749,14 @@ impl PreferencesWindow {
                 custom_buttons: Vec::new(),
             },
         ) {
-            Ok(preferences) => preferences,
+            Ok(settings) => settings,
             Err(err) => {
                 let strings = cx.global::<I18nManager>().strings().clone();
                 let ok = strings.info_dialog_ok;
                 let buttons = [ok.as_str()];
                 let _ = window.prompt(
                     PromptLevel::Critical,
-                    &strings.preferences_save_failed_title,
+                    &strings.settings_save_failed_title,
                     Some(&err.to_string()),
                     &buttons,
                     cx,
@@ -773,17 +765,17 @@ impl PreferencesWindow {
             }
         };
 
-        self.apply_saved_preferences(preferences, window, cx);
+        self.apply_saved_settings(settings, window, cx);
     }
 
-    fn apply_saved_preferences(
+    fn apply_saved_settings(
         &mut self,
-        preferences: AppPreferences,
+        settings: AppSettings,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let theme_changed = cx.update_global::<ThemeManager, _>(|theme_manager, _cx| {
-            theme_manager.set_theme_by_id(&preferences.default_theme_id)
+            theme_manager.set_theme_by_id(&settings.default_theme_id)
         });
         if !theme_changed {
             let _ = cx.update_global::<ThemeManager, _>(|theme_manager, _cx| {
@@ -791,36 +783,43 @@ impl PreferencesWindow {
             });
         }
         cx.clear_key_bindings();
-        install_keybindings(cx, &preferences.keybindings);
+        install_keybindings(cx, &settings.keybindings);
         crate::app_menu::install_menus(cx);
-        cx.update_global::<EditorSettings, _>(|settings, _cx| {
-            settings.status_bar_settings.status_bar_enabled = preferences.status_bar.enabled;
-            settings.status_bar_settings.status_bar_show_word_count =
-                preferences.status_bar.show_word_count;
-            settings.status_bar_settings.status_bar_show_cursor_position =
-                preferences.status_bar.show_cursor_position;
-            settings.status_bar_settings.status_bar_show_sidebar_toggle =
-                preferences.status_bar.show_sidebar_toggle;
-            settings.status_bar_settings.status_bar_show_mode_switch =
-                preferences.status_bar.show_mode_switch;
+        cx.update_global::<EditorSettings, _>(|ed_settings, _cx| {
+            ed_settings.status_bar_settings.enabled = settings.status_bar.enabled;
+            ed_settings.status_bar_settings.show_word_count =
+                settings.status_bar.show_word_count;
+            ed_settings.status_bar_settings.show_cursor_position =
+                settings.status_bar.show_cursor_position;
+            ed_settings.status_bar_settings.show_sidebar_toggle =
+                settings.status_bar.show_sidebar_toggle;
+            ed_settings.status_bar_settings.show_mode_switch =
+                settings.status_bar.show_mode_switch;
         });
+
+        let _strings = cx.global::<I18nManager>().strings().clone();
+        let _ = apply_configured_language(cx, &settings.default_language_id);
+
+        self.saved_startup_open = settings.startup_open;
+        self.saved_theme_id = settings.default_theme_id.clone();
+        self.saved_image_paste_behavior = settings.image_paste_behavior;
+        self.saved_keybindings = settings.keybindings;
+        self.saved_status_bar_enabled = settings.status_bar.enabled;
+        self.saved_status_bar_show_word_count = settings.status_bar.show_word_count;
+        self.saved_status_bar_show_cursor_position = settings.status_bar.show_cursor_position;
+        self.saved_status_bar_show_sidebar_toggle = settings.status_bar.show_sidebar_toggle;
+        self.saved_status_bar_show_mode_switch = settings.status_bar.show_mode_switch;
+
+        self.selected_theme_id = settings.default_theme_id;
+        self.startup_open = settings.startup_open;
+        self.image_paste_behavior = settings.image_paste_behavior;
+
+        window.refresh();
         cx.refresh_windows();
-        window.activate_window();
-        self.focus_handle.focus(window);
-        self.saved_startup_open = self.startup_open;
-        self.saved_theme_id = self.selected_theme_id.clone();
-        self.saved_image_paste_behavior = self.image_paste_behavior;
-        self.saved_keybindings = normalize_shortcut_config(&self.keybindings);
-        self.saved_status_bar_enabled = self.status_bar_enabled;
-        self.saved_status_bar_show_word_count = self.status_bar_show_word_count;
-        self.saved_status_bar_show_cursor_position = self.status_bar_show_cursor_position;
-        self.saved_status_bar_show_sidebar_toggle = self.status_bar_show_sidebar_toggle;
-        self.saved_status_bar_show_mode_switch = self.status_bar_show_mode_switch;
-        cx.notify();
     }
 }
 
-impl Render for PreferencesWindow {
+impl Render for SettingsWindow {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.global::<ThemeManager>().current().clone();
         let strings = cx.global::<I18nManager>().strings().clone();
@@ -829,7 +828,7 @@ impl Render for PreferencesWindow {
         let _t = &theme.typography;
         let _can_save = self.has_unsaved_changes();
         let window_title =
-            SharedString::from(format!("Velotype - {}", strings.preferences_window_title));
+            SharedString::from(strings.settings_window_title.clone());
         window.set_window_title(window_title.as_ref());
         let titlebar_height = custom_titlebar_height(window, d);
 
@@ -842,52 +841,64 @@ impl Render for PreferencesWindow {
                 .px(px(14.0))
                 .py(px(8.0))
                 .rounded(px(d.menu_item_radius))
-                .bg(if is_selected { c.dialog_secondary_button_hover } else { c.editor_background })
+                .bg(if is_selected {
+                    c.dialog_secondary_button_hover
+                } else {
+                    c.dialog_surface
+                })
                 .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                .text_size(px(13.0))
-                .font_weight(if is_selected { gpui::FontWeight::BOLD } else { gpui::FontWeight::MEDIUM })
-                .text_color(if is_selected { c.text_default } else { c.dialog_muted })
+                .active(|this| this.opacity(0.92))
+                .text_size(px(d.menu_text_size))
+                .font_weight(if is_selected {
+                    gpui::FontWeight::BOLD
+                } else {
+                    gpui::FontWeight::NORMAL
+                })
+                .text_color(if is_selected {
+                    c.dialog_title
+                } else {
+                    c.dialog_body
+                })
                 .child(label)
                 .into_any_element()
         };
 
-        let win_ed1 = cx.entity().downgrade();
-        let nav_interface = div().id("win-nav-wrap-1").w_full().child(nav_item("nav-interface", "Interface", self.nav == PreferencesNav::Interface)).on_click({
-            let win_ed = win_ed1.clone();
+        let nav_interface = div().id("win-nav-wrap-1").w_full().child(nav_item("nav-interface", "Interface", self.nav == SettingsNav::Interface)).on_click({
+            let ed = cx.entity().downgrade();
             move |_ev, _win, cx| {
-                let _ = win_ed.update(cx, |this, cx| {
-                    this.nav = PreferencesNav::Interface;
+                let _ = ed.update(cx, |this, cx| {
+                    this.nav = SettingsNav::Interface;
                     cx.notify();
                 });
             }
         });
 
-        let win_ed2 = cx.entity().downgrade();
-        let nav_editing = div().id("win-nav-wrap-2").w_full().child(nav_item("nav-editing", "Editing", self.nav == PreferencesNav::Editing)).on_click({
-            let win_ed = win_ed2.clone();
+        let nav_editing = div().id("win-nav-wrap-2").w_full().child(nav_item("nav-editing", "Editing", self.nav == SettingsNav::Editing)).on_click({
+            let ed = cx.entity().downgrade();
             move |_ev, _win, cx| {
-                let _ = win_ed.update(cx, |this, cx| {
-                    this.nav = PreferencesNav::Editing;
+                let _ = ed.update(cx, |this, cx| {
+                    this.nav = SettingsNav::Editing;
                     cx.notify();
                 });
             }
         });
 
-        let win_ed3 = cx.entity().downgrade();
-        let nav_keymap = div().id("win-nav-wrap-3").w_full().child(nav_item("nav-keymap", "Keymap", self.nav == PreferencesNav::Keymap)).on_click({
-            let win_ed = win_ed3.clone();
+        let nav_keymap = div().id("win-nav-wrap-3").w_full().child(nav_item("nav-keymap", "Keymap", self.nav == SettingsNav::Keymap)).on_click({
+            let ed = cx.entity().downgrade();
             move |_ev, _win, cx| {
-                let _ = win_ed.update(cx, |this, cx| {
-                    this.nav = PreferencesNav::Keymap;
+                let _ = ed.update(cx, |this, cx| {
+                    this.nav = SettingsNav::Keymap;
                     cx.notify();
                 });
             }
         });
 
         let left_nav = div()
-            .w(px(160.0))
+            .id("win-pref-left-nav")
+            .w(px(180.0))
             .h_full()
-            .p(px(12.0))
+            .flex_shrink_0()
+            .p(px(14.0))
             .border_r_1()
             .border_color(c.dialog_border)
             .flex()
@@ -897,16 +908,14 @@ impl Render for PreferencesWindow {
             .child(nav_editing)
             .child(nav_keymap);
 
-        let inner_border_color = c.dialog_border;
-        let make_row = |title: &'static str, desc: &'static str, ctrl: AnyElement| -> AnyElement {
+        // Helper closures for Sections and Rows
+        let make_row = |title: &'static str, desc: &'static str, control: AnyElement| -> AnyElement {
             div()
                 .w_full()
-                .h(px(56.0))
-                .px(px(14.0))
-                .py(px(8.0))
+                .p(px(12.0))
                 .rounded(px(d.menu_item_radius))
                 .border_1()
-                .border_color(inner_border_color)
+                .border_color(c.dialog_border)
                 .flex()
                 .items_center()
                 .justify_between()
@@ -917,7 +926,7 @@ impl Render for PreferencesWindow {
                         .gap(px(2.0))
                         .child(
                             div()
-                                .text_size(px(12.5))
+                                .text_size(px(13.0))
                                 .font_weight(gpui::FontWeight::MEDIUM)
                                 .text_color(c.text_default)
                                 .child(title),
@@ -929,27 +938,30 @@ impl Render for PreferencesWindow {
                                 .child(desc),
                         ),
                 )
-                .child(ctrl)
+                .child(control)
                 .into_any_element()
         };
 
-        let make_section = |sec_id: &'static str, sec_key: &'static str, title: &'static str, items: Vec<AnyElement>| -> AnyElement {
-            let is_expanded = self.expanded_sections.contains(sec_key);
-            let sec_key_str = sec_key.to_string();
-            let toggle_ed = cx.entity().downgrade();
+        let is_section_expanded = |key: &str| self.expanded_sections.contains(key);
+        let toggle_section_ed = cx.entity().downgrade();
+
+        let make_section = move |id: &'static str,
+                                key: &'static str,
+                                title: &'static str,
+                                items: Vec<AnyElement>|
+              -> AnyElement {
+            let expanded = is_section_expanded(key);
+            let toggle_ed = toggle_section_ed.clone();
 
             let header = div()
-                .id(sec_id)
-                .w_full()
-                .px(px(14.0))
-                .py(px(10.0))
+                .id(ElementId::Name(format!("{}-header", id).into()))
                 .cursor_pointer()
                 .flex()
                 .items_center()
                 .gap(px(8.0))
                 .child(
                     svg()
-                        .path(if is_expanded {
+                        .path(if expanded {
                             "icon/panel/chevron-down.svg"
                         } else {
                             "icon/panel/chevron-right.svg"
@@ -959,70 +971,52 @@ impl Render for PreferencesWindow {
                 )
                 .child(
                     div()
-                        .text_size(px(13.0))
+                        .text_size(px(14.0))
                         .font_weight(gpui::FontWeight::BOLD)
                         .text_color(c.text_default)
                         .child(title),
                 )
                 .on_click(move |_ev, _win, cx| {
-                    let key = sec_key_str.clone();
                     let _ = toggle_ed.update(cx, |this, cx| {
-                        if this.expanded_sections.contains(&key) {
-                            this.expanded_sections.remove(&key);
+                        if this.expanded_sections.contains(key) {
+                            this.expanded_sections.remove(key);
                         } else {
-                            this.expanded_sections.insert(key);
+                            this.expanded_sections.insert(key.to_string());
                         }
                         cx.notify();
                     });
                 });
 
             let mut card = div()
-                .relative()
+                .id(id)
                 .w_full()
-                .rounded(px(d.menu_panel_radius))
-                .bg(c.dialog_surface)
+                .flex_1()
+                .min_w(px(0.0))
+                .p(px(14.0))
+                .rounded(px(d.dialog_radius))
                 .border_1()
                 .border_color(c.dialog_border)
+                .bg(c.dialog_surface)
                 .flex()
                 .flex_col()
+                .gap(px(10.0))
                 .child(header);
 
-            if is_expanded && !items.is_empty() {
-                let body = div()
-                    .w_full()
-                    .px(px(10.0))
-                    .pb(px(10.0))
-                    .pt(px(2.0))
-                    .flex()
-                    .flex_col()
-                    .gap(px(8.0))
-                    .children(items);
-
-                card = card.child(body);
+            if expanded {
+                card = card.children(items);
             }
 
             card.into_any_element()
         };
 
-        let mut sections = Vec::new();
+        let mut sections: Vec<AnyElement> = Vec::new();
         let mut active_panel_overlay: Option<AnyElement> = None;
 
         match self.nav {
-            PreferencesNav::Interface => {
-                // Section 1: Visual Theme & Language
+            SettingsNav::Interface => {
+                // Section 1: Theme & Language Options
                 let mut sec1_items = Vec::new();
-                let selected_theme_name = self.selected_theme_name();
-                let theme_display_label: String = match selected_theme_name.as_str() {
-                    "Velotype" | "Dark" => "Dark".to_string(),
-                    "Velotype Light" | "Light" => "Light".to_string(),
-                    other => other.to_string(),
-                };
-                let theme_icon_path = if theme_display_label == "Light" {
-                    "icon/panel/sun.svg"
-                } else {
-                    "icon/panel/moon.svg"
-                };
-
+                let selected_theme_label = self.selected_theme_name();
                 let theme_btn_ed = cx.entity().downgrade();
                 let ctrl_theme_btn = div()
                     .id("pref-btn-win-theme")
@@ -1047,11 +1041,15 @@ impl Render for PreferencesWindow {
                             .gap(px(6.0))
                             .child(
                                 svg()
-                                    .path(theme_icon_path)
+                                    .path(if selected_theme_label == "Light" {
+                                        "icon/panel/sun.svg"
+                                    } else {
+                                        "icon/panel/moon.svg"
+                                    })
                                     .size(px(13.0))
                                     .text_color(c.text_default),
                             )
-                            .child(theme_display_label.clone()),
+                            .child(selected_theme_label),
                     )
                     .child(
                         svg()
@@ -1067,54 +1065,31 @@ impl Render for PreferencesWindow {
                     })
                     .into_any_element();
 
-                sec1_items.push(make_row(
-                    "Interface Theme",
-                    "Customize overall application color scheme and appearance",
-                    ctrl_theme_btn,
-                ));
+                sec1_items.push(make_row("Interface Theme", "Customize overall application color scheme and appearance", ctrl_theme_btn));
 
-                let ctrl_lang_btn = div()
-                    .id("pref-btn-win-lang")
-                    .cursor_pointer()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .w(px(210.0))
+                let cur_lang = cx.global::<I18nManager>().current_language_id();
+                let lang_display = if cur_lang == "zh-CN" { "简体中文 (zh-CN)" } else { "English (en-US)" };
+                let ctrl_lang_label = div()
                     .px(px(12.0))
                     .py(px(5.0))
                     .rounded(px(d.menu_item_radius))
                     .bg(c.dialog_secondary_button_bg)
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
                     .border_1()
                     .border_color(c.dialog_border)
                     .text_size(px(12.0))
                     .text_color(c.text_default)
-                    .child("English (en-US)")
-                    .child(
-                        svg()
-                            .path("icon/panel/select-chevron.svg")
-                            .size(px(14.0))
-                            .text_color(c.dialog_muted),
-                    )
+                    .child(lang_display)
                     .into_any_element();
 
-                sec1_items.push(make_row(
-                    "Display Language",
-                    "Select preferred language for editor UI and dialogs",
-                    ctrl_lang_btn,
-                ));
+                sec1_items.push(make_row("Display Language", "Select preferred language for editor UI and dialogs", ctrl_lang_label));
 
                 sections.push(make_section("win-sec-theme", "theme", "Visual Theme & Language", sec1_items));
 
                 if self.theme_dropdown_open {
                     let mut menu_items = Vec::new();
-                    for t_entry in &self.theme_options {
-                        let t_id = t_entry.id.clone();
-                        let display_label: String = match t_entry.name.as_str() {
-                            "Velotype" | "Dark" => "Dark".to_string(),
-                            "Velotype Light" | "Light" => "Light".to_string(),
-                            other => other.to_string(),
-                        };
+                    for entry in &self.theme_options {
+                        let t_id = entry.id.clone();
+                        let display_label = entry.name.clone();
                         let is_selected = t_id == self.selected_theme_id;
                         let item_ed = cx.entity().downgrade();
                         let item_icon = if display_label == "Light" {
@@ -1234,12 +1209,12 @@ impl Render for PreferencesWindow {
 
                 sections.push(make_section("win-sec-sb", "status_bar", "Status Bar Options", sec2_items));
             }
-            PreferencesNav::Editing => {
+            SettingsNav::Editing => {
                 // Startup and Image Paste
                 let mut sec1_items = Vec::new();
                 let startup_label = match self.startup_open {
-                    StartupOpenPreference::NewFile => "New Blank Document",
-                    StartupOpenPreference::LastOpenedFile => "Open Last Opened File",
+                    StartupOpenSetting::NewFile => "New Blank Document",
+                    StartupOpenSetting::LastOpenedFile => "Open Last Opened File",
                 };
                 let startup_btn_ed = cx.entity().downgrade();
                 let ctrl_startup_btn = div()
@@ -1319,8 +1294,8 @@ impl Render for PreferencesWindow {
 
                 if self.startup_dropdown_open {
                     let startup_opts = [
-                        (StartupOpenPreference::NewFile, "New Blank Document"),
-                        (StartupOpenPreference::LastOpenedFile, "Open Last Opened File"),
+                        (StartupOpenSetting::NewFile, "New Blank Document"),
+                        (StartupOpenSetting::LastOpenedFile, "Open Last Opened File"),
                     ];
                     let mut menu_items = Vec::new();
                     for (pref, label) in startup_opts {
@@ -1448,31 +1423,8 @@ impl Render for PreferencesWindow {
                     );
                 }
             }
-            PreferencesNav::Keymap => {
-                let mut sec1_items = Vec::new();
-                let doc_shortcuts = [
-                    ("Save Document", "Save active file changes to disk", "Ctrl + S"),
-                    ("Save Document As", "Save active document with a new name", "Ctrl + Shift + S"),
-                    ("New Window", "Open a new editor window instance", "Ctrl + N"),
-                    ("Close Window", "Close the currently focused editor window", "Ctrl + W"),
-                    ("Toggle View Mode", "Switch between Edit, Preview, and Dual view layouts", "Ctrl + M"),
-                ];
-
-                for (name, desc, sc) in doc_shortcuts.iter() {
-                    let ctrl_sc = div()
-                        .px(px(8.0))
-                        .py(px(2.0))
-                        .rounded(px(d.menu_item_radius))
-                        .bg(c.dialog_secondary_button_hover)
-                        .text_size(px(11.0))
-                        .font_weight(gpui::FontWeight::BOLD)
-                        .text_color(c.text_default)
-                        .child(*sc)
-                        .into_any_element();
-
-                    sec1_items.push(make_row(*name, *desc, ctrl_sc));
-                }
-
+            SettingsNav::Keymap => {
+                let sec1_items = Vec::new();
                 sections.push(make_section("win-sec-keymap", "keymap", "Document & Keymap Shortcuts", sec1_items));
             }
         }
@@ -1508,7 +1460,7 @@ impl Render for PreferencesWindow {
             .pt(px(titlebar_height))
             .flex()
             .flex_col()
-            .key_context("Preferences")
+            .key_context("Settings")
             .track_focus(&self.focus_handle)
             .bg(c.editor_background)
             .text_color(c.dialog_body)
@@ -1521,7 +1473,7 @@ impl Render for PreferencesWindow {
             .child(content);
 
         if let Some(titlebar) = render_custom_titlebar(
-            "preferences-titlebar",
+            "win-pref-titlebar",
             window_title,
             None,
             &theme,
@@ -1536,395 +1488,59 @@ impl Render for PreferencesWindow {
     }
 }
 
-fn open_preferences_window_with_state(
+fn open_settings_window_with_state(
     cx: &mut App,
-    preferences: AppPreferences,
+    settings: AppSettings,
     theme_options: Vec<ThemeCatalogEntry>,
     title: String,
-) -> WindowHandle<PreferencesWindow> {
+) -> WindowHandle<SettingsWindow> {
     let bounds = Bounds::centered(None, size(px(720.0), px(480.0)), cx);
-    let window_title = SharedString::from(format!("Velotype - {title}"));
+    let window_title = SharedString::from(title);
     let handle = cx
         .open_window(
             velotype_window_options(window_title, bounds),
             move |_window, cx| {
-                cx.new(move |cx| PreferencesWindow::new(preferences, theme_options, cx))
+                cx.new(move |cx| SettingsWindow::new(settings, theme_options, cx))
             },
         )
-        .expect("preferences window should open");
+        .expect("settings window should open");
 
     handle
-        .update(cx, |preferences, window, _cx| {
+        .update(cx, |settings_win, window, _cx| {
             window.activate_window();
-            preferences.focus_handle.focus(window);
+            settings_win.focus_handle.focus(window);
         })
-        .expect("newly opened preferences window should be updateable");
+        .expect("newly opened settings window should be updateable");
 
     handle
 }
 
-pub(crate) fn open_preferences_window(cx: &mut App) -> WindowHandle<PreferencesWindow> {
-    let preferences = match read_app_preferences() {
-        Ok(preferences) => preferences,
+pub(crate) fn open_settings_window(cx: &mut App) -> WindowHandle<SettingsWindow> {
+    let settings = match read_app_settings() {
+        Ok(settings) => settings,
         Err(err) => {
-            eprintln!("failed to read app preferences: {err}");
-            AppPreferences::default()
+            eprintln!("failed to read app settings: {err}");
+            AppSettings::default()
         }
     };
     let theme_options = cx.global::<ThemeManager>().available_themes().to_vec();
     let title = cx
         .global::<I18nManager>()
         .strings()
-        .preferences_window_title
+        .settings_window_title
         .clone();
-    open_preferences_window_with_state(cx, preferences, theme_options, title)
+    open_settings_window_with_state(cx, settings, theme_options, title)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        AppPreferences, EditorSettings, ImagePasteBehavior, StartupOpenPreference,
-        StatusBarPreferences, load_or_create_app_preferences_with_dirs_and_locales,
-        open_preferences_window_with_state, read_app_preferences_with_dirs,
-        save_app_preferences_with_dirs, save_preferences_from_window_with_dirs,
-    };
-    use crate::config::VelotypeConfigDirs;
-    use crate::i18n::I18nManager;
-    use crate::theme::{ThemeCatalogEntry, ThemeManager};
-    use gpui::TestAppContext;
-    use std::collections::BTreeMap;
-
-    fn init_preferences_test_app(cx: &mut TestAppContext) {
-        cx.update(|cx| {
-            I18nManager::init_with_language_id(cx, "en-US");
-            ThemeManager::init_with_theme_id(cx, "velotype");
-            crate::components::init(cx);
-            EditorSettings::init(cx, true);
-        });
-    }
-
-    fn default_theme_options() -> Vec<ThemeCatalogEntry> {
-        vec![ThemeCatalogEntry {
-            id: "velotype".into(),
-            name: "Velotype".into(),
-        }]
-    }
+    use super::*;
 
     #[test]
-    fn missing_preferences_file_returns_defaults() {
-        let root = std::env::temp_dir().join(format!(
-            "velotype-preferences-missing-{}",
-            uuid::Uuid::new_v4()
-        ));
-        let dirs = VelotypeConfigDirs::from_root(&root);
-        let preferences =
-            read_app_preferences_with_dirs(&dirs).expect("missing preferences should load");
-        assert_eq!(preferences, AppPreferences::default());
-        let _ = std::fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn partial_or_invalid_preferences_fall_back_by_field() {
-        let root = std::env::temp_dir().join(format!(
-            "velotype-preferences-partial-{}",
-            uuid::Uuid::new_v4()
-        ));
-        std::fs::create_dir_all(&root).expect("temp root should exist");
-        let dirs = VelotypeConfigDirs::from_root(&root);
-        std::fs::write(
-            dirs.app_config_file(),
-            r#"
-                [startup]
-                open = "not-valid"
-
-                [theme]
-                default_theme_id = "velotype-light"
-            "#,
-        )
-        .expect("preferences should be written");
-
-        let preferences =
-            read_app_preferences_with_dirs(&dirs).expect("partial preferences should load");
-        assert_eq!(preferences.startup_open, StartupOpenPreference::NewFile);
-        assert_eq!(preferences.default_language_id, "en-US");
-        assert_eq!(preferences.default_theme_id, "velotype-light");
-        assert_eq!(preferences.image_paste_behavior, ImagePasteBehavior::None);
-        let _ = std::fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn invalid_image_paste_behavior_falls_back_to_none() {
-        let root = std::env::temp_dir().join(format!(
-            "velotype-preferences-image-invalid-{}",
-            uuid::Uuid::new_v4()
-        ));
-        std::fs::create_dir_all(&root).expect("temp root should exist");
-        let dirs = VelotypeConfigDirs::from_root(&root);
-        std::fs::write(
-            dirs.app_config_file(),
-            r#"
-                [editor]
-                image_paste_behavior = "somewhere-dangerous"
-            "#,
-        )
-        .expect("preferences should be written");
-
-        let preferences = read_app_preferences_with_dirs(&dirs).expect("preferences should load");
-        assert_eq!(preferences.image_paste_behavior, ImagePasteBehavior::None);
-        let _ = std::fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn damaged_preferences_file_returns_defaults() {
-        let root = std::env::temp_dir().join(format!(
-            "velotype-preferences-damaged-{}",
-            uuid::Uuid::new_v4()
-        ));
-        std::fs::create_dir_all(&root).expect("temp root should exist");
-        let dirs = VelotypeConfigDirs::from_root(&root);
-        std::fs::write(dirs.app_config_file(), "not = [valid")
-            .expect("preferences should be written");
-
-        let preferences =
-            read_app_preferences_with_dirs(&dirs).expect("damaged preferences should load");
-        assert_eq!(preferences, AppPreferences::default());
-        let _ = std::fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn saves_and_reads_preferences() {
-        let root = std::env::temp_dir().join(format!(
-            "velotype-preferences-save-{}",
-            uuid::Uuid::new_v4()
-        ));
-        let dirs = VelotypeConfigDirs::from_root(&root);
-        let preferences = AppPreferences {
-            startup_open: StartupOpenPreference::LastOpenedFile,
-            default_language_id: "zh-CN".into(),
-            default_theme_id: "velotype-light".into(),
-            show_table_headers: false,
-            image_paste_behavior: ImagePasteBehavior::CopyToAssetsFolder,
-            keybindings: BTreeMap::new(),
-            status_bar: StatusBarPreferences::default(),
-        };
-
-        save_app_preferences_with_dirs(&preferences, &dirs)
-            .expect("preferences should save to config.toml");
-        let loaded = read_app_preferences_with_dirs(&dirs).expect("preferences should read back");
-        assert_eq!(loaded, preferences);
-
-        let text =
-            std::fs::read_to_string(dirs.app_config_file()).expect("config.toml should exist");
-        assert!(text.contains("open = \"last_opened_file\""));
-        assert!(text.contains("default_language_id = \"zh-CN\""));
-        assert!(text.contains("default_theme_id = \"velotype-light\""));
-        assert!(text.contains("show_table_headers = false"));
-        assert!(text.contains("image_paste_behavior = \"copy_to_assets_folder\""));
-        let _ = std::fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn missing_preferences_file_is_created_with_detected_language() {
-        let root = std::env::temp_dir().join(format!(
-            "velotype-preferences-create-{}",
-            uuid::Uuid::new_v4()
-        ));
-        let dirs = VelotypeConfigDirs::from_root(&root);
-        let preferences = load_or_create_app_preferences_with_dirs_and_locales(&dirs, ["zh-HK"])
-            .expect("preferences should be created");
-        assert_eq!(preferences.default_language_id, "zh-CN");
-        assert!(dirs.app_config_file().exists());
-        let text =
-            std::fs::read_to_string(dirs.app_config_file()).expect("config.toml should exist");
-        assert!(text.contains("[language]"));
-        assert!(text.contains("default_language_id = \"zh-CN\""));
-        let _ = std::fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn legacy_preferences_are_normalized_with_language() {
-        let root = std::env::temp_dir().join(format!(
-            "velotype-preferences-legacy-{}",
-            uuid::Uuid::new_v4()
-        ));
-        std::fs::create_dir_all(&root).expect("temp root should exist");
-        let dirs = VelotypeConfigDirs::from_root(&root);
-        std::fs::write(
-            dirs.app_config_file(),
-            r#"
-                [startup]
-                open = "last_opened_file"
-
-                [theme]
-                default_theme_id = "velotype-light"
-            "#,
-        )
-        .expect("legacy preferences should be written");
-
-        let preferences = load_or_create_app_preferences_with_dirs_and_locales(&dirs, ["en-GB"])
-            .expect("legacy preferences should normalize");
-        assert_eq!(
-            preferences.startup_open,
-            StartupOpenPreference::LastOpenedFile
-        );
-        assert_eq!(preferences.default_language_id, "en-US");
-        assert_eq!(preferences.default_theme_id, "velotype-light");
-        let text =
-            std::fs::read_to_string(dirs.app_config_file()).expect("config.toml should exist");
-        assert!(text.contains("[language]"));
-        let _ = std::fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn saving_preferences_window_preserves_language() {
-        let root = std::env::temp_dir().join(format!(
-            "velotype-preferences-window-{}",
-            uuid::Uuid::new_v4()
-        ));
-        let dirs = VelotypeConfigDirs::from_root(&root);
-        let preferences = AppPreferences {
-            startup_open: StartupOpenPreference::NewFile,
-            default_language_id: "zh-CN".into(),
-            default_theme_id: "velotype".into(),
-            show_table_headers: true,
-            image_paste_behavior: ImagePasteBehavior::None,
-            keybindings: BTreeMap::new(),
-            status_bar: StatusBarPreferences::default(),
-        };
-        save_app_preferences_with_dirs(&preferences, &dirs)
-            .expect("preferences should save to config.toml");
-
-        let saved = save_preferences_from_window_with_dirs(
-            StartupOpenPreference::LastOpenedFile,
-            "velotype-light",
-            ImagePasteBehavior::CopyToNamedAssetsFolder,
-            BTreeMap::from([("save_document".to_string(), vec!["ctrl-alt-s".to_string()])]),
-            &StatusBarPreferences::default(),
-            &dirs,
-        )
-        .expect("window preferences should save");
-        assert_eq!(saved.default_language_id, "zh-CN");
-        assert_eq!(saved.startup_open, StartupOpenPreference::LastOpenedFile);
-        assert_eq!(saved.default_theme_id, "velotype-light");
-        assert_eq!(
-            saved.image_paste_behavior,
-            ImagePasteBehavior::CopyToNamedAssetsFolder
-        );
-        assert_eq!(
-            saved.keybindings.get("save_document"),
-            Some(&vec!["ctrl-alt-s".to_string()])
-        );
-        let _ = std::fs::remove_dir_all(root);
-    }
-
-    #[gpui::test]
-    async fn preferences_window_activates_and_focuses_on_open(cx: &mut TestAppContext) {
-        init_preferences_test_app(cx);
-
-        let handle = cx.update(|cx| {
-            open_preferences_window_with_state(
-                cx,
-                AppPreferences::default(),
-                default_theme_options(),
-                "Preferences".into(),
-            )
-        });
-        cx.run_until_parked();
-
-        let active_window = cx.update(|cx| cx.active_window().expect("window should be active"));
-        assert_eq!(active_window.window_id(), handle.window_id());
-        assert!(
-            handle
-                .update(cx, |preferences, window, _cx| preferences
-                    .focus_handle
-                    .is_focused(window))
-                .expect("preferences window should be updateable")
-        );
-        assert!(
-            !handle
-                .update(cx, |preferences, _window, _cx| preferences
-                    .has_unsaved_changes())
-                .expect("preferences window should be updateable")
-        );
-    }
-
-    #[gpui::test]
-    async fn preferences_dirty_state_tracks_draft_changes(cx: &mut TestAppContext) {
-        init_preferences_test_app(cx);
-
-        let handle = cx.update(|cx| {
-            open_preferences_window_with_state(
-                cx,
-                AppPreferences::default(),
-                default_theme_options(),
-                "Preferences".into(),
-            )
-        });
-        cx.run_until_parked();
-
-        handle
-            .update(cx, |preferences, _window, _cx| {
-                assert!(!preferences.has_unsaved_changes());
-                preferences.startup_open = StartupOpenPreference::LastOpenedFile;
-                assert!(preferences.has_unsaved_changes());
-                preferences.startup_open = StartupOpenPreference::NewFile;
-                assert!(!preferences.has_unsaved_changes());
-
-                preferences.image_paste_behavior = ImagePasteBehavior::CopyToAssetsFolder;
-                assert!(preferences.has_unsaved_changes());
-                preferences.image_paste_behavior = ImagePasteBehavior::None;
-                assert!(!preferences.has_unsaved_changes());
-
-                preferences
-                    .keybindings
-                    .insert("save_document".into(), vec!["ctrl-alt-s".into()]);
-                assert!(preferences.has_unsaved_changes());
-            })
-            .expect("preferences window should be updateable");
-    }
-
-    #[gpui::test]
-    async fn applying_saved_preferences_keeps_window_open_and_focused(cx: &mut TestAppContext) {
-        init_preferences_test_app(cx);
-
-        let handle = cx.update(|cx| {
-            open_preferences_window_with_state(
-                cx,
-                AppPreferences::default(),
-                default_theme_options(),
-                "Preferences".into(),
-            )
-        });
-        cx.run_until_parked();
-
-        handle
-            .update(cx, |preferences, window, cx| {
-                preferences.startup_open = StartupOpenPreference::LastOpenedFile;
-                assert!(preferences.has_unsaved_changes());
-                let saved = AppPreferences {
-                    startup_open: StartupOpenPreference::LastOpenedFile,
-                    ..AppPreferences::default()
-                };
-                preferences.apply_saved_preferences(saved, window, cx);
-            })
-            .expect("preferences window should be updateable");
-        cx.run_until_parked();
-
-        assert_eq!(cx.update(|cx| cx.windows().len()), 1);
-        let active_window = cx.update(|cx| cx.active_window().expect("window should be active"));
-        assert_eq!(active_window.window_id(), handle.window_id());
-        assert!(
-            handle
-                .update(cx, |preferences, window, _cx| preferences
-                    .focus_handle
-                    .is_focused(window))
-                .expect("preferences window should remain updateable")
-        );
-        assert!(
-            !handle
-                .update(cx, |preferences, _window, _cx| preferences
-                    .has_unsaved_changes())
-                .expect("preferences window should remain updateable")
-        );
+    fn test_app_settings_default() {
+        let settings = AppSettings::default();
+        assert_eq!(settings.startup_open, StartupOpenSetting::NewFile);
+        assert_eq!(settings.default_language_id, "en-US");
+        assert_eq!(settings.default_theme_id, "velotype");
     }
 }

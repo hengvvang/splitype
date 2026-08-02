@@ -40,8 +40,8 @@ use theme::ThemeManager;
 
 struct VelotypeAssets;
 
-fn open_startup_window(cx: &mut App, startup_open: config::StartupOpenPreference) {
-    if startup_open == config::StartupOpenPreference::LastOpenedFile
+fn open_startup_window(cx: &mut App, startup_open: config::StartupOpenSetting) {
+    if startup_open == config::StartupOpenSetting::LastOpenedFile
         && let Some(path) = config::first_existing_recent_markdown_file()
     {
         match std::fs::read_to_string(&path) {
@@ -263,15 +263,15 @@ fn main() {
     }
 
     app.run(move |cx: &mut App| {
-        let preferences = config::load_or_create_app_preferences().unwrap_or_else(|err| {
-            eprintln!("failed to initialize app preferences: {err}");
+        let settings = config::load_or_create_app_settings().unwrap_or_else(|err| {
+            eprintln!("failed to initialize app settings: {err}");
             Default::default()
         });
-        I18nManager::init_with_language_id(cx, &preferences.default_language_id);
-        ThemeManager::init_with_theme_id(cx, &preferences.default_theme_id);
-        config::EditorSettings::init(cx, preferences.show_table_headers);
+        I18nManager::init_with_language_id(cx, &settings.default_language_id);
+        ThemeManager::init_with_theme_id(cx, &settings.default_theme_id);
+        config::EditorSettings::init(cx, settings.show_table_headers);
         net::install_http_client(cx);
-        init_editor(cx, &preferences.keybindings);
+        init_editor(cx, &settings.keybindings);
         init_app_menu(cx);
 
         #[cfg(target_os = "macos")]
@@ -289,7 +289,7 @@ fn main() {
         if input_paths.is_empty() {
             #[cfg(target_os = "macos")]
             {
-                let startup_open = preferences.startup_open;
+                let startup_open = settings.startup_open;
                 let open_file_requested = open_file_requested.clone();
                 cx.spawn(async move |cx| {
                     cx.background_executor()
@@ -303,7 +303,7 @@ fn main() {
             }
 
             #[cfg(not(target_os = "macos"))]
-            open_startup_window(cx, preferences.startup_open);
+            open_startup_window(cx, settings.startup_open);
 
             return;
         }

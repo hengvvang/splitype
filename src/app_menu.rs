@@ -11,13 +11,13 @@ use gpui::*;
 
 use crate::components::{
     AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
-    InstallCliTool, NewWindow, NoRecentFiles, OpenFile, OpenPreferences, OpenRecentFile,
+    InstallCliTool, NewWindow, NoRecentFiles, OpenFile, OpenSettings, OpenRecentFile,
     QuitApplication, SaveDocument, SaveDocumentAs, SelectLanguage, SelectTheme, ShowAbout,
     ToggleWorkspace, UninstallCliTool,
 };
 use crate::config::{
     apply_configured_language, apply_configured_theme, import_language_config_and_select,
-    import_theme_config_and_select, open_preferences_window, read_recent_files, record_recent_file,
+    import_theme_config_and_select, open_settings_window, read_recent_files, record_recent_file,
     remove_recent_file,
 };
 use crate::editor::{Editor, InfoDialogKind};
@@ -412,7 +412,7 @@ fn is_editor_scoped_menu_action(action: &dyn Action) -> bool {
 fn is_window_context_menu_action(action: &dyn Action) -> bool {
     action.as_any().is::<NewWindow>()
         || action.as_any().is::<OpenFile>()
-        || action.as_any().is::<OpenPreferences>()
+        || action.as_any().is::<OpenSettings>()
         || action.as_any().is::<OpenRecentFile>()
         || action.as_any().is::<NoRecentFiles>()
         || action.as_any().is::<AddLanguageConfig>()
@@ -505,8 +505,8 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
         open_editor_window(cx, String::new(), None);
     } else if action.as_any().is::<OpenFile>() {
         prompt_and_open_files(cx);
-    } else if action.as_any().is::<OpenPreferences>() {
-        open_preferences_window(cx);
+    } else if action.as_any().is::<OpenSettings>() {
+        open_settings_window(cx);
     } else if let Some(action) = action.as_any().downcast_ref::<OpenRecentFile>() {
         open_recent_file(cx, PathBuf::from(&action.path));
     } else if action.as_any().is::<NoRecentFiles>() {
@@ -538,7 +538,7 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
                 let title = cx
                     .global::<I18nManager>()
                     .strings()
-                    .preferences_save_failed_title
+                    .settings_save_failed_title
                     .clone();
                 show_window_prompt(cx.active_window(), &title, &err.to_string(), cx);
             }
@@ -555,7 +555,7 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
                 let title = cx
                     .global::<I18nManager>()
                     .strings()
-                    .preferences_save_failed_title
+                    .settings_save_failed_title
                     .clone();
                 show_window_prompt(cx.active_window(), &title, &err.to_string(), cx);
             }
@@ -602,8 +602,8 @@ pub(crate) fn dispatch_menu_action_for_editor(
         open_editor_window(cx, String::new(), None);
     } else if action.as_any().is::<OpenFile>() {
         prompt_and_open_files_with_error_window(cx, current_window);
-    } else if action.as_any().is::<OpenPreferences>() {
-        open_preferences_window(cx);
+    } else if action.as_any().is::<OpenSettings>() {
+        open_settings_window(cx);
     } else if let Some(action) = action.as_any().downcast_ref::<OpenRecentFile>() {
         open_recent_file_with_error_window(cx, PathBuf::from(&action.path), current_window);
     } else if action.as_any().is::<NoRecentFiles>() {
@@ -653,20 +653,13 @@ fn build_menus(
     i18n_manager: &I18nManager,
     recent_files: &[PathBuf],
 ) -> Vec<Menu> {
-    let current_theme_id = theme_manager.current_theme_id().to_string();
-    let current_language_id = i18n_manager.current_language_id().to_string();
     let strings = i18n_manager.strings().clone();
     let mut theme_items = theme_manager
         .available_themes()
         .iter()
         .map(|entry| {
-            let label = if entry.id.as_str() == current_theme_id {
-                format!("\u{2713} {}", entry.name)
-            } else {
-                entry.name.to_string()
-            };
             MenuItem::action(
-                label,
+                entry.name.to_string(),
                 SelectTheme {
                     theme_id: entry.id.to_string(),
                 },
@@ -683,14 +676,8 @@ fn build_menus(
         .available_languages()
         .iter()
         .map(|entry| {
-            let name = entry.name.to_string();
-            let label = if entry.id.as_str() == current_language_id {
-                format!("\u{2713} {name}")
-            } else {
-                name
-            };
             MenuItem::action(
-                label,
+                entry.name.to_string(),
                 SelectLanguage {
                     language_id: entry.id.to_string(),
                 },
@@ -754,7 +741,7 @@ fn build_menus(
         Menu {
             name: "Velotype".into(),
             items: vec![
-                MenuItem::action(strings.menu_preferences.clone(), OpenPreferences),
+                MenuItem::action(strings.menu_settings.clone(), OpenSettings),
                 MenuItem::separator(),
                 MenuItem::action(strings.menu_about.clone(), ShowAbout),
                 MenuItem::action(strings.menu_check_updates.clone(), CheckForUpdates),
@@ -788,14 +775,6 @@ fn build_menus(
         Menu {
             name: strings.menu_view.into(),
             items: vec![
-                MenuItem::submenu(Menu {
-                    name: strings.menu_workspace.clone().into(),
-                    items: vec![MenuItem::action(
-                        strings.menu_toggle_workspace.clone(),
-                        ToggleWorkspace,
-                    )],
-                }),
-                MenuItem::separator(),
                 MenuItem::submenu(Menu {
                     name: strings.menu_theme.clone().into(),
                     items: theme_items,
@@ -1011,8 +990,8 @@ pub(crate) fn init(cx: &mut App) {
     cx.on_action(|_: &OpenFile, cx| {
         dispatch_menu_action(&OpenFile, cx);
     });
-    cx.on_action(|_: &OpenPreferences, cx| {
-        dispatch_menu_action(&OpenPreferences, cx);
+    cx.on_action(|_: &OpenSettings, cx| {
+        dispatch_menu_action(&OpenSettings, cx);
     });
     cx.on_action(|action: &OpenRecentFile, cx| {
         dispatch_menu_action(action, cx);
@@ -1187,22 +1166,22 @@ mod tests {
         #[cfg(not(target_os = "macos"))]
         assert_eq!(action_name(&menus[0].items[1]), "Close Window");
 
-        // Preferences location differs by platform.
+        // Settings location differs by platform.
         #[cfg(target_os = "macos")]
-        assert_eq!(action_name(&menus[0].items[0]), "Preferences");
+        assert_eq!(action_name(&menus[0].items[0]), "Settings");
         #[cfg(not(target_os = "macos"))]
-        assert_eq!(action_name(&menus[0].items[4]), "Preferences");
+        assert_eq!(action_name(&menus[0].items[4]), "Settings");
 
         assert_eq!(action_name(&menus[EXPORT_IDX].items[0]), "HTML");
         assert_eq!(action_name(&menus[EXPORT_IDX].items[1]), "PDF");
         assert_eq!(action_name(&menus[LANGUAGE_IDX].items[0]), "简体中文");
         assert_eq!(
             action_name(&menus[LANGUAGE_IDX].items[1]),
-            "\u{2713} English"
+            "English"
         );
         assert_eq!(
             action_name(&menus[WORKSPACE_IDX].items[0]),
-            "Toggle Workspace"
+            "切换工作区"
         );
     }
 
@@ -1247,10 +1226,8 @@ mod tests {
         assert_eq!(action_name(&menus[EXPORT_IDX].items[1]), "PDF");
         assert_eq!(
             action_name(&menus[LANGUAGE_IDX].items[0]),
-            "\u{2713} 简体中文"
+            "简体中文"
         );
-        assert_eq!(action_name(&menus[LANGUAGE_IDX].items[1]), "English");
-        assert_eq!(action_name(&menus[WORKSPACE_IDX].items[0]), "切换工作区");
     }
 
     #[test]
@@ -1349,7 +1326,7 @@ mod tests {
     fn fallback_menu_routes_window_context_actions_without_app_defer() {
         assert!(super::is_window_context_menu_action(&NewWindow));
         assert!(super::is_window_context_menu_action(&OpenFile));
-        assert!(super::is_window_context_menu_action(&OpenPreferences));
+        assert!(super::is_window_context_menu_action(&OpenSettings));
         assert!(super::is_window_context_menu_action(&OpenRecentFile {
             path: "notes.md".into(),
         }));
@@ -1390,7 +1367,7 @@ mod tests {
         }
 
         let theme_items = &menus[THEME_IDX].items;
-        assert_eq!(action_name(&theme_items[0]), "\u{2713} Velotype");
+        assert_eq!(action_name(&theme_items[0]), "Velotype");
         assert_eq!(action_name(&theme_items[1]), "Velotype Light");
         assert!(matches!(
             theme_items[theme_items.len() - 2],
@@ -1423,7 +1400,7 @@ mod tests {
         let theme_items = &menus[THEME_IDX].items;
 
         assert_eq!(action_name(&theme_items[0]), "Velotype");
-        assert_eq!(action_name(&theme_items[1]), "\u{2713} Velotype Light");
+        assert_eq!(action_name(&theme_items[1]), "Velotype Light");
         match &theme_items[1] {
             MenuItem::Action { action, .. } => {
                 let action = action

@@ -274,7 +274,7 @@ impl Editor {
         let prompt_msg = format!("Are you sure you want to delete '{}'?", item_name);
         let strings = cx.global::<I18nManager>().strings().clone();
         let ok_btn = "Delete";
-        let cancel_btn = strings.preferences_cancel.clone();
+        let cancel_btn = strings.settings_cancel.clone();
 
         let prompt = window.prompt(
             PromptLevel::Warning,

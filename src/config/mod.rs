@@ -6,13 +6,13 @@ use anyhow::{Context as _, bail};
 use directories::ProjectDirs;
 use serde_json::{Map, Value};
 
-pub(crate) mod preferences;
+pub(crate) mod settings;
 
-pub(crate) use preferences::{
-    EditorSettings, ImagePasteBehavior, StartupOpenPreference, apply_configured_language,
+pub(crate) use settings::{
+    EditorSettings, ImagePasteBehavior, StartupOpenSetting, apply_configured_language,
     apply_configured_theme, first_existing_recent_markdown_file, import_language_config_and_select,
-    import_theme_config_and_select, load_or_create_app_preferences, open_preferences_window,
-    read_app_preferences,
+    import_theme_config_and_select, load_or_create_app_settings, open_settings_window,
+    read_app_settings,
 };
 
 pub(crate) const RECENT_FILES_LIMIT: usize = 20;
