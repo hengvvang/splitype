@@ -24,6 +24,7 @@ use crate::components::{
 use crate::i18n::{I18nManager, I18nStrings};
 use crate::theme::{Theme, ThemeDimensions, ThemeManager};
 
+#[allow(dead_code)]
 const TASK_CHECKMARK: &str = "\u{2713}";
 
 fn render_custom_bullet_marker(depth: usize, color: Hsla) -> AnyElement {
@@ -2652,9 +2653,10 @@ impl Render for Block {
             BlockKind::TaskListItem { checked } => {
                 let marker_width = d.list_marker_width.max(d.task_checkbox_size);
                 let first_line_height = t.text_size * t.text_line_height;
+                let text_color = if checked { c.text_quote } else { c.text_default };
                 focused_base
                     .text_size(px(t.text_size))
-                    .text_color(c.text_default)
+                    .text_color(text_color)
                     .line_height(rems(t.text_line_height))
                     .w_full()
                     .flex()
@@ -2675,14 +2677,16 @@ impl Render for Block {
                                     .justify_center()
                                     .rounded(px(d.task_checkbox_radius))
                                     .border(px(d.task_checkbox_border_width))
-                                    .border_color(c.task_checkbox_border)
+                                    .border_color(if checked {
+                                        c.task_checkbox_checked_bg
+                                    } else {
+                                        c.task_checkbox_border
+                                    })
                                     .bg(if checked {
                                         c.task_checkbox_checked_bg
                                     } else {
                                         c.task_checkbox_bg
                                     })
-                                    .text_size(px(d.task_checkbox_check_size))
-                                    .text_color(c.task_checkbox_check)
                                     .cursor_pointer()
                                     .on_mouse_down(
                                         MouseButton::Left,
@@ -2692,10 +2696,15 @@ impl Render for Block {
                                         MouseButton::Left,
                                         cx.listener(Self::on_task_checkbox_mouse_up),
                                     )
-                                    .child(if checked {
-                                        SharedString::new(TASK_CHECKMARK)
+                                    .children(if checked {
+                                        Some(
+                                            svg()
+                                                .path("icon/task_check.svg")
+                                                .size(px(d.task_checkbox_check_size))
+                                                .text_color(c.task_checkbox_check),
+                                        )
                                     } else {
-                                        SharedString::new("")
+                                        None
                                     }),
                             ),
                         if showing_rendered_image {
@@ -2720,7 +2729,7 @@ impl Render for Block {
                                         is_placeholder,
                                         None,
                                         None,
-                                        c.text_default,
+                                        text_color,
                                         t.text_size,
                                         FontWeight::NORMAL,
                                         cx,
@@ -2735,7 +2744,7 @@ impl Render for Block {
                                     is_placeholder,
                                     None,
                                     None,
-                                    c.text_default,
+                                    text_color,
                                     t.text_size,
                                     FontWeight::NORMAL,
                                     cx,
