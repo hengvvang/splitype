@@ -33,6 +33,12 @@ pub(super) enum ContextMenuState {
         position: Point<Pixels>,
         selection: TableAxisSelection,
     },
+    /// Workspace Explorer file or folder context menu.
+    WorkspaceFile {
+        position: Point<Pixels>,
+        path: std::path::PathBuf,
+        is_dir: bool,
+    },
 }
 
 /// State for the table insertion dialog opened from the context menu.
@@ -91,6 +97,23 @@ impl Editor {
         self.context_menu = Some(ContextMenuState::TableAxis {
             position,
             selection,
+        });
+        cx.notify();
+    }
+
+    pub(super) fn open_workspace_file_context_menu(
+        &mut self,
+        position: Point<Pixels>,
+        path: std::path::PathBuf,
+        is_dir: bool,
+        cx: &mut Context<Self>,
+    ) {
+        self.close_menu_bar(cx);
+        self.dismiss_contextual_overlays(cx);
+        self.context_menu = Some(ContextMenuState::WorkspaceFile {
+            position,
+            path,
+            is_dir,
         });
         cx.notify();
     }
@@ -1190,6 +1213,268 @@ impl Editor {
                                 .rounded(px(d.menu_panel_radius))
                                 .shadow_lg()
                                 .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
+                                    cx.stop_propagation()
+                                })
+                                .children(items),
+                        )
+                        .into_any_element(),
+                )
+            }
+            ContextMenuState::WorkspaceFile {
+                position,
+                path,
+                is_dir,
+            } => {
+                let panel_x = position.x;
+                let panel_y = position.y;
+                let path = path.clone();
+                let is_dir = *is_dir;
+
+                let ed_new_file = cx.entity().downgrade();
+                let ed_new_folder = cx.entity().downgrade();
+                let ed_rename = cx.entity().downgrade();
+                let ed_delete = cx.entity().downgrade();
+                let ed_reveal = cx.entity().downgrade();
+                let ed_copy = cx.entity().downgrade();
+
+                let mut items = Vec::new();
+
+                if is_dir {
+                    let p_file = path.clone();
+                    items.push(
+                        div()
+                            .id("ws-ctx-new-file")
+                            .h(px(d.menu_item_height))
+                            .px(px(d.menu_item_padding_x))
+                            .rounded(px(d.menu_item_radius))
+                            .flex()
+                            .items_center()
+                            .gap(px(8.0))
+                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                            .cursor_pointer()
+                            .child(
+                                svg()
+                                    .path("icon/workspace/file-plus.svg")
+                                    .size(px(14.0))
+                                    .text_color(c.dialog_muted),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(t.text_size * 0.9))
+                                    .text_color(c.text_default)
+                                    .child("新建文件"),
+                            )
+                            .on_mouse_down(MouseButton::Left, move |_ev, _window, cx| {
+                                let p = p_file.clone();
+                                let _ = ed_new_file.update(cx, |ed, cx| {
+                                    ed.dismiss_contextual_overlays(cx);
+                                    ed.start_inline_create_file(p, cx);
+                                });
+                                cx.stop_propagation();
+                            })
+                            .into_any_element(),
+                    );
+
+                    let p_folder = path.clone();
+                    items.push(
+                        div()
+                            .id("ws-ctx-new-folder")
+                            .h(px(d.menu_item_height))
+                            .px(px(d.menu_item_padding_x))
+                            .rounded(px(d.menu_item_radius))
+                            .flex()
+                            .items_center()
+                            .gap(px(8.0))
+                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                            .cursor_pointer()
+                            .child(
+                                svg()
+                                    .path("icon/workspace/folder-plus.svg")
+                                    .size(px(14.0))
+                                    .text_color(c.dialog_muted),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(t.text_size * 0.9))
+                                    .text_color(c.text_default)
+                                    .child("新建文件夹"),
+                            )
+                            .on_mouse_down(MouseButton::Left, move |_ev, _window, cx| {
+                                let p = p_folder.clone();
+                                let _ = ed_new_folder.update(cx, |ed, cx| {
+                                    ed.dismiss_contextual_overlays(cx);
+                                    ed.start_inline_create_folder(p, cx);
+                                });
+                                cx.stop_propagation();
+                            })
+                            .into_any_element(),
+                    );
+
+                    items.push(
+                        div()
+                            .mx(px(d.menu_separator_margin_x))
+                            .my(px(d.menu_separator_margin_y))
+                            .h(px(d.menu_separator_height))
+                            .bg(c.dialog_border)
+                            .into_any_element(),
+                    );
+                }
+
+                let p_rename = path.clone();
+                items.push(
+                    div()
+                        .id("ws-ctx-rename")
+                        .h(px(d.menu_item_height))
+                        .px(px(d.menu_item_padding_x))
+                        .rounded(px(d.menu_item_radius))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                        .cursor_pointer()
+                        .child(
+                            div()
+                                .text_size(px(t.text_size * 0.9))
+                                .text_color(c.text_default)
+                                .child("重命名"),
+                        )
+                        .on_mouse_down(MouseButton::Left, move |_ev, _window, cx| {
+                            let p = p_rename.clone();
+                            let _ = ed_rename.update(cx, |ed, cx| {
+                                ed.dismiss_contextual_overlays(cx);
+                                ed.start_inline_rename(p, cx);
+                            });
+                            cx.stop_propagation();
+                        })
+                        .into_any_element(),
+                );
+
+                let p_delete = path.clone();
+                items.push(
+                    div()
+                        .id("ws-ctx-delete")
+                        .h(px(d.menu_item_height))
+                        .px(px(d.menu_item_padding_x))
+                        .rounded(px(d.menu_item_radius))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                        .cursor_pointer()
+                        .child(
+                            div()
+                                .text_size(px(t.text_size * 0.9))
+                                .text_color(Hsla::from(rgba(0xef4444ff)))
+                                .child("删除"),
+                        )
+                        .on_mouse_down(MouseButton::Left, move |_ev, _window, cx| {
+                            let p = p_delete.clone();
+                            let _ = ed_delete.update(cx, |ed, cx| {
+                                ed.dismiss_contextual_overlays(cx);
+                                ed.delete_workspace_entry(p, cx);
+                            });
+                            cx.stop_propagation();
+                        })
+                        .into_any_element(),
+                );
+
+                items.push(
+                    div()
+                        .mx(px(d.menu_separator_margin_x))
+                        .my(px(d.menu_separator_margin_y))
+                        .h(px(d.menu_separator_height))
+                        .bg(c.dialog_border)
+                        .into_any_element(),
+                );
+
+                let p_reveal = path.clone();
+                items.push(
+                    div()
+                        .id("ws-ctx-reveal")
+                        .h(px(d.menu_item_height))
+                        .px(px(d.menu_item_padding_x))
+                        .rounded(px(d.menu_item_radius))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                        .cursor_pointer()
+                        .child(
+                            div()
+                                .text_size(px(t.text_size * 0.9))
+                                .text_color(c.text_default)
+                                .child("在资源管理器中显示"),
+                        )
+                        .on_mouse_down(MouseButton::Left, move |_ev, _window, cx| {
+                            let p = p_reveal.clone();
+                            let _ = ed_reveal.update(cx, |ed, cx| {
+                                ed.dismiss_contextual_overlays(cx);
+                                ed.reveal_in_file_explorer(&p);
+                            });
+                            cx.stop_propagation();
+                        })
+                        .into_any_element(),
+                );
+
+                let p_copy = path.clone();
+                items.push(
+                    div()
+                        .id("ws-ctx-copy-path")
+                        .h(px(d.menu_item_height))
+                        .px(px(d.menu_item_padding_x))
+                        .rounded(px(d.menu_item_radius))
+                        .flex()
+                        .items_center()
+                        .gap(px(8.0))
+                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                        .cursor_pointer()
+                        .child(
+                            div()
+                                .text_size(px(t.text_size * 0.9))
+                                .text_color(c.text_default)
+                                .child("复制绝对路径"),
+                        )
+                        .on_mouse_down(MouseButton::Left, move |_ev, _window, cx| {
+                            let p = p_copy.clone();
+                            let _ = ed_copy.update(cx, |ed, cx| {
+                                ed.dismiss_contextual_overlays(cx);
+                                ed.copy_path_to_clipboard(&p, cx);
+                            });
+                            cx.stop_propagation();
+                        })
+                        .into_any_element(),
+                );
+
+                Some(
+                    div()
+                        .id("workspace-file-context-menu-overlay")
+                        .absolute()
+                        .top_0()
+                        .left_0()
+                        .right_0()
+                        .bottom_0()
+                        .occlude()
+                        .on_mouse_down(
+                            MouseButton::Left,
+                            cx.listener(Self::on_dismiss_context_menu_overlay),
+                        )
+                        .child(
+                            div()
+                                .id("workspace-file-context-menu-panel")
+                                .absolute()
+                                .left(panel_x)
+                                .top(panel_y)
+                                .w(px(160.0))
+                                .p(px(d.menu_panel_padding))
+                                .flex()
+                                .flex_col()
+                                .gap(px(2.0))
+                                .bg(c.dialog_surface)
+                                .border(px(d.dialog_border_width))
+                                .border_color(c.dialog_border)
+                                .rounded(px(d.menu_panel_radius))
+                                .shadow_lg()
+                                .on_mouse_down(MouseButton::Left, |_ev, _window, cx| {
                                     cx.stop_propagation()
                                 })
                                 .children(items),

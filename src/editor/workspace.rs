@@ -107,19 +107,36 @@ impl Editor {
             prompt: None,
         });
         let weak_editor = cx.entity().downgrade();
-        let _ = cx.spawn(async move |_this, cx| {
-            if let Ok(Ok(Some(paths))) = prompt.await {
-                if let Some(folder_path) = paths.into_iter().next() {
-                    let _ = weak_editor.update(cx, |editor, cx| {
-                        editor.workspace.root = Some(folder_path.clone());
-                        editor.workspace.file_tree = None;
-                        editor.workspace.file_error = None;
-                        editor.sync_workspace_models(cx);
-                        cx.notify();
-                    });
+        cx.spawn(async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
+            let paths = match prompt.await {
+                Ok(Ok(Some(paths))) => paths,
+                Ok(Ok(None)) | Err(_) => return,
+                Ok(Err(err)) => {
+                    eprintln!("[workspace] dialog error: {err}");
+                    return;
                 }
-            }
-        });
+            };
+            let Some(folder_path) = paths.into_iter().next() else {
+                return;
+            };
+            eprintln!("[workspace] selected folder: {folder_path:?}");
+            let _ = weak_editor.update(cx, |editor, cx| {
+                editor.workspace.root = Some(folder_path);
+                editor.workspace.is_open = true;
+                editor.workspace.file_tree = None;
+                editor.workspace.file_error = None;
+                editor.sync_workspace_models(cx);
+                if let Some(ref tree) = editor.workspace.file_tree {
+                    eprintln!(
+                        "[workspace] file_tree: {} children: {}",
+                        tree.label,
+                        tree.children.len()
+                    );
+                }
+                cx.notify();
+            });
+        })
+        .detach();
     }
 
     pub(crate) fn create_new_file_in_workspace(
@@ -286,6 +303,40 @@ impl Editor {
                 }
             }
         });
+    }
+
+    pub(crate) fn start_inline_create_file(&mut self, parent: PathBuf, cx: &mut Context<Self>) {
+        let default_name = "untitled.md";
+        let target_path = parent.join(default_name);
+        if std::fs::File::create(&target_path).is_ok() {
+            self.refresh_workspace_tree(cx);
+            self.workspace.selected = Some(WorkspaceSelection::File(target_path));
+        }
+    }
+
+    pub(crate) fn start_inline_create_folder(&mut self, parent: PathBuf, cx: &mut Context<Self>) {
+        let default_name = "new_folder";
+        let target_path = parent.join(default_name);
+        if std::fs::create_dir_all(&target_path).is_ok() {
+            self.refresh_workspace_tree(cx);
+        }
+    }
+
+    pub(crate) fn start_inline_rename(&mut self, _target: PathBuf, _cx: &mut Context<Self>) {}
+
+    pub(crate) fn delete_workspace_entry(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        if path.is_dir() {
+            let _ = std::fs::remove_dir_all(&path);
+        } else {
+            let _ = std::fs::remove_file(&path);
+        }
+        self.refresh_workspace_tree(cx);
+    }
+
+    pub(crate) fn copy_path_to_clipboard(&self, path: &Path, cx: &mut Context<Self>) {
+        cx.write_to_clipboard(ClipboardItem::new_string(
+            path.to_string_lossy().to_string(),
+        ));
     }
 
     fn sync_workspace_file_tree(&mut self) {
@@ -719,6 +770,8 @@ impl Editor {
         let node_id = node.id.clone();
         let click_editor = editor.clone();
         let click_kind = node.kind.clone();
+        let right_click_editor = editor.clone();
+        let right_click_kind = node.kind.clone();
         let arrow_node_id = node.id.clone();
         let arrow_editor = editor.clone();
 
@@ -747,6 +800,31 @@ impl Editor {
                 }
             }
             WorkspaceTreeKind::Heading { .. } => None,
+        };
+
+        let heading_badge = match &node.kind {
+            WorkspaceTreeKind::Heading { level, .. } => {
+                let badge_color = match level {
+                    1 => c.callout_note_border,
+                    2 => c.callout_tip_border,
+                    3 => c.callout_important_border,
+                    4 => c.callout_warning_border,
+                    5 => c.callout_caution_border,
+                    _ => c.dialog_muted,
+                };
+                Some(
+                    div()
+                        .px(px(4.0))
+                        .py(px(1.0))
+                        .rounded(px(3.0))
+                        .text_size(px(10.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(badge_color)
+                        .bg(badge_color.opacity(0.12))
+                        .child(format!("H{level}")),
+                )
+            }
+            _ => None,
         };
 
         let label_color = if selected {
@@ -803,6 +881,7 @@ impl Editor {
             .hover(|this| this.bg(c.dialog_secondary_button_hover))
             .cursor_pointer()
             .child(arrow_el)
+            .children(heading_badge)
             .children(icon.map(|(path, color)| {
                 svg()
                     .path(path)
@@ -822,6 +901,19 @@ impl Editor {
                     .text_color(label_color)
                     .child(node.label.clone()),
             )
+            .on_mouse_down(MouseButton::Right, move |event, _window, cx| {
+                let node_kind = right_click_kind.clone();
+                let _ = right_click_editor.update(cx, |editor, cx| match node_kind {
+                    WorkspaceTreeKind::Directory(path) => {
+                        editor.open_workspace_file_context_menu(event.position, path, true, cx);
+                    }
+                    WorkspaceTreeKind::MarkdownFile(path) | WorkspaceTreeKind::File(path) => {
+                        editor.open_workspace_file_context_menu(event.position, path, false, cx);
+                    }
+                    _ => {}
+                });
+                cx.stop_propagation();
+            })
             .on_click(move |_event, window, cx| {
                 let node_id = node_id.clone();
                 let click_kind = click_kind.clone();
@@ -847,8 +939,7 @@ fn is_markdown_file(path: &Path) -> bool {
 }
 
 fn is_ignored_workspace_entry(name: &str) -> bool {
-    name.starts_with('.')
-        || name == "node_modules"
+    name == "node_modules"
         || name == "target"
         || name == "dist"
         || name == "build"
