@@ -506,7 +506,22 @@ impl Block {
             .as_deref()
             .unwrap_or_else(|| self.display_text());
 
-        let Some(source) = parse_display_math_source(raw) else {
+        let source = parse_display_math_source(raw).unwrap_or_else(|| {
+            let body = raw
+                .trim()
+                .strip_prefix("$$")
+                .unwrap_or(raw.trim())
+                .strip_suffix("$$")
+                .unwrap_or(raw.trim())
+                .trim()
+                .to_string();
+            crate::components::DisplayMathSource {
+                raw: raw.to_string(),
+                body,
+            }
+        });
+
+        if source.body.is_empty() {
             return div()
                 .w_full()
                 .text_size(px(t.text_size))
@@ -514,7 +529,7 @@ impl Block {
                 .text_color(c.text_default)
                 .child(SharedString::from(raw.to_string()))
                 .into_any_element();
-        };
+        }
 
         match render_display_math_svg(&source, c.text_default, display_math_font_size(t.text_size))
         {
@@ -563,7 +578,21 @@ impl Block {
             .as_deref()
             .unwrap_or_else(|| self.display_text());
 
-        let Some(source) = parse_mermaid_fence_source(raw) else {
+        let source = parse_mermaid_fence_source(raw).unwrap_or_else(|| {
+            let trimmed = raw.trim();
+            let body = if let Some(rest) = trimmed.strip_prefix("```mermaid").or_else(|| trimmed.strip_prefix("```")) {
+                rest.strip_suffix("```").unwrap_or(rest).trim().to_string()
+            } else {
+                trimmed.to_string()
+            };
+            crate::components::MermaidSource {
+                raw: raw.to_string(),
+                body,
+                info: "mermaid".to_string(),
+            }
+        });
+
+        if source.body.is_empty() {
             return div()
                 .w_full()
                 .text_size(px(t.text_size))
@@ -571,7 +600,7 @@ impl Block {
                 .text_color(c.text_default)
                 .child(SharedString::from(raw.to_string()))
                 .into_any_element();
-        };
+        }
 
         let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
         let available_width = effective_image_width(self, viewport_width, d);
@@ -1846,6 +1875,10 @@ impl Render for Block {
                     self.kind(),
                     BlockKind::HtmlBlock | BlockKind::MathBlock | BlockKind::MermaidBlock
                 ))
+            && !matches!(
+                self.kind(),
+                BlockKind::MathBlock | BlockKind::MermaidBlock
+            )
         {
             if focused && self.cursor_blink_task.is_none() {
                 self.start_cursor_blink(cx);
@@ -3287,28 +3320,115 @@ impl Render for Block {
                     .into_any_element()
             }
             BlockKind::MathBlock => {
+                let math_preview = self.render_math_content(&theme);
+
                 if !focused {
                     self.last_layout = None;
                     self.last_bounds = None;
-                }
-                let child = if focused {
-                    BlockTextElement::new(cx.entity(), is_placeholder).into_any_element()
+                    self.latex_template_picker_open = false;
+
+                    // Unfocused: outer rect (no border, no rounded, transparent)
+                    // with inner fitted image padded inside
+                    let outer = div()
+                        .w_full()
+                        .p(relative(0.005))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(math_preview);
+
+                    focused_base.w_full().child(outer).into_any_element()
                 } else {
-                    self.render_math_content(&theme)
-                };
-                focused_base.w_full().child(child).into_any_element()
+                    let editor_input = BlockTextElement::new(cx.entity(), is_placeholder);
+
+                    // Focused: vertical stack
+                    // 1) outer rect filled with code_bg (no border, no rounded)
+                    // 2) source code BELOW outer rect with same code_bg
+                    let container = div()
+                        .w_full()
+                        .flex()
+                        .flex_col()
+                        .child(
+                            // Top: outer rect with code_bg fill, rendered image inside
+                            div()
+                                .w_full()
+                                .bg(c.code_bg)
+                                .p(relative(0.005))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(math_preview),
+                        )
+                        .child(
+                            // Bottom: source code below outer rect, same code_bg
+                            div()
+                                .w_full()
+                                .bg(c.code_bg)
+                                .px(px(d.code_block_padding_x))
+                                .py(px(d.code_block_padding_y))
+                                .text_size(px(t.code_size))
+                                .text_color(c.code_text)
+                                .line_height(rems(t.text_line_height))
+                                .child(editor_input),
+                        );
+
+                    focused_base.w_full().flex().flex_col().child(container).into_any_element()
+                }
             }
             BlockKind::MermaidBlock => {
+                let mermaid_preview = self.render_mermaid_content(&theme, window);
+
                 if !focused {
                     self.last_layout = None;
                     self.last_bounds = None;
-                }
-                let child = if focused {
-                    BlockTextElement::new(cx.entity(), is_placeholder).into_any_element()
+
+                    // Unfocused: outer rect (no border, no rounded, transparent)
+                    // with inner fitted diagram padded inside
+                    let outer = div()
+                        .w_full()
+                        .p(relative(0.005))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .child(mermaid_preview);
+
+                    focused_base.w_full().child(outer).into_any_element()
                 } else {
-                    self.render_mermaid_content(&theme, window)
-                };
-                focused_base.w_full().child(child).into_any_element()
+                    let editor_input = BlockTextElement::new(cx.entity(), is_placeholder);
+
+                    // Focused: vertical stack
+                    // 1) outer rect filled with code_bg (no border, no rounded)
+                    // 2) source code BELOW outer rect with same code_bg
+                    let container = div()
+                        .w_full()
+                        .flex()
+                        .flex_col()
+                        .child(
+                            // Top: outer rect with code_bg fill, rendered diagram inside
+                            div()
+                                .w_full()
+                                .bg(c.code_bg)
+                                .p(relative(0.005))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .child(mermaid_preview),
+                        )
+                        .child(
+                            // Bottom: source code below outer rect, same code_bg
+                            div()
+                                .w_full()
+                                .bg(c.code_bg)
+                                .px(px(d.code_block_padding_x))
+                                .py(px(d.code_block_padding_y))
+                                .text_size(px(t.code_size))
+                                .text_color(c.code_text)
+                                .line_height(rems(t.text_line_height))
+                                .child(editor_input),
+                        );
+
+                    focused_base.w_full().flex().flex_col().child(container).into_any_element()
+                }
             }
             BlockKind::Paragraph
             | BlockKind::Comment

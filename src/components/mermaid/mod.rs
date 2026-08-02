@@ -216,7 +216,15 @@ fn render_mermaid_raw(source: &str) -> anyhow::Result<String> {
     if !looks_like_supported_mermaid_source(source) {
         return Err(anyhow::anyhow!("unsupported Mermaid diagram"));
     }
-    let svg = mermaid_rs_renderer::render(source).map_err(|err| anyhow::anyhow!("{err}"))?;
+    let source_owned = source.to_string();
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        mermaid_rs_renderer::render(&source_owned)
+    }));
+    let svg = match result {
+        Ok(Ok(svg)) => svg,
+        Ok(Err(err)) => return Err(anyhow::anyhow!("{err}")),
+        Err(_) => return Err(anyhow::anyhow!("Mermaid renderer internal panic")),
+    };
     if svg.contains("class=\"error-text\"") || svg.contains("Syntax error in text") {
         return Err(anyhow::anyhow!("Mermaid syntax error"));
     }

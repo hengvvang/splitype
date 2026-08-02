@@ -894,6 +894,18 @@ impl Editor {
             let full_markdown = block.record.title.serialize_markdown();
             let start = markdown_range.start.min(full_markdown.len());
             let end = markdown_range.end.min(full_markdown.len());
+            // Clamp to nearest valid UTF-8 char boundaries to avoid panicking
+            // on multi-byte characters (e.g. CJK text).
+            let start = if full_markdown.is_char_boundary(start) {
+                start
+            } else {
+                full_markdown.floor_char_boundary(start)
+            };
+            let end = if full_markdown.is_char_boundary(end) {
+                end
+            } else {
+                full_markdown.ceil_char_boundary(end)
+            };
             if start < end {
                 return Some(full_markdown[start..end].to_owned());
             }
