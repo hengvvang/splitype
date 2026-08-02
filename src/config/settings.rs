@@ -620,7 +620,11 @@ pub(crate) struct SettingsWindow {
     focus_handle: FocusHandle,
     startup_dropdown_open: bool,
     theme_dropdown_open: bool,
+    lang_dropdown_open: bool,
     image_dropdown_open: bool,
+    font_size: u32,
+    line_height: f32,
+    editing_stepper: Option<String>,
     #[allow(dead_code)]
     recording_shortcut: Option<ShortcutCommand>,
     #[allow(dead_code)]
@@ -659,7 +663,11 @@ impl SettingsWindow {
         let mut expanded_sections = std::collections::HashSet::new();
         expanded_sections.insert("theme".to_string());
         expanded_sections.insert("status_bar".to_string());
-        expanded_sections.insert("editing".to_string());
+        expanded_sections.insert("typography".to_string());
+        expanded_sections.insert("markdown".to_string());
+        expanded_sections.insert("startup".to_string());
+        expanded_sections.insert("doc_actions".to_string());
+        expanded_sections.insert("view_controls".to_string());
         expanded_sections.insert("keymap".to_string());
 
         Self {
@@ -676,7 +684,11 @@ impl SettingsWindow {
             focus_handle: cx.focus_handle(),
             startup_dropdown_open: false,
             theme_dropdown_open: false,
+            lang_dropdown_open: false,
             image_dropdown_open: false,
+            font_size: 14,
+            line_height: 1.6,
+            editing_stepper: None,
             recording_shortcut: None,
             shortcut_error: None,
             status_bar_enabled: settings.status_bar.enabled,
@@ -825,12 +837,12 @@ impl Render for SettingsWindow {
         let strings = cx.global::<I18nManager>().strings().clone();
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let _t = &theme.typography;
-        let _can_save = self.has_unsaved_changes();
-        let window_title =
-            SharedString::from(strings.settings_window_title.clone());
+        let window_title = SharedString::from(strings.settings_window_title.clone());
         window.set_window_title(window_title.as_ref());
         let titlebar_height = custom_titlebar_height(window, d);
+
+        let mut inner_border_color = c.dialog_border;
+        inner_border_color.a *= 0.4;
 
         // Left Sidebar Navigation
         let nav_item = |id: &'static str, label: &'static str, is_selected: bool| -> AnyElement {
@@ -838,7 +850,7 @@ impl Render for SettingsWindow {
                 .id(id)
                 .cursor_pointer()
                 .w_full()
-                .px(px(14.0))
+                .px(px(12.0))
                 .py(px(8.0))
                 .rounded(px(d.menu_item_radius))
                 .bg(if is_selected {
@@ -855,9 +867,9 @@ impl Render for SettingsWindow {
                     gpui::FontWeight::NORMAL
                 })
                 .text_color(if is_selected {
-                    c.dialog_title
+                    c.text_default
                 } else {
-                    c.dialog_body
+                    c.dialog_muted
                 })
                 .child(label)
                 .into_any_element()
@@ -895,15 +907,15 @@ impl Render for SettingsWindow {
 
         let left_nav = div()
             .id("win-pref-left-nav")
-            .w(px(180.0))
+            .w(px(160.0))
             .h_full()
             .flex_shrink_0()
-            .p(px(14.0))
+            .p(px(8.0))
             .border_r_1()
             .border_color(c.dialog_border)
             .flex()
             .flex_col()
-            .gap(px(4.0))
+            .gap(px(2.0))
             .child(nav_interface)
             .child(nav_editing)
             .child(nav_keymap);
@@ -912,10 +924,12 @@ impl Render for SettingsWindow {
         let make_row = |title: &'static str, desc: &'static str, control: AnyElement| -> AnyElement {
             div()
                 .w_full()
-                .p(px(12.0))
-                .rounded(px(d.menu_item_radius))
+                .h(px(56.0))
+                .px(px(16.0))
+                .rounded(px(d.menu_panel_radius))
+                .bg(c.dialog_surface)
                 .border_1()
-                .border_color(c.dialog_border)
+                .border_color(inner_border_color)
                 .flex()
                 .items_center()
                 .justify_between()
@@ -926,7 +940,7 @@ impl Render for SettingsWindow {
                         .gap(px(2.0))
                         .child(
                             div()
-                                .text_size(px(13.0))
+                                .text_size(px(12.5))
                                 .font_weight(gpui::FontWeight::MEDIUM)
                                 .text_color(c.text_default)
                                 .child(title),
@@ -939,6 +953,84 @@ impl Render for SettingsWindow {
                         ),
                 )
                 .child(control)
+                .into_any_element()
+        };
+
+        let render_zed_stepper = |id_dec: &'static str,
+                                  id_inc: &'static str,
+                                  val_str: String,
+                                  is_editing: bool,
+                                  on_dec: Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>,
+                                  on_inc: Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>,
+                                  on_click_center: Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>|
+         -> AnyElement {
+            div()
+                .flex()
+                .items_center()
+                .h(px(28.0))
+                .rounded(px(d.menu_item_radius))
+                .border_1()
+                .border_color(c.dialog_border)
+                .bg(c.dialog_secondary_button_bg)
+                .child(
+                    div()
+                        .id(id_dec)
+                        .cursor_pointer()
+                        .h_full()
+                        .px(px(10.0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                        .text_size(px(13.0))
+                        .font_weight(gpui::FontWeight::MEDIUM)
+                        .text_color(c.text_default)
+                        .child("-")
+                        .on_click(on_dec),
+                )
+                .child(div().w(px(1.0)).h_full().bg(c.dialog_border))
+                .child(
+                    div()
+                        .id(ElementId::Name(format!("{}-center", id_dec).into()))
+                        .cursor_pointer()
+                        .h_full()
+                        .min_w(px(56.0))
+                        .px(px(8.0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .gap(px(2.0))
+                        .bg(if is_editing { c.dialog_surface } else { c.dialog_secondary_button_bg })
+                        .border_1()
+                        .border_color(if is_editing { c.dialog_primary_button_bg } else { c.dialog_border })
+                        .text_size(px(12.0))
+                        .font_weight(gpui::FontWeight::MEDIUM)
+                        .text_color(c.text_default)
+                        .child(val_str)
+                        .child(if is_editing {
+                            div().w(px(1.5)).h(px(12.0)).bg(c.dialog_primary_button_bg).into_any_element()
+                        } else {
+                            div().into_any_element()
+                        })
+                        .on_click(on_click_center),
+                )
+                .child(div().w(px(1.0)).h_full().bg(c.dialog_border))
+                .child(
+                    div()
+                        .id(id_inc)
+                        .cursor_pointer()
+                        .h_full()
+                        .px(px(10.0))
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                        .text_size(px(13.0))
+                        .font_weight(gpui::FontWeight::MEDIUM)
+                        .text_color(c.text_default)
+                        .child("+")
+                        .on_click(on_inc),
+                )
                 .into_any_element()
         };
 
@@ -955,6 +1047,9 @@ impl Render for SettingsWindow {
 
             let header = div()
                 .id(ElementId::Name(format!("{}-header", id).into()))
+                .w_full()
+                .px(px(14.0))
+                .py(px(10.0))
                 .cursor_pointer()
                 .flex()
                 .items_center()
@@ -971,7 +1066,7 @@ impl Render for SettingsWindow {
                 )
                 .child(
                     div()
-                        .text_size(px(14.0))
+                        .text_size(px(13.0))
                         .font_weight(gpui::FontWeight::BOLD)
                         .text_color(c.text_default)
                         .child(title),
@@ -989,21 +1084,28 @@ impl Render for SettingsWindow {
 
             let mut card = div()
                 .id(id)
+                .relative()
                 .w_full()
-                .flex_1()
-                .min_w(px(0.0))
-                .p(px(14.0))
-                .rounded(px(d.dialog_radius))
+                .rounded(px(d.menu_panel_radius))
+                .bg(c.dialog_surface)
                 .border_1()
                 .border_color(c.dialog_border)
-                .bg(c.dialog_surface)
                 .flex()
                 .flex_col()
-                .gap(px(10.0))
                 .child(header);
 
-            if expanded {
-                card = card.children(items);
+            if expanded && !items.is_empty() {
+                let body = div()
+                    .w_full()
+                    .px(px(10.0))
+                    .pb(px(10.0))
+                    .pt(px(2.0))
+                    .flex()
+                    .flex_col()
+                    .gap(px(8.0))
+                    .children(items);
+
+                card = card.child(body);
             }
 
             card.into_any_element()
@@ -1014,10 +1116,19 @@ impl Render for SettingsWindow {
 
         match self.nav {
             SettingsNav::Interface => {
-                // Section 1: Theme & Language Options
+                // Section 1: Visual Theme & Language
+                let sec1_key = "theme";
+                let _is_sec1_expanded = self.expanded_sections.contains(sec1_key);
                 let mut sec1_items = Vec::new();
+
                 let selected_theme_label = self.selected_theme_name();
                 let theme_btn_ed = cx.entity().downgrade();
+                let theme_icon_path = if selected_theme_label == "Light" {
+                    "icon/panel/sun.svg"
+                } else {
+                    "icon/panel/moon.svg"
+                };
+
                 let ctrl_theme_btn = div()
                     .id("pref-btn-win-theme")
                     .cursor_pointer()
@@ -1041,11 +1152,7 @@ impl Render for SettingsWindow {
                             .gap(px(6.0))
                             .child(
                                 svg()
-                                    .path(if selected_theme_label == "Light" {
-                                        "icon/panel/sun.svg"
-                                    } else {
-                                        "icon/panel/moon.svg"
-                                    })
+                                    .path(theme_icon_path)
                                     .size(px(13.0))
                                     .text_color(c.text_default),
                             )
@@ -1060,6 +1167,9 @@ impl Render for SettingsWindow {
                     .on_click(move |_ev, _win, cx| {
                         let _ = theme_btn_ed.update(cx, |this, cx| {
                             this.theme_dropdown_open = !this.theme_dropdown_open;
+                            this.lang_dropdown_open = false;
+                            this.startup_dropdown_open = false;
+                            this.image_dropdown_open = false;
                             cx.notify();
                         });
                     })
@@ -1069,21 +1179,44 @@ impl Render for SettingsWindow {
 
                 let cur_lang = cx.global::<I18nManager>().current_language_id();
                 let lang_display = if cur_lang == "zh-CN" { "简体中文 (zh-CN)" } else { "English (en-US)" };
-                let ctrl_lang_label = div()
+                let lang_btn_ed = cx.entity().downgrade();
+                let ctrl_lang_btn = div()
+                    .id("pref-btn-win-lang")
+                    .cursor_pointer()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .w(px(210.0))
                     .px(px(12.0))
                     .py(px(5.0))
                     .rounded(px(d.menu_item_radius))
                     .bg(c.dialog_secondary_button_bg)
+                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
                     .border_1()
                     .border_color(c.dialog_border)
                     .text_size(px(12.0))
                     .text_color(c.text_default)
                     .child(lang_display)
+                    .child(
+                        svg()
+                            .path("icon/panel/select-chevron.svg")
+                            .size(px(14.0))
+                            .text_color(c.dialog_muted),
+                    )
+                    .on_click(move |_ev, _win, cx| {
+                        let _ = lang_btn_ed.update(cx, |this, cx| {
+                            this.lang_dropdown_open = !this.lang_dropdown_open;
+                            this.theme_dropdown_open = false;
+                            this.startup_dropdown_open = false;
+                            this.image_dropdown_open = false;
+                            cx.notify();
+                        });
+                    })
                     .into_any_element();
 
-                sec1_items.push(make_row("Display Language", "Select preferred language for editor UI and dialogs", ctrl_lang_label));
+                sec1_items.push(make_row("Display Language", "Select preferred language for editor UI and dialogs", ctrl_lang_btn));
 
-                sections.push(make_section("win-sec-theme", "theme", "Visual Theme & Language", sec1_items));
+                sections.push(make_section("win-sec-theme", sec1_key, "Visual Theme & Language", sec1_items));
 
                 if self.theme_dropdown_open {
                     let mut menu_items = Vec::new();
@@ -1164,10 +1297,73 @@ impl Render for SettingsWindow {
                             .children(menu_items)
                             .into_any_element(),
                     );
+                } else if self.lang_dropdown_open {
+                    let lang_opts = [("en-US", "English (en-US)"), ("zh-CN", "简体中文 (zh-CN)")];
+                    let mut menu_items = Vec::new();
+                    for (code, label) in lang_opts {
+                        let is_selected = label == lang_display;
+                        let item_ed = cx.entity().downgrade();
+
+                        menu_items.push(
+                            div()
+                                .id(ElementId::Name(format!("win-lang-item-{}", code).into()))
+                                .cursor_pointer()
+                                .flex()
+                                .items_center()
+                                .justify_between()
+                                .px(px(10.0))
+                                .py(px(6.0))
+                                .rounded(px(4.0))
+                                .bg(if is_selected { c.dialog_secondary_button_hover } else { c.dialog_surface })
+                                .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                .text_size(px(12.0))
+                                .text_color(c.text_default)
+                                .child(label)
+                                .child(if is_selected {
+                                    svg()
+                                        .path("icon/panel/check.svg")
+                                        .size(px(13.0))
+                                        .text_color(c.dialog_primary_button_bg)
+                                        .into_any_element()
+                                } else {
+                                    div().w(px(13.0)).into_any_element()
+                                })
+                                .on_click(move |ev, win, cx| {
+                                    let _ = item_ed.update(cx, |this, cx| {
+                                        this.lang_dropdown_open = false;
+                                        let _ = apply_configured_language(cx, code);
+                                        this.save(ev, win, cx);
+                                    });
+                                })
+                                .into_any_element(),
+                        );
+                    }
+
+                    active_panel_overlay = Some(
+                        div()
+                            .absolute()
+                            .top(px(144.0))
+                            .right(px(26.0))
+                            .w(px(210.0))
+                            .occlude()
+                            .bg(c.dialog_surface)
+                            .border_1()
+                            .border_color(c.dialog_border)
+                            .rounded(px(6.0))
+                            .shadow_lg()
+                            .p(px(4.0))
+                            .flex()
+                            .flex_col()
+                            .gap(px(2.0))
+                            .children(menu_items)
+                            .into_any_element(),
+                    );
                 }
 
                 // Section 2: Status Bar Options
+                let sec2_key = "status_bar";
                 let mut sec2_items = Vec::new();
+
                 let sb_main_ed = cx.entity().downgrade();
                 let ctrl_sb_main = Switch::new("win-switch-sb-main")
                     .checked(self.status_bar_enabled)
@@ -1207,48 +1403,149 @@ impl Render for SettingsWindow {
 
                 sec2_items.push(make_row("Cursor Position Badge", "Display line and column coordinates in status bar", ctrl_sb_pos));
 
-                sections.push(make_section("win-sec-sb", "status_bar", "Status Bar Options", sec2_items));
+                let sb_side_ed = cx.entity().downgrade();
+                let ctrl_sb_side = Switch::new("win-switch-sb-side")
+                    .checked(self.status_bar_show_sidebar_toggle)
+                    .on_click(move |ev, win, cx| {
+                        let _ = sb_side_ed.update(cx, |this, cx| {
+                            this.status_bar_show_sidebar_toggle = !this.status_bar_show_sidebar_toggle;
+                            this.save(ev, win, cx);
+                        });
+                    })
+                    .into_any_element();
+
+                sec2_items.push(make_row("Sidebar Toggle Button", "Display button to toggle file tree sidebar in status bar", ctrl_sb_side));
+
+                let sb_mode_ed = cx.entity().downgrade();
+                let ctrl_sb_mode = Switch::new("win-switch-sb-mode")
+                    .checked(self.status_bar_show_mode_switch)
+                    .on_click(move |ev, win, cx| {
+                        let _ = sb_mode_ed.update(cx, |this, cx| {
+                            this.status_bar_show_mode_switch = !this.status_bar_show_mode_switch;
+                            this.save(ev, win, cx);
+                        });
+                    })
+                    .into_any_element();
+
+                sec2_items.push(make_row("Mode Switch Button", "Display button to switch Edit/Preview modes in status bar", ctrl_sb_mode));
+
+                sections.push(make_section("win-sec-sb", sec2_key, "Status Bar Options", sec2_items));
             }
             SettingsNav::Editing => {
-                // Startup and Image Paste
+                // Section 1: Typography & Formatting
+                let sec1_key = "typography";
                 let mut sec1_items = Vec::new();
-                let startup_label = match self.startup_open {
-                    StartupOpenSetting::NewFile => "New Blank Document",
-                    StartupOpenSetting::LastOpenedFile => "Open Last Opened File",
-                };
-                let startup_btn_ed = cx.entity().downgrade();
-                let ctrl_startup_btn = div()
-                    .id("pref-btn-win-startup")
-                    .cursor_pointer()
-                    .flex()
-                    .items_center()
-                    .justify_between()
-                    .w(px(210.0))
-                    .px(px(12.0))
-                    .py(px(5.0))
-                    .rounded(px(d.menu_item_radius))
-                    .bg(c.dialog_secondary_button_bg)
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                    .border_1()
-                    .border_color(c.dialog_border)
-                    .text_size(px(12.0))
-                    .text_color(c.text_default)
-                    .child(startup_label)
-                    .child(
-                        svg()
-                            .path("icon/panel/select-chevron.svg")
-                            .size(px(14.0))
-                            .text_color(c.dialog_muted),
-                    )
+
+                let font_dec = cx.entity().downgrade();
+                let font_inc = cx.entity().downgrade();
+                let font_ctr = cx.entity().downgrade();
+                let curr_size = self.font_size;
+                let is_editing_font = self.editing_stepper.as_deref() == Some("font");
+
+                let ctrl_font = render_zed_stepper(
+                    "win-font-dec",
+                    "win-font-inc",
+                    format!("{} px", curr_size),
+                    is_editing_font,
+                    Box::new(move |_ev, _win, cx| {
+                        let _ = font_dec.update(cx, |this, cx| {
+                            this.editing_stepper = None;
+                            if this.font_size > 8 {
+                                this.font_size -= 1;
+                                cx.notify();
+                            }
+                        });
+                    }),
+                    Box::new(move |_ev, _win, cx| {
+                        let _ = font_inc.update(cx, |this, cx| {
+                            this.editing_stepper = None;
+                            if this.font_size < 48 {
+                                this.font_size += 1;
+                                cx.notify();
+                            }
+                        });
+                    }),
+                    Box::new(move |_ev, _win, cx| {
+                        let _ = font_ctr.update(cx, |this, cx| {
+                            this.editing_stepper = Some("font".to_string());
+                            cx.notify();
+                        });
+                    }),
+                );
+
+                sec1_items.push(make_row(
+                    "Editor Font Size",
+                    "Baseline font size in pixels for text editor content",
+                    ctrl_font,
+                ));
+
+                let lh_dec = cx.entity().downgrade();
+                let lh_inc = cx.entity().downgrade();
+                let lh_ctr = cx.entity().downgrade();
+                let curr_lh = self.line_height;
+                let is_editing_lh = self.editing_stepper.as_deref() == Some("line_height");
+
+                let ctrl_lh = render_zed_stepper(
+                    "win-lh-dec",
+                    "win-lh-inc",
+                    format!("{:.1}", curr_lh),
+                    is_editing_lh,
+                    Box::new(move |_ev, _win, cx| {
+                        let _ = lh_dec.update(cx, |this, cx| {
+                            this.editing_stepper = None;
+                            if this.line_height > 1.05 {
+                                this.line_height = (this.line_height - 0.1).max(1.0);
+                                cx.notify();
+                            }
+                        });
+                    }),
+                    Box::new(move |_ev, _win, cx| {
+                        let _ = lh_inc.update(cx, |this, cx| {
+                            this.editing_stepper = None;
+                            if this.line_height < 3.0 {
+                                this.line_height = (this.line_height + 0.1).min(3.0);
+                                cx.notify();
+                            }
+                        });
+                    }),
+                    Box::new(move |_ev, _win, cx| {
+                        let _ = lh_ctr.update(cx, |this, cx| {
+                            this.editing_stepper = Some("line_height".to_string());
+                            cx.notify();
+                        });
+                    }),
+                );
+
+                sec1_items.push(make_row(
+                    "Line Height Multiplier",
+                    "Adjust vertical line spacing ratio for reading comfort",
+                    ctrl_lh,
+                ));
+
+                sections.push(make_section("win-sec-typo", sec1_key, "Typography & Formatting", sec1_items));
+
+                // Section 2: Markdown & Assets
+                let sec2_key = "markdown";
+                let mut sec2_items = Vec::new();
+
+                let tbl_ed = cx.entity().downgrade();
+                let show_tb_headers = EditorSettings::show_table_headers(cx);
+                let ctrl_tbl = Switch::new("win-switch-table-headers")
+                    .checked(show_tb_headers)
                     .on_click(move |_ev, _win, cx| {
-                        let _ = startup_btn_ed.update(cx, |this, cx| {
-                            this.startup_dropdown_open = !this.startup_dropdown_open;
+                        let _ = tbl_ed.update(cx, |_this, cx| {
+                            let new_val = !EditorSettings::show_table_headers(cx);
+                            EditorSettings::set_show_table_headers(cx, new_val);
                             cx.notify();
                         });
                     })
                     .into_any_element();
 
-                sec1_items.push(make_row("On Startup", "Choose default document state when launching Velotype editor", ctrl_startup_btn));
+                sec2_items.push(make_row(
+                    "Table Column Headers",
+                    "Automatically render header row when formatting markdown tables",
+                    ctrl_tbl,
+                ));
 
                 let image_label = match self.image_paste_behavior {
                     ImagePasteBehavior::CopyToAssetsFolder => "Save to Local Assets",
@@ -1283,14 +1580,64 @@ impl Render for SettingsWindow {
                     .on_click(move |_ev, _win, cx| {
                         let _ = image_btn_ed.update(cx, |this, cx| {
                             this.image_dropdown_open = !this.image_dropdown_open;
+                            this.startup_dropdown_open = false;
+                            this.theme_dropdown_open = false;
+                            this.lang_dropdown_open = false;
                             cx.notify();
                         });
                     })
                     .into_any_element();
 
-                sec1_items.push(make_row("Image Paste Action", "Default storage location when pasting images into document", ctrl_image_btn));
+                sec2_items.push(make_row("Image Paste Action", "Default storage location when pasting images into document", ctrl_image_btn));
 
-                sections.push(make_section("win-sec-editing", "editing", "Editor & File Preferences", sec1_items));
+                sections.push(make_section("win-sec-markdown", sec2_key, "Markdown & Assets", sec2_items));
+
+                // Section 3: Startup Options
+                let sec3_key = "startup";
+                let mut sec3_items = Vec::new();
+
+                let startup_label = match self.startup_open {
+                    StartupOpenSetting::NewFile => "New Blank Document",
+                    StartupOpenSetting::LastOpenedFile => "Open Last Opened File",
+                };
+                let startup_btn_ed = cx.entity().downgrade();
+                let ctrl_startup_btn = div()
+                    .id("pref-btn-win-startup")
+                    .cursor_pointer()
+                    .flex()
+                    .items_center()
+                    .justify_between()
+                    .w(px(210.0))
+                    .px(px(12.0))
+                    .py(px(5.0))
+                    .rounded(px(d.menu_item_radius))
+                    .bg(c.dialog_secondary_button_bg)
+                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                    .border_1()
+                    .border_color(c.dialog_border)
+                    .text_size(px(12.0))
+                    .text_color(c.text_default)
+                    .child(startup_label)
+                    .child(
+                        svg()
+                            .path("icon/panel/select-chevron.svg")
+                            .size(px(14.0))
+                            .text_color(c.dialog_muted),
+                    )
+                    .on_click(move |_ev, _win, cx| {
+                        let _ = startup_btn_ed.update(cx, |this, cx| {
+                            this.startup_dropdown_open = !this.startup_dropdown_open;
+                            this.image_dropdown_open = false;
+                            this.theme_dropdown_open = false;
+                            this.lang_dropdown_open = false;
+                            cx.notify();
+                        });
+                    })
+                    .into_any_element();
+
+                sec3_items.push(make_row("On Startup", "Choose default document state when launching Velotype editor", ctrl_startup_btn));
+
+                sections.push(make_section("win-sec-startup", sec3_key, "Startup Options", sec3_items));
 
                 if self.startup_dropdown_open {
                     let startup_opts = [
@@ -1340,7 +1687,7 @@ impl Render for SettingsWindow {
                     active_panel_overlay = Some(
                         div()
                             .absolute()
-                            .top(px(80.0))
+                            .top(px(210.0))
                             .right(px(26.0))
                             .w(px(210.0))
                             .occlude()
@@ -1424,8 +1771,60 @@ impl Render for SettingsWindow {
                 }
             }
             SettingsNav::Keymap => {
-                let sec1_items = Vec::new();
-                sections.push(make_section("win-sec-keymap", "keymap", "Document & Keymap Shortcuts", sec1_items));
+                // Section 1: Document Actions
+                let sec1_key = "doc_actions";
+                let mut sec1_items = Vec::new();
+
+                let doc_shortcuts = [
+                    ("Save Document", "Save active file changes to disk", "Ctrl + S"),
+                    ("Save Document As", "Save active document with a new name", "Ctrl + Shift + S"),
+                    ("New Window", "Open a new editor window instance", "Ctrl + N"),
+                    ("Close Window", "Close the currently focused editor window", "Ctrl + W"),
+                ];
+
+                for (name, desc, sc) in doc_shortcuts.iter() {
+                    let ctrl_sc = div()
+                        .px(px(8.0))
+                        .py(px(2.0))
+                        .rounded(px(d.menu_item_radius))
+                        .bg(c.dialog_secondary_button_hover)
+                        .text_size(px(11.0))
+                        .font_weight(gpui::FontWeight::BOLD)
+                        .text_color(c.text_default)
+                        .child(*sc)
+                        .into_any_element();
+
+                    sec1_items.push(make_row(*name, *desc, ctrl_sc));
+                }
+
+                sections.push(make_section("win-sec-doc-actions", sec1_key, "Document Actions", sec1_items));
+
+                // Section 2: Interface & View Controls
+                let sec2_key = "view_controls";
+                let mut sec2_items = Vec::new();
+
+                let view_shortcuts = [
+                    ("Toggle View Mode", "Switch between Edit, Preview, and Dual view layouts", "Ctrl + M"),
+                    ("Toggle Workspace Tree", "Show or collapse the left file navigation sidebar", "Ctrl + E"),
+                    ("Quit Application", "Safely exit application and save session", "Ctrl + Q"),
+                ];
+
+                for (name, desc, sc) in view_shortcuts.iter() {
+                    let ctrl_sc = div()
+                        .px(px(8.0))
+                        .py(px(2.0))
+                        .rounded(px(d.menu_item_radius))
+                        .bg(c.dialog_secondary_button_hover)
+                        .text_size(px(11.0))
+                        .font_weight(gpui::FontWeight::BOLD)
+                        .text_color(c.text_default)
+                        .child(*sc)
+                        .into_any_element();
+
+                    sec2_items.push(make_row(*name, *desc, ctrl_sc));
+                }
+
+                sections.push(make_section("win-sec-view-controls", sec2_key, "Interface & View Controls", sec2_items));
             }
         }
 
