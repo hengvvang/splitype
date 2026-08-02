@@ -3341,18 +3341,16 @@ impl Render for Block {
                 } else {
                     let editor_input = BlockTextElement::new(cx.entity(), is_placeholder);
 
-                    // Focused: vertical stack
-                    // 1) outer rect filled with code_bg (no border, no rounded)
-                    // 2) source code BELOW outer rect with same code_bg
+                    // Focused: background applied directly on focused_base (full shell width)
+                    // with top rendered preview and bottom source editor inside
                     let container = div()
                         .w_full()
                         .flex()
                         .flex_col()
                         .child(
-                            // Top: outer rect with code_bg fill, rendered image inside
+                            // Top: rendered preview image inside
                             div()
                                 .w_full()
-                                .bg(c.code_bg)
                                 .p(relative(0.005))
                                 .flex()
                                 .items_center()
@@ -3360,10 +3358,9 @@ impl Render for Block {
                                 .child(math_preview),
                         )
                         .child(
-                            // Bottom: source code below outer rect, same code_bg
+                            // Bottom: source code editor
                             div()
                                 .w_full()
-                                .bg(c.code_bg)
                                 .px(px(d.code_block_padding_x))
                                 .py(px(d.code_block_padding_y))
                                 .text_size(px(t.code_size))
@@ -3372,7 +3369,13 @@ impl Render for Block {
                                 .child(editor_input),
                         );
 
-                    focused_base.w_full().flex().flex_col().child(container).into_any_element()
+                    focused_base
+                        .bg(c.code_bg)
+                        .w_full()
+                        .flex()
+                        .flex_col()
+                        .child(container)
+                        .into_any_element()
                 }
             }
             BlockKind::MermaidBlock => {
@@ -3396,18 +3399,16 @@ impl Render for Block {
                 } else {
                     let editor_input = BlockTextElement::new(cx.entity(), is_placeholder);
 
-                    // Focused: vertical stack
-                    // 1) outer rect filled with code_bg (no border, no rounded)
-                    // 2) source code BELOW outer rect with same code_bg
+                    // Focused: background applied directly on focused_base (full shell width)
+                    // with top rendered preview and bottom source editor inside
                     let container = div()
                         .w_full()
                         .flex()
                         .flex_col()
                         .child(
-                            // Top: outer rect with code_bg fill, rendered diagram inside
+                            // Top: rendered diagram inside
                             div()
                                 .w_full()
-                                .bg(c.code_bg)
                                 .p(relative(0.005))
                                 .flex()
                                 .items_center()
@@ -3415,10 +3416,9 @@ impl Render for Block {
                                 .child(mermaid_preview),
                         )
                         .child(
-                            // Bottom: source code below outer rect, same code_bg
+                            // Bottom: source code editor
                             div()
                                 .w_full()
-                                .bg(c.code_bg)
                                 .px(px(d.code_block_padding_x))
                                 .py(px(d.code_block_padding_y))
                                 .text_size(px(t.code_size))
@@ -3427,7 +3427,13 @@ impl Render for Block {
                                 .child(editor_input),
                         );
 
-                    focused_base.w_full().flex().flex_col().child(container).into_any_element()
+                    focused_base
+                        .bg(c.code_bg)
+                        .w_full()
+                        .flex()
+                        .flex_col()
+                        .child(container)
+                        .into_any_element()
                 }
             }
             BlockKind::Paragraph
