@@ -2390,6 +2390,42 @@ impl Render for Block {
                         .to_string()
                         .into()
                 };
+                let code_content_container = if self.show_code_line_numbers {
+                    let line_count = self.display_text().split('\n').count().max(1);
+                    let line_numbers_text = (1..=line_count)
+                        .map(|i| i.to_string())
+                        .collect::<Vec<_>>()
+                        .join("\n");
+
+                    div()
+                        .w_full()
+                        .flex()
+                        .flex_row()
+                        .child(
+                            div()
+                                .flex_none()
+                                .pr(px(10.0))
+                                .mr(px(8.0))
+                                .border_r_1()
+                                .border_color(c.table_border)
+                                .text_align(TextAlign::Right)
+                                .text_size(px(t.code_size))
+                                .line_height(rems(t.text_line_height))
+                                .text_color(c.dialog_muted)
+                                .child(SharedString::from(line_numbers_text)),
+                        )
+                        .child(
+                            div()
+                                .min_w(px(0.0))
+                                .flex_1()
+                                .child(BlockTextElement::new(cx.entity(), is_placeholder)),
+                        )
+                } else {
+                    div()
+                        .min_w(px(0.0))
+                        .w_full()
+                        .child(BlockTextElement::new(cx.entity(), is_placeholder))
+                };
                 let code_panel = focused_base
                     .relative()
                     .on_hover(cx.listener(Self::on_code_block_hover))
@@ -2401,12 +2437,7 @@ impl Render for Block {
                     .text_size(px(t.code_size))
                     .text_color(c.code_text)
                     .line_height(rems(t.text_line_height))
-                    .child(
-                        div()
-                            .min_w(px(0.0))
-                            .w_full()
-                            .child(BlockTextElement::new(cx.entity(), is_placeholder)),
-                    );
+                    .child(code_content_container);
 
                     let toolbar_height = 28.0;
                     let toolbar = div()
@@ -2459,6 +2490,41 @@ impl Render for Block {
                                 .w(px(1.0))
                                 .h(px(14.0))
                                 .bg(c.table_border),
+                        )
+                        .child(
+                            div()
+                                .id(ElementId::Name(
+                                    format!("code-line-numbers-{}", self.record.id).into(),
+                                ))
+                                .relative()
+                                .w(px(26.0))
+                                .h_full()
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .rounded(px(d.menu_item_radius - 2.0))
+                                .bg(if self.show_code_line_numbers {
+                                    c.dialog_secondary_button_hover
+                                } else {
+                                    gpui::transparent_black()
+                                })
+                                .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                .active(|this| this.opacity(0.9))
+                                .cursor_pointer()
+                                .on_mouse_down(
+                                    MouseButton::Left,
+                                    cx.listener(Self::on_code_line_numbers_toggle),
+                                )
+                                .child(
+                                    svg()
+                                        .path("icon/panel/line-numbers.svg")
+                                        .size(px(14.0))
+                                        .text_color(if self.show_code_line_numbers {
+                                            c.code_language_input_text
+                                        } else {
+                                            c.code_language_input_placeholder
+                                        }),
+                                ),
                         )
                         .child(
                             div()

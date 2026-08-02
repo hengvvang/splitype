@@ -154,6 +154,7 @@ pub struct Block {
     /// suppressed; the block stores raw text for source-mode editing.
     pub(crate) edit_mode: EditMode,
     show_source_line_numbers: bool,
+    pub(crate) show_code_line_numbers: bool,
     pub(crate) table_runtime: Option<TableRuntime>,
     pub(crate) table_cell_position: Option<TableCellPosition>,
     pub(crate) table_cell_alignment: Option<TableColumnAlignment>,
@@ -256,6 +257,7 @@ impl Block {
             collapsed_caret_affinity: CollapsedCaretAffinity::Default,
             edit_mode,
             show_source_line_numbers: false,
+            show_code_line_numbers: false,
             table_runtime: None,
             table_cell_position: None,
             table_cell_alignment: None,

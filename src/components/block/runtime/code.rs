@@ -370,4 +370,14 @@ impl Block {
         self.code_language_last_bounds = None;
         self.code_language_is_selecting = false;
     }
+
+    pub(crate) fn on_code_line_numbers_toggle(
+        &mut self,
+        _event: &MouseDownEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.show_code_line_numbers = !self.show_code_line_numbers;
+        cx.notify();
+    }
 }
