@@ -1975,14 +1975,21 @@ impl Block {
     /// capturing undo, so editor-level flows that already manage those can
     /// reuse the conversion.
     pub(crate) fn make_separator(&mut self) {
+        let current_text = self.display_text().to_string();
+        let source_text = if current_text.trim().is_empty() {
+            "---".to_string()
+        } else {
+            current_text
+        };
+        let source_len = source_text.len();
         self.clear_inline_projection();
         self.record.kind = BlockKind::Separator;
-        self.record.raw_fallback = None;
-        self.record.set_title(InlineTextTree::plain(String::new()));
+        self.record.raw_fallback = Some(source_text.clone());
+        self.record.set_title(InlineTextTree::plain(source_text));
         self.quote_reparse_requested = false;
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
-        self.assign_collapsed_selection_offset(0, CollapsedCaretAffinity::Default, None);
+        self.assign_collapsed_selection_offset(source_len, CollapsedCaretAffinity::Default, None);
         self.marked_range = None;
         self.cursor_blink_epoch = Instant::now();
         self.clear_vertical_motion();

@@ -10,8 +10,8 @@ const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
 
 use super::element::{BlockTextElement, CodeLanguageInputElement};
 use super::{
-    Block, BlockEvent, BlockKind, ImageResolvedSource, ImageRuntime, code_language_display_name,
-    code_language_options_matching,
+    Block, BlockEvent, BlockKind, ImageResolvedSource, ImageRuntime,
+    code_language_display_name, code_language_options_matching,
 };
 use crate::components::{
     Editor, HtmlCssColor, HtmlDocument, HtmlNode, HtmlNodeKind, InlineScript, TableAxisHighlight,
@@ -2344,16 +2344,8 @@ impl Render for Block {
             } else {
                 CursorStyle::IBeam
             },
-            if self.kind().is_separator() {
-                depth_padding + d.separator_inset_x
-            } else {
-                depth_padding
-            },
-            if self.kind().is_separator() {
-                d.block_padding_x + d.separator_inset_x
-            } else {
-                d.block_padding_x
-            },
+            depth_padding,
+            d.block_padding_x,
             d,
             cx,
         );
@@ -2420,18 +2412,56 @@ impl Render for Block {
                 }
             }
         }
-
         let content = match self.kind() {
-            BlockKind::Separator => focused_base
-                .py(px(d.separator_margin_y))
-                .child(
-                    div()
-                        .w_full()
-                        .h(px(d.separator_thickness))
-                        .bg(c.separator_color)
-                        .rounded(px(999.0)),
-                )
-                .into_any_element(),
+            BlockKind::Separator => {
+                let line_slot_height = px(t.text_size * t.text_line_height);
+                let base = focused_base
+                    .w_full()
+                    .h(line_slot_height)
+                    .text_size(px(t.text_size))
+                    .text_color(c.text_default)
+                    .line_height(rems(t.text_line_height));
+
+                let line = div()
+                    .w_full()
+                    .border_b(px(d.separator_thickness))
+                    .border_color(c.separator_color);
+
+                if !focused {
+                    base.flex()
+                        .flex_row()
+                        .items_center()
+                        .child(line)
+                        .into_any_element()
+                } else {
+                    let text_input = self.render_text_or_mixed_inline_visuals(
+                        &theme,
+                        focused,
+                        is_placeholder,
+                        None,
+                        None,
+                        c.text_default,
+                        t.text_size,
+                        FontWeight::NORMAL,
+                        cx,
+                    );
+
+                    base.flex()
+                        .flex_row()
+                        .items_center()
+                        .justify_between()
+                        .child(div().flex_none().child(text_input))
+                        .child(
+                            div()
+                                .w(relative(0.70))
+                                .h_full()
+                                .flex()
+                                .items_center()
+                                .child(line),
+                        )
+                        .into_any_element()
+                }
+            }
             BlockKind::Heading { level: 1 } => focused_base
                 .text_size(px(t.h1_size))
                 .font_weight(t.h1_weight.to_font_weight())

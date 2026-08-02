@@ -1088,7 +1088,7 @@ impl Editor {
             if BlockKind::parse_separator_line(line) {
                 roots.push(Self::new_block(
                     cx,
-                    BlockRecord::new(BlockKind::Separator, InlineTextTree::plain(String::new())),
+                    BlockRecord::new(BlockKind::Separator, InlineTextTree::plain(line.to_string())),
                 ));
                 index += 1;
                 continue;

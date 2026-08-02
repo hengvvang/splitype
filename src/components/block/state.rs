@@ -576,7 +576,8 @@ impl BlockRecord {
     pub fn kind_uses_raw_fallback(&self) -> bool {
         matches!(
             self.kind,
-            BlockKind::RawMarkdown
+            BlockKind::Separator
+                | BlockKind::RawMarkdown
                 | BlockKind::Comment
                 | BlockKind::HtmlBlock
                 | BlockKind::MathBlock
@@ -592,7 +593,19 @@ impl BlockRecord {
         let title_markdown = self.title_markdown_for_output();
         match self.kind {
             BlockKind::Paragraph => indent_multiline(&title_markdown, &indentation),
-            BlockKind::Separator => "---".to_string(),
+            BlockKind::Separator => {
+                if let Some(raw) = &self.raw_fallback {
+                    if !raw.trim().is_empty() {
+                        return raw.clone();
+                    }
+                }
+                let visible = self.title.visible_text();
+                if !visible.trim().is_empty() {
+                    visible.to_string()
+                } else {
+                    "---".to_string()
+                }
+            }
             BlockKind::Heading { level } => {
                 format!(
                     "{indentation}{} {title_markdown}",
