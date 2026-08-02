@@ -2771,8 +2771,8 @@ impl Render for Block {
                 let preview_marker = self.table_axis_preview;
                 let selected_marker = self.table_axis_selection;
                 let body_row_count = runtime.rows.len();
-                let right_gutter = px(24.0);
-                let bottom_gutter = px(24.0);
+                let right_gutter = px(18.0);
+                let bottom_gutter = px(18.0);
                 let column_control_visible = self.table_append_column_hovered || self.table_append_column_zone_hovered || self.table_append_column_button_hovered;
                 let row_control_visible = self.table_append_row_hovered || self.table_append_row_zone_hovered || self.table_append_row_button_hovered;
                 let column_button_hovered = self.table_append_column_button_hovered;
@@ -3092,8 +3092,8 @@ impl Render for Block {
                         .absolute()
                         .top_0()
                         .bottom_0()
-                        .right(px(-24.0))
-                        .w(px(24.0))
+                        .right(px(-18.0))
+                        .w(px(18.0))
                         .on_hover(cx.listener(Self::on_table_append_column_edge_hover));
 
                     let row_edge_band = div()
@@ -3103,8 +3103,8 @@ impl Render for Block {
                         .absolute()
                         .left_0()
                         .right_0()
-                        .bottom(px(-24.0))
-                        .h(px(24.0))
+                        .bottom(px(-18.0))
+                        .h(px(18.0))
                         .on_hover(cx.listener(Self::on_table_append_row_edge_hover));
 
                     let column_control = div()
@@ -3114,8 +3114,8 @@ impl Render for Block {
                         .absolute()
                         .top_0()
                         .bottom_0()
-                        .right(px(-24.0))
-                        .w(px(20.0))
+                        .right(px(-18.0))
+                        .w(px(18.0))
                         .on_hover(cx.listener(Self::on_table_append_column_zone_hover))
                         .child(
                             div()
@@ -3166,8 +3166,8 @@ impl Render for Block {
                         .absolute()
                         .left_0()
                         .right_0()
-                        .bottom(px(-24.0))
-                        .h(px(20.0))
+                        .bottom(px(-18.0))
+                        .h(px(18.0))
                         .on_hover(cx.listener(Self::on_table_append_row_zone_hover))
                         .child(
                             div()
@@ -3216,10 +3216,10 @@ impl Render for Block {
                             format!("table-expand-button-{}", self.record.id).into(),
                         ))
                         .absolute()
-                        .right(px(-24.0))
-                        .bottom(px(-24.0))
-                        .w(px(20.0))
-                        .h(px(20.0))
+                        .right(px(-18.0))
+                        .bottom(px(-18.0))
+                        .w(px(18.0))
+                        .h(px(18.0))
                         .flex()
                         .items_center()
                         .justify_center()
