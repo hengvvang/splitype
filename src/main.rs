@@ -142,6 +142,21 @@ impl AssetSource for VelotypeAssets {
             "icon/table/handle-column.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../assets/icon/table/handle-column.svg"
             )))),
+            "icon/callout/note.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../assets/icon/callout/note.svg"
+            )))),
+            "icon/callout/tip.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../assets/icon/callout/tip.svg"
+            )))),
+            "icon/callout/important.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../assets/icon/callout/important.svg"
+            )))),
+            "icon/callout/warning.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../assets/icon/callout/warning.svg"
+            )))),
+            "icon/callout/caution.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../assets/icon/callout/caution.svg"
+            )))),
             _ => Ok(None),
         }
     }

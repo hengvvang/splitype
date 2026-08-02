@@ -2032,7 +2032,7 @@ impl Editor {
             self.render_area_header(leaf_id, area_type, theme, leaf_count, is_maximized, cx);
 
         let body: AnyElement = match area_type {
-            AreaType::Block | AreaType::Wysiwyg | AreaType::Source => {
+            AreaType::Block | AreaType::Source => {
                 if let Some(content) = primary_content.take() {
                     content
                 } else {
@@ -2356,7 +2356,7 @@ impl Editor {
                             ed.area_layout.change_area_type(leaf_id, area_type);
                             match area_type {
                                 AreaType::Source => ed.set_view_mode(super::ViewMode::Source, cx),
-                                AreaType::Block | AreaType::Wysiwyg => {
+                                AreaType::Block => {
                                     ed.set_view_mode(super::ViewMode::Rendered, cx)
                                 }
                                 _ => {}
@@ -3959,7 +3959,7 @@ impl Render for Editor {
                     group_end += 1;
                 }
 
-                let (accent, background) = callout_colors(callout_variant, &theme);
+                let (accent, _background) = callout_colors(callout_variant, &theme);
                 row_starts.push(index);
                 row_top_gaps.push(top_gap);
                 row_elements.push(
@@ -3976,7 +3976,6 @@ impl Render for Editor {
                         .rounded_r(px(d.callout_radius))
                         .border_l(px(d.callout_border_width))
                         .border_color(accent)
-                        .bg(background)
                         .children(group_children)
                         .into_any_element(),
                 );

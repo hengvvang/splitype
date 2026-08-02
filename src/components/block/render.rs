@@ -2837,11 +2837,10 @@ impl Render for Block {
                     .items_center()
                     .gap(px(d.callout_header_gap))
                     .child(
-                        div()
-                            .text_size(px(t.text_size))
-                            .font_weight(FontWeight::BOLD)
-                            .text_color(accent)
-                            .child(variant.icon()),
+                        svg()
+                            .path(variant.icon_path())
+                            .size(px(t.text_size))
+                            .text_color(accent),
                     )
                     .child(header_text)
                     .into_any_element()

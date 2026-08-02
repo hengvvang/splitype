@@ -51,13 +51,13 @@ impl CalloutVariant {
         }
     }
 
-    pub fn icon(self) -> &'static str {
+    pub fn icon_path(self) -> &'static str {
         match self {
-            Self::Note => "i",
-            Self::Tip => "+",
-            Self::Important => "*",
-            Self::Warning => "!",
-            Self::Caution => "x",
+            Self::Note => "icon/callout/note.svg",
+            Self::Tip => "icon/callout/tip.svg",
+            Self::Important => "icon/callout/important.svg",
+            Self::Warning => "icon/callout/warning.svg",
+            Self::Caution => "icon/callout/caution.svg",
         }
     }
 

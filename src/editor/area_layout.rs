@@ -20,7 +20,6 @@ pub enum AreaType {
     Outline,
     Source,
     Block,
-    Wysiwyg,
 }
 
 impl AreaType {
@@ -31,7 +30,6 @@ impl AreaType {
             Self::Outline => "Outline",
             Self::Source => "Source",
             Self::Block => "Block",
-            Self::Wysiwyg => "WYSIWYG",
         }
     }
 
@@ -43,14 +41,12 @@ impl AreaType {
             Self::Outline => "Document section headings outline",
             Self::Source => "Raw Markdown text editor",
             Self::Block => "Visual block editor (Rendered)",
-            Self::Wysiwyg => "WYSIWYG visual editor (Rendered)",
         }
     }
 
     pub fn all() -> &'static [AreaType] {
         &[
             Self::Block,
-            Self::Wysiwyg,
             Self::Source,
             Self::Explorer,
             Self::Outline,
@@ -317,7 +313,6 @@ impl LayoutNode {
                     let old_type = *area_type;
                     let next_type = match old_type {
                         AreaType::Block => AreaType::Source,
-                        AreaType::Wysiwyg => AreaType::Source,
                         AreaType::Source => AreaType::Block,
                         AreaType::Explorer => AreaType::Block,
                         AreaType::Outline => AreaType::Block,
