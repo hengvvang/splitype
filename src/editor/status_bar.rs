@@ -303,11 +303,20 @@ impl Editor {
         let snapshot = self.capture_source_selection_snapshot(cx);
         let cursor_offset = snapshot.range.end;
         let text = self.document.raw_source_text(cx);
+        // Snap to valid UTF-8 char boundary to avoid panics on multi-byte chars.
         let clamped = cursor_offset.min(text.len());
+        let safe = if text.is_char_boundary(clamped) {
+            clamped
+        } else {
+            (0..=clamped)
+                .rev()
+                .find(|&i| text.is_char_boundary(i))
+                .unwrap_or(0)
+        };
 
-        let line = text[..clamped].matches('\n').count() + 1;
-        let last_newline = text[..clamped].rfind('\n').map(|i| i + 1).unwrap_or(0);
-        let col = text[last_newline..clamped].graphemes(true).count() + 1;
+        let line = text[..safe].matches('\n').count() + 1;
+        let last_newline = text[..safe].rfind('\n').map(|i| i + 1).unwrap_or(0);
+        let col = text[last_newline..safe].graphemes(true).count() + 1;
         (line, col)
     }
 }

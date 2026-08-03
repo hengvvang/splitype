@@ -2622,8 +2622,174 @@ impl Editor {
             actions = actions.child(max_button).child(close_button);
         }
 
-        // Corner drag is now handled by corner hot-zones on the tile card,
-        // so the header only contains the type button and action buttons.
+        // Build tab bar for Edit areas.
+        let mut left_section = div().flex().items_center().gap(px(8.0)).child(type_button);
+
+        if area_type == AreaType::Edit {
+            let tabs = self
+                .area_layout
+                .edit_tabs
+                .entry(leaf_id)
+                .or_insert_with(EditTabState::new);
+
+            // Sync current file with tab list.
+            if let Some(ref path) = self.file_path {
+                if !tabs.open_paths.contains(path) {
+                    tabs.open_paths.push(path.clone());
+                    tabs.active_index = tabs.open_paths.len() - 1;
+                } else {
+                    // Update active index to match current file.
+                    if let Some(pos) = tabs.open_paths.iter().position(|p| p == path) {
+                        tabs.active_index = pos;
+                    }
+                }
+            }
+
+            let mut tab_elements: Vec<AnyElement> = Vec::new();
+            for (_i, path) in tabs.open_paths.iter().enumerate() {
+                let file_name = path
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "Untitled".to_string());
+                let is_active = Some(path.as_path()) == tabs.active_path().map(|p| p.as_path());
+
+                let tab_bg = if is_active {
+                    c.dialog_surface
+                } else {
+                    hsla(0.0, 0.0, 0.0, 0.0)
+                };
+                let tab_text = if is_active {
+                    c.text_default
+                } else {
+                    c.dialog_muted
+                };
+
+                let switch_path = path.clone();
+                let close_path = path.clone();
+                let tab_editor = editor.clone();
+                let close_editor = editor.clone();
+
+                tab_elements.push(
+                    div()
+                        .h(px(22.0))
+                        .px(px(6.0))
+                        .flex()
+                        .items_center()
+                        .gap(px(4.0))
+                        .rounded(px(d.menu_item_radius))
+                        .bg(tab_bg)
+                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                        .cursor_pointer()
+                        .text_size(px(11.0))
+                        .child(
+                            // Switch area: clicking the file name switches to this tab.
+                            div()
+                                .text_color(tab_text)
+                                .child(file_name.clone())
+                                .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                                    let p = switch_path.clone();
+                                    let _ = tab_editor.update(cx, |ed, cx| {
+                                        if let Some(tabs) =
+                                            ed.area_layout.edit_tabs.get_mut(&leaf_id)
+                                        {
+                                            if let Some(pos) =
+                                                tabs.open_paths.iter().position(|tp| tp == &p)
+                                            {
+                                                tabs.active_index = pos;
+                                            }
+                                        }
+                                        let _ = ed.replace_document_from_path(&p, cx);
+                                        cx.notify();
+                                    });
+                                }),
+                        )
+                        .child(
+                            // Close button: separate click area.
+                            div()
+                                .size(px(12.0))
+                                .flex()
+                                .items_center()
+                                .justify_center()
+                                .rounded(px(2.0))
+                                .hover(|this| this.bg(c.dialog_secondary_button_bg.opacity(0.6)))
+                                .cursor_pointer()
+                                .child(
+                                    svg()
+                                        .path("icon/titlebar/chrome-close.svg")
+                                        .size(px(8.0))
+                                        .text_color(c.dialog_muted),
+                                )
+                                .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                                    let p = close_path.clone();
+                                    let _ = close_editor.update(cx, |ed, cx| {
+                                        if let Some(tabs) =
+                                            ed.area_layout.edit_tabs.get_mut(&leaf_id)
+                                        {
+                                            if tabs.open_paths.len() > 1 {
+                                                if let Some(pos) =
+                                                    tabs.open_paths.iter().position(|tp| tp == &p)
+                                                {
+                                                    let was_active = pos == tabs.active_index;
+                                                    tabs.open_paths.remove(pos);
+                                                    if was_active {
+                                                        if tabs.active_index
+                                                            >= tabs.open_paths.len()
+                                                        {
+                                                            tabs.active_index = tabs
+                                                                .open_paths
+                                                                .len()
+                                                                .saturating_sub(1);
+                                                        }
+                                                        if let Some(new_path) =
+                                                            tabs.active_path().cloned()
+                                                        {
+                                                            let _ = ed.replace_document_from_path(
+                                                                &new_path, cx,
+                                                            );
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        cx.notify();
+                                    });
+                                }),
+                        )
+                        .into_any_element(),
+                );
+            }
+
+            // Add "+" button to open new file.
+            let add_editor = editor.clone();
+            tab_elements.push(
+                div()
+                    .size(px(22.0))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .rounded(px(d.menu_item_radius))
+                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                    .cursor_pointer()
+                    .text_size(px(14.0))
+                    .text_color(c.dialog_muted)
+                    .child("+")
+                    .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                        let _ = add_editor.update(cx, |_ed, cx| {
+                            cx.notify();
+                        });
+                    })
+                    .into_any_element(),
+            );
+
+            left_section = left_section.child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(2.0))
+                    .children(tab_elements),
+            );
+        }
+
         div()
             .id(("area-header", leaf_id))
             .h(px(28.0))
@@ -2634,7 +2800,7 @@ impl Editor {
             .px(px(8.0))
             .border_b(px(1.0))
             .border_color(c.dialog_border)
-            .child(div().flex().items_center().gap(px(8.0)).child(type_button))
+            .child(left_section)
             .child(div().flex().items_center().gap(px(6.0)).child(actions))
             .into_any_element()
     }
@@ -2886,6 +3052,27 @@ impl Editor {
         self.render_workspace_files_tree(theme, strings, &editor)
     }
 
+    fn render_empty_panel_prompt(colors: &crate::theme::ThemeColors, message: &str) -> AnyElement {
+        let msg = message.to_string();
+        div()
+            .w_full()
+            .h_full()
+            .p(px(16.0))
+            .flex()
+            .flex_col()
+            .items_center()
+            .justify_center()
+            .bg(colors.editor_background)
+            .child(
+                div()
+                    .text_size(px(13.0))
+                    .text_color(colors.dialog_muted)
+                    .text_align(TextAlign::Center)
+                    .child(msg),
+            )
+            .into_any_element()
+    }
+
     fn render_tiled_outline_panel(
         &mut self,
         theme: &Theme,
@@ -2972,30 +3159,31 @@ impl Editor {
                     AreaType::Block | AreaType::Source | AreaType::Edit => {
                         if let Some(content) = primary_content.take() {
                             content
+                        } else if self.file_path.is_some() {
+                            self.render_tiled_preview_panel(primary_content, theme, strings, cx)
                         } else {
-                            div()
-                                .w_full()
-                                .h_full()
-                                .p(px(16.0))
-                                .flex()
-                                .flex_col()
-                                .justify_center()
-                                .bg(c.editor_background)
-                                .child(
-                                    div()
-                                        .w_full()
-                                        .text_align(TextAlign::Center)
-                                        .text_size(px(14.0))
-                                        .text_color(c.dialog_muted)
-                                        .child(format!("{} (Editor View)", area_type.name())),
-                                )
-                                .into_any_element()
+                            let msg = match area_type {
+                                AreaType::Block => "Open a file to edit with live preview",
+                                AreaType::Source => "Open a file to edit",
+                                _ => "Open a file to edit",
+                            };
+                            Self::render_empty_panel_prompt(c, msg)
                         }
                     }
                     AreaType::Preview => {
-                        self.render_tiled_preview_panel(primary_content, theme, strings, cx)
+                        if self.file_path.is_some() {
+                            self.render_tiled_preview_panel(primary_content, theme, strings, cx)
+                        } else {
+                            Self::render_empty_panel_prompt(c, "Open a file to preview")
+                        }
                     }
-                    AreaType::Outline => self.render_tiled_outline_panel(theme, strings, cx),
+                    AreaType::Outline => {
+                        if self.file_path.is_some() {
+                            self.render_tiled_outline_panel(theme, strings, cx)
+                        } else {
+                            Self::render_empty_panel_prompt(c, "Open a file to show outline")
+                        }
+                    }
                     _ => div().into_any_element(),
                 };
 

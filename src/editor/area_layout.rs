@@ -556,6 +556,36 @@ impl SettingsTab {
 }
 
 // ---------------------------------------------------------------------------
+// Edit tab state
+// ---------------------------------------------------------------------------
+
+/// Per-Edit file tab state.
+#[derive(Clone, Debug, PartialEq)]
+pub struct EditTabState {
+    pub open_paths: Vec<std::path::PathBuf>,
+    pub active_index: usize,
+}
+
+impl EditTabState {
+    pub fn new() -> Self {
+        Self {
+            open_paths: Vec::new(),
+            active_index: 0,
+        }
+    }
+
+    pub fn active_path(&self) -> Option<&std::path::PathBuf> {
+        self.open_paths.get(self.active_index)
+    }
+}
+
+impl Default for EditTabState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Area layout state
 // ---------------------------------------------------------------------------
 
@@ -576,6 +606,8 @@ pub struct AreaLayoutState {
     pub active_inner_border_menu: Option<BorderMenuState>,
     /// Currently focused inner panel (container_id, inner_id) for status bar actions.
     pub focused_inner_panel: Option<(usize, usize)>,
+    /// Per-Edit file tab state (container_id -> tabs).
+    pub edit_tabs: HashMap<usize, EditTabState>,
     /// Measured pixel size of the tiled-layout container.
     pub container_size: Option<Size<Pixels>>,
     // --- Settings / settings Panel State ---
@@ -628,6 +660,7 @@ impl Default for AreaLayoutState {
             active_inner_corner_drag: None,
             active_inner_border_menu: None,
             focused_inner_panel: None,
+            edit_tabs: HashMap::new(),
             container_size: None,
             settings_tab: SettingsTab::Interface,
             settings_expanded_sections: sections,
