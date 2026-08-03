@@ -2372,44 +2372,26 @@ impl Editor {
             self.render_area_header(leaf_id, area_type, theme, leaf_count, is_maximized, cx);
 
         let body: AnyElement = match area_type {
-            AreaType::Block | AreaType::Source => {
-                if let Some(content) = primary_content.take() {
-                    content
-                } else {
-                    div()
-                        .w_full()
-                        .h_full()
-                        .p(px(16.0))
-                        .flex()
-                        .flex_col()
-                        .justify_center()
-                        .bg(c.editor_background)
-                        .child(
-                            div()
-                                .w_full()
-                                .text_align(TextAlign::Center)
-                                .text_size(px(14.0))
-                                .text_color(c.dialog_muted)
-                                .child(format!("{} (Editor View)", area_type.name())),
-                        )
-                        .into_any_element()
-                }
+            AreaType::Block | AreaType::Source | AreaType::Preview | AreaType::Outline => {
+                self.render_tiled_edit_container_panel(leaf_id, primary_content, theme, strings, cx)
             }
             AreaType::Edit => {
                 self.render_tiled_edit_container_panel(leaf_id, primary_content, theme, strings, cx)
             }
-            AreaType::Preview => {
-                self.render_tiled_preview_panel(primary_content, theme, strings, cx)
-            }
             AreaType::Explorer => self.render_tiled_workspace_files_panel(theme, strings, cx),
-            AreaType::Outline => self.render_tiled_outline_panel(theme, strings, cx),
             AreaType::Settings => self.render_tiled_settings_panel(theme, strings, cx),
         };
 
         let dropdown_open = self.area_layout.active_dropdown_leaf == Some(leaf_id);
 
         let panel_status_bar = match area_type {
-            AreaType::Edit => Some(self.render_panel_status_bar(area_type, theme, strings, cx)),
+            AreaType::Edit
+            | AreaType::Block
+            | AreaType::Source
+            | AreaType::Preview
+            | AreaType::Outline => {
+                Some(self.render_panel_status_bar(area_type, theme, strings, cx))
+            }
             _ => None,
         };
 
@@ -2711,12 +2693,7 @@ impl Editor {
                         let _ = option_editor.update(cx, |ed, cx| {
                             ed.area_layout.change_area_type(leaf_id, area_type);
                             match area_type {
-                                AreaType::Source | AreaType::Edit => {
-                                    ed.set_view_mode(super::ViewMode::Source, cx)
-                                }
-                                AreaType::Block | AreaType::Preview => {
-                                    ed.set_view_mode(super::ViewMode::Rendered, cx)
-                                }
+                                AreaType::Edit => ed.set_view_mode(super::ViewMode::Rendered, cx),
                                 _ => {}
                             }
                             cx.notify();
@@ -3431,12 +3408,7 @@ impl Editor {
         let t = &theme.typography;
         let editor = cx.entity().downgrade();
 
-        let available_types = &[
-            AreaType::Block,
-            AreaType::Preview,
-            AreaType::Source,
-            AreaType::Outline,
-        ];
+        let available_types = AreaType::edit_inner_types();
 
         div()
             .id(("inner-area-dropdown-overlay", inner_id))

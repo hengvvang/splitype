@@ -51,27 +51,14 @@ impl AreaType {
         }
     }
 
+    /// Outer layout area types (displayed in top-level dropdown).
     pub fn all() -> &'static [AreaType] {
-        &[
-            Self::Block,
-            Self::Preview,
-            Self::Edit,
-            Self::Source,
-            Self::Explorer,
-            Self::Outline,
-            Self::Settings,
-        ]
+        &[Self::Edit, Self::Explorer, Self::Settings]
     }
 
-    #[allow(dead_code)]
-    pub fn edit_related() -> &'static [AreaType] {
-        &[
-            Self::Block,
-            Self::Preview,
-            Self::Edit,
-            Self::Source,
-            Self::Outline,
-        ]
+    /// Inner Edit panel types.
+    pub fn edit_inner_types() -> &'static [AreaType] {
+        &[Self::Block, Self::Preview, Self::Source, Self::Outline]
     }
 }
 
@@ -331,13 +318,9 @@ impl LayoutNode {
                 if *id == target_id {
                     let old_type = *area_type;
                     let next_type = match old_type {
-                        AreaType::Block => AreaType::Edit,
-                        AreaType::Edit => AreaType::Preview,
-                        AreaType::Source => AreaType::Preview,
-                        AreaType::Preview => AreaType::Edit,
-                        AreaType::Explorer => AreaType::Block,
-                        AreaType::Outline => AreaType::Block,
-                        AreaType::Settings => AreaType::Block,
+                        AreaType::Edit => AreaType::Explorer,
+                        AreaType::Explorer => AreaType::Settings,
+                        _ => AreaType::Edit,
                     };
                     *self = Self::Split {
                         id: new_id,
@@ -481,10 +464,10 @@ impl LayoutPreset {
     pub fn name(&self) -> &'static str {
         match self {
             Self::DefaultEditor => "Single Editor",
-            Self::DualView => "Dual (Block | Source)",
-            Self::WorkspaceEditor => "Explorer (Explorer | Block)",
-            Self::TripleView => "Triple (Explorer | Block | Source)",
-            Self::OutlineView => "Outline (Outline | Block | Explorer)",
+            Self::DualView => "Dual Edit",
+            Self::WorkspaceEditor => "Explorer + Edit",
+            Self::TripleView => "Explorer + Dual Edit",
+            Self::OutlineView => "Explorer + Edit + Explorer",
         }
     }
 
@@ -629,7 +612,7 @@ impl Default for AreaLayoutState {
         Self {
             root: LayoutNode::Leaf {
                 id: 1,
-                area_type: AreaType::Block,
+                area_type: AreaType::Edit,
             },
             edit_inner_layouts: HashMap::new(),
             next_id: 2,
@@ -676,7 +659,7 @@ impl AreaLayoutState {
             LayoutPreset::DefaultEditor => {
                 self.root = LayoutNode::Leaf {
                     id: 1,
-                    area_type: AreaType::Block,
+                    area_type: AreaType::Edit,
                 };
                 self.next_id = 2;
             }
@@ -687,11 +670,11 @@ impl AreaLayoutState {
                     ratio: 0.5,
                     first: Box::new(LayoutNode::Leaf {
                         id: 2,
-                        area_type: AreaType::Block,
+                        area_type: AreaType::Edit,
                     }),
                     second: Box::new(LayoutNode::Leaf {
                         id: 3,
-                        area_type: AreaType::Source,
+                        area_type: AreaType::Edit,
                     }),
                 };
                 self.next_id = 4;
@@ -707,7 +690,7 @@ impl AreaLayoutState {
                     }),
                     second: Box::new(LayoutNode::Leaf {
                         id: 3,
-                        area_type: AreaType::Block,
+                        area_type: AreaType::Edit,
                     }),
                 };
                 self.next_id = 4;
@@ -727,11 +710,11 @@ impl AreaLayoutState {
                         ratio: 0.5,
                         first: Box::new(LayoutNode::Leaf {
                             id: 4,
-                            area_type: AreaType::Block,
+                            area_type: AreaType::Edit,
                         }),
                         second: Box::new(LayoutNode::Leaf {
                             id: 5,
-                            area_type: AreaType::Source,
+                            area_type: AreaType::Edit,
                         }),
                     }),
                 };
@@ -744,7 +727,7 @@ impl AreaLayoutState {
                     ratio: 0.2,
                     first: Box::new(LayoutNode::Leaf {
                         id: 2,
-                        area_type: AreaType::Outline,
+                        area_type: AreaType::Explorer,
                     }),
                     second: Box::new(LayoutNode::Split {
                         id: 3,
@@ -752,7 +735,7 @@ impl AreaLayoutState {
                         ratio: 0.7,
                         first: Box::new(LayoutNode::Leaf {
                             id: 4,
-                            area_type: AreaType::Block,
+                            area_type: AreaType::Edit,
                         }),
                         second: Box::new(LayoutNode::Leaf {
                             id: 5,
@@ -813,7 +796,7 @@ impl AreaLayoutState {
                 *next_id += 1;
                 LayoutNode::Leaf {
                     id: inner_id,
-                    area_type: AreaType::Source,
+                    area_type: AreaType::Block,
                 }
             })
     }
