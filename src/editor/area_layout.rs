@@ -7,6 +7,7 @@
 //! (Shift) – with differentiated gesture thresholds and directional cursors.
 
 use gpui::*;
+use std::collections::{HashMap, HashSet};
 
 // ---------------------------------------------------------------------------
 // Area type
@@ -20,6 +21,8 @@ pub enum AreaType {
     Outline,
     Source,
     Block,
+    Preview,
+    Edit,
 }
 
 impl AreaType {
@@ -30,6 +33,8 @@ impl AreaType {
             Self::Outline => "Outline",
             Self::Source => "Source",
             Self::Block => "Block",
+            Self::Preview => "Preview",
+            Self::Edit => "Edit",
         }
     }
 
@@ -41,16 +46,31 @@ impl AreaType {
             Self::Outline => "Document section headings outline",
             Self::Source => "Raw Markdown text editor",
             Self::Block => "Visual block editor (Rendered)",
+            Self::Preview => "Read-only rendered Markdown preview",
+            Self::Edit => "Raw Markdown text source editor",
         }
     }
 
     pub fn all() -> &'static [AreaType] {
         &[
             Self::Block,
+            Self::Preview,
+            Self::Edit,
             Self::Source,
             Self::Explorer,
             Self::Outline,
             Self::Settings,
+        ]
+    }
+
+    #[allow(dead_code)]
+    pub fn edit_related() -> &'static [AreaType] {
+        &[
+            Self::Block,
+            Self::Preview,
+            Self::Edit,
+            Self::Source,
+            Self::Outline,
         ]
     }
 }
@@ -183,6 +203,7 @@ impl LayoutNode {
         }
     }
 
+    /// Split a leaf at a specific ratio (clamped to [0.15, 0.85]).
     pub fn set_leaf_area(&mut self, leaf_id: usize, new_type: AreaType) -> bool {
         match self {
             Self::Leaf { id, area_type } => {
@@ -208,8 +229,6 @@ impl LayoutNode {
             }
         }
     }
-
-
 
     /// Collect all leaf rectangles. Each entry: (leaf_id, x, y, width, height).
     /// Coordinates are in layout-space (normalized 0..1).
@@ -312,8 +331,10 @@ impl LayoutNode {
                 if *id == target_id {
                     let old_type = *area_type;
                     let next_type = match old_type {
-                        AreaType::Block => AreaType::Source,
-                        AreaType::Source => AreaType::Block,
+                        AreaType::Block => AreaType::Edit,
+                        AreaType::Edit => AreaType::Preview,
+                        AreaType::Source => AreaType::Preview,
+                        AreaType::Preview => AreaType::Edit,
                         AreaType::Explorer => AreaType::Block,
                         AreaType::Outline => AreaType::Block,
                         AreaType::Settings => AreaType::Block,
@@ -527,9 +548,6 @@ pub struct BorderMenuState {
 pub const MODIFIER_THRESHOLD_PX: f32 = 4.0;
 
 // ---------------------------------------------------------------------------
-use std::collections::HashSet;
-
-// ---------------------------------------------------------------------------
 // settings UI tab & state
 // ---------------------------------------------------------------------------
 
@@ -550,11 +568,7 @@ impl SettingsTab {
     }
 
     pub fn all() -> &'static [SettingsTab] {
-        &[
-            Self::Interface,
-            Self::Editing,
-            Self::Keymap,
-        ]
+        &[Self::Interface, Self::Editing, Self::Keymap]
     }
 }
 
@@ -566,12 +580,17 @@ impl SettingsTab {
 #[derive(Clone, Debug, PartialEq)]
 pub struct AreaLayoutState {
     pub root: LayoutNode,
+    pub edit_inner_layouts: HashMap<usize, LayoutNode>,
     pub next_id: usize,
     pub active_dropdown_leaf: Option<usize>,
+    pub active_inner_dropdown: Option<(usize, usize)>,
     pub maximized_leaf: Option<usize>,
     pub active_splitter_drag: Option<SplitterDragSession>,
     pub active_corner_drag: Option<CornerDragSession>,
     pub active_border_menu: Option<BorderMenuState>,
+    pub active_inner_splitter_drag: Option<(usize, SplitterDragSession)>,
+    pub active_inner_corner_drag: Option<(usize, CornerDragSession)>,
+    pub active_inner_border_menu: Option<BorderMenuState>,
     /// Measured pixel size of the tiled-layout container.
     pub container_size: Option<Size<Pixels>>,
     // --- Settings / settings Panel State ---
@@ -612,12 +631,17 @@ impl Default for AreaLayoutState {
                 id: 1,
                 area_type: AreaType::Block,
             },
+            edit_inner_layouts: HashMap::new(),
             next_id: 2,
             active_dropdown_leaf: None,
+            active_inner_dropdown: None,
             maximized_leaf: None,
             active_splitter_drag: None,
             active_corner_drag: None,
             active_border_menu: None,
+            active_inner_splitter_drag: None,
+            active_inner_corner_drag: None,
+            active_inner_border_menu: None,
             container_size: None,
             settings_tab: SettingsTab::Interface,
             settings_expanded_sections: sections,
@@ -779,6 +803,337 @@ impl AreaLayoutState {
         self.active_border_menu = None;
     }
 
+    #[allow(dead_code)]
+    pub fn get_or_create_edit_inner_layout(&mut self, container_id: usize) -> &mut LayoutNode {
+        let next_id = &mut self.next_id;
+        self.edit_inner_layouts
+            .entry(container_id)
+            .or_insert_with(|| {
+                let inner_id = *next_id;
+                *next_id += 1;
+                LayoutNode::Leaf {
+                    id: inner_id,
+                    area_type: AreaType::Source,
+                }
+            })
+    }
+
+    #[allow(dead_code)]
+    pub fn split_inner_edit_area(
+        &mut self,
+        container_id: usize,
+        target_id: usize,
+        direction: SplitDirection,
+    ) {
+        let new_id = self.next_id;
+        self.next_id += 1;
+        let root = self.get_or_create_edit_inner_layout(container_id);
+        root.split_leaf_with_ratio(target_id, new_id, direction, 0.5);
+    }
+
+    #[allow(dead_code)]
+    pub fn close_inner_edit_area(&mut self, container_id: usize, target_inner_id: usize) {
+        if let Some(root) = self.edit_inner_layouts.get_mut(&container_id) {
+            if root.count_leaves() > 1 {
+                root.remove_leaf(target_inner_id);
+            }
+        }
+    }
+
+    pub fn toggle_inner_dropdown(&mut self, container_id: usize, inner_id: usize) {
+        if self.active_inner_dropdown == Some((container_id, inner_id)) {
+            self.active_inner_dropdown = None;
+        } else {
+            self.active_inner_dropdown = Some((container_id, inner_id));
+            self.active_dropdown_leaf = None;
+        }
+    }
+
+    pub fn change_inner_area_type(
+        &mut self,
+        container_id: usize,
+        inner_leaf_id: usize,
+        new_type: AreaType,
+    ) {
+        let root = self.get_or_create_edit_inner_layout(container_id);
+        root.set_leaf_area(inner_leaf_id, new_type);
+        self.active_inner_dropdown = None;
+    }
+
+    pub fn inner_split_area_with_ratio(
+        &mut self,
+        container_id: usize,
+        target_leaf_id: usize,
+        direction: SplitDirection,
+        ratio: f32,
+    ) {
+        let new_id = self.next_id;
+        self.next_id += 1;
+        if let Some(root) = self.edit_inner_layouts.get_mut(&container_id) {
+            root.split_leaf_with_ratio(target_leaf_id, new_id, direction, ratio);
+        }
+    }
+
+    /// Join an inner leaf into another within the same inner layout.
+    pub fn inner_join_area(
+        &mut self,
+        container_id: usize,
+        into_id: usize,
+        target_id: usize,
+    ) -> bool {
+        if into_id == target_id {
+            return false;
+        }
+        if let Some(root) = self.edit_inner_layouts.get_mut(&container_id) {
+            if root.count_leaves() <= 1 {
+                return false;
+            }
+            root.join_leaf(into_id, target_id)
+        } else {
+            false
+        }
+    }
+
+    /// Swap area types between two inner leaves.
+    pub fn inner_swap_area_types(&mut self, container_id: usize, a: usize, b: usize) {
+        if let Some(root) = self.edit_inner_layouts.get_mut(&container_id) {
+            let type_a = root.find_leaf_area(a);
+            let type_b = root.find_leaf_area(b);
+            if let (Some(ta), Some(tb)) = (type_a, type_b) {
+                root.set_leaf_area(a, tb);
+                root.set_leaf_area(b, ta);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Inner splitter drag
+    // ------------------------------------------------------------------
+
+    pub fn update_inner_splitter_drag(&mut self, container_id: usize, current_pointer_pos: f32) {
+        if let Some((_cid, session)) = self.active_inner_splitter_drag {
+            if session.total_span > 1.0 {
+                let delta = current_pointer_pos - session.start_pointer_pos;
+                let ratio_delta = delta / session.total_span;
+                let new_ratio = session.start_ratio + ratio_delta;
+                if let Some(root) = self.edit_inner_layouts.get_mut(&container_id) {
+                    root.set_split_ratio(session.split_id, new_ratio);
+                }
+            }
+        }
+    }
+
+    pub fn end_inner_splitter_drag(&mut self) {
+        self.active_inner_splitter_drag = None;
+    }
+
+    // ------------------------------------------------------------------
+    // Inner corner drag
+    // ------------------------------------------------------------------
+
+    pub fn start_inner_corner_drag(
+        &mut self,
+        container_id: usize,
+        leaf_id: usize,
+        pos: Point<Pixels>,
+        modifier: CornerDragModifier,
+    ) {
+        self.active_inner_corner_drag = Some((
+            container_id,
+            CornerDragSession {
+                leaf_id,
+                start_pos: pos,
+                gesture_dir: None,
+                modifier,
+                preview: CornerDragPreview::Dragging,
+            },
+        ));
+    }
+
+    pub fn update_inner_corner_drag(
+        &mut self,
+        container_id: usize,
+        current_pos: Point<Pixels>,
+        container_size: Size<Pixels>,
+    ) -> Option<CornerDragAction> {
+        let (cid, session) = match self.active_inner_corner_drag {
+            Some(ref s) => (s.0, s.1),
+            None => return None,
+        };
+        debug_assert_eq!(
+            cid, container_id,
+            "container_id mismatch in inner corner drag"
+        );
+
+        let dx = f32::from(current_pos.x - session.start_pos.x);
+        let dy = f32::from(current_pos.y - session.start_pos.y);
+        let dist = (dx * dx + dy * dy).sqrt();
+        let abs_dx = dx.abs();
+        let abs_dy = dy.abs();
+
+        let dir = if abs_dy > abs_dx {
+            if dy > 0.0 {
+                ScreenDirection::South
+            } else {
+                ScreenDirection::North
+            }
+        } else {
+            if dx > 0.0 {
+                ScreenDirection::East
+            } else {
+                ScreenDirection::West
+            }
+        };
+
+        self.active_inner_corner_drag
+            .as_mut()
+            .unwrap()
+            .1
+            .gesture_dir = Some(dir);
+
+        if session.modifier != CornerDragModifier::None {
+            if dist < MODIFIER_THRESHOLD_PX {
+                return None;
+            }
+            let leaf_rects = self.collect_inner_leaf_rects(container_id, container_size);
+            let over_id = leaf_id_from_point(&leaf_rects, current_pos);
+
+            return Some(match session.modifier {
+                CornerDragModifier::Swap => {
+                    if let Some(target) = over_id {
+                        if target != session.leaf_id {
+                            CornerDragAction::Swap {
+                                from: session.leaf_id,
+                                to: target,
+                            }
+                        } else {
+                            CornerDragAction::Cancel
+                        }
+                    } else {
+                        CornerDragAction::Cancel
+                    }
+                }
+                CornerDragModifier::Duplicate => CornerDragAction::Duplicate {
+                    leaf_id: session.leaf_id,
+                },
+                CornerDragModifier::None => unreachable!(),
+            });
+        }
+
+        let leaf_rects = self.collect_inner_leaf_rects(container_id, container_size);
+        let over_id = leaf_id_from_point(&leaf_rects, current_pos);
+
+        if over_id == Some(session.leaf_id) || over_id.is_none() {
+            let split_dir = if dir.is_vertical() {
+                SplitDirection::Vertical
+            } else {
+                SplitDirection::Horizontal
+            };
+            if let Some((_id, lx, ly, lw, lh)) =
+                self.get_leaf_pixel_rect(session.leaf_id, &leaf_rects)
+            {
+                if lw > 1.0 && lh > 1.0 {
+                    let ratio = match split_dir {
+                        SplitDirection::Horizontal => {
+                            let r = (f32::from(current_pos.x) - lx) / lw;
+                            r.clamp(0.15, 0.85)
+                        }
+                        SplitDirection::Vertical => {
+                            let r = (f32::from(current_pos.y) - ly) / lh;
+                            r.clamp(0.15, 0.85)
+                        }
+                    };
+                    self.active_inner_corner_drag.as_mut().unwrap().1.preview =
+                        CornerDragPreview::SplitPreview {
+                            direction: split_dir,
+                            ratio,
+                        };
+                }
+            }
+        } else if let Some(target_id) = over_id {
+            self.active_inner_corner_drag.as_mut().unwrap().1.preview =
+                CornerDragPreview::JoinPreview {
+                    target_leaf_id: target_id,
+                    direction: dir,
+                };
+        }
+
+        None
+    }
+
+    pub fn finish_inner_corner_drag(&mut self) -> Option<(usize, CornerDragAction)> {
+        let (container_id, session) = self.active_inner_corner_drag?;
+        let action = match session.preview {
+            CornerDragPreview::SplitPreview { direction, ratio } => Some(CornerDragAction::Split {
+                leaf_id: session.leaf_id,
+                direction,
+                ratio,
+            }),
+            CornerDragPreview::JoinPreview {
+                target_leaf_id,
+                direction: _,
+            } => Some(CornerDragAction::Join {
+                from: session.leaf_id,
+                into: target_leaf_id,
+            }),
+            CornerDragPreview::Dragging => Some(CornerDragAction::Cancel),
+        };
+        self.end_inner_corner_drag();
+        action.map(|a| (container_id, a))
+    }
+
+    pub fn end_inner_corner_drag(&mut self) {
+        self.active_inner_corner_drag = None;
+    }
+
+    // ------------------------------------------------------------------
+    // Inner layout helpers
+    // ------------------------------------------------------------------
+
+    /// Collect all inner leaf rectangles in pixel coordinates for a given Edit container.
+    pub fn collect_inner_leaf_rects(
+        &self,
+        container_id: usize,
+        container_size: Size<Pixels>,
+    ) -> Vec<(usize, f32, f32, f32, f32)> {
+        let w = f32::from(container_size.width);
+        let h = f32::from(container_size.height);
+        let mut rects = Vec::new();
+        if w > 0.0 && h > 0.0 {
+            if let Some(root) = self.edit_inner_layouts.get(&container_id) {
+                let mut norm = Vec::new();
+                root.collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut norm);
+                for (id, nx, ny, nw, nh) in norm {
+                    rects.push((id, nx * w, ny * h, nw * w, nh * h));
+                }
+            }
+        }
+        rects
+    }
+
+    /// Calculate the pixel span of an inner split container.
+    pub fn get_inner_split_pixel_span(
+        &self,
+        container_id: usize,
+        split_id: usize,
+        container_size: Size<Pixels>,
+    ) -> Option<f32> {
+        let w = f32::from(container_size.width);
+        let h = f32::from(container_size.height);
+        if w > 0.0 && h > 0.0 {
+            if let Some(root) = self.edit_inner_layouts.get(&container_id) {
+                if let Some((dir, span_norm)) = root.find_split_span(split_id, 0.0, 0.0, 1.0, 1.0) {
+                    let pixel_span = match dir {
+                        SplitDirection::Horizontal => span_norm * w,
+                        SplitDirection::Vertical => span_norm * h,
+                    };
+                    return Some(pixel_span);
+                }
+            }
+        }
+        None
+    }
+
     pub fn change_area_type(&mut self, leaf_id: usize, new_type: AreaType) {
         self.root.set_leaf_area(leaf_id, new_type);
         self.active_dropdown_leaf = None;
@@ -798,8 +1153,7 @@ impl AreaLayoutState {
         if self.settings_expanded_cards.contains(card_key) {
             self.settings_expanded_cards.remove(card_key);
         } else {
-            self.settings_expanded_cards
-                .insert(card_key.to_string());
+            self.settings_expanded_cards.insert(card_key.to_string());
         }
     }
 
@@ -1095,8 +1449,7 @@ impl AreaLayoutState {
         let w = f32::from(container_size.width);
         let h = f32::from(container_size.height);
         if w > 0.0 && h > 0.0 {
-            if let Some((dir, span_norm)) =
-                self.root.find_split_span(split_id, 0.0, 0.0, 1.0, 1.0)
+            if let Some((dir, span_norm)) = self.root.find_split_span(split_id, 0.0, 0.0, 1.0, 1.0)
             {
                 let pixel_span = match dir {
                     SplitDirection::Horizontal => span_norm * w,
