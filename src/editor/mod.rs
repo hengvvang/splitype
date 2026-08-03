@@ -152,6 +152,11 @@ pub struct Editor {
     /// Cached preview blocks rebuilt from source when document changes.
     preview_blocks: Vec<Entity<Block>>,
     preview_source_hash: u64,
+    /// Interactive source editor for the Source channel.  Edits sync
+    /// to the document via the BlockEvent::Changed handler.
+    source_panel_block: Option<Entity<Block>>,
+    /// Hash of the document text that source_panel_block was built from.
+    source_panel_doc_hash: u64,
 }
 
 /// Runtime binding between a table block and one cell editor.
@@ -361,6 +366,8 @@ impl Editor {
             footnote_registry: Arc::default(),
             preview_blocks: Vec::new(),
             preview_source_hash: 0,
+            source_panel_block: None,
+            source_panel_doc_hash: 0,
         };
         editor.rebuild_table_runtimes(cx);
         editor.rebuild_image_runtimes(cx);

@@ -283,6 +283,7 @@ impl Editor {
         crate::app_menu::uninstall_cli_tool(cx);
     }
 
+    #[allow(dead_code)]
     pub(crate) fn set_view_mode(&mut self, target_mode: ViewMode, cx: &mut Context<Self>) {
         if self.view_mode != target_mode {
             self.toggle_view_mode(cx);

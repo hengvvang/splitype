@@ -2139,7 +2139,7 @@ impl Editor {
 
     fn render_tiled_layout_node(
         &mut self,
-        node: &crate::editor::area_layout::LayoutNode,
+        node: &crate::editor::area_layout::LayoutNode<crate::editor::area_layout::AreaType>,
         primary_content: &mut Option<AnyElement>,
         theme: &Theme,
         strings: &I18nStrings,
@@ -2372,9 +2372,6 @@ impl Editor {
             self.render_area_header(leaf_id, area_type, theme, leaf_count, is_maximized, cx);
 
         let body: AnyElement = match area_type {
-            AreaType::Block | AreaType::Source | AreaType::Preview | AreaType::Outline => {
-                self.render_tiled_edit_container_panel(leaf_id, primary_content, theme, strings, cx)
-            }
             AreaType::Edit => {
                 self.render_tiled_edit_container_panel(leaf_id, primary_content, theme, strings, cx)
             }
@@ -2383,11 +2380,7 @@ impl Editor {
         };
 
         let panel_status_bar = match area_type {
-            AreaType::Edit
-            | AreaType::Block
-            | AreaType::Source
-            | AreaType::Preview
-            | AreaType::Outline => {
+            AreaType::Edit => {
                 Some(self.render_panel_status_bar(leaf_id, area_type, theme, strings, cx))
             }
             _ => None,
@@ -2871,10 +2864,6 @@ impl Editor {
                     .on_click(move |_event, _window, cx| {
                         let _ = option_editor.update(cx, |ed, cx| {
                             ed.area_layout.change_area_type(leaf_id, area_type);
-                            match area_type {
-                                AreaType::Edit => ed.set_view_mode(super::ViewMode::Rendered, cx),
-                                _ => {}
-                            }
                             cx.notify();
                         });
                     })
@@ -3126,7 +3115,7 @@ impl Editor {
                     .area_layout
                     .get_or_create_edit_inner_layout(container_id)
                     .find_leaf_area(inner_id)
-                    .unwrap_or(crate::editor::area_layout::AreaType::Block);
+                    .unwrap_or(crate::editor::area_layout::EditInnerType::Source);
                 Some(self.render_inner_area_dropdown_menu(
                     container_id,
                     inner_id,
@@ -3158,7 +3147,7 @@ impl Editor {
 
     fn render_edit_inner_node(
         &mut self,
-        node: &crate::editor::area_layout::LayoutNode,
+        node: &crate::editor::area_layout::LayoutNode<crate::editor::area_layout::EditInnerType>,
         container_id: usize,
         primary_content: &mut Option<AnyElement>,
         theme: &Theme,
@@ -3183,23 +3172,32 @@ impl Editor {
                 let workspace_open = self.workspace.root.is_some();
 
                 let inner_body: AnyElement = match area_type {
-                    AreaType::Block | AreaType::Source | AreaType::Edit => {
+                    // Block — WYSIWYG block editor from document.visible_blocks().
+                    EditInnerType::Block => {
                         if let Some(content) = primary_content.take() {
                             content
                         } else if has_content {
                             self.render_tiled_preview_panel(primary_content, theme, strings, cx)
                         } else if workspace_open {
-                            let msg = match area_type {
-                                AreaType::Block => "Open a file to edit with live preview",
-                                AreaType::Source => "Open a file to edit",
-                                _ => "Open a file to edit",
-                            };
-                            Self::render_empty_panel_prompt(c, msg)
+                            Self::render_empty_panel_prompt(c, "Open a file")
                         } else {
-                            Self::render_empty_panel_prompt(c, "No preview content")
+                            Self::render_empty_panel_prompt(c, "No content")
                         }
                     }
-                    AreaType::Preview => {
+                    // Source — interactive source code editor.  Uses a cached
+                    // block in source-document mode.  Edits sync to the shared
+                    // document via the block's Changed event.
+                    EditInnerType::Source => {
+                        if has_content {
+                            self.refresh_source_panel_block(cx);
+                            self.render_source_editor_panel(theme, cx)
+                        } else if workspace_open {
+                            Self::render_empty_panel_prompt(c, "Open a file")
+                        } else {
+                            Self::render_empty_panel_prompt(c, "No content")
+                        }
+                    }
+                    EditInnerType::Preview => {
                         if has_content {
                             self.render_tiled_preview_panel(primary_content, theme, strings, cx)
                         } else if workspace_open {
@@ -3208,7 +3206,7 @@ impl Editor {
                             Self::render_empty_panel_prompt(c, "No preview content")
                         }
                     }
-                    AreaType::Outline => {
+                    EditInnerType::Outline => {
                         if has_content {
                             self.render_tiled_outline_panel(theme, strings, cx)
                         } else if workspace_open {
@@ -3217,7 +3215,6 @@ impl Editor {
                             Self::render_empty_panel_prompt(c, "No outline content")
                         }
                     }
-                    _ => div().into_any_element(),
                 };
 
                 let make_inner_corner = |id_str: &'static str, top: bool, left: bool| {
@@ -3484,7 +3481,7 @@ impl Editor {
         &mut self,
         container_id: usize,
         inner_id: usize,
-        current_area_type: crate::editor::area_layout::AreaType,
+        current_area_type: crate::editor::area_layout::EditInnerType,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -3495,7 +3492,7 @@ impl Editor {
         let t = &theme.typography;
         let editor = cx.entity().downgrade();
 
-        let available_types = AreaType::edit_inner_types();
+        let available_types = EditInnerType::all();
 
         div()
             .id(("inner-area-dropdown-overlay", inner_id))
@@ -3553,15 +3550,6 @@ impl Editor {
                                 inner_id,
                                 area_type,
                             );
-                            match area_type {
-                                AreaType::Source | AreaType::Edit => {
-                                    ed.set_view_mode(super::ViewMode::Source, cx)
-                                }
-                                AreaType::Block | AreaType::Preview => {
-                                    ed.set_view_mode(super::ViewMode::Rendered, cx)
-                                }
-                                _ => {}
-                            }
                             cx.notify();
                         });
                     })
@@ -3581,14 +3569,33 @@ impl Editor {
 
         self.refresh_preview_blocks(cx);
 
+        // Render each preview block inside a read-only shell that captures all
+        // interaction events. The visual rendering is identical to the Block
+        // panel, but mouse clicks, keyboard input, and focus are suppressed so
+        // the Preview channel remains a truly read-only view.
+        let editor = cx.entity().downgrade();
         let block_elements: Vec<AnyElement> = self
             .preview_blocks
             .iter()
             .map(|entity| {
+                let block_id = entity.entity_id();
+                let preview_editor = editor.clone();
                 div()
                     .w_full()
                     .flex_shrink_0()
                     .mt(px(d.block_gap))
+                    .cursor_default()
+                    .capture_any_mouse_down(move |_event, _window, cx| {
+                        cx.stop_propagation();
+                    })
+                    .capture_key_down(move |_event, _window, cx| {
+                        cx.stop_propagation();
+                    })
+                    .on_mouse_down(MouseButton::Right, move |event, window, cx| {
+                        let _ = preview_editor.update(cx, |editor, cx| {
+                            editor.on_block_context_menu_mouse_down(block_id, event, window, cx);
+                        });
+                    })
                     .child(entity.clone())
                     .into_any_element()
             })
@@ -3610,6 +3617,45 @@ impl Editor {
                     .overflow_y_scroll()
                     .p(px(d.editor_padding))
                     .children(block_elements),
+            )
+            .into_any_element()
+    }
+
+    /// Render the interactive source editor for the Source channel.
+    ///
+    /// Uses a cached Block entity in source-document mode — the same
+    /// look and feel as the original Source view mode: line numbers,
+    /// monospace font, raw text editing, cursor, and selection.
+    fn render_source_editor_panel(&mut self, theme: &Theme, _cx: &mut Context<Self>) -> AnyElement {
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+
+        let content: AnyElement = if let Some(ref block) = self.source_panel_block {
+            div()
+                .w_full()
+                .flex_shrink_0()
+                .child(block.clone())
+                .into_any_element()
+        } else {
+            div().into_any_element()
+        };
+
+        div()
+            .id("tiled-source-editor")
+            .w_full()
+            .h_full()
+            .relative()
+            .bg(c.editor_background)
+            .child(
+                div()
+                    .id("tiled-source-scroll")
+                    .w_full()
+                    .h_full()
+                    .flex()
+                    .flex_col()
+                    .overflow_y_scroll()
+                    .p(px(d.editor_padding))
+                    .child(content),
             )
             .into_any_element()
     }

@@ -10,30 +10,25 @@ use gpui::*;
 use std::collections::{HashMap, HashSet};
 
 // ---------------------------------------------------------------------------
-// Area type
+// Area type (outer tiled layout)
 // ---------------------------------------------------------------------------
 
-/// Available panel area types in tiled split layout.
+/// Top-level area types in the tiled split layout.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AreaType {
-    Settings,
+    /// File explorer / workspace tree.
     Explorer,
-    Outline,
-    Source,
-    Block,
-    Preview,
+    /// Application settings panel.
+    Settings,
+    /// Edit container – hosts sub-panels (Source, Block, Preview, Outline).
     Edit,
 }
 
 impl AreaType {
     pub fn name(&self) -> &'static str {
         match self {
-            Self::Settings => "Settings",
             Self::Explorer => "Explorer",
-            Self::Outline => "Outline",
-            Self::Source => "Source",
-            Self::Block => "Block",
-            Self::Preview => "Preview",
+            Self::Settings => "Settings",
             Self::Edit => "Edit",
         }
     }
@@ -41,13 +36,9 @@ impl AreaType {
     #[allow(dead_code)]
     pub fn description(&self) -> &'static str {
         match self {
-            Self::Settings => "Application settings & document info",
             Self::Explorer => "Workspace file directory tree",
-            Self::Outline => "Document section headings outline",
-            Self::Source => "Raw Markdown text editor",
-            Self::Block => "Visual block editor (Rendered)",
-            Self::Preview => "Read-only rendered Markdown preview",
-            Self::Edit => "Raw Markdown text source editor",
+            Self::Settings => "Application settings & document info",
+            Self::Edit => "Editor container with sub-panels",
         }
     }
 
@@ -55,9 +46,51 @@ impl AreaType {
     pub fn all() -> &'static [AreaType] {
         &[Self::Edit, Self::Explorer, Self::Settings]
     }
+}
 
-    /// Inner Edit panel types.
-    pub fn edit_inner_types() -> &'static [AreaType] {
+// ---------------------------------------------------------------------------
+// Inner panel type (inside an Edit area)
+// ---------------------------------------------------------------------------
+
+/// Sub-panel types available inside an `AreaType::Edit` container.
+///
+/// Each Edit area hosts one active file. The file is sent as a single input
+/// source to each sub-panel channel (Source / Block / Preview / Outline),
+/// which process it independently and render in their own tile.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EditInnerType {
+    /// Raw Markdown text editor.
+    Source,
+    /// Visual block editor (WYSIWYG rendered view).
+    Block,
+    /// Read-only rendered Markdown preview.
+    Preview,
+    /// Document section headings outline.
+    Outline,
+}
+
+impl EditInnerType {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Source => "Source",
+            Self::Block => "Block",
+            Self::Preview => "Preview",
+            Self::Outline => "Outline",
+        }
+    }
+
+    #[allow(dead_code)]
+    pub fn description(&self) -> &'static str {
+        match self {
+            Self::Source => "Raw Markdown text editor",
+            Self::Block => "Visual block editor (Rendered)",
+            Self::Preview => "Read-only rendered Markdown preview",
+            Self::Outline => "Document section headings outline",
+        }
+    }
+
+    /// All inner Edit sub-panel types.
+    pub fn all() -> &'static [EditInnerType] {
         &[Self::Block, Self::Preview, Self::Source, Self::Outline]
     }
 }
@@ -118,22 +151,25 @@ pub enum CornerDragPreview {
 // ---------------------------------------------------------------------------
 
 /// Recursive binary layout tree representing tiled areas and splitters.
+///
+/// Generic over the area type `T` so that the outer layout uses `AreaType`
+/// while inner (Edit sub-panel) layouts use `EditInnerType`.
 #[derive(Clone, Debug)]
-pub enum LayoutNode {
+pub enum LayoutNode<T: Copy> {
     Leaf {
         id: usize,
-        area_type: AreaType,
+        area_type: T,
     },
     Split {
         id: usize,
         direction: SplitDirection,
         ratio: f32,
-        first: Box<LayoutNode>,
-        second: Box<LayoutNode>,
+        first: Box<LayoutNode<T>>,
+        second: Box<LayoutNode<T>>,
     },
 }
 
-impl PartialEq for LayoutNode {
+impl<T: Copy + PartialEq> PartialEq for LayoutNode<T> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (
@@ -167,7 +203,7 @@ impl PartialEq for LayoutNode {
     }
 }
 
-impl LayoutNode {
+impl<T: Copy + PartialEq> LayoutNode<T> {
     pub fn count_leaves(&self) -> usize {
         match self {
             Self::Leaf { .. } => 1,
@@ -175,7 +211,7 @@ impl LayoutNode {
         }
     }
 
-    pub fn find_leaf_area(&self, leaf_id: usize) -> Option<AreaType> {
+    pub fn find_leaf_area(&self, leaf_id: usize) -> Option<T> {
         match self {
             Self::Leaf { id, area_type } => {
                 if *id == leaf_id {
@@ -190,8 +226,7 @@ impl LayoutNode {
         }
     }
 
-    /// Split a leaf at a specific ratio (clamped to [0.15, 0.85]).
-    pub fn set_leaf_area(&mut self, leaf_id: usize, new_type: AreaType) -> bool {
+    pub fn set_leaf_area(&mut self, leaf_id: usize, new_type: T) -> bool {
         match self {
             Self::Leaf { id, area_type } => {
                 if *id == leaf_id {
@@ -295,33 +330,33 @@ impl LayoutNode {
         }
     }
 
+    /// Split a leaf at 50% ratio with the given `next_type` for the new side.
     pub fn split_leaf(
         &mut self,
         target_id: usize,
         new_id: usize,
         direction: SplitDirection,
+        next_type: T,
     ) -> bool {
-        self.split_leaf_with_ratio(target_id, new_id, direction, 0.5)
+        self.split_leaf_with_ratio(target_id, new_id, direction, 0.5, next_type)
     }
 
     /// Split a leaf at a specific ratio (clamped to [0.15, 0.85]).
+    ///
+    /// `next_type` is the area type assigned to the newly created sibling leaf.
     pub fn split_leaf_with_ratio(
         &mut self,
         target_id: usize,
         new_id: usize,
         direction: SplitDirection,
         ratio: f32,
+        next_type: T,
     ) -> bool {
         let ratio = ratio.clamp(0.15, 0.85);
         match self {
             Self::Leaf { id, area_type } => {
                 if *id == target_id {
                     let old_type = *area_type;
-                    let next_type = match old_type {
-                        AreaType::Edit => AreaType::Explorer,
-                        AreaType::Explorer => AreaType::Settings,
-                        _ => AreaType::Edit,
-                    };
                     *self = Self::Split {
                         id: new_id,
                         direction,
@@ -341,8 +376,10 @@ impl LayoutNode {
                 }
             }
             Self::Split { first, second, .. } => {
-                first.split_leaf_with_ratio(target_id, new_id, direction, ratio)
-                    || second.split_leaf_with_ratio(target_id, new_id, direction, ratio)
+                first.split_leaf_with_ratio(target_id, new_id, direction, ratio, next_type)
+                    || second.split_leaf_with_ratio(
+                        target_id, new_id, direction, ratio, next_type,
+                    )
             }
         }
     }
@@ -590,10 +627,15 @@ impl Default for EditTabState {
 // ---------------------------------------------------------------------------
 
 /// Full state for the tiled area layout manager.
+///
+/// The outer tree (`root`) uses `AreaType` for top-level areas.  Inner trees
+/// (`edit_inner_layouts`) use `EditInnerType` for sub-panels inside Edit areas.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AreaLayoutState {
-    pub root: LayoutNode,
-    pub edit_inner_layouts: HashMap<usize, LayoutNode>,
+    /// Outer tiled layout tree.
+    pub root: LayoutNode<AreaType>,
+    /// Per-Edit inner sub-panel layouts, keyed by container_id (= outer leaf id).
+    pub edit_inner_layouts: HashMap<usize, LayoutNode<EditInnerType>>,
     pub next_id: usize,
     pub active_dropdown_leaf: Option<usize>,
     pub active_inner_dropdown: Option<(usize, usize)>,
@@ -785,13 +827,28 @@ impl AreaLayoutState {
     }
 
     // ------------------------------------------------------------------
-    // Split / close / type
+    // Split / close / type (outer)
     // ------------------------------------------------------------------
+
+    /// Compute the next outer `AreaType` when splitting a leaf.
+    fn next_outer_type(current: AreaType) -> AreaType {
+        match current {
+            AreaType::Edit => AreaType::Explorer,
+            AreaType::Explorer => AreaType::Settings,
+            AreaType::Settings => AreaType::Edit,
+        }
+    }
 
     pub fn split_area(&mut self, target_leaf_id: usize, direction: SplitDirection) {
         let new_id = self.next_id;
         self.next_id += 1;
-        self.root.split_leaf(target_leaf_id, new_id, direction);
+        let next_type = self
+            .root
+            .find_leaf_area(target_leaf_id)
+            .map(Self::next_outer_type)
+            .unwrap_or(AreaType::Edit);
+        self.root
+            .split_leaf(target_leaf_id, new_id, direction, next_type);
         self.active_dropdown_leaf = None;
         self.active_border_menu = None;
     }
@@ -805,8 +862,18 @@ impl AreaLayoutState {
     ) {
         let new_id = self.next_id;
         self.next_id += 1;
-        self.root
-            .split_leaf_with_ratio(target_leaf_id, new_id, direction, ratio);
+        let next_type = self
+            .root
+            .find_leaf_area(target_leaf_id)
+            .map(Self::next_outer_type)
+            .unwrap_or(AreaType::Edit);
+        self.root.split_leaf_with_ratio(
+            target_leaf_id,
+            new_id,
+            direction,
+            ratio,
+            next_type,
+        );
         self.active_dropdown_leaf = None;
         self.active_border_menu = None;
     }
@@ -814,6 +881,8 @@ impl AreaLayoutState {
     pub fn close_area(&mut self, target_leaf_id: usize) {
         if self.root.count_leaves() > 1 {
             self.root.remove_leaf(target_leaf_id);
+            // Clean up inner layout for the removed Edit area.
+            self.edit_inner_layouts.remove(&target_leaf_id);
             if self.maximized_leaf == Some(target_leaf_id) {
                 self.maximized_leaf = None;
             }
@@ -822,8 +891,17 @@ impl AreaLayoutState {
         self.active_border_menu = None;
     }
 
+    // ------------------------------------------------------------------
+    // Inner Edit sub-panel layout
+    // ------------------------------------------------------------------
+
+    /// Get or create the inner layout for an Edit area.
+    /// New Edit areas default to a single `EditInnerType::Source` panel.
     #[allow(dead_code)]
-    pub fn get_or_create_edit_inner_layout(&mut self, container_id: usize) -> &mut LayoutNode {
+    pub fn get_or_create_edit_inner_layout(
+        &mut self,
+        container_id: usize,
+    ) -> &mut LayoutNode<EditInnerType> {
         let next_id = &mut self.next_id;
         self.edit_inner_layouts
             .entry(container_id)
@@ -832,7 +910,7 @@ impl AreaLayoutState {
                 *next_id += 1;
                 LayoutNode::Leaf {
                     id: inner_id,
-                    area_type: AreaType::Block,
+                    area_type: EditInnerType::Source,
                 }
             })
     }
@@ -847,7 +925,14 @@ impl AreaLayoutState {
         let new_id = self.next_id;
         self.next_id += 1;
         let root = self.get_or_create_edit_inner_layout(container_id);
-        root.split_leaf_with_ratio(target_id, new_id, direction, 0.5);
+        // Inner splits always create a Source panel on the new side.
+        root.split_leaf_with_ratio(
+            target_id,
+            new_id,
+            direction,
+            0.5,
+            EditInnerType::Source,
+        );
     }
 
     #[allow(dead_code)]
@@ -872,13 +957,14 @@ impl AreaLayoutState {
         &mut self,
         container_id: usize,
         inner_leaf_id: usize,
-        new_type: AreaType,
+        new_type: EditInnerType,
     ) {
         let root = self.get_or_create_edit_inner_layout(container_id);
         root.set_leaf_area(inner_leaf_id, new_type);
         self.active_inner_dropdown = None;
     }
 
+    /// Inner split created via corner drag.  The new panel is always `Source`.
     pub fn inner_split_area_with_ratio(
         &mut self,
         container_id: usize,
@@ -889,7 +975,13 @@ impl AreaLayoutState {
         let new_id = self.next_id;
         self.next_id += 1;
         if let Some(root) = self.edit_inner_layouts.get_mut(&container_id) {
-            root.split_leaf_with_ratio(target_leaf_id, new_id, direction, ratio);
+            root.split_leaf_with_ratio(
+                target_leaf_id,
+                new_id,
+                direction,
+                ratio,
+                EditInnerType::Source,
+            );
         }
     }
 
@@ -1043,6 +1135,8 @@ impl AreaLayoutState {
         let over_id = leaf_id_from_point(&leaf_rects, current_pos);
 
         if over_id == Some(session.leaf_id) || over_id.is_none() {
+            // Cursor is still in the same area (or outside).  Potential split.
+            // Inner splits always create a Source panel.
             let split_dir = if dir.is_vertical() {
                 SplitDirection::Vertical
             } else {
@@ -1070,6 +1164,7 @@ impl AreaLayoutState {
                 }
             }
         } else if let Some(target_id) = over_id {
+            // Cursor is over a different area.  Potential join.
             self.active_inner_corner_drag.as_mut().unwrap().1.preview =
                 CornerDragPreview::JoinPreview {
                     target_leaf_id: target_id,
@@ -1153,6 +1248,10 @@ impl AreaLayoutState {
         None
     }
 
+    // ------------------------------------------------------------------
+    // Outer area type changes
+    // ------------------------------------------------------------------
+
     pub fn change_area_type(&mut self, leaf_id: usize, new_type: AreaType) {
         self.root.set_leaf_area(leaf_id, new_type);
         self.active_dropdown_leaf = None;
@@ -1192,6 +1291,8 @@ impl AreaLayoutState {
         }
         let ok = self.root.join_leaf(into_id, target_id);
         if ok {
+            // Clean up inner layout for the removed Edit area.
+            self.edit_inner_layouts.remove(&target_id);
             if self.maximized_leaf == Some(target_id) {
                 self.maximized_leaf = None;
             }
@@ -1552,8 +1653,8 @@ mod tests {
         layout.close_area(2);
         assert_eq!(layout.root.count_leaves(), 2);
 
-        layout.change_area_type(1, AreaType::Source);
-        assert_eq!(layout.root.find_leaf_area(1), Some(AreaType::Source));
+        layout.change_area_type(1, AreaType::Explorer);
+        assert_eq!(layout.root.find_leaf_area(1), Some(AreaType::Explorer));
 
         layout.toggle_maximize(1);
         assert_eq!(layout.maximized_leaf, Some(1));
@@ -1573,30 +1674,52 @@ mod tests {
     }
 
     #[test]
+    fn test_split_cycles_outer_types() {
+        let mut layout = AreaLayoutState::default();
+        // Default: single Edit leaf.
+        assert_eq!(layout.root.find_leaf_area(1), Some(AreaType::Edit));
+
+        // Split → Edit + Explorer
+        layout.split_area(1, SplitDirection::Horizontal);
+        assert_eq!(layout.root.count_leaves(), 2);
+        // The original leaf (Edit) stays; new side gets Explorer.
+        assert_eq!(layout.root.find_leaf_area(1), Some(AreaType::Edit));
+
+        // Split the Explorer → Explorer + Settings
+        // The Explorer leaf is the one with id 3 (the new one from the split).
+        // Actually, split_leaf_with_ratio creates the split with id=new_id, the
+        // original leaf keeps its id and type, and the new leaf gets next_type.
+        // So leaf 1 is Edit, leaf 3 is Explorer.
+        layout.split_area(3, SplitDirection::Vertical);
+        assert_eq!(layout.root.count_leaves(), 3);
+        // Leaf 3 (Explorer) stays, new leaf gets Settings.
+    }
+
+    #[test]
     fn test_join_sibling_leaves() {
         let mut layout = AreaLayoutState::default();
-        // Create a simple horizontal split: [1, 3]
+        // Create a simple horizontal split: [Edit, Explorer]
         layout.split_area(1, SplitDirection::Horizontal);
-        // Now we have leaf 1 (Block) and leaf 3 (Source) as siblings.
         assert_eq!(layout.root.count_leaves(), 2);
 
-        // Join leaf 3 into leaf 1: remove 3, expand 1.
+        // Join the Explorer into Edit: remove Explorer, expand Edit.
+        // Leaf 1 = Edit, leaf 3 = Explorer.
         let ok = layout.join_area(1, 3);
         assert!(ok);
         assert_eq!(layout.root.count_leaves(), 1);
-        assert_eq!(layout.root.find_leaf_area(1), Some(AreaType::Block));
+        assert_eq!(layout.root.find_leaf_area(1), Some(AreaType::Edit));
     }
 
     #[test]
     fn test_join_nested_leaves() {
         let mut layout = AreaLayoutState::default();
-        // Build: Split(H) { Leaf(1, Block), Split(V) { Leaf(3, Source), Leaf(4, Outline) } }
-        layout.split_area(1, SplitDirection::Horizontal); // ids: 1, 3
-        layout.split_area(3, SplitDirection::Vertical); // ids: 1, 4, 5 (new leaf from 3)
+        // Build: Split(H) { Leaf(1, Edit), Split(V) { Leaf(3, Explorer), Leaf(4, Settings) } }
+        layout.split_area(1, SplitDirection::Horizontal); // ids: 1 (Edit), 3 (Explorer)
+        layout.split_area(3, SplitDirection::Vertical); // ids: 1, 4, 5 (Explorer → Explorer + Settings)
         assert_eq!(layout.root.count_leaves(), 3);
 
-        // Join leaf 1 (Block, left) with leaf 4 (Source, was from first 3 split).
-        // After join we should have 2 leaves: 1 (Block, expanded) and 5 (Outline from second).
+        // Join leaf 1 (Edit) with leaf 4 (was Explorer, now from second split).
+        // After join we should have 2 leaves: 1 (Edit, expanded) and 5 (Settings).
         let ok = layout.join_area(1, 4);
         assert!(ok);
         assert_eq!(layout.root.count_leaves(), 2);
@@ -1609,12 +1732,32 @@ mod tests {
         let rects = layout.collect_leaf_rects(size(px(1000.0), px(800.0)));
         assert_eq!(rects.len(), 2);
         // First leaf: left half, second leaf: right half.
-        let (id1, x1, _y1, w1, h1) = rects[0];
-        let (id2, x2, _y2, w2, h2) = rects[1];
+        let (_id1, _x1, _y1, w1, h1) = rects[0];
+        let (_id2, x2, _y2, w2, h2) = rects[1];
         assert!((w1 - 500.0).abs() < 1.0);
         assert!((w2 - 500.0).abs() < 1.0);
         assert!((h1 - 800.0).abs() < 1.0);
         assert!((h2 - 800.0).abs() < 1.0);
         assert!((x2 - 500.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn test_inner_layout_defaults_to_source() {
+        let mut layout = AreaLayoutState::default();
+        let inner = layout.get_or_create_edit_inner_layout(1);
+        assert_eq!(inner.count_leaves(), 1);
+        assert_eq!(inner.find_leaf_area(1), Some(EditInnerType::Source));
+    }
+
+    #[test]
+    fn test_inner_split_creates_source() {
+        let mut layout = AreaLayoutState::default();
+        // Set up inner: Source panel.
+        let _ = layout.get_or_create_edit_inner_layout(1);
+        // Split it. The new panel should be Source.
+        layout.split_inner_edit_area(1, 1, SplitDirection::Horizontal); // inner_id 1
+        // Now we have 2 inner leaves.
+        let inner = layout.edit_inner_layouts.get(&1).unwrap();
+        assert_eq!(inner.count_leaves(), 2);
     }
 }

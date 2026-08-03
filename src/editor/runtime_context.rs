@@ -72,6 +72,16 @@ impl Editor {
         block
     }
 
+    /// Creates a standalone block NOT subscribed to the Editor's event
+    /// handler.  Used for the Source channel panel so its events don't
+    /// interfere with the document tree.
+    pub(super) fn new_standalone_block(
+        cx: &mut Context<Self>,
+        record: BlockRecord,
+    ) -> Entity<Block> {
+        cx.new(|cx| Block::with_record(cx, record))
+    }
+
     pub(super) fn new_table_cell_block(
         cx: &mut Context<Self>,
         title: InlineTextTree,
