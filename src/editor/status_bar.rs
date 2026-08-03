@@ -98,42 +98,151 @@ impl Editor {
 
     pub(super) fn render_panel_status_bar(
         &mut self,
+        container_id: usize,
         area_type: crate::editor::area_layout::AreaType,
         theme: &Theme,
         strings: &I18nStrings,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        use crate::editor::area_layout::AreaType;
+        use crate::editor::area_layout::*;
 
         let c = &theme.colors;
+        let d = &theme.dimensions;
         let prefs = self.status_bar_settings(cx);
+
+        let inner_leaf_count = self
+            .area_layout
+            .get_or_create_edit_inner_layout(container_id)
+            .count_leaves();
+
+        let focused = self.area_layout.focused_inner_panel;
+        let focused_inner_id =
+            focused.and_then(|(cid, iid)| if cid == container_id { Some(iid) } else { None });
+        let focused_area_type = focused_inner_id.and_then(|iid| {
+            self.area_layout
+                .get_or_create_edit_inner_layout(container_id)
+                .find_leaf_area(iid)
+        });
 
         let mut left_items: Vec<AnyElement> = Vec::new();
         let mut right_items: Vec<AnyElement> = Vec::new();
 
-        let mode_label = match area_type {
-            AreaType::Preview => "Preview (Read-Only)".to_string(),
-            AreaType::Edit => "Edit".to_string(),
-            AreaType::Source => "Source".to_string(),
-            AreaType::Block => "Block".to_string(),
-            _ => area_type.name().to_string(),
-        };
-
-        left_items.push(
-            div()
+        // Type button with dropdown for focused inner panel.
+        if let (Some(inner_id), Some(ftype)) = (focused_inner_id, focused_area_type) {
+            let editor = cx.entity().downgrade();
+            let toggle_editor = editor.clone();
+            let type_button = div()
+                .h(px(20.0))
+                .px(px(6.0))
+                .flex()
+                .items_center()
+                .gap(px(4.0))
+                .rounded(px(d.menu_item_radius))
+                .bg(c.dialog_secondary_button_bg)
+                .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                .cursor_pointer()
                 .text_size(px(11.0))
-                .font_weight(gpui::FontWeight::MEDIUM)
-                .text_color(c.status_bar_text)
-                .child(mode_label)
-                .into_any_element(),
-        );
+                .text_color(c.text_default)
+                .child(format!("{} \u{25BC}", ftype.name()))
+                .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                    let _ = toggle_editor.update(cx, |ed, cx| {
+                        ed.area_layout.toggle_inner_dropdown(container_id, inner_id);
+                        cx.notify();
+                    });
+                });
+            left_items.push(type_button.into_any_element());
 
-        if prefs.show_cursor_position && (area_type == AreaType::Source || area_type == AreaType::Edit) {
+            // Split H button.
+            let split_h_editor = editor.clone();
+            left_items.push(
+                div()
+                    .p(px(3.0))
+                    .rounded(px(d.menu_item_radius))
+                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                    .cursor_pointer()
+                    .child(
+                        svg()
+                            .path("icon/panel/split-h.svg")
+                            .size(px(12.0))
+                            .text_color(c.dialog_muted),
+                    )
+                    .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                        let _ = split_h_editor.update(cx, |ed, cx| {
+                            ed.area_layout.split_inner_edit_area(
+                                container_id,
+                                inner_id,
+                                SplitDirection::Horizontal,
+                            );
+                            cx.notify();
+                        });
+                    })
+                    .into_any_element(),
+            );
+
+            // Split V button.
+            let split_v_editor = editor.clone();
+            left_items.push(
+                div()
+                    .p(px(3.0))
+                    .rounded(px(d.menu_item_radius))
+                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                    .cursor_pointer()
+                    .child(
+                        svg()
+                            .path("icon/panel/split-v.svg")
+                            .size(px(12.0))
+                            .text_color(c.dialog_muted),
+                    )
+                    .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                        let _ = split_v_editor.update(cx, |ed, cx| {
+                            ed.area_layout.split_inner_edit_area(
+                                container_id,
+                                inner_id,
+                                SplitDirection::Vertical,
+                            );
+                            cx.notify();
+                        });
+                    })
+                    .into_any_element(),
+            );
+
+            // Close button (only when multiple panels).
+            if inner_leaf_count > 1 {
+                let close_editor = editor.clone();
+                left_items.push(
+                    div()
+                        .p(px(3.0))
+                        .rounded(px(d.menu_item_radius))
+                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                        .cursor_pointer()
+                        .child(
+                            svg()
+                                .path("icon/titlebar/chrome-close.svg")
+                                .size(px(12.0))
+                                .text_color(c.dialog_muted),
+                        )
+                        .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                            let _ = close_editor.update(cx, |ed, cx| {
+                                ed.area_layout.close_inner_edit_area(container_id, inner_id);
+                                if ed.area_layout.focused_inner_panel
+                                    == Some((container_id, inner_id))
+                                {
+                                    ed.area_layout.focused_inner_panel = None;
+                                }
+                                cx.notify();
+                            });
+                        })
+                        .into_any_element(),
+                );
+            }
+        }
+
+        if prefs.show_cursor_position {
             left_items.push(
                 div()
                     .text_size(px(11.0))
                     .text_color(c.status_bar_text_dim)
-                    .child("│")
+                    .child("\u{2502}")
                     .into_any_element(),
             );
             left_items.push(render_cursor(
@@ -155,7 +264,9 @@ impl Editor {
         }
 
         div()
-            .id(ElementId::Name(format!("panel-status-bar-{:?}", area_type).into()))
+            .id(ElementId::Name(
+                format!("panel-status-bar-{:?}", area_type).into(),
+            ))
             .h(px(24.0))
             .w_full()
             .flex_shrink_0()
@@ -170,7 +281,7 @@ impl Editor {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(8.0))
+                    .gap(px(6.0))
                     .children(left_items),
             )
             .child(

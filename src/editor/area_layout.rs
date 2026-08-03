@@ -574,6 +574,8 @@ pub struct AreaLayoutState {
     pub active_inner_splitter_drag: Option<(usize, SplitterDragSession)>,
     pub active_inner_corner_drag: Option<(usize, CornerDragSession)>,
     pub active_inner_border_menu: Option<BorderMenuState>,
+    /// Currently focused inner panel (container_id, inner_id) for status bar actions.
+    pub focused_inner_panel: Option<(usize, usize)>,
     /// Measured pixel size of the tiled-layout container.
     pub container_size: Option<Size<Pixels>>,
     // --- Settings / settings Panel State ---
@@ -625,6 +627,7 @@ impl Default for AreaLayoutState {
             active_inner_splitter_drag: None,
             active_inner_corner_drag: None,
             active_inner_border_menu: None,
+            focused_inner_panel: None,
             container_size: None,
             settings_tab: SettingsTab::Interface,
             settings_expanded_sections: sections,

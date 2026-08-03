@@ -2390,7 +2390,7 @@ impl Editor {
             | AreaType::Source
             | AreaType::Preview
             | AreaType::Outline => {
-                Some(self.render_panel_status_bar(area_type, theme, strings, cx))
+                Some(self.render_panel_status_bar(leaf_id, area_type, theme, strings, cx))
             }
             _ => None,
         };
@@ -2920,13 +2920,29 @@ impl Editor {
             cx,
         );
 
-        div()
+        let dropdown = if let Some((_cid, inner_id)) = self.area_layout.active_inner_dropdown {
+            if _cid == container_id {
+                Some(self.render_inner_area_dropdown_menu(container_id, inner_id, theme, cx))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let mut container = div()
             .w_full()
             .h_full()
+            .relative()
             .p(px(2.0))
             .bg(c.editor_background)
-            .child(inner_rendered)
-            .into_any_element()
+            .child(inner_rendered);
+
+        if let Some(dropdown) = dropdown {
+            container = container.child(dropdown);
+        }
+
+        container.into_any_element()
     }
 
     fn render_edit_inner_node(
@@ -3025,28 +3041,14 @@ impl Editor {
                     })
                 };
 
-                let inner_leaf_count = self
-                    .area_layout
-                    .get_or_create_edit_inner_layout(container_id)
-                    .count_leaves();
-                let inner_header = self.render_inner_area_header(
-                    container_id,
-                    inner_id,
-                    area_type,
-                    inner_leaf_count,
-                    theme,
-                    cx,
-                );
+                // Auto-focus first inner panel if none is focused.
+                if self.area_layout.focused_inner_panel.is_none() {
+                    self.area_layout.focused_inner_panel = Some((container_id, inner_id));
+                }
 
-                let dropdown_open =
-                    self.area_layout.active_inner_dropdown == Some((container_id, inner_id));
-                let dropdown_menu = if dropdown_open {
-                    Some(self.render_inner_area_dropdown_menu(container_id, inner_id, theme, cx))
-                } else {
-                    None
-                };
+                let focus_editor = cx.entity().downgrade();
 
-                let mut card = div()
+                div()
                     .w_full()
                     .h_full()
                     .flex()
@@ -3058,18 +3060,18 @@ impl Editor {
                     .border_color(c.dialog_border)
                     .shadow_lg()
                     .overflow_hidden()
-                    .child(inner_header)
                     .child(div().w_full().flex_1().min_h(px(0.0)).child(inner_body))
                     .child(make_inner_corner("edit-sub-tl", true, true))
                     .child(make_inner_corner("edit-sub-tr", true, false))
                     .child(make_inner_corner("edit-sub-bl", false, true))
-                    .child(make_inner_corner("edit-sub-br", false, false));
-
-                if let Some(dropdown) = dropdown_menu {
-                    card = card.child(dropdown);
-                }
-
-                card.into_any_element()
+                    .child(make_inner_corner("edit-sub-br", false, false))
+                    .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                        let _ = focus_editor.update(cx, |ed, cx| {
+                            ed.area_layout.focused_inner_panel = Some((container_id, inner_id));
+                            cx.notify();
+                        });
+                    })
+                    .into_any_element()
             }
             LayoutNode::Split {
                 id,
@@ -3258,142 +3260,6 @@ impl Editor {
         }
     }
 
-    fn render_inner_area_header(
-        &mut self,
-        container_id: usize,
-        inner_id: usize,
-        area_type: crate::editor::area_layout::AreaType,
-        inner_leaf_count: usize,
-        theme: &Theme,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
-        use crate::editor::area_layout::*;
-
-        let c = &theme.colors;
-        let d = &theme.dimensions;
-        let _t = &theme.typography;
-        let editor = cx.entity().downgrade();
-
-        let toggle_editor = editor.clone();
-        let type_button = div()
-            .id(("inner-area-type-btn", inner_id))
-            .h(px(22.0))
-            .px(px(8.0))
-            .flex()
-            .items_center()
-            .gap(px(4.0))
-            .rounded(px(d.menu_item_radius))
-            .bg(c.dialog_secondary_button_bg)
-            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-            .cursor_pointer()
-            .text_size(px(12.0))
-            .text_color(c.text_default)
-            .child(format!("{} ▼", area_type.name()))
-            .on_click(move |_event, _window, cx| {
-                let _ = toggle_editor.update(cx, |ed, cx| {
-                    ed.area_layout.toggle_inner_dropdown(container_id, inner_id);
-                    cx.notify();
-                });
-            });
-
-        let split_h_editor = editor.clone();
-        let split_h_button = div()
-            .id(("inner-area-btn-split-h", inner_id))
-            .occlude()
-            .p(px(4.0))
-            .rounded(px(d.menu_item_radius))
-            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-            .cursor_pointer()
-            .child(
-                svg()
-                    .path("icon/panel/split-h.svg")
-                    .size(px(14.0))
-                    .text_color(c.dialog_muted),
-            )
-            .on_click(move |_event, _window, cx| {
-                let _ = split_h_editor.update(cx, |ed, cx| {
-                    ed.area_layout.split_inner_edit_area(
-                        container_id,
-                        inner_id,
-                        SplitDirection::Horizontal,
-                    );
-                    cx.notify();
-                });
-            });
-
-        let split_v_editor = editor.clone();
-        let split_v_button = div()
-            .id(("inner-area-btn-split-v", inner_id))
-            .occlude()
-            .p(px(4.0))
-            .rounded(px(d.menu_item_radius))
-            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-            .cursor_pointer()
-            .child(
-                svg()
-                    .path("icon/panel/split-v.svg")
-                    .size(px(14.0))
-                    .text_color(c.dialog_muted),
-            )
-            .on_click(move |_event, _window, cx| {
-                let _ = split_v_editor.update(cx, |ed, cx| {
-                    ed.area_layout.split_inner_edit_area(
-                        container_id,
-                        inner_id,
-                        SplitDirection::Vertical,
-                    );
-                    cx.notify();
-                });
-            });
-
-        let mut actions = div()
-            .flex()
-            .items_center()
-            .gap(px(4.0))
-            .child(split_h_button)
-            .child(split_v_button);
-
-        if inner_leaf_count > 1 {
-            let close_editor = editor.clone();
-            let close_button = div()
-                .id(("inner-area-btn-close", inner_id))
-                .occlude()
-                .p(px(4.0))
-                .rounded(px(d.menu_item_radius))
-                .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                .cursor_pointer()
-                .child(
-                    svg()
-                        .path("icon/titlebar/chrome-close.svg")
-                        .size(px(14.0))
-                        .text_color(c.dialog_muted),
-                )
-                .on_click(move |_event, _window, cx| {
-                    let _ = close_editor.update(cx, |ed, cx| {
-                        ed.area_layout.close_inner_edit_area(container_id, inner_id);
-                        cx.notify();
-                    });
-                });
-
-            actions = actions.child(close_button);
-        }
-
-        div()
-            .id(("inner-area-header", inner_id))
-            .h(px(28.0))
-            .w_full()
-            .flex()
-            .items_center()
-            .justify_between()
-            .px(px(8.0))
-            .border_b(px(1.0))
-            .border_color(c.dialog_border)
-            .relative()
-            .child(div().flex().items_center().gap(px(8.0)).child(type_button))
-            .child(div().flex().items_center().gap(px(6.0)).child(actions))
-            .into_any_element()
-    }
-
     fn render_inner_area_dropdown_menu(
         &mut self,
         container_id: usize,
@@ -3414,7 +3280,7 @@ impl Editor {
             .id(("inner-area-dropdown-overlay", inner_id))
             .absolute()
             .occlude()
-            .top(px(30.0))
+            .bottom(px(2.0))
             .left(px(8.0))
             .w(px(d.menu_panel_width))
             .p(px(d.menu_panel_padding))
