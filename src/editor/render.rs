@@ -2802,7 +2802,8 @@ impl Editor {
 
         let render_zed_stepper = |id_dec: &'static str,
                                   id_inc: &'static str,
-                                  val_str: String,
+                                  val_num: String,
+                                  unit_str: &'static str,
                                   is_editing: bool,
                                   on_dec: Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>,
                                   on_inc: Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>,
@@ -2812,9 +2813,48 @@ impl Editor {
             let tc = &theme.colors;
             let td = &theme.dimensions;
 
+            let mut center_box = div()
+                .id(ElementId::Name(format!("{}-center", id_dec).into()))
+                .cursor_pointer()
+                .h_full()
+                .flex_1()
+                .min_w(px(0.0))
+                .px(px(4.0))
+                .flex()
+                .items_center()
+                .justify_center()
+                .gap(px(3.0))
+                .bg(if is_editing { tc.dialog_surface } else { tc.dialog_secondary_button_bg })
+                .child(
+                    div()
+                        .text_size(px(12.0))
+                        .font_weight(gpui::FontWeight::MEDIUM)
+                        .text_color(tc.text_default)
+                        .child(val_num),
+                );
+
+            if is_editing {
+                center_box = center_box
+                    .border_1()
+                    .border_color(tc.dialog_primary_button_bg)
+                    .child(div().w(px(1.5)).h(px(12.0)).bg(tc.dialog_primary_button_bg));
+            }
+
+            if !unit_str.is_empty() {
+                center_box = center_box.child(
+                    div()
+                        .text_size(px(11.0))
+                        .text_color(tc.dialog_muted)
+                        .child(unit_str),
+                );
+            }
+
+            let center_box = center_box.on_click(on_click_center);
+
             div()
                 .flex()
                 .items_center()
+                .w(px(145.0))
                 .h(px(28.0))
                 .rounded(px(td.menu_item_radius))
                 .border_1()
@@ -2825,7 +2865,7 @@ impl Editor {
                         .id(id_dec)
                         .cursor_pointer()
                         .h_full()
-                        .px(px(10.0))
+                        .w(px(32.0))
                         .flex()
                         .items_center()
                         .justify_center()
@@ -2837,38 +2877,14 @@ impl Editor {
                         .on_click(on_dec),
                 )
                 .child(div().w(px(1.0)).h_full().bg(tc.dialog_border))
-                .child(
-                    div()
-                        .id(ElementId::Name(format!("{}-center", id_dec).into()))
-                        .cursor_pointer()
-                        .h_full()
-                        .min_w(px(56.0))
-                        .px(px(8.0))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .gap(px(2.0))
-                        .bg(if is_editing { tc.dialog_surface } else { tc.dialog_secondary_button_bg })
-                        .border_1()
-                        .border_color(if is_editing { tc.dialog_primary_button_bg } else { tc.dialog_border })
-                        .text_size(px(12.0))
-                        .font_weight(gpui::FontWeight::MEDIUM)
-                        .text_color(tc.text_default)
-                        .child(val_str)
-                        .child(if is_editing {
-                            div().w(px(1.5)).h(px(12.0)).bg(tc.dialog_primary_button_bg).into_any_element()
-                        } else {
-                            div().into_any_element()
-                        })
-                        .on_click(on_click_center),
-                )
+                .child(center_box)
                 .child(div().w(px(1.0)).h_full().bg(tc.dialog_border))
                 .child(
                     div()
                         .id(id_inc)
                         .cursor_pointer()
                         .h_full()
-                        .px(px(10.0))
+                        .w(px(32.0))
                         .flex()
                         .items_center()
                         .justify_center()
@@ -2950,8 +2966,6 @@ impl Editor {
             card.into_any_element()
         };
 
-        let mut active_panel_overlay: Option<AnyElement> = None;
-
         match active_tab {
             SettingsTab::Interface => {
                 // Section 1: Visual Theme & Language
@@ -2982,255 +2996,291 @@ impl Editor {
                         "icon/panel/moon.svg"
                     };
 
-                    let ctrl_theme_btn = div()
-                        .id("pref-btn-theme")
-                        .cursor_pointer()
-                        .flex()
-                        .items_center()
-                        .justify_between()
-                        .w(px(210.0))
-                        .px(px(12.0))
-                        .py(px(5.0))
-                        .rounded(px(d.menu_item_radius))
-                        .bg(c.dialog_secondary_button_bg)
-                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                        .border_1()
-                        .border_color(c.dialog_border)
-                        .text_size(px(12.0))
-                        .text_color(c.text_default)
+                    let mut theme_btn_wrap = div()
+                        .relative()
                         .child(
                             div()
-                                .flex()
-                                .items_center()
-                                .gap(px(6.0))
-                                .child(
-                                    svg()
-                                        .path(theme_icon_path)
-                                        .size(px(13.0))
-                                        .text_color(c.text_default),
-                                )
-                                .child(current_theme_name.clone()),
-                        )
-                        .child(
-                            svg()
-                                .path("icon/panel/select-chevron.svg")
-                                .size(px(14.0))
-                                .text_color(c.dialog_muted),
-                        )
-                        .on_click({
-                            let theme_ed = theme_ed.clone();
-                            move |_ev, _win, cx| {
-                                let _ = theme_ed.update(cx, |ed, cx| {
-                                    if ed.area_layout.open_settings_dropdown.as_deref() == Some("theme") {
-                                        ed.area_layout.open_settings_dropdown = None;
-                                    } else {
-                                        ed.area_layout.open_settings_dropdown = Some("theme".to_string());
-                                    }
-                                    cx.notify();
-                                });
-                            }
-                        })
-                        .into_any_element();
-
-                    sec1_items.push(make_row(
-                        "Interface Theme",
-                        "Customize overall application color scheme and appearance",
-                        ctrl_theme_btn,
-                        theme,
-                        inner_border_color,
-                    ));
-
-                    let ctrl_lang_btn = div()
-                        .id("pref-btn-lang")
-                        .cursor_pointer()
-                        .flex()
-                        .items_center()
-                        .justify_between()
-                        .w(px(210.0))
-                        .px(px(12.0))
-                        .py(px(5.0))
-                        .rounded(px(d.menu_item_radius))
-                        .bg(c.dialog_secondary_button_bg)
-                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                        .border_1()
-                        .border_color(c.dialog_border)
-                        .text_size(px(12.0))
-                        .text_color(c.text_default)
-                        .child(current_lang)
-                        .child(
-                            svg()
-                                .path("icon/panel/select-chevron.svg")
-                                .size(px(14.0))
-                                .text_color(c.dialog_muted),
-                        )
-                        .on_click({
-                            let lang_ed = lang_ed.clone();
-                            move |_ev, _win, cx| {
-                                let _ = lang_ed.update(cx, |ed, cx| {
-                                    if ed.area_layout.open_settings_dropdown.as_deref() == Some("lang") {
-                                        ed.area_layout.open_settings_dropdown = None;
-                                    } else {
-                                        ed.area_layout.open_settings_dropdown = Some("lang".to_string());
-                                    }
-                                    cx.notify();
-                                });
-                            }
-                        })
-                        .into_any_element();
-
-                    sec1_items.push(make_row(
-                        "Display Language",
-                        "Select preferred language for editor UI and dialogs",
-                        ctrl_lang_btn,
-                        theme,
-                        inner_border_color,
-                    ));
-                }
-
-                if is_theme_open {
-                    let mut menu_items = Vec::new();
-                    for t_entry in available_themes {
-                        let t_id = t_entry.id.clone();
-                        let display_label: String = match t_entry.name.as_str() {
-                            "Velotype" | "Dark" => "Dark".to_string(),
-                            "Velotype Light" | "Light" => "Light".to_string(),
-                            other => other.to_string(),
-                        };
-                        let is_selected = display_label == current_theme_name;
-                        let item_ed = theme_ed.clone();
-                        let item_icon = if display_label == "Light" {
-                            "icon/panel/sun.svg"
-                        } else {
-                            "icon/panel/moon.svg"
-                        };
-
-                        menu_items.push(
-                            div()
-                                .id(ElementId::Name(format!("theme-item-{}", t_id).into()))
+                                .id("pref-btn-theme")
                                 .cursor_pointer()
                                 .flex()
                                 .items_center()
                                 .justify_between()
-                                .px(px(10.0))
-                                .py(px(6.0))
-                                .rounded(px(4.0))
-                                .bg(if is_selected { c.dialog_secondary_button_hover } else { c.dialog_surface })
+                                .w(px(145.0))
+                                .h(px(28.0))
+                                .px(px(8.0))
+                                .rounded(px(d.menu_item_radius))
+                                .bg(c.dialog_secondary_button_bg)
                                 .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                .border_1()
+                                .border_color(c.dialog_border)
                                 .text_size(px(12.0))
                                 .text_color(c.text_default)
                                 .child(
                                     div()
+                                        .flex_1()
+                                        .min_w(px(0.0))
                                         .flex()
                                         .items_center()
                                         .gap(px(6.0))
                                         .child(
                                             svg()
-                                                .path(item_icon)
+                                                .path(theme_icon_path)
                                                 .size(px(13.0))
                                                 .text_color(c.text_default),
                                         )
-                                        .child(display_label),
+                                        .child(
+                                            div()
+                                                .flex_1()
+                                                .min_w(px(0.0))
+                                                .truncate()
+                                                .child(current_theme_name.clone()),
+                                        ),
                                 )
-                                .child(if is_selected {
-                                    svg()
-                                        .path("icon/panel/check.svg")
-                                        .size(px(13.0))
-                                        .text_color(c.dialog_primary_button_bg)
-                                        .into_any_element()
-                                } else {
-                                    div().w(px(13.0)).into_any_element()
-                                })
-                                .on_click(move |_ev, _win, cx| {
-                                    let _ = item_ed.update(cx, |ed, cx| {
-                                        cx.update_global::<ThemeManager, _>(|manager, _cx| {
-                                            let _ = manager.set_theme_by_id(&t_id);
+                                .child(
+                                    div()
+                                        .flex_shrink_0()
+                                        .pl(px(4.0))
+                                        .child(
+                                            svg()
+                                                .path("icon/panel/select-chevron.svg")
+                                                .size(px(14.0))
+                                                .text_color(c.dialog_muted),
+                                        ),
+                                )
+                                .on_click({
+                                    let theme_ed = theme_ed.clone();
+                                    move |_ev, _win, cx| {
+                                        let _ = theme_ed.update(cx, |ed, cx| {
+                                            if ed.area_layout.open_settings_dropdown.as_deref() == Some("theme") {
+                                                ed.area_layout.open_settings_dropdown = None;
+                                            } else {
+                                                ed.area_layout.open_settings_dropdown = Some("theme".to_string());
+                                            }
+                                            cx.notify();
                                         });
-                                        ed.area_layout.open_settings_dropdown = None;
-                                        cx.notify();
-                                    });
-                                })
-                                .into_any_element(),
+                                    }
+                                }),
+                        );
+
+                    if is_theme_open {
+                        let mut menu_items = Vec::new();
+                        for t_entry in available_themes {
+                            let t_id = t_entry.id.clone();
+                            let display_label: String = match t_entry.name.as_str() {
+                                "Velotype" | "Dark" => "Dark".to_string(),
+                                "Velotype Light" | "Light" => "Light".to_string(),
+                                other => other.to_string(),
+                            };
+                            let is_selected = display_label == current_theme_name;
+                            let item_ed = theme_ed.clone();
+                            let item_icon = if display_label == "Light" {
+                                "icon/panel/sun.svg"
+                            } else {
+                                "icon/panel/moon.svg"
+                            };
+
+                            menu_items.push(
+                                div()
+                                    .id(ElementId::Name(format!("theme-item-{}", t_id).into()))
+                                    .cursor_pointer()
+                                    .flex()
+                                    .items_center()
+                                    .justify_between()
+                                    .px(px(10.0))
+                                    .py(px(6.0))
+                                    .rounded(px(4.0))
+                                    .bg(if is_selected { c.dialog_secondary_button_hover } else { c.dialog_surface })
+                                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                    .text_size(px(12.0))
+                                    .text_color(c.text_default)
+                                    .child(
+                                        div()
+                                            .flex()
+                                            .items_center()
+                                            .gap(px(6.0))
+                                            .child(
+                                                svg()
+                                                    .path(item_icon)
+                                                    .size(px(13.0))
+                                                    .text_color(c.text_default),
+                                            )
+                                            .child(display_label),
+                                    )
+                                    .child(if is_selected {
+                                        svg()
+                                            .path("icon/panel/check.svg")
+                                            .size(px(13.0))
+                                            .text_color(c.dialog_primary_button_bg)
+                                            .into_any_element()
+                                    } else {
+                                        div().w(px(13.0)).into_any_element()
+                                    })
+                                    .on_click(move |_ev, _win, cx| {
+                                        let _ = item_ed.update(cx, |ed, cx| {
+                                            cx.update_global::<ThemeManager, _>(|manager, _cx| {
+                                                let _ = manager.set_theme_by_id(&t_id);
+                                            });
+                                            ed.area_layout.open_settings_dropdown = None;
+                                            cx.notify();
+                                        });
+                                    })
+                                    .into_any_element(),
+                            );
+                        }
+
+                        theme_btn_wrap = theme_btn_wrap.child(
+                            gpui::deferred(
+                                div()
+                                    .absolute()
+                                    .top_full()
+                                    .right_0()
+                                    .mt(px(4.0))
+                                    .w(px(160.0))
+                                    .occlude()
+                                    .bg(c.dialog_surface)
+                                    .border_1()
+                                    .border_color(c.dialog_border)
+                                    .rounded(px(6.0))
+                                    .shadow_lg()
+                                    .p(px(4.0))
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(2.0))
+                                    .children(menu_items),
+                            ),
                         );
                     }
 
-                    active_panel_overlay = Some(
-                        div()
-                            .absolute()
-                            .top(px(80.0))
-                            .right(px(26.0))
-                            .w(px(210.0))
-                            .occlude()
-                            .bg(c.dialog_surface)
-                            .border_1()
-                            .border_color(c.dialog_border)
-                            .rounded(px(6.0))
-                            .shadow_lg()
-                            .p(px(4.0))
-                            .flex()
-                            .flex_col()
-                            .gap(px(2.0))
-                            .children(menu_items)
-                            .into_any_element(),
-                    );
-                } else if is_lang_open {
-                    let mut menu_items = Vec::new();
-                    for (code, label) in lang_options {
-                        let is_selected = label == current_lang;
-                        let item_ed = lang_ed.clone();
+                    sec1_items.push(make_row(
+                        "Interface Theme",
+                        "Customize overall application color scheme and appearance",
+                        theme_btn_wrap.into_any_element(),
+                        theme,
+                        inner_border_color,
+                    ));
 
-                        menu_items.push(
+                    let mut lang_btn_wrap = div()
+                        .relative()
+                        .child(
                             div()
-                                .id(ElementId::Name(format!("lang-item-{}", code).into()))
+                                .id("pref-btn-lang")
                                 .cursor_pointer()
                                 .flex()
                                 .items_center()
                                 .justify_between()
-                                .px(px(10.0))
-                                .py(px(6.0))
-                                .rounded(px(4.0))
-                                .bg(if is_selected { c.dialog_secondary_button_hover } else { c.dialog_surface })
+                                .w(px(145.0))
+                                .h(px(28.0))
+                                .px(px(8.0))
+                                .rounded(px(d.menu_item_radius))
+                                .bg(c.dialog_secondary_button_bg)
                                 .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                .border_1()
+                                .border_color(c.dialog_border)
                                 .text_size(px(12.0))
                                 .text_color(c.text_default)
-                                .child(label)
-                                .child(if is_selected {
-                                    svg()
-                                        .path("icon/panel/check.svg")
-                                        .size(px(13.0))
-                                        .text_color(c.dialog_primary_button_bg)
-                                        .into_any_element()
-                                } else {
-                                    div().w(px(13.0)).into_any_element()
-                                })
-                                .on_click(move |_ev, _win, cx| {
-                                    let _ = item_ed.update(cx, |ed, cx| {
-                                        ed.area_layout.open_settings_dropdown = None;
-                                        cx.notify();
-                                    });
-                                })
-                                .into_any_element(),
+                                .child(
+                                    div()
+                                        .flex_1()
+                                        .min_w(px(0.0))
+                                        .truncate()
+                                        .child(current_lang),
+                                )
+                                .child(
+                                    div()
+                                        .flex_shrink_0()
+                                        .pl(px(4.0))
+                                        .child(
+                                            svg()
+                                                .path("icon/panel/select-chevron.svg")
+                                                .size(px(14.0))
+                                                .text_color(c.dialog_muted),
+                                        ),
+                                )
+                                .on_click({
+                                    let lang_ed = lang_ed.clone();
+                                    move |_ev, _win, cx| {
+                                        let _ = lang_ed.update(cx, |ed, cx| {
+                                            if ed.area_layout.open_settings_dropdown.as_deref() == Some("lang") {
+                                                ed.area_layout.open_settings_dropdown = None;
+                                            } else {
+                                                ed.area_layout.open_settings_dropdown = Some("lang".to_string());
+                                            }
+                                            cx.notify();
+                                        });
+                                    }
+                                }),
+                        );
+
+                    if is_lang_open {
+                        let mut menu_items = Vec::new();
+                        for (code, label) in lang_options {
+                            let is_selected = label == current_lang;
+                            let item_ed = lang_ed.clone();
+
+                            menu_items.push(
+                                div()
+                                    .id(ElementId::Name(format!("lang-item-{}", code).into()))
+                                    .cursor_pointer()
+                                    .flex()
+                                    .items_center()
+                                    .justify_between()
+                                    .px(px(10.0))
+                                    .py(px(6.0))
+                                    .rounded(px(4.0))
+                                    .bg(if is_selected { c.dialog_secondary_button_hover } else { c.dialog_surface })
+                                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                    .text_size(px(12.0))
+                                    .text_color(c.text_default)
+                                    .child(label)
+                                    .child(if is_selected {
+                                        svg()
+                                            .path("icon/panel/check.svg")
+                                            .size(px(13.0))
+                                            .text_color(c.dialog_primary_button_bg)
+                                            .into_any_element()
+                                    } else {
+                                        div().w(px(13.0)).into_any_element()
+                                    })
+                                    .on_click(move |_ev, _win, cx| {
+                                        let _ = item_ed.update(cx, |ed, cx| {
+                                            ed.area_layout.open_settings_dropdown = None;
+                                            cx.notify();
+                                        });
+                                    })
+                                    .into_any_element(),
+                            );
+                        }
+
+                        lang_btn_wrap = lang_btn_wrap.child(
+                            gpui::deferred(
+                                div()
+                                    .absolute()
+                                    .top_full()
+                                    .right_0()
+                                    .mt(px(4.0))
+                                    .w(px(160.0))
+                                    .occlude()
+                                    .bg(c.dialog_surface)
+                                    .border_1()
+                                    .border_color(c.dialog_border)
+                                    .rounded(px(6.0))
+                                    .shadow_lg()
+                                    .p(px(4.0))
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(2.0))
+                                    .children(menu_items),
+                            ),
                         );
                     }
 
-                    active_panel_overlay = Some(
-                        div()
-                            .absolute()
-                            .top(px(144.0))
-                            .right(px(26.0))
-                            .w(px(180.0))
-                            .occlude()
-                            .bg(c.dialog_surface)
-                            .border_1()
-                            .border_color(c.dialog_border)
-                            .rounded(px(6.0))
-                            .shadow_lg()
-                            .p(px(4.0))
-                            .flex()
-                            .flex_col()
-                            .gap(px(2.0))
-                            .children(menu_items)
-                            .into_any_element(),
-                    );
+                    sec1_items.push(make_row(
+                        "Display Language",
+                        "Select preferred language for editor UI and dialogs",
+                        lang_btn_wrap.into_any_element(),
+                        theme,
+                        inner_border_color,
+                    ));
                 }
 
                 let sec1_ed = cx.entity().downgrade();
@@ -3381,7 +3431,8 @@ impl Editor {
                     let ctrl_font = render_zed_stepper(
                         "font-dec",
                         "font-inc",
-                        format!("{} px", curr_size),
+                        format!("{}", curr_size),
+                        "px",
                         is_editing_font,
                         Box::new(move |_ev, _win, cx| {
                             let _ = font_dec.update(cx, |ed, cx| {
@@ -3404,6 +3455,15 @@ impl Editor {
                         Box::new(move |_ev, _win, cx| {
                             let _ = font_ctr.update(cx, |ed, cx| {
                                 ed.area_layout.editing_settings_stepper = Some("font".to_string());
+                                ed.area_layout.pref_font_size = match ed.area_layout.pref_font_size {
+                                    12 => 14,
+                                    14 => 16,
+                                    16 => 18,
+                                    18 => 20,
+                                    20 => 24,
+                                    24 => 12,
+                                    _ => 14,
+                                };
                                 cx.notify();
                             });
                         }),
@@ -3428,6 +3488,7 @@ impl Editor {
                         "lh-dec",
                         "lh-inc",
                         format!("{:.1}", curr_lh),
+                        "",
                         is_editing_lh,
                         Box::new(move |_ev, _win, cx| {
                             let _ = lh_dec.update(cx, |ed, cx| {
@@ -3452,6 +3513,17 @@ impl Editor {
                         Box::new(move |_ev, _win, cx| {
                             let _ = lh_ctr.update(cx, |ed, cx| {
                                 ed.area_layout.editing_settings_stepper = Some("line_height".to_string());
+                                ed.area_layout.pref_line_height = if (ed.area_layout.pref_line_height - 1.2).abs() < 0.05 {
+                                    1.4
+                                } else if (ed.area_layout.pref_line_height - 1.4).abs() < 0.05 {
+                                    1.6
+                                } else if (ed.area_layout.pref_line_height - 1.6).abs() < 0.05 {
+                                    1.8
+                                } else if (ed.area_layout.pref_line_height - 1.8).abs() < 0.05 {
+                                    2.0
+                                } else {
+                                    1.2
+                                };
                                 cx.notify();
                             });
                         }),
@@ -3522,114 +3594,129 @@ impl Editor {
                         inner_border_color,
                     ));
 
-                    let ctrl_img_btn = div()
-                        .id("pref-btn-img")
-                        .cursor_pointer()
-                        .flex()
-                        .items_center()
-                        .justify_between()
-                        .w(px(210.0))
-                        .px(px(12.0))
-                        .py(px(5.0))
-                        .rounded(px(d.menu_item_radius))
-                        .bg(c.dialog_secondary_button_bg)
-                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                        .border_1()
-                        .border_color(c.dialog_border)
-                        .text_size(px(12.0))
-                        .text_color(c.text_default)
-                        .child(curr_img_label)
+                    let mut img_btn_wrap = div()
+                        .relative()
                         .child(
-                            svg()
-                                .path("icon/panel/select-chevron.svg")
-                                .size(px(14.0))
-                                .text_color(c.dialog_muted),
-                        )
-                        .on_click({
-                            let img_ed = img_ed.clone();
-                            move |_ev, _win, cx| {
-                                let _ = img_ed.update(cx, |ed, cx| {
-                                    if ed.area_layout.open_settings_dropdown.as_deref() == Some("image") {
-                                        ed.area_layout.open_settings_dropdown = None;
-                                    } else {
-                                        ed.area_layout.open_settings_dropdown = Some("image".to_string());
-                                    }
-                                    cx.notify();
-                                });
-                            }
-                        })
-                        .into_any_element();
-
-                    sec2_items.push(make_row(
-                        "Image Paste Action",
-                        "Default storage location when pasting images into document",
-                        ctrl_img_btn,
-                        theme,
-                        inner_border_color,
-                    ));
-                }
-
-                if is_img_open {
-                    let mut menu_items = Vec::new();
-                    for (idx, label) in img_options {
-                        let is_selected = idx == curr_img_idx;
-                        let item_ed = img_ed.clone();
-
-                        menu_items.push(
                             div()
-                                .id(ElementId::Name(format!("img-item-{}", idx).into()))
+                                .id("pref-btn-img")
                                 .cursor_pointer()
                                 .flex()
                                 .items_center()
                                 .justify_between()
-                                .px(px(10.0))
-                                .py(px(6.0))
-                                .rounded(px(4.0))
-                                .bg(if is_selected { c.dialog_secondary_button_hover } else { c.dialog_surface })
+                                .w(px(145.0))
+                                .h(px(28.0))
+                                .px(px(8.0))
+                                .rounded(px(d.menu_item_radius))
+                                .bg(c.dialog_secondary_button_bg)
                                 .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                .border_1()
+                                .border_color(c.dialog_border)
                                 .text_size(px(12.0))
                                 .text_color(c.text_default)
-                                .child(label)
-                                .child(if is_selected {
-                                    svg()
-                                        .path("icon/panel/check.svg")
-                                        .size(px(13.0))
-                                        .text_color(c.dialog_primary_button_bg)
-                                        .into_any_element()
-                                } else {
-                                    div().w(px(13.0)).into_any_element()
-                                })
-                                .on_click(move |_ev, _win, cx| {
-                                    let _ = item_ed.update(cx, |ed, cx| {
-                                        ed.area_layout.pref_image_paste_action = idx;
-                                        ed.area_layout.open_settings_dropdown = None;
-                                        cx.notify();
-                                    });
-                                })
-                                .into_any_element(),
+                                .child(
+                                    div()
+                                        .flex_1()
+                                        .min_w(px(0.0))
+                                        .truncate()
+                                        .child(curr_img_label),
+                                )
+                                .child(
+                                    div()
+                                        .flex_shrink_0()
+                                        .pl(px(4.0))
+                                        .child(
+                                            svg()
+                                                .path("icon/panel/select-chevron.svg")
+                                                .size(px(14.0))
+                                                .text_color(c.dialog_muted),
+                                        ),
+                                )
+                                .on_click({
+                                    let img_ed = img_ed.clone();
+                                    move |_ev, _win, cx| {
+                                        let _ = img_ed.update(cx, |ed, cx| {
+                                            if ed.area_layout.open_settings_dropdown.as_deref() == Some("image") {
+                                                ed.area_layout.open_settings_dropdown = None;
+                                            } else {
+                                                ed.area_layout.open_settings_dropdown = Some("image".to_string());
+                                            }
+                                            cx.notify();
+                                        });
+                                    }
+                                }),
+                        );
+
+                    if is_img_open {
+                        let mut menu_items = Vec::new();
+                        for (idx, label) in img_options {
+                            let is_selected = idx == curr_img_idx;
+                            let item_ed = img_ed.clone();
+
+                            menu_items.push(
+                                div()
+                                    .id(ElementId::Name(format!("img-item-{}", idx).into()))
+                                    .cursor_pointer()
+                                    .flex()
+                                    .items_center()
+                                    .justify_between()
+                                    .px(px(10.0))
+                                    .py(px(6.0))
+                                    .rounded(px(4.0))
+                                    .bg(if is_selected { c.dialog_secondary_button_hover } else { c.dialog_surface })
+                                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                    .text_size(px(12.0))
+                                    .text_color(c.text_default)
+                                    .child(label)
+                                    .child(if is_selected {
+                                        svg()
+                                            .path("icon/panel/check.svg")
+                                            .size(px(13.0))
+                                            .text_color(c.dialog_primary_button_bg)
+                                            .into_any_element()
+                                    } else {
+                                        div().w(px(13.0)).into_any_element()
+                                    })
+                                    .on_click(move |_ev, _win, cx| {
+                                        let _ = item_ed.update(cx, |ed, cx| {
+                                            ed.area_layout.pref_image_paste_action = idx;
+                                            ed.area_layout.open_settings_dropdown = None;
+                                            cx.notify();
+                                        });
+                                    })
+                                    .into_any_element(),
+                            );
+                        }
+
+                        img_btn_wrap = img_btn_wrap.child(
+                            gpui::deferred(
+                                div()
+                                    .absolute()
+                                    .top_full()
+                                    .right_0()
+                                    .mt(px(4.0))
+                                    .w(px(160.0))
+                                    .occlude()
+                                    .bg(c.dialog_surface)
+                                    .border_1()
+                                    .border_color(c.dialog_border)
+                                    .rounded(px(6.0))
+                                    .shadow_lg()
+                                    .p(px(4.0))
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(2.0))
+                                    .children(menu_items),
+                            ),
                         );
                     }
 
-                    // Positioned at Section 2 Image Paste Action row relative to panel top:
-                    active_panel_overlay = Some(
-                        div()
-                            .absolute()
-                            .top(px(204.0))
-                            .right(px(26.0))
-                            .w(px(210.0))
-                            .occlude()
-                            .bg(c.dialog_surface)
-                            .border_1()
-                            .border_color(c.dialog_border)
-                            .rounded(px(6.0))
-                            .shadow_lg()
-                            .p(px(4.0))
-                            .flex()
-                            .flex_col()
-                            .gap(px(2.0))
-                            .children(menu_items)
-                            .into_any_element(),
-                    );
+                    sec2_items.push(make_row(
+                        "Image Paste Action",
+                        "Default storage location when pasting images into document",
+                        img_btn_wrap.into_any_element(),
+                        theme,
+                        inner_border_color,
+                    ));
                 }
 
                 let sec2_ed = cx.entity().downgrade();
@@ -3662,113 +3749,129 @@ impl Editor {
                 let is_startup_open = self.area_layout.open_settings_dropdown.as_deref() == Some("startup");
 
                 if is_sec3_expanded {
-                    let ctrl_startup_btn = div()
-                        .id("pref-btn-startup")
-                        .cursor_pointer()
-                        .flex()
-                        .items_center()
-                        .justify_between()
-                        .w(px(210.0))
-                        .px(px(12.0))
-                        .py(px(5.0))
-                        .rounded(px(d.menu_item_radius))
-                        .bg(c.dialog_secondary_button_bg)
-                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                        .border_1()
-                        .border_color(c.dialog_border)
-                        .text_size(px(12.0))
-                        .text_color(c.text_default)
-                        .child(curr_startup_label)
+                    let mut startup_btn_wrap = div()
+                        .relative()
                         .child(
-                            svg()
-                                .path("icon/panel/select-chevron.svg")
-                                .size(px(14.0))
-                                .text_color(c.dialog_muted),
-                        )
-                        .on_click({
-                            let startup_ed = startup_ed.clone();
-                            move |_ev, _win, cx| {
-                                let _ = startup_ed.update(cx, |ed, cx| {
-                                    if ed.area_layout.open_settings_dropdown.as_deref() == Some("startup") {
-                                        ed.area_layout.open_settings_dropdown = None;
-                                    } else {
-                                        ed.area_layout.open_settings_dropdown = Some("startup".to_string());
-                                    }
-                                    cx.notify();
-                                });
-                            }
-                        })
-                        .into_any_element();
-
-                    sec3_items.push(make_row(
-                        "On Startup",
-                        "Choose default document state when launching Velotype editor",
-                        ctrl_startup_btn,
-                        theme,
-                        inner_border_color,
-                    ));
-                }
-
-                if is_startup_open {
-                    let mut menu_items = Vec::new();
-                    for (idx, label) in startup_options {
-                        let is_selected = idx == curr_startup_idx;
-                        let item_ed = startup_ed.clone();
-
-                        menu_items.push(
                             div()
-                                .id(ElementId::Name(format!("startup-item-{}", idx).into()))
+                                .id("pref-btn-startup")
                                 .cursor_pointer()
                                 .flex()
                                 .items_center()
                                 .justify_between()
-                                .px(px(10.0))
-                                .py(px(6.0))
-                                .rounded(px(4.0))
-                                .bg(if is_selected { c.dialog_secondary_button_hover } else { c.dialog_surface })
+                                .w(px(145.0))
+                                .h(px(28.0))
+                                .px(px(8.0))
+                                .rounded(px(d.menu_item_radius))
+                                .bg(c.dialog_secondary_button_bg)
                                 .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                .border_1()
+                                .border_color(c.dialog_border)
                                 .text_size(px(12.0))
                                 .text_color(c.text_default)
-                                .child(label)
-                                .child(if is_selected {
-                                    svg()
-                                        .path("icon/panel/check.svg")
-                                        .size(px(13.0))
-                                        .text_color(c.dialog_primary_button_bg)
-                                        .into_any_element()
-                                } else {
-                                    div().w(px(13.0)).into_any_element()
-                                })
-                                .on_click(move |_ev, _win, cx| {
-                                    let _ = item_ed.update(cx, |ed, cx| {
-                                        ed.area_layout.pref_startup_option = idx;
-                                        ed.area_layout.open_settings_dropdown = None;
-                                        cx.notify();
-                                    });
-                                })
-                                .into_any_element(),
+                                .child(
+                                    div()
+                                        .flex_1()
+                                        .min_w(px(0.0))
+                                        .truncate()
+                                        .child(curr_startup_label),
+                                )
+                                .child(
+                                    div()
+                                        .flex_shrink_0()
+                                        .pl(px(4.0))
+                                        .child(
+                                            svg()
+                                                .path("icon/panel/select-chevron.svg")
+                                                .size(px(14.0))
+                                                .text_color(c.dialog_muted),
+                                        ),
+                                )
+                                .on_click({
+                                    let startup_ed = startup_ed.clone();
+                                    move |_ev, _win, cx| {
+                                        let _ = startup_ed.update(cx, |ed, cx| {
+                                            if ed.area_layout.open_settings_dropdown.as_deref() == Some("startup") {
+                                                ed.area_layout.open_settings_dropdown = None;
+                                            } else {
+                                                ed.area_layout.open_settings_dropdown = Some("startup".to_string());
+                                            }
+                                            cx.notify();
+                                        });
+                                    }
+                                }),
+                        );
+
+                    if is_startup_open {
+                        let mut menu_items = Vec::new();
+                        for (idx, label) in startup_options {
+                            let is_selected = idx == curr_startup_idx;
+                            let item_ed = startup_ed.clone();
+
+                            menu_items.push(
+                                div()
+                                    .id(ElementId::Name(format!("startup-item-{}", idx).into()))
+                                    .cursor_pointer()
+                                    .flex()
+                                    .items_center()
+                                    .justify_between()
+                                    .px(px(10.0))
+                                    .py(px(6.0))
+                                    .rounded(px(4.0))
+                                    .bg(if is_selected { c.dialog_secondary_button_hover } else { c.dialog_surface })
+                                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                    .text_size(px(12.0))
+                                    .text_color(c.text_default)
+                                    .child(label)
+                                    .child(if is_selected {
+                                        svg()
+                                            .path("icon/panel/check.svg")
+                                            .size(px(13.0))
+                                            .text_color(c.dialog_primary_button_bg)
+                                            .into_any_element()
+                                    } else {
+                                        div().w(px(13.0)).into_any_element()
+                                    })
+                                    .on_click(move |_ev, _win, cx| {
+                                        let _ = item_ed.update(cx, |ed, cx| {
+                                            ed.area_layout.pref_startup_option = idx;
+                                            ed.area_layout.open_settings_dropdown = None;
+                                            cx.notify();
+                                        });
+                                    })
+                                    .into_any_element(),
+                            );
+                        }
+
+                        startup_btn_wrap = startup_btn_wrap.child(
+                            gpui::deferred(
+                                div()
+                                    .absolute()
+                                    .top_full()
+                                    .right_0()
+                                    .mt(px(4.0))
+                                    .w(px(160.0))
+                                    .occlude()
+                                    .bg(c.dialog_surface)
+                                    .border_1()
+                                    .border_color(c.dialog_border)
+                                    .rounded(px(6.0))
+                                    .shadow_lg()
+                                    .p(px(4.0))
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(2.0))
+                                    .children(menu_items),
+                            ),
                         );
                     }
 
-                    active_panel_overlay = Some(
-                        div()
-                            .absolute()
-                            .top(px(330.0))
-                            .right(px(26.0))
-                            .w(px(200.0))
-                            .occlude()
-                            .bg(c.dialog_surface)
-                            .border_1()
-                            .border_color(c.dialog_border)
-                            .rounded(px(6.0))
-                            .shadow_lg()
-                            .p(px(4.0))
-                            .flex()
-                            .flex_col()
-                            .gap(px(2.0))
-                            .children(menu_items)
-                            .into_any_element(),
-                    );
+                    sec3_items.push(make_row(
+                        "On Startup",
+                        "Choose default document state when launching Velotype editor",
+                        startup_btn_wrap.into_any_element(),
+                        theme,
+                        inner_border_color,
+                    ));
                 }
 
                 let sec3_ed = cx.entity().downgrade();
@@ -3888,7 +3991,7 @@ impl Editor {
             }
         }
 
-        let mut right_content = div()
+        let right_content = div()
             .id("pref-right-content")
             .relative()
             .flex_1()
@@ -3899,10 +4002,6 @@ impl Editor {
             .flex_col()
             .gap(px(12.0))
             .children(sections);
-
-        if let Some(ol) = active_panel_overlay {
-            right_content = right_content.child(ol);
-        }
 
         // --- Main Root Layout ---
         div()
