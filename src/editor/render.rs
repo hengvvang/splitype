@@ -2980,7 +2980,23 @@ impl Editor {
                         if let Some(content) = primary_content.take() {
                             content
                         } else {
-                            self.render_tiled_preview_panel(primary_content, theme, strings, cx)
+                            div()
+                                .w_full()
+                                .h_full()
+                                .p(px(16.0))
+                                .flex()
+                                .flex_col()
+                                .justify_center()
+                                .bg(c.editor_background)
+                                .child(
+                                    div()
+                                        .w_full()
+                                        .text_align(TextAlign::Center)
+                                        .text_size(px(14.0))
+                                        .text_color(c.dialog_muted)
+                                        .child(format!("{} (Editor View)", area_type.name())),
+                                )
+                                .into_any_element()
                         }
                     }
                     AreaType::Preview => {
@@ -3467,6 +3483,15 @@ impl Editor {
                                 inner_id,
                                 area_type,
                             );
+                            match area_type {
+                                AreaType::Source | AreaType::Edit => {
+                                    ed.set_view_mode(super::ViewMode::Source, cx)
+                                }
+                                AreaType::Block | AreaType::Preview => {
+                                    ed.set_view_mode(super::ViewMode::Rendered, cx)
+                                }
+                                _ => {}
+                            }
                             cx.notify();
                         });
                     })
