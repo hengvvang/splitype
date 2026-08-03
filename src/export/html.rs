@@ -7,13 +7,13 @@ use base64::{Engine as _, engine::general_purpose};
 use gpui::{Hsla, Rgba};
 use pulldown_cmark::{CowStr, Event, Options, Parser, Tag, html};
 
-use crate::components::{
+use crate::blocks::{
     inline_math_font_size, is_mermaid_closing_fence, parse_display_math_source,
     parse_html_image_block, parse_mermaid_fence_source, parse_mermaid_fence_start,
     render_latex_to_svg, render_mermaid_to_svg, sanitize_html_for_export,
 };
 use crate::net;
-use crate::theme::{FontWeightDef, Theme};
+use crate::workspace::{FontWeightDef, Theme};
 
 /// Builds a full HTML document with embedded CSS derived from the active theme.
 #[cfg_attr(not(test), allow(dead_code))]
@@ -1020,7 +1020,7 @@ mod tests {
         contains_tibetan_text, render_chromium_pdf_html_with_base_dir, render_html,
         render_html_with_base_dir,
     };
-    use crate::theme::Theme;
+    use crate::workspace::Theme;
     use std::fs;
     use uuid::Uuid;
 

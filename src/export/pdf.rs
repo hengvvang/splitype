@@ -15,7 +15,7 @@ use futures::StreamExt;
 use uuid::Uuid;
 
 use crate::export::html::render_chromium_pdf_html_with_base_dir;
-use crate::theme::Theme;
+use crate::workspace::Theme;
 
 const CHROMIUM_VIEWPORT_WIDTH: u32 = 1280;
 const CHROMIUM_VIEWPORT_HEIGHT: u32 = 1600;
@@ -156,7 +156,7 @@ impl Drop for PdfTempFiles {
 mod tests {
     use super::{chromium_pdf_params, file_url_from_path, render_pdf};
     use crate::export::html::render_chromium_pdf_html_with_base_dir;
-    use crate::theme::Theme;
+    use crate::workspace::Theme;
 
     #[test]
     fn chromium_pdf_html_uses_print_layout_and_preserves_resources() {

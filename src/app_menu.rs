@@ -9,22 +9,22 @@ use std::path::{Path, PathBuf};
 use anyhow::Context as _;
 use gpui::*;
 
-use crate::components::{
+use crate::blocks::{
     AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
-    InstallCliTool, NewWindow, NoRecentFiles, OpenFile, OpenSettings, OpenRecentFile,
+    InstallCliTool, NewWindow, NoRecentFiles, OpenFile, OpenRecentFile, OpenSettings,
     QuitApplication, SaveDocument, SaveDocumentAs, SelectLanguage, SelectTheme, ShowAbout,
     ToggleWorkspace, UninstallCliTool,
 };
-use crate::config::{
+use crate::engine::editor::{Editor, InfoDialogKind};
+use crate::export::ExportFormat;
+use crate::shell::chrome::velotype_window_options;
+use crate::workspace::I18nManager;
+use crate::workspace::ThemeManager;
+use crate::workspace::{
     apply_configured_language, apply_configured_theme, import_language_config_and_select,
     import_theme_config_and_select, open_settings_window, read_recent_files, record_recent_file,
     remove_recent_file,
 };
-use crate::editor::{Editor, InfoDialogKind};
-use crate::export::ExportFormat;
-use crate::i18n::I18nManager;
-use crate::theme::ThemeManager;
-use crate::window_chrome::velotype_window_options;
 
 /// Global app-menu state for platform menu lifecycle hooks.
 #[derive(Default)]
@@ -1046,13 +1046,13 @@ pub(crate) fn init(cx: &mut App) {
 #[cfg(test)]
 mod tests {
     use super::{applescript_string_literal, build_menus};
-    use crate::components::{
+    use crate::blocks::{
         AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
         NewWindow, NoRecentFiles, OpenFile, OpenPreferences, OpenRecentFile, QuitApplication,
         SaveDocument, SelectLanguage, SelectTheme, ShowAbout,
     };
-    use crate::i18n::I18nManager;
-    use crate::theme::ThemeManager;
+    use crate::workspace::I18nManager;
+    use crate::workspace::ThemeManager;
     use gpui::MenuItem;
     use std::path::PathBuf;
 
@@ -1175,14 +1175,8 @@ mod tests {
         assert_eq!(action_name(&menus[EXPORT_IDX].items[0]), "HTML");
         assert_eq!(action_name(&menus[EXPORT_IDX].items[1]), "PDF");
         assert_eq!(action_name(&menus[LANGUAGE_IDX].items[0]), "简体中文");
-        assert_eq!(
-            action_name(&menus[LANGUAGE_IDX].items[1]),
-            "English"
-        );
-        assert_eq!(
-            action_name(&menus[WORKSPACE_IDX].items[0]),
-            "切换工作区"
-        );
+        assert_eq!(action_name(&menus[LANGUAGE_IDX].items[1]), "English");
+        assert_eq!(action_name(&menus[WORKSPACE_IDX].items[0]), "切换工作区");
     }
 
     #[test]
@@ -1224,10 +1218,7 @@ mod tests {
         assert_eq!(action_name(&menus[0].items[0]), "新建窗口");
         assert_eq!(action_name(&menus[EXPORT_IDX].items[0]), "HTML");
         assert_eq!(action_name(&menus[EXPORT_IDX].items[1]), "PDF");
-        assert_eq!(
-            action_name(&menus[LANGUAGE_IDX].items[0]),
-            "简体中文"
-        );
+        assert_eq!(action_name(&menus[LANGUAGE_IDX].items[0]), "简体中文");
     }
 
     #[test]

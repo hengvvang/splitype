@@ -6,7 +6,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![recursion_limit = "2048"]
 
-use std::borrow::Cow;
 use std::path::PathBuf;
 #[cfg(target_os = "macos")]
 use std::sync::{
@@ -18,31 +17,24 @@ use std::sync::{
 use futures::{StreamExt, channel::mpsc};
 use gpui::*;
 
-mod app_identity;
 mod app_menu;
-mod components;
-mod config;
-mod editor;
+mod assets;
+mod blocks;
+mod engine;
 mod export;
-#[cfg(any(target_os = "macos", test))]
-mod file_url;
-mod i18n;
 mod net;
-mod theme;
-mod window_chrome;
+mod shell;
+mod workspace;
 
-use app_menu::{init as init_app_menu, open_editor_window};
-use components::init_with_keybindings as init_editor;
 #[cfg(target_os = "macos")]
-use file_url::parse_file_url;
-use i18n::I18nManager;
-use theme::ThemeManager;
+use crate::shell::file_url::parse_file_url;
+use app_menu::{init as init_app_menu, open_editor_window};
+use blocks::action_defs::init_with_keybindings as init_editor;
+use workspace::{I18nManager, ThemeManager};
 
-struct VelotypeAssets;
-
-fn open_startup_window(cx: &mut App, startup_open: config::StartupOpenSetting) {
-    if startup_open == config::StartupOpenSetting::LastOpenedFile
-        && let Some(path) = config::first_existing_recent_markdown_file()
+fn open_startup_window(cx: &mut App, startup_open: workspace::StartupOpenSetting) {
+    if startup_open == workspace::StartupOpenSetting::LastOpenedFile
+        && let Some(path) = workspace::first_existing_recent_markdown_file()
     {
         match std::fs::read_to_string(&path) {
             Ok(markdown) => {
@@ -59,114 +51,6 @@ fn open_startup_window(cx: &mut App, startup_open: config::StartupOpenSetting) {
     }
 
     open_editor_window(cx, String::new(), None);
-}
-
-impl AssetSource for VelotypeAssets {
-    fn load(&self, path: &str) -> gpui::Result<Option<Cow<'static, [u8]>>> {
-        match path {
-            "icon/workspace/folder.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/workspace/folder.svg"
-            )))),
-            "icon/workspace/markdown.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/workspace/markdown.svg"
-            )))),
-            "icon/workspace/file.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/workspace/file.svg"
-            )))),
-            "icon/workspace/folder-open.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/workspace/folder-open.svg"
-            )))),
-            "icon/workspace/file-plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/workspace/file-plus.svg"
-            )))),
-            "icon/workspace/folder-plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/workspace/folder-plus.svg"
-            )))),
-            "icon/workspace/collapse-all.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/workspace/collapse-all.svg"
-            )))),
-            "icon/workspace/refresh.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/workspace/refresh.svg"
-            )))),
-            "icon/titlebar/chrome-close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/titlebar/chrome-close.svg"
-            )))),
-            "icon/titlebar/chrome-minimize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/titlebar/chrome-minimize.svg"
-            )))),
-            "icon/titlebar/chrome-maximize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/titlebar/chrome-maximize.svg"
-            )))),
-            "icon/titlebar/chrome-restore.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/titlebar/chrome-restore.svg"
-            )))),
-            "icon/panel/split-h.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/panel/split-h.svg"
-            )))),
-            "icon/panel/split-v.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/panel/split-v.svg"
-            )))),
-            "icon/panel/chevron-right.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/panel/chevron-right.svg"
-            )))),
-            "icon/panel/chevron-down.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/panel/chevron-down.svg"
-            )))),
-            "icon/panel/select-chevron.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/panel/select-chevron.svg"
-            )))),
-            "icon/panel/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/panel/check.svg"
-            )))),
-            "icon/task_check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/task_check.svg"
-            )))),
-            "icon/panel/sun.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/panel/sun.svg"
-            )))),
-            "icon/panel/moon.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/panel/moon.svg"
-            )))),
-            "icon/panel/line-numbers.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/panel/line-numbers.svg"
-            )))),
-            "icon/table/plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/table/plus.svg"
-            )))),
-            "icon/table/handle-row.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/table/handle-row.svg"
-            )))),
-            "icon/table/handle-row-hollow.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/table/handle-row-hollow.svg"
-            )))),
-            "icon/table/handle-row-solid.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/table/handle-row-solid.svg"
-            )))),
-            "icon/table/handle-column.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/table/handle-column.svg"
-            )))),
-            "icon/callout/note.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/callout/note.svg"
-            )))),
-            "icon/callout/tip.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/callout/tip.svg"
-            )))),
-            "icon/callout/important.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/callout/important.svg"
-            )))),
-            "icon/callout/warning.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/callout/warning.svg"
-            )))),
-            "icon/callout/caution.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../assets/icon/callout/caution.svg"
-            )))),
-            _ => Ok(None),
-        }
-    }
-
-    fn list(&self, _path: &str) -> gpui::Result<Vec<SharedString>> {
-        Ok(Vec::new())
-    }
 }
 
 fn main() {
@@ -246,7 +130,7 @@ fn main() {
     #[cfg(target_os = "macos")]
     let open_file_requested = Arc::new(AtomicBool::new(false));
 
-    let app = Application::new().with_assets(VelotypeAssets);
+    let app = Application::new().with_assets(assets::VelotypeAssets);
 
     #[cfg(target_os = "macos")]
     {
@@ -263,13 +147,13 @@ fn main() {
     }
 
     app.run(move |cx: &mut App| {
-        let settings = config::load_or_create_app_settings().unwrap_or_else(|err| {
+        let settings = workspace::load_or_create_app_settings().unwrap_or_else(|err| {
             eprintln!("failed to initialize app settings: {err}");
             Default::default()
         });
         I18nManager::init_with_language_id(cx, &settings.default_language_id);
         ThemeManager::init_with_theme_id(cx, &settings.default_theme_id);
-        config::EditorSettings::init(cx, settings.show_table_headers);
+        workspace::EditorSettings::init(cx, settings.show_table_headers);
         net::install_http_client(cx);
         init_editor(cx, &settings.keybindings);
         init_app_menu(cx);
@@ -320,7 +204,7 @@ fn main() {
 
             let markdown = match std::fs::read_to_string(&absolute_path) {
                 Ok(content) => {
-                    if let Err(err) = config::record_recent_file(&absolute_path) {
+                    if let Err(err) = workspace::record_recent_file(&absolute_path) {
                         eprintln!("failed to update recent file history: {err}");
                     }
                     content
