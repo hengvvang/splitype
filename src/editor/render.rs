@@ -3179,33 +3179,42 @@ impl Editor {
                 let area_type = *area_type;
                 let inner_editor = cx.entity().downgrade();
 
+                let has_content = self.file_path.is_some() || self.document_dirty;
+                let workspace_open = self.workspace.root.is_some();
+
                 let inner_body: AnyElement = match area_type {
                     AreaType::Block | AreaType::Source | AreaType::Edit => {
                         if let Some(content) = primary_content.take() {
                             content
-                        } else if self.file_path.is_some() {
+                        } else if has_content {
                             self.render_tiled_preview_panel(primary_content, theme, strings, cx)
-                        } else {
+                        } else if workspace_open {
                             let msg = match area_type {
                                 AreaType::Block => "Open a file to edit with live preview",
                                 AreaType::Source => "Open a file to edit",
                                 _ => "Open a file to edit",
                             };
                             Self::render_empty_panel_prompt(c, msg)
+                        } else {
+                            Self::render_empty_panel_prompt(c, "No preview content")
                         }
                     }
                     AreaType::Preview => {
-                        if self.file_path.is_some() {
+                        if has_content {
                             self.render_tiled_preview_panel(primary_content, theme, strings, cx)
-                        } else {
+                        } else if workspace_open {
                             Self::render_empty_panel_prompt(c, "Open a file to preview")
+                        } else {
+                            Self::render_empty_panel_prompt(c, "No preview content")
                         }
                     }
                     AreaType::Outline => {
-                        if self.file_path.is_some() {
+                        if has_content {
                             self.render_tiled_outline_panel(theme, strings, cx)
-                        } else {
+                        } else if workspace_open {
                             Self::render_empty_panel_prompt(c, "Open a file to show outline")
+                        } else {
+                            Self::render_empty_panel_prompt(c, "No outline content")
                         }
                     }
                     _ => div().into_any_element(),

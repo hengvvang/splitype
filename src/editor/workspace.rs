@@ -253,9 +253,7 @@ impl Editor {
         #[cfg(target_os = "linux")]
         {
             let parent = path.parent().unwrap_or(&path);
-            let _ = std::process::Command::new("xdg-open")
-                .arg(parent)
-                .spawn();
+            let _ = std::process::Command::new("xdg-open").arg(parent).spawn();
         }
     }
 
@@ -408,7 +406,7 @@ impl Editor {
         if self.workspace.root.is_none() {
             return self.render_workspace_empty_state(
                 "Explorer is empty now",
-                "Open a folder to use as the workspace",
+                "Open a folder as the workspace",
                 theme,
                 editor,
             );
@@ -426,7 +424,7 @@ impl Editor {
         let Some(root) = self.workspace.file_tree.as_ref() else {
             return self.render_workspace_empty_state(
                 "Explorer is empty now",
-                "Open a folder to use as the workspace",
+                "Open a folder as the workspace",
                 theme,
                 editor,
             );
@@ -435,7 +433,7 @@ impl Editor {
         if root.children.is_empty() {
             return self.render_workspace_empty_state(
                 "Explorer is empty now",
-                "Open a folder to use as the workspace",
+                "Open a folder as the workspace",
                 theme,
                 editor,
             );
@@ -651,7 +649,7 @@ impl Editor {
         };
 
         let display_message = if message.is_empty() {
-            "Open a folder to use as the workspace"
+            "Open a folder as the workspace"
         } else {
             message
         };
@@ -776,9 +774,7 @@ impl Editor {
         let arrow_editor = editor.clone();
 
         let icon = match &node.kind {
-            WorkspaceTreeKind::Directory(_) => {
-                Some((FOLDER_ICON, Hsla::from(rgba(0xf59e0bff))))
-            }
+            WorkspaceTreeKind::Directory(_) => Some((FOLDER_ICON, Hsla::from(rgba(0xf59e0bff)))),
             WorkspaceTreeKind::MarkdownFile(_) => {
                 Some((MARKDOWN_ICON, Hsla::from(rgba(0x2563ebff))))
             }
@@ -790,9 +786,7 @@ impl Editor {
                     .to_lowercase();
                 match ext.as_str() {
                     "rs" | "js" | "ts" | "json" | "toml" | "yaml" | "css" | "html" | "c"
-                    | "cpp" | "py" | "go" => {
-                        Some((FILE_ICON, Hsla::from(rgba(0x10b981ff))))
-                    }
+                    | "cpp" | "py" | "go" => Some((FILE_ICON, Hsla::from(rgba(0x10b981ff)))),
                     "png" | "jpg" | "jpeg" | "gif" | "svg" | "webp" => {
                         Some((FILE_ICON, Hsla::from(rgba(0x8b5cf6ff))))
                     }
@@ -950,7 +944,12 @@ fn scan_workspace_dir(path: &Path) -> Result<WorkspaceTreeNode> {
     let mut children = Vec::new();
     let read_dir = match fs::read_dir(path) {
         Ok(rd) => rd,
-        Err(err) => return Err(anyhow::anyhow!("failed to read '{}': {err}", path.display())),
+        Err(err) => {
+            return Err(anyhow::anyhow!(
+                "failed to read '{}': {err}",
+                path.display()
+            ));
+        }
     };
 
     for entry in read_dir {
