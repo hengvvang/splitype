@@ -2382,8 +2382,6 @@ impl Editor {
             AreaType::Settings => self.render_tiled_settings_panel(theme, strings, cx),
         };
 
-        let dropdown_open = self.area_layout.active_dropdown_leaf == Some(leaf_id);
-
         let panel_status_bar = match area_type {
             AreaType::Edit
             | AreaType::Block
@@ -2415,7 +2413,6 @@ impl Editor {
             .border(px(d.dialog_border_width))
             .border_color(c.dialog_border)
             .shadow_lg()
-            .overflow_hidden()
             .child(header)
             .child(body_container);
 
@@ -2470,7 +2467,7 @@ impl Editor {
             .child(make_outer_corner("area-corner-br", false, false));
 
         // Wrap in a padded container so the gap is uniform.
-        let wrapped = div()
+        let mut wrapped = div()
             .id(("tiled-area-wrapper", leaf_id))
             .w_full()
             .h_full()
@@ -2481,12 +2478,13 @@ impl Editor {
             .child(tile_card)
             .child(corner_handles);
 
+        let dropdown_open = self.area_layout.active_dropdown_leaf == Some(leaf_id);
         if dropdown_open {
-            let menu = self.render_area_dropdown_menu(leaf_id, theme, cx);
-            wrapped.child(menu).into_any_element()
-        } else {
-            wrapped.into_any_element()
+            let menu = self.render_area_dropdown_menu(leaf_id, area_type, theme, cx);
+            wrapped = wrapped.child(menu);
         }
+
+        wrapped.into_any_element()
     }
 
     fn render_area_header(
@@ -2518,7 +2516,7 @@ impl Editor {
             .cursor_pointer()
             .text_size(px(12.0))
             .text_color(c.text_default)
-            .child(format!("{} ▼", area_type.name()))
+            .child(area_type.name().to_string())
             .on_click(move |_event, _window, cx| {
                 let _ = type_editor.update(cx, |ed, cx| {
                     ed.area_layout.toggle_dropdown(leaf_id);
@@ -2808,6 +2806,7 @@ impl Editor {
     fn render_area_dropdown_menu(
         &mut self,
         leaf_id: usize,
+        current_type: crate::editor::area_layout::AreaType,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -2824,7 +2823,7 @@ impl Editor {
             .id(("area-dropdown-overlay", leaf_id))
             .absolute()
             .occlude()
-            .top(px(30.0))
+            .top(px(28.0))
             .left(px(8.0))
             .w(px(d.menu_panel_width))
             .p(px(d.menu_panel_padding))
@@ -2838,6 +2837,7 @@ impl Editor {
             .shadow_lg()
             .children(available_types.iter().enumerate().map(|(idx, area_type)| {
                 let area_type = *area_type;
+                let is_current = area_type == current_type;
                 let option_editor = editor.clone();
                 div()
                     .id(("area-type-opt", idx))
@@ -2846,15 +2846,28 @@ impl Editor {
                     .px(px(d.menu_item_padding_x))
                     .flex()
                     .items_center()
+                    .justify_between()
                     .rounded(px(d.menu_item_radius))
-                    .bg(c.dialog_surface)
+                    .bg(if is_current {
+                        c.dialog_secondary_button_hover
+                    } else {
+                        c.dialog_surface
+                    })
                     .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                    .active(|this| this.opacity(0.92))
                     .cursor_pointer()
                     .text_size(px(d.menu_text_size))
                     .font_weight(t.dialog_button_weight.to_font_weight())
                     .text_color(c.dialog_secondary_button_text)
                     .child(area_type.name())
+                    .child(if is_current {
+                        svg()
+                            .path("icon/panel/check.svg")
+                            .size(px(13.0))
+                            .text_color(c.dialog_primary_button_bg)
+                            .into_any_element()
+                    } else {
+                        div().w(px(13.0)).into_any_element()
+                    })
                     .on_click(move |_event, _window, cx| {
                         let _ = option_editor.update(cx, |ed, cx| {
                             ed.area_layout.change_area_type(leaf_id, area_type);
@@ -3109,7 +3122,18 @@ impl Editor {
 
         let dropdown = if let Some((_cid, inner_id)) = self.area_layout.active_inner_dropdown {
             if _cid == container_id {
-                Some(self.render_inner_area_dropdown_menu(container_id, inner_id, theme, cx))
+                let current_type = self
+                    .area_layout
+                    .get_or_create_edit_inner_layout(container_id)
+                    .find_leaf_area(inner_id)
+                    .unwrap_or(crate::editor::area_layout::AreaType::Block);
+                Some(self.render_inner_area_dropdown_menu(
+                    container_id,
+                    inner_id,
+                    current_type,
+                    theme,
+                    cx,
+                ))
             } else {
                 None
             }
@@ -3247,7 +3271,6 @@ impl Editor {
                     .border(px(d.dialog_border_width))
                     .border_color(c.dialog_border)
                     .shadow_lg()
-                    .overflow_hidden()
                     .child(div().w_full().flex_1().min_h(px(0.0)).child(inner_body))
                     .child(make_inner_corner("edit-sub-tl", true, true))
                     .child(make_inner_corner("edit-sub-tr", true, false))
@@ -3448,10 +3471,11 @@ impl Editor {
         }
     }
 
-    fn render_inner_area_dropdown_menu(
+    pub(super) fn render_inner_area_dropdown_menu(
         &mut self,
         container_id: usize,
         inner_id: usize,
+        current_area_type: crate::editor::area_layout::AreaType,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -3468,8 +3492,8 @@ impl Editor {
             .id(("inner-area-dropdown-overlay", inner_id))
             .absolute()
             .occlude()
-            .bottom(px(2.0))
-            .left(px(8.0))
+            .bottom(px(0.0))
+            .left(px(0.0))
             .w(px(d.menu_panel_width))
             .p(px(d.menu_panel_padding))
             .flex()
@@ -3482,6 +3506,7 @@ impl Editor {
             .shadow_lg()
             .children(available_types.iter().enumerate().map(|(idx, area_type)| {
                 let area_type = *area_type;
+                let is_current = area_type == current_area_type;
                 let option_editor = editor.clone();
                 div()
                     .id(("inner-area-type-opt", idx))
@@ -3490,18 +3515,28 @@ impl Editor {
                     .px(px(d.menu_item_padding_x))
                     .flex()
                     .items_center()
-                    .gap(px(8.0))
+                    .justify_between()
                     .rounded(px(d.menu_item_radius))
-                    .bg(c.dialog_surface)
+                    .bg(if is_current {
+                        c.dialog_secondary_button_hover
+                    } else {
+                        c.dialog_surface
+                    })
                     .hover(|this| this.bg(c.dialog_secondary_button_hover))
                     .cursor_pointer()
-                    .child(
-                        div()
-                            .text_size(px(d.menu_text_size))
-                            .font_weight(t.dialog_body_weight.to_font_weight())
-                            .text_color(c.dialog_secondary_button_text)
-                            .child(area_type.name()),
-                    )
+                    .text_size(px(d.menu_text_size))
+                    .font_weight(t.dialog_body_weight.to_font_weight())
+                    .text_color(c.dialog_secondary_button_text)
+                    .child(div().child(area_type.name()))
+                    .child(if is_current {
+                        svg()
+                            .path("icon/panel/check.svg")
+                            .size(px(13.0))
+                            .text_color(c.dialog_primary_button_bg)
+                            .into_any_element()
+                    } else {
+                        div().w(px(13.0)).into_any_element()
+                    })
                     .on_click(move |_event, _window, cx| {
                         let _ = option_editor.update(cx, |ed, cx| {
                             ed.area_layout.change_inner_area_type(

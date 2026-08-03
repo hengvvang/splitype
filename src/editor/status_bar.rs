@@ -143,7 +143,7 @@ impl Editor {
                 .cursor_pointer()
                 .text_size(px(11.0))
                 .text_color(c.text_default)
-                .child(format!("{} \u{25BC}", ftype.name()))
+                .child(ftype.name().to_string())
                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                     let _ = toggle_editor.update(cx, |ed, cx| {
                         ed.area_layout.toggle_inner_dropdown(container_id, inner_id);
