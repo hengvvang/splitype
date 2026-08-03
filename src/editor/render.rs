@@ -2946,7 +2946,7 @@ impl Editor {
         div()
             .w_full()
             .h_full()
-            .p(px(6.0))
+            .p(px(2.0))
             .bg(c.editor_background)
             .child(inner_rendered)
             .into_any_element()
