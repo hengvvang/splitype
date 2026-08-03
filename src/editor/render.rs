@@ -3061,8 +3061,10 @@ impl Editor {
                     .relative()
                     .rounded(px(d.area_tile_radius))
                     .bg(c.dialog_surface)
-                    .border(px(1.0))
+                    .border(px(d.dialog_border_width))
                     .border_color(c.dialog_border)
+                    .shadow_lg()
+                    .overflow_hidden()
                     .child(inner_header)
                     .child(div().w_full().flex_1().min_h(px(0.0)).child(inner_body))
                     .child(make_inner_corner("edit-sub-tl", true, true))
@@ -3276,34 +3278,24 @@ impl Editor {
 
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let t = &theme.typography;
+        let _t = &theme.typography;
         let editor = cx.entity().downgrade();
 
         let toggle_editor = editor.clone();
         let type_button = div()
             .id(("inner-area-type-btn", inner_id))
-            .occlude()
+            .h(px(22.0))
+            .px(px(8.0))
             .flex()
             .items_center()
             .gap(px(4.0))
-            .px(px(6.0))
-            .py(px(2.0))
             .rounded(px(d.menu_item_radius))
+            .bg(c.dialog_secondary_button_bg)
             .hover(|this| this.bg(c.dialog_secondary_button_hover))
             .cursor_pointer()
-            .child(
-                div()
-                    .text_size(px(t.dialog_body_size))
-                    .font_weight(t.dialog_body_weight.to_font_weight())
-                    .text_color(c.dialog_secondary_button_text)
-                    .child(area_type.name()),
-            )
-            .child(
-                svg()
-                    .path("icon/chevron-down.svg")
-                    .size(px(12.0))
-                    .text_color(c.dialog_muted),
-            )
+            .text_size(px(12.0))
+            .text_color(c.text_default)
+            .child(format!("{} ▼", area_type.name()))
             .on_click(move |_event, _window, cx| {
                 let _ = toggle_editor.update(cx, |ed, cx| {
                     ed.area_layout.toggle_inner_dropdown(container_id, inner_id);
@@ -3401,12 +3393,11 @@ impl Editor {
             .items_center()
             .justify_between()
             .px(px(8.0))
-            .bg(c.dialog_surface)
             .border_b(px(1.0))
             .border_color(c.dialog_border)
             .relative()
-            .child(type_button)
-            .child(actions)
+            .child(div().flex().items_center().gap(px(8.0)).child(type_button))
+            .child(div().flex().items_center().gap(px(6.0)).child(actions))
             .into_any_element()
     }
 
