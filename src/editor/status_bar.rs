@@ -17,6 +17,7 @@ pub(super) struct StatusBarState {
 }
 
 impl Editor {
+    #[allow(dead_code)]
     pub(super) fn render_status_bar(
         &mut self,
         theme: &Theme,
@@ -93,6 +94,93 @@ impl Editor {
             .into_any_element();
 
         Some(bar)
+    }
+
+    pub(super) fn render_panel_status_bar(
+        &mut self,
+        area_type: crate::editor::area_layout::AreaType,
+        theme: &Theme,
+        strings: &I18nStrings,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        use crate::editor::area_layout::AreaType;
+
+        let c = &theme.colors;
+        let prefs = self.status_bar_settings(cx);
+
+        let mut left_items: Vec<AnyElement> = Vec::new();
+        let mut right_items: Vec<AnyElement> = Vec::new();
+
+        let mode_label = match area_type {
+            AreaType::Preview => "Preview (Read-Only)".to_string(),
+            AreaType::Edit => "Edit".to_string(),
+            AreaType::Source => "Source".to_string(),
+            AreaType::Block => "Block".to_string(),
+            _ => area_type.name().to_string(),
+        };
+
+        left_items.push(
+            div()
+                .text_size(px(11.0))
+                .font_weight(gpui::FontWeight::MEDIUM)
+                .text_color(c.status_bar_text)
+                .child(mode_label)
+                .into_any_element(),
+        );
+
+        if prefs.show_cursor_position && (area_type == AreaType::Source || area_type == AreaType::Edit) {
+            left_items.push(
+                div()
+                    .text_size(px(11.0))
+                    .text_color(c.status_bar_text_dim)
+                    .child("│")
+                    .into_any_element(),
+            );
+            left_items.push(render_cursor(
+                self.compute_source_cursor_position(cx),
+                theme,
+            ));
+        }
+
+        if prefs.show_word_count {
+            let text = self.serialized_document_text(cx);
+            let total_count = count_words(&text);
+            let selection_count = self.selected_markdown_text(cx).as_deref().map(count_words);
+            right_items.push(render_word_count(
+                selection_count,
+                total_count,
+                theme,
+                strings,
+            ));
+        }
+
+        div()
+            .id(ElementId::Name(format!("panel-status-bar-{:?}", area_type).into()))
+            .h(px(24.0))
+            .w_full()
+            .flex_shrink_0()
+            .flex()
+            .items_center()
+            .justify_between()
+            .px(px(10.0))
+            .bg(c.status_bar_background)
+            .border_t(px(1.0))
+            .border_color(c.dialog_border)
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(8.0))
+                    .children(left_items),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(8.0))
+                    .children(right_items),
+            )
+            .into_any_element()
     }
 
     fn status_bar_settings(&self, cx: &App) -> StatusBarSettings {
@@ -250,6 +338,7 @@ fn render_word_count(
         .into_any_element()
 }
 
+#[allow(dead_code)]
 fn render_custom_button(
     state: &mut StatusBarState,
     button: &StatusBarButton,
