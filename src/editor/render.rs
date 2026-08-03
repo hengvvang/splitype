@@ -3501,58 +3501,28 @@ impl Editor {
 
     fn render_tiled_preview_panel(
         &mut self,
-        primary_content: &mut Option<AnyElement>,
+        _primary_content: &mut Option<AnyElement>,
         theme: &Theme,
         _strings: &I18nStrings,
-        _cx: &mut Context<Self>,
+        cx: &mut Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
 
-        let badge = div()
-            .absolute()
-            .top(px(8.0))
-            .right(px(16.0))
-            .px(px(8.0))
-            .py(px(3.0))
-            .rounded(px(4.0))
-            .bg(c.dialog_secondary_button_bg)
-            .border_1()
-            .border_color(c.dialog_border)
-            .text_size(px(11.0))
-            .text_color(c.dialog_muted)
-            .font_weight(gpui::FontWeight::MEDIUM)
-            .child("Preview (Read-Only)");
+        self.refresh_preview_blocks(cx);
 
-        if self.view_mode == super::ViewMode::Rendered {
-            if let Some(content) = primary_content.take() {
-                return div()
-                    .w_full()
-                    .h_full()
-                    .relative()
-                    .child(content)
-                    .child(badge)
-                    .into_any_element();
-            }
-        }
-
-        let visible_blocks = self.document.visible_blocks().to_vec();
-        let viewport_width = f32::from(self.scroll_handle.bounds().size.width.max(px(1.0)));
-        let centered_width = Self::centered_column_width(viewport_width, d);
-
-        let mut block_rows: Vec<AnyElement> = Vec::with_capacity(visible_blocks.len());
-        for item in &visible_blocks {
-            let entity = item.entity.clone();
-            block_rows.push(
+        let block_elements: Vec<AnyElement> = self
+            .preview_blocks
+            .iter()
+            .map(|entity| {
                 div()
-                    .w(px(centered_width))
-                    .max_w(relative(1.0))
+                    .w_full()
                     .flex_shrink_0()
                     .mt(px(d.block_gap))
-                    .child(entity)
-                    .into_any_element(),
-            );
-        }
+                    .child(entity.clone())
+                    .into_any_element()
+            })
+            .collect();
 
         div()
             .w_full()
@@ -3569,9 +3539,8 @@ impl Editor {
                     .items_center()
                     .overflow_y_scroll()
                     .p(px(d.editor_padding))
-                    .children(block_rows),
+                    .children(block_elements),
             )
-            .child(badge)
             .into_any_element()
     }
 

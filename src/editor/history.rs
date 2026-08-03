@@ -97,6 +97,29 @@ impl Editor {
         self.last_stable_source_text = self.current_document_source(cx);
     }
 
+    pub(super) fn refresh_preview_blocks(&mut self, cx: &mut Context<Self>) {
+        let source = self.document.markdown_text(cx);
+        let hash = Self::hash_str(&source);
+        if hash != self.preview_source_hash || self.preview_blocks.is_empty() {
+            let mut roots = Self::build_root_blocks_from_markdown(cx, &source);
+            if roots.is_empty() {
+                roots.push(Self::new_block(
+                    cx,
+                    crate::components::BlockRecord::paragraph(String::new()),
+                ));
+            }
+            self.preview_blocks = roots;
+            self.preview_source_hash = hash;
+        }
+    }
+
+    fn hash_str(s: &str) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        s.hash(&mut h);
+        h.finish()
+    }
+
     pub(super) fn finalize_pending_undo_capture(&mut self, cx: &mut Context<Self>) {
         if self.history_restore_in_progress {
             self.pending_undo_capture = None;

@@ -149,6 +149,9 @@ pub struct Editor {
     image_reference_definitions: Arc<ImageReferenceDefinitions>,
     link_reference_definitions: Arc<LinkReferenceDefinitions>,
     footnote_registry: Arc<FootnoteRegistry>,
+    /// Cached preview blocks rebuilt from source when document changes.
+    preview_blocks: Vec<Entity<Block>>,
+    preview_source_hash: u64,
 }
 
 /// Runtime binding between a table block and one cell editor.
@@ -356,9 +359,12 @@ impl Editor {
             image_reference_definitions: Arc::default(),
             link_reference_definitions: Arc::default(),
             footnote_registry: Arc::default(),
+            preview_blocks: Vec::new(),
+            preview_source_hash: 0,
         };
         editor.rebuild_table_runtimes(cx);
         editor.rebuild_image_runtimes(cx);
+        editor.refresh_preview_blocks(cx);
         editor.pending_focus = editor.first_focusable_entity_id(cx);
         editor.active_entity_id = editor.pending_focus;
         editor.refresh_stable_document_snapshot(cx);
