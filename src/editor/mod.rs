@@ -20,6 +20,7 @@ pub mod source_map;
 pub mod table;
 pub mod text_layout;
 pub mod viewport;
+pub mod views;
 pub mod workspace;
 
 // ── Re-exports ─────────────────────────────────────────────────────────────

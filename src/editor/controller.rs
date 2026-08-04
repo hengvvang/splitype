@@ -23,6 +23,7 @@ pub(crate) use crate::editor::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
 pub(crate) use crate::editor::panels::WindowPanels;
+pub(crate) use crate::editor::views::{PreviewState, SourcePanelState};
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::model::inline::text::RichText;
 pub(crate) use crate::model::syntax::image::{
@@ -110,15 +111,6 @@ pub(crate) struct TableRuntimes {
     pub(crate) axis_selection: Option<TableAxisSelection>,
 }
 
-/// Preview and Source-panel block caches rebuilt from document source.
-#[derive(Default)]
-pub(crate) struct PreviewState {
-    pub(crate) blocks: Vec<Entity<Block>>,
-    pub(crate) source_hash: u64,
-    pub(crate) source_panel_block: Option<Entity<Block>>,
-    pub(crate) source_panel_doc_hash: u64,
-}
-
 /// Scroll handle, row-footprint caches, and scrollbar interaction state.
 pub(crate) struct ScrollState {
     pub(crate) handle: ScrollHandle,
@@ -178,6 +170,7 @@ pub struct Editor {
     pub(crate) references: ReferenceRegistries,
     pub(crate) tables: TableRuntimes,
     pub(crate) preview: PreviewState,
+    pub(crate) source_panel: SourcePanelState,
     pub(crate) scroll: ScrollState,
     pub(crate) chrome: WindowChrome,
     pub(crate) panels: WindowPanels,
@@ -346,6 +339,7 @@ impl Editor {
             references: ReferenceRegistries::default(),
             tables: TableRuntimes::default(),
             preview: PreviewState::default(),
+            source_panel: SourcePanelState::default(),
             scroll: ScrollState::default(),
             chrome: WindowChrome::default(),
             panels: WindowPanels::default(),

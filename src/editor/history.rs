@@ -8,8 +8,8 @@ use std::time::Instant;
 use gpui::*;
 
 use super::controller::{
-    BlockData, EditorMode, Editor, HistoryEntry, InfoDialogKind, PendingUndoCapture, UndoCaptureKind,
-    UndoSelectionSnapshot,
+    BlockData, Editor, EditorMode, HistoryEntry, InfoDialogKind, PendingUndoCapture,
+    UndoCaptureKind, UndoSelectionSnapshot,
 };
 
 impl Editor {
@@ -105,84 +105,6 @@ impl Editor {
     pub(crate) fn refresh_stable_document_snapshot(&mut self, cx: &App) {
         self.undo.last_selection_snapshot = self.capture_source_selection_snapshot(cx);
         self.undo.last_stable_source_text = self.current_document_source(cx);
-    }
-
-    pub(crate) fn refresh_preview_blocks(&mut self, cx: &mut Context<Self>) {
-        let source = self.document.to_markdown(cx);
-        let hash = Self::hash_str(&source);
-        if hash != self.preview.source_hash || self.preview.blocks.is_empty() {
-            let mut roots = Self::parse_document(cx, &source);
-            if roots.is_empty() {
-                roots.push(Self::new_block(
-                    cx,
-                    crate::model::block::BlockData::paragraph(String::new()),
-                ));
-            }
-            self.preview.source_hash = hash;
-        }
-    }
-
-    /// Ensure the Source panel's interactive editor block exists.  Only
-    /// rebuilds when the document was changed by an external source
-    /// (e.g. the Block panel), never when the user is actively editing
-    /// the source block itself.
-    ///
-    /// The block is created as a standalone entity with a minimal
-    /// subscription that only syncs Changed events back to the document.
-    pub(crate) fn refresh_source_panel_block(&mut self, cx: &mut Context<Self>) {
-        let doc_text = self.document.to_markdown(cx);
-        let doc_hash = Self::hash_str(&doc_text);
-
-        if self.preview.source_panel_block.is_none() || doc_hash != self.source_panel_hash() {
-            self.preview.source_panel_block = None;
-            let block =
-                Self::new_standalone_block(cx, crate::model::block::BlockData::paragraph(doc_text));
-            block.update(cx, |block, _cx| block.set_source_document_mode());
-            cx.subscribe(&block, Self::on_source_panel_changed).detach();
-            self.preview.source_panel_block = Some(block);
-            self.preview.source_panel_doc_hash = doc_hash;
-        }
-    }
-
-    /// Minimal event handler for the Source panel block.  Only syncs text
-    /// changes back to the shared document — no structural event processing.
-    pub(crate) fn on_source_panel_changed(
-        &mut self,
-        block: Entity<crate::editor::block::Block>,
-        event: &crate::editor::actions::BlockAction,
-        cx: &mut Context<Self>,
-    ) {
-        if !matches!(event, crate::editor::actions::BlockAction::Changed) {
-            return;
-        }
-        let text = block.read(cx).display_text().to_string();
-        let doc = self.document.to_markdown(cx);
-        if text == doc {
-            return;
-        }
-        let mut roots = Self::parse_document(cx, &text);
-        if roots.is_empty() {
-            roots.push(Self::new_block(
-                cx,
-                crate::model::block::BlockData::paragraph(String::new()),
-            ));
-        }
-        self.document.replace_blocks(roots, cx);
-        self.rebuild_table_runtimes(cx);
-        self.rebuild_image_runtimes(cx);
-        self.preview.source_panel_doc_hash = Self::hash_str(&text);
-        self.mark_dirty(cx);
-    }
-
-    pub(crate) fn source_panel_hash(&self) -> u64 {
-        self.preview.source_panel_doc_hash
-    }
-
-    pub(crate) fn hash_str(s: &str) -> u64 {
-        use std::hash::{Hash, Hasher};
-        let mut h = std::collections::hash_map::DefaultHasher::new();
-        s.hash(&mut h);
-        h.finish()
     }
 
     pub(crate) fn finalize_pending_undo_capture(&mut self, cx: &mut Context<Self>) {
@@ -382,26 +304,6 @@ impl Editor {
         self.focus.pending_scroll_recheck_after_layout = true;
         self.scroll.last_viewport_size = None;
         self.refresh_stable_document_snapshot(cx);
-    }
-
-    pub(crate) fn normalize_rendered_quote_structure(&mut self, cx: &mut Context<Self>) {
-        if self.mode != EditorMode::Wysiwyg {
-            return;
-        }
-
-        let selection_snapshot = self.capture_source_selection_snapshot(cx);
-        let source = self.document.to_markdown(cx);
-        let mut roots = Self::parse_document(cx, &source);
-        if roots.is_empty() {
-            roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
-        }
-        self.document.replace_blocks(roots, cx);
-        self.rebuild_table_runtimes(cx);
-        self.rebuild_image_runtimes(cx);
-        self.apply_selection_snapshot_in_current_mode(&selection_snapshot, cx);
-        self.focus.pending_scroll_active_block_into_view = true;
-        self.focus.pending_scroll_recheck_after_layout = true;
-        self.scroll.last_viewport_size = None;
     }
 
     pub(crate) fn undo_document(&mut self, cx: &mut Context<Self>) {

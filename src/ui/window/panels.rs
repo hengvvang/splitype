@@ -1964,7 +1964,7 @@ impl Editor {
         let c = &theme.colors;
         let d = &theme.dimensions;
 
-        let content: AnyElement = if let Some(ref block) = self.preview.source_panel_block {
+        let content: AnyElement = if let Some(ref block) = self.source_panel.block {
             div()
                 .w_full()
                 .flex_shrink_0()

@@ -8,9 +8,10 @@ use std::path::{Path, PathBuf};
 use gpui::*;
 
 use crate::editor::controller::Editor;
+use crate::editor::editing::input::shortcuts::ToggleWorkspace;
+use crate::editor::views::outline::{build_outline_tree, prune_outline_state};
 use crate::editor::workspace::*;
 use crate::infra::i18n::{I18nManager, I18nStrings};
-use crate::editor::editing::input::shortcuts::ToggleWorkspace;
 use crate::theme::Theme;
 
 impl Editor {
@@ -310,7 +311,8 @@ impl Editor {
         };
 
         if root.as_os_str().is_empty() {
-            self.panels.workspace.file_error = Some("Invalid workspace path: empty path".to_string());
+            self.panels.workspace.file_error =
+                Some("Invalid workspace path: empty path".to_string());
             self.panels.workspace.selected = None;
             return;
         }
@@ -320,7 +322,8 @@ impl Editor {
                 self.panels.workspace.expanded.insert(tree.id.clone());
                 self.panels.workspace.file_tree = Some(tree);
                 self.panels.workspace.selected = self
-                    .file.path
+                    .file
+                    .path
                     .as_ref()
                     .map(|path| WorkspaceSelection::File(path.clone()));
             }
@@ -408,7 +411,8 @@ impl Editor {
 
         let c = &theme.colors;
         let root_name = self
-            .panels.workspace
+            .panels
+            .workspace
             .root
             .as_ref()
             .and_then(|p| p.file_name())
@@ -593,7 +597,12 @@ impl Editor {
             .w_full()
             .flex()
             .flex_col()
-            .children(self.render_workspace_nodes(&self.panels.workspace.outline_tree, 0, theme, editor))
+            .children(self.render_workspace_nodes(
+                &self.panels.workspace.outline_tree,
+                0,
+                theme,
+                editor,
+            ))
             .into_any_element()
     }
 
