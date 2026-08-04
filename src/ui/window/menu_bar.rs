@@ -10,7 +10,7 @@ use gpui::*;
 use crate::app::menus::dispatch_menu_action_for_editor;
 use crate::editor::controller::Editor;
 use crate::infra::i18n::I18nManager;
-use crate::ui::input::shortcuts::{
+use crate::editor::editing::input::shortcuts::{
     AddLanguageConfig, AddThemeConfig, NoRecentFiles, SelectLanguage, SelectTheme,
 };
 

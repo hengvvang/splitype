@@ -9,7 +9,7 @@ use crate::editor::chrome::{ContextMenuState, TableInsertDialogState, TableInser
 use crate::editor::controller::{Editor, EditorMode, TableAxisSelection};
 use crate::model::syntax::table::{TableAxisKind, TableColumnAlignment, TableData};
 use crate::infra::i18n::I18nManager;
-use crate::ui::input::shortcuts::DismissTransientUi;
+use crate::editor::editing::input::shortcuts::DismissTransientUi;
 use crate::theme::Theme;
 impl Editor {
     pub(crate) fn root_ancestor_entity_id(&self, entity_id: EntityId) -> EntityId {

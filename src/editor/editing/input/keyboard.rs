@@ -264,8 +264,8 @@ mod tests {
     use crate::editor::block::Block;
     use crate::model::block::{BlockData, BlockKind, CalloutKind};
     use crate::model::inline::text::RichText;
-    use crate::ui::input::shortcuts::ExitCodeBlock;
-    use crate::ui::input::shortcuts::{Delete, DeleteBack, Newline};
+    use crate::editor::editing::input::shortcuts::ExitCodeBlock;
+    use crate::editor::editing::input::shortcuts::{Delete, DeleteBack, Newline};
     use gpui::{App, AppContext, Entity, TestAppContext};
 
     #[gpui::test]

@@ -11,7 +11,7 @@ use crate::infra::config::dirs::VelotypeConfigDirs;
 use crate::infra::config::recent::read_recent_files;
 use crate::infra::i18n::manager::I18nManager;
 use crate::infra::i18n::packs::language_id_for_locale_settings;
-use crate::ui::input::shortcuts::normalize_shortcut_config;
+use crate::editor::editing::input::shortcuts::normalize_shortcut_config;
 use crate::theme::ThemeManager;
 
 pub(crate) const DEFAULT_THEME_ID: &str = "velotype";

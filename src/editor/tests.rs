@@ -9,7 +9,7 @@ use gpui::{
 
 use super::{EditorMode, Editor};
 use crate::model::block::BlockKind;
-use crate::ui::input::shortcuts::{CloseWindow, FocusNext, Newline, QuitApplication, SaveDocument};
+use crate::editor::editing::input::shortcuts::{CloseWindow, FocusNext, Newline, QuitApplication, SaveDocument};
 use crate::model::inline::text::RichText;
 use crate::model::syntax::table::TableColumnAlignment;
 use crate::model::inline::footnote::superscript_ordinal;
@@ -25,7 +25,7 @@ fn init_editor_test_app(cx: &mut TestAppContext) {
     cx.update(|cx| {
         I18nManager::init(cx);
         ThemeManager::init(cx);
-        crate::ui::input::shortcuts::init(cx);
+        crate::editor::editing::input::shortcuts::init(cx);
     });
 }
 
@@ -228,7 +228,7 @@ fn about_dialog_body_lines_include_repository_and_star_message() {
         lines[2],
         format!(
             "GitHub: {}",
-            crate::ui::window::editor_view::ABOUT_GITHUB_URL
+            crate::ui::window::render::ABOUT_GITHUB_URL
         )
     );
     assert_eq!(
@@ -240,12 +240,12 @@ fn about_dialog_body_lines_include_repository_and_star_message() {
 #[gpui::test]
 async fn about_github_link_uses_gpui_url_opening(cx: &mut TestAppContext) {
     cx.update(|cx| {
-        crate::ui::window::editor_view::open_about_github_url(cx);
+        crate::ui::window::render::open_about_github_url(cx);
     });
 
     assert_eq!(
         cx.opened_url(),
-        Some(crate::ui::window::editor_view::ABOUT_GITHUB_URL.to_string())
+        Some(crate::ui::window::render::ABOUT_GITHUB_URL.to_string())
     );
 }
 

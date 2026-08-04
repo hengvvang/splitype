@@ -13,7 +13,7 @@ use crate::editor::controller::{
     CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, EditorMode, Editor,
     SourceTargetMapping, UndoSelectionSnapshot,
 };
-use crate::ui::input::shortcuts::{Copy, Cut, Delete, DeleteBack};
+use crate::editor::editing::input::shortcuts::{Copy, Cut, Delete, DeleteBack};
 
 /// Cross-block selection with endpoints ordered by visible block position.
 #[derive(Clone, Copy)]
@@ -919,7 +919,7 @@ mod tests {
     use gpui::{AppContext, Bounds, Context, TestAppContext, point, px, size};
 
     use super::{CrossBlockSelection, CrossBlockSelectionEndpoint, Editor};
-    use crate::ui::input::shortcuts::{Cut, Undo};
+    use crate::editor::editing::input::shortcuts::{Cut, Undo};
 use crate::editor::actions::UndoCaptureKind;
     use crate::infra::i18n::I18nManager;
     use crate::theme::ThemeManager;
@@ -928,7 +928,7 @@ use crate::editor::actions::UndoCaptureKind;
         cx.update(|cx| {
             I18nManager::init(cx);
             ThemeManager::init(cx);
-            crate::ui::input::shortcuts::init(cx);
+            crate::editor::editing::input::shortcuts::init(cx);
         });
     }
 

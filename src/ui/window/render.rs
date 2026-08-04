@@ -1014,8 +1014,8 @@ mod tests {
         owned_menu_item_labels, scrollable_import_menu_scroll_height, submenu_bridge_geometry,
         supports_in_window_menu_for_target_os,
     };
-    use crate::ui::input::shortcuts::NoRecentFiles;
-    use crate::ui::input::shortcuts::{AddLanguageConfig, AddThemeConfig};
+    use crate::editor::editing::input::shortcuts::NoRecentFiles;
+    use crate::editor::editing::input::shortcuts::{AddLanguageConfig, AddThemeConfig};
     use crate::theme::Theme;
     use gpui::{OwnedMenu, OwnedMenuItem};
     use uuid::Uuid;

@@ -13,7 +13,7 @@ use crate::ui::window::switch::Switch;
 use crate::ui::window::titlebar::{
     custom_titlebar_height, render_custom_titlebar, velotype_window_options,
 };
-use crate::ui::input::shortcuts::{
+use crate::editor::editing::input::shortcuts::{
     ShortcutCommand, install_keybindings, normalize_shortcut_config,
 };
 use crate::theme::{ThemeCatalogEntry, ThemeManager};

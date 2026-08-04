@@ -6,6 +6,7 @@ pub mod block;
 pub mod chrome;
 pub mod controller;
 pub mod document;
+pub mod editing;
 pub mod footnotes;
 pub mod history;
 pub mod layout;

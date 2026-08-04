@@ -10,7 +10,7 @@ use gpui::*;
 use crate::editor::controller::Editor;
 use crate::editor::workspace::*;
 use crate::infra::i18n::{I18nManager, I18nStrings};
-use crate::ui::input::shortcuts::ToggleWorkspace;
+use crate::editor::editing::input::shortcuts::ToggleWorkspace;
 use crate::theme::Theme;
 
 impl Editor {

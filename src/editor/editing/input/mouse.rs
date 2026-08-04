@@ -3,7 +3,7 @@
 //! # Current state
 //!
 //! Mouse events are dispatched inline from the [`Editor`]'s
-//! GPUI event-emitter impl in [`crate::ui::input::keyboard`]
+//! GPUI event-emitter impl in [`crate::editor::editing::input::keyboard`]
 //! and the render tree in [`crate::editor::render`].  The relevant
 //! methods are:
 //!

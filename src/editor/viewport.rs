@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use crate::editor::controller::*;
-use crate::ui::input::shortcuts::{
+use crate::editor::editing::input::shortcuts::{
     CloseWindow, ExportHtml, ExportPdf, InstallCliTool, QuitApplication, Redo, SaveDocument,
     SaveDocumentAs, ToggleViewMode, Undo, UninstallCliTool,
 };
