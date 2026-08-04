@@ -10,7 +10,7 @@ use crate::editor::controller::Editor;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
 use crate::theme::Theme;
-use crate::editor::viewport::layout::{Axis, PaneKind};
+use crate::editor::window::layout::{Axis, PaneKind};
 
 /// Render a cursor-position label (e.g. `12 : 47`).
 pub fn render_cursor((line, col): (usize, usize), theme: &Theme) -> AnyElement {
