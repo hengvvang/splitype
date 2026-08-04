@@ -32,7 +32,7 @@ use crate::render::latex_render::{
 };
 use crate::render::mermaid_render::render_mermaid_svg_for_display;
 use crate::editor::tree::block::{Block, ImageHandle};
-use crate::ui::blocks::{
+use crate::windows::editor::blocks::{
     blockquote::render_blockquote,
     callout::render_callout,
     fenced_code::render_fenced_code,
@@ -47,7 +47,7 @@ use crate::ui::blocks::{
     table_block::render_table,
     thematic_break::{render_thematic_break_focused, render_thematic_break_unfocused},
 };
-use crate::ui::inline::text_element::{BlockTextElement, CodeLanguageInputElement};
+use crate::windows::editor::blocks::inline::text_element::{BlockTextElement, CodeLanguageInputElement};
 use crate::theme::{Theme, ThemeDimensions, ThemeManager};
 
 #[allow(dead_code)]

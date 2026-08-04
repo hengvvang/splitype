@@ -11,7 +11,7 @@ use crate::editor::editing::table::TableGrid;
 use crate::model::syntax::table::{TableAxisKind, TableAxisMarker, TableColumnLayout};
 use crate::editor::tree::block::BlockEditMode;
 use crate::model::syntax::table::TableAxisHighlight;
-use crate::ui::blocks::render::effective_table_width;
+use crate::windows::editor::blocks::render::effective_table_width;
 use crate::theme::Theme;
 
 /// Render a native table block.
