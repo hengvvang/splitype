@@ -1,7 +1,7 @@
 //! Editor view — `Editor::render`, all dialog/menu/scrollbar rendering,
 //! tiled layout, settings panel, and export helpers.
 //!
-//! Migrated from `crate::engine::render`.
+//! Migrated from `crate::editor::render`.
 //!
 //! # Render phases
 //! 1. **Pre-frame bookkeeping** — pending focus, scroll-into-view,
@@ -24,10 +24,10 @@ use gpui::prelude::FluentBuilder;
 use gpui::*;
 
 use crate::app::menu::dispatch_menu_action_for_editor;
-use crate::engine::editor::*;
+use crate::editor::controller::*;
 use crate::services::export::{self as document_export, ExportFormat};
 use crate::services::i18n::{I18nManager, I18nStrings};
-use crate::ui::blocks::block_view::Block;
+use crate::editor::block::Block;
 use crate::ui::components::menu_bar::*;
 use crate::ui::components::switch::Switch;
 use crate::ui::components::titlebar::{custom_titlebar_height, render_custom_titlebar};
@@ -64,7 +64,7 @@ pub struct RenderedRowSpacingInfo {
 
 impl RenderedRowSpacingInfo {
     /// Read spacing metadata from a block entity.
-    pub fn from_block(block: &crate::ui::blocks::block_view::Block) -> Self {
+    pub fn from_block(block: &crate::editor::block::Block) -> Self {
         Self {
             quote_group_anchor: block.quote_group_anchor,
             visible_quote_group_anchor: block.visible_quote_group_anchor,
@@ -215,7 +215,7 @@ pub fn render_empty_panel_prompt(colors: &ThemeColors, message: &str) -> AnyElem
 impl Editor {
     pub(crate) fn export_dialog_defaults(&self, format: ExportFormat) -> (PathBuf, String) {
         let extension = format.extension();
-        if let Some(path) = self.file_path.as_ref() {
+        if let Some(path) = self.file.path.as_ref() {
             let directory = path
                 .parent()
                 .map(Path::to_path_buf)
@@ -235,7 +235,7 @@ impl Editor {
     }
 
     pub(crate) fn export_title(&self) -> String {
-        self.file_path
+        self.file.path
             .as_ref()
             .and_then(|path| path.file_stem())
             .map(|stem| stem.to_string_lossy().to_string())
@@ -286,7 +286,7 @@ impl Editor {
         let markdown = self.serialized_document_text(cx);
         let theme = cx.global::<ThemeManager>().current().clone();
         let title = self.export_title();
-        let source_base_dir = self.file_path.as_ref().and_then(|path| path.parent());
+        let source_base_dir = self.file.path.as_ref().and_then(|path| path.parent());
         Self::write_export_bytes(format, &markdown, &theme, &title, path, source_base_dir)
     }
 
@@ -300,7 +300,7 @@ impl Editor {
         let theme = cx.global::<ThemeManager>().current().clone();
         let title = self.export_title();
         let source_base_dir = self
-            .file_path
+            .file.path
             .as_ref()
             .and_then(|path| path.parent())
             .map(Path::to_path_buf);
@@ -387,10 +387,10 @@ fn show_export_error(window: &mut Window, cx: &mut App, detail: &str) {
 
 impl Editor {
     pub(crate) fn current_edit_target_entity_id_from_state(&self, cx: &App) -> Option<EntityId> {
-        self.active_entity_id
+        self.focus.active_entity
             .filter(|entity_id| self.focusable_entity_by_id(*entity_id).is_some())
             .or_else(|| {
-                self.pending_focus
+                self.focus.pending
                     .filter(|entity_id| self.focusable_entity_by_id(*entity_id).is_some())
             })
             .or_else(|| self.first_focusable_entity_id(cx))
@@ -421,7 +421,7 @@ impl Editor {
         }
 
         let cells: Vec<Entity<Block>> = self
-            .table_cells
+            .tables.cells
             .values()
             .map(|binding| binding.cell.clone())
             .collect();
@@ -470,7 +470,7 @@ impl Editor {
     }
 
     pub(crate) fn image_base_dir(&self) -> Option<PathBuf> {
-        self.file_path
+        self.file.path
             .as_ref()
             .and_then(|path| path.parent().map(Path::to_path_buf))
             .or_else(|| std::env::current_dir().ok())
@@ -483,9 +483,9 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let next_base_dir = base_dir.map(Path::to_path_buf);
-        let image_reference_definitions = self.image_reference_definitions.clone();
-        let link_reference_definitions = self.link_reference_definitions.clone();
-        let footnote_registry = self.footnote_registry.clone();
+        let image_reference_definitions = self.references.image.clone();
+        let link_reference_definitions = self.references.link.clone();
+        let footnote_registry = self.references.footnotes.clone();
         block.update(cx, move |block, cx| {
             block.set_runtime_context(
                 next_base_dir.clone(),
@@ -581,7 +581,7 @@ impl Editor {
             }
         }
 
-        self.footnote_registry = Arc::new(FootnoteMap {
+        self.references.footnotes = Arc::new(FootnoteMap {
             bindings,
             block_occurrences,
         });
@@ -592,8 +592,8 @@ impl Editor {
 
         let base_dir = self.image_base_dir();
         let markdown = self.document.to_markdown(cx);
-        self.image_reference_definitions = Arc::new(parse_image_reference_definitions(&markdown));
-        self.link_reference_definitions = Arc::new(parse_link_reference_definitions(&markdown));
+        self.references.image = Arc::new(parse_image_reference_definitions(&markdown));
+        self.references.link = Arc::new(parse_link_reference_definitions(&markdown));
         self.rebuild_footnote_registry(cx);
         let visible = self.document.blocks().to_vec();
         for visible_block in visible {
@@ -617,7 +617,7 @@ impl Editor {
 
     pub(crate) fn focusable_entity_by_id(&self, entity_id: EntityId) -> Option<Entity<Block>> {
         self.document.block_entity_by_id(entity_id).or_else(|| {
-            self.table_cells
+            self.tables.cells
                 .get(&entity_id)
                 .map(|binding| binding.cell.clone())
         })
@@ -645,7 +645,7 @@ impl Editor {
         self.document
             .focused_block_entity_id(window, cx)
             .or_else(|| {
-                self.table_cells
+                self.tables.cells
                     .values()
                     .find(|binding| binding.cell.read(cx).focus_handle.is_focused(window))
                     .map(|binding| binding.cell.entity_id())
@@ -658,7 +658,7 @@ impl Editor {
     }
 
     pub(crate) fn table_cell_binding(&self, entity_id: EntityId) -> Option<TableCellBinding> {
-        self.table_cells.get(&entity_id).cloned()
+        self.tables.cells.get(&entity_id).cloned()
     }
 
     pub(crate) fn table_block_by_id(&self, entity_id: EntityId, cx: &App) -> Option<Entity<Block>> {
@@ -680,7 +680,7 @@ impl Editor {
     }
 
     pub(crate) fn install_close_guard(&mut self, cx: &mut Context<Self>, window: &mut Window) {
-        if self.close_guard_installed {
+        if self.file.close_guard_installed {
             return;
         }
 
@@ -698,11 +698,11 @@ impl Editor {
                 .update(cx, |this, cx| this.on_window_should_close(window, cx))
                 .unwrap_or(true)
         });
-        self.close_guard_installed = true;
+        self.file.close_guard_installed = true;
     }
 
     fn apply_pending_focus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(entity_id) = self.pending_focus.take()
+        if let Some(entity_id) = self.focus.pending.take()
             && let Some(block) = self.focusable_entity_by_id(entity_id)
         {
             block.read(cx).focus_handle.focus(window);
@@ -719,11 +719,11 @@ impl Editor {
             return false;
         };
 
-        let viewport = self.scroll_handle.bounds();
+        let viewport = self.scroll.handle.bounds();
         let padding = px(20.0);
         let top_limit = viewport.top() + padding;
         let bottom_limit = viewport.bottom() - padding;
-        let mut offset = self.scroll_handle.offset();
+        let mut offset = self.scroll.handle.offset();
         let mut changed = false;
 
         if active_bounds.top() < top_limit {
@@ -735,28 +735,28 @@ impl Editor {
         }
 
         if changed {
-            let max_offset_y = self.scroll_handle.max_offset().height.max(px(0.0));
+            let max_offset_y = self.scroll.handle.max_offset().height.max(px(0.0));
             offset.y = offset.y.min(px(0.0)).max(-max_offset_y);
-            self.scroll_handle.set_offset(offset);
+            self.scroll.handle.set_offset(offset);
         }
 
         true
     }
 
     fn apply_pending_scroll_into_view(&mut self, window: &Window, cx: &mut Context<Self>) {
-        if self.scrollbar_drag.is_some() {
+        if self.scroll.scrollbar_drag.is_some() {
             return;
         }
 
-        if !self.pending_scroll_active_block_into_view {
+        if !self.focus.pending_scroll_active_block_into_view {
             return;
         }
 
         // scroll_to_item indexed children by position, which the spacers break;
         // the focused block is always mounted, so pixel math on its bounds works.
         let has_bounds = self.ensure_focused_caret_visible(window, cx);
-        if self.pending_scroll_recheck_after_layout {
-            self.pending_scroll_recheck_after_layout = false;
+        if self.focus.pending_scroll_recheck_after_layout {
+            self.focus.pending_scroll_recheck_after_layout = false;
             self.schedule_scroll_recheck(cx);
             return;
         }
@@ -766,8 +766,8 @@ impl Editor {
             return;
         }
 
-        self.pending_scroll_active_block_into_view = false;
-        self.scroll_recheck_task = None;
+        self.focus.pending_scroll_active_block_into_view = false;
+        self.scroll.scroll_recheck_task = None;
     }
 
     /// Requests a repaint one frame out so a still-pending scroll-into-view can
@@ -775,7 +775,7 @@ impl Editor {
     /// when called from within `render`, so without this the retry would wait
     /// for the next external notify (e.g. the cursor blink, ~0.5s later).
     fn schedule_scroll_recheck(&mut self, cx: &mut Context<Self>) {
-        self.scroll_recheck_task = Some(cx.spawn(async move |this: WeakEntity<Self>, cx| {
+        self.scroll.scroll_recheck_task = Some(cx.spawn(async move |this: WeakEntity<Self>, cx| {
             cx.background_executor()
                 .timer(Duration::from_millis(16))
                 .await;
@@ -784,21 +784,21 @@ impl Editor {
     }
 
     fn sync_pending_save(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.pending_save {
-            self.pending_save = false;
+        if self.file.pending_save {
+            self.file.pending_save = false;
             self.save_document(window, cx);
         }
     }
 
     fn sync_pending_save_as(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.pending_save_as {
-            self.pending_save_as = false;
+        if self.file.pending_save_as {
+            self.file.pending_save_as = false;
             self.save_document_as(window, cx);
         }
     }
 
     fn sync_pending_open_link(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(link) = self.pending_open_link.take() else {
+        let Some(link) = self.file.pending_open_link.take() else {
             return;
         };
 
@@ -829,29 +829,29 @@ impl Editor {
     }
 
     fn sync_window_edited_state(&mut self, window: &mut Window) {
-        if self.pending_window_edited {
-            self.pending_window_edited = false;
+        if self.file.pending_window_edited {
+            self.file.pending_window_edited = false;
             window.set_window_edited(true);
         }
     }
 
     fn sync_scroll_viewport(&mut self, viewport_size: Size<Pixels>, cx: &mut Context<Self>) {
-        match self.last_scroll_viewport_size {
+        match self.scroll.last_viewport_size {
             Some(previous) if Self::viewport_size_changed(previous, viewport_size) => {
-                self.last_scroll_viewport_size = Some(viewport_size);
+                self.scroll.last_viewport_size = Some(viewport_size);
                 self.request_active_block_scroll_into_view(cx);
             }
             Some(_) => {}
             None => {
-                self.last_scroll_viewport_size = Some(viewport_size);
+                self.scroll.last_viewport_size = Some(viewport_size);
             }
         }
     }
 
     fn sync_window_title(&mut self, window: &mut Window, strings: &I18nStrings) {
-        if self.pending_window_title_refresh {
-            self.pending_window_title_refresh = false;
-            let title = Self::window_title(self.file_path.as_deref(), self.document_dirty, strings);
+        if self.file.pending_window_title_refresh {
+            self.file.pending_window_title_refresh = false;
+            let title = Self::window_title(self.file.path.as_deref(), self.file.dirty, strings);
             window.set_window_title(&title);
         }
     }
@@ -873,7 +873,7 @@ impl Editor {
         let t = &theme.typography;
         let editor = cx.entity().downgrade();
 
-        let is_expanded = self.menu_bar_expanded || self.menu_bar_open.is_some();
+        let is_expanded = self.chrome.menu_bar_expanded || self.chrome.menu_bar_open.is_some();
 
         let mut row = div()
             .id("titlebar-menu-inline")
@@ -932,7 +932,7 @@ impl Editor {
 
             for (index, label) in menu_labels.iter().enumerate() {
                 let label = label.clone();
-                let is_open = self.menu_bar_open == Some(index);
+                let is_open = self.chrome.menu_bar_open == Some(index);
                 let button_editor = editor.clone();
                 let click_editor = editor.clone();
                 let button_width = button_widths[index];
@@ -1100,7 +1100,7 @@ impl Editor {
                 }
             }
             OwnedMenuItem::Submenu(submenu) => {
-                let is_open = self.menu_submenu_open == Some(item_index);
+                let is_open = self.chrome.menu_submenu_open == Some(item_index);
                 let hover_editor = editor.clone();
                 div()
                     .id(("app-menu-submenu", item_index))
@@ -1166,7 +1166,7 @@ impl Editor {
         top_offset: f32,
         viewport_height: f32,
     ) -> Option<AnyElement> {
-        let open_index = self.menu_bar_open?;
+        let open_index = self.chrome.menu_bar_open?;
         let menus = menus?;
         let menu = menus.get(open_index)?.clone();
         let menu_items = menu.items.clone();
@@ -1176,7 +1176,7 @@ impl Editor {
         let editor = cx.entity().downgrade();
         let menu_item_labels = owned_menu_item_labels(&menu_items);
         let menu_panel_width = menu_panel_width_for_labels(&menu_item_labels, d);
-        let submenu_bridge = self.menu_submenu_open.and_then(|submenu_index| {
+        let submenu_bridge = self.chrome.menu_submenu_open.and_then(|submenu_index| {
             match menu_items.get(submenu_index)? {
                 OwnedMenuItem::Submenu(submenu) => {
                     let submenu_labels = owned_menu_item_labels(&submenu.items);
@@ -1206,7 +1206,7 @@ impl Editor {
             }
         });
         let submenu_panel =
-            self.menu_submenu_open.and_then(|submenu_index| {
+            self.chrome.menu_submenu_open.and_then(|submenu_index| {
                 match menu_items.get(submenu_index)? {
                     OwnedMenuItem::Submenu(submenu) => {
                         let submenu_labels = owned_menu_item_labels(&submenu.items);
@@ -1944,13 +1944,13 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        use crate::ui::views::layout::*;
+        use crate::editor::layout::*;
 
-        let root = self.area_layout.root.clone();
+        let root = self.panels.layout.root.clone();
         let leaf_count = root.count_leaves();
         let mut primary_content = Some(content_area);
 
-        let layout_tree = if let Some(maximized_id) = self.area_layout.maximized_leaf {
+        let layout_tree = if let Some(maximized_id) = self.panels.layout.maximized_leaf {
             if let Some(area_type) = root.find_leaf_area(maximized_id) {
                 self.render_area_tile(
                     maximized_id,
@@ -1998,14 +1998,14 @@ impl Editor {
                 let pos = event.position;
                 let _ = root_editor_move.update(cx, |ed, cx| {
                     let mut changed = false;
-                    if let Some(drag) = ed.area_layout.active_splitter_drag {
+                    if let Some(drag) = ed.panels.layout.active_splitter_drag {
                         let current_pos = match drag.direction {
                             Axis::Horizontal => f32::from(pos.x),
                             Axis::Vertical => f32::from(pos.y),
                         };
                         let viewport = window.viewport_size();
                         let span = ed
-                            .area_layout
+                            .panels.layout
                             .get_split_pixel_span(drag.split_id, viewport)
                             .unwrap_or_else(|| match drag.direction {
                                 Axis::Horizontal => f32::from(viewport.width),
@@ -2015,37 +2015,37 @@ impl Editor {
                         if span > 1.0 {
                             let mut session = drag;
                             session.total_span = span;
-                            ed.area_layout.active_splitter_drag = Some(session);
+                            ed.panels.layout.active_splitter_drag = Some(session);
                         }
-                        ed.area_layout.update_splitter_drag(current_pos);
+                        ed.panels.layout.update_splitter_drag(current_pos);
                         changed = true;
-                    } else if ed.area_layout.active_corner_drag.is_some() {
+                    } else if ed.panels.layout.active_corner_drag.is_some() {
                         let viewport = window.viewport_size();
-                        let action = ed.area_layout.update_corner_drag(pos, viewport);
+                        let action = ed.panels.layout.update_corner_drag(pos, viewport);
                         // Modifier actions still execute immediately.
                         if let Some(action) = action {
                             match action {
                                 CornerDragAction::Swap { from, to } => {
-                                    ed.area_layout.end_corner_drag();
-                                    ed.area_layout.swap_area_types(from, to);
+                                    ed.panels.layout.end_corner_drag();
+                                    ed.panels.layout.swap_area_types(from, to);
                                 }
                                 CornerDragAction::Duplicate { .. } => {
-                                    ed.area_layout.end_corner_drag();
+                                    ed.panels.layout.end_corner_drag();
                                 }
                                 CornerDragAction::Cancel => {
-                                    ed.area_layout.end_corner_drag();
+                                    ed.panels.layout.end_corner_drag();
                                 }
                                 _ => {} // Split/Join handled on mouse_up
                             }
                         }
                         changed = true;
-                    } else if ed.area_layout.active_inner_splitter_drag.is_some() {
+                    } else if ed.panels.layout.active_inner_splitter_drag.is_some() {
                         let (container_id, drag) =
-                            ed.area_layout.active_inner_splitter_drag.unwrap();
+                            ed.panels.layout.active_inner_splitter_drag.unwrap();
                         let viewport = window.viewport_size();
-                        let outer_rects = ed.area_layout.collect_leaf_rects(viewport);
+                        let outer_rects = ed.panels.layout.collect_leaf_rects(viewport);
                         if let Some((_eid, ex, ey, ew, eh)) = ed
-                            .area_layout
+                            .panels.layout
                             .get_leaf_pixel_rect(container_id, &outer_rects)
                         {
                             let current_pos = match drag.direction {
@@ -2054,7 +2054,7 @@ impl Editor {
                             };
                             let inner_size = size(px(ew), px(eh));
                             let span = ed
-                                .area_layout
+                                .panels.layout
                                 .get_inner_split_pixel_span(container_id, drag.split_id, inner_size)
                                 .unwrap_or_else(|| match drag.direction {
                                     Axis::Horizontal => ew,
@@ -2063,19 +2063,19 @@ impl Editor {
                             if span > 1.0 {
                                 let mut session = drag;
                                 session.total_span = span;
-                                ed.area_layout.active_inner_splitter_drag =
+                                ed.panels.layout.active_inner_splitter_drag =
                                     Some((container_id, session));
                             }
-                            ed.area_layout
+                            ed.panels.layout
                                 .update_inner_splitter_drag(container_id, current_pos);
                             changed = true;
                         }
-                    } else if ed.area_layout.active_inner_corner_drag.is_some() {
-                        let (container_id, drag) = ed.area_layout.active_inner_corner_drag.unwrap();
+                    } else if ed.panels.layout.active_inner_corner_drag.is_some() {
+                        let (container_id, drag) = ed.panels.layout.active_inner_corner_drag.unwrap();
                         let viewport = window.viewport_size();
-                        let outer_rects = ed.area_layout.collect_leaf_rects(viewport);
+                        let outer_rects = ed.panels.layout.collect_leaf_rects(viewport);
                         if let Some((_eid, ex, ey, ew, eh)) = ed
-                            .area_layout
+                            .panels.layout
                             .get_leaf_pixel_rect(container_id, &outer_rects)
                         {
                             let mut session = drag;
@@ -2086,10 +2086,10 @@ impl Editor {
                             let start_y = f32::from(session.start_pos.y);
                             if start_x > ew || start_y > eh {
                                 session.start_pos = point(px(start_x - ex), px(start_y - ey));
-                                ed.area_layout.active_inner_corner_drag =
+                                ed.panels.layout.active_inner_corner_drag =
                                     Some((container_id, session));
                             }
-                            let action = ed.area_layout.update_inner_corner_drag(
+                            let action = ed.panels.layout.update_inner_corner_drag(
                                 container_id,
                                 inner_pos,
                                 inner_size,
@@ -2097,18 +2097,18 @@ impl Editor {
                             if let Some(action) = action {
                                 match action {
                                     CornerDragAction::Swap { from, to } => {
-                                        ed.area_layout.end_inner_corner_drag();
-                                        ed.area_layout.inner_swap_area_types(
+                                        ed.panels.layout.end_inner_corner_drag();
+                                        ed.panels.layout.inner_swap_area_types(
                                             container_id,
                                             from,
                                             to,
                                         );
                                     }
                                     CornerDragAction::Duplicate { .. } => {
-                                        ed.area_layout.end_inner_corner_drag();
+                                        ed.panels.layout.end_inner_corner_drag();
                                     }
                                     CornerDragAction::Cancel => {
-                                        ed.area_layout.end_inner_corner_drag();
+                                        ed.panels.layout.end_inner_corner_drag();
                                     }
                                     _ => {}
                                 }
@@ -2123,36 +2123,36 @@ impl Editor {
             })
             .on_mouse_up(MouseButton::Left, move |_event, _window, cx| {
                 let _ = root_editor_up.update(cx, |ed, cx| {
-                    if ed.area_layout.active_splitter_drag.is_some() {
-                        ed.area_layout.end_splitter_drag();
+                    if ed.panels.layout.active_splitter_drag.is_some() {
+                        ed.panels.layout.end_splitter_drag();
                         cx.notify();
                     }
-                    if ed.area_layout.active_corner_drag.is_some() {
-                        match ed.area_layout.finish_corner_drag() {
+                    if ed.panels.layout.active_corner_drag.is_some() {
+                        match ed.panels.layout.finish_corner_drag() {
                             Some(CornerDragAction::Split {
                                 leaf_id,
                                 direction,
                                 ratio,
                             }) => {
-                                ed.area_layout
+                                ed.panels.layout
                                     .split_area_with_ratio(leaf_id, direction, ratio);
                             }
                             Some(CornerDragAction::Join { from, into }) => {
-                                ed.area_layout.join_area(into, from);
+                                ed.panels.layout.join_area(into, from);
                             }
                             Some(CornerDragAction::Swap { from, to }) => {
-                                ed.area_layout.swap_area_types(from, to);
+                                ed.panels.layout.swap_area_types(from, to);
                             }
                             _ => {}
                         }
                         cx.notify();
                     }
-                    if ed.area_layout.active_inner_splitter_drag.is_some() {
-                        ed.area_layout.end_inner_splitter_drag();
+                    if ed.panels.layout.active_inner_splitter_drag.is_some() {
+                        ed.panels.layout.end_inner_splitter_drag();
                         cx.notify();
                     }
-                    if ed.area_layout.active_inner_corner_drag.is_some() {
-                        match ed.area_layout.finish_inner_corner_drag() {
+                    if ed.panels.layout.active_inner_corner_drag.is_some() {
+                        match ed.panels.layout.finish_inner_corner_drag() {
                             Some((
                                 container_id,
                                 CornerDragAction::Split {
@@ -2161,7 +2161,7 @@ impl Editor {
                                     ratio,
                                 },
                             )) => {
-                                ed.area_layout.inner_split_area_with_ratio(
+                                ed.panels.layout.inner_split_area_with_ratio(
                                     container_id,
                                     leaf_id,
                                     direction,
@@ -2169,7 +2169,7 @@ impl Editor {
                                 );
                             }
                             Some((container_id, CornerDragAction::Join { from, into })) => {
-                                ed.area_layout.inner_join_area(container_id, into, from);
+                                ed.panels.layout.inner_join_area(container_id, into, from);
                             }
                             _ => {}
                         }
@@ -2180,14 +2180,14 @@ impl Editor {
             .child(layout_tree);
 
         // Build the preview overlay for corner drag gestures.
-        let preview_overlay = if let Some(drag) = &self.area_layout.active_corner_drag {
+        let preview_overlay = if let Some(drag) = &self.panels.layout.active_corner_drag {
             match drag.preview {
                 CornerDragPreview::SplitPreview { direction, ratio } => {
                     // Calculate the pixel rect of the leaf being split.
                     let viewport = _window.viewport_size();
-                    let leaf_rects = self.area_layout.collect_leaf_rects(viewport);
+                    let leaf_rects = self.panels.layout.collect_leaf_rects(viewport);
                     let leaf_rect = self
-                        .area_layout
+                        .panels.layout
                         .get_leaf_pixel_rect(drag.leaf_id, &leaf_rects);
 
                     if let Some((_, lx, ly, lw, lh)) = leaf_rect {
@@ -2236,9 +2236,9 @@ impl Editor {
                     direction,
                 } => {
                     let viewport = _window.viewport_size();
-                    let leaf_rects = self.area_layout.collect_leaf_rects(viewport);
+                    let leaf_rects = self.panels.layout.collect_leaf_rects(viewport);
                     let target_rect = self
-                        .area_layout
+                        .panels.layout
                         .get_leaf_pixel_rect(target_leaf_id, &leaf_rects);
 
                     if let Some((_, rx, ry, rw, rh)) = target_rect {
@@ -2294,13 +2294,13 @@ impl Editor {
 
         // INNER_PREVIEW_INSERT
         let inner_preview_overlay =
-            if let Some((container_id, ref drag)) = self.area_layout.active_inner_corner_drag {
+            if let Some((container_id, ref drag)) = self.panels.layout.active_inner_corner_drag {
                 match drag.preview {
                     CornerDragPreview::SplitPreview { direction, ratio } => {
                         let viewport = _window.viewport_size();
-                        let outer_rects = self.area_layout.collect_leaf_rects(viewport);
+                        let outer_rects = self.panels.layout.collect_leaf_rects(viewport);
                         if let Some((_eid, ex, ey, ew, eh)) = self
-                            .area_layout
+                            .panels.layout
                             .get_leaf_pixel_rect(container_id, &outer_rects)
                         {
                             let line = match direction {
@@ -2344,17 +2344,17 @@ impl Editor {
                         direction,
                     } => {
                         let viewport = _window.viewport_size();
-                        let outer_rects = self.area_layout.collect_leaf_rects(viewport);
+                        let outer_rects = self.panels.layout.collect_leaf_rects(viewport);
                         if let Some((_eid, ex, ey, ew, eh)) = self
-                            .area_layout
+                            .panels.layout
                             .get_leaf_pixel_rect(container_id, &outer_rects)
                         {
                             let inner_size = size(px(ew), px(eh));
                             let inner_rects = self
-                                .area_layout
+                                .panels.layout
                                 .collect_inner_leaf_rects(container_id, inner_size);
                             if let Some((_id, rx, ry, rw, rh)) = self
-                                .area_layout
+                                .panels.layout
                                 .get_leaf_pixel_rect(target_leaf_id, &inner_rects)
                             {
                                 let arrow_symbol = match direction {
@@ -2404,7 +2404,7 @@ impl Editor {
             };
         let container = container.children(inner_preview_overlay);
 
-        if let Some(border_menu) = self.area_layout.active_border_menu {
+        if let Some(border_menu) = self.panels.layout.active_border_menu {
             let menu_overlay = self.render_border_context_menu_overlay(border_menu, theme, cx);
             container.child(menu_overlay).into_any_element()
         } else {
@@ -2414,14 +2414,14 @@ impl Editor {
 
     fn render_tiled_layout_node(
         &mut self,
-        node: &crate::ui::views::layout::SplitTree<crate::ui::views::layout::PaneKind>,
+        node: &crate::editor::layout::SplitTree<crate::editor::layout::PaneKind>,
         primary_content: &mut Option<AnyElement>,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        use crate::ui::views::layout::*;
+        use crate::editor::layout::*;
 
         let c = &theme.colors;
         let editor = cx.entity().downgrade();
@@ -2503,7 +2503,7 @@ impl Editor {
                                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                         let start_pos = f32::from(event.position.x);
                                         let _ = bar_editor.update(cx, |ed, cx| {
-                                            ed.area_layout.active_splitter_drag =
+                                            ed.panels.layout.active_splitter_drag =
                                                 Some(SplitterDragSession {
                                                     split_id,
                                                     direction: Axis::Horizontal,
@@ -2519,7 +2519,7 @@ impl Editor {
                                         move |event, _window, cx| {
                                             let pos = event.position;
                                             let _ = menu_editor.update(cx, |ed, cx| {
-                                                ed.area_layout.active_border_menu =
+                                                ed.panels.layout.active_border_menu =
                                                     Some(BorderMenuState {
                                                         split_id,
                                                         direction: dir,
@@ -2580,7 +2580,7 @@ impl Editor {
                                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                         let start_pos = f32::from(event.position.y);
                                         let _ = bar_editor.update(cx, |ed, cx| {
-                                            ed.area_layout.active_splitter_drag =
+                                            ed.panels.layout.active_splitter_drag =
                                                 Some(SplitterDragSession {
                                                     split_id,
                                                     direction: Axis::Vertical,
@@ -2596,7 +2596,7 @@ impl Editor {
                                         move |event, _window, cx| {
                                             let pos = event.position;
                                             let _ = menu_editor.update(cx, |ed, cx| {
-                                                ed.area_layout.active_border_menu =
+                                                ed.panels.layout.active_border_menu =
                                                     Some(BorderMenuState {
                                                         split_id,
                                                         direction: dir,
@@ -2628,7 +2628,7 @@ impl Editor {
     fn render_area_tile(
         &mut self,
         leaf_id: usize,
-        area_type: crate::ui::views::layout::PaneKind,
+        area_type: crate::editor::layout::PaneKind,
         primary_content: &mut Option<AnyElement>,
         theme: &Theme,
         strings: &I18nStrings,
@@ -2636,7 +2636,7 @@ impl Editor {
         is_maximized: bool,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        use crate::ui::views::layout::*;
+        use crate::editor::layout::*;
 
         let c = &theme.colors;
         let d = &theme.dimensions;
@@ -2650,7 +2650,7 @@ impl Editor {
             PaneKind::Editor => {
                 self.render_tiled_edit_container_panel(leaf_id, primary_content, theme, strings, cx)
             }
-            PaneKind::Explorer => self.render_tiled_workspace_files_panel(theme, strings, cx),
+            PaneKind::Workspace => self.render_tiled_workspace_files_panel(theme, strings, cx),
             PaneKind::Settings => self.render_tiled_settings_panel(theme, strings, cx),
         };
 
@@ -2719,7 +2719,7 @@ impl Editor {
                     CornerDragModifier::None
                 };
                 let _ = editor_corner.update(cx, |ed, cx| {
-                    ed.area_layout.start_corner_drag(leaf_id, pos, modifier);
+                    ed.panels.layout.start_corner_drag(leaf_id, pos, modifier);
                     cx.notify();
                 });
             })
@@ -2746,7 +2746,7 @@ impl Editor {
             .child(tile_card)
             .child(corner_handles);
 
-        let dropdown_open = self.area_layout.active_dropdown_leaf == Some(leaf_id);
+        let dropdown_open = self.panels.layout.active_dropdown_leaf == Some(leaf_id);
         if dropdown_open {
             let menu = self.render_area_dropdown_menu(leaf_id, area_type, theme, cx);
             wrapped = wrapped.child(menu);
@@ -2758,13 +2758,13 @@ impl Editor {
     fn render_area_header(
         &mut self,
         leaf_id: usize,
-        area_type: crate::ui::views::layout::PaneKind,
+        area_type: crate::editor::layout::PaneKind,
         theme: &Theme,
         leaf_count: usize,
         is_maximized: bool,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        use crate::ui::views::layout::*;
+        use crate::editor::layout::*;
 
         let c = &theme.colors;
         let d = &theme.dimensions;
@@ -2787,7 +2787,7 @@ impl Editor {
             .child(area_type.name().to_string())
             .on_click(move |_event, _window, cx| {
                 let _ = type_editor.update(cx, |ed, cx| {
-                    ed.area_layout.toggle_dropdown(leaf_id);
+                    ed.panels.layout.toggle_dropdown(leaf_id);
                     cx.notify();
                 });
             });
@@ -2807,7 +2807,7 @@ impl Editor {
             )
             .on_click(move |_event, _window, cx| {
                 let _ = split_h_editor.update(cx, |ed, cx| {
-                    ed.area_layout.split_area(leaf_id, Axis::Horizontal);
+                    ed.panels.layout.split_area(leaf_id, Axis::Horizontal);
                     cx.notify();
                 });
             });
@@ -2827,7 +2827,7 @@ impl Editor {
             )
             .on_click(move |_event, _window, cx| {
                 let _ = split_v_editor.update(cx, |ed, cx| {
-                    ed.area_layout.split_area(leaf_id, Axis::Vertical);
+                    ed.panels.layout.split_area(leaf_id, Axis::Vertical);
                     cx.notify();
                 });
             });
@@ -2859,7 +2859,7 @@ impl Editor {
                 )
                 .on_click(move |_event, _window, cx| {
                     let _ = max_editor.update(cx, |ed, cx| {
-                        ed.area_layout.toggle_maximize(leaf_id);
+                        ed.panels.layout.toggle_maximize(leaf_id);
                         cx.notify();
                     });
                 });
@@ -2879,7 +2879,7 @@ impl Editor {
                 )
                 .on_click(move |_event, _window, cx| {
                     let _ = close_editor.update(cx, |ed, cx| {
-                        ed.area_layout.close_area(leaf_id);
+                        ed.panels.layout.close_area(leaf_id);
                         cx.notify();
                     });
                 });
@@ -2892,13 +2892,13 @@ impl Editor {
 
         if area_type == PaneKind::Editor {
             let tabs = self
-                .area_layout
+                .panels.layout
                 .edit_tabs
                 .entry(leaf_id)
                 .or_insert_with(EditTabState::new);
 
             // Sync current file with tab list.
-            if let Some(ref path) = self.file_path {
+            if let Some(ref path) = self.file.path {
                 if !tabs.open_paths.contains(path) {
                     tabs.open_paths.push(path.clone());
                     tabs.active_index = tabs.open_paths.len() - 1;
@@ -2955,7 +2955,7 @@ impl Editor {
                                     let p = switch_path.clone();
                                     let _ = tab_editor.update(cx, |ed, cx| {
                                         if let Some(tabs) =
-                                            ed.area_layout.edit_tabs.get_mut(&leaf_id)
+                                            ed.panels.layout.edit_tabs.get_mut(&leaf_id)
                                         {
                                             if let Some(pos) =
                                                 tabs.open_paths.iter().position(|tp| tp == &p)
@@ -2988,7 +2988,7 @@ impl Editor {
                                     let p = close_path.clone();
                                     let _ = close_editor.update(cx, |ed, cx| {
                                         if let Some(tabs) =
-                                            ed.area_layout.edit_tabs.get_mut(&leaf_id)
+                                            ed.panels.layout.edit_tabs.get_mut(&leaf_id)
                                         {
                                             if tabs.open_paths.len() > 1 {
                                                 if let Some(pos) =
@@ -3073,11 +3073,11 @@ impl Editor {
     fn render_area_dropdown_menu(
         &mut self,
         leaf_id: usize,
-        current_type: crate::ui::views::layout::PaneKind,
+        current_type: crate::editor::layout::PaneKind,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        use crate::ui::views::layout::*;
+        use crate::editor::layout::*;
 
         let c = &theme.colors;
         let d = &theme.dimensions;
@@ -3137,7 +3137,7 @@ impl Editor {
                     })
                     .on_click(move |_event, _window, cx| {
                         let _ = option_editor.update(cx, |ed, cx| {
-                            ed.area_layout.change_area_type(leaf_id, area_type);
+                            ed.panels.layout.change_area_type(leaf_id, area_type);
                             cx.notify();
                         });
                     })
@@ -3148,11 +3148,11 @@ impl Editor {
 
     fn render_border_context_menu_overlay(
         &mut self,
-        border_menu: crate::ui::views::layout::BorderMenuState,
+        border_menu: crate::editor::layout::BorderMenuState,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        use crate::ui::views::layout::*;
+        use crate::editor::layout::*;
 
         let c = &theme.colors;
         let d = &theme.dimensions;
@@ -3178,7 +3178,7 @@ impl Editor {
             .bottom_0()
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                 let _ = dismiss_ed.update(cx, |ed, cx| {
-                    ed.area_layout.active_border_menu = None;
+                    ed.panels.layout.active_border_menu = None;
                     cx.notify();
                 });
             })
@@ -3218,7 +3218,7 @@ impl Editor {
                             .child("Split Horizontally")
                             .on_click(move |_event, _window, cx| {
                                 let _ = split_h_ed.update(cx, |ed, cx| {
-                                    ed.area_layout.split_area(split_id, Axis::Horizontal);
+                                    ed.panels.layout.split_area(split_id, Axis::Horizontal);
                                     cx.notify();
                                 });
                             }),
@@ -3242,7 +3242,7 @@ impl Editor {
                             .child("Split Vertically")
                             .on_click(move |_event, _window, cx| {
                                 let _ = split_v_ed.update(cx, |ed, cx| {
-                                    ed.area_layout.split_area(split_id, Axis::Vertical);
+                                    ed.panels.layout.split_area(split_id, Axis::Vertical);
                                     cx.notify();
                                 });
                             }),
@@ -3274,7 +3274,7 @@ impl Editor {
                             .child("Swap Panels")
                             .on_click(move |_event, _window, cx| {
                                 let _ = swap_ed.update(cx, |ed, cx| {
-                                    ed.area_layout.swap_split_children(split_id);
+                                    ed.panels.layout.swap_split_children(split_id);
                                     cx.notify();
                                 });
                             }),
@@ -3306,7 +3306,7 @@ impl Editor {
                             .child("Close Area")
                             .on_click(move |_event, _window, cx| {
                                 let _ = close_ed.update(cx, |ed, cx| {
-                                    ed.area_layout.close_area(split_id);
+                                    ed.panels.layout.close_area(split_id);
                                     cx.notify();
                                 });
                             }),
@@ -3347,7 +3347,7 @@ impl Editor {
     ) -> AnyElement {
         let c = &theme.colors;
         let inner_tree = self
-            .area_layout
+            .panels.layout
             .get_or_create_edit_inner_layout(container_id)
             .clone();
 
@@ -3360,13 +3360,13 @@ impl Editor {
             cx,
         );
 
-        let dropdown = if let Some((_cid, inner_id)) = self.area_layout.active_inner_dropdown {
+        let dropdown = if let Some((_cid, inner_id)) = self.panels.layout.active_inner_dropdown {
             if _cid == container_id {
                 let current_type = self
-                    .area_layout
+                    .panels.layout
                     .get_or_create_edit_inner_layout(container_id)
                     .find_leaf_area(inner_id)
-                    .unwrap_or(crate::ui::views::layout::EditorView::Source);
+                    .unwrap_or(crate::editor::layout::EditorPanel::Source);
                 Some(self.render_inner_area_dropdown_menu(
                     container_id,
                     inner_id,
@@ -3398,14 +3398,14 @@ impl Editor {
 
     fn render_edit_inner_node(
         &mut self,
-        node: &crate::ui::views::layout::SplitTree<crate::ui::views::layout::EditorView>,
+        node: &crate::editor::layout::SplitTree<crate::editor::layout::EditorPanel>,
         container_id: usize,
         primary_content: &mut Option<AnyElement>,
         theme: &Theme,
         strings: &I18nStrings,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        use crate::ui::views::layout::*;
+        use crate::editor::layout::*;
 
         let c = &theme.colors;
         let d = &theme.dimensions;
@@ -3419,12 +3419,12 @@ impl Editor {
                 let area_type = *area_type;
                 let inner_editor = cx.entity().downgrade();
 
-                let has_content = self.file_path.is_some() || self.document_dirty;
-                let workspace_open = self.workspace.root.is_some();
+                let has_content = self.file.path.is_some() || self.file.dirty;
+                let workspace_open = self.panels.workspace.root.is_some();
 
                 let inner_body: AnyElement = match area_type {
                     // Block — WYSIWYG block editor from document.blocks().
-                    EditorView::Wysiwyg => {
+                    EditorPanel::Wysiwyg => {
                         if let Some(content) = primary_content.take() {
                             content
                         } else if has_content {
@@ -3438,7 +3438,7 @@ impl Editor {
                     // Source — interactive source code editor.  Uses a cached
                     // block in source-document mode.  Edits sync to the shared
                     // document via the block's Changed event.
-                    EditorView::Source => {
+                    EditorPanel::Source => {
                         if has_content {
                             self.refresh_source_panel_block(cx);
                             self.render_source_editor_panel(theme, cx)
@@ -3448,7 +3448,7 @@ impl Editor {
                             render_empty_panel_prompt(c, "No content")
                         }
                     }
-                    EditorView::Preview => {
+                    EditorPanel::Preview => {
                         if has_content {
                             self.render_tiled_preview_panel(primary_content, theme, strings, cx)
                         } else if workspace_open {
@@ -3457,7 +3457,7 @@ impl Editor {
                             render_empty_panel_prompt(c, "No preview content")
                         }
                     }
-                    EditorView::Outline => {
+                    EditorPanel::Outline => {
                         if has_content {
                             self.render_tiled_outline_panel(theme, strings, cx)
                         } else if workspace_open {
@@ -3499,7 +3499,7 @@ impl Editor {
                             CornerDragModifier::None
                         };
                         let _ = inner_editor.update(cx, |ed, cx| {
-                            ed.area_layout.start_inner_corner_drag(
+                            ed.panels.layout.start_inner_corner_drag(
                                 container_id,
                                 inner_id,
                                 pos,
@@ -3511,8 +3511,8 @@ impl Editor {
                 };
 
                 // Auto-focus first inner panel if none is focused.
-                if self.area_layout.focused_inner_panel.is_none() {
-                    self.area_layout.focused_inner_panel = Some((container_id, inner_id));
+                if self.panels.layout.focused_inner_panel.is_none() {
+                    self.panels.layout.focused_inner_panel = Some((container_id, inner_id));
                 }
 
                 let focus_editor = cx.entity().downgrade();
@@ -3535,7 +3535,7 @@ impl Editor {
                     .child(make_inner_corner("edit-sub-br", false, false))
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = focus_editor.update(cx, |ed, cx| {
-                            ed.area_layout.focused_inner_panel = Some((container_id, inner_id));
+                            ed.panels.layout.focused_inner_panel = Some((container_id, inner_id));
                             cx.notify();
                         });
                     })
@@ -3605,7 +3605,7 @@ impl Editor {
                                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                         let start_pos = f32::from(event.position.x);
                                         let _ = bar_editor.update(cx, |ed, cx| {
-                                            ed.area_layout.active_inner_splitter_drag = Some((
+                                            ed.panels.layout.active_inner_splitter_drag = Some((
                                                 container_id,
                                                 SplitterDragSession {
                                                     split_id,
@@ -3623,7 +3623,7 @@ impl Editor {
                                         move |event, _window, cx| {
                                             let pos = event.position;
                                             let _ = menu_editor.update(cx, |ed, cx| {
-                                                ed.area_layout.active_inner_border_menu =
+                                                ed.panels.layout.active_inner_border_menu =
                                                     Some(BorderMenuState {
                                                         split_id,
                                                         direction: dir,
@@ -3681,7 +3681,7 @@ impl Editor {
                                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                         let start_pos = f32::from(event.position.y);
                                         let _ = bar_editor.update(cx, |ed, cx| {
-                                            ed.area_layout.active_inner_splitter_drag = Some((
+                                            ed.panels.layout.active_inner_splitter_drag = Some((
                                                 container_id,
                                                 SplitterDragSession {
                                                     split_id,
@@ -3699,7 +3699,7 @@ impl Editor {
                                         move |event, _window, cx| {
                                             let pos = event.position;
                                             let _ = menu_editor.update(cx, |ed, cx| {
-                                                ed.area_layout.active_inner_border_menu =
+                                                ed.panels.layout.active_inner_border_menu =
                                                     Some(BorderMenuState {
                                                         split_id,
                                                         direction: dir,
@@ -3732,18 +3732,18 @@ impl Editor {
         &mut self,
         container_id: usize,
         inner_id: usize,
-        current_area_type: crate::ui::views::layout::EditorView,
+        current_area_type: crate::editor::layout::EditorPanel,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        use crate::ui::views::layout::*;
+        use crate::editor::layout::*;
 
         let c = &theme.colors;
         let d = &theme.dimensions;
         let t = &theme.typography;
         let editor = cx.entity().downgrade();
 
-        let available_types = EditorView::all();
+        let available_types = EditorPanel::all();
 
         div()
             .id(("inner-area-dropdown-overlay", inner_id))
@@ -3796,7 +3796,7 @@ impl Editor {
                     })
                     .on_click(move |_event, _window, cx| {
                         let _ = option_editor.update(cx, |ed, cx| {
-                            ed.area_layout.change_inner_area_type(
+                            ed.panels.layout.change_inner_area_type(
                                 container_id,
                                 inner_id,
                                 area_type,
@@ -3826,7 +3826,7 @@ impl Editor {
         // the Preview channel remains a truly read-only view.
         let editor = cx.entity().downgrade();
         let block_elements: Vec<AnyElement> = self
-            .preview_blocks
+            .preview.blocks
             .iter()
             .map(|entity| {
                 let block_id = entity.entity_id();
@@ -3881,7 +3881,7 @@ impl Editor {
         let c = &theme.colors;
         let d = &theme.dimensions;
 
-        let content: AnyElement = if let Some(ref block) = self.source_panel_block {
+        let content: AnyElement = if let Some(ref block) = self.preview.source_panel_block {
             div()
                 .w_full()
                 .flex_shrink_0()
@@ -3917,11 +3917,11 @@ impl Editor {
         _strings: &I18nStrings,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        use crate::ui::views::layout::*;
+        use crate::editor::layout::*;
 
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let active_tab = self.area_layout.settings_tab;
+        let active_tab = self.panels.layout.settings_tab;
 
         let mut inner_border_color = c.dialog_border;
         inner_border_color.a *= 0.4;
@@ -3965,7 +3965,7 @@ impl Editor {
                     )
                     .on_click(move |_event, _window, cx| {
                         let _ = editor.update(cx, |ed, cx| {
-                            ed.area_layout.settings_tab = tab_item;
+                            ed.panels.layout.settings_tab = tab_item;
                             cx.notify();
                         });
                     })
@@ -4205,7 +4205,7 @@ impl Editor {
                 // Section 1: Visual Theme & Language
                 let sec1_key = "theme";
                 let is_sec1_expanded = self
-                    .area_layout
+                    .panels.layout
                     .settings_expanded_sections
                     .contains(sec1_key);
                 let mut sec1_items = Vec::new();
@@ -4224,9 +4224,9 @@ impl Editor {
                 let current_lang = "English (en-US)";
 
                 let is_theme_open =
-                    self.area_layout.open_settings_dropdown.as_deref() == Some("theme");
+                    self.panels.layout.open_settings_dropdown.as_deref() == Some("theme");
                 let is_lang_open =
-                    self.area_layout.open_settings_dropdown.as_deref() == Some("lang");
+                    self.panels.layout.open_settings_dropdown.as_deref() == Some("lang");
 
                 if is_sec1_expanded {
                     let theme_icon_path = if current_theme_name == "Light" {
@@ -4285,12 +4285,12 @@ impl Editor {
                                 let theme_ed = theme_ed.clone();
                                 move |_ev, _win, cx| {
                                     let _ = theme_ed.update(cx, |ed, cx| {
-                                        if ed.area_layout.open_settings_dropdown.as_deref()
+                                        if ed.panels.layout.open_settings_dropdown.as_deref()
                                             == Some("theme")
                                         {
-                                            ed.area_layout.open_settings_dropdown = None;
+                                            ed.panels.layout.open_settings_dropdown = None;
                                         } else {
-                                            ed.area_layout.open_settings_dropdown =
+                                            ed.panels.layout.open_settings_dropdown =
                                                 Some("theme".to_string());
                                         }
                                         cx.notify();
@@ -4361,7 +4361,7 @@ impl Editor {
                                             cx.update_global::<ThemeManager, _>(|manager, _cx| {
                                                 let _ = manager.set_theme_by_id(&t_id);
                                             });
-                                            ed.area_layout.open_settings_dropdown = None;
+                                            ed.panels.layout.open_settings_dropdown = None;
                                             cx.notify();
                                         });
                                     })
@@ -4428,12 +4428,12 @@ impl Editor {
                                 let lang_ed = lang_ed.clone();
                                 move |_ev, _win, cx| {
                                     let _ = lang_ed.update(cx, |ed, cx| {
-                                        if ed.area_layout.open_settings_dropdown.as_deref()
+                                        if ed.panels.layout.open_settings_dropdown.as_deref()
                                             == Some("lang")
                                         {
-                                            ed.area_layout.open_settings_dropdown = None;
+                                            ed.panels.layout.open_settings_dropdown = None;
                                         } else {
-                                            ed.area_layout.open_settings_dropdown =
+                                            ed.panels.layout.open_settings_dropdown =
                                                 Some("lang".to_string());
                                         }
                                         cx.notify();
@@ -4478,7 +4478,7 @@ impl Editor {
                                     })
                                     .on_click(move |_ev, _win, cx| {
                                         let _ = item_ed.update(cx, |ed, cx| {
-                                            ed.area_layout.open_settings_dropdown = None;
+                                            ed.panels.layout.open_settings_dropdown = None;
                                             cx.notify();
                                         });
                                     })
@@ -4523,7 +4523,7 @@ impl Editor {
                     is_sec1_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec1_ed.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_settings_section(sec1_key);
+                            ed.panels.layout.toggle_settings_section(sec1_key);
                             cx.notify();
                         });
                     }),
@@ -4534,7 +4534,7 @@ impl Editor {
                 // Section 2: Status Bar Options
                 let sec2_key = "status_bar";
                 let is_sec2_expanded = self
-                    .area_layout
+                    .panels.layout
                     .settings_expanded_sections
                     .contains(sec2_key);
                 let mut sec2_items = Vec::new();
@@ -4542,11 +4542,11 @@ impl Editor {
                 if is_sec2_expanded {
                     let sub1_ed = cx.entity().downgrade();
                     let ctrl_sb_main = Switch::new("switch-sb-main")
-                        .checked(self.area_layout.pref_show_status_bar)
+                        .checked(self.panels.layout.pref_show_status_bar)
                         .on_click(move |_ev, _win, cx| {
                             let _ = sub1_ed.update(cx, |ed, cx| {
-                                ed.area_layout.pref_show_status_bar =
-                                    !ed.area_layout.pref_show_status_bar;
+                                ed.panels.layout.pref_show_status_bar =
+                                    !ed.panels.layout.pref_show_status_bar;
                                 cx.notify();
                             });
                         })
@@ -4562,11 +4562,11 @@ impl Editor {
 
                     let sub2_ed = cx.entity().downgrade();
                     let ctrl_sb_words = Switch::new("switch-sb-words")
-                        .checked(self.area_layout.pref_show_word_count)
+                        .checked(self.panels.layout.pref_show_word_count)
                         .on_click(move |_ev, _win, cx| {
                             let _ = sub2_ed.update(cx, |ed, cx| {
-                                ed.area_layout.pref_show_word_count =
-                                    !ed.area_layout.pref_show_word_count;
+                                ed.panels.layout.pref_show_word_count =
+                                    !ed.panels.layout.pref_show_word_count;
                                 cx.notify();
                             });
                         })
@@ -4582,11 +4582,11 @@ impl Editor {
 
                     let sub3_ed = cx.entity().downgrade();
                     let ctrl_sb_pos = Switch::new("switch-sb-pos")
-                        .checked(self.area_layout.pref_show_cursor_pos)
+                        .checked(self.panels.layout.pref_show_cursor_pos)
                         .on_click(move |_ev, _win, cx| {
                             let _ = sub3_ed.update(cx, |ed, cx| {
-                                ed.area_layout.pref_show_cursor_pos =
-                                    !ed.area_layout.pref_show_cursor_pos;
+                                ed.panels.layout.pref_show_cursor_pos =
+                                    !ed.panels.layout.pref_show_cursor_pos;
                                 cx.notify();
                             });
                         })
@@ -4602,11 +4602,11 @@ impl Editor {
 
                     let sub4_ed = cx.entity().downgrade();
                     let ctrl_sb_sidebar = Switch::new("switch-sb-sidebar")
-                        .checked(self.area_layout.pref_show_sidebar_toggle)
+                        .checked(self.panels.layout.pref_show_sidebar_toggle)
                         .on_click(move |_ev, _win, cx| {
                             let _ = sub4_ed.update(cx, |ed, cx| {
-                                ed.area_layout.pref_show_sidebar_toggle =
-                                    !ed.area_layout.pref_show_sidebar_toggle;
+                                ed.panels.layout.pref_show_sidebar_toggle =
+                                    !ed.panels.layout.pref_show_sidebar_toggle;
                                 cx.notify();
                             });
                         })
@@ -4622,11 +4622,11 @@ impl Editor {
 
                     let sub5_ed = cx.entity().downgrade();
                     let ctrl_sb_mode = Switch::new("switch-sb-mode")
-                        .checked(self.area_layout.pref_show_mode_switch)
+                        .checked(self.panels.layout.pref_show_mode_switch)
                         .on_click(move |_ev, _win, cx| {
                             let _ = sub5_ed.update(cx, |ed, cx| {
-                                ed.area_layout.pref_show_mode_switch =
-                                    !ed.area_layout.pref_show_mode_switch;
+                                ed.panels.layout.pref_show_mode_switch =
+                                    !ed.panels.layout.pref_show_mode_switch;
                                 cx.notify();
                             });
                         })
@@ -4648,7 +4648,7 @@ impl Editor {
                     is_sec2_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec2_ed.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_settings_section(sec2_key);
+                            ed.panels.layout.toggle_settings_section(sec2_key);
                             cx.notify();
                         });
                     }),
@@ -4660,7 +4660,7 @@ impl Editor {
                 // Section 1: Typography & Formatting
                 let sec1_key = "typography";
                 let is_sec1_expanded = self
-                    .area_layout
+                    .panels.layout
                     .settings_expanded_sections
                     .contains(sec1_key);
                 let mut sec1_items = Vec::new();
@@ -4669,9 +4669,9 @@ impl Editor {
                     let font_dec = cx.entity().downgrade();
                     let font_inc = cx.entity().downgrade();
                     let font_ctr = cx.entity().downgrade();
-                    let curr_size = self.area_layout.pref_font_size;
+                    let curr_size = self.panels.layout.pref_font_size;
                     let is_editing_font =
-                        self.area_layout.editing_settings_stepper.as_deref() == Some("font");
+                        self.panels.layout.editing_settings_stepper.as_deref() == Some("font");
 
                     let ctrl_font = render_zed_stepper(
                         "font-dec",
@@ -4681,26 +4681,26 @@ impl Editor {
                         is_editing_font,
                         Box::new(move |_ev, _win, cx| {
                             let _ = font_dec.update(cx, |ed, cx| {
-                                ed.area_layout.editing_settings_stepper = None;
-                                if ed.area_layout.pref_font_size > 8 {
-                                    ed.area_layout.pref_font_size -= 1;
+                                ed.panels.layout.editing_settings_stepper = None;
+                                if ed.panels.layout.pref_font_size > 8 {
+                                    ed.panels.layout.pref_font_size -= 1;
                                     cx.notify();
                                 }
                             });
                         }),
                         Box::new(move |_ev, _win, cx| {
                             let _ = font_inc.update(cx, |ed, cx| {
-                                ed.area_layout.editing_settings_stepper = None;
-                                if ed.area_layout.pref_font_size < 48 {
-                                    ed.area_layout.pref_font_size += 1;
+                                ed.panels.layout.editing_settings_stepper = None;
+                                if ed.panels.layout.pref_font_size < 48 {
+                                    ed.panels.layout.pref_font_size += 1;
                                     cx.notify();
                                 }
                             });
                         }),
                         Box::new(move |_ev, _win, cx| {
                             let _ = font_ctr.update(cx, |ed, cx| {
-                                ed.area_layout.editing_settings_stepper = Some("font".to_string());
-                                ed.area_layout.pref_font_size = match ed.area_layout.pref_font_size
+                                ed.panels.layout.editing_settings_stepper = Some("font".to_string());
+                                ed.panels.layout.pref_font_size = match ed.panels.layout.pref_font_size
                                 {
                                     12 => 14,
                                     14 => 16,
@@ -4727,9 +4727,9 @@ impl Editor {
                     let lh_dec = cx.entity().downgrade();
                     let lh_inc = cx.entity().downgrade();
                     let lh_ctr = cx.entity().downgrade();
-                    let curr_lh = self.area_layout.pref_line_height;
+                    let curr_lh = self.panels.layout.pref_line_height;
                     let is_editing_lh =
-                        self.area_layout.editing_settings_stepper.as_deref() == Some("line_height");
+                        self.panels.layout.editing_settings_stepper.as_deref() == Some("line_height");
 
                     let ctrl_lh = render_zed_stepper(
                         "lh-dec",
@@ -4739,36 +4739,36 @@ impl Editor {
                         is_editing_lh,
                         Box::new(move |_ev, _win, cx| {
                             let _ = lh_dec.update(cx, |ed, cx| {
-                                ed.area_layout.editing_settings_stepper = None;
-                                if ed.area_layout.pref_line_height > 1.05 {
-                                    ed.area_layout.pref_line_height =
-                                        (ed.area_layout.pref_line_height - 0.1).max(1.0);
+                                ed.panels.layout.editing_settings_stepper = None;
+                                if ed.panels.layout.pref_line_height > 1.05 {
+                                    ed.panels.layout.pref_line_height =
+                                        (ed.panels.layout.pref_line_height - 0.1).max(1.0);
                                     cx.notify();
                                 }
                             });
                         }),
                         Box::new(move |_ev, _win, cx| {
                             let _ = lh_inc.update(cx, |ed, cx| {
-                                ed.area_layout.editing_settings_stepper = None;
-                                if ed.area_layout.pref_line_height < 3.0 {
-                                    ed.area_layout.pref_line_height =
-                                        (ed.area_layout.pref_line_height + 0.1).min(3.0);
+                                ed.panels.layout.editing_settings_stepper = None;
+                                if ed.panels.layout.pref_line_height < 3.0 {
+                                    ed.panels.layout.pref_line_height =
+                                        (ed.panels.layout.pref_line_height + 0.1).min(3.0);
                                     cx.notify();
                                 }
                             });
                         }),
                         Box::new(move |_ev, _win, cx| {
                             let _ = lh_ctr.update(cx, |ed, cx| {
-                                ed.area_layout.editing_settings_stepper =
+                                ed.panels.layout.editing_settings_stepper =
                                     Some("line_height".to_string());
-                                ed.area_layout.pref_line_height =
-                                    if (ed.area_layout.pref_line_height - 1.2).abs() < 0.05 {
+                                ed.panels.layout.pref_line_height =
+                                    if (ed.panels.layout.pref_line_height - 1.2).abs() < 0.05 {
                                         1.4
-                                    } else if (ed.area_layout.pref_line_height - 1.4).abs() < 0.05 {
+                                    } else if (ed.panels.layout.pref_line_height - 1.4).abs() < 0.05 {
                                         1.6
-                                    } else if (ed.area_layout.pref_line_height - 1.6).abs() < 0.05 {
+                                    } else if (ed.panels.layout.pref_line_height - 1.6).abs() < 0.05 {
                                         1.8
-                                    } else if (ed.area_layout.pref_line_height - 1.8).abs() < 0.05 {
+                                    } else if (ed.panels.layout.pref_line_height - 1.8).abs() < 0.05 {
                                         2.0
                                     } else {
                                         1.2
@@ -4795,7 +4795,7 @@ impl Editor {
                     is_sec1_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec1_ed.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_settings_section(sec1_key);
+                            ed.panels.layout.toggle_settings_section(sec1_key);
                             cx.notify();
                         });
                     }),
@@ -4806,7 +4806,7 @@ impl Editor {
                 // Section 2: Markdown & Assets
                 let sec2_key = "markdown";
                 let is_sec2_expanded = self
-                    .area_layout
+                    .panels.layout
                     .settings_expanded_sections
                     .contains(sec2_key);
                 let mut sec2_items = Vec::new();
@@ -4817,22 +4817,22 @@ impl Editor {
                     (1, "Copy to Document Folder"),
                     (2, "Insert Direct Link"),
                 ];
-                let curr_img_idx = self.area_layout.pref_image_paste_action % img_options.len();
+                let curr_img_idx = self.panels.layout.pref_image_paste_action % img_options.len();
                 let curr_img_label = img_options[curr_img_idx].1;
                 let is_img_open =
-                    self.area_layout.open_settings_dropdown.as_deref() == Some("image");
+                    self.panels.layout.open_settings_dropdown.as_deref() == Some("image");
 
                 if is_sec2_expanded {
                     let tbl_ed = cx.entity().downgrade();
                     let ctrl_tbl = Switch::new("switch-table-headers")
-                        .checked(self.area_layout.pref_show_table_headers)
+                        .checked(self.panels.layout.pref_show_table_headers)
                         .on_click(move |_ev, _win, cx| {
                             let _ = tbl_ed.update(cx, |ed, cx| {
-                                ed.area_layout.pref_show_table_headers =
-                                    !ed.area_layout.pref_show_table_headers;
+                                ed.panels.layout.pref_show_table_headers =
+                                    !ed.panels.layout.pref_show_table_headers;
                                 crate::services::storage::settings::EditorSettings::set_show_table_headers(
                                     cx,
-                                    ed.area_layout.pref_show_table_headers,
+                                    ed.panels.layout.pref_show_table_headers,
                                 );
                                 cx.notify();
                             });
@@ -4883,12 +4883,12 @@ impl Editor {
                                 let img_ed = img_ed.clone();
                                 move |_ev, _win, cx| {
                                     let _ = img_ed.update(cx, |ed, cx| {
-                                        if ed.area_layout.open_settings_dropdown.as_deref()
+                                        if ed.panels.layout.open_settings_dropdown.as_deref()
                                             == Some("image")
                                         {
-                                            ed.area_layout.open_settings_dropdown = None;
+                                            ed.panels.layout.open_settings_dropdown = None;
                                         } else {
-                                            ed.area_layout.open_settings_dropdown =
+                                            ed.panels.layout.open_settings_dropdown =
                                                 Some("image".to_string());
                                         }
                                         cx.notify();
@@ -4933,8 +4933,8 @@ impl Editor {
                                     })
                                     .on_click(move |_ev, _win, cx| {
                                         let _ = item_ed.update(cx, |ed, cx| {
-                                            ed.area_layout.pref_image_paste_action = idx;
-                                            ed.area_layout.open_settings_dropdown = None;
+                                            ed.panels.layout.pref_image_paste_action = idx;
+                                            ed.panels.layout.open_settings_dropdown = None;
                                             cx.notify();
                                         });
                                     })
@@ -4979,7 +4979,7 @@ impl Editor {
                     is_sec2_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec2_ed.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_settings_section(sec2_key);
+                            ed.panels.layout.toggle_settings_section(sec2_key);
                             cx.notify();
                         });
                     }),
@@ -4990,17 +4990,17 @@ impl Editor {
                 // Section 3: Startup Behavior
                 let sec3_key = "startup";
                 let is_sec3_expanded = self
-                    .area_layout
+                    .panels.layout
                     .settings_expanded_sections
                     .contains(sec3_key);
                 let mut sec3_items = Vec::new();
 
                 let startup_ed = cx.entity().downgrade();
                 let startup_options = [(0, "New Blank Document"), (1, "Open Last Opened File")];
-                let curr_startup_idx = self.area_layout.pref_startup_option % startup_options.len();
+                let curr_startup_idx = self.panels.layout.pref_startup_option % startup_options.len();
                 let curr_startup_label = startup_options[curr_startup_idx].1;
                 let is_startup_open =
-                    self.area_layout.open_settings_dropdown.as_deref() == Some("startup");
+                    self.panels.layout.open_settings_dropdown.as_deref() == Some("startup");
 
                 if is_sec3_expanded {
                     let mut startup_btn_wrap = div().relative().child(
@@ -5039,12 +5039,12 @@ impl Editor {
                                 let startup_ed = startup_ed.clone();
                                 move |_ev, _win, cx| {
                                     let _ = startup_ed.update(cx, |ed, cx| {
-                                        if ed.area_layout.open_settings_dropdown.as_deref()
+                                        if ed.panels.layout.open_settings_dropdown.as_deref()
                                             == Some("startup")
                                         {
-                                            ed.area_layout.open_settings_dropdown = None;
+                                            ed.panels.layout.open_settings_dropdown = None;
                                         } else {
-                                            ed.area_layout.open_settings_dropdown =
+                                            ed.panels.layout.open_settings_dropdown =
                                                 Some("startup".to_string());
                                         }
                                         cx.notify();
@@ -5089,8 +5089,8 @@ impl Editor {
                                     })
                                     .on_click(move |_ev, _win, cx| {
                                         let _ = item_ed.update(cx, |ed, cx| {
-                                            ed.area_layout.pref_startup_option = idx;
-                                            ed.area_layout.open_settings_dropdown = None;
+                                            ed.panels.layout.pref_startup_option = idx;
+                                            ed.panels.layout.open_settings_dropdown = None;
                                             cx.notify();
                                         });
                                     })
@@ -5135,7 +5135,7 @@ impl Editor {
                     is_sec3_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec3_ed.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_settings_section(sec3_key);
+                            ed.panels.layout.toggle_settings_section(sec3_key);
                             cx.notify();
                         });
                     }),
@@ -5147,7 +5147,7 @@ impl Editor {
                 // Section 1: Document Actions
                 let sec1_key = "doc_actions";
                 let is_sec1_expanded = self
-                    .area_layout
+                    .panels.layout
                     .settings_expanded_sections
                     .contains(sec1_key);
                 let mut sec1_items = Vec::new();
@@ -5199,7 +5199,7 @@ impl Editor {
                     is_sec1_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec1_ed.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_settings_section(sec1_key);
+                            ed.panels.layout.toggle_settings_section(sec1_key);
                             cx.notify();
                         });
                     }),
@@ -5210,7 +5210,7 @@ impl Editor {
                 // Section 2: Interface & View Controls
                 let sec2_key = "view_controls";
                 let is_sec2_expanded = self
-                    .area_layout
+                    .panels.layout
                     .settings_expanded_sections
                     .contains(sec2_key);
                 let mut sec2_items = Vec::new();
@@ -5257,7 +5257,7 @@ impl Editor {
                     is_sec2_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec2_ed.update(cx, |ed, cx| {
-                            ed.area_layout.toggle_settings_section(sec2_key);
+                            ed.panels.layout.toggle_settings_section(sec2_key);
                             cx.notify();
                         });
                     }),
@@ -5297,13 +5297,13 @@ impl Render for Editor {
         self.install_close_guard(cx, window);
         self.apply_pending_focus(window, cx);
         self.apply_pending_scroll_into_view(window, cx);
-        self.last_selection_snapshot = self.capture_source_selection_snapshot(cx);
+        self.undo.last_selection_snapshot = self.capture_source_selection_snapshot(cx);
         self.sync_pending_save(window, cx);
         self.sync_pending_save_as(window, cx);
         self.sync_pending_open_link(window, cx);
         self.sync_window_edited_state(window);
 
-        let viewport_bounds = self.scroll_handle.bounds();
+        let viewport_bounds = self.scroll.handle.bounds();
         let viewport_size = viewport_bounds.size;
         self.sync_scroll_viewport(viewport_size, cx);
 
@@ -5322,7 +5322,7 @@ impl Render for Editor {
         let _menu_bar_height =
             in_window_menu_bar_height_for_target_os(std::env::consts::OS, has_menus, d);
         let scroll_trigger_padding = (d.block_min_height * 0.75).max(16.0);
-        let max_scroll_y = f32::from(self.scroll_handle.max_offset().height.max(px(0.0)));
+        let max_scroll_y = f32::from(self.scroll.handle.max_offset().height.max(px(0.0)));
         let viewport_height = f32::from(viewport_bounds.size.height.max(px(1.0)));
         // Extra room below the last block so the lowest line can be scrolled up
         // to the viewport center instead of being pinned to the bottom edge.
@@ -5331,7 +5331,7 @@ impl Render for Editor {
         let has_overflow = max_scroll_y > 0.5;
 
         let centered_width = Self::centered_column_width(viewport_width, &theme.dimensions);
-        let current_scroll_y = (-f32::from(self.scroll_handle.offset().y)).clamp(0.0, max_scroll_y);
+        let current_scroll_y = (-f32::from(self.scroll.handle.offset().y)).clamp(0.0, max_scroll_y);
         let scrollbar_geometry =
             Self::scrollbar_geometry(viewport_height, max_scroll_y, current_scroll_y);
         let track_height = scrollbar_geometry.track_height;
@@ -5339,9 +5339,9 @@ impl Render for Editor {
         let thumb_top = scrollbar_geometry.thumb_top;
 
         let show_custom_scrollbar = has_overflow
-            && (self.scrollbar_drag.is_some()
-                || self.scrollbar_hovered
-                || Instant::now() <= self.scrollbar_visible_until);
+            && (self.scroll.scrollbar_drag.is_some()
+                || self.scroll.scrollbar_hovered
+                || Instant::now() <= self.scroll.scrollbar_visible_until);
 
         // Spacing metadata is read on demand instead of pre-collected into a
         // Vec<RenderedRowSpacingInfo> sized to all visible blocks. For long
@@ -5390,7 +5390,7 @@ impl Render for Editor {
                                 .flex_shrink_0()
                                 .mt(px(footnote_row_top_gap(previous_footnote_row, d.block_gap)))
                                 .child(entity.clone());
-                            let row = if self.view_mode == EditMode::Wysiwyg {
+                            let row = if self.mode == EditorMode::Wysiwyg {
                                 let row_editor = editor.clone();
                                 let entity_id = entity.entity_id();
                                 row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
@@ -5435,7 +5435,7 @@ impl Render for Editor {
                             d,
                         )))
                         .child(entity.clone());
-                    let row = if self.view_mode == EditMode::Wysiwyg {
+                    let row = if self.mode == EditorMode::Wysiwyg {
                         let row_editor = editor.clone();
                         let entity_id = entity.entity_id();
                         row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
@@ -5491,7 +5491,7 @@ impl Render for Editor {
                         .flex_shrink_0()
                         .mt(px(footnote_row_top_gap(previous_footnote_row, d.block_gap)))
                         .child(entity.clone());
-                    let row = if self.view_mode == EditMode::Wysiwyg {
+                    let row = if self.mode == EditorMode::Wysiwyg {
                         let row_editor = editor.clone();
                         let entity_id = entity.entity_id();
                         row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
@@ -5531,7 +5531,7 @@ impl Render for Editor {
                 .flex_shrink_0()
                 .mt(px(top_gap))
                 .child(entity.clone());
-            let row = if self.view_mode == EditMode::Wysiwyg {
+            let row = if self.mode == EditorMode::Wysiwyg {
                 let row_editor = editor.clone();
                 let entity_id = entity.entity_id();
                 row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
@@ -5585,26 +5585,26 @@ impl Render for Editor {
 
         // On a structural edit the row indices no longer match last frame, so the
         // cache refresh below is skipped; its block-keyed entries still hold.
-        let structural_change = blocks.len() != self.prev_visible_block_ids.len()
+        let structural_change = blocks.len() != self.scroll.prev_visible_block_ids.len()
             || blocks
                 .iter()
-                .zip(&self.prev_visible_block_ids)
+                .zip(&self.scroll.prev_visible_block_ids)
                 .any(|(visible, prev)| visible.entity.entity_id() != *prev);
         if structural_change {
-            self.prev_visible_block_ids = blocks.iter().map(|v| v.entity.entity_id()).collect();
+            self.scroll.prev_visible_block_ids = blocks.iter().map(|v| v.entity.entity_id()).collect();
         }
 
         // Rows mounted together last frame shared one scroll offset, so their
         // adjacent painted-top differences are scroll-free heights. Caching those,
         // not raw positions, is what keeps the window stable while scrolling.
         if !structural_change {
-            if let Some((prev_start, prev_end)) = self.prev_render_window {
+            if let Some((prev_start, prev_end)) = self.scroll.prev_render_window {
                 let prev_end = prev_end.min(row_first_ids.len());
                 for row in prev_start..prev_end.saturating_sub(1) {
                     if let (Some(top), Some(next_top)) = (row_tops[row], row_tops[row + 1]) {
                         let stride = next_top - top;
                         if stride > 0.0 && stride.is_finite() {
-                            self.row_stride_cache.insert(row_first_ids[row], stride);
+                            self.scroll.row_stride_cache.insert(row_first_ids[row], stride);
                         }
                     }
                 }
@@ -5616,13 +5616,13 @@ impl Render for Editor {
         let estimate = d.block_min_height.max(1.0);
         let strides: Vec<f32> = row_first_ids
             .iter()
-            .map(|id| self.row_stride_cache.get(id).copied().unwrap_or(estimate))
+            .map(|id| self.scroll.row_stride_cache.get(id).copied().unwrap_or(estimate))
             .collect();
 
         // Bound the cache against block churn, only when it outgrows the live rows.
-        if self.row_stride_cache.len() > row_first_ids.len().saturating_mul(2) {
+        if self.scroll.row_stride_cache.len() > row_first_ids.len().saturating_mul(2) {
             let live: std::collections::HashSet<EntityId> = row_first_ids.iter().copied().collect();
-            self.row_stride_cache.retain(|id, _| live.contains(id));
+            self.scroll.row_stride_cache.retain(|id, _| live.contains(id));
         }
 
         let render_window = Self::rendered_window(
@@ -5632,7 +5632,7 @@ impl Render for Editor {
             RENDER_OVERDRAW_PX,
             focus_row,
         );
-        self.prev_render_window = Some((render_window.run_start, render_window.run_end));
+        self.scroll.prev_render_window = Some((render_window.run_start, render_window.run_end));
 
         // The first mounted row re-applies its `mt`, so drop it from the top
         // spacer to avoid shifting content down by a gap.
@@ -5676,7 +5676,7 @@ impl Render for Editor {
             .bg(theme.colors.editor_background)
             .overflow_y_scroll()
             .scrollbar_width(px(0.0))
-            .track_scroll(&self.scroll_handle)
+            .track_scroll(&self.scroll.handle)
             .on_hover(cx.listener(Self::on_editor_hover))
             .capture_any_mouse_down(cx.listener(Self::on_editor_capture_mouse_down))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_editor_mouse_down))
@@ -5689,7 +5689,7 @@ impl Render for Editor {
                 + scroll_trigger_padding
                 + scroll_beyond_bottom))
             .children(block_rows);
-        let scroll_content = if self.view_mode == EditMode::Wysiwyg {
+        let scroll_content = if self.mode == EditorMode::Wysiwyg {
             scroll_content.on_mouse_down(
                 MouseButton::Right,
                 cx.listener(Self::on_editor_context_menu_mouse_down),
@@ -5836,7 +5836,7 @@ impl Render for Editor {
             .map(|m| m.iter().map(|menu| menu.name.clone()).collect())
             .unwrap_or_default();
         let window_title =
-            Self::window_title(self.file_path.as_deref(), self.document_dirty, &strings);
+            Self::window_title(self.file.path.as_deref(), self.file.dirty, &strings);
         let inline_menu =
             self.render_inline_titlebar_menu(&theme, cx, menus.as_deref(), &menu_labels);
         let base = if let Some(titlebar) = render_custom_titlebar(
@@ -5889,11 +5889,11 @@ impl Render for Editor {
         } else {
             base
         };
-        if let Some(kind) = self.info_dialog {
+        if let Some(kind) = self.chrome.info_dialog {
             base.child(self.render_info_dialog_overlay(&theme, kind, cx))
-        } else if self.show_drop_replace_dialog {
+        } else if self.file.show_drop_replace_dialog {
             base.child(self.render_drop_replace_overlay(&theme, cx))
-        } else if self.show_unsaved_changes_dialog {
+        } else if self.file.show_unsaved_changes_dialog {
             base.child(self.render_unsaved_changes_overlay(&theme, cx))
         } else {
             base

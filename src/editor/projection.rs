@@ -9,7 +9,7 @@ use crate::model::inline::serialize::can_use_markdown_script_delimiters;
 use crate::model::inline::style::{InlineScript, InlineStyle, StyleFlag};
 use crate::model::inline::text::{InlineFragment, RichText};
 
-use crate::ui::blocks::block_view::CollapsedCaretAffinity;
+use crate::editor::block::CollapsedCaretAffinity;
 
 /// One displayed segment in an expanded inline projection.
 #[derive(Clone, Debug, PartialEq, Eq)]

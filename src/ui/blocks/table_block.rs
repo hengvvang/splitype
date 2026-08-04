@@ -5,10 +5,11 @@ use gpui::*;
 
 use crate::model::syntax::table::TableCellPosition;
 use crate::model::syntax::table::TableColumnAlignment;
-use crate::ui::blocks::block_view::Block;
+use crate::editor::block::Block;
 use crate::editor::actions::BlockAction;
+use crate::editor::table::TableGrid;
 use crate::model::syntax::table::{TableAxisKind, TableAxisMarker, TableColumnLayout};
-use crate::ui::blocks::block_view::EditMode;
+use crate::editor::block::BlockEditMode;
 use crate::model::syntax::table::TableAxisHighlight;
 use crate::ui::blocks::render::effective_table_width;
 use crate::ui::theme::Theme;
@@ -550,28 +551,6 @@ pub(crate) fn render_table(
     }
 }
 
-// ── TableGrid & Block cell helpers ───────────────────────────────────────────
-
-/// Runtime cell editors attached to one native table block.
-#[derive(Clone)]
-pub struct TableGrid {
-    pub header: Vec<Entity<Block>>,
-    pub rows: Vec<Vec<Entity<Block>>>,
-}
-
-impl TableGrid {
-    pub fn cell(&self, position: TableCellPosition) -> Option<Entity<Block>> {
-        if position.is_header() {
-            self.header.get(position.column).cloned()
-        } else {
-            self.rows
-                .get(position.body_row_index()?)
-                .and_then(|row| row.get(position.column))
-                .cloned()
-        }
-    }
-}
-
 impl Block {
     pub(crate) fn is_table_cell(&self) -> bool {
         self.table_cell_position.is_some()
@@ -603,7 +582,7 @@ impl Block {
     ) {
         self.table_cell_position = Some(position);
         self.table_cell_alignment = Some(alignment);
-        self.edit_mode = EditMode::RenderedRich;
+        self.edit_mode = BlockEditMode::RenderedRich;
         self.clear_inline_projection();
         self.sync_render_cache();
     }

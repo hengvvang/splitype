@@ -3,13 +3,13 @@
 use std::collections::HashMap;
 use std::ops::Range;
 
-use crate::engine::editor::*;
+use crate::editor::controller::*;
 
 impl Editor {
     pub(crate) fn current_document_source(&self, cx: &App) -> String {
-        match self.view_mode {
-            EditMode::Wysiwyg => self.document.to_markdown(cx),
-            EditMode::Source => self.document.to_raw_source(cx),
+        match self.mode {
+            EditorMode::Wysiwyg => self.document.to_markdown(cx),
+            EditorMode::Source => self.document.to_raw_source(cx),
         }
     }
 
@@ -69,7 +69,7 @@ impl Editor {
         indentation: &str,
         language: Option<&SharedString>,
     ) -> (String, Vec<usize>, Vec<usize>) {
-        let fence = crate::engine::document::serializer::safe_code_fence_with_info(
+        let fence = crate::editor::serialize::safe_code_fence_with_info(
             content,
             language.map(|language| language.as_ref()),
         );

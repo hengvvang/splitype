@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use crate::engine::editor::*;
+use crate::editor::controller::*;
 use crate::ui::input::shortcuts::{
     CloseWindow, ExportHtml, ExportPdf, InstallCliTool, QuitApplication, Redo, SaveDocument,
     SaveDocumentAs, ToggleViewMode, Undo, UninstallCliTool,
@@ -195,7 +195,7 @@ impl Editor {
 
     pub(crate) fn toggle_view_mode_from_ui(&mut self, cx: &mut Context<Self>) {
         self.end_block_pointer_selection_sessions(cx);
-        self.last_selection_snapshot = self.capture_source_selection_snapshot(cx);
+        self.undo.last_selection_snapshot = self.capture_source_selection_snapshot(cx);
         self.toggle_view_mode(cx);
     }
 
@@ -280,8 +280,8 @@ impl Editor {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn set_view_mode(&mut self, target_mode: EditMode, cx: &mut Context<Self>) {
-        if self.view_mode != target_mode {
+    pub(crate) fn set_view_mode(&mut self, target_mode: EditorMode, cx: &mut Context<Self>) {
+        if self.mode != target_mode {
             self.toggle_view_mode(cx);
         }
     }
@@ -290,37 +290,37 @@ impl Editor {
         self.end_block_pointer_selection_sessions(cx);
         let selection_snapshot = self.capture_source_selection_snapshot(cx);
         self.clear_cross_block_selection(cx);
-        self.rendered_select_all_cycle = None;
-        match self.view_mode {
-            EditMode::Wysiwyg => {
+        self.selection.select_all_cycle = None;
+        match self.mode {
+            EditorMode::Wysiwyg => {
                 let markdown = self.document.to_markdown(cx);
                 let block = Self::new_block(cx, BlockData::paragraph(markdown));
                 block.update(cx, |block, _cx| block.set_source_document_mode());
                 self.document.replace_blocks(vec![block], cx);
-                self.view_mode = EditMode::Source;
-                self.table_cells.clear();
+                self.mode = EditorMode::Source;
+                self.tables.cells.clear();
             }
-            EditMode::Source => {
+            EditorMode::Source => {
                 let source = self.document.to_raw_source(cx);
                 let mut roots = Self::parse_document(cx, &source);
                 if roots.is_empty() {
                     roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
                 }
                 self.document.replace_blocks(roots, cx);
-                self.view_mode = EditMode::Wysiwyg;
+                self.mode = EditorMode::Wysiwyg;
                 self.rebuild_table_runtimes(cx);
                 self.rebuild_image_runtimes(cx);
             }
         }
 
         self.apply_selection_snapshot_in_current_mode(&selection_snapshot, cx);
-        self.pending_scroll_active_block_into_view = true;
-        self.pending_scroll_recheck_after_layout = true;
-        self.last_scroll_viewport_size = None;
-        self.pending_window_title_refresh = true;
-        self.close_dialog_restore_focus = None;
-        self.table_axis_preview = None;
-        self.table_axis_selection = None;
+        self.focus.pending_scroll_active_block_into_view = true;
+        self.focus.pending_scroll_recheck_after_layout = true;
+        self.scroll.last_viewport_size = None;
+        self.file.pending_window_title_refresh = true;
+        self.file.close_dialog_restore_focus = None;
+        self.tables.axis_preview = None;
+        self.tables.axis_selection = None;
         self.dismiss_contextual_overlays(cx);
         self.sync_table_axis_visuals(cx);
         self.refresh_stable_document_snapshot(cx);
@@ -330,18 +330,18 @@ impl Editor {
     /// Marks the document dirty and schedules window-title and edited-state
     /// refresh for the next render frame.
     pub(crate) fn mark_dirty(&mut self, cx: &mut Context<Self>) {
-        if !self.document_dirty {
-            self.document_dirty = true;
-            self.pending_window_edited = true;
-            self.pending_window_title_refresh = true;
+        if !self.file.dirty {
+            self.file.dirty = true;
+            self.file.pending_window_edited = true;
+            self.file.pending_window_title_refresh = true;
             cx.notify();
         }
     }
 
     pub(crate) fn request_active_block_scroll_into_view(&mut self, cx: &mut Context<Self>) {
-        self.pending_scroll_recheck_after_layout = true;
-        if !self.pending_scroll_active_block_into_view {
-            self.pending_scroll_active_block_into_view = true;
+        self.focus.pending_scroll_recheck_after_layout = true;
+        if !self.focus.pending_scroll_active_block_into_view {
+            self.focus.pending_scroll_active_block_into_view = true;
             cx.notify();
         }
     }
@@ -354,70 +354,70 @@ impl Editor {
     }
 
     pub(crate) fn show_info_dialog(&mut self, kind: InfoDialogKind, cx: &mut Context<Self>) {
-        if self.show_unsaved_changes_dialog {
+        if self.file.show_unsaved_changes_dialog {
             return;
         }
 
-        self.menu_bar_open = None;
-        self.menu_submenu_open = None;
-        self.menu_submenu_panel_hovered = false;
-        self.menu_submenu_bridge_hovered = false;
-        self.info_dialog = Some(kind);
+        self.chrome.menu_bar_open = None;
+        self.chrome.menu_submenu_open = None;
+        self.chrome.menu_submenu_panel_hovered = false;
+        self.chrome.menu_submenu_bridge_hovered = false;
+        self.chrome.info_dialog = Some(kind);
         cx.notify();
     }
 
     pub(crate) fn hide_info_dialog(&mut self, cx: &mut Context<Self>) {
-        if self.info_dialog.take().is_some() {
+        if self.chrome.info_dialog.take().is_some() {
             cx.notify();
         }
     }
 
     pub(crate) fn open_menu_bar(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.menu_close_task = None;
-        if self.menu_bar_open != Some(index) {
-            self.menu_bar_open = Some(index);
-            self.menu_submenu_open = None;
-            self.menu_submenu_panel_hovered = false;
-            self.menu_submenu_bridge_hovered = false;
+        self.chrome.menu_close_task = None;
+        if self.chrome.menu_bar_open != Some(index) {
+            self.chrome.menu_bar_open = Some(index);
+            self.chrome.menu_submenu_open = None;
+            self.chrome.menu_submenu_panel_hovered = false;
+            self.chrome.menu_submenu_bridge_hovered = false;
             cx.notify();
         }
     }
 
     pub(crate) fn open_menu_submenu(&mut self, index: usize, cx: &mut Context<Self>) {
-        self.menu_close_task = None;
-        if self.menu_submenu_open != Some(index) {
-            self.menu_submenu_open = Some(index);
+        self.chrome.menu_close_task = None;
+        if self.chrome.menu_submenu_open != Some(index) {
+            self.chrome.menu_submenu_open = Some(index);
             cx.notify();
         }
     }
 
     pub(crate) fn close_menu_submenu(&mut self, cx: &mut Context<Self>) {
-        let had_open_submenu = self.menu_submenu_open.take().is_some();
-        let had_submenu_hover = self.menu_submenu_panel_hovered || self.menu_submenu_bridge_hovered;
-        self.menu_submenu_panel_hovered = false;
-        self.menu_submenu_bridge_hovered = false;
+        let had_open_submenu = self.chrome.menu_submenu_open.take().is_some();
+        let had_submenu_hover = self.chrome.menu_submenu_panel_hovered || self.chrome.menu_submenu_bridge_hovered;
+        self.chrome.menu_submenu_panel_hovered = false;
+        self.chrome.menu_submenu_bridge_hovered = false;
         if had_open_submenu || had_submenu_hover {
             cx.notify();
         }
     }
 
     pub(crate) fn schedule_menu_bar_close(&mut self, cx: &mut Context<Self>) {
-        if self.menu_bar_open.is_none() {
+        if self.chrome.menu_bar_open.is_none() {
             return;
         }
 
         let weak_editor = cx.entity().downgrade();
-        self.menu_close_task = Some(cx.spawn(
+        self.chrome.menu_close_task = Some(cx.spawn(
             async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
                 cx.background_executor()
                     .timer(Duration::from_millis(120))
                     .await;
                 let _ = weak_editor.update(cx, |editor, cx| {
-                    editor.menu_close_task = None;
-                    if !editor.menu_bar_hovered
-                        && !editor.menu_panel_hovered
-                        && !editor.menu_submenu_panel_hovered
-                        && !editor.menu_submenu_bridge_hovered
+                    editor.chrome.menu_close_task = None;
+                    if !editor.chrome.menu_bar_hovered
+                        && !editor.chrome.menu_panel_hovered
+                        && !editor.chrome.menu_submenu_panel_hovered
+                        && !editor.chrome.menu_submenu_bridge_hovered
                     {
                         editor.close_menu_bar(cx);
                     }
@@ -427,36 +427,36 @@ impl Editor {
     }
 
     pub(crate) fn set_menu_bar_hovered(&mut self, hovered: bool, cx: &mut Context<Self>) {
-        self.menu_bar_hovered = hovered;
+        self.chrome.menu_bar_hovered = hovered;
         if hovered {
-            self.menu_close_task = None;
-        } else if !self.menu_panel_hovered
-            && !self.menu_submenu_panel_hovered
-            && !self.menu_submenu_bridge_hovered
+            self.chrome.menu_close_task = None;
+        } else if !self.chrome.menu_panel_hovered
+            && !self.chrome.menu_submenu_panel_hovered
+            && !self.chrome.menu_submenu_bridge_hovered
         {
             self.schedule_menu_bar_close(cx);
         }
     }
 
     pub(crate) fn set_menu_panel_hovered(&mut self, hovered: bool, cx: &mut Context<Self>) {
-        self.menu_panel_hovered = hovered;
+        self.chrome.menu_panel_hovered = hovered;
         if hovered {
-            self.menu_close_task = None;
-        } else if !self.menu_bar_hovered
-            && !self.menu_submenu_panel_hovered
-            && !self.menu_submenu_bridge_hovered
+            self.chrome.menu_close_task = None;
+        } else if !self.chrome.menu_bar_hovered
+            && !self.chrome.menu_submenu_panel_hovered
+            && !self.chrome.menu_submenu_bridge_hovered
         {
             self.schedule_menu_bar_close(cx);
         }
     }
 
     pub(crate) fn set_menu_submenu_panel_hovered(&mut self, hovered: bool, cx: &mut Context<Self>) {
-        self.menu_submenu_panel_hovered = hovered;
+        self.chrome.menu_submenu_panel_hovered = hovered;
         if hovered {
-            self.menu_close_task = None;
-        } else if !self.menu_bar_hovered
-            && !self.menu_panel_hovered
-            && !self.menu_submenu_bridge_hovered
+            self.chrome.menu_close_task = None;
+        } else if !self.chrome.menu_bar_hovered
+            && !self.chrome.menu_panel_hovered
+            && !self.chrome.menu_submenu_bridge_hovered
         {
             self.schedule_menu_bar_close(cx);
         }
@@ -472,33 +472,33 @@ impl Editor {
         hovered: bool,
         cx: &mut Context<Self>,
     ) {
-        self.menu_submenu_bridge_hovered = hovered;
+        self.chrome.menu_submenu_bridge_hovered = hovered;
         if hovered {
-            self.menu_close_task = None;
-        } else if !self.menu_bar_hovered
-            && !self.menu_panel_hovered
-            && !self.menu_submenu_panel_hovered
+            self.chrome.menu_close_task = None;
+        } else if !self.chrome.menu_bar_hovered
+            && !self.chrome.menu_panel_hovered
+            && !self.chrome.menu_submenu_panel_hovered
         {
             self.schedule_menu_bar_close(cx);
         }
     }
 
     pub(crate) fn dismiss_menu_bar_from_body(&mut self, cx: &mut Context<Self>) {
-        if self.menu_bar_open.is_some() {
+        if self.chrome.menu_bar_open.is_some() {
             self.close_menu_bar(cx);
         }
     }
 
     pub(crate) fn request_save_document(&mut self, cx: &mut Context<Self>) {
-        if !self.pending_save {
-            self.pending_save = true;
+        if !self.file.pending_save {
+            self.file.pending_save = true;
             cx.notify();
         }
     }
 
     pub(crate) fn request_save_document_as(&mut self, cx: &mut Context<Self>) {
-        if !self.pending_save_as {
-            self.pending_save_as = true;
+        if !self.file.pending_save_as {
+            self.file.pending_save_as = true;
             cx.notify();
         }
     }
@@ -509,7 +509,7 @@ impl Editor {
         open_target: String,
         cx: &mut Context<Self>,
     ) {
-        self.pending_open_link = Some(PendingOpenLink {
+        self.file.pending_open_link = Some(PendingOpenLink {
             prompt_target,
             open_target,
         });
@@ -517,17 +517,17 @@ impl Editor {
     }
 
     pub(crate) fn close_menu_bar(&mut self, cx: &mut Context<Self>) {
-        let had_open_menu = self.menu_bar_open.take().is_some();
-        let had_open_submenu = self.menu_submenu_open.take().is_some();
-        let had_hover_state = self.menu_bar_hovered
-            || self.menu_panel_hovered
-            || self.menu_submenu_panel_hovered
-            || self.menu_submenu_bridge_hovered;
-        let had_pending_close = self.menu_close_task.take().is_some();
-        self.menu_bar_hovered = false;
-        self.menu_panel_hovered = false;
-        self.menu_submenu_panel_hovered = false;
-        self.menu_submenu_bridge_hovered = false;
+        let had_open_menu = self.chrome.menu_bar_open.take().is_some();
+        let had_open_submenu = self.chrome.menu_submenu_open.take().is_some();
+        let had_hover_state = self.chrome.menu_bar_hovered
+            || self.chrome.menu_panel_hovered
+            || self.chrome.menu_submenu_panel_hovered
+            || self.chrome.menu_submenu_bridge_hovered;
+        let had_pending_close = self.chrome.menu_close_task.take().is_some();
+        self.chrome.menu_bar_hovered = false;
+        self.chrome.menu_panel_hovered = false;
+        self.chrome.menu_submenu_panel_hovered = false;
+        self.chrome.menu_submenu_bridge_hovered = false;
         if had_open_menu || had_open_submenu || had_hover_state || had_pending_close {
             cx.notify();
         }

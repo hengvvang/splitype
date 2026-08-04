@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::engine::editor::Editor;
+use crate::editor::controller::Editor;
 
 impl Editor {
     /// Dismiss the unsaved-changes dialog without closing the window.
@@ -13,10 +13,10 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.show_unsaved_changes_dialog = false;
-        self.pending_close_after_save = false;
-        if let Some(restore) = self.close_dialog_restore_focus.take() {
-            self.active_entity_id = Some(restore);
+        self.file.show_unsaved_changes_dialog = false;
+        self.file.pending_close_after_save = false;
+        if let Some(restore) = self.file.close_dialog_restore_focus.take() {
+            self.focus.active_entity = Some(restore);
         }
         cx.notify();
     }
@@ -28,8 +28,8 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.show_unsaved_changes_dialog = false;
-        self.pending_close_after_save = true;
+        self.file.show_unsaved_changes_dialog = false;
+        self.file.pending_close_after_save = true;
         self.save_document(window, cx);
     }
 
@@ -40,9 +40,9 @@ impl Editor {
         window: &mut Window,
         _cx: &mut Context<Self>,
     ) {
-        self.show_unsaved_changes_dialog = false;
-        self.pending_close_after_save = false;
-        self.close_dialog_restore_focus = None;
+        self.file.show_unsaved_changes_dialog = false;
+        self.file.pending_close_after_save = false;
+        self.file.close_dialog_restore_focus = None;
         window.remove_window();
     }
 
@@ -53,9 +53,9 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.document_dirty {
-            self.show_unsaved_changes_dialog = true;
-            self.close_dialog_restore_focus = self.active_entity_id;
+        if self.file.dirty {
+            self.file.show_unsaved_changes_dialog = true;
+            self.file.close_dialog_restore_focus = self.focus.active_entity;
             cx.notify();
         } else {
             window.remove_window();
@@ -70,13 +70,13 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        if self.document_dirty {
-            self.show_unsaved_changes_dialog = true;
-            self.close_dialog_restore_focus = self.active_entity_id;
+        if self.file.dirty {
+            self.file.show_unsaved_changes_dialog = true;
+            self.file.close_dialog_restore_focus = self.focus.active_entity;
             cx.notify();
             false
         } else {
-            self.close_guard_installed = false;
+            self.file.close_guard_installed = false;
             true
         }
     }
@@ -84,8 +84,8 @@ impl Editor {
     /// Cancel the pending-close-after-save flag (called when save fails or is
     /// cancelled, or when the save completes but close is no longer desired).
     pub(crate) fn abort_pending_close_after_save(&mut self, cx: &mut Context<Self>) {
-        self.pending_close_after_save = false;
-        self.close_dialog_restore_focus = None;
+        self.file.pending_close_after_save = false;
+        self.file.close_dialog_restore_focus = None;
         cx.notify();
     }
 }

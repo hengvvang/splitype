@@ -1,309 +1,26 @@
-//! Sidebar file explorer tree — types, scanning, and outline parsing.
+//! Workspace sidebar rendering and editor interactions.
 //!
-//! Extracted from [`crate::engine::explorer`].
-//!
-//! This module owns:
-//! - The data types: [`WorkspaceTreeKind`], [`WorkspaceTreeNode`],
-//!   [`WorkspaceSelection`], [`Explorer`].
-//! - Pure functions: `scan_workspace_dir`, `build_outline_tree`,
-//!   `is_markdown_file`, `is_ignored_workspace_entry`.
-//!
-//! The `impl Editor` methods (`toggle_workspace_drawer`, `sync_workspace_*`,
-//! `render_workspace_*`) stay in [`crate::engine::explorer`].  The
-//! rendering methods call back into the types and helpers defined here
-//! for tree traversal, icon selection, and node-id generation.
+//! Rendering methods call into the workspace model defined in
+//! `crate::editor::workspace`.
 
-use std::collections::HashSet;
-use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
 use gpui::*;
 
-use crate::model::block::BlockKind;
-use crate::engine::editor::Editor;
+use crate::editor::controller::Editor;
+use crate::editor::workspace::*;
 use crate::services::i18n::{I18nManager, I18nStrings};
 use crate::ui::input::shortcuts::ToggleWorkspace;
 use crate::ui::theme::Theme;
 
-// ── Icons & constants ───────────────────────────────────────────────────
-
-pub const FOLDER_ICON: &str = "icon/workspace/folder.svg";
-pub const MARKDOWN_ICON: &str = "icon/workspace/markdown.svg";
-pub const FILE_ICON: &str = "icon/workspace/file.svg";
-pub const WORKSPACE_NODE_HEIGHT: f32 = 28.0;
-pub const WORKSPACE_NODE_INDENT: f32 = 14.0;
-
-// ── Data types ──────────────────────────────────────────────────────────
-
-/// What kind of filesystem or outline entry a tree node represents.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum WorkspaceTreeKind {
-    Directory(PathBuf),
-    MarkdownFile(PathBuf),
-    File(PathBuf),
-    Heading { line: usize, level: u8 },
-}
-
-/// A node in the workspace file tree or outline tree.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct WorkspaceTreeNode {
-    pub id: String,
-    pub label: String,
-    pub kind: WorkspaceTreeKind,
-    pub children: Vec<WorkspaceTreeNode>,
-}
-
-/// Which item is currently selected in the explorer sidebar.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum WorkspaceSelection {
-    File(PathBuf),
-    Outline(String),
-}
-
-/// Top-level explorer sidebar state.
-#[derive(Default)]
-pub struct Explorer {
-    pub is_open: bool,
-    pub root: Option<PathBuf>,
-    pub file_tree: Option<WorkspaceTreeNode>,
-    pub file_error: Option<String>,
-    pub outline_tree: Vec<WorkspaceTreeNode>,
-    pub outline_source: Option<String>,
-    pub expanded: HashSet<String>,
-    pub selected: Option<WorkspaceSelection>,
-}
-
-// ── Filesystem helpers ──────────────────────────────────────────────────
-
-/// Returns `true` when `path` has a `.md` extension (case-insensitive).
-pub fn is_markdown_file(path: &Path) -> bool {
-    path.extension()
-        .is_some_and(|extension| extension.to_string_lossy().eq_ignore_ascii_case("md"))
-}
-
-/// Returns `true` for directory names that the workspace scanner skips.
-pub fn is_ignored_workspace_entry(name: &str) -> bool {
-    name == "node_modules"
-        || name == "target"
-        || name == "dist"
-        || name == "build"
-        || name == ".git"
-}
-
-/// Recursively scan a directory into a [`WorkspaceTreeNode`] tree.
-///
-/// Directories sort before files; within each group entries are sorted
-/// case-insensitively by label.
-pub fn scan_workspace_dir(path: &Path) -> Result<WorkspaceTreeNode> {
-    let mut children = Vec::new();
-    let read_dir = fs::read_dir(path)
-        .map_err(|err| anyhow::anyhow!("failed to read '{}': {err}", path.display()))?;
-
-    for entry in read_dir {
-        let Ok(entry) = entry else {
-            continue;
-        };
-        let entry_path = entry.path();
-        let name = entry.file_name().to_string_lossy().into_owned();
-
-        if is_ignored_workspace_entry(&name) {
-            continue;
-        }
-
-        if entry_path.is_dir() {
-            let dir_children = scan_workspace_dir(&entry_path)
-                .map(|node| node.children)
-                .unwrap_or_default();
-            children.push(WorkspaceTreeNode {
-                id: file_node_id(&entry_path),
-                label: name,
-                kind: WorkspaceTreeKind::Directory(entry_path),
-                children: dir_children,
-            });
-        } else if entry_path.is_file() {
-            let kind = if is_markdown_file(&entry_path) {
-                WorkspaceTreeKind::MarkdownFile(entry_path.clone())
-            } else {
-                WorkspaceTreeKind::File(entry_path.clone())
-            };
-            children.push(WorkspaceTreeNode {
-                id: file_node_id(&entry_path),
-                label: name,
-                kind,
-                children: Vec::new(),
-            });
-        }
-    }
-
-    children.sort_by(|left, right| {
-        let left_dir = matches!(left.kind, WorkspaceTreeKind::Directory(_));
-        let right_dir = matches!(right.kind, WorkspaceTreeKind::Directory(_));
-        right_dir
-            .cmp(&left_dir)
-            .then_with(|| left.label.to_lowercase().cmp(&right.label.to_lowercase()))
-    });
-
-    Ok(WorkspaceTreeNode {
-        id: file_node_id(path),
-        label: file_label(path),
-        kind: WorkspaceTreeKind::Directory(path.to_path_buf()),
-        children,
-    })
-}
-
-/// Human-readable label for a path (its final component).
-pub fn file_label(path: &Path) -> String {
-    path.file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_else(|| path.to_string_lossy().into_owned())
-}
-
-/// Stable string id for a file node.
-pub fn file_node_id(path: &Path) -> String {
-    format!("file:{}", path.to_string_lossy())
-}
-
-/// Stable numeric hash of a node id, for use as a DOM element id suffix.
-pub fn stable_node_hash(id: &str) -> u64 {
-    use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    id.hash(&mut hasher);
-    hasher.finish()
-}
-
-// ── Outline helpers ─────────────────────────────────────────────────────
-
-/// Prune expanded-node state and selection that no longer exist in the
-/// current outline tree.
-pub fn prune_outline_state(workspace: &mut Explorer, outline: &[WorkspaceTreeNode]) {
-    let mut current_ids = HashSet::new();
-    collect_node_ids(outline, &mut current_ids);
-    workspace
-        .expanded
-        .retain(|id| !is_outline_node_id(id) || current_ids.contains(id));
-
-    if matches!(
-        &workspace.selected,
-        Some(WorkspaceSelection::Outline(id)) if !current_ids.contains(id)
-    ) {
-        workspace.selected = None;
-    }
-}
-
-/// Collect all node ids from a tree (recursively) into `ids`.
-pub fn collect_node_ids(nodes: &[WorkspaceTreeNode], ids: &mut HashSet<String>) {
-    for node in nodes {
-        ids.insert(node.id.clone());
-        collect_node_ids(&node.children, ids);
-    }
-}
-
-/// Returns `true` when `id` is an outline-node id (starts with "outline:").
-pub fn is_outline_node_id(id: &str) -> bool {
-    id.starts_with("outline:")
-}
-
-/// Parse a Markdown document into an outline tree (headings only).
-///
-/// Code-fence content is skipped so headings inside fenced blocks are not
-/// included in the outline.
-pub fn build_outline_tree(markdown: &str) -> Vec<WorkspaceTreeNode> {
-    let mut roots = Vec::new();
-    let mut stack: Vec<(u8, Vec<usize>)> = Vec::new();
-    let mut fence: Option<(char, usize)> = None;
-
-    for (line_index, line) in markdown.lines().enumerate() {
-        let trimmed = line.trim_start();
-        if let Some((marker, len)) = fence {
-            if is_closing_fence(trimmed, marker, len) {
-                fence = None;
-            }
-            continue;
-        }
-
-        if let Some(next_fence) = opening_fence(trimmed) {
-            fence = Some(next_fence);
-            continue;
-        }
-
-        let Some((level, title)) = BlockKind::parse_atx_heading_line(line) else {
-            continue;
-        };
-
-        while stack
-            .last()
-            .is_some_and(|(parent_level, _)| *parent_level >= level)
-        {
-            stack.pop();
-        }
-
-        let node = WorkspaceTreeNode {
-            id: format!("outline:{line_index}"),
-            label: title,
-            kind: WorkspaceTreeKind::Heading {
-                line: line_index,
-                level,
-            },
-            children: Vec::new(),
-        };
-
-        let siblings = if let Some((_, parent_path)) = stack.last() {
-            children_at_path_mut(&mut roots, parent_path)
-        } else {
-            &mut roots
-        };
-        siblings.push(node);
-
-        let mut node_path = stack
-            .last()
-            .map(|(_, path)| path.clone())
-            .unwrap_or_default();
-        node_path.push(siblings.len() - 1);
-        stack.push((level, node_path));
-    }
-
-    roots
-}
-
-/// Navigate to a child list at the given index path.
-fn children_at_path_mut<'a>(
-    nodes: &'a mut Vec<WorkspaceTreeNode>,
-    path: &[usize],
-) -> &'a mut Vec<WorkspaceTreeNode> {
-    let mut current = nodes;
-    for &index in path {
-        current = &mut current[index].children;
-    }
-    current
-}
-
-/// Detect an opening code fence.
-fn opening_fence(trimmed: &str) -> Option<(char, usize)> {
-    let marker = trimmed.chars().next()?;
-    if marker != '`' && marker != '~' {
-        return None;
-    }
-    let len = trimmed.chars().take_while(|ch| *ch == marker).count();
-    (len >= 3).then_some((marker, len))
-}
-
-/// Detect a closing code fence.
-fn is_closing_fence(trimmed: &str, marker: char, len: usize) -> bool {
-    let count = trimmed.chars().take_while(|ch| *ch == marker).count();
-    count >= len && trimmed[count..].trim().is_empty()
-}
-
-// ── Editor methods ────────────────────────────────────────────────────────
-
 impl Editor {
     pub(crate) fn toggle_workspace_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.workspace.is_open {
-            self.workspace.is_open = false;
+        if self.panels.workspace.is_open {
+            self.panels.workspace.is_open = false;
         } else {
             self.close_menu_bar(cx);
             self.dismiss_contextual_overlays(cx);
-            self.workspace.is_open = true;
+            self.panels.workspace.is_open = true;
             self.sync_workspace_models(cx);
             window.activate_window();
         }
@@ -320,13 +37,13 @@ impl Editor {
     }
 
     pub(crate) fn sync_workspace_after_document_path_change(&mut self, cx: &mut Context<Self>) {
-        if self.workspace.root.is_none() {
-            self.workspace.root = self.workspace_root_for_current_file();
+        if self.panels.workspace.root.is_none() {
+            self.panels.workspace.root = self.workspace_root_for_current_file();
         }
-        self.workspace.file_tree = None;
-        self.workspace.file_error = None;
-        self.workspace.outline_source = None;
-        if self.workspace.is_open {
+        self.panels.workspace.file_tree = None;
+        self.panels.workspace.file_error = None;
+        self.panels.workspace.outline_source = None;
+        if self.panels.workspace.is_open {
             self.sync_workspace_models(cx);
         }
     }
@@ -337,7 +54,7 @@ impl Editor {
     }
 
     pub(crate) fn workspace_root_for_current_file(&self) -> Option<PathBuf> {
-        self.file_path.as_ref()?.parent().map(Path::to_path_buf)
+        self.file.path.as_ref()?.parent().map(Path::to_path_buf)
     }
 
     pub(crate) fn prompt_open_workspace_folder(
@@ -366,12 +83,12 @@ impl Editor {
             };
             eprintln!("[workspace] selected folder: {folder_path:?}");
             let _ = weak_editor.update(cx, |editor, cx| {
-                editor.workspace.root = Some(folder_path);
-                editor.workspace.is_open = true;
-                editor.workspace.file_tree = None;
-                editor.workspace.file_error = None;
+                editor.panels.workspace.root = Some(folder_path);
+                editor.panels.workspace.is_open = true;
+                editor.panels.workspace.file_tree = None;
+                editor.panels.workspace.file_error = None;
                 editor.sync_workspace_models(cx);
-                if let Some(ref tree) = editor.workspace.file_tree {
+                if let Some(ref tree) = editor.panels.workspace.file_tree {
                     eprintln!(
                         "[workspace] file_tree: {} children: {}",
                         tree.label,
@@ -391,7 +108,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let base_dir = parent_dir
-            .or_else(|| self.workspace.root.clone())
+            .or_else(|| self.panels.workspace.root.clone())
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
 
         let prompt = cx.prompt_for_new_path(&base_dir, Some("untitled.md"));
@@ -421,10 +138,10 @@ impl Editor {
                 let path_for_open = path.clone();
                 let weak_editor_for_open = weak_editor.clone();
                 let _ = weak_editor.update(cx, |editor, cx| {
-                    if editor.workspace.root.is_none() {
-                        editor.workspace.root = path.parent().map(Path::to_path_buf);
+                    if editor.panels.workspace.root.is_none() {
+                        editor.panels.workspace.root = path.parent().map(Path::to_path_buf);
                     }
-                    editor.workspace.file_tree = None;
+                    editor.panels.workspace.file_tree = None;
                     editor.sync_workspace_models(cx);
                     let _ = cx.update_window(window_handle, move |_, window, cx| {
                         let _ = weak_editor_for_open.update(cx, |editor, cx| {
@@ -443,7 +160,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let base_dir = parent_dir
-            .or_else(|| self.workspace.root.clone())
+            .or_else(|| self.panels.workspace.root.clone())
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
 
         let prompt = cx.prompt_for_new_path(&base_dir, Some("new_folder"));
@@ -456,7 +173,7 @@ impl Editor {
                     return;
                 }
                 let _ = weak_editor.update(cx, |editor, cx| {
-                    editor.workspace.file_tree = None;
+                    editor.panels.workspace.file_tree = None;
                     editor.sync_workspace_models(cx);
                     cx.notify();
                 });
@@ -465,15 +182,15 @@ impl Editor {
     }
 
     pub(crate) fn collapse_all_workspace_nodes(&mut self, cx: &mut Context<Self>) {
-        self.workspace.expanded.clear();
-        if let Some(root) = &self.workspace.file_tree {
-            self.workspace.expanded.insert(root.id.clone());
+        self.panels.workspace.expanded.clear();
+        if let Some(root) = &self.panels.workspace.file_tree {
+            self.panels.workspace.expanded.insert(root.id.clone());
         }
         cx.notify();
     }
 
     pub(crate) fn refresh_workspace_tree(&mut self, cx: &mut Context<Self>) {
-        self.workspace.file_tree = None;
+        self.panels.workspace.file_tree = None;
         self.sync_workspace_models(cx);
         cx.notify();
     }
@@ -539,7 +256,7 @@ impl Editor {
                     eprintln!("failed to delete item: {err}");
                 } else {
                     let _ = weak_editor.update(cx, |editor, cx| {
-                        editor.workspace.file_tree = None;
+                        editor.panels.workspace.file_tree = None;
                         editor.sync_workspace_models(cx);
                         cx.notify();
                     });
@@ -553,7 +270,7 @@ impl Editor {
         let target_path = parent.join(default_name);
         if std::fs::File::create(&target_path).is_ok() {
             self.refresh_workspace_tree(cx);
-            self.workspace.selected = Some(WorkspaceSelection::File(target_path));
+            self.panels.workspace.selected = Some(WorkspaceSelection::File(target_path));
         }
     }
 
@@ -583,57 +300,57 @@ impl Editor {
     }
 
     pub(crate) fn sync_workspace_file_tree(&mut self) {
-        if self.workspace.root.is_none() {
-            self.workspace.root = self.workspace_root_for_current_file();
+        if self.panels.workspace.root.is_none() {
+            self.panels.workspace.root = self.workspace_root_for_current_file();
         }
 
-        let Some(root) = self.workspace.root.clone() else {
-            self.workspace.selected = None;
+        let Some(root) = self.panels.workspace.root.clone() else {
+            self.panels.workspace.selected = None;
             return;
         };
 
         if root.as_os_str().is_empty() {
-            self.workspace.file_error = Some("Invalid workspace path: empty path".to_string());
-            self.workspace.selected = None;
+            self.panels.workspace.file_error = Some("Invalid workspace path: empty path".to_string());
+            self.panels.workspace.selected = None;
             return;
         }
 
         match scan_workspace_dir(&root) {
             Ok(tree) => {
-                self.workspace.expanded.insert(tree.id.clone());
-                self.workspace.file_tree = Some(tree);
-                self.workspace.selected = self
-                    .file_path
+                self.panels.workspace.expanded.insert(tree.id.clone());
+                self.panels.workspace.file_tree = Some(tree);
+                self.panels.workspace.selected = self
+                    .file.path
                     .as_ref()
                     .map(|path| WorkspaceSelection::File(path.clone()));
             }
             Err(err) => {
-                self.workspace.file_error = Some(err.to_string());
+                self.panels.workspace.file_error = Some(err.to_string());
             }
         }
     }
 
     pub(crate) fn sync_workspace_outline(&mut self, cx: &mut Context<Self>) {
         let source = self.serialized_document_text(cx);
-        if self.workspace.outline_source.as_deref() == Some(source.as_str()) {
+        if self.panels.workspace.outline_source.as_deref() == Some(source.as_str()) {
             return;
         }
 
         let outline = build_outline_tree(&source);
-        prune_outline_state(&mut self.workspace, &outline);
-        self.workspace.outline_tree = outline;
-        self.workspace.outline_source = Some(source);
+        prune_outline_state(&mut self.panels.workspace, &outline);
+        self.panels.workspace.outline_tree = outline;
+        self.panels.workspace.outline_source = Some(source);
     }
 
     pub(crate) fn toggle_workspace_node(&mut self, id: &str, cx: &mut Context<Self>) {
-        if !self.workspace.expanded.remove(id) {
-            self.workspace.expanded.insert(id.to_string());
+        if !self.panels.workspace.expanded.remove(id) {
+            self.panels.workspace.expanded.insert(id.to_string());
         }
         cx.notify();
     }
 
     pub(crate) fn select_outline_node(&mut self, id: String, cx: &mut Context<Self>) {
-        self.workspace.selected = Some(WorkspaceSelection::Outline(id));
+        self.panels.workspace.selected = Some(WorkspaceSelection::Outline(id));
         cx.notify();
     }
 
@@ -643,7 +360,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.workspace.selected = Some(WorkspaceSelection::File(path.clone()));
+        self.panels.workspace.selected = Some(WorkspaceSelection::File(path.clone()));
         self.request_dropped_markdown_replace(path, window, cx);
     }
 
@@ -653,7 +370,7 @@ impl Editor {
         _strings: &I18nStrings,
         editor: &WeakEntity<Editor>,
     ) -> AnyElement {
-        if self.workspace.root.is_none() {
+        if self.panels.workspace.root.is_none() {
             return self.render_workspace_empty_state(
                 "Explorer is empty now",
                 "Open a folder as the workspace",
@@ -662,7 +379,7 @@ impl Editor {
             );
         }
 
-        if let Some(error) = self.workspace.file_error.as_ref() {
+        if let Some(error) = self.panels.workspace.file_error.as_ref() {
             return self.render_workspace_empty_state(
                 "Explorer is empty now",
                 error,
@@ -671,7 +388,7 @@ impl Editor {
             );
         }
 
-        let Some(root) = self.workspace.file_tree.as_ref() else {
+        let Some(root) = self.panels.workspace.file_tree.as_ref() else {
             return self.render_workspace_empty_state(
                 "Explorer is empty now",
                 "Open a folder as the workspace",
@@ -691,7 +408,7 @@ impl Editor {
 
         let c = &theme.colors;
         let root_name = self
-            .workspace
+            .panels.workspace
             .root
             .as_ref()
             .and_then(|p| p.file_name())
@@ -863,7 +580,7 @@ impl Editor {
         strings: &I18nStrings,
         editor: &WeakEntity<Editor>,
     ) -> AnyElement {
-        if self.workspace.outline_tree.is_empty() {
+        if self.panels.workspace.outline_tree.is_empty() {
             return self.render_workspace_empty_state(
                 "",
                 &strings.workspace_empty_outline,
@@ -876,7 +593,7 @@ impl Editor {
             .w_full()
             .flex()
             .flex_col()
-            .children(self.render_workspace_nodes(&self.workspace.outline_tree, 0, theme, editor))
+            .children(self.render_workspace_nodes(&self.panels.workspace.outline_tree, 0, theme, editor))
             .into_any_element()
     }
 
@@ -976,7 +693,7 @@ impl Editor {
 
     pub(crate) fn render_workspace_nodes(
         &self,
-        nodes: &[WorkspaceTreeNode],
+        nodes: &[WorkspaceNode],
         depth: usize,
         theme: &Theme,
         editor: &WeakEntity<Editor>,
@@ -984,7 +701,7 @@ impl Editor {
         let mut elements = Vec::new();
         for node in nodes {
             elements.push(self.render_workspace_node(node, depth, theme, editor));
-            if !node.children.is_empty() && self.workspace.expanded.contains(&node.id) {
+            if !node.children.is_empty() && self.panels.workspace.expanded.contains(&node.id) {
                 elements.extend(self.render_workspace_nodes(
                     &node.children,
                     depth + 1,
@@ -998,18 +715,18 @@ impl Editor {
 
     pub(crate) fn render_workspace_node(
         &self,
-        node: &WorkspaceTreeNode,
+        node: &WorkspaceNode,
         depth: usize,
         theme: &Theme,
         editor: &WeakEntity<Editor>,
     ) -> AnyElement {
         let c = &theme.colors;
         let t = &theme.typography;
-        let is_expanded = self.workspace.expanded.contains(&node.id);
+        let is_expanded = self.panels.workspace.expanded.contains(&node.id);
         let has_children = !node.children.is_empty();
-        let selected = match (&self.workspace.selected, &node.kind) {
-            (Some(WorkspaceSelection::File(selected)), WorkspaceTreeKind::MarkdownFile(path))
-            | (Some(WorkspaceSelection::File(selected)), WorkspaceTreeKind::File(path)) => {
+        let selected = match (&self.panels.workspace.selected, &node.kind) {
+            (Some(WorkspaceSelection::File(selected)), WorkspaceNodeKind::MarkdownFile(path))
+            | (Some(WorkspaceSelection::File(selected)), WorkspaceNodeKind::File(path)) => {
                 selected == path
             }
             (Some(WorkspaceSelection::Outline(selected)), _) => selected == &node.id,
@@ -1024,11 +741,11 @@ impl Editor {
         let arrow_editor = editor.clone();
 
         let icon = match &node.kind {
-            WorkspaceTreeKind::Directory(_) => Some((FOLDER_ICON, Hsla::from(rgba(0xf59e0bff)))),
-            WorkspaceTreeKind::MarkdownFile(_) => {
+            WorkspaceNodeKind::Directory(_) => Some((FOLDER_ICON, Hsla::from(rgba(0xf59e0bff)))),
+            WorkspaceNodeKind::MarkdownFile(_) => {
                 Some((MARKDOWN_ICON, Hsla::from(rgba(0x2563ebff))))
             }
-            WorkspaceTreeKind::File(path) => {
+            WorkspaceNodeKind::File(path) => {
                 let ext = path
                     .extension()
                     .and_then(|e| e.to_str())
@@ -1043,11 +760,11 @@ impl Editor {
                     _ => Some((FILE_ICON, c.dialog_muted)),
                 }
             }
-            WorkspaceTreeKind::Heading { .. } => None,
+            WorkspaceNodeKind::Heading { .. } => None,
         };
 
         let heading_badge = match &node.kind {
-            WorkspaceTreeKind::Heading { level, .. } => {
+            WorkspaceNodeKind::Heading { level, .. } => {
                 let badge_color = match level {
                     1 => c.callout_note_border,
                     2 => c.callout_tip_border,
@@ -1148,10 +865,10 @@ impl Editor {
             .on_mouse_down(MouseButton::Right, move |event, _window, cx| {
                 let node_kind = right_click_kind.clone();
                 let _ = right_click_editor.update(cx, |editor, cx| match node_kind {
-                    WorkspaceTreeKind::Directory(path) => {
+                    WorkspaceNodeKind::Directory(path) => {
                         editor.open_workspace_file_context_menu(event.position, path, true, cx);
                     }
-                    WorkspaceTreeKind::MarkdownFile(path) | WorkspaceTreeKind::File(path) => {
+                    WorkspaceNodeKind::MarkdownFile(path) | WorkspaceNodeKind::File(path) => {
                         editor.open_workspace_file_context_menu(event.position, path, false, cx);
                     }
                     _ => {}
@@ -1162,13 +879,13 @@ impl Editor {
                 let node_id = node_id.clone();
                 let click_kind = click_kind.clone();
                 let _ = click_editor.update(cx, |editor, cx| match click_kind {
-                    WorkspaceTreeKind::Directory(_) => {
+                    WorkspaceNodeKind::Directory(_) => {
                         editor.toggle_workspace_node(&node_id, cx);
                     }
-                    WorkspaceTreeKind::MarkdownFile(path) | WorkspaceTreeKind::File(path) => {
+                    WorkspaceNodeKind::MarkdownFile(path) | WorkspaceNodeKind::File(path) => {
                         editor.open_workspace_file(path, window, cx);
                     }
-                    WorkspaceTreeKind::Heading { .. } => {
+                    WorkspaceNodeKind::Heading { .. } => {
                         editor.select_outline_node(node_id, cx);
                     }
                 });

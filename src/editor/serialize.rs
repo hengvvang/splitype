@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use crate::engine::editor::Editor;
+use crate::editor::controller::Editor;
 use crate::services::i18n::I18nManager;
 
 fn longest_marker_run(text: &str, marker: char) -> usize {
@@ -48,7 +48,7 @@ pub(crate) fn safe_code_fence_with_info(content: &str, info: Option<&str>) -> St
 
 impl Editor {
     pub(crate) fn serialized_document_text(&self, cx: &App) -> String {
-        if self.view_mode == crate::engine::editor::EditMode::Source {
+        if self.mode == crate::editor::controller::EditorMode::Source {
             self.document.to_raw_source(cx)
         } else {
             self.document.to_markdown(cx)
@@ -56,7 +56,7 @@ impl Editor {
     }
 
     pub(crate) fn save_dialog_defaults(&self) -> (PathBuf, Option<String>) {
-        if let Some(path) = self.file_path.as_ref() {
+        if let Some(path) = self.file.path.as_ref() {
             let directory = path
                 .parent()
                 .map(Path::to_path_buf)
@@ -74,12 +74,12 @@ impl Editor {
     }
 
     pub(crate) fn apply_successful_save(&mut self, path: PathBuf, cx: &mut Context<Self>) {
-        self.file_path = Some(path);
-        self.document_dirty = false;
-        self.pending_window_edited = false;
-        self.pending_window_title_refresh = true;
-        self.pending_close_after_save = false;
-        self.close_dialog_restore_focus = None;
+        self.file.path = Some(path);
+        self.file.dirty = false;
+        self.file.pending_window_edited = false;
+        self.file.pending_window_title_refresh = true;
+        self.file.pending_close_after_save = false;
+        self.file.close_dialog_restore_focus = None;
         self.sync_workspace_after_document_path_change(cx);
         cx.notify();
     }
@@ -122,7 +122,7 @@ impl Editor {
         let weak_editor_for_error = weak_editor.clone();
         let weak_editor_for_write_error = weak_editor.clone();
         let window_handle = window.window_handle();
-        let should_close_after_save = self.pending_close_after_save;
+        let should_close_after_save = self.file.pending_close_after_save;
 
         cx.spawn(async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
             let mut path = match prompt.await {
@@ -203,8 +203,8 @@ impl Editor {
     }
 
     pub(crate) fn save_document(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(path) = self.file_path.clone() {
-            let should_close_after_save = self.pending_close_after_save;
+        if let Some(path) = self.file.path.clone() {
+            let should_close_after_save = self.file.pending_close_after_save;
             if self.save_to_existing_path(&path, window, cx) {
                 if should_close_after_save {
                     window.remove_window();

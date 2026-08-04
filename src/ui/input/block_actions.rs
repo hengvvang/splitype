@@ -11,7 +11,7 @@ use crate::model::inline::text::RichText;
 use crate::editor::actions::{BlockAction, PastedImageSource, UndoCaptureKind};
 use crate::model::block::BlockKind;
 use crate::services::code_highlight::language::code_language_options_matching;
-use crate::ui::blocks::block_view::{Block, CollapsedCaretAffinity, InlineFormat};
+use crate::editor::block::{Block, CollapsedCaretAffinity, InlineFormat};
 use crate::ui::input::paste::should_split_plain_multiline_paste;
 use crate::ui::input::shortcuts::{
     BlockDown, BlockUp, BoldSelection, CodeSelection, Copy, Cut, Delete, DeleteBack,
@@ -1481,7 +1481,7 @@ impl Block {
             .as_ref()
             .zip(self.last_bounds)
             .and_then(|(lines, bounds)| {
-                crate::ui::inline::text_element::link_at_position(
+                crate::editor::text_layout::link_at_position(
                     self,
                     lines,
                     bounds,
@@ -1544,7 +1544,7 @@ impl Block {
                 .as_ref()
                 .zip(self.last_bounds)
                 .and_then(|(lines, bounds)| {
-                    crate::ui::inline::text_element::footnote_at_position(
+                    crate::editor::text_layout::footnote_at_position(
                         self,
                         lines,
                         bounds,

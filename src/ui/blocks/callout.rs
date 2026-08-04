@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::ui::blocks::block_view::Block;
+use crate::editor::block::Block;
 use crate::model::block::CalloutKind;
 use crate::ui::blocks::render::callout_accent_and_background;
 use crate::ui::theme::Theme;

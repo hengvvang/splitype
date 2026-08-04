@@ -1,23 +1,16 @@
 //! Bottom status bar helpers: cursor position, word count, custom
-//! buttons, and the shared `StatusBarState`.
+//! buttons, and status-bar rendering.
 
 use gpui::prelude::*;
 use gpui::*;
 
-use crate::engine::EditMode;
-use crate::engine::editor::Editor;
+use crate::editor::EditorMode;
+use crate::editor::chrome::StatusBarState;
+use crate::editor::controller::Editor;
 use crate::services::i18n::I18nStrings;
 use crate::services::storage::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
 use crate::ui::theme::Theme;
-use crate::ui::views::layout::{Axis, PaneKind};
-
-/// Mutable render state tracked across frames for hover effects.
-#[derive(Default)]
-pub struct StatusBarState {
-    pub sidebar_hovered: bool,
-    pub mode_hovered: bool,
-    pub custom_button_hovered: Option<String>,
-}
+use crate::editor::layout::{Axis, PaneKind};
 
 /// Render a cursor-position label (e.g. `12 : 47`).
 pub fn render_cursor((line, col): (usize, usize), theme: &Theme) -> AnyElement {
@@ -97,9 +90,9 @@ pub fn render_custom_button(
                   _window: &mut Window,
                   cx: &mut Context<Editor>| {
                 if *hovered {
-                    editor.status_bar.custom_button_hovered = Some(id.clone());
-                } else if editor.status_bar.custom_button_hovered.as_deref() == Some(&id) {
-                    editor.status_bar.custom_button_hovered = None;
+                    editor.chrome.status_bar.custom_button_hovered = Some(id.clone());
+                } else if editor.chrome.status_bar.custom_button_hovered.as_deref() == Some(&id) {
+                    editor.chrome.status_bar.custom_button_hovered = None;
                 }
                 cx.notify();
             },
@@ -139,7 +132,7 @@ pub fn render_sidebar_toggle(
              hovered: &bool,
              _window: &mut Window,
              cx: &mut Context<Editor>| {
-                editor.status_bar.sidebar_hovered = *hovered;
+                editor.chrome.status_bar.sidebar_hovered = *hovered;
                 cx.notify();
             },
         ))
@@ -157,7 +150,7 @@ pub fn render_sidebar_toggle(
 #[allow(dead_code)]
 pub fn render_mode_switch(
     state: &mut StatusBarState,
-    view_mode: EditMode,
+    view_mode: EditorMode,
     theme: &Theme,
     strings: &I18nStrings,
     cx: &mut Context<Editor>,
@@ -166,8 +159,8 @@ pub fn render_mode_switch(
     let d = &theme.dimensions;
 
     let label = match view_mode {
-        EditMode::Source => strings.status_bar_mode_rendered.clone(),
-        EditMode::Wysiwyg => strings.status_bar_mode_source.clone(),
+        EditorMode::Source => strings.status_bar_mode_rendered.clone(),
+        EditorMode::Wysiwyg => strings.status_bar_mode_source.clone(),
     };
 
     div()
@@ -191,7 +184,7 @@ pub fn render_mode_switch(
              hovered: &bool,
              _window: &mut Window,
              cx: &mut Context<Editor>| {
-                editor.status_bar.mode_hovered = *hovered;
+                editor.chrome.status_bar.mode_hovered = *hovered;
                 cx.notify();
             },
         ))
@@ -280,7 +273,7 @@ impl Editor {
 
         let mut right_items: Vec<AnyElement> = Vec::new();
 
-        if prefs.show_cursor_position && self.view_mode == EditMode::Source {
+        if prefs.show_cursor_position && self.mode == EditorMode::Source {
             right_items.push(render_cursor(
                 self.compute_source_cursor_position(cx),
                 theme,
@@ -301,7 +294,7 @@ impl Editor {
 
         for button in &prefs.custom_buttons {
             right_items.push(render_custom_button(
-                &mut self.status_bar,
+                &mut self.chrome.status_bar,
                 button,
                 theme,
                 cx,
@@ -352,15 +345,15 @@ impl Editor {
         let prefs = self.status_bar_settings(cx);
 
         let inner_leaf_count = self
-            .area_layout
+            .panels.layout
             .get_or_create_edit_inner_layout(container_id)
             .count_leaves();
 
-        let focused = self.area_layout.focused_inner_panel;
+        let focused = self.panels.layout.focused_inner_panel;
         let focused_inner_id =
             focused.and_then(|(cid, iid)| if cid == container_id { Some(iid) } else { None });
         let focused_area_type = focused_inner_id.and_then(|iid| {
-            self.area_layout
+            self.panels.layout
                 .get_or_create_edit_inner_layout(container_id)
                 .find_leaf_area(iid)
         });
@@ -387,7 +380,7 @@ impl Editor {
                 .child(ftype.name().to_string())
                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                     let _ = toggle_editor.update(cx, |ed, cx| {
-                        ed.area_layout.toggle_inner_dropdown(container_id, inner_id);
+                        ed.panels.layout.toggle_inner_dropdown(container_id, inner_id);
                         cx.notify();
                     });
                 });
@@ -409,7 +402,7 @@ impl Editor {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = split_h_editor.update(cx, |ed, cx| {
-                            ed.area_layout.split_inner_edit_area(
+                            ed.panels.layout.split_inner_edit_area(
                                 container_id,
                                 inner_id,
                                 Axis::Horizontal,
@@ -436,7 +429,7 @@ impl Editor {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = split_v_editor.update(cx, |ed, cx| {
-                            ed.area_layout.split_inner_edit_area(
+                            ed.panels.layout.split_inner_edit_area(
                                 container_id,
                                 inner_id,
                                 Axis::Vertical,
@@ -464,11 +457,11 @@ impl Editor {
                         )
                         .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                             let _ = close_editor.update(cx, |ed, cx| {
-                                ed.area_layout.close_inner_edit_area(container_id, inner_id);
-                                if ed.area_layout.focused_inner_panel
+                                ed.panels.layout.close_inner_edit_area(container_id, inner_id);
+                                if ed.panels.layout.focused_inner_panel
                                     == Some((container_id, inner_id))
                                 {
-                                    ed.area_layout.focused_inner_panel = None;
+                                    ed.panels.layout.focused_inner_panel = None;
                                 }
                                 cx.notify();
                             });

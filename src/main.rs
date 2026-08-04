@@ -19,7 +19,7 @@ use gpui::*;
 
 mod app;
 mod editor;
-mod engine;
+
 mod model;
 mod platform;
 mod services;

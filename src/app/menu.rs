@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Context as _;
 use gpui::*;
 
-use crate::engine::editor::{Editor, InfoDialogKind};
+use crate::editor::controller::{Editor, InfoDialogKind};
 use crate::services::export::ExportFormat;
 use crate::services::i18n::I18nManager;
 use crate::services::storage::recent_files::{

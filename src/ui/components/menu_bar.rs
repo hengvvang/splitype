@@ -2,7 +2,7 @@
 //!
 //! These pure functions compute layout, estimate label widths, and render
 //! shared chrome.  Editor-level state machines that track open / hover
-//! indices stay in [`crate::engine::render`].
+//! indices stay in [`crate::editor::render`].
 
 use gpui::*;
 

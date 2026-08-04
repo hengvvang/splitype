@@ -1,4 +1,3 @@
-pub mod block_view;
 pub mod blockquote;
 pub mod callout;
 pub mod fenced_code;

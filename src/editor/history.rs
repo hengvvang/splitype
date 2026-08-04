@@ -7,8 +7,8 @@ use std::time::Instant;
 
 use gpui::*;
 
-use super::editor::{
-    BlockData, EditMode, Editor, HistoryEntry, InfoDialogKind, PendingUndoCapture, UndoCaptureKind,
+use super::controller::{
+    BlockData, EditorMode, Editor, HistoryEntry, InfoDialogKind, PendingUndoCapture, UndoCaptureKind,
     UndoSelectionSnapshot,
 };
 
@@ -25,7 +25,7 @@ impl Editor {
             return snapshot;
         }
 
-        if self.view_mode == EditMode::Source {
+        if self.mode == EditorMode::Source {
             return self
                 .document
                 .first_root()
@@ -40,14 +40,14 @@ impl Editor {
         }
 
         let Some(target) = self.current_edit_target_from_state(cx) else {
-            return self.last_selection_snapshot.clone();
+            return self.undo.last_selection_snapshot.clone();
         };
         let Some(mapping) = self
             .build_source_target_mappings(cx)
             .into_iter()
             .find(|mapping| mapping.entity.entity_id() == target.entity_id())
         else {
-            return self.last_selection_snapshot.clone();
+            return self.undo.last_selection_snapshot.clone();
         };
 
         let selected_range = target.read(cx).selected_range.clone();
@@ -77,40 +77,40 @@ impl Editor {
 
     pub(crate) fn capture_stable_history_entry(&self, kind: UndoCaptureKind) -> HistoryEntry {
         HistoryEntry {
-            source_text: self.last_stable_source_text.clone(),
-            selection: self.last_selection_snapshot.clone(),
+            source_text: self.undo.last_stable_source_text.clone(),
+            selection: self.undo.last_selection_snapshot.clone(),
             timestamp: Instant::now(),
             kind,
         }
     }
 
     pub(crate) fn prepare_undo_capture(&mut self, kind: UndoCaptureKind, cx: &mut Context<Self>) {
-        if self.history_restore_in_progress || self.pending_undo_capture.is_some() {
+        if self.undo.restore_in_progress || self.undo.pending_capture.is_some() {
             return;
         }
-        self.pending_undo_capture = Some(PendingUndoCapture {
+        self.undo.pending_capture = Some(PendingUndoCapture {
             snapshot: self.capture_history_entry(kind, cx),
         });
     }
 
     pub(crate) fn prepare_undo_capture_from_stable_snapshot(&mut self, kind: UndoCaptureKind) {
-        if self.history_restore_in_progress || self.pending_undo_capture.is_some() {
+        if self.undo.restore_in_progress || self.undo.pending_capture.is_some() {
             return;
         }
-        self.pending_undo_capture = Some(PendingUndoCapture {
+        self.undo.pending_capture = Some(PendingUndoCapture {
             snapshot: self.capture_stable_history_entry(kind),
         });
     }
 
     pub(crate) fn refresh_stable_document_snapshot(&mut self, cx: &App) {
-        self.last_selection_snapshot = self.capture_source_selection_snapshot(cx);
-        self.last_stable_source_text = self.current_document_source(cx);
+        self.undo.last_selection_snapshot = self.capture_source_selection_snapshot(cx);
+        self.undo.last_stable_source_text = self.current_document_source(cx);
     }
 
     pub(crate) fn refresh_preview_blocks(&mut self, cx: &mut Context<Self>) {
         let source = self.document.to_markdown(cx);
         let hash = Self::hash_str(&source);
-        if hash != self.preview_source_hash || self.preview_blocks.is_empty() {
+        if hash != self.preview.source_hash || self.preview.blocks.is_empty() {
             let mut roots = Self::parse_document(cx, &source);
             if roots.is_empty() {
                 roots.push(Self::new_block(
@@ -118,7 +118,7 @@ impl Editor {
                     crate::model::block::BlockData::paragraph(String::new()),
                 ));
             }
-            self.preview_source_hash = hash;
+            self.preview.source_hash = hash;
         }
     }
 
@@ -133,14 +133,14 @@ impl Editor {
         let doc_text = self.document.to_markdown(cx);
         let doc_hash = Self::hash_str(&doc_text);
 
-        if self.source_panel_block.is_none() || doc_hash != self.source_panel_hash() {
-            self.source_panel_block = None;
+        if self.preview.source_panel_block.is_none() || doc_hash != self.source_panel_hash() {
+            self.preview.source_panel_block = None;
             let block =
                 Self::new_standalone_block(cx, crate::model::block::BlockData::paragraph(doc_text));
             block.update(cx, |block, _cx| block.set_source_document_mode());
             cx.subscribe(&block, Self::on_source_panel_changed).detach();
-            self.source_panel_block = Some(block);
-            self.source_panel_doc_hash = doc_hash;
+            self.preview.source_panel_block = Some(block);
+            self.preview.source_panel_doc_hash = doc_hash;
         }
     }
 
@@ -148,7 +148,7 @@ impl Editor {
     /// changes back to the shared document — no structural event processing.
     pub(crate) fn on_source_panel_changed(
         &mut self,
-        block: Entity<crate::ui::blocks::block_view::Block>,
+        block: Entity<crate::editor::block::Block>,
         event: &crate::editor::actions::BlockAction,
         cx: &mut Context<Self>,
     ) {
@@ -170,12 +170,12 @@ impl Editor {
         self.document.replace_blocks(roots, cx);
         self.rebuild_table_runtimes(cx);
         self.rebuild_image_runtimes(cx);
-        self.source_panel_doc_hash = Self::hash_str(&text);
+        self.preview.source_panel_doc_hash = Self::hash_str(&text);
         self.mark_dirty(cx);
     }
 
     pub(crate) fn source_panel_hash(&self) -> u64 {
-        self.source_panel_doc_hash
+        self.preview.source_panel_doc_hash
     }
 
     pub(crate) fn hash_str(s: &str) -> u64 {
@@ -186,12 +186,12 @@ impl Editor {
     }
 
     pub(crate) fn finalize_pending_undo_capture(&mut self, cx: &mut Context<Self>) {
-        if self.history_restore_in_progress {
-            self.pending_undo_capture = None;
+        if self.undo.restore_in_progress {
+            self.undo.pending_capture = None;
             return;
         }
 
-        let Some(pending) = self.pending_undo_capture.take() else {
+        let Some(pending) = self.undo.pending_capture.take() else {
             self.refresh_stable_document_snapshot(cx);
             return;
         };
@@ -203,10 +203,10 @@ impl Editor {
         }
 
         // A fresh edit invalidates any forward history available for redo.
-        self.redo_history.clear();
+        self.undo.redo_entries.clear();
 
         let should_merge = matches!(pending.snapshot.kind, UndoCaptureKind::CoalescibleText)
-            && self.undo_history.last().is_some_and(|entry| {
+            && self.undo.undo_entries.last().is_some_and(|entry| {
                 matches!(entry.kind, UndoCaptureKind::CoalescibleText)
                     && pending
                         .snapshot
@@ -215,10 +215,10 @@ impl Editor {
                         <= Self::HISTORY_COALESCE_WINDOW
             });
         if !should_merge {
-            self.undo_history.push(pending.snapshot);
-            if self.undo_history.len() > Self::HISTORY_LIMIT {
-                let overflow = self.undo_history.len() - Self::HISTORY_LIMIT;
-                self.undo_history.drain(0..overflow);
+            self.undo.undo_entries.push(pending.snapshot);
+            if self.undo.undo_entries.len() > Self::HISTORY_LIMIT {
+                let overflow = self.undo.undo_entries.len() - Self::HISTORY_LIMIT;
+                self.undo.undo_entries.drain(0..overflow);
             }
         }
         self.refresh_stable_document_snapshot(cx);
@@ -229,8 +229,8 @@ impl Editor {
         snapshot: &UndoSelectionSnapshot,
         cx: &mut Context<Self>,
     ) {
-        match self.view_mode {
-            EditMode::Source => {
+        match self.mode {
+            EditorMode::Source => {
                 let Some(block) = self.document.first_root().cloned() else {
                     return;
                 };
@@ -244,10 +244,10 @@ impl Editor {
                     block.cursor_blink_epoch = Instant::now();
                     cx.notify();
                 });
-                self.pending_focus = Some(block.entity_id());
-                self.active_entity_id = Some(block.entity_id());
+                self.focus.pending = Some(block.entity_id());
+                self.focus.active_entity = Some(block.entity_id());
             }
-            EditMode::Wysiwyg => {
+            EditorMode::Wysiwyg => {
                 if self.apply_cross_block_selection_snapshot_if_possible(snapshot, cx) {
                     return;
                 }
@@ -297,8 +297,8 @@ impl Editor {
                         block.cursor_blink_epoch = Instant::now();
                         cx.notify();
                     });
-                    self.pending_focus = Some(mapping.entity.entity_id());
-                    self.active_entity_id = Some(mapping.entity.entity_id());
+                    self.focus.pending = Some(mapping.entity.entity_id());
+                    self.focus.active_entity = Some(mapping.entity.entity_id());
                     return;
                 }
 
@@ -307,8 +307,8 @@ impl Editor {
                     Self::source_offset_distance(&mapping.full_source_range, caret_offset)
                 });
                 let Some(mapping) = best else {
-                    self.pending_focus = self.first_focusable_entity_id(cx);
-                    self.active_entity_id = self.pending_focus;
+                    self.focus.pending = self.first_focusable_entity_id(cx);
+                    self.focus.active_entity = self.focus.pending;
                     return;
                 };
                 let local_source = if caret_offset <= mapping.full_source_range.start {
@@ -327,15 +327,15 @@ impl Editor {
                 mapping.entity.update(cx, move |block, cx| {
                     block.assign_collapsed_selection_offset(
                         current_offset,
-                        crate::ui::blocks::block_view::CollapsedCaretAffinity::Default,
+                        crate::editor::block::CollapsedCaretAffinity::Default,
                         None,
                     );
                     block.marked_range = None;
                     block.cursor_blink_epoch = Instant::now();
                     cx.notify();
                 });
-                self.pending_focus = Some(mapping.entity.entity_id());
-                self.active_entity_id = Some(mapping.entity.entity_id());
+                self.focus.pending = Some(mapping.entity.entity_id());
+                self.focus.active_entity = Some(mapping.entity.entity_id());
             }
         }
     }
@@ -359,8 +359,8 @@ impl Editor {
     }
 
     pub(crate) fn restore_history_entry(&mut self, entry: &HistoryEntry, cx: &mut Context<Self>) {
-        match self.view_mode {
-            EditMode::Wysiwyg => {
+        match self.mode {
+            EditorMode::Wysiwyg => {
                 let mut roots = Self::parse_document(cx, &entry.source_text);
                 if roots.is_empty() {
                     roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
@@ -369,23 +369,23 @@ impl Editor {
                 self.rebuild_table_runtimes(cx);
                 self.rebuild_image_runtimes(cx);
             }
-            EditMode::Source => {
+            EditorMode::Source => {
                 let block = Self::new_block(cx, BlockData::paragraph(entry.source_text.clone()));
                 block.update(cx, |block, _cx| block.set_source_document_mode());
                 self.document.replace_blocks(vec![block], cx);
-                self.table_cells.clear();
+                self.tables.cells.clear();
             }
         }
 
         self.apply_selection_snapshot_in_current_mode(&entry.selection, cx);
-        self.pending_scroll_active_block_into_view = true;
-        self.pending_scroll_recheck_after_layout = true;
-        self.last_scroll_viewport_size = None;
+        self.focus.pending_scroll_active_block_into_view = true;
+        self.focus.pending_scroll_recheck_after_layout = true;
+        self.scroll.last_viewport_size = None;
         self.refresh_stable_document_snapshot(cx);
     }
 
     pub(crate) fn normalize_rendered_quote_structure(&mut self, cx: &mut Context<Self>) {
-        if self.view_mode != EditMode::Wysiwyg {
+        if self.mode != EditorMode::Wysiwyg {
             return;
         }
 
@@ -399,24 +399,24 @@ impl Editor {
         self.rebuild_table_runtimes(cx);
         self.rebuild_image_runtimes(cx);
         self.apply_selection_snapshot_in_current_mode(&selection_snapshot, cx);
-        self.pending_scroll_active_block_into_view = true;
-        self.pending_scroll_recheck_after_layout = true;
-        self.last_scroll_viewport_size = None;
+        self.focus.pending_scroll_active_block_into_view = true;
+        self.focus.pending_scroll_recheck_after_layout = true;
+        self.scroll.last_viewport_size = None;
     }
 
     pub(crate) fn undo_document(&mut self, cx: &mut Context<Self>) {
-        let Some(entry) = self.undo_history.pop() else {
+        let Some(entry) = self.undo.undo_entries.pop() else {
             return;
         };
 
         // Snapshot the current document so redo can step forward to it.
         let current = self.capture_history_entry(UndoCaptureKind::NonCoalescible, cx);
-        self.pending_undo_capture = None;
-        self.history_restore_in_progress = true;
+        self.undo.pending_capture = None;
+        self.undo.restore_in_progress = true;
         self.clear_cross_block_selection(cx);
         self.restore_history_entry(&entry, cx);
-        self.history_restore_in_progress = false;
-        self.redo_history.push(current);
+        self.undo.restore_in_progress = false;
+        self.undo.redo_entries.push(current);
         self.mark_dirty(cx);
         self.sync_table_axis_visuals(cx);
         self.dismiss_contextual_overlays(cx);
@@ -424,18 +424,18 @@ impl Editor {
     }
 
     pub(crate) fn redo_document(&mut self, cx: &mut Context<Self>) {
-        let Some(entry) = self.redo_history.pop() else {
+        let Some(entry) = self.undo.redo_entries.pop() else {
             return;
         };
 
         // Snapshot the current document so undo can step back to it again.
         let current = self.capture_history_entry(UndoCaptureKind::NonCoalescible, cx);
-        self.pending_undo_capture = None;
-        self.history_restore_in_progress = true;
+        self.undo.pending_capture = None;
+        self.undo.restore_in_progress = true;
         self.clear_cross_block_selection(cx);
         self.restore_history_entry(&entry, cx);
-        self.history_restore_in_progress = false;
-        self.undo_history.push(current);
+        self.undo.restore_in_progress = false;
+        self.undo.undo_entries.push(current);
         self.mark_dirty(cx);
         self.sync_table_axis_visuals(cx);
         self.dismiss_contextual_overlays(cx);
@@ -455,15 +455,15 @@ use crate::services::net::update_checker::{
 
 impl Editor {
     pub(crate) fn request_check_updates(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.show_unsaved_changes_dialog {
+        if self.file.show_unsaved_changes_dialog {
             return;
         }
-        if self.update_check_in_progress {
+        if self.chrome.update_check_in_progress {
             self.show_info_dialog(InfoDialogKind::CheckForUpdates, cx);
             return;
         }
 
-        self.update_check_in_progress = true;
+        self.chrome.update_check_in_progress = true;
         self.show_info_dialog(InfoDialogKind::CheckForUpdates, cx);
 
         let weak_editor = cx.entity().downgrade();
@@ -486,7 +486,7 @@ impl Editor {
                 .await;
 
             let _ = weak_editor.update(cx, |editor, cx| {
-                editor.update_check_in_progress = false;
+                editor.chrome.update_check_in_progress = false;
                 editor.hide_info_dialog(cx);
             });
 

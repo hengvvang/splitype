@@ -35,31 +35,31 @@ use crate::model::syntax::table::TableCellPosition;
 use crate::model::inline::text::RichText;
 use crate::editor::actions::{BlockAction, PastedImageSource};
 use crate::model::block::{BlockData, BlockKind};
-use crate::engine::editor::Editor;
+use crate::editor::controller::Editor;
 use crate::services::storage::settings::{ImagePasteBehavior, read_app_settings};
-use crate::ui::blocks::block_view::CollapsedCaretAffinity;
+use crate::editor::block::CollapsedCaretAffinity;
 
 impl Editor {
     pub(crate) fn focused_block_for_tab_key(
         &self,
         window: &mut Window,
         cx: &App,
-    ) -> Option<Entity<crate::ui::blocks::block_view::Block>> {
-        let is_focused = |block: &Entity<crate::ui::blocks::block_view::Block>| {
+    ) -> Option<Entity<crate::editor::block::Block>> {
+        let is_focused = |block: &Entity<crate::editor::block::Block>| {
             let block = block.read(cx);
             block.focus_handle.is_focused(window)
                 || block.code_language_focus_handle.is_focused(window)
         };
 
         if let Some(block) = self
-            .active_entity_id
+            .focus.active_entity
             .and_then(|entity_id| self.focusable_entity_by_id(entity_id))
             .filter(is_focused)
         {
             return Some(block);
         }
 
-        for binding in self.table_cells.values() {
+        for binding in self.tables.cells.values() {
             if is_focused(&binding.cell) {
                 return Some(binding.cell.clone());
             }
@@ -121,7 +121,7 @@ impl Editor {
     pub(crate) fn build_plain_paste_blocks_from_lines(
         cx: &mut Context<Self>,
         lines: &[String],
-    ) -> Vec<Entity<crate::ui::blocks::block_view::Block>> {
+    ) -> Vec<Entity<crate::editor::block::Block>> {
         let mut blocks = lines
             .iter()
             .filter(|line| !line.trim().is_empty())
@@ -145,10 +145,10 @@ impl Editor {
 
     pub(crate) fn block_is_quote_structure_related(
         &self,
-        block: &Entity<crate::ui::blocks::block_view::Block>,
+        block: &Entity<crate::editor::block::Block>,
         cx: &App,
     ) -> bool {
-        if self.view_mode != crate::engine::editor::EditMode::Wysiwyg {
+        if self.mode != crate::editor::controller::EditorMode::Wysiwyg {
             return false;
         }
 
@@ -160,7 +160,7 @@ impl Editor {
 
     pub(crate) fn refresh_rendered_quote_metadata_if_needed(
         &mut self,
-        block: &Entity<crate::ui::blocks::block_view::Block>,
+        block: &Entity<crate::editor::block::Block>,
         cx: &mut Context<Self>,
     ) {
         if !self.block_is_quote_structure_related(block, cx) {
@@ -171,7 +171,7 @@ impl Editor {
     }
 
     pub(crate) fn rendered_quote_text_requires_reparse(
-        block: &Entity<crate::ui::blocks::block_view::Block>,
+        block: &Entity<crate::editor::block::Block>,
         cx: &App,
     ) -> bool {
         let block_ref = block.read(cx);
@@ -227,13 +227,13 @@ impl Editor {
     }
 
     pub(crate) fn focus_block(&mut self, entity_id: EntityId) {
-        self.pending_focus = Some(entity_id);
-        self.active_entity_id = Some(entity_id);
-        self.pending_scroll_active_block_into_view = true;
+        self.focus.pending = Some(entity_id);
+        self.focus.active_entity = Some(entity_id);
+        self.focus.pending_scroll_active_block_into_view = true;
     }
 
     pub(crate) fn reset_block_cursor(
-        block: &Entity<crate::ui::blocks::block_view::Block>,
+        block: &Entity<crate::editor::block::Block>,
         cursor: usize,
         cx: &mut Context<Self>,
     ) {
@@ -249,7 +249,7 @@ impl Editor {
 
     pub(crate) fn focus_block_range(
         &mut self,
-        block: &Entity<crate::ui::blocks::block_view::Block>,
+        block: &Entity<crate::editor::block::Block>,
         range: std::ops::Range<usize>,
         cx: &mut Context<Self>,
     ) {
@@ -271,7 +271,7 @@ impl Editor {
     }
 
     pub(crate) fn image_paste_root_dir(&self) -> anyhow::Result<PathBuf> {
-        if let Some(parent) = self.file_path.as_ref().and_then(|path| path.parent()) {
+        if let Some(parent) = self.file.path.as_ref().and_then(|path| path.parent()) {
             return Ok(parent.to_path_buf());
         }
         std::env::current_dir().context("failed to resolve current working directory")
@@ -302,13 +302,13 @@ impl Editor {
             ImagePasteBehavior::CopyToAssetsFolder => Ok(root_dir.join("assets")),
             ImagePasteBehavior::CopyToNamedAssetsFolder => {
                 let base = self
-                    .file_path
+                    .file.path
                     .as_ref()
                     .and_then(|path| path.file_stem())
                     .and_then(|stem| stem.to_str())
                     .filter(|stem| !stem.trim().is_empty())
                     .unwrap_or("untitle");
-                if self.file_path.is_some() {
+                if self.file.path.is_some() {
                     return Ok(root_dir.join(format!("{base}.assets")));
                 }
 
@@ -485,7 +485,7 @@ impl Editor {
     }
 
     pub(crate) fn inserted_image_tree_for_block(
-        block: &crate::ui::blocks::block_view::Block,
+        block: &crate::editor::block::Block,
         markdown: &str,
     ) -> RichText {
         if block.uses_raw_text_editing() || block.kind().is_code_block() {
@@ -497,7 +497,7 @@ impl Editor {
 
     pub(crate) fn replace_current_block_selection_with_image_text(
         &mut self,
-        block: &Entity<crate::ui::blocks::block_view::Block>,
+        block: &Entity<crate::editor::block::Block>,
         leading: &RichText,
         markdown: &str,
         trailing: &RichText,
@@ -520,7 +520,7 @@ impl Editor {
 
     pub(crate) fn insert_image_block_after_paragraph(
         &mut self,
-        block: &Entity<crate::ui::blocks::block_view::Block>,
+        block: &Entity<crate::editor::block::Block>,
         leading: &RichText,
         markdown: &str,
         trailing: &RichText,
@@ -579,7 +579,7 @@ impl Editor {
 
     pub(crate) fn handle_paste_image_request(
         &mut self,
-        block: Entity<crate::ui::blocks::block_view::Block>,
+        block: Entity<crate::editor::block::Block>,
         leading: &RichText,
         source: &PastedImageSource,
         trailing: &RichText,
@@ -607,7 +607,7 @@ impl Editor {
             crate::editor::actions::UndoCaptureKind::NonCoalescible,
             cx,
         );
-        let can_insert_image_block = self.view_mode == crate::engine::editor::EditMode::Wysiwyg
+        let can_insert_image_block = self.mode == crate::editor::controller::EditorMode::Wysiwyg
             && block.read(cx).kind() == BlockKind::Paragraph
             && self.table_cell_binding(block.entity_id()).is_none()
             && !block.read(cx).uses_raw_text_editing();
@@ -626,7 +626,7 @@ impl Editor {
     }
 
     pub(crate) fn jump_to_footnote_definition(&mut self, id: &str, cx: &mut Context<Self>) -> bool {
-        let Some(binding) = self.footnote_registry.binding(id) else {
+        let Some(binding) = self.references.footnotes.binding(id) else {
             return false;
         };
         let Some(block) = self.focusable_entity_by_id(binding.definition_entity_id) else {
@@ -637,7 +637,7 @@ impl Editor {
     }
 
     pub(crate) fn jump_to_footnote_backref(&mut self, id: &str, cx: &mut Context<Self>) -> bool {
-        let Some(binding) = self.footnote_registry.binding(id) else {
+        let Some(binding) = self.references.footnotes.binding(id) else {
             return false;
         };
         let Some(first_reference) = binding.first_reference.as_ref() else {
@@ -670,7 +670,7 @@ impl Editor {
     }
 
     pub(crate) fn set_block_title_and_kind(
-        block: &Entity<crate::ui::blocks::block_view::Block>,
+        block: &Entity<crate::editor::block::Block>,
         kind: BlockKind,
         title: RichText,
         cursor: usize,
@@ -695,7 +695,7 @@ impl Editor {
     /// A block that a setext underline below it can promote into a heading: a
     /// non-empty, single-line, plain paragraph with no children.
     pub(crate) fn is_setext_heading_target(
-        block: &Entity<crate::ui::blocks::block_view::Block>,
+        block: &Entity<crate::editor::block::Block>,
         cx: &App,
     ) -> bool {
         let block = block.read(cx);
@@ -712,7 +712,7 @@ impl Editor {
     /// true when it consumed the newline.
     pub(crate) fn try_form_setext_heading_on_newline(
         &mut self,
-        block: &Entity<crate::ui::blocks::block_view::Block>,
+        block: &Entity<crate::editor::block::Block>,
         cx: &mut Context<Self>,
     ) -> bool {
         let text = block.read(cx).display_text().to_string();
@@ -801,7 +801,7 @@ impl Editor {
     /// be typed. Returns true when it consumed the newline.
     pub(crate) fn try_form_or_extend_table_on_newline(
         &mut self,
-        block: &Entity<crate::ui::blocks::block_view::Block>,
+        block: &Entity<crate::editor::block::Block>,
         cx: &mut Context<Self>,
     ) -> bool {
         let text = block.read(cx).display_text().to_string();
@@ -866,8 +866,8 @@ impl Editor {
 
     pub(crate) fn extend_table_with_typed_row(
         &mut self,
-        table_block: &Entity<crate::ui::blocks::block_view::Block>,
-        row_block: &Entity<crate::ui::blocks::block_view::Block>,
+        table_block: &Entity<crate::editor::block::Block>,
+        row_block: &Entity<crate::editor::block::Block>,
         text: &str,
         cx: &mut Context<Self>,
     ) -> bool {
@@ -920,7 +920,7 @@ impl Editor {
     /// follows the block or it is not a stranding structure.
     pub(crate) fn ensure_trailing_paragraph_after_structural(
         &mut self,
-        block: &Entity<crate::ui::blocks::block_view::Block>,
+        block: &Entity<crate::editor::block::Block>,
         cx: &mut Context<Self>,
     ) {
         let strands = {
@@ -969,16 +969,16 @@ impl Editor {
 
     pub(crate) fn bump_scrollbar_visibility(&mut self, cx: &mut Context<Self>) {
         let duration = Duration::from_millis(900);
-        self.scrollbar_visible_until = Instant::now() + duration;
+        self.scroll.scrollbar_visible_until = Instant::now() + duration;
 
         let weak_editor = cx.entity().downgrade();
-        self.scrollbar_fade_task = Some(cx.spawn(
+        self.scroll.scrollbar_fade_task = Some(cx.spawn(
             async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
                 cx.background_executor()
                     .timer(duration + Duration::from_millis(50))
                     .await;
                 let _ = weak_editor.update(cx, |this, cx| {
-                    this.scrollbar_fade_task = None;
+                    this.scroll.scrollbar_fade_task = None;
                     cx.notify();
                 });
             },
@@ -993,7 +993,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.scrollbar_hovered = *hovered;
+        self.scroll.scrollbar_hovered = *hovered;
         if *hovered {
             self.bump_scrollbar_visibility(cx);
         } else {
@@ -1002,10 +1002,10 @@ impl Editor {
     }
 
     pub(crate) fn toggle_menu_bar_expanded(&mut self, cx: &mut Context<Self>) {
-        self.menu_bar_expanded = !self.menu_bar_expanded;
-        if !self.menu_bar_expanded {
-            self.menu_bar_open = None;
-            self.menu_submenu_open = None;
+        self.chrome.menu_bar_expanded = !self.chrome.menu_bar_expanded;
+        if !self.chrome.menu_bar_expanded {
+            self.chrome.menu_bar_open = None;
+            self.chrome.menu_submenu_open = None;
         }
         cx.notify();
     }
@@ -1068,7 +1068,7 @@ impl Editor {
     }
 
     pub(crate) fn on_page_up(&mut self, _: &PageUp, _window: &mut Window, cx: &mut Context<Self>) {
-        let page = self.scroll_handle.bounds().size.height;
+        let page = self.scroll.handle.bounds().size.height;
         self.scroll_viewport_by(page, cx);
     }
 
@@ -1078,7 +1078,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let page = self.scroll_handle.bounds().size.height;
+        let page = self.scroll.handle.bounds().size.height;
         self.scroll_viewport_by(-page, cx);
     }
 
@@ -1097,7 +1097,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let max_offset_y = self.scroll_handle.max_offset().height.max(px(0.0));
+        let max_offset_y = self.scroll.handle.max_offset().height.max(px(0.0));
         self.set_vertical_scroll_offset(-max_offset_y, cx);
     }
 
@@ -1105,21 +1105,21 @@ impl Editor {
     /// toward the start of the document; a negative one moves toward the end.
     /// One page is the current viewport height, so the step tracks window size.
     pub(crate) fn scroll_viewport_by(&mut self, delta: Pixels, cx: &mut Context<Self>) {
-        let target = self.scroll_handle.offset().y + delta;
+        let target = self.scroll.handle.offset().y + delta;
         self.set_vertical_scroll_offset(target, cx);
     }
 
     /// Applies an absolute vertical scroll offset, clamped to the scrollable
     /// range. Offsets run from 0 at the top to `-max_offset` at the bottom.
     pub(crate) fn set_vertical_scroll_offset(&mut self, target_y: Pixels, cx: &mut Context<Self>) {
-        let max_offset_y = self.scroll_handle.max_offset().height.max(px(0.0));
-        let mut offset = self.scroll_handle.offset();
+        let max_offset_y = self.scroll.handle.max_offset().height.max(px(0.0));
+        let mut offset = self.scroll.handle.offset();
         offset.y = target_y.min(px(0.0)).max(-max_offset_y);
-        self.scroll_handle.set_offset(offset);
+        self.scroll.handle.set_offset(offset);
         // A direct viewport scroll should stick, so cancel any queued pass that
         // would otherwise re-center the active block on the next frame.
-        self.pending_scroll_active_block_into_view = false;
-        self.pending_scroll_recheck_after_layout = false;
+        self.focus.pending_scroll_active_block_into_view = false;
+        self.focus.pending_scroll_recheck_after_layout = false;
         self.bump_scrollbar_visibility(cx);
         cx.notify();
     }
@@ -1132,14 +1132,14 @@ impl Editor {
         max_scroll_y: f32,
         cx: &mut Context<Self>,
     ) {
-        self.scrollbar_drag = Some(crate::engine::editor::ScrollbarDragSession {
+        self.scroll.scrollbar_drag = Some(crate::editor::controller::ScrollbarDragSession {
             pointer_offset_y: pointer_offset_y.clamp(0.0, thumb_height.max(0.0)),
             track_height,
             thumb_height,
             max_scroll_y,
         });
-        self.pending_scroll_active_block_into_view = false;
-        self.pending_scroll_recheck_after_layout = false;
+        self.focus.pending_scroll_active_block_into_view = false;
+        self.focus.pending_scroll_recheck_after_layout = false;
         self.bump_scrollbar_visibility(cx);
         cx.notify();
     }
@@ -1149,7 +1149,7 @@ impl Editor {
         pointer_y_in_track: f32,
         cx: &mut Context<Self>,
     ) {
-        let Some(drag) = self.scrollbar_drag else {
+        let Some(drag) = self.scroll.scrollbar_drag else {
             return;
         };
 
@@ -1162,15 +1162,15 @@ impl Editor {
             drag.max_scroll_y,
         );
 
-        let mut offset = self.scroll_handle.offset();
+        let mut offset = self.scroll.handle.offset();
         offset.y = -px(scroll_y);
-        self.scroll_handle.set_offset(offset);
+        self.scroll.handle.set_offset(offset);
         self.bump_scrollbar_visibility(cx);
         cx.notify();
     }
 
     pub(crate) fn end_scrollbar_drag(&mut self, cx: &mut Context<Self>) {
-        if self.scrollbar_drag.take().is_some() {
+        if self.scroll.scrollbar_drag.take().is_some() {
             self.bump_scrollbar_visibility(cx);
             cx.notify();
         }
@@ -1178,7 +1178,7 @@ impl Editor {
 
     pub(crate) fn focus_table_cell_position(
         &mut self,
-        table_block: &Entity<crate::ui::blocks::block_view::Block>,
+        table_block: &Entity<crate::editor::block::Block>,
         position: TableCellPosition,
         cx: &mut Context<Self>,
     ) -> bool {
@@ -1201,7 +1201,7 @@ impl Editor {
     /// header when the table has no body rows.
     pub(crate) fn focus_table_entry_cell(
         &mut self,
-        table_block: &Entity<crate::ui::blocks::block_view::Block>,
+        table_block: &Entity<crate::editor::block::Block>,
         from_top: bool,
         cx: &mut Context<Self>,
     ) -> bool {
@@ -1235,7 +1235,7 @@ impl Editor {
     /// (Move Up/Down semantics).
     pub(crate) fn focus_block_adjacent_to_table(
         &mut self,
-        table_block: &Entity<crate::ui::blocks::block_view::Block>,
+        table_block: &Entity<crate::editor::block::Block>,
         delta: i32,
         to_block_start: bool,
         cx: &mut Context<Self>,
@@ -1280,7 +1280,7 @@ impl Editor {
 
     pub(crate) fn focus_table_cell_horizontal_neighbor(
         &mut self,
-        table_block: &Entity<crate::ui::blocks::block_view::Block>,
+        table_block: &Entity<crate::editor::block::Block>,
         position: TableCellPosition,
         delta: i32,
         cx: &mut Context<Self>,
@@ -1316,7 +1316,7 @@ impl Editor {
 
     pub(crate) fn focus_table_cell_vertical_neighbor(
         &mut self,
-        table_block: &Entity<crate::ui::blocks::block_view::Block>,
+        table_block: &Entity<crate::editor::block::Block>,
         position: TableCellPosition,
         delta: i32,
         cx: &mut Context<Self>,
@@ -1346,12 +1346,12 @@ impl Editor {
 
     pub(crate) fn on_table_cell_event(
         &mut self,
-        binding: crate::engine::editor::TableCellBinding,
+        binding: crate::editor::controller::TableCellBinding,
         event: &BlockAction,
         cx: &mut Context<Self>,
     ) {
         if Self::block_event_clears_cross_block_selection(event) {
-            self.rendered_select_all_cycle = None;
+            self.selection.select_all_cycle = None;
             self.clear_cross_block_selection(cx);
         }
 
@@ -1458,7 +1458,7 @@ impl Editor {
         &self,
         entity_id: EntityId,
         cx: &App,
-    ) -> Option<Entity<crate::ui::blocks::block_view::Block>> {
+    ) -> Option<Entity<crate::editor::block::Block>> {
         let mut current = self.focusable_entity_by_id(entity_id)?;
         loop {
             if current.read(cx).kind().is_quote_container() {
@@ -1473,7 +1473,7 @@ impl Editor {
         &self,
         entity_id: EntityId,
         cx: &App,
-    ) -> Option<Entity<crate::ui::blocks::block_view::Block>> {
+    ) -> Option<Entity<crate::editor::block::Block>> {
         let mut current = self.nearest_quote_ancestor(entity_id, cx)?;
         loop {
             let Some(location) = self.document.find_block_location(current.entity_id()) else {
@@ -1494,7 +1494,7 @@ impl Editor {
         &self,
         entity_id: EntityId,
         cx: &App,
-    ) -> Option<(Option<Entity<crate::ui::blocks::block_view::Block>>, usize)> {
+    ) -> Option<(Option<Entity<crate::editor::block::Block>>, usize)> {
         let quote_block = self.nearest_quote_ancestor(entity_id, cx)?;
         let location = self.document.find_block_location(quote_block.entity_id())?;
         Some((location.parent.clone(), location.index + 1))
@@ -1504,7 +1504,7 @@ impl Editor {
         &self,
         entity_id: EntityId,
         cx: &App,
-    ) -> Option<(Option<Entity<crate::ui::blocks::block_view::Block>>, usize)> {
+    ) -> Option<(Option<Entity<crate::editor::block::Block>>, usize)> {
         let callout_root = self.topmost_quote_ancestor(entity_id, cx)?;
         let location = self
             .document
@@ -1514,9 +1514,9 @@ impl Editor {
 
     pub(crate) fn ensure_callout_body_entry(
         &mut self,
-        callout: &Entity<crate::ui::blocks::block_view::Block>,
+        callout: &Entity<crate::editor::block::Block>,
         cx: &mut Context<Self>,
-    ) -> Option<Entity<crate::ui::blocks::block_view::Block>> {
+    ) -> Option<Entity<crate::editor::block::Block>> {
         if !matches!(callout.read(cx).kind(), BlockKind::Callout(_)) {
             return None;
         }
@@ -1533,10 +1533,10 @@ impl Editor {
 
     pub(crate) fn materialize_empty_callout_shortcut(
         &mut self,
-        block: &Entity<crate::ui::blocks::block_view::Block>,
+        block: &Entity<crate::editor::block::Block>,
         cx: &mut Context<Self>,
     ) -> Option<EntityId> {
-        if self.view_mode != crate::engine::editor::EditMode::Wysiwyg {
+        if self.mode != crate::editor::controller::EditorMode::Wysiwyg {
             return None;
         }
 
@@ -1571,7 +1571,7 @@ impl Editor {
 
     pub(crate) fn downgrade_empty_callout_body_to_quote(
         &mut self,
-        block: &Entity<crate::ui::blocks::block_view::Block>,
+        block: &Entity<crate::editor::block::Block>,
         cx: &mut Context<Self>,
     ) -> bool {
         let Some(location) = self.document.find_block_location(block.entity_id()) else {
@@ -1630,7 +1630,7 @@ impl Editor {
     /// visible-order snapshot.
     pub(crate) fn on_block_event(
         &mut self,
-        block: Entity<crate::ui::blocks::block_view::Block>,
+        block: Entity<crate::editor::block::Block>,
         event: &BlockAction,
         cx: &mut Context<Self>,
     ) {
@@ -1677,7 +1677,7 @@ impl Editor {
         }
 
         if Self::block_event_clears_cross_block_selection(event) {
-            self.rendered_select_all_cycle = None;
+            self.selection.select_all_cycle = None;
             self.clear_cross_block_selection(cx);
         }
 
@@ -1746,7 +1746,7 @@ impl Editor {
                     cx,
                     BlockData::new(current_kind.newline_sibling_kind(), trailing.clone()),
                 );
-                if self.view_mode == crate::engine::editor::EditMode::Source {
+                if self.mode == crate::editor::controller::EditorMode::Source {
                     new_block.update(cx, |block, _cx| block.set_source_document_mode());
                 }
                 self.document.insert_blocks_at(
@@ -1776,7 +1776,7 @@ impl Editor {
                     cx,
                     BlockData::new(BlockKind::Paragraph, RichText::plain(String::new())),
                 );
-                if self.view_mode == crate::engine::editor::EditMode::Source {
+                if self.mode == crate::editor::controller::EditorMode::Source {
                     new_block.update(cx, |block, _cx| block.set_source_document_mode());
                 }
                 self.document.insert_blocks_at(
@@ -1883,7 +1883,7 @@ impl Editor {
                 );
 
                 let cursor_pos = prev.read(cx).display_text().len();
-                let adopted_children = crate::engine::document::Document::take_children(&block, cx);
+                let adopted_children = crate::editor::document::Document::take_children(&block, cx);
                 let removed_entity_id = block.entity_id();
 
                 self.document.with_structure_mutation(cx, |document, cx| {
@@ -2415,7 +2415,7 @@ impl Editor {
                     visible_before_ids.get(current_visible_index + 1).copied()
                 };
 
-                let adopted_children = crate::engine::document::Document::take_children(&block, cx);
+                let adopted_children = crate::editor::document::Document::take_children(&block, cx);
                 let removed = self.document.with_structure_mutation(cx, |document, cx| {
                     let (_, location) = document.remove_block_by_id_raw(block.entity_id(), cx)?;
                     if !adopted_children.is_empty() {
@@ -2468,7 +2468,7 @@ mod tests {
     use crate::model::inline::text::RichText;
     use crate::editor::actions::BlockAction;
 use crate::model::block::{BlockData, BlockKind, CalloutKind};
-    use crate::ui::blocks::block_view::Block;
+    use crate::editor::block::Block;
     use crate::ui::input::shortcuts::ExitCodeBlock;
     use crate::ui::input::shortcuts::{Delete, DeleteBack, Newline};
     use gpui::{App, AppContext, Entity, TestAppContext};
@@ -2489,7 +2489,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(editor.document.to_markdown(cx), "> first\n\n> ");
-            assert_eq!(editor.pending_focus, Some(visible[1].entity.entity_id()));
+            assert_eq!(editor.focus.pending, Some(visible[1].entity.entity_id()));
         });
     }
 
@@ -2553,7 +2553,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
                 },
                 cx,
             );
-            assert_eq!(editor.pending_focus, Some(definition.entity_id()));
+            assert_eq!(editor.focus.pending, Some(definition.entity_id()));
             assert_eq!(definition.read(cx).selected_range, 0..0);
 
             let expected_backref_range = paragraph
@@ -2567,7 +2567,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
                 },
                 cx,
             );
-            assert_eq!(editor.pending_focus, Some(paragraph.entity_id()));
+            assert_eq!(editor.focus.pending, Some(paragraph.entity_id()));
             assert_eq!(paragraph.read(cx).selected_range, expected_backref_range);
         });
     }
@@ -2656,7 +2656,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(editor.document.to_markdown(cx), "> [!NOTE]\n> ");
-            assert_eq!(editor.pending_focus, Some(visible[1].entity.entity_id()));
+            assert_eq!(editor.focus.pending, Some(visible[1].entity.entity_id()));
         });
     }
 
@@ -3526,7 +3526,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         editor.update(cx, |editor, _cx| {
             assert_eq!(editor.document.blocks().len(), 1);
-            assert_eq!(editor.pending_focus, next_cell_id);
+            assert_eq!(editor.focus.pending, next_cell_id);
         });
     }
 
@@ -3566,7 +3566,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             assert_eq!(children[0].read(cx).kind(), BlockKind::Table);
             assert_eq!(children[1].read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(children[1].read(cx).display_text(), "");
-            assert_eq!(editor.pending_focus, Some(children[1].entity_id()));
+            assert_eq!(editor.focus.pending, Some(children[1].entity_id()));
         });
     }
 
@@ -3605,7 +3605,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
             let following = editor.document.blocks()[1].entity.clone();
             assert_eq!(following.read(cx).display_text(), "after");
-            assert_eq!(editor.pending_focus, Some(following.entity_id()));
+            assert_eq!(editor.focus.pending, Some(following.entity_id()));
         });
     }
 
@@ -3633,7 +3633,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
             let preceding = editor.document.blocks()[0].entity.clone();
             assert_eq!(preceding.read(cx).display_text(), "before");
-            assert_eq!(editor.pending_focus, Some(preceding.entity_id()));
+            assert_eq!(editor.focus.pending, Some(preceding.entity_id()));
         });
     }
 
@@ -3662,7 +3662,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
                 .header
                 .first()
                 .map(|cell| cell.entity_id());
-            assert_eq!(editor.pending_focus, header_cell);
+            assert_eq!(editor.focus.pending, header_cell);
         });
     }
 
@@ -3689,7 +3689,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
                 .last()
                 .and_then(|row| row.first())
                 .map(|cell| cell.entity_id());
-            assert_eq!(editor.pending_focus, last_row_cell);
+            assert_eq!(editor.focus.pending, last_row_cell);
         });
     }
 
@@ -3715,7 +3715,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
             let preceding = editor.document.blocks()[0].entity.clone();
             assert_eq!(preceding.read(cx).display_text(), "before");
-            assert_eq!(editor.pending_focus, Some(preceding.entity_id()));
+            assert_eq!(editor.focus.pending, Some(preceding.entity_id()));
         });
     }
 
@@ -3740,7 +3740,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
                 .header
                 .first()
                 .map(|cell| cell.entity_id());
-            assert_eq!(editor.pending_focus, header_cell);
+            assert_eq!(editor.focus.pending, header_cell);
         });
     }
 
@@ -3763,7 +3763,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             let following = editor.document.blocks()[1].entity.clone();
             assert_eq!(following.read(cx).display_text(), "after");
             assert_eq!(editor.document.root_count(), 2);
-            assert_eq!(editor.pending_focus, Some(following.entity_id()));
+            assert_eq!(editor.focus.pending, Some(following.entity_id()));
         });
     }
 
@@ -3786,7 +3786,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             assert_eq!(roots.len(), 2);
             assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(roots[1].read(cx).display_text(), "");
-            assert_eq!(editor.pending_focus, Some(roots[1].entity_id()));
+            assert_eq!(editor.focus.pending, Some(roots[1].entity_id()));
         });
     }
 
@@ -3809,7 +3809,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             let roots = editor.document.root_blocks();
             assert_eq!(roots.len(), 2);
             assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
-            assert_eq!(editor.pending_focus, Some(roots[1].entity_id()));
+            assert_eq!(editor.focus.pending, Some(roots[1].entity_id()));
         });
     }
 
@@ -4459,7 +4459,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
                 editor.document.to_markdown(cx),
                 "> outer\n> > inner\n> \n> > "
             );
-            assert_eq!(editor.pending_focus, Some(visible[3].entity.entity_id()));
+            assert_eq!(editor.focus.pending, Some(visible[3].entity.entity_id()));
         });
     }
 
@@ -4675,7 +4675,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             assert_eq!(visible[2].entity.read(cx).display_text(), "");
             assert_eq!(visible[2].entity.read(cx).quote_depth, 0);
             assert_eq!(editor.document.to_markdown(cx), "> [!TIP]\n> body\n\n");
-            assert_eq!(editor.pending_focus, Some(visible[2].entity.entity_id()));
+            assert_eq!(editor.focus.pending, Some(visible[2].entity.entity_id()));
         });
     }
 

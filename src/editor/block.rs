@@ -22,12 +22,12 @@ use crate::model::syntax::link::LinkReferenceDefinitions;
 use crate::model::syntax::table::TableCellPosition;
 use crate::model::syntax::table::{TableAxisHighlight, TableAxisMarker, TableColumnAlignment};
 use crate::services::code_highlight::highlight::CodeHighlightResult;
-use crate::ui::blocks::table_block::TableGrid;
-use crate::ui::inline::projection::{
+use crate::editor::table::TableGrid;
+use crate::editor::projection::{
     ExpandedInlineProjection, ExpandedInlineSegment, ExpandedInlineSegmentKind, ExpandedLinkRun,
     ProjectedLinkSelectionSnapshot,
 };
-use crate::ui::inline::text_element as element;
+use crate::editor::text_layout as element;
 
 // ---------------------------------------------------------------------------
 // View-local types
@@ -62,13 +62,13 @@ pub(crate) enum CollapsedCaretAffinity {
 
 /// Editing semantics for the current block.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum EditMode {
+pub(crate) enum BlockEditMode {
     RenderedRich,
     SourceRaw,
     CodeBlockRaw,
 }
 
-impl EditMode {
+impl BlockEditMode {
     pub(crate) fn for_kind(kind: &BlockKind) -> Self {
         if kind.is_code_block() {
             Self::CodeBlockRaw
@@ -159,7 +159,7 @@ pub struct Block {
     collapsed_caret_affinity: CollapsedCaretAffinity,
     /// When true, block-level shortcuts and inline formatting are
     /// suppressed; the block stores raw text for source-mode editing.
-    pub(crate) edit_mode: EditMode,
+    pub(crate) edit_mode: BlockEditMode,
     show_source_line_numbers: bool,
     pub(crate) show_code_line_numbers: bool,
     pub(crate) table_runtime: Option<TableGrid>,
@@ -197,7 +197,7 @@ pub struct Block {
 
 impl Block {
     pub fn with_record(cx: &mut Context<Self>, record: BlockData) -> Self {
-        let edit_mode = EditMode::for_kind(&record.kind);
+        let edit_mode = BlockEditMode::for_kind(&record.kind);
         let render_cache = record.text.render_cache();
         let mut block = Self {
             record,
@@ -285,7 +285,7 @@ impl Block {
     }
 
     pub(crate) fn is_source_raw_mode(&self) -> bool {
-        self.edit_mode == EditMode::SourceRaw
+        self.edit_mode == BlockEditMode::SourceRaw
     }
 
     pub(crate) fn show_source_line_numbers(&self) -> bool {
@@ -328,7 +328,7 @@ impl Block {
 
     pub(crate) fn set_source_raw_mode(&mut self) {
         self.clear_inline_projection();
-        self.edit_mode = EditMode::SourceRaw;
+        self.edit_mode = BlockEditMode::SourceRaw;
         self.show_source_line_numbers = false;
     }
 
@@ -339,15 +339,15 @@ impl Block {
 
     pub(crate) fn sync_edit_mode_from_kind(&mut self) {
         if self.table_cell_position.is_some() {
-            self.edit_mode = EditMode::RenderedRich;
+            self.edit_mode = BlockEditMode::RenderedRich;
             self.show_source_line_numbers = false;
             return;
         }
-        if self.edit_mode != EditMode::SourceRaw {
+        if self.edit_mode != BlockEditMode::SourceRaw {
             if self.kind().is_code_block() {
                 self.clear_inline_projection();
             }
-            self.edit_mode = EditMode::for_kind(&self.record.kind);
+            self.edit_mode = BlockEditMode::for_kind(&self.record.kind);
             self.show_source_line_numbers = false;
         }
     }

@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::ui::blocks::block_view::Block;
+use crate::editor::block::Block;
 use crate::ui::blocks::render::{
     effective_list_item_image_width, numbered_list_marker, render_custom_bullet_marker,
 };

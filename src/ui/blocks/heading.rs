@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::ui::blocks::block_view::Block;
+use crate::editor::block::Block;
 use crate::ui::theme::Theme;
 
 /// Render a heading block at the given level (1–6).

@@ -4,7 +4,7 @@
 //!
 //! Mouse events are dispatched inline from the [`Editor`]'s
 //! GPUI event-emitter impl in [`crate::ui::input::keyboard`]
-//! and the render tree in [`crate::engine::render`].  The relevant
+//! and the render tree in [`crate::editor::render`].  The relevant
 //! methods are:
 //!
 //! | Event                        | Handler                                                |

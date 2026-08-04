@@ -6,7 +6,7 @@ use anyhow::{Context as AnyhowContext, Result};
 use gpui::*;
 
 use crate::model::block::BlockData;
-use crate::engine::editor::{EditMode, Editor};
+use crate::editor::controller::{EditorMode, Editor};
 use crate::services::i18n::I18nManager;
 
 /// Returns true when `path` exists and has a `.md` or `.markdown` extension.
@@ -52,12 +52,12 @@ impl Editor {
         self.hide_info_dialog(cx);
         self.dismiss_contextual_overlays(cx);
 
-        if self.document_dirty {
-            self.pending_drop_replace_path = Some(path);
-            self.pending_drop_replace_after_save = false;
-            if !self.show_drop_replace_dialog {
-                self.drop_replace_restore_focus = self.document.focused_block_entity_id(window, cx);
-                self.show_drop_replace_dialog = true;
+        if self.file.dirty {
+            self.file.pending_drop_replace_path = Some(path);
+            self.file.pending_drop_replace_after_save = false;
+            if !self.file.show_drop_replace_dialog {
+                self.file.drop_replace_restore_focus = self.document.focused_block_entity_id(window, cx);
+                self.file.show_drop_replace_dialog = true;
                 window.blur();
             }
             cx.notify();
@@ -95,54 +95,54 @@ impl Editor {
             roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
         }
 
-        self.file_path = file_path;
-        self.view_mode = EditMode::Wysiwyg;
+        self.file.path = file_path;
+        self.mode = EditorMode::Wysiwyg;
         self.document.replace_blocks(roots, cx);
-        self.table_cells.clear();
+        self.tables.cells.clear();
         self.rebuild_table_runtimes(cx);
         self.rebuild_image_runtimes(cx);
 
-        self.document_dirty = false;
-        self.pending_window_edited = false;
-        self.pending_window_title_refresh = true;
-        self.pending_save = false;
-        self.pending_save_as = false;
-        self.pending_open_link = None;
-        self.pending_close_after_save = false;
-        self.close_dialog_restore_focus = None;
-        self.show_unsaved_changes_dialog = false;
+        self.file.dirty = false;
+        self.file.pending_window_edited = false;
+        self.file.pending_window_title_refresh = true;
+        self.file.pending_save = false;
+        self.file.pending_save_as = false;
+        self.file.pending_open_link = None;
+        self.file.pending_close_after_save = false;
+        self.file.close_dialog_restore_focus = None;
+        self.file.show_unsaved_changes_dialog = false;
         self.clear_pending_drop_replace_state(cx);
         self.dismiss_contextual_overlays(cx);
         self.close_menu_bar(cx);
-        self.table_axis_preview = None;
-        self.table_axis_selection = None;
+        self.tables.axis_preview = None;
+        self.tables.axis_selection = None;
         self.sync_table_axis_visuals(cx);
         self.clear_cross_block_selection(cx);
 
-        self.pending_scroll_active_block_into_view = true;
-        self.pending_scroll_recheck_after_layout = true;
-        self.last_scroll_viewport_size = None;
-        self.scroll_handle.set_offset(point(px(0.0), px(0.0)));
-        self.pending_focus = self.first_focusable_entity_id(cx);
-        self.active_entity_id = self.pending_focus;
+        self.focus.pending_scroll_active_block_into_view = true;
+        self.focus.pending_scroll_recheck_after_layout = true;
+        self.scroll.last_viewport_size = None;
+        self.scroll.handle.set_offset(point(px(0.0), px(0.0)));
+        self.focus.pending = self.first_focusable_entity_id(cx);
+        self.focus.active_entity = self.focus.pending;
 
-        self.undo_history.clear();
-        self.redo_history.clear();
-        self.pending_undo_capture = None;
-        self.last_selection_snapshot = Self::empty_selection_snapshot();
-        self.last_stable_source_text = normalized;
-        self.history_restore_in_progress = false;
+        self.undo.undo_entries.clear();
+        self.undo.redo_entries.clear();
+        self.undo.pending_capture = None;
+        self.undo.last_selection_snapshot = Self::empty_selection_snapshot();
+        self.undo.last_stable_source_text = normalized;
+        self.undo.restore_in_progress = false;
         self.refresh_stable_document_snapshot(cx);
         self.sync_workspace_after_document_path_change(cx);
         cx.notify();
     }
 
     pub(crate) fn cancel_drop_replace_dialog(&mut self, cx: &mut Context<Self>) {
-        let restore_focus = self.drop_replace_restore_focus.take();
+        let restore_focus = self.file.drop_replace_restore_focus.take();
         self.clear_pending_drop_replace_state(cx);
         if let Some(focus_id) = restore_focus {
-            self.pending_focus = Some(focus_id);
-            self.pending_scroll_active_block_into_view = true;
+            self.focus.pending = Some(focus_id);
+            self.focus.pending_scroll_active_block_into_view = true;
         }
         cx.notify();
     }
@@ -152,7 +152,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(path) = self.pending_drop_replace_path.take() else {
+        let Some(path) = self.file.pending_drop_replace_path.take() else {
             self.clear_pending_drop_replace_state(cx);
             return;
         };
@@ -169,16 +169,16 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.pending_drop_replace_path.is_none() {
+        if self.file.pending_drop_replace_path.is_none() {
             self.clear_pending_drop_replace_state(cx);
             return;
         }
 
-        self.show_drop_replace_dialog = false;
-        self.pending_drop_replace_after_save = true;
+        self.file.show_drop_replace_dialog = false;
+        self.file.pending_drop_replace_after_save = true;
         self.close_menu_bar(cx);
 
-        if let Some(path) = self.file_path.clone() {
+        if let Some(path) = self.file.path.clone() {
             if self.save_to_existing_path(&path, window, cx) {
                 self.replace_after_successful_save(window, cx);
             } else {
@@ -223,7 +223,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(drop_path) = self.pending_drop_replace_path.take() else {
+        let Some(drop_path) = self.file.pending_drop_replace_path.take() else {
             self.clear_pending_drop_replace_state(cx);
             return;
         };
@@ -240,7 +240,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(drop_path) = self.pending_drop_replace_path.clone() else {
+        let Some(drop_path) = self.file.pending_drop_replace_path.clone() else {
             self.clear_pending_drop_replace_state(cx);
             return;
         };
@@ -314,7 +314,7 @@ impl Editor {
             let saved_path = save_path.clone();
             let replace_result = weak_editor.update(cx, move |this, cx| {
                 this.apply_successful_save(saved_path, cx);
-                this.pending_drop_replace_path = Some(drop_path);
+                this.file.pending_drop_replace_path = Some(drop_path);
                 this.replace_after_successful_save_async(cx)
             });
             let _ = cx.update_window(
@@ -343,7 +343,7 @@ impl Editor {
         &mut self,
         cx: &mut Context<Self>,
     ) -> Result<()> {
-        let Some(drop_path) = self.pending_drop_replace_path.take() else {
+        let Some(drop_path) = self.file.pending_drop_replace_path.take() else {
             self.clear_pending_drop_replace_state(cx);
             return Ok(());
         };
@@ -353,25 +353,25 @@ impl Editor {
     }
 
     pub(crate) fn abort_pending_drop_replace_after_save(&mut self, cx: &mut Context<Self>) {
-        self.pending_drop_replace_after_save = false;
-        self.show_drop_replace_dialog = false;
-        self.pending_drop_replace_path = None;
-        let restore_focus = self.drop_replace_restore_focus.take();
+        self.file.pending_drop_replace_after_save = false;
+        self.file.show_drop_replace_dialog = false;
+        self.file.pending_drop_replace_path = None;
+        let restore_focus = self.file.drop_replace_restore_focus.take();
         if let Some(focus_id) = restore_focus {
-            self.pending_focus = Some(focus_id);
-            self.pending_scroll_active_block_into_view = true;
+            self.focus.pending = Some(focus_id);
+            self.focus.pending_scroll_active_block_into_view = true;
         }
         cx.notify();
     }
 
     pub(crate) fn clear_pending_drop_replace_state(&mut self, cx: &mut Context<Self>) {
-        let had_path = self.pending_drop_replace_path.take().is_some();
-        let had_dialog = self.show_drop_replace_dialog;
-        let had_after_save = self.pending_drop_replace_after_save;
-        let had_restore_focus = self.drop_replace_restore_focus.take().is_some();
+        let had_path = self.file.pending_drop_replace_path.take().is_some();
+        let had_dialog = self.file.show_drop_replace_dialog;
+        let had_after_save = self.file.pending_drop_replace_after_save;
+        let had_restore_focus = self.file.drop_replace_restore_focus.take().is_some();
         let had_state = had_path || had_dialog || had_after_save || had_restore_focus;
-        self.show_drop_replace_dialog = false;
-        self.pending_drop_replace_after_save = false;
+        self.file.show_drop_replace_dialog = false;
+        self.file.pending_drop_replace_after_save = false;
         if had_state {
             cx.notify();
         }

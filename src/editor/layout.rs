@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PaneKind {
     /// File explorer / workspace tree.
-    Explorer,
+    Workspace,
     /// Application settings panel.
     Settings,
     /// Editor container – hosts sub-panels (Source, Block, Preview, Outline).
@@ -27,7 +27,7 @@ pub enum PaneKind {
 impl PaneKind {
     pub fn name(&self) -> &'static str {
         match self {
-            Self::Explorer => "Explorer",
+            Self::Workspace => "Explorer",
             Self::Settings => "Settings",
             Self::Editor => "Editor",
         }
@@ -36,7 +36,7 @@ impl PaneKind {
     #[allow(dead_code)]
     pub fn description(&self) -> &'static str {
         match self {
-            Self::Explorer => "Workspace file directory tree",
+            Self::Workspace => "Workspace file directory tree",
             Self::Settings => "Application settings & document info",
             Self::Editor => "Editor container with sub-panels",
         }
@@ -44,7 +44,7 @@ impl PaneKind {
 
     /// Outer layout area types (displayed in top-level dropdown).
     pub fn all() -> &'static [PaneKind] {
-        &[Self::Editor, Self::Explorer, Self::Settings]
+        &[Self::Editor, Self::Workspace, Self::Settings]
     }
 }
 
@@ -58,7 +58,7 @@ impl PaneKind {
 /// source to each sub-panel channel (Source / Wysiwyg / Preview / Outline),
 /// which process it independently and render in their own tile.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EditorView {
+pub enum EditorPanel {
     /// Raw Markdown text editor.
     Source,
     /// Visual block editor (WYSIWYG rendered view).
@@ -69,7 +69,7 @@ pub enum EditorView {
     Outline,
 }
 
-impl EditorView {
+impl EditorPanel {
     pub fn name(&self) -> &'static str {
         match self {
             Self::Source => "Source",
@@ -90,7 +90,7 @@ impl EditorView {
     }
 
     /// All inner Edit sub-panel types.
-    pub fn all() -> &'static [EditorView] {
+    pub fn all() -> &'static [EditorPanel] {
         &[Self::Wysiwyg, Self::Preview, Self::Source, Self::Outline]
     }
 }
@@ -150,7 +150,7 @@ pub enum CornerDragPreview {
 /// Recursive binary layout tree representing tiled areas and splitters.
 ///
 /// Generic over the area type `T` so that the outer layout uses `PaneKind`
-/// while inner (Edit sub-panel) layouts use `EditorView`.
+/// while inner (Edit sub-panel) layouts use `EditorPanel`.
 #[derive(Clone, Debug)]
 pub enum SplitTree<T: Copy> {
     Leaf {
@@ -624,13 +624,13 @@ impl Default for EditTabState {
 /// Full state for the tiled area layout manager.
 ///
 /// The outer tree (`root`) uses `PaneKind` for top-level areas.  Inner trees
-/// (`edit_inner_layouts`) use `EditorView` for sub-panels inside Edit areas.
+/// (`edit_inner_layouts`) use `EditorPanel` for sub-panels inside Edit areas.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Layout {
+pub struct WindowLayout {
     /// Outer tiled layout tree.
     pub root: SplitTree<PaneKind>,
     /// Per-Edit inner sub-panel layouts, keyed by container_id (= outer leaf id).
-    pub edit_inner_layouts: HashMap<usize, SplitTree<EditorView>>,
+    pub edit_inner_layouts: HashMap<usize, SplitTree<EditorPanel>>,
     pub next_id: usize,
     pub active_dropdown_leaf: Option<usize>,
     pub active_inner_dropdown: Option<(usize, usize)>,
@@ -665,7 +665,7 @@ pub struct Layout {
     pub editing_settings_stepper: Option<String>,
 }
 
-impl Default for Layout {
+impl Default for WindowLayout {
     fn default() -> Self {
         let mut sections = HashSet::new();
         sections.insert("theme".to_string());
@@ -718,7 +718,7 @@ impl Default for Layout {
     }
 }
 
-impl Layout {
+impl WindowLayout {
     // ------------------------------------------------------------------
     // Preset
     // ------------------------------------------------------------------
@@ -759,7 +759,7 @@ impl Layout {
                     ratio: 0.22,
                     first: Box::new(SplitTree::Leaf {
                         id: 2,
-                        area_type: PaneKind::Explorer,
+                        area_type: PaneKind::Workspace,
                     }),
                     second: Box::new(SplitTree::Leaf {
                         id: 3,
@@ -775,7 +775,7 @@ impl Layout {
                     ratio: 0.2,
                     first: Box::new(SplitTree::Leaf {
                         id: 2,
-                        area_type: PaneKind::Explorer,
+                        area_type: PaneKind::Workspace,
                     }),
                     second: Box::new(SplitTree::Split {
                         id: 3,
@@ -800,7 +800,7 @@ impl Layout {
                     ratio: 0.2,
                     first: Box::new(SplitTree::Leaf {
                         id: 2,
-                        area_type: PaneKind::Explorer,
+                        area_type: PaneKind::Workspace,
                     }),
                     second: Box::new(SplitTree::Split {
                         id: 3,
@@ -812,7 +812,7 @@ impl Layout {
                         }),
                         second: Box::new(SplitTree::Leaf {
                             id: 5,
-                            area_type: PaneKind::Explorer,
+                            area_type: PaneKind::Workspace,
                         }),
                     }),
                 };
@@ -828,8 +828,8 @@ impl Layout {
     /// Compute the next outer `PaneKind` when splitting a leaf.
     fn next_outer_type(current: PaneKind) -> PaneKind {
         match current {
-            PaneKind::Editor => PaneKind::Explorer,
-            PaneKind::Explorer => PaneKind::Settings,
+            PaneKind::Editor => PaneKind::Workspace,
+            PaneKind::Workspace => PaneKind::Settings,
             PaneKind::Settings => PaneKind::Editor,
         }
     }
@@ -881,12 +881,12 @@ impl Layout {
     // ------------------------------------------------------------------
 
     /// Get or create the inner layout for an Edit area.
-    /// New Edit areas default to a single `EditorView::Source` panel.
+    /// New Edit areas default to a single `EditorPanel::Source` panel.
     #[allow(dead_code)]
     pub fn get_or_create_edit_inner_layout(
         &mut self,
         container_id: usize,
-    ) -> &mut SplitTree<EditorView> {
+    ) -> &mut SplitTree<EditorPanel> {
         let next_id = &mut self.next_id;
         self.edit_inner_layouts
             .entry(container_id)
@@ -895,7 +895,7 @@ impl Layout {
                 *next_id += 1;
                 SplitTree::Leaf {
                     id: inner_id,
-                    area_type: EditorView::Source,
+                    area_type: EditorPanel::Source,
                 }
             })
     }
@@ -911,7 +911,7 @@ impl Layout {
         self.next_id += 1;
         let root = self.get_or_create_edit_inner_layout(container_id);
         // Inner splits always create a Source panel on the new side.
-        root.split_leaf_with_ratio(target_id, new_id, direction, 0.5, EditorView::Source);
+        root.split_leaf_with_ratio(target_id, new_id, direction, 0.5, EditorPanel::Source);
     }
 
     #[allow(dead_code)]
@@ -936,7 +936,7 @@ impl Layout {
         &mut self,
         container_id: usize,
         inner_leaf_id: usize,
-        new_type: EditorView,
+        new_type: EditorPanel,
     ) {
         let root = self.get_or_create_edit_inner_layout(container_id);
         root.set_leaf_area(inner_leaf_id, new_type);
@@ -954,7 +954,7 @@ impl Layout {
         let new_id = self.next_id;
         self.next_id += 1;
         if let Some(root) = self.edit_inner_layouts.get_mut(&container_id) {
-            root.split_leaf_with_ratio(target_leaf_id, new_id, direction, ratio, EditorView::Source);
+            root.split_leaf_with_ratio(target_leaf_id, new_id, direction, ratio, EditorPanel::Source);
         }
     }
 
@@ -1614,7 +1614,7 @@ mod tests {
 
     #[test]
     fn test_area_layout_suite() {
-        let mut layout = Layout::default();
+        let mut layout = WindowLayout::default();
         assert_eq!(layout.root.count_leaves(), 1);
 
         layout.split_area(1, Axis::Horizontal);
@@ -1626,8 +1626,8 @@ mod tests {
         layout.close_area(2);
         assert_eq!(layout.root.count_leaves(), 2);
 
-        layout.change_area_type(1, PaneKind::Explorer);
-        assert_eq!(layout.root.find_leaf_area(1), Some(PaneKind::Explorer));
+        layout.change_area_type(1, PaneKind::Workspace);
+        assert_eq!(layout.root.find_leaf_area(1), Some(PaneKind::Workspace));
 
         layout.toggle_maximize(1);
         assert_eq!(layout.maximized_leaf, Some(1));
@@ -1648,7 +1648,7 @@ mod tests {
 
     #[test]
     fn test_split_cycles_outer_types() {
-        let mut layout = Layout::default();
+        let mut layout = WindowLayout::default();
         // Default: single Edit leaf.
         assert_eq!(layout.root.find_leaf_area(1), Some(PaneKind::Editor));
 
@@ -1670,7 +1670,7 @@ mod tests {
 
     #[test]
     fn test_join_sibling_leaves() {
-        let mut layout = Layout::default();
+        let mut layout = WindowLayout::default();
         // Create a simple horizontal split: [Edit, Explorer]
         layout.split_area(1, Axis::Horizontal);
         assert_eq!(layout.root.count_leaves(), 2);
@@ -1685,7 +1685,7 @@ mod tests {
 
     #[test]
     fn test_join_nested_leaves() {
-        let mut layout = Layout::default();
+        let mut layout = WindowLayout::default();
         // Build: Split(H) { Leaf(1, Edit), Split(V) { Leaf(3, Explorer), Leaf(4, Settings) } }
         layout.split_area(1, Axis::Horizontal); // ids: 1 (Edit), 3 (Explorer)
         layout.split_area(3, Axis::Vertical); // ids: 1, 4, 5 (Explorer → Explorer + Settings)
@@ -1700,7 +1700,7 @@ mod tests {
 
     #[test]
     fn test_collect_leaf_rects() {
-        let mut layout = Layout::default();
+        let mut layout = WindowLayout::default();
         layout.split_area(1, Axis::Horizontal);
         let rects = layout.collect_leaf_rects(size(px(1000.0), px(800.0)));
         assert_eq!(rects.len(), 2);
@@ -1716,15 +1716,15 @@ mod tests {
 
     #[test]
     fn test_inner_layout_defaults_to_source() {
-        let mut layout = Layout::default();
+        let mut layout = WindowLayout::default();
         let inner = layout.get_or_create_edit_inner_layout(1);
         assert_eq!(inner.count_leaves(), 1);
-        assert_eq!(inner.find_leaf_area(1), Some(EditorView::Source));
+        assert_eq!(inner.find_leaf_area(1), Some(EditorPanel::Source));
     }
 
     #[test]
     fn test_inner_split_creates_source() {
-        let mut layout = Layout::default();
+        let mut layout = WindowLayout::default();
         // Set up inner: Source panel.
         let _ = layout.get_or_create_edit_inner_layout(1);
         // Split it. The new panel should be Source.

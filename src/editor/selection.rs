@@ -5,12 +5,12 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::ui::blocks::block_view::Block;
+use crate::editor::block::Block;
 use crate::model::block::BlockKind;
 use crate::editor::actions::UndoCaptureKind;
 use crate::model::syntax::table::serialize_table_markdown_lines;
-use crate::engine::editor::{
-    CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, EditMode, Editor,
+use crate::editor::controller::{
+    CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, EditorMode, Editor,
     SourceTargetMapping, UndoSelectionSnapshot,
 };
 use crate::ui::input::shortcuts::{Copy, Cut, Delete, DeleteBack};
@@ -40,8 +40,8 @@ impl Editor {
     }
 
     pub(crate) fn clear_cross_block_selection(&mut self, cx: &mut Context<Self>) {
-        let had_selection = self.cross_block_selection.take().is_some();
-        self.cross_block_drag = None;
+        let had_selection = self.selection.cross_block.take().is_some();
+        self.selection.cross_block_drag = None;
         let changed_visuals = self.clear_cross_block_selection_visuals(cx);
         let changed = had_selection || changed_visuals;
         if changed {
@@ -50,10 +50,10 @@ impl Editor {
     }
 
     fn begin_cross_block_drag_at_point(&mut self, position: Point<Pixels>, cx: &mut Context<Self>) {
-        let had_selection = self.cross_block_selection.take().is_some();
+        let had_selection = self.selection.cross_block.take().is_some();
         let changed_visuals = self.clear_cross_block_selection_visuals(cx);
         let changed = had_selection || changed_visuals;
-        self.cross_block_drag = self
+        self.selection.cross_block_drag = self
             .cross_block_endpoint_for_point(position, cx)
             .map(|anchor| CrossBlockDrag { anchor });
         if changed {
@@ -72,12 +72,12 @@ impl Editor {
             return;
         }
 
-        if self.view_mode != EditMode::Wysiwyg {
+        if self.mode != EditorMode::Wysiwyg {
             cx.propagate();
             return;
         }
 
-        self.rendered_select_all_cycle = None;
+        self.selection.select_all_cycle = None;
         self.begin_cross_block_drag_at_point(event.position, cx);
         cx.propagate();
     }
@@ -91,14 +91,14 @@ impl Editor {
         if !event.dragging() {
             return;
         }
-        let Some(drag) = self.cross_block_drag else {
+        let Some(drag) = self.selection.cross_block_drag else {
             return;
         };
         let Some(focus) = self.cross_block_endpoint_for_point(event.position, cx) else {
             return;
         };
 
-        if self.cross_block_selection.is_none() && drag.anchor.entity_id == focus.entity_id {
+        if self.selection.cross_block.is_none() && drag.anchor.entity_id == focus.entity_id {
             return;
         }
 
@@ -107,9 +107,9 @@ impl Editor {
             focus,
         };
         if self.cross_block_selection_is_empty(selection) {
-            self.cross_block_selection = None;
+            self.selection.cross_block = None;
         } else {
-            self.cross_block_selection = Some(selection);
+            self.selection.cross_block = Some(selection);
         }
         self.sync_cross_block_selection_visuals(cx);
         cx.notify();
@@ -121,7 +121,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.cross_block_drag = None;
+        self.selection.cross_block_drag = None;
         self.end_block_pointer_selection_sessions(cx);
     }
 
@@ -183,7 +183,7 @@ impl Editor {
         let Some(last) = visible.last() else {
             return false;
         };
-        let Some(selection) = self.cross_block_selection else {
+        let Some(selection) = self.selection.cross_block else {
             return false;
         };
         let last_len = last.entity.read(cx).visible_len();
@@ -217,7 +217,7 @@ impl Editor {
             block.cursor_blink_epoch = std::time::Instant::now();
             cx.notify();
         });
-        self.active_entity_id = Some(block.entity_id());
+        self.focus.active_entity = Some(block.entity_id());
         cx.notify();
     }
 
@@ -252,8 +252,8 @@ impl Editor {
             });
         }
 
-        self.cross_block_drag = None;
-        self.cross_block_selection = Some(CrossBlockSelection {
+        self.selection.cross_block_drag = None;
+        self.selection.cross_block = Some(CrossBlockSelection {
             anchor: CrossBlockSelectionEndpoint {
                 entity_id: first_id,
                 offset: 0,
@@ -272,14 +272,14 @@ impl Editor {
         block: Entity<Block>,
         cx: &mut Context<Self>,
     ) {
-        if self.view_mode != EditMode::Wysiwyg {
-            self.rendered_select_all_cycle = None;
+        if self.mode != EditorMode::Wysiwyg {
+            self.selection.select_all_cycle = None;
             return;
         }
 
         let now = std::time::Instant::now();
         let block_id = block.entity_id();
-        let count = match self.rendered_select_all_cycle {
+        let count = match self.selection.select_all_cycle {
             Some(cycle)
                 if cycle.entity_id == block_id
                     && now.duration_since(cycle.last_pressed_at)
@@ -291,7 +291,7 @@ impl Editor {
         }
         .min(3);
 
-        self.rendered_select_all_cycle = Some(super::RenderedSelectAllCycle {
+        self.selection.select_all_cycle = Some(super::RenderedSelectAllCycle {
             entity_id: block_id,
             count,
             last_pressed_at: now,
@@ -343,7 +343,7 @@ impl Editor {
             return false;
         }
 
-        self.cross_block_selection = Some(if snapshot.reversed {
+        self.selection.cross_block = Some(if snapshot.reversed {
             CrossBlockSelection {
                 anchor: end,
                 focus: start,
@@ -354,7 +354,7 @@ impl Editor {
                 focus: end,
             }
         });
-        self.cross_block_drag = None;
+        self.selection.cross_block_drag = None;
         self.sync_cross_block_selection_visuals(cx);
         let focus = if snapshot.reversed { start } else { end };
         self.focus_block(focus.entity_id);
@@ -423,7 +423,7 @@ impl Editor {
     }
 
     fn normalized_cross_block_selection(&self, cx: &App) -> Option<NormalizedCrossBlockSelection> {
-        let selection = self.cross_block_selection?;
+        let selection = self.selection.cross_block?;
         let anchor = self.clamp_cross_block_endpoint(selection.anchor, cx)?;
         let focus = self.clamp_cross_block_endpoint(selection.focus, cx)?;
         let anchor_index = self
@@ -597,8 +597,8 @@ impl Editor {
     }
 
     fn rebuild_after_cross_block_source_edit(&mut self, source: String, cx: &mut Context<Self>) {
-        match self.view_mode {
-            EditMode::Wysiwyg => {
+        match self.mode {
+            EditorMode::Wysiwyg => {
                 let mut roots = Self::parse_document(cx, &source);
                 if roots.is_empty() {
                     roots.push(Self::new_block(
@@ -610,12 +610,12 @@ impl Editor {
                 self.rebuild_table_runtimes(cx);
                 self.rebuild_image_runtimes(cx);
             }
-            EditMode::Source => {
+            EditorMode::Source => {
                 let block =
                     Self::new_block(cx, crate::model::block::BlockData::paragraph(source.clone()));
                 block.update(cx, |block, _cx| block.set_source_document_mode());
                 self.document.replace_blocks(vec![block], cx);
-                self.table_cells.clear();
+                self.tables.cells.clear();
             }
         }
     }
@@ -663,8 +663,8 @@ impl Editor {
         let start = source_range.start.min(source.len());
         let end = source_range.end.min(source.len());
         source.replace_range(start..end, new_text);
-        self.cross_block_selection = None;
-        self.cross_block_drag = None;
+        self.selection.cross_block = None;
+        self.selection.cross_block_drag = None;
 
         let inserted_start = start;
         let inserted_end = inserted_start + new_text.len();
@@ -851,8 +851,8 @@ impl Editor {
         let start = source_range.start.min(source.len());
         let end = source_range.end.min(source.len());
         source.replace_range(start..end, "");
-        self.cross_block_selection = None;
-        self.cross_block_drag = None;
+        self.selection.cross_block = None;
+        self.selection.cross_block_drag = None;
 
         self.rebuild_after_cross_block_source_edit(source, cx);
 
@@ -948,7 +948,7 @@ use crate::editor::actions::UndoCaptureKind;
         let visible = editor.document.blocks().to_vec();
         let start = visible[start_index].entity.entity_id();
         let end = visible[end_index].entity.entity_id();
-        editor.cross_block_selection = Some(CrossBlockSelection {
+        editor.selection.cross_block = Some(CrossBlockSelection {
             anchor: CrossBlockSelectionEndpoint {
                 entity_id: start,
                 offset: start_offset,
@@ -982,7 +982,7 @@ use crate::editor::actions::UndoCaptureKind;
         editor.update(&mut cx, |editor, cx| {
             assign_visible_block_bounds(editor, cx);
             set_selection(editor, 0, 0, 2, 2, cx);
-            assert!(editor.cross_block_selection.is_some());
+            assert!(editor.selection.cross_block.is_some());
             assert!(
                 editor.document.blocks().iter().any(|visible| visible
                     .entity
@@ -993,8 +993,8 @@ use crate::editor::actions::UndoCaptureKind;
 
             editor.begin_cross_block_drag_at_point(point(px(8.0), px(4.0)), cx);
 
-            assert!(editor.cross_block_selection.is_none());
-            assert!(editor.cross_block_drag.is_some());
+            assert!(editor.selection.cross_block.is_none());
+            assert!(editor.selection.cross_block_drag.is_some());
             assert!(
                 editor.document.blocks().iter().all(|visible| visible
                     .entity
@@ -1024,8 +1024,8 @@ use crate::editor::actions::UndoCaptureKind;
             ));
 
             assert_eq!(editor.document.to_markdown(cx), "alXmma");
-            assert!(editor.cross_block_selection.is_none());
-            assert!(editor.cross_block_drag.is_none());
+            assert!(editor.selection.cross_block.is_none());
+            assert!(editor.selection.cross_block_drag.is_none());
             let block = editor.document.blocks()[0].entity.read(cx);
             assert_eq!(block.selected_range, 3..3);
             assert!(block.marked_range.is_none());

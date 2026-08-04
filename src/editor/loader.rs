@@ -7,9 +7,9 @@ use std::collections::HashMap;
 
 use gpui::*;
 
-use crate::engine::editor::Editor;
+use crate::editor::controller::Editor;
 use crate::model::block::BlockData;
-use crate::ui::blocks::block_view::Block;
+use crate::editor::block::Block;
 
 impl Editor {
     /// Parse a Markdown string into a tree of block entities.
@@ -80,8 +80,8 @@ mod tests {
     use gpui::TestAppContext;
 
     use crate::model::syntax::html::HtmlCssColor;
-    use crate::engine::block_types::{BlockKind, CalloutKind};
-    use crate::engine::editor::Editor;
+    use crate::editor::block_types::{BlockKind, CalloutKind};
+    use crate::editor::controller::Editor;
 
     #[gpui::test]
     async fn imports_setext_headings_and_grouped_paragraphs(cx: &mut TestAppContext) {
@@ -1775,13 +1775,13 @@ mod tests {
         editor.update(cx, |editor, cx| {
             editor.toggle_view_mode(cx);
             assert!(matches!(
-                editor.view_mode,
-                crate::engine::editor::EditMode::Source
+                editor.mode,
+                crate::editor::controller::EditorMode::Source
             ));
             editor.toggle_view_mode(cx);
             assert!(matches!(
-                editor.view_mode,
-                crate::engine::editor::EditMode::Wysiwyg
+                editor.mode,
+                crate::editor::controller::EditorMode::Wysiwyg
             ));
 
             let visible = editor.document.blocks();
@@ -1940,13 +1940,13 @@ mod tests {
         editor.update(cx, |editor, cx| {
             editor.toggle_view_mode(cx);
             assert!(matches!(
-                editor.view_mode,
-                crate::engine::editor::EditMode::Source
+                editor.mode,
+                crate::editor::controller::EditorMode::Source
             ));
             editor.toggle_view_mode(cx);
             assert!(matches!(
-                editor.view_mode,
-                crate::engine::editor::EditMode::Wysiwyg
+                editor.mode,
+                crate::editor::controller::EditorMode::Wysiwyg
             ));
 
             let visible = editor.document.blocks();

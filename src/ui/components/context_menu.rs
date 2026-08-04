@@ -1,55 +1,16 @@
-//! Context menu types, rendering functions, and Editor action handlers.
+//! Context menu rendering functions and Editor action handlers.
 // Migrated from engine/input/context_menu.rs
 
 use std::time::Duration;
 
 use gpui::*;
 
+use crate::editor::chrome::{ContextMenuState, TableInsertDialogState, TableInsertTarget};
+use crate::editor::controller::{Editor, EditorMode, TableAxisSelection};
 use crate::model::syntax::table::{TableAxisKind, TableColumnAlignment, TableData};
-use crate::engine::editor::{EditMode, Editor, TableAxisSelection};
 use crate::services::i18n::I18nManager;
 use crate::ui::input::shortcuts::DismissTransientUi;
 use crate::ui::theme::Theme;
-
-/// Target block position for inserting a native table.
-#[derive(Clone, Copy)]
-pub(crate) enum TableInsertTarget {
-    /// Insert the table immediately after the referenced block.
-    After(EntityId),
-    /// Append the table to the end of the current root list.
-    Append,
-}
-
-/// Rendered-mode context menu currently open in the editor.
-#[derive(Clone)]
-pub(crate) enum ContextMenuState {
-    /// General block context menu with an insert submenu.
-    Insert {
-        position: Point<Pixels>,
-        target: TableInsertTarget,
-        insert_hovered: bool,
-        submenu_hovered: bool,
-        submenu_open: bool,
-    },
-    /// Table row or column context menu for an existing native table.
-    TableAxis {
-        position: Point<Pixels>,
-        selection: TableAxisSelection,
-    },
-    /// Workspace Explorer file or folder context menu.
-    WorkspaceFile {
-        position: Point<Pixels>,
-        path: std::path::PathBuf,
-        is_dir: bool,
-    },
-}
-
-/// State for the table insertion dialog opened from the context menu.
-pub(crate) struct TableInsertDialogState {
-    pub target: TableInsertTarget,
-    pub body_rows: usize,
-    pub columns: usize,
-}
 impl Editor {
     pub(crate) fn root_ancestor_entity_id(&self, entity_id: EntityId) -> EntityId {
         let mut current = entity_id;
@@ -68,13 +29,13 @@ impl Editor {
         target: TableInsertTarget,
         cx: &mut Context<Self>,
     ) {
-        if self.view_mode != EditMode::Wysiwyg {
+        if self.mode != EditorMode::Wysiwyg {
             return;
         }
 
         self.close_menu_bar(cx);
-        self.context_menu_submenu_close_task = None;
-        self.context_menu = Some(ContextMenuState::Insert {
+        self.chrome.context_menu_submenu_close_task = None;
+        self.chrome.context_menu = Some(ContextMenuState::Insert {
             position,
             target,
             insert_hovered: false,
@@ -90,13 +51,13 @@ impl Editor {
         selection: TableAxisSelection,
         cx: &mut Context<Self>,
     ) {
-        if self.view_mode != EditMode::Wysiwyg {
+        if self.mode != EditorMode::Wysiwyg {
             return;
         }
 
         self.close_menu_bar(cx);
-        self.context_menu_submenu_close_task = None;
-        self.context_menu = Some(ContextMenuState::TableAxis {
+        self.chrome.context_menu_submenu_close_task = None;
+        self.chrome.context_menu = Some(ContextMenuState::TableAxis {
             position,
             selection,
         });
@@ -112,7 +73,7 @@ impl Editor {
     ) {
         self.close_menu_bar(cx);
         self.dismiss_contextual_overlays(cx);
-        self.context_menu = Some(ContextMenuState::WorkspaceFile {
+        self.chrome.context_menu = Some(ContextMenuState::WorkspaceFile {
             position,
             path,
             is_dir,
@@ -121,47 +82,47 @@ impl Editor {
     }
 
     pub(crate) fn close_table_insert_dialog(&mut self, cx: &mut Context<Self>) {
-        if self.table_insert_dialog.take().is_some() {
+        if self.chrome.table_insert_dialog.take().is_some() {
             cx.notify();
         }
     }
 
     pub(crate) fn close_context_menu(&mut self, cx: &mut Context<Self>) {
-        let had_menu = self.context_menu.take().is_some();
-        let had_submenu_close = self.context_menu_submenu_close_task.take().is_some();
+        let had_menu = self.chrome.context_menu.take().is_some();
+        let had_submenu_close = self.chrome.context_menu_submenu_close_task.take().is_some();
         if had_menu || had_submenu_close {
             cx.notify();
         }
     }
 
     pub(crate) fn dismiss_contextual_overlays(&mut self, cx: &mut Context<Self>) {
-        let had_menu = self.context_menu.take().is_some();
-        let had_dialog = self.table_insert_dialog.take().is_some();
-        let had_submenu_close = self.context_menu_submenu_close_task.take().is_some();
+        let had_menu = self.chrome.context_menu.take().is_some();
+        let had_dialog = self.chrome.table_insert_dialog.take().is_some();
+        let had_submenu_close = self.chrome.context_menu_submenu_close_task.take().is_some();
         if had_menu || had_dialog || had_submenu_close {
             cx.notify();
         }
     }
 
     pub(crate) fn schedule_context_menu_submenu_close(&mut self, cx: &mut Context<Self>) {
-        if !matches!(self.context_menu, Some(ContextMenuState::Insert { .. })) {
+        if !matches!(self.chrome.context_menu, Some(ContextMenuState::Insert { .. })) {
             return;
         }
 
         let weak_editor = cx.entity().downgrade();
-        self.context_menu_submenu_close_task = Some(cx.spawn(
+        self.chrome.context_menu_submenu_close_task = Some(cx.spawn(
             async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
                 cx.background_executor()
                     .timer(Duration::from_millis(120))
                     .await;
                 let _ = weak_editor.update(cx, |editor, cx| {
-                    editor.context_menu_submenu_close_task = None;
+                    editor.chrome.context_menu_submenu_close_task = None;
                     let Some(ContextMenuState::Insert {
                         insert_hovered,
                         submenu_hovered,
                         submenu_open,
                         ..
-                    }) = editor.context_menu.as_mut()
+                    }) = editor.chrome.context_menu.as_mut()
                     else {
                         return;
                     };
@@ -189,7 +150,7 @@ impl Editor {
             submenu_hovered,
             submenu_open,
             ..
-        }) = self.context_menu.as_mut()
+        }) = self.chrome.context_menu.as_mut()
         {
             if submenu {
                 if *submenu_hovered != hovered {
@@ -217,7 +178,7 @@ impl Editor {
         }
 
         if should_clear_close {
-            self.context_menu_submenu_close_task = None;
+            self.chrome.context_menu_submenu_close_task = None;
         }
         if should_schedule_close {
             self.schedule_context_menu_submenu_close(cx);
@@ -233,7 +194,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.view_mode != EditMode::Wysiwyg {
+        if self.mode != EditorMode::Wysiwyg {
             return;
         }
         cx.stop_propagation();
@@ -247,7 +208,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.view_mode != EditMode::Wysiwyg {
+        if self.mode != EditorMode::Wysiwyg {
             return;
         }
         cx.stop_propagation();
@@ -308,11 +269,11 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(ContextMenuState::Insert { target, .. }) = self.context_menu.take() else {
+        let Some(ContextMenuState::Insert { target, .. }) = self.chrome.context_menu.take() else {
             return;
         };
-        self.context_menu_submenu_close_task = None;
-        self.table_insert_dialog = Some(TableInsertDialogState {
+        self.chrome.context_menu_submenu_close_task = None;
+        self.chrome.table_insert_dialog = Some(TableInsertDialogState {
             target,
             body_rows: 2,
             columns: 2,
@@ -326,7 +287,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let Some(dialog) = self.table_insert_dialog.as_mut() {
+        if let Some(dialog) = self.chrome.table_insert_dialog.as_mut() {
             dialog.body_rows = dialog.body_rows.saturating_sub(1).max(1);
             cx.notify();
         }
@@ -338,7 +299,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let Some(dialog) = self.table_insert_dialog.as_mut() {
+        if let Some(dialog) = self.chrome.table_insert_dialog.as_mut() {
             dialog.body_rows += 1;
             cx.notify();
         }
@@ -350,7 +311,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let Some(dialog) = self.table_insert_dialog.as_mut() {
+        if let Some(dialog) = self.chrome.table_insert_dialog.as_mut() {
             dialog.columns = dialog.columns.saturating_sub(1).max(1);
             cx.notify();
         }
@@ -362,7 +323,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let Some(dialog) = self.table_insert_dialog.as_mut() {
+        if let Some(dialog) = self.chrome.table_insert_dialog.as_mut() {
             dialog.columns += 1;
             cx.notify();
         }
@@ -383,7 +344,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(dialog) = self.table_insert_dialog.take() else {
+        let Some(dialog) = self.chrome.table_insert_dialog.take() else {
             return;
         };
 
@@ -438,7 +399,7 @@ impl Editor {
     }
 
     pub(crate) fn active_axis_menu_selection(&self) -> Option<TableAxisSelection> {
-        match self.context_menu.as_ref() {
+        match self.chrome.context_menu.as_ref() {
             Some(ContextMenuState::TableAxis { selection, .. }) => Some(*selection),
             _ => None,
         }
@@ -841,7 +802,7 @@ impl Editor {
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
-        let menu = self.context_menu.as_ref()?;
+        let menu = self.chrome.context_menu.as_ref()?;
         let c = &theme.colors;
         let d = &theme.dimensions;
         let t = &theme.typography;
@@ -1492,7 +1453,7 @@ impl Editor {
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
-        let dialog = self.table_insert_dialog.as_ref()?;
+        let dialog = self.chrome.table_insert_dialog.as_ref()?;
         let c = &theme.colors;
         let d = &theme.dimensions;
         let t = &theme.typography;
@@ -1728,28 +1689,28 @@ mod tests {
             );
 
             editor.set_context_menu_hover_state(true, false, cx);
-            let Some(ContextMenuState::Insert { submenu_open, .. }) = editor.context_menu.as_ref()
+            let Some(ContextMenuState::Insert { submenu_open, .. }) = editor.chrome.context_menu.as_ref()
             else {
                 panic!("expected insert context menu");
             };
             assert!(*submenu_open);
-            assert!(editor.context_menu_submenu_close_task.is_none());
+            assert!(editor.chrome.context_menu_submenu_close_task.is_none());
 
             editor.set_context_menu_hover_state(false, false, cx);
-            let Some(ContextMenuState::Insert { submenu_open, .. }) = editor.context_menu.as_ref()
+            let Some(ContextMenuState::Insert { submenu_open, .. }) = editor.chrome.context_menu.as_ref()
             else {
                 panic!("expected insert context menu");
             };
             assert!(*submenu_open);
-            assert!(editor.context_menu_submenu_close_task.is_some());
+            assert!(editor.chrome.context_menu_submenu_close_task.is_some());
 
             editor.set_context_menu_hover_state(true, true, cx);
-            let Some(ContextMenuState::Insert { submenu_open, .. }) = editor.context_menu.as_ref()
+            let Some(ContextMenuState::Insert { submenu_open, .. }) = editor.chrome.context_menu.as_ref()
             else {
                 panic!("expected insert context menu");
             };
             assert!(*submenu_open);
-            assert!(editor.context_menu_submenu_close_task.is_none());
+            assert!(editor.chrome.context_menu_submenu_close_task.is_none());
         });
     }
 }

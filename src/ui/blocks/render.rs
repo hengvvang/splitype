@@ -9,7 +9,7 @@ use gpui::*;
 const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
 
 use crate::editor::actions::BlockAction;
-use crate::engine::editor::Editor;
+use crate::editor::controller::Editor;
 use crate::model::block::BlockKind;
 use crate::model::inline::style::InlineScript;
 use crate::model::syntax::html::{
@@ -31,7 +31,7 @@ use crate::services::latex_render::{
     display_math_font_size, inline_math_font_size, render_display_math_svg, render_inline_math_svg,
 };
 use crate::services::mermaid_render::render_mermaid_svg_for_display;
-use crate::ui::blocks::block_view::{Block, ImageHandle};
+use crate::editor::block::{Block, ImageHandle};
 use crate::ui::blocks::{
     blockquote::render_blockquote,
     callout::render_callout,
@@ -2665,7 +2665,7 @@ mod tests {
     use crate::model::syntax::html::parse_html_document;
     use crate::model::syntax::table::{TableAxisKind, TableAxisMarker};
     use crate::services::i18n::I18nManager;
-    use crate::ui::blocks::block_view::Block;
+    use crate::editor::block::Block;
     use crate::ui::theme::{Theme, ThemeManager};
     use gpui::{Hsla, Rgba, TestAppContext, px};
 
