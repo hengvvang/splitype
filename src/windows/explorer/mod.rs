@@ -9,6 +9,7 @@ use crate::editor::editing::input::shortcuts::ToggleWorkspace;
 use crate::editor::window::workspace::*;
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::theme::Theme;
+use crate::ui::components::empty_state::empty_state_container;
 
 impl Editor {
     pub(crate) fn toggle_workspace_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -562,16 +563,9 @@ impl Editor {
             message
         };
 
-        div()
-            .w_full()
-            .h_full()
-            .flex()
-            .flex_col()
-            .items_center()
-            .justify_center()
+        empty_state_container()
             .gap(px(10.0))
             .px(px(24.0))
-            .text_align(TextAlign::Center)
             .child(
                 svg()
                     .path("icon/workspace/folder-open.svg")

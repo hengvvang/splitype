@@ -30,6 +30,7 @@ use gpui::*;
 use crate::editor::controller::*;
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::theme::{ThemeColors, ThemeManager};
+use crate::ui::components::empty_state::empty_state_container;
 use crate::windows::editor::menu_bar::*;
 use crate::windows::editor::titlebar::{custom_titlebar_height, render_custom_titlebar};
 
@@ -49,22 +50,14 @@ use crate::windows::editor::wysiwyg::{
     footnote_row_top_gap, rendered_row_top_gap,
 };
 pub fn render_empty_panel_prompt(colors: &ThemeColors, message: &str) -> AnyElement {
-    let msg = message.to_string();
-    div()
-        .w_full()
-        .h_full()
+    empty_state_container()
         .p(px(16.0))
-        .flex()
-        .flex_col()
-        .items_center()
-        .justify_center()
         .bg(colors.editor_background)
         .child(
             div()
                 .text_size(px(13.0))
                 .text_color(colors.dialog_muted)
-                .text_align(TextAlign::Center)
-                .child(msg),
+                .child(message.to_string()),
         )
         .into_any()
 }

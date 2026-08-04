@@ -5,6 +5,7 @@
 
 pub mod button;
 pub mod dialog;
+pub mod empty_state;
 pub mod menu_item;
 pub mod popover;
 pub mod select;
