@@ -7,10 +7,10 @@ use anyhow::Context as _;
 use gpui::*;
 use serde::{Deserialize, Serialize};
 
-use crate::services::config::dirs::VelotypeConfigDirs;
-use crate::services::config::recent::read_recent_files;
-use crate::services::i18n::manager::I18nManager;
-use crate::services::i18n::packs::language_id_for_locale_settings;
+use crate::infra::config::dirs::VelotypeConfigDirs;
+use crate::infra::config::recent::read_recent_files;
+use crate::infra::i18n::manager::I18nManager;
+use crate::infra::i18n::packs::language_id_for_locale_settings;
 use crate::ui::input::shortcuts::normalize_shortcut_config;
 use crate::ui::theme::ThemeManager;
 

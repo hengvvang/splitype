@@ -7,8 +7,8 @@ use gpui::*;
 use crate::editor::EditorMode;
 use crate::editor::chrome::StatusBarState;
 use crate::editor::controller::Editor;
-use crate::services::i18n::I18nStrings;
-use crate::services::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
+use crate::infra::i18n::I18nStrings;
+use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
 use crate::ui::theme::Theme;
 use crate::editor::layout::{Axis, PaneKind};
 

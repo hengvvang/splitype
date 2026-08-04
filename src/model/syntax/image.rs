@@ -6,7 +6,7 @@ use std::str::FromStr;
 
 use gpui::{SharedUri, http_client::Uri};
 
-use crate::services::net;
+use crate::infra::net;
 
 /// Active fenced code block while scanning for image reference definitions.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

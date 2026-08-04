@@ -7,7 +7,7 @@ use gpui::*;
 
 use crate::model::block::BlockData;
 use crate::editor::controller::{EditorMode, Editor};
-use crate::services::i18n::I18nManager;
+use crate::infra::i18n::I18nManager;
 
 /// Returns true when `path` exists and has a `.md` or `.markdown` extension.
 pub(crate) fn is_markdown_file_path(path: &Path) -> bool {

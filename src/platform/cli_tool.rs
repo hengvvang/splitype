@@ -6,7 +6,7 @@
 
 use gpui::*;
 
-use crate::services::i18n::I18nManager;
+use crate::infra::i18n::I18nManager;
 
 /// Returns `true` only if the symlink exists **and** resolves (directly or via
 /// one level of canonicalization) to the currently running executable.

@@ -10,8 +10,8 @@ use super::packs::{
     custom_language_pack_from_value,
 };
 use super::strings::I18nStrings;
-use crate::services::config::dirs::VelotypeConfigDirs;
-use crate::services::config::jsonc::{read_json_or_jsonc, sanitize_config_file_stem};
+use crate::infra::config::dirs::VelotypeConfigDirs;
+use crate::infra::config::jsonc::{read_json_or_jsonc, sanitize_config_file_stem};
 
 pub struct I18nManager {
     current_language_id: String,
@@ -32,7 +32,7 @@ impl I18nManager {
     /// Installs the configured UI language into GPUI's global state.
     #[allow(dead_code)]
     pub fn init(cx: &mut App) {
-        let language_id = crate::services::config::settings::read_app_settings()
+        let language_id = crate::infra::config::settings::read_app_settings()
             .map(|settings| settings.default_language_id)
             .unwrap_or_else(|_| BUILTIN_LANGUAGE_EN_US_ID.into());
         Self::init_with_language_id(cx, &language_id);
@@ -193,7 +193,7 @@ impl I18nManager {
 #[cfg(test)]
 mod tests {
     use super::{I18nLanguagePack, I18nManager, I18nStrings, language_id_for_locale_settings};
-    use crate::services::config::dirs::VelotypeConfigDirs;
+    use crate::infra::config::dirs::VelotypeConfigDirs;
     use crate::ui::theme::ThemeManager;
 
     #[test]

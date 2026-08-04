@@ -19,7 +19,7 @@ use std::time::{Duration, Instant};
 use gpui::*;
 
 use crate::editor::controller::*;
-use crate::services::i18n::{I18nManager, I18nStrings};
+use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::ui::window::menu_bar::*;
 use crate::ui::window::titlebar::{custom_titlebar_height, render_custom_titlebar};
 use crate::ui::theme::{Theme, ThemeColors, ThemeDimensions, ThemeManager};

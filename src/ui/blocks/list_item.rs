@@ -294,8 +294,8 @@ pub(crate) fn render_numbered_list_item(
 }
 
 /// Helper to get I18n strings from the global context.
-fn strings_from_context(cx: &mut Context<Block>) -> crate::services::i18n::I18nStrings {
-    cx.global::<crate::services::i18n::I18nManager>()
+fn strings_from_context(cx: &mut Context<Block>) -> crate::infra::i18n::I18nStrings {
+    cx.global::<crate::infra::i18n::I18nManager>()
         .strings_arc()
         .as_ref()
         .clone()

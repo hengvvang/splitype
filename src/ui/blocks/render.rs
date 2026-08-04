@@ -23,14 +23,14 @@ use crate::model::syntax::image::{
 use crate::model::syntax::math::parse_display_math_source;
 use crate::model::syntax::mermaid::parse_mermaid_fence_source;
 use crate::model::syntax::table::{TableAxisHighlight, TableAxisKind};
-use crate::services::code_highlight::language::{
+use crate::render::code_highlight::language::{
     code_language_display_name, code_language_options_matching,
 };
-use crate::services::i18n::{I18nManager, I18nStrings};
-use crate::services::latex_render::{
+use crate::infra::i18n::{I18nManager, I18nStrings};
+use crate::render::latex_render::{
     display_math_font_size, inline_math_font_size, render_display_math_svg, render_inline_math_svg,
 };
-use crate::services::mermaid_render::render_mermaid_svg_for_display;
+use crate::render::mermaid_render::render_mermaid_svg_for_display;
 use crate::editor::block::{Block, ImageHandle};
 use crate::ui::blocks::{
     blockquote::render_blockquote,
@@ -2163,7 +2163,7 @@ impl Render for Block {
             // The header row is only styled distinctly (shaded background, medium
             // weight) when the show-table-headers preference is enabled.
             let style_as_header = is_header
-                && crate::services::config::settings::EditorSettings::show_table_headers(cx);
+                && crate::infra::config::settings::EditorSettings::show_table_headers(cx);
             let highlight = self.table_axis_highlight;
             let base_bg = if style_as_header {
                 c.table_header_bg
@@ -2664,7 +2664,7 @@ mod tests {
     use crate::model::inline::text::RichText;
     use crate::model::syntax::html::parse_html_document;
     use crate::model::syntax::table::{TableAxisKind, TableAxisMarker};
-    use crate::services::i18n::I18nManager;
+    use crate::infra::i18n::I18nManager;
     use crate::editor::block::Block;
     use crate::ui::theme::{Theme, ThemeManager};
     use gpui::{Hsla, Rgba, TestAppContext, px};

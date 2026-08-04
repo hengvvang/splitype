@@ -10,7 +10,7 @@ use gpui::*;
 use crate::model::inline::text::RichText;
 use crate::editor::actions::{BlockAction, PastedImageSource, UndoCaptureKind};
 use crate::model::block::BlockKind;
-use crate::services::code_highlight::language::code_language_options_matching;
+use crate::render::code_highlight::language::code_language_options_matching;
 use crate::editor::block::{Block, CollapsedCaretAffinity, InlineFormat};
 use crate::ui::input::paste::should_split_plain_multiline_paste;
 use crate::ui::input::shortcuts::{

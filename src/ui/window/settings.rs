@@ -4,11 +4,11 @@ use std::collections::BTreeMap;
 
 use gpui::*;
 
-use crate::services::config::settings::{
+use crate::infra::config::settings::{
     AppSettings, EditorSettings, ImagePasteBehavior, StartupOpenSetting, StatusBarSettings,
     apply_configured_language, read_app_settings, save_settings_from_window, DEFAULT_THEME_ID,
 };
-use crate::services::i18n::manager::I18nManager;
+use crate::infra::i18n::manager::I18nManager;
 use crate::ui::window::switch::Switch;
 use crate::ui::window::titlebar::{
     custom_titlebar_height, render_custom_titlebar, velotype_window_options,

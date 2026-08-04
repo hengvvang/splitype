@@ -164,7 +164,7 @@ impl Editor {
     pub(crate) fn window_title(
         file_path: Option<&Path>,
         is_dirty: bool,
-        strings: &crate::services::i18n::I18nStrings,
+        strings: &crate::infra::i18n::I18nStrings,
     ) -> String {
         let base_title = if let Some(path) = file_path {
             path.file_name().map_or_else(
@@ -231,7 +231,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.export_document_via_prompt(crate::services::export::ExportFormat::Html, window, cx);
+        self.export_document_via_prompt(crate::render::export::ExportFormat::Html, window, cx);
     }
 
     pub(crate) fn on_export_pdf(
@@ -240,7 +240,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.export_document_via_prompt(crate::services::export::ExportFormat::Pdf, window, cx);
+        self.export_document_via_prompt(crate::render::export::ExportFormat::Pdf, window, cx);
     }
 
     pub(crate) fn on_quit_application(

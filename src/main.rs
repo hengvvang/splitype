@@ -8,9 +8,10 @@
 
 mod app;
 mod editor;
+mod infra;
 mod model;
 mod platform;
-mod services;
+mod render;
 mod ui;
 
 fn main() {

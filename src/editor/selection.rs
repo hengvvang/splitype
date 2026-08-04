@@ -921,7 +921,7 @@ mod tests {
     use super::{CrossBlockSelection, CrossBlockSelectionEndpoint, Editor};
     use crate::ui::input::shortcuts::{Cut, Undo};
 use crate::editor::actions::UndoCaptureKind;
-    use crate::services::i18n::I18nManager;
+    use crate::infra::i18n::I18nManager;
     use crate::ui::theme::ThemeManager;
 
     fn init_editor_test_app(cx: &mut TestAppContext) {

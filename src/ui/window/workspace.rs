@@ -9,7 +9,7 @@ use gpui::*;
 
 use crate::editor::controller::Editor;
 use crate::editor::workspace::*;
-use crate::services::i18n::{I18nManager, I18nStrings};
+use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::ui::input::shortcuts::ToggleWorkspace;
 use crate::ui::theme::Theme;
 

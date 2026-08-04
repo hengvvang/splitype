@@ -20,12 +20,12 @@ use crate::app::windows::open_editor_window;
 use crate::app::windows::open_file_in_new_window;
 #[cfg(target_os = "macos")]
 use crate::platform::file_url::parse_file_url;
-use crate::services::config::settings::{
+use crate::infra::config::settings::{
     EditorSettings, StartupOpenSetting, first_existing_recent_markdown_file,
     load_or_create_app_settings,
 };
-use crate::services::i18n::I18nManager;
-use crate::services::net::http_client::install_http_client;
+use crate::infra::i18n::I18nManager;
+use crate::infra::net::http_client::install_http_client;
 use crate::ui::input::shortcuts::init_with_keybindings as init_editor;
 use crate::ui::theme::ThemeManager;
 
@@ -160,7 +160,7 @@ pub fn run(args: Args) {
             let markdown = match std::fs::read_to_string(&absolute_path) {
                 Ok(content) => {
                     if let Err(err) =
-                        crate::services::config::recent::record_recent_file(&absolute_path)
+                        crate::infra::config::recent::record_recent_file(&absolute_path)
                     {
                         eprintln!("failed to update recent file history: {err}");
                     }

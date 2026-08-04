@@ -4,7 +4,7 @@
 use gpui::*;
 
 use crate::editor::block::Block;
-use crate::services::i18n::I18nStrings;
+use crate::infra::i18n::I18nStrings;
 use crate::ui::theme::Theme;
 
 /// Render a fenced code block with optional toolbar and language picker.

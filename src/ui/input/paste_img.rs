@@ -10,7 +10,7 @@ use gpui::*;
 use crate::editor::actions::PastedImageSource;
 use crate::editor::controller::*;
 use crate::model::block::BlockKind;
-use crate::services::config::settings::{ImagePasteBehavior, read_app_settings};
+use crate::infra::config::settings::{ImagePasteBehavior, read_app_settings};
 
 
 impl Editor {
@@ -230,7 +230,7 @@ impl Editor {
 
     pub(crate) fn show_image_paste_error(&self, err: anyhow::Error, cx: &mut Context<Self>) {
         let strings = cx
-            .global::<crate::services::i18n::I18nManager>()
+            .global::<crate::infra::i18n::I18nManager>()
             .strings()
             .clone();
         if let Some(window) = cx.active_window() {

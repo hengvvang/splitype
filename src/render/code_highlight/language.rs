@@ -7,7 +7,7 @@ use gpui::*;
 
 use crate::editor::actions::{BlockAction, UndoCaptureKind};
 use crate::model::block::BlockKind;
-use crate::services::code_highlight::highlight::{CodeHighlightResult, highlight_code_block};
+use crate::render::code_highlight::highlight::{CodeHighlightResult, highlight_code_block};
 use crate::editor::block::Block;
 use unicode_segmentation::UnicodeSegmentation;
 

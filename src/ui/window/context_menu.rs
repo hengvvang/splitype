@@ -8,7 +8,7 @@ use gpui::*;
 use crate::editor::chrome::{ContextMenuState, TableInsertDialogState, TableInsertTarget};
 use crate::editor::controller::{Editor, EditorMode, TableAxisSelection};
 use crate::model::syntax::table::{TableAxisKind, TableColumnAlignment, TableData};
-use crate::services::i18n::I18nManager;
+use crate::infra::i18n::I18nManager;
 use crate::ui::input::shortcuts::DismissTransientUi;
 use crate::ui::theme::Theme;
 impl Editor {
@@ -705,8 +705,8 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let next = !crate::services::config::settings::EditorSettings::show_table_headers(cx);
-        crate::services::config::settings::EditorSettings::set_show_table_headers(cx, next);
+        let next = !crate::infra::config::settings::EditorSettings::show_table_headers(cx);
+        crate::infra::config::settings::EditorSettings::set_show_table_headers(cx, next);
         self.close_context_menu(cx);
         // The preference is read while rendering table cells; re-render the
         // editor (and with it every table) to reflect the new styling.
@@ -1073,7 +1073,7 @@ impl Editor {
                         // menu, with its Header Row styling toggle added on top.
                         if selection.index == 0 {
                             let headers_shown =
-                                crate::services::config::settings::EditorSettings::show_table_headers(cx);
+                                crate::infra::config::settings::EditorSettings::show_table_headers(cx);
                             items.push(
                                 div()
                                     .id("table-header-toggle")

@@ -448,8 +448,8 @@ impl Editor {
 use futures::FutureExt;
 use futures::channel::oneshot;
 
-use crate::services::i18n::I18nManager;
-use crate::services::net::update_checker::{
+use crate::infra::i18n::I18nManager;
+use crate::infra::net::update_checker::{
     self as update_check, UpdateCheckResult, UpdateVersionInfo,
 };
 

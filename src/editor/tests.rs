@@ -17,8 +17,8 @@ use crate::model::syntax::image::{
     ImageReferenceDefinitions, ImageResolvedSource, TableCellInlineImageSegment,
     parse_table_cell_inline_images,
 };
-use crate::services::export::ExportFormat;
-use crate::services::i18n::{I18nManager, I18nStrings};
+use crate::render::export::ExportFormat;
+use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::editor::chrome::{TableInsertDialogState, TableInsertTarget};
 use crate::ui::theme::{Theme, ThemeManager};
 fn init_editor_test_app(cx: &mut TestAppContext) {

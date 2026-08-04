@@ -16,13 +16,13 @@ use crate::editor::controller::{Editor, InfoDialogKind};
 use crate::platform::cli_tool::{install_cli_tool, is_cli_symlink_current_app, uninstall_cli_tool};
 #[cfg(not(target_os = "macos"))]
 use crate::platform::cli_tool::{install_cli_tool, uninstall_cli_tool};
-use crate::services::config::recent::{read_recent_files, remove_recent_file};
-use crate::services::config::settings::{
+use crate::infra::config::recent::{read_recent_files, remove_recent_file};
+use crate::infra::config::settings::{
     apply_configured_language, apply_configured_theme, import_language_config_and_select,
     import_theme_config_and_select,
 };
-use crate::services::export::ExportFormat;
-use crate::services::i18n::I18nManager;
+use crate::render::export::ExportFormat;
+use crate::infra::i18n::I18nManager;
 use crate::ui::input::shortcuts::{
     AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
     InstallCliTool, NewWindow, NoRecentFiles, OpenFile, OpenRecentFile, OpenSettings,
@@ -781,7 +781,7 @@ pub(crate) fn init(cx: &mut App) {
 mod tests {
     use super::build_menus;
     use crate::platform::cli_tool::applescript_string_literal;
-    use crate::services::i18n::I18nManager;
+    use crate::infra::i18n::I18nManager;
     use crate::ui::input::shortcuts::{
         AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
         NewWindow, NoRecentFiles, OpenFile, OpenPreferences as OpenSettings, OpenRecentFile,

@@ -8,8 +8,8 @@ use futures::channel::oneshot;
 use gpui::*;
 
 use crate::editor::controller::Editor;
-use crate::services::export::{self as document_export, ExportFormat};
-use crate::services::i18n::I18nManager;
+use crate::render::export::{self as document_export, ExportFormat};
+use crate::infra::i18n::I18nManager;
 use crate::ui::theme::{Theme, ThemeManager};
 
 

@@ -8,7 +8,7 @@ use crate::editor::layout::{
     Axis, BorderMenuState, CornerDragAction, CornerDragModifier, CornerDragPreview, Direction,
     EditTabState, EditorPanel, PaneKind, SettingsTab, SplitTree, SplitterDragSession,
 };
-use crate::services::i18n::I18nStrings;
+use crate::infra::i18n::I18nStrings;
 use crate::ui::theme::{Theme, ThemeManager};
 use crate::ui::window::render::render_empty_panel_prompt;
 use crate::ui::window::switch::Switch;
@@ -2919,7 +2919,7 @@ impl Editor {
                             let _ = tbl_ed.update(cx, |ed, cx| {
                                 ed.panels.layout.pref_show_table_headers =
                                     !ed.panels.layout.pref_show_table_headers;
-                                crate::services::config::settings::EditorSettings::set_show_table_headers(
+                                crate::infra::config::settings::EditorSettings::set_show_table_headers(
                                     cx,
                                     ed.panels.layout.pref_show_table_headers,
                                 );
