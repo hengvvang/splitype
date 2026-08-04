@@ -7,4 +7,5 @@ pub mod button;
 pub mod dialog;
 pub mod menu_item;
 pub mod popover;
+pub mod select;
 pub mod switch;
