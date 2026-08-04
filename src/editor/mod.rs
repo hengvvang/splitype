@@ -4,10 +4,10 @@
 pub mod actions;
 pub mod controller;
 pub mod editing;
+pub mod panels;
 pub mod render;
 pub mod tree;
 pub mod viewport;
-pub mod views;
 pub mod window;
 
 // ── Re-exports ─────────────────────────────────────────────────────────────

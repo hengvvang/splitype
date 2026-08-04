@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::controller::*;
-use crate::editor::views::outline::{build_outline_tree, prune_outline_state};
+use crate::editor::panels::outline::{build_outline_tree, prune_outline_state};
 use crate::editor::window::workspace::WorkspaceSelection;
 use crate::infra::i18n::I18nStrings;
 use crate::theme::Theme;

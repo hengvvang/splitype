@@ -5,7 +5,7 @@ use gpui::*;
 
 use crate::editor::tree::block::Block;
 use crate::model::block::CalloutKind;
-use crate::editor::views::blocks::render::callout_accent_and_background;
+use crate::editor::panels::blocks::render::callout_accent_and_background;
 use crate::theme::Theme;
 
 /// Render a callout (admonition) block.

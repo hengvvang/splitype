@@ -37,10 +37,10 @@ use crate::editor::render::latex_render::{
 };
 use crate::editor::render::mermaid_render::render_mermaid_svg_for_display;
 use crate::theme::{Theme, ThemeDimensions, ThemeManager};
-use crate::editor::views::blocks::inline::text_element::{
+use crate::editor::panels::blocks::inline::text_element::{
     BlockTextElement, CodeLanguageInputElement,
 };
-use crate::editor::views::blocks::{
+use crate::editor::panels::blocks::{
     blockquote::render_blockquote,
     callout::render_callout,
     fenced_code::render_fenced_code,

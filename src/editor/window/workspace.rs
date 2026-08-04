@@ -3,7 +3,7 @@
 //! This module owns the pure workspace model: [`WorkspaceNodeKind`],
 //! [`WorkspaceNode`], [`WorkspaceSelection`], and [`Workspace`], plus the
 //! pure functions that scan directories. Outline parsing lives in
-//! `crate::editor::views::outline`; rendering and editor interactions stay
+//! `crate::editor::panels::outline`; rendering and editor interactions stay
 //! in `ui::window::workspace_view`.
 
 use std::collections::HashSet;
