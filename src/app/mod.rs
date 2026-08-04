@@ -1,4 +1,7 @@
-//! Application lifecycle — initialization, window management, and menu setup.
+//! Application shell — CLI parsing, bootstrap, menus, windows, and assets.
 
-pub(crate) mod assets;
-pub(crate) mod menu;
+pub mod assets;
+pub mod bootstrap;
+pub mod cli;
+pub mod menus;
+pub mod windows;

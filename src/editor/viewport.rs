@@ -249,7 +249,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        crate::app::menu::request_quit_application(cx);
+        crate::app::menus::request_quit_application(cx);
     }
 
     pub(crate) fn on_close_window(
@@ -267,7 +267,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        crate::app::menu::install_cli_tool(cx);
+        crate::app::menus::install_cli_tool(cx);
     }
 
     pub(crate) fn on_uninstall_cli_tool(
@@ -276,7 +276,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        crate::app::menu::uninstall_cli_tool(cx);
+        crate::app::menus::uninstall_cli_tool(cx);
     }
 
     #[allow(dead_code)]

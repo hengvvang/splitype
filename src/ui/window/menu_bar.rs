@@ -7,7 +7,7 @@
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
-use crate::app::menu::dispatch_menu_action_for_editor;
+use crate::app::menus::dispatch_menu_action_for_editor;
 use crate::editor::controller::Editor;
 use crate::services::i18n::I18nManager;
 use crate::ui::input::shortcuts::{

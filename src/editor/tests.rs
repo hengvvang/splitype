@@ -607,7 +607,7 @@ async fn close_window_menu_action_closes_only_active_editor_window(cx: &mut Test
     assert_eq!(cx.cx.windows().len(), 2);
 
     cx.cx.update(|cx| {
-        crate::app::menu::dispatch_menu_action(&CloseWindow, cx);
+        crate::app::menus::dispatch_menu_action(&CloseWindow, cx);
     });
     cx.run_until_parked();
 
@@ -622,10 +622,10 @@ async fn app_menu_opened_windows_activate_and_close_independently(cx: &mut TestA
     init_editor_test_app(cx);
 
     let first_window =
-        cx.update(|cx| crate::app::menu::open_editor_window(cx, "first".to_string(), None));
+        cx.update(|cx| crate::app::windows::open_editor_window(cx, "first".to_string(), None));
     cx.run_until_parked();
     let second_window =
-        cx.update(|cx| crate::app::menu::open_editor_window(cx, "second".to_string(), None));
+        cx.update(|cx| crate::app::windows::open_editor_window(cx, "second".to_string(), None));
     cx.run_until_parked();
 
     let active_window = cx.update(|cx| cx.active_window().expect("window should be active"));
@@ -640,7 +640,7 @@ async fn app_menu_opened_windows_activate_and_close_independently(cx: &mut TestA
     );
 
     cx.update(|cx| {
-        crate::app::menu::dispatch_menu_action(&CloseWindow, cx);
+        crate::app::menus::dispatch_menu_action(&CloseWindow, cx);
     });
     cx.run_until_parked();
 
@@ -649,7 +649,7 @@ async fn app_menu_opened_windows_activate_and_close_independently(cx: &mut TestA
     assert_eq!(remaining[0].window_id(), first_window.window_id());
 
     cx.update(|cx| {
-        crate::app::menu::dispatch_menu_action(&CloseWindow, cx);
+        crate::app::menus::dispatch_menu_action(&CloseWindow, cx);
     });
     cx.run_until_parked();
 
@@ -666,10 +666,10 @@ async fn app_menu_opened_file_window_reinstalls_close_guard_after_registration(
     fs::write(&opened_path, "opened from file").expect("write opened markdown");
 
     let first_window =
-        cx.update(|cx| crate::app::menu::open_editor_window(cx, "first".to_string(), None));
+        cx.update(|cx| crate::app::windows::open_editor_window(cx, "first".to_string(), None));
     cx.run_until_parked();
     let second_window = cx.update(|cx| {
-        crate::app::menu::open_editor_window(
+        crate::app::windows::open_editor_window(
             cx,
             fs::read_to_string(&opened_path).expect("read opened markdown"),
             Some(opened_path.clone()),
@@ -689,7 +689,7 @@ async fn app_menu_opened_file_window_reinstalls_close_guard_after_registration(
         .expect("second editor window should be open");
 
     cx.update(|cx| {
-        crate::app::menu::dispatch_menu_action(&CloseWindow, cx);
+        crate::app::menus::dispatch_menu_action(&CloseWindow, cx);
     });
     cx.run_until_parked();
 
@@ -709,9 +709,9 @@ async fn app_menu_opened_dirty_file_window_prompts_only_that_window(cx: &mut Tes
     fs::write(&opened_path, "opened from file").expect("write opened markdown");
 
     let first_window =
-        cx.update(|cx| crate::app::menu::open_editor_window(cx, "first".to_string(), None));
+        cx.update(|cx| crate::app::windows::open_editor_window(cx, "first".to_string(), None));
     let second_window = cx.update(|cx| {
-        crate::app::menu::open_editor_window(
+        crate::app::windows::open_editor_window(
             cx,
             fs::read_to_string(&opened_path).expect("read opened markdown"),
             Some(opened_path.clone()),
@@ -747,9 +747,9 @@ async fn app_menu_opened_dirty_window_close_guard_prompts_only_that_window(
     init_editor_test_app(cx);
 
     let first_window =
-        cx.update(|cx| crate::app::menu::open_editor_window(cx, "first".to_string(), None));
+        cx.update(|cx| crate::app::windows::open_editor_window(cx, "first".to_string(), None));
     let second_window =
-        cx.update(|cx| crate::app::menu::open_editor_window(cx, "second".to_string(), None));
+        cx.update(|cx| crate::app::windows::open_editor_window(cx, "second".to_string(), None));
     cx.run_until_parked();
 
     second_window
@@ -787,7 +787,7 @@ async fn quit_application_allows_clean_editor_windows_to_quit(cx: &mut TestAppCo
     assert_eq!(cx.cx.windows().len(), 2);
 
     cx.cx.update(|cx| {
-        crate::app::menu::dispatch_menu_action(&QuitApplication, cx);
+        crate::app::menus::dispatch_menu_action(&QuitApplication, cx);
     });
     cx.run_until_parked();
 
@@ -816,7 +816,7 @@ async fn quit_application_prompts_dirty_editor_without_quitting(cx: &mut TestApp
     assert_eq!(cx.cx.windows().len(), 2);
 
     cx.cx.update(|cx| {
-        crate::app::menu::dispatch_menu_action(&QuitApplication, cx);
+        crate::app::menus::dispatch_menu_action(&QuitApplication, cx);
     });
     cx.run_until_parked();
 
@@ -852,7 +852,7 @@ async fn windows_fallback_close_window_dispatch_closes_target_editor_window(
 
     cx.update(|window, cx| {
         let editor = editor.downgrade();
-        crate::app::menu::dispatch_menu_action_for_editor(&CloseWindow, &editor, window, cx);
+        crate::app::menus::dispatch_menu_action_for_editor(&CloseWindow, &editor, window, cx);
     });
     cx.run_until_parked();
 

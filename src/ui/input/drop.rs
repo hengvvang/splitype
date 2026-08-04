@@ -79,7 +79,7 @@ impl Editor {
             std::fs::read(path).with_context(|| format!("failed to read '{}'", path.display()))?;
         let markdown = String::from_utf8_lossy(&bytes).to_string();
         self.replace_document_from_markdown(markdown, Some(path.to_path_buf()), cx);
-        crate::app::menu::record_recent_file_from_editor(path, cx);
+        crate::app::menus::record_recent_file_from_editor(path, cx);
         Ok(())
     }
 
