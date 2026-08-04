@@ -4,6 +4,8 @@
 //! shared chrome.  Editor-level state machines that track open / hover
 //! indices stay in [`crate::editor::render`].
 
+use crate::ui::components::button::menu_bar_button;
+
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
@@ -357,24 +359,13 @@ impl Editor {
                 let button_width = button_widths[index];
 
                 row = row.child(
-                    div()
-                        .id(("app-menu-button", index))
-                        .h(px(d.menu_bar_button_height))
+menu_bar_button(("app-menu-button", index), c, d)
                         .w(px(button_width))
-                        .px(px(TITLEBAR_MENU_BUTTON_PADDING_X))
-                        .flex()
-                        .flex_shrink_0()
-                        .items_center()
-                        .justify_center()
-                        .rounded(px(d.menu_bar_button_radius))
                         .bg(if is_open {
                             c.dialog_secondary_button_hover
                         } else {
                             hsla(0.0, 0.0, 0.0, 0.0)
                         })
-                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                        .active(|this| this.opacity(0.92))
-                        .cursor_pointer()
                         .text_size(px(d.menu_text_size))
                         .font_weight(t.dialog_button_weight.to_font_weight())
                         .text_color(c.dialog_secondary_button_text)

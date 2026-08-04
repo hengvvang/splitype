@@ -4,13 +4,13 @@
 
 use gpui::prelude::*;
 use gpui::{
-    AnyElement, Bounds, ClickEvent, Context, Decorations, Hsla, MouseButton, Pixels, SharedString,
-    TitlebarOptions, Window, WindowBackgroundAppearance, WindowBounds, WindowControlArea,
-    WindowDecorations, WindowOptions, div, point, px, rgba, svg,
+    AnyElement, Bounds, ClickEvent, Context, Decorations, Div, ElementId, Hsla, MouseButton,
+    Pixels, SharedString, Stateful, TitlebarOptions, Window, WindowBackgroundAppearance,
+    WindowBounds, WindowControlArea, WindowDecorations, WindowOptions, div, point, px, rgba, svg,
 };
 
 use crate::platform::app_identity::VELOTYPE_APP_ID;
-use crate::theme::{Theme, ThemeDimensions};
+use crate::theme::{Theme, ThemeColors, ThemeDimensions};
 
 const TITLEBAR_MIN_HEIGHT: f32 = 32.0;
 const TITLEBAR_BUTTON_WIDTH: f32 = 46.0;
@@ -160,6 +160,28 @@ pub fn titlebar_maximize_icon(is_maximized: bool, is_fullscreen: bool) -> &'stat
     }
 }
 
+/// Window control button (minimize / maximize / close).
+fn titlebar_control_button(
+    id: impl Into<ElementId>,
+    c: &ThemeColors,
+    area: WindowControlArea,
+) -> Stateful<Div> {
+    let hover_bg = if area == WindowControlArea::Close {
+        c.dialog_danger_button_bg
+    } else {
+        c.dialog_secondary_button_hover
+    };
+    div()
+        .id(id)
+        .w(px(TITLEBAR_BUTTON_WIDTH))
+        .h_full()
+        .flex()
+        .items_center()
+        .justify_center()
+        .window_control_area(area)
+        .hover(move |this| this.bg(hover_bg))
+        .cursor_pointer()
+}
 pub fn render_custom_titlebar<T: 'static>(
     id: &'static str,
     title: SharedString,
@@ -253,16 +275,7 @@ pub fn render_custom_titlebar<T: 'static>(
 
             if controls.minimize {
                 controls_row = controls_row.child(
-                    div()
-                        .id("window-titlebar-minimize")
-                        .w(px(TITLEBAR_BUTTON_WIDTH))
-                        .h_full()
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .window_control_area(WindowControlArea::Min)
-                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                        .cursor_pointer()
+                    titlebar_control_button("window-titlebar-minimize", c, WindowControlArea::Min)
                         .child(
                             svg()
                                 .path(TITLEBAR_MINIMIZE_ICON)
@@ -279,16 +292,7 @@ pub fn render_custom_titlebar<T: 'static>(
 
             if controls.maximize {
                 controls_row = controls_row.child(
-                    div()
-                        .id("window-titlebar-maximize")
-                        .w(px(TITLEBAR_BUTTON_WIDTH))
-                        .h_full()
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .window_control_area(WindowControlArea::Max)
-                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                        .cursor_pointer()
+                    titlebar_control_button("window-titlebar-maximize", c, WindowControlArea::Max)
                         .child(
                             svg()
                                 .path(titlebar_maximize_icon(
@@ -307,16 +311,7 @@ pub fn render_custom_titlebar<T: 'static>(
             }
 
             controls_row = controls_row.child(
-                div()
-                    .id("window-titlebar-close")
-                    .w(px(TITLEBAR_BUTTON_WIDTH))
-                    .h_full()
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .window_control_area(WindowControlArea::Close)
-                    .hover(|this| this.bg(c.dialog_danger_button_bg))
-                    .cursor_pointer()
+                titlebar_control_button("window-titlebar-close", c, WindowControlArea::Close)
                     .child(
                         svg()
                             .path(TITLEBAR_CLOSE_ICON)

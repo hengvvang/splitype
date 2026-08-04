@@ -1,16 +1,18 @@
 //! Bottom status bar helpers: cursor position, word count, custom
 //! buttons, and status-bar rendering.
 
+use crate::ui::components::button::{icon_chip_button, small_pill_button};
+
 use gpui::prelude::*;
 use gpui::*;
 
 use crate::editor::EditorMode;
-use crate::editor::window::chrome::StatusBarState;
 use crate::editor::controller::Editor;
-use crate::infra::i18n::I18nStrings;
-use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
-use crate::theme::Theme;
+use crate::editor::window::chrome::StatusBarState;
 use crate::editor::window::layout::{Axis, PaneKind};
+use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
+use crate::infra::i18n::I18nStrings;
+use crate::theme::{Theme, ThemeColors, ThemeDimensions};
 
 /// Render a cursor-position label (e.g. `12 : 47`).
 pub fn render_cursor((line, col): (usize, usize), theme: &Theme) -> AnyElement {
@@ -54,6 +56,24 @@ pub fn render_word_count(
 
 /// Render a user-defined status-bar button with hover tracking.
 #[allow(dead_code)]
+
+/// Status bar button — transparent with a state-driven hover background.
+fn status_bar_button(
+    id: impl Into<ElementId>,
+    c: &ThemeColors,
+    d: &ThemeDimensions,
+) -> Stateful<Div> {
+    div()
+        .id(id)
+        .h(px(d.status_bar_height - 4.0))
+        .px(px(6.0))
+        .flex()
+        .items_center()
+        .rounded(px(4.0))
+        .cursor_pointer()
+        .text_size(px(d.status_bar_text_size))
+        .text_color(c.status_bar_text)
+}
 pub fn render_custom_button(
     state: &mut StatusBarState,
     button: &StatusBarButton,
@@ -66,38 +86,34 @@ pub fn render_custom_button(
     let id = button.id.clone();
     let hovered = state.custom_button_hovered.as_deref() == Some(&button.id);
 
-    div()
-        .id(ElementId::Name(
-            format!("status-bar-custom-button-{}", button.id).into(),
-        ))
-        .h(px(d.status_bar_height - 4.0))
-        .px(px(6.0))
-        .flex()
-        .items_center()
-        .rounded(px(4.0))
-        .bg(if hovered {
-            c.status_bar_button_hover
-        } else {
-            hsla(0., 0., 0., 0.)
-        })
-        .cursor_pointer()
-        .text_size(px(d.status_bar_text_size))
-        .text_color(c.status_bar_text)
-        .child(button.label.clone())
-        .on_hover(cx.listener(
-            move |editor: &mut Editor,
-                  hovered: &bool,
-                  _window: &mut Window,
-                  cx: &mut Context<Editor>| {
-                if *hovered {
-                    editor.chrome.status_bar.custom_button_hovered = Some(id.clone());
-                } else if editor.chrome.status_bar.custom_button_hovered.as_deref() == Some(&id) {
-                    editor.chrome.status_bar.custom_button_hovered = None;
-                }
-                cx.notify();
-            },
-        ))
-        .into_any_element()
+    status_bar_button(
+        ElementId::Name(format!("status-bar-custom-button-{}", button.id).into()),
+        c,
+        d,
+    )
+    .bg(if hovered {
+        c.status_bar_button_hover
+    } else {
+        hsla(0., 0., 0., 0.)
+    })
+    .cursor_pointer()
+    .text_size(px(d.status_bar_text_size))
+    .text_color(c.status_bar_text)
+    .child(button.label.clone())
+    .on_hover(cx.listener(
+        move |editor: &mut Editor,
+              hovered: &bool,
+              _window: &mut Window,
+              cx: &mut Context<Editor>| {
+            if *hovered {
+                editor.chrome.status_bar.custom_button_hovered = Some(id.clone());
+            } else if editor.chrome.status_bar.custom_button_hovered.as_deref() == Some(&id) {
+                editor.chrome.status_bar.custom_button_hovered = None;
+            }
+            cx.notify();
+        },
+    ))
+    .into_any_element()
 }
 
 #[allow(dead_code)]
@@ -111,13 +127,7 @@ pub fn render_sidebar_toggle(
     let c = &theme.colors;
     let d = &theme.dimensions;
 
-    div()
-        .id("status-bar-sidebar-toggle")
-        .h(px(d.status_bar_height - 4.0))
-        .px(px(6.0))
-        .flex()
-        .items_center()
-        .rounded(px(4.0))
+    status_bar_button("status-bar-sidebar-toggle", c, d)
         .bg(if state.sidebar_hovered {
             c.status_bar_button_hover
         } else {
@@ -163,13 +173,7 @@ pub fn render_mode_switch(
         EditorMode::Wysiwyg => strings.status_bar_mode_source.clone(),
     };
 
-    div()
-        .id("status-bar-mode-switch")
-        .h(px(d.status_bar_height - 4.0))
-        .px(px(6.0))
-        .flex()
-        .items_center()
-        .rounded(px(4.0))
+    status_bar_button("status-bar-mode-switch", c, d)
         .bg(if state.mode_hovered {
             c.status_bar_button_hover
         } else {
@@ -345,7 +349,8 @@ impl Editor {
         let prefs = self.status_bar_settings(cx);
 
         let inner_leaf_count = self
-            .panels.layout
+            .panels
+            .layout
             .get_or_create_edit_inner_layout(container_id)
             .count_leaves();
 
@@ -353,7 +358,8 @@ impl Editor {
         let focused_inner_id =
             focused.and_then(|(cid, iid)| if cid == container_id { Some(iid) } else { None });
         let focused_area_type = focused_inner_id.and_then(|iid| {
-            self.panels.layout
+            self.panels
+                .layout
                 .get_or_create_edit_inner_layout(container_id)
                 .find_leaf_area(iid)
         });
@@ -365,22 +371,15 @@ impl Editor {
         if let (Some(inner_id), Some(ftype)) = (focused_inner_id, focused_area_type) {
             let editor = cx.entity().downgrade();
             let toggle_editor = editor.clone();
-            let type_button = div()
-                .h(px(20.0))
-                .px(px(6.0))
-                .flex()
-                .items_center()
-                .gap(px(4.0))
-                .rounded(px(d.menu_item_radius))
-                .bg(c.dialog_secondary_button_bg)
-                .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                .cursor_pointer()
+            let type_button = small_pill_button(c, d)
                 .text_size(px(11.0))
                 .text_color(c.text_default)
                 .child(ftype.name().to_string())
                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                     let _ = toggle_editor.update(cx, |ed, cx| {
-                        ed.panels.layout.toggle_inner_dropdown(container_id, inner_id);
+                        ed.panels
+                            .layout
+                            .toggle_inner_dropdown(container_id, inner_id);
                         cx.notify();
                     });
                 });
@@ -389,11 +388,7 @@ impl Editor {
             // Split H button.
             let split_h_editor = editor.clone();
             left_items.push(
-                div()
-                    .p(px(3.0))
-                    .rounded(px(d.menu_item_radius))
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                    .cursor_pointer()
+                icon_chip_button(c, d)
                     .child(
                         svg()
                             .path("icon/panel/split-h.svg")
@@ -416,11 +411,7 @@ impl Editor {
             // Split V button.
             let split_v_editor = editor.clone();
             left_items.push(
-                div()
-                    .p(px(3.0))
-                    .rounded(px(d.menu_item_radius))
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                    .cursor_pointer()
+                icon_chip_button(c, d)
                     .child(
                         svg()
                             .path("icon/panel/split-v.svg")
@@ -444,11 +435,7 @@ impl Editor {
             if inner_leaf_count > 1 {
                 let close_editor = editor.clone();
                 left_items.push(
-                    div()
-                        .p(px(3.0))
-                        .rounded(px(d.menu_item_radius))
-                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                        .cursor_pointer()
+                    icon_chip_button(c, d)
                         .child(
                             svg()
                                 .path("icon/titlebar/chrome-close.svg")
@@ -457,7 +444,9 @@ impl Editor {
                         )
                         .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                             let _ = close_editor.update(cx, |ed, cx| {
-                                ed.panels.layout.close_inner_edit_area(container_id, inner_id);
+                                ed.panels
+                                    .layout
+                                    .close_inner_edit_area(container_id, inner_id);
                                 if ed.panels.layout.focused_inner_panel
                                     == Some((container_id, inner_id))
                                 {

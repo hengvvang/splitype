@@ -110,6 +110,53 @@ pub fn icon_button(
         .cursor_pointer()
 }
 
+/// Minimal icon chip (padding-only) for toolbar and header actions.
+/// Call sites add `.id(...)` when the element needs interactivity state.
+pub fn icon_chip_button(c: &ThemeColors, d: &ThemeDimensions) -> Div {
+    div()
+        .p(px(3.0))
+        .rounded(px(d.menu_item_radius))
+        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+        .cursor_pointer()
+}
+
+/// Small pill button with a secondary background (area headers, status
+/// bars). Call sites may add `.id(...)` and override the background for
+/// selected states.
+pub fn small_pill_button(c: &ThemeColors, d: &ThemeDimensions) -> Div {
+    div()
+        .h(px(22.0))
+        .px(px(8.0))
+        .flex()
+        .items_center()
+        .gap(px(4.0))
+        .rounded(px(d.menu_item_radius))
+        .bg(c.dialog_secondary_button_bg)
+        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+        .cursor_pointer()
+}
+
+/// Top-level menu bar button. Width is label-driven and set at call sites;
+/// the open/selected background overrides the default transparent one.
+pub fn menu_bar_button(
+    id: impl Into<ElementId>,
+    c: &ThemeColors,
+    d: &ThemeDimensions,
+) -> Stateful<Div> {
+    div()
+        .id(id)
+        .h(px(d.menu_bar_button_height))
+        .px(px(5.0))
+        .flex()
+        .flex_shrink_0()
+        .items_center()
+        .justify_center()
+        .rounded(px(d.menu_bar_button_radius))
+        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+        .active(|this| this.opacity(0.92))
+        .cursor_pointer()
+}
+
 fn action_base(
     id: impl Into<ElementId>,
     d: &ThemeDimensions,

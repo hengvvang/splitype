@@ -9,4 +9,5 @@ pub mod empty_state;
 pub mod menu_item;
 pub mod popover;
 pub mod select;
+pub mod splitter;
 pub mod switch;

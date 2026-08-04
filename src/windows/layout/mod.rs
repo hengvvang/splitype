@@ -3,6 +3,9 @@
 //! The layout state model lives in `editor::window::layout`; this module
 //! renders the split tree and hosts the drag/resize interactions.
 
+use crate::ui::components::button::{icon_chip_button, small_pill_button};
+use crate::ui::components::splitter::{splitter_bar_h, splitter_bar_v};
+
 use crate::ui::components::menu_item::menu_item;
 
 use gpui::*;
@@ -581,14 +584,7 @@ impl Editor {
                             )
                             .child(
                                 // Splitter bar between the two padded tiles.
-                                div()
-                                    .id(("tiled-splitter-bar-h", split_id))
-                                    .w(px(2.0))
-                                    .h_full()
-                                    .flex_shrink_0()
-                                    .cursor_col_resize()
-                                    .bg(c.dialog_border)
-                                    .hover(|this| this.bg(c.selection))
+splitter_bar_h(("tiled-splitter-bar-h", split_id), c)
                                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                         let start_pos = f32::from(event.position.x);
                                         let _ = bar_editor.update(cx, |ed, cx| {
@@ -658,14 +654,7 @@ impl Editor {
                             )
                             .child(
                                 // Splitter bar between the two padded tiles.
-                                div()
-                                    .id(("tiled-splitter-bar-v", split_id))
-                                    .h(px(2.0))
-                                    .w_full()
-                                    .flex_shrink_0()
-                                    .cursor_row_resize()
-                                    .bg(c.dialog_border)
-                                    .hover(|this| this.bg(c.selection))
+splitter_bar_v(("tiled-splitter-bar-v", split_id), c)
                                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                         let start_pos = f32::from(event.position.y);
                                         let _ = bar_editor.update(cx, |ed, cx| {
@@ -854,17 +843,8 @@ impl Editor {
         let editor = cx.entity().downgrade();
 
         let type_editor = editor.clone();
-        let type_button = div()
+        let type_button = small_pill_button(c, d)
             .id(("area-header-type", leaf_id))
-            .h(px(22.0))
-            .px(px(8.0))
-            .flex()
-            .items_center()
-            .gap(px(4.0))
-            .rounded(px(d.menu_item_radius))
-            .bg(c.dialog_secondary_button_bg)
-            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-            .cursor_pointer()
             .text_size(px(12.0))
             .text_color(c.text_default)
             .child(area_type.name().to_string())
@@ -876,12 +856,8 @@ impl Editor {
             });
 
         let split_h_editor = editor.clone();
-        let split_h_button = div()
+        let split_h_button = icon_chip_button(c, d)
             .id(("area-btn-split-h", leaf_id))
-            .p(px(4.0))
-            .rounded(px(d.menu_item_radius))
-            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-            .cursor_pointer()
             .child(
                 svg()
                     .path("icon/panel/split-h.svg")
@@ -896,12 +872,8 @@ impl Editor {
             });
 
         let split_v_editor = editor.clone();
-        let split_v_button = div()
+        let split_v_button = icon_chip_button(c, d)
             .id(("area-btn-split-v", leaf_id))
-            .p(px(4.0))
-            .rounded(px(d.menu_item_radius))
-            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-            .cursor_pointer()
             .child(
                 svg()
                     .path("icon/panel/split-v.svg")
@@ -924,12 +896,8 @@ impl Editor {
 
         if leaf_count > 1 {
             let max_editor = editor.clone();
-            let max_button = div()
+            let max_button = icon_chip_button(c, d)
                 .id(("area-btn-max", leaf_id))
-                .p(px(4.0))
-                .rounded(px(d.menu_item_radius))
-                .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                .cursor_pointer()
                 .child(
                     svg()
                         .path(if is_maximized {
@@ -948,12 +916,8 @@ impl Editor {
                 });
 
             let close_editor = editor.clone();
-            let close_button = div()
+            let close_button = icon_chip_button(c, d)
                 .id(("area-btn-close", leaf_id))
-                .p(px(4.0))
-                .rounded(px(d.menu_item_radius))
-                .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                .cursor_pointer()
                 .child(
                     svg()
                         .path("icon/titlebar/chrome-close.svg")
@@ -1019,16 +983,8 @@ impl Editor {
                 let close_editor = editor.clone();
 
                 tab_elements.push(
-                    div()
-                        .h(px(22.0))
+small_pill_button(c, d)
                         .px(px(6.0))
-                        .flex()
-                        .items_center()
-                        .gap(px(4.0))
-                        .rounded(px(d.menu_item_radius))
-                        .bg(tab_bg)
-                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                        .cursor_pointer()
                         .text_size(px(11.0))
                         .child(
                             // Switch area: clicking the file name switches to this tab.
@@ -1604,14 +1560,7 @@ menu_item("border-menu-close", c, d)
                                     .child(first_elem),
                             )
                             .child(
-                                div()
-                                    .id(("inner-splitter-bar-h", split_id))
-                                    .w(px(2.0))
-                                    .h_full()
-                                    .flex_shrink_0()
-                                    .cursor_col_resize()
-                                    .bg(c.dialog_border)
-                                    .hover(|this| this.bg(c.selection))
+splitter_bar_h(("inner-splitter-bar-h", split_id), c)
                                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                         let start_pos = f32::from(event.position.x);
                                         let _ = bar_editor.update(cx, |ed, cx| {
@@ -1680,14 +1629,7 @@ menu_item("border-menu-close", c, d)
                                     .child(first_elem),
                             )
                             .child(
-                                div()
-                                    .id(("inner-splitter-bar-v", split_id))
-                                    .h(px(2.0))
-                                    .w_full()
-                                    .flex_shrink_0()
-                                    .cursor_row_resize()
-                                    .bg(c.dialog_border)
-                                    .hover(|this| this.bg(c.selection))
+splitter_bar_v(("inner-splitter-bar-v", split_id), c)
                                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                         let start_pos = f32::from(event.position.y);
                                         let _ = bar_editor.update(cx, |ed, cx| {
