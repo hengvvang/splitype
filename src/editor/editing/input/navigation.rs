@@ -1,133 +1,21 @@
-//! Navigation: scrolling, page keys, scrollbar drag, table-cell focus
-//! movement, and quote/callout focus routing.
-
-use std::time::Duration;
+//! Navigation: page keys, viewport scrolling, and table-cell focus
+//! movement. Mouse/scrollbar interactions live in `mouse`; menu input
+//! lives in `crate::editor::windows::menu`.
 
 use gpui::*;
 
 use super::shortcuts::{JumpToBottom, JumpToTop, PageDown, PageUp};
 use crate::editor::actions::BlockAction;
-use crate::editor::tree::block::CollapsedCaretAffinity;
 use crate::editor::controller::*;
+use crate::editor::tree::block::CollapsedCaretAffinity;
 use crate::model::block::BlockKind;
 use crate::model::syntax::table::TableCellPosition;
 
-
 impl Editor {
-    pub(crate) fn bump_scrollbar_visibility(&mut self, cx: &mut Context<Self>) {
-        let duration = Duration::from_millis(900);
-        self.scroll.scrollbar_visible_until = Instant::now() + duration;
-
-        let weak_editor = cx.entity().downgrade();
-        self.scroll.scrollbar_fade_task = Some(cx.spawn(
-            async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
-                cx.background_executor()
-                    .timer(duration + Duration::from_millis(50))
-                    .await;
-                let _ = weak_editor.update(cx, |this, cx| {
-                    this.scroll.scrollbar_fade_task = None;
-                    cx.notify();
-                });
-            },
-        ));
-
-        cx.notify();
-    }
-
-
-    pub(crate) fn on_editor_hover(
-        &mut self,
-        hovered: &bool,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.scroll.scrollbar_hovered = *hovered;
-        if *hovered {
-            self.bump_scrollbar_visibility(cx);
-        } else {
-            cx.notify();
-        }
-    }
-
-
-    pub(crate) fn toggle_menu_bar_expanded(&mut self, cx: &mut Context<Self>) {
-        self.chrome.menu_bar_expanded = !self.chrome.menu_bar_expanded;
-        if !self.chrome.menu_bar_expanded {
-            self.chrome.menu_bar_open = None;
-            self.chrome.menu_submenu_open = None;
-        }
-        cx.notify();
-    }
-
-    #[allow(dead_code)]
-
-    pub(crate) fn on_menu_bar_hover(
-        &mut self,
-        hovered: &bool,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.set_menu_bar_hovered(*hovered, cx);
-    }
-
-
-    pub(crate) fn on_menu_panel_hover(
-        &mut self,
-        hovered: &bool,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.set_menu_panel_hovered(*hovered, cx);
-    }
-
-
-    pub(crate) fn on_menu_submenu_panel_hover(
-        &mut self,
-        hovered: &bool,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.set_menu_submenu_panel_hovered(*hovered, cx);
-    }
-
-
-    pub(crate) fn on_menu_submenu_bridge_hover(
-        &mut self,
-        hovered: &bool,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.set_menu_submenu_bridge_hovered(*hovered, cx);
-    }
-
-
-    pub(crate) fn on_editor_mouse_down(
-        &mut self,
-        _event: &MouseDownEvent,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.dismiss_menu_bar_from_body(cx);
-        self.clear_table_axis_preview(cx);
-        self.clear_table_axis_selection(cx);
-    }
-
-
-    pub(crate) fn on_editor_scroll_wheel(
-        &mut self,
-        _event: &ScrollWheelEvent,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.bump_scrollbar_visibility(cx);
-    }
-
-
     pub(crate) fn on_page_up(&mut self, _: &PageUp, _window: &mut Window, cx: &mut Context<Self>) {
         let page = self.scroll.handle.bounds().size.height;
         self.scroll_viewport_by(page, cx);
     }
-
 
     pub(crate) fn on_page_down(
         &mut self,
@@ -139,7 +27,6 @@ impl Editor {
         self.scroll_viewport_by(-page, cx);
     }
 
-
     pub(crate) fn on_jump_to_top(
         &mut self,
         _: &JumpToTop,
@@ -148,7 +35,6 @@ impl Editor {
     ) {
         self.set_vertical_scroll_offset(px(0.0), cx);
     }
-
 
     pub(crate) fn on_jump_to_bottom(
         &mut self,
@@ -163,7 +49,6 @@ impl Editor {
     /// Scrolls the viewport vertically by `delta`. A positive `delta` moves
     /// toward the start of the document; a negative one moves toward the end.
     /// One page is the current viewport height, so the step tracks window size.
-
     pub(crate) fn scroll_viewport_by(&mut self, delta: Pixels, cx: &mut Context<Self>) {
         let target = self.scroll.handle.offset().y + delta;
         self.set_vertical_scroll_offset(target, cx);
@@ -171,7 +56,6 @@ impl Editor {
 
     /// Applies an absolute vertical scroll offset, clamped to the scrollable
     /// range. Offsets run from 0 at the top to `-max_offset` at the bottom.
-
     pub(crate) fn set_vertical_scroll_offset(&mut self, target_y: Pixels, cx: &mut Context<Self>) {
         let max_offset_y = self.scroll.handle.max_offset().height.max(px(0.0));
         let mut offset = self.scroll.handle.offset();
@@ -184,62 +68,6 @@ impl Editor {
         self.bump_scrollbar_visibility(cx);
         cx.notify();
     }
-
-
-    pub(crate) fn start_scrollbar_drag(
-        &mut self,
-        pointer_offset_y: f32,
-        track_height: f32,
-        thumb_height: f32,
-        max_scroll_y: f32,
-        cx: &mut Context<Self>,
-    ) {
-        self.scroll.scrollbar_drag = Some(crate::editor::controller::ScrollbarDragSession {
-            pointer_offset_y: pointer_offset_y.clamp(0.0, thumb_height.max(0.0)),
-            track_height,
-            thumb_height,
-            max_scroll_y,
-        });
-        self.focus.pending_scroll_active_block_into_view = false;
-        self.focus.pending_scroll_recheck_after_layout = false;
-        self.bump_scrollbar_visibility(cx);
-        cx.notify();
-    }
-
-
-    pub(crate) fn update_scrollbar_drag(
-        &mut self,
-        pointer_y_in_track: f32,
-        cx: &mut Context<Self>,
-    ) {
-        let Some(drag) = self.scroll.scrollbar_drag else {
-            return;
-        };
-
-        let travel = (drag.track_height - drag.thumb_height).max(0.0);
-        let thumb_top = (pointer_y_in_track - drag.pointer_offset_y).clamp(0.0, travel);
-        let scroll_y = Self::scroll_offset_for_thumb_top(
-            thumb_top,
-            drag.track_height,
-            drag.thumb_height,
-            drag.max_scroll_y,
-        );
-
-        let mut offset = self.scroll.handle.offset();
-        offset.y = -px(scroll_y);
-        self.scroll.handle.set_offset(offset);
-        self.bump_scrollbar_visibility(cx);
-        cx.notify();
-    }
-
-
-    pub(crate) fn end_scrollbar_drag(&mut self, cx: &mut Context<Self>) {
-        if self.scroll.scrollbar_drag.take().is_some() {
-            self.bump_scrollbar_visibility(cx);
-            cx.notify();
-        }
-    }
-
 
     pub(crate) fn focus_table_cell_position(
         &mut self,
@@ -264,7 +92,6 @@ impl Editor {
     /// block. Entering from above lands on the first header cell; entering from
     /// below lands on the first cell of the last body row, falling back to the
     /// header when the table has no body rows.
-
     pub(crate) fn focus_table_entry_cell(
         &mut self,
         table_block: &Entity<crate::editor::tree::block::Block>,
@@ -299,7 +126,6 @@ impl Editor {
     /// landing on the table container. `to_block_start` lands the caret at the
     /// neighbor's start (Block Up/Down semantics) rather than the nearest edge
     /// (Move Up/Down semantics).
-
     pub(crate) fn focus_block_adjacent_to_table(
         &mut self,
         table_block: &Entity<crate::editor::tree::block::Block>,
@@ -345,7 +171,6 @@ impl Editor {
         cx.notify();
     }
 
-
     pub(crate) fn focus_table_cell_horizontal_neighbor(
         &mut self,
         table_block: &Entity<crate::editor::tree::block::Block>,
@@ -382,7 +207,6 @@ impl Editor {
         let _ = self.focus_table_cell_position(table_block, next_position, cx);
     }
 
-
     pub(crate) fn focus_table_cell_vertical_neighbor(
         &mut self,
         table_block: &Entity<crate::editor::tree::block::Block>,
@@ -412,7 +236,6 @@ impl Editor {
         };
         let _ = self.focus_table_cell_position(table_block, next_position, cx);
     }
-
 
     pub(crate) fn on_table_cell_event(
         &mut self,
@@ -524,7 +347,6 @@ impl Editor {
         }
     }
 
-
     pub(crate) fn nearest_quote_ancestor(
         &self,
         entity_id: EntityId,
@@ -539,7 +361,6 @@ impl Editor {
             current = location.parent?;
         }
     }
-
 
     pub(crate) fn topmost_quote_ancestor(
         &self,
@@ -562,7 +383,6 @@ impl Editor {
         Some(current)
     }
 
-
     pub(crate) fn quote_break_insertion_target(
         &self,
         entity_id: EntityId,
@@ -572,7 +392,6 @@ impl Editor {
         let location = self.document.find_block_location(quote_block.entity_id())?;
         Some((location.parent.clone(), location.index + 1))
     }
-
 
     pub(crate) fn callout_break_insertion_target(
         &self,
@@ -585,7 +404,6 @@ impl Editor {
             .find_block_location(callout_root.entity_id())?;
         Some((location.parent.clone(), location.index + 1))
     }
-
 
     pub(crate) fn ensure_callout_body_entry(
         &mut self,
@@ -605,7 +423,6 @@ impl Editor {
             .insert_blocks_at(Some(callout.clone()), 0, vec![body.clone()], cx);
         Some(body)
     }
-
 
     pub(crate) fn materialize_empty_callout_shortcut(
         &mut self,
@@ -645,7 +462,6 @@ impl Editor {
         Some(body.entity_id())
     }
 
-
     pub(crate) fn downgrade_empty_callout_body_to_quote(
         &mut self,
         block: &Entity<crate::editor::tree::block::Block>,
@@ -676,10 +492,7 @@ impl Editor {
             return false;
         }
 
-        self.prepare_undo_capture(
-            crate::editor::actions::UndoCaptureKind::NonCoalescible,
-            cx,
-        );
+        self.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::NonCoalescible, cx);
         self.document.with_structure_mutation(cx, |document, cx| {
             let _ = document.remove_block_by_id_raw(block.entity_id(), cx);
             parent.update(cx, |parent, cx| {
@@ -702,5 +515,4 @@ impl Editor {
         cx.notify();
         true
     }
-
 }

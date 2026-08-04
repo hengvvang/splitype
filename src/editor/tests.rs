@@ -9,7 +9,8 @@ use gpui::{
 
 use super::{EditorMode, Editor};
 use crate::model::block::BlockKind;
-use crate::editor::editing::input::shortcuts::{CloseWindow, FocusNext, Newline, QuitApplication, SaveDocument};
+use crate::editor::editing::input::shortcuts::{FocusNext, Newline};
+use crate::editor::windows::actions::{CloseWindow, QuitApplication, SaveDocument};
 use crate::model::inline::text::RichText;
 use crate::model::syntax::table::TableColumnAlignment;
 use crate::model::inline::footnote::superscript_ordinal;
@@ -25,7 +26,7 @@ fn init_editor_test_app(cx: &mut TestAppContext) {
     cx.update(|cx| {
         I18nManager::init(cx);
         ThemeManager::init(cx);
-        crate::editor::editing::input::shortcuts::init(cx);
+        crate::editor::windows::keybindings::init(cx);
     });
 }
 

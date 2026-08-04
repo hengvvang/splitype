@@ -23,7 +23,7 @@ use crate::infra::config::settings::{
 };
 use crate::editor::render::export::ExportFormat;
 use crate::infra::i18n::I18nManager;
-use crate::editor::editing::input::shortcuts::{
+use crate::editor::windows::actions::{
     AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
     InstallCliTool, NewWindow, NoRecentFiles, OpenFile, OpenRecentFile, OpenSettings,
     QuitApplication, SaveDocument, SaveDocumentAs, SelectLanguage, SelectTheme, ShowAbout,
@@ -782,10 +782,10 @@ mod tests {
     use super::build_menus;
     use crate::platform::cli_tool::applescript_string_literal;
     use crate::infra::i18n::I18nManager;
-    use crate::editor::editing::input::shortcuts::{
+    use crate::editor::windows::actions::{
         AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
-        NewWindow, NoRecentFiles, OpenFile, OpenPreferences as OpenSettings, OpenRecentFile,
-        QuitApplication, SaveDocument, SelectLanguage, SelectTheme, ShowAbout,
+        NewWindow, NoRecentFiles, OpenFile, OpenSettings, OpenRecentFile, QuitApplication,
+        SaveDocument, SelectLanguage, SelectTheme, ShowAbout,
     };
     use crate::theme::ThemeManager;
     use gpui::MenuItem;

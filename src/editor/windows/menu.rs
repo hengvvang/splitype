@@ -1,11 +1,59 @@
 //! Menu-bar and info-dialog state machine.
 //!
 //! Tracks which menu/submenu is open, hover deferral and the delayed-close
-//! task, plus the save/open-link prompts that menu actions initiate.
+//! task, plus the save/open-link prompts that menu actions initiate. The
+//! hover/expand input handlers from the editor chrome are co-located with
+//! the state they drive.
 
 use crate::editor::controller::*;
 
 impl Editor {
+    pub(crate) fn toggle_menu_bar_expanded(&mut self, cx: &mut Context<Self>) {
+        self.chrome.menu_bar_expanded = !self.chrome.menu_bar_expanded;
+        if !self.chrome.menu_bar_expanded {
+            self.chrome.menu_bar_open = None;
+            self.chrome.menu_submenu_open = None;
+        }
+        cx.notify();
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn on_menu_bar_hover(
+        &mut self,
+        hovered: &bool,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_menu_bar_hovered(*hovered, cx);
+    }
+
+    pub(crate) fn on_menu_panel_hover(
+        &mut self,
+        hovered: &bool,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_menu_panel_hovered(*hovered, cx);
+    }
+
+    pub(crate) fn on_menu_submenu_panel_hover(
+        &mut self,
+        hovered: &bool,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_menu_submenu_panel_hovered(*hovered, cx);
+    }
+
+    pub(crate) fn on_menu_submenu_bridge_hover(
+        &mut self,
+        hovered: &bool,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_menu_submenu_bridge_hovered(*hovered, cx);
+    }
+
     pub(crate) fn show_info_dialog(&mut self, kind: InfoDialogKind, cx: &mut Context<Self>) {
         if self.file.show_unsaved_changes_dialog {
             return;

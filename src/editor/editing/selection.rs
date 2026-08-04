@@ -930,7 +930,7 @@ mod tests {
         cx.update(|cx| {
             I18nManager::init(cx);
             ThemeManager::init(cx);
-            crate::editor::editing::input::shortcuts::init(cx);
+            crate::editor::windows::keybindings::init(cx);
         });
     }
 

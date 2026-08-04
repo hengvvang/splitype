@@ -871,8 +871,7 @@ impl Render for Editor {
 
 #[cfg(test)]
 mod tests {
-    use crate::editor::editing::input::shortcuts::NoRecentFiles;
-    use crate::editor::editing::input::shortcuts::{AddLanguageConfig, AddThemeConfig};
+    use crate::editor::windows::actions::{AddLanguageConfig, AddThemeConfig, NoRecentFiles};
     use crate::theme::Theme;
     use crate::windows::editor::menu_bar::{
         import_menu_split_index, in_window_menu_bar_height_for_target_os, menu_bar_button_width,

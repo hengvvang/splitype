@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use gpui::*;
 
 use crate::editor::controller::Editor;
-use crate::editor::editing::input::shortcuts::ToggleWorkspace;
+use crate::editor::windows::actions::ToggleWorkspace;
 use crate::editor::windows::layout::workspace::*;
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::theme::Theme;

@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 
 use gpui::*;
 
-use crate::editor::editing::input::shortcuts::{
+use crate::editor::windows::keybindings::{
     ShortcutCommand, install_keybindings, normalize_shortcut_config,
 };
 use crate::infra::config::settings::{
