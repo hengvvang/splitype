@@ -1,0 +1,352 @@
+//! Persistent data of a block, independent of the editor runtime.
+//!
+//! `BlockData` is the pure data record for one block-level node: identity,
+//! semantic kind, inline-formatted text, optional payloads (table, HTML), and
+//! tree references (parent / children via [`BlockId`]). Raw-preserved
+//! Markdown keeps its original source in `raw_source` so it round-trips
+//! through save/load losslessly.
+
+use super::id::BlockId;
+use super::kind::BlockKind;
+use crate::model::inline::text::RichText;
+use crate::model::syntax::html::{HtmlDocument, parse_html_document};
+use crate::model::syntax::image::parse_standalone_image;
+use crate::model::syntax::table::TableData;
+
+/// Persistent data of a single block in the document tree.
+#[derive(Debug, Clone)]
+pub struct BlockData {
+    /// Unique block identifier.
+    pub id: BlockId,
+    /// Semantic block kind.
+    pub kind: BlockKind,
+    /// Inline-formatted block content.
+    pub text: RichText,
+    /// Native table data (only for `BlockKind::Table`).
+    pub table: Option<TableData>,
+    /// Parsed HTML document (only for `BlockKind::HtmlBlock`).
+    pub html: Option<HtmlDocument>,
+    /// Parent block id (`None` for root blocks).
+    pub parent: Option<BlockId>,
+    /// Ordered list of child block ids.
+    pub children: Vec<BlockId>,
+    /// Raw Markdown source fallback for opaque block kinds.
+    pub raw_source: Option<String>,
+}
+
+impl BlockData {
+    /// Create a new block with the given kind and text.
+    pub fn new(kind: BlockKind, text: RichText) -> Self {
+        let mut data = Self {
+            id: BlockId::new(),
+            kind,
+            text,
+            table: None,
+            html: None,
+            parent: None,
+            children: Vec::new(),
+            raw_source: None,
+        };
+        data.sync_raw_source();
+        data
+    }
+
+    /// Create a new block with plain text.
+    pub fn with_plain_text(kind: BlockKind, text: impl Into<String>) -> Self {
+        Self::new(kind, RichText::plain(text.into()))
+    }
+
+    /// Convenience: create a paragraph block.
+    pub fn paragraph(text: impl Into<String>) -> Self {
+        Self::with_plain_text(BlockKind::Paragraph, text)
+    }
+
+    /// Create a raw Markdown fallback block.
+    pub fn raw_markdown(markdown: impl Into<String>) -> Self {
+        let markdown = markdown.into();
+        let mut data = Self::with_plain_text(BlockKind::RawMarkdown, markdown.clone());
+        data.raw_source = Some(markdown);
+        data
+    }
+
+    /// Create an HTML comment block.
+    pub fn html_comment(markdown: impl Into<String>) -> Self {
+        let markdown = markdown.into();
+        let mut data = Self::with_plain_text(BlockKind::HtmlComment, markdown.clone());
+        data.raw_source = Some(markdown);
+        data
+    }
+
+    /// Create an HTML block, parsing the HTML document.
+    pub fn html_block(markdown: impl Into<String>) -> Self {
+        let markdown = markdown.into();
+        let html = parse_html_document(&markdown);
+        let mut data = Self::with_plain_text(BlockKind::HtmlBlock, markdown.clone());
+        data.html = Some(html);
+        data.raw_source = Some(markdown);
+        data
+    }
+
+    /// Create a LaTeX math block.
+    pub fn latex_math(markdown: impl Into<String>) -> Self {
+        let markdown = markdown.into();
+        let mut data = Self::with_plain_text(BlockKind::MathBlock, markdown.clone());
+        data.raw_source = Some(markdown);
+        data
+    }
+
+    /// Create a Mermaid diagram block.
+    pub fn mermaid_diagram(markdown: impl Into<String>) -> Self {
+        let markdown = markdown.into();
+        let mut data = Self::with_plain_text(BlockKind::MermaidBlock, markdown.clone());
+        data.raw_source = Some(markdown);
+        data
+    }
+
+    /// Create a table block from existing table data.
+    pub fn table(table: TableData) -> Self {
+        let mut data = Self::new(BlockKind::Table, RichText::plain(String::new()));
+        data.table = Some(table);
+        data
+    }
+
+    /// Replace the block text.
+    pub fn set_text(&mut self, text: RichText) {
+        self.text = text;
+        self.sync_raw_source();
+    }
+
+    /// Export the block text as Markdown: fragment style flags are
+    /// serialized back to delimiter markers via [`RichText::serialize_markdown`].
+    pub fn text_markdown(&self) -> String {
+        self.text.serialize_markdown()
+    }
+
+    /// Returns true for block kinds that keep their original source text
+    /// in `raw_source` because they are preserved as opaque Markdown.
+    pub fn preserves_raw_source(&self) -> bool {
+        matches!(
+            self.kind,
+            BlockKind::ThematicBreak
+                | BlockKind::RawMarkdown
+                | BlockKind::HtmlComment
+                | BlockKind::HtmlBlock
+                | BlockKind::MathBlock
+                | BlockKind::MermaidBlock
+        )
+    }
+
+    /// Serialize this block back to a single Markdown line, including
+    /// indentation for nested blocks and list ordinal for numbered items.
+    /// Raw-preserved blocks produce their fallback text when at depth 0.
+    pub fn markdown_line(&self, depth: usize, list_ordinal: Option<usize>) -> String {
+        let indentation = "  ".repeat(depth);
+        let text_markdown = self.text_markdown_for_output();
+        match self.kind {
+            BlockKind::Paragraph => indent_multiline(&text_markdown, &indentation),
+            BlockKind::ThematicBreak => {
+                if let Some(raw) = &self.raw_source {
+                    if !raw.trim().is_empty() {
+                        return raw.clone();
+                    }
+                }
+                let visible = self.text.visible_text();
+                if !visible.trim().is_empty() {
+                    visible.to_string()
+                } else {
+                    "---".to_string()
+                }
+            }
+            BlockKind::Heading { level } => {
+                format!(
+                    "{indentation}{} {text_markdown}",
+                    "#".repeat(level as usize)
+                )
+            }
+            BlockKind::BulletListItem => prefixed_multiline(
+                &text_markdown,
+                &format!("{indentation}- "),
+                &format!("{indentation}  "),
+            ),
+            BlockKind::TaskListItem { checked } => prefixed_multiline(
+                &text_markdown,
+                &format!("{indentation}- [{}] ", if checked { "x" } else { " " }),
+                &format!("{indentation}      "),
+            ),
+            BlockKind::NumberedListItem => {
+                let ordinal = list_ordinal.unwrap_or(1);
+                prefixed_multiline(
+                    &text_markdown,
+                    &format!("{indentation}{ordinal}. "),
+                    &format!("{indentation}   "),
+                )
+            }
+            BlockKind::Blockquote => prefixed_multiline(
+                &super::callout::CalloutKind::escape_plain_quote_header(&text_markdown),
+                &format!("{indentation}> "),
+                &format!("{indentation}> "),
+            ),
+            BlockKind::Callout(variant) => {
+                format!("{indentation}> {}", variant.header_markdown(&text_markdown))
+            }
+            BlockKind::FootnoteDefinition => {
+                format!("{indentation}[^{}]: ", self.text.visible_text())
+            }
+            BlockKind::Table => String::new(),
+            BlockKind::CodeBlock { .. } => text_markdown,
+            BlockKind::RawMarkdown
+            | BlockKind::HtmlComment
+            | BlockKind::HtmlBlock
+            | BlockKind::MathBlock
+            | BlockKind::MermaidBlock => {
+                if depth == 0 {
+                    self.raw_source.clone().unwrap_or(text_markdown)
+                } else {
+                    indent_multiline(
+                        &self.raw_source.clone().unwrap_or(text_markdown),
+                        &indentation,
+                    )
+                }
+            }
+        }
+    }
+
+    fn text_markdown_for_output(&self) -> String {
+        let visible = self.text.visible_text();
+        if self.can_present_text_as_standalone_image() && parse_standalone_image(&visible).is_some()
+        {
+            return visible;
+        }
+
+        self.text_markdown()
+    }
+
+    fn can_present_text_as_standalone_image(&self) -> bool {
+        matches!(
+            self.kind,
+            BlockKind::Paragraph
+                | BlockKind::BulletListItem
+                | BlockKind::NumberedListItem
+                | BlockKind::TaskListItem { .. }
+        )
+    }
+
+    fn sync_raw_source(&mut self) {
+        if self.preserves_raw_source() {
+            self.raw_source = Some(self.text.visible_text().to_string());
+            if self.kind == BlockKind::HtmlBlock {
+                self.html = self.raw_source.as_ref().map(|raw| parse_html_document(raw));
+            }
+        } else {
+            self.raw_source = None;
+            self.html = None;
+        }
+    }
+}
+
+fn indent_multiline(content: &str, indentation: &str) -> String {
+    content
+        .split('\n')
+        .map(|line| format!("{indentation}{line}"))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn prefixed_multiline(content: &str, first_prefix: &str, continuation_prefix: &str) -> String {
+    let mut lines = content.split('\n');
+    let mut rendered = String::new();
+    if let Some(first) = lines.next() {
+        rendered.push_str(first_prefix);
+        rendered.push_str(first);
+    }
+
+    for line in lines {
+        rendered.push('\n');
+        rendered.push_str(continuation_prefix);
+        rendered.push_str(line);
+    }
+
+    rendered
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serializes_supported_block_kinds() {
+        let list = BlockData::new(BlockKind::BulletListItem, RichText::from_markdown("*item*"));
+        let numbered = BlockData::new(BlockKind::NumberedListItem, RichText::from_markdown("step"));
+        let task = BlockData::new(
+            BlockKind::TaskListItem { checked: true },
+            RichText::from_markdown("done"),
+        );
+        let heading = BlockData::new(
+            BlockKind::Heading { level: 2 },
+            RichText::from_markdown("**title**"),
+        );
+        let quote = BlockData::new(BlockKind::Blockquote, RichText::plain("quoted text"));
+        let paragraph = BlockData::paragraph("plain");
+        let comment = BlockData::new(
+            BlockKind::HtmlComment,
+            RichText::plain("<!--\ncomment\n-->"),
+        );
+
+        assert_eq!(list.markdown_line(0, None), "- *item*");
+        assert_eq!(list.markdown_line(2, None), "    - *item*");
+        assert_eq!(task.markdown_line(0, None), "- [x] done");
+        assert_eq!(task.markdown_line(2, None), "    - [x] done");
+        assert_eq!(numbered.markdown_line(0, Some(3)), "3. step");
+        assert_eq!(numbered.markdown_line(2, Some(12)), "    12. step");
+        assert_eq!(heading.markdown_line(0, None), "## **title**");
+        assert_eq!(quote.markdown_line(0, None), "> quoted text");
+        assert_eq!(quote.markdown_line(2, None), "    > quoted text");
+        assert_eq!(paragraph.markdown_line(1, None), "  plain");
+        assert_eq!(comment.markdown_line(0, None), "<!--\ncomment\n-->");
+        assert_eq!(comment.markdown_line(1, None), "  <!--\n  comment\n  -->");
+    }
+
+    #[test]
+    fn standalone_image_markdown_line_preserves_underscores() {
+        let markdown = "![1.1_进制转换例子](./NetworkEngineerSummer.assets/1.1_进制转换例子.jpg)";
+        let paragraph = BlockData::paragraph(markdown);
+
+        assert_eq!(paragraph.markdown_line(0, None), markdown);
+    }
+
+    #[test]
+    fn quote_serializes_back_to_markdown() {
+        let record = BlockData::new(BlockKind::Blockquote, RichText::plain("text"));
+        let line = record.markdown_line(0, None);
+        assert_eq!(line, "> text");
+    }
+
+    #[test]
+    fn code_block_markdown_line_returns_plain_content() {
+        let record = BlockData::new(
+            BlockKind::CodeBlock {
+                language: Some("rust".into()),
+            },
+            RichText::plain("let x = 1;\nprintln!(\"hi\");"),
+        );
+        // markdown_line returns bare content; fences are added by persistence layer.
+        let line = record.markdown_line(0, None);
+        assert_eq!(line, "let x = 1;\nprintln!(\"hi\");");
+    }
+
+    #[test]
+    fn thematic_break_markdown_line_round_trips() {
+        let record = BlockData::new(BlockKind::ThematicBreak, RichText::plain(String::new()));
+        assert_eq!(record.markdown_line(0, None), "---");
+        assert!(BlockKind::parse_thematic_break_line("---"));
+    }
+
+    #[test]
+    fn task_list_serializes_canonical_markdown() {
+        let record = BlockData::new(
+            BlockKind::TaskListItem { checked: false },
+            RichText::plain("todo"),
+        );
+        assert_eq!(record.markdown_line(0, None), "- [ ] todo");
+    }
+}

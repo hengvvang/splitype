@@ -20,7 +20,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use gpui::*;
 
-use crate::engine::block_types::BlockType;
+use crate::model::block::BlockKind;
 use crate::engine::editor::Editor;
 use crate::services::i18n::{I18nManager, I18nStrings};
 use crate::ui::input::shortcuts::ToggleWorkspace;
@@ -227,7 +227,7 @@ pub fn build_outline_tree(markdown: &str) -> Vec<WorkspaceTreeNode> {
             continue;
         }
 
-        let Some((level, title)) = BlockType::parse_atx_heading_line(line) else {
+        let Some((level, title)) = BlockKind::parse_atx_heading_line(line) else {
             continue;
         };
 

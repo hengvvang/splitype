@@ -10,7 +10,7 @@ use std::ops::Range;
 use gpui::*;
 
 use crate::ui::blocks::block_view::Block;
-use crate::engine::block_types::{BlockAction, UndoCaptureKind};
+use crate::editor::actions::{BlockAction, UndoCaptureKind};
 use crate::ui::inline::text_element as element;
 
 impl EntityInputHandler for Block {

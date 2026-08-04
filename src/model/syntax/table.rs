@@ -7,8 +7,8 @@
 
 use gpui::{FontStyle, FontWeight, Pixels, SharedString, TextRun, Window, px};
 
-use crate::core::text::render_cache::InlineRenderCache;
-use crate::core::text::rich_text::RichText;
+use crate::model::inline::render_cache::InlineRenderCache;
+use crate::model::inline::text::RichText;
 use crate::ui::theme::Theme;
 
 /// Horizontal alignment declared by the table's delimiter row.
@@ -781,7 +781,7 @@ mod tests {
         collect_root_table_candidate_region, is_root_table_candidate_line, parse_root_table_region,
         serialize_table_markdown_lines,
     };
-    use crate::core::text::rich_text::RichText;
+    use crate::model::inline::text::RichText;
 
     fn assert_close(left: f32, right: f32) {
         assert!(
@@ -1150,5 +1150,23 @@ mod tests {
         assert_eq!(table.column_count(), 1);
         table.remove_column(0);
         assert_eq!(table.column_count(), 1);
+    }
+}
+
+/// Runtime-only location of a cell inside a native table.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TableCellPosition {
+    /// Zero-based visual row. Header is row `0`; first body row is `1`.
+    pub row: usize,
+    pub column: usize,
+}
+
+impl TableCellPosition {
+    pub fn is_header(self) -> bool {
+        self.row == 0
+    }
+
+    pub fn body_row_index(self) -> Option<usize> {
+        self.row.checked_sub(1)
     }
 }

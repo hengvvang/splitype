@@ -1,4 +1,7 @@
-//! LaTeX display-math parsing and RaTeX SVG rendering helpers.
+//! RaTeX SVG rendering helpers for LaTeX math.
+//!
+//! Display-math source parsing lives in `model::syntax::math`; this module
+//! only owns the SVG rendering pipeline and its cache.
 
 use std::collections::hash_map::DefaultHasher;
 use std::fs;
@@ -9,17 +12,10 @@ use anyhow::{Context as _, anyhow};
 use directories::ProjectDirs;
 use gpui::{Hsla, Rgba};
 
+use crate::model::syntax::math::DisplayMathSource;
+
 const DISPLAY_MATH_SCALE: f32 = 1.25;
 const INLINE_MATH_SCALE: f32 = 1.12;
-
-/// Parsed display-math source preserved from Markdown.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct DisplayMathSource {
-    /// Full Markdown source, including `$$` delimiters.
-    pub(crate) raw: String,
-    /// LaTeX body between the display delimiters.
-    pub(crate) body: String,
-}
 
 /// Result of rendering display math into an SVG cache file.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -28,32 +24,6 @@ pub(crate) struct LatexSvgRender {
     pub(crate) path: PathBuf,
     /// SVG document content, used by export paths.
     pub(crate) svg: String,
-}
-
-/// Parse a raw `$$...$$` Markdown block into the LaTeX body it contains.
-pub(crate) fn parse_display_math_source(raw: &str) -> Option<DisplayMathSource> {
-    let raw = raw.trim_matches('\n').to_string();
-    let lines = raw.split('\n').collect::<Vec<_>>();
-    if lines.is_empty() {
-        return None;
-    }
-
-    if lines.len() == 1 {
-        let line = strip_display_indent(lines[0])?.trim_end();
-        let body_and_close = line.strip_prefix("$$")?;
-        let close = body_and_close.find("$$")?;
-        let body = body_and_close[..close].trim().to_string();
-        return Some(DisplayMathSource { raw, body });
-    }
-
-    let opener = strip_display_indent(lines[0])?.trim_end();
-    let closer = lines.last()?.trim();
-    if opener != "$$" || closer != "$$" {
-        return None;
-    }
-
-    let body = lines[1..lines.len() - 1].join("\n");
-    Some(DisplayMathSource { raw, body })
 }
 
 /// Display font size used for rendered display-math blocks.
@@ -130,11 +100,6 @@ pub(crate) fn latex_cache_key(latex: &str, text_color: Hsla, font_size: f32) -> 
     format!("{:016x}", hasher.finish())
 }
 
-fn strip_display_indent(line: &str) -> Option<&str> {
-    let indent = line.bytes().take_while(|byte| *byte == b' ').count();
-    (indent <= 3).then_some(&line[indent..])
-}
-
 fn latex_cache_dir() -> anyhow::Result<PathBuf> {
     let root = ProjectDirs::from("com", "manyougz", "Velotype")
         .map(|dirs| dirs.cache_dir().to_path_buf())
@@ -176,6 +141,7 @@ fn recolor_default_black(svg: &str, color: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::model::syntax::math::parse_display_math_source;
     use gpui::rgba;
 
     #[test]

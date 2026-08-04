@@ -14,8 +14,8 @@ impl Editor {
     }
 
     pub(crate) fn is_empty_paragraph_separator(block: &Block) -> bool {
-        block.kind() == BlockType::Paragraph
-            && block.record.title.visible_text().is_empty()
+        block.kind() == BlockKind::Paragraph
+            && block.record.text.visible_text().is_empty()
             && block.children.is_empty()
     }
 
@@ -252,7 +252,7 @@ impl Editor {
             let block_ref = block.read(cx);
             (
                 match block_ref.kind() {
-                    BlockType::CodeBlock { language } => language.clone(),
+                    BlockKind::CodeBlock { language } => language.clone(),
                     _ => None,
                 },
                 "  ".repeat(block_ref.render_depth),
@@ -323,7 +323,7 @@ impl Editor {
             return 0;
         };
 
-        let lines = crate::core::extensions::table::serialize_table_markdown_lines(&table);
+        let lines = crate::model::syntax::table::serialize_table_markdown_lines(&table);
         let indentation = "  ".repeat(list_depth);
         let quote_prefix = "> ".repeat(quote_depth);
         let line_prefix_len = indentation.len() + quote_prefix.len();
@@ -402,16 +402,16 @@ impl Editor {
             let kind = block_ref.kind();
             let title = (!matches!(
                 kind,
-                BlockType::Table
-                    | BlockType::CodeBlock { .. }
-                    | BlockType::Comment
-                    | BlockType::HtmlBlock
-                    | BlockType::MathBlock
-                    | BlockType::MermaidBlock
-                    | BlockType::RawMarkdown
-                    | BlockType::Separator
+                BlockKind::Table
+                    | BlockKind::CodeBlock { .. }
+                    | BlockKind::HtmlComment
+                    | BlockKind::HtmlBlock
+                    | BlockKind::MathBlock
+                    | BlockKind::MermaidBlock
+                    | BlockKind::RawMarkdown
+                    | BlockKind::ThematicBreak
             ))
-            .then(|| block_ref.record.title.markdown_offset_map());
+            .then(|| block_ref.record.text.markdown_offset_map());
             (
                 kind,
                 block_ref.list_ordinal,
@@ -421,7 +421,7 @@ impl Editor {
         };
 
         let own_len = match kind {
-            BlockType::Table => self.push_table_mappings(
+            BlockKind::Table => self.push_table_mappings(
                 block,
                 list_depth,
                 quote_depth,
@@ -429,17 +429,17 @@ impl Editor {
                 mappings,
                 cx,
             ),
-            BlockType::CodeBlock { .. } => {
+            BlockKind::CodeBlock { .. } => {
                 self.push_code_block_mapping(block, quote_depth, absolute_start, mappings, cx)
             }
-            BlockType::RawMarkdown
-            | BlockType::Comment
-            | BlockType::HtmlBlock
-            | BlockType::MathBlock
-            | BlockType::MermaidBlock => {
+            BlockKind::RawMarkdown
+            | BlockKind::HtmlComment
+            | BlockKind::HtmlBlock
+            | BlockKind::MathBlock
+            | BlockKind::MermaidBlock => {
                 self.push_raw_block_mapping(block, quote_depth, absolute_start, mappings, cx)
             }
-            BlockType::Separator => {
+            BlockKind::ThematicBreak => {
                 let line = block
                     .read(cx)
                     .record
@@ -457,7 +457,7 @@ impl Editor {
                     .len()
                 }
             }
-            BlockType::Heading { level } => self.push_inline_block_mapping(
+            BlockKind::Heading { level } => self.push_inline_block_mapping(
                 block,
                 title.expect("heading title").markdown().to_string(),
                 format!("{}{} ", "  ".repeat(list_depth), "#".repeat(level as usize)),
@@ -466,7 +466,7 @@ impl Editor {
                 absolute_start,
                 mappings,
             ),
-            BlockType::Paragraph => {
+            BlockKind::Paragraph => {
                 let indentation = "  ".repeat(list_depth);
                 self.push_inline_block_mapping(
                     block,
@@ -478,7 +478,7 @@ impl Editor {
                     mappings,
                 )
             }
-            BlockType::BulletedListItem => {
+            BlockKind::BulletListItem => {
                 let indentation = "  ".repeat(list_depth);
                 self.push_inline_block_mapping(
                     block,
@@ -490,7 +490,7 @@ impl Editor {
                     mappings,
                 )
             }
-            BlockType::TaskListItem { checked } => {
+            BlockKind::TaskListItem { checked } => {
                 let indentation = "  ".repeat(list_depth);
                 self.push_inline_block_mapping(
                     block,
@@ -502,7 +502,7 @@ impl Editor {
                     mappings,
                 )
             }
-            BlockType::NumberedListItem => {
+            BlockKind::NumberedListItem => {
                 let indentation = "  ".repeat(list_depth);
                 let ordinal = list_ordinal.unwrap_or(1);
                 self.push_inline_block_mapping(
@@ -515,7 +515,7 @@ impl Editor {
                     mappings,
                 )
             }
-            BlockType::Quote => {
+            BlockKind::Blockquote => {
                 let title = title.expect("quote title").markdown().to_string();
                 if title.is_empty() && !children.is_empty() {
                     0
@@ -531,9 +531,9 @@ impl Editor {
                     )
                 }
             }
-            BlockType::Callout(variant) => {
-                let title_markdown = title.expect("callout title").markdown().to_string();
-                if title_markdown.is_empty() {
+            BlockKind::Callout(variant) => {
+                let text_markdown = title.expect("callout title").markdown().to_string();
+                if text_markdown.is_empty() {
                     let full_text = Self::wrap_source_mapping_with_quotes(
                         format!("[!{}]", variant.marker()),
                         vec![0],
@@ -551,7 +551,7 @@ impl Editor {
                 } else {
                     self.push_inline_block_mapping(
                         block,
-                        title_markdown,
+                        text_markdown,
                         format!("[!{}] ", variant.marker()),
                         String::new(),
                         quote_depth + 1,
@@ -560,12 +560,12 @@ impl Editor {
                     )
                 }
             }
-            BlockType::FootnoteDefinition => {
+            BlockKind::FootnoteDefinition => {
                 let footnote_id = title.expect("footnote id").markdown().to_string();
                 let first_child = children.first().cloned();
                 let first_is_paragraph = first_child
                     .as_ref()
-                    .is_some_and(|child| child.read(cx).kind() == BlockType::Paragraph);
+                    .is_some_and(|child| child.read(cx).kind() == BlockKind::Paragraph);
                 Self::push_footnote_definition_head_mapping(
                     block,
                     &footnote_id,
@@ -577,18 +577,18 @@ impl Editor {
             }
         };
 
-        if kind == BlockType::FootnoteDefinition {
+        if kind == BlockKind::FootnoteDefinition {
             let mut total_len = own_len;
             let mut child_index = 0usize;
             if let Some(first_child) = children.first()
-                && first_child.read(cx).kind() == BlockType::Paragraph
+                && first_child.read(cx).kind() == BlockKind::Paragraph
             {
                 total_len = self.push_inline_block_mapping(
                     first_child,
                     first_child
                         .read(cx)
                         .record
-                        .title
+                        .text
                         .markdown_offset_map()
                         .markdown()
                         .to_string(),
@@ -606,7 +606,7 @@ impl Editor {
             }
 
             let mut previous_kind = if child_index > 0 {
-                Some(BlockType::Paragraph)
+                Some(BlockKind::Paragraph)
             } else {
                 None
             };

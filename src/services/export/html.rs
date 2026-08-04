@@ -7,13 +7,12 @@ use base64::{Engine as _, engine::general_purpose};
 use gpui::{Hsla, Rgba};
 use pulldown_cmark::{CowStr, Event, Options, Parser, Tag, html};
 
-use crate::core::extensions::html_doc::{parse_html_image_block, sanitize_html_for_export};
-use crate::core::extensions::mermaid_source::{
+use crate::model::syntax::html::{parse_html_image_block, sanitize_html_for_export};
+use crate::model::syntax::mermaid::{
     is_mermaid_closing_fence, parse_mermaid_fence_source, parse_mermaid_fence_start,
 };
-use crate::services::latex_render::{
-    inline_math_font_size, parse_display_math_source, render_latex_to_svg,
-};
+use crate::model::syntax::math::parse_display_math_source;
+use crate::services::latex_render::{inline_math_font_size, render_latex_to_svg};
 use crate::services::mermaid_render::render_mermaid_to_svg;
 use crate::services::net;
 use crate::ui::theme::{FontWeightDef, Theme};

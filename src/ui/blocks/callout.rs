@@ -4,14 +4,14 @@
 use gpui::*;
 
 use crate::ui::blocks::block_view::Block;
-use crate::engine::block_types::CalloutVariant;
+use crate::model::block::CalloutKind;
 use crate::ui::blocks::render::callout_accent_and_background;
 use crate::ui::theme::Theme;
 
 /// Render a callout (admonition) block.
 pub(crate) fn render_callout(
     block: &mut Block,
-    variant: CalloutVariant,
+    variant: CalloutKind,
     focused: bool,
     is_placeholder: bool,
     focused_base: Stateful<Div>,
@@ -19,7 +19,7 @@ pub(crate) fn render_callout(
     cx: &mut Context<Block>,
 ) -> AnyElement {
     let (accent, _) = callout_accent_and_background(variant, theme);
-    let title_is_empty = block.record.title.visible_text().is_empty();
+    let title_is_empty = block.record.text.visible_text().is_empty();
     let show_static_default_label = title_is_empty && !focused;
     let header_label = SharedString::from(variant.label());
 

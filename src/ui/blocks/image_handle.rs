@@ -4,8 +4,8 @@ use std::path::Path;
 use std::time::Instant;
 
 use crate::ui::blocks::block_view::{Block, CollapsedCaretAffinity, ImageHandle};
-use crate::engine::block_types::BlockType;
-use crate::core::extensions::image_ref::{
+use crate::model::block::BlockKind;
+use crate::model::syntax::image::{
     ImageSyntax, parse_standalone_image, resolve_image_source,
 };
 
@@ -18,10 +18,10 @@ impl Block {
         self.is_table_cell()
             || matches!(
                 self.kind(),
-                BlockType::Paragraph
-                    | BlockType::BulletedListItem
-                    | BlockType::NumberedListItem
-                    | BlockType::TaskListItem { .. }
+                BlockKind::Paragraph
+                    | BlockKind::BulletListItem
+                    | BlockKind::NumberedListItem
+                    | BlockKind::TaskListItem { .. }
             )
     }
 
@@ -74,12 +74,12 @@ impl Block {
     }
 
     fn standalone_image_markdown_for_runtime(&self) -> Option<String> {
-        let visible = self.record.title.visible_text();
+        let visible = self.record.text.visible_text();
         if parse_standalone_image(&visible).is_some() {
             return Some(visible);
         }
 
-        let serialized = self.record.title.serialize_markdown();
+        let serialized = self.record.text.serialize_markdown();
         parse_standalone_image(&serialized)
             .is_some()
             .then_some(serialized)

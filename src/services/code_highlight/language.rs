@@ -5,7 +5,8 @@ use std::time::Instant;
 
 use gpui::*;
 
-use crate::engine::block_types::{BlockAction, BlockType, UndoCaptureKind};
+use crate::editor::actions::{BlockAction, UndoCaptureKind};
+use crate::model::block::BlockKind;
 use crate::services::code_highlight::highlight::{CodeHighlightResult, highlight_code_block};
 use crate::ui::blocks::block_view::Block;
 use unicode_segmentation::UnicodeSegmentation;
@@ -131,7 +132,7 @@ impl Block {
 
     pub(crate) fn sync_code_highlight(&mut self) {
         self.code_highlight = match &self.record.kind {
-            BlockType::CodeBlock { language } => highlight_code_block(
+            BlockKind::CodeBlock { language } => highlight_code_block(
                 language.as_deref().map(|value| &**value),
                 self.render_cache.visible_text(),
             ),
@@ -141,11 +142,11 @@ impl Block {
 
     pub(crate) fn code_language_text(&self) -> &str {
         match &self.record.kind {
-            BlockType::CodeBlock {
+            BlockKind::CodeBlock {
                 language: Some(language),
             } => language.as_ref(),
-            BlockType::MathBlock => "math",
-            BlockType::MermaidBlock => "mermaid",
+            BlockKind::MathBlock => "math",
+            BlockKind::MermaidBlock => "mermaid",
             _ => "",
         }
     }
@@ -308,10 +309,10 @@ impl Block {
         };
 
         let old_language = match &self.record.kind {
-            BlockType::CodeBlock { language } => language.clone(),
+            BlockKind::CodeBlock { language } => language.clone(),
             _ => None,
         };
-        self.record.kind = BlockType::CodeBlock {
+        self.record.kind = BlockKind::CodeBlock {
             language: (!normalized.is_empty()).then(|| SharedString::from(normalized)),
         };
         self.code_language_selected_range = next_selection;
@@ -323,7 +324,7 @@ impl Block {
         self.sync_code_highlight();
 
         let next_language = match &self.record.kind {
-            BlockType::CodeBlock { language } => language.clone(),
+            BlockKind::CodeBlock { language } => language.clone(),
             _ => None,
         };
         if old_language != next_language {
@@ -335,7 +336,7 @@ impl Block {
     pub(crate) fn choose_code_language(&mut self, value: &str, cx: &mut Context<Self>) {
         if !matches!(
             self.kind(),
-            BlockType::CodeBlock { .. } | BlockType::MathBlock | BlockType::MermaidBlock
+            BlockKind::CodeBlock { .. } | BlockKind::MathBlock | BlockKind::MermaidBlock
         ) {
             return;
         }
@@ -344,11 +345,11 @@ impl Block {
         if old_language != value {
             self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             if value.eq_ignore_ascii_case("math") || value.eq_ignore_ascii_case("latex") {
-                self.record.kind = BlockType::MathBlock;
+                self.record.kind = BlockKind::MathBlock;
             } else if value.eq_ignore_ascii_case("mermaid") {
-                self.record.kind = BlockType::MermaidBlock;
+                self.record.kind = BlockKind::MermaidBlock;
             } else {
-                self.record.kind = BlockType::CodeBlock {
+                self.record.kind = BlockKind::CodeBlock {
                     language: (!value.is_empty()).then(|| SharedString::from(value.to_string())),
                 };
             }

@@ -53,12 +53,12 @@ pub(crate) fn open_about_github_url(cx: &mut App) {
 /// (quote, callout, footnote) and should collapse their inter-row gap.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct RenderedRowSpacingInfo {
-    pub quote_group_anchor: Option<uuid::Uuid>,
-    pub visible_quote_group_anchor: Option<uuid::Uuid>,
-    pub callout_anchor: Option<uuid::Uuid>,
-    pub callout_variant: Option<crate::engine::block_types::CalloutVariant>,
+    pub quote_group_anchor: Option<BlockId>,
+    pub visible_quote_group_anchor: Option<BlockId>,
+    pub callout_anchor: Option<BlockId>,
+    pub callout_variant: Option<crate::model::block::CalloutKind>,
     pub is_callout_header: bool,
-    pub footnote_anchor: Option<uuid::Uuid>,
+    pub footnote_anchor: Option<BlockId>,
     pub is_footnote_header: bool,
 }
 
@@ -132,23 +132,18 @@ pub fn footnote_row_top_gap(previous: Option<RenderedRowSpacingInfo>, default_ga
 }
 
 /// Callout accent border + background colours from the theme.
-pub fn callout_colors(
-    variant: crate::engine::block_types::CalloutVariant,
-    theme: &Theme,
-) -> (Hsla, Hsla) {
+pub fn callout_colors(variant: crate::model::block::CalloutKind, theme: &Theme) -> (Hsla, Hsla) {
     let c = &theme.colors;
     match variant {
-        crate::engine::block_types::CalloutVariant::Note => {
-            (c.callout_note_border, c.callout_note_bg)
-        }
-        crate::engine::block_types::CalloutVariant::Tip => (c.callout_tip_border, c.callout_tip_bg),
-        crate::engine::block_types::CalloutVariant::Important => {
+        crate::model::block::CalloutKind::Note => (c.callout_note_border, c.callout_note_bg),
+        crate::model::block::CalloutKind::Tip => (c.callout_tip_border, c.callout_tip_bg),
+        crate::model::block::CalloutKind::Important => {
             (c.callout_important_border, c.callout_important_bg)
         }
-        crate::engine::block_types::CalloutVariant::Warning => {
+        crate::model::block::CalloutKind::Warning => {
             (c.callout_warning_border, c.callout_warning_bg)
         }
-        crate::engine::block_types::CalloutVariant::Caution => {
+        crate::model::block::CalloutKind::Caution => {
             (c.callout_caution_border, c.callout_caution_bg)
         }
     }
@@ -447,7 +442,7 @@ impl Editor {
     }
 
     /// Creates a new block entity and subscribes this editor to its
-    /// [`BlockAction`](crate::engine::block_types::BlockAction) stream.
+    /// [`BlockAction`](crate::editor::actions::BlockAction) stream.
     pub(crate) fn new_block(cx: &mut Context<Self>, record: BlockData) -> Entity<Block> {
         let block = cx.new(|cx| Block::with_record(cx, record));
         cx.subscribe(&block, Self::on_block_event).detach();
@@ -467,7 +462,7 @@ impl Editor {
         position: TableCellPosition,
         alignment: TableColumnAlignment,
     ) -> Entity<Block> {
-        let block = Self::new_block(cx, BlockData::new(BlockType::Paragraph, title));
+        let block = Self::new_block(cx, BlockData::new(BlockKind::Paragraph, title));
         block.update(cx, |block, _cx| {
             block.set_table_cell_mode(position, alignment);
         });
@@ -510,7 +505,7 @@ impl Editor {
         let visible = self.document.blocks().to_vec();
         for visible_block in &visible {
             let block = visible_block.entity.read(cx);
-            if block.kind() != BlockType::FootnoteDefinition {
+            if block.kind() != BlockKind::FootnoteDefinition {
                 continue;
             }
 
@@ -529,7 +524,7 @@ impl Editor {
             }
 
             definitions
-                .entry(block.record.title.visible_text().to_string())
+                .entry(block.record.text.visible_text().to_string())
                 .or_insert(visible_block.entity.entity_id());
         }
 
@@ -547,11 +542,11 @@ impl Editor {
 
         let mut next_ordinal = 1usize;
         let mut occurrence_index = 0usize;
-        let mut block_occurrences = HashMap::<uuid::Uuid, Vec<FootnoteResolvedOccurrence>>::new();
+        let mut block_occurrences = HashMap::<BlockId, Vec<FootnoteResolvedOccurrence>>::new();
         for visible_block in visible {
             let block = visible_block.entity.read(cx);
             let block_id = block.record.id;
-            for fragment in &block.record.title.fragments {
+            for fragment in &block.record.text.fragments {
                 let Some(footnote) = fragment.footnote.as_ref() else {
                     continue;
                 };
@@ -603,7 +598,7 @@ impl Editor {
         let visible = self.document.blocks().to_vec();
         for visible_block in visible {
             self.sync_runtime_context_for_block(&visible_block.entity, base_dir.as_deref(), cx);
-            if visible_block.entity.read(cx).kind() != BlockType::Table {
+            if visible_block.entity.read(cx).kind() != BlockKind::Table {
                 continue;
             }
             let Some(runtime) = visible_block.entity.read(cx).table_runtime.clone() else {
@@ -630,7 +625,7 @@ impl Editor {
 
     pub(crate) fn first_focusable_entity_id(&self, cx: &App) -> Option<EntityId> {
         let first_root = self.document.first_root()?.clone();
-        if first_root.read(cx).kind() == BlockType::Table {
+        if first_root.read(cx).kind() == BlockKind::Table {
             return first_root
                 .read(cx)
                 .table_runtime
@@ -669,7 +664,7 @@ impl Editor {
     pub(crate) fn table_block_by_id(&self, entity_id: EntityId, cx: &App) -> Option<Entity<Block>> {
         self.document
             .block_entity_by_id(entity_id)
-            .filter(|block| block.read(cx).kind() == BlockType::Table)
+            .filter(|block| block.read(cx).kind() == BlockKind::Table)
     }
 }
 impl Editor {

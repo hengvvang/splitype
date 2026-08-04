@@ -6,8 +6,9 @@ use std::ops::Range;
 use gpui::*;
 
 use crate::ui::blocks::block_view::Block;
-use crate::engine::block_types::{BlockType, UndoCaptureKind};
-use crate::core::extensions::table::serialize_table_markdown_lines;
+use crate::model::block::BlockKind;
+use crate::editor::actions::UndoCaptureKind;
+use crate::model::syntax::table::serialize_table_markdown_lines;
 use crate::engine::editor::{
     CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, EditMode, Editor,
     SourceTargetMapping, UndoSelectionSnapshot,
@@ -602,7 +603,7 @@ impl Editor {
                 if roots.is_empty() {
                     roots.push(Self::new_block(
                         cx,
-                        crate::engine::block_types::BlockData::paragraph(String::new()),
+                        crate::model::block::BlockData::paragraph(String::new()),
                     ));
                 }
                 self.document.replace_blocks(roots, cx);
@@ -611,7 +612,7 @@ impl Editor {
             }
             EditMode::Source => {
                 let block =
-                    Self::new_block(cx, crate::engine::block_types::BlockData::paragraph(source.clone()));
+                    Self::new_block(cx, crate::model::block::BlockData::paragraph(source.clone()));
                 block.update(cx, |block, _cx| block.set_source_document_mode());
                 self.document.replace_blocks(vec![block], cx);
                 self.table_cells.clear();
@@ -813,7 +814,7 @@ impl Editor {
         let block = entity.read(cx);
         if full_block {
             return match block.kind() {
-                BlockType::Table => block
+                BlockKind::Table => block
                     .record
                     .table
                     .as_ref()
@@ -826,7 +827,7 @@ impl Editor {
             };
         }
 
-        let markdown = block.record.title.serialize_markdown();
+        let markdown = block.record.text.serialize_markdown();
         let markdown_range = block.current_range_to_markdown_range(range);
         markdown
             .get(markdown_range)
@@ -889,7 +890,7 @@ impl Editor {
             }
             let markdown_range =
                 block.current_range_to_markdown_range(block.selected_range.clone());
-            let full_markdown = block.record.title.serialize_markdown();
+            let full_markdown = block.record.text.serialize_markdown();
             let start = markdown_range.start.min(full_markdown.len());
             let end = markdown_range.end.min(full_markdown.len());
             // Clamp to nearest valid UTF-8 char boundaries to avoid panicking
@@ -919,7 +920,7 @@ mod tests {
 
     use super::{CrossBlockSelection, CrossBlockSelectionEndpoint, Editor};
     use crate::ui::input::shortcuts::{Cut, Undo};
-use crate::engine::block_types::UndoCaptureKind;
+use crate::editor::actions::UndoCaptureKind;
     use crate::services::i18n::I18nManager;
     use crate::ui::theme::ThemeManager;
 
@@ -1275,7 +1276,7 @@ use crate::engine::block_types::UndoCaptureKind;
             // Append a trailing empty paragraph, exactly as inserting a table at
             // the end of a document does. Ending the selection on it used to
             // abort deletion because empty roots had no source span.
-            let empty = Editor::new_block(cx, crate::engine::block_types::BlockData::paragraph(String::new()));
+            let empty = Editor::new_block(cx, crate::model::block::BlockData::paragraph(String::new()));
             let index = editor.document.root_count();
             editor
                 .document
@@ -1306,7 +1307,7 @@ use crate::engine::block_types::UndoCaptureKind;
             // Prepend a leading empty paragraph; starting the highlight on it used
             // to abort deletion (the user's "drag up from the text below into an
             // empty block above the table" case).
-            let empty = Editor::new_block(cx, crate::engine::block_types::BlockData::paragraph(String::new()));
+            let empty = Editor::new_block(cx, crate::model::block::BlockData::paragraph(String::new()));
             editor.document.insert_blocks_at(None, 0, vec![empty], cx);
 
             let visible = editor.document.blocks().to_vec();

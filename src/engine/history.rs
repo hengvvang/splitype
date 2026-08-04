@@ -115,7 +115,7 @@ impl Editor {
             if roots.is_empty() {
                 roots.push(Self::new_block(
                     cx,
-                    crate::engine::block_types::BlockData::paragraph(String::new()),
+                    crate::model::block::BlockData::paragraph(String::new()),
                 ));
             }
             self.preview_source_hash = hash;
@@ -136,7 +136,7 @@ impl Editor {
         if self.source_panel_block.is_none() || doc_hash != self.source_panel_hash() {
             self.source_panel_block = None;
             let block =
-                Self::new_standalone_block(cx, crate::engine::block_types::BlockData::paragraph(doc_text));
+                Self::new_standalone_block(cx, crate::model::block::BlockData::paragraph(doc_text));
             block.update(cx, |block, _cx| block.set_source_document_mode());
             cx.subscribe(&block, Self::on_source_panel_changed).detach();
             self.source_panel_block = Some(block);
@@ -149,10 +149,10 @@ impl Editor {
     pub(crate) fn on_source_panel_changed(
         &mut self,
         block: Entity<crate::ui::blocks::block_view::Block>,
-        event: &crate::engine::block_types::BlockAction,
+        event: &crate::editor::actions::BlockAction,
         cx: &mut Context<Self>,
     ) {
-        if !matches!(event, crate::engine::block_types::BlockAction::Changed) {
+        if !matches!(event, crate::editor::actions::BlockAction::Changed) {
             return;
         }
         let text = block.read(cx).display_text().to_string();
@@ -164,7 +164,7 @@ impl Editor {
         if roots.is_empty() {
             roots.push(Self::new_block(
                 cx,
-                crate::engine::block_types::BlockData::paragraph(String::new()),
+                crate::model::block::BlockData::paragraph(String::new()),
             ));
         }
         self.document.replace_blocks(roots, cx);

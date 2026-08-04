@@ -18,8 +18,9 @@ use futures::{StreamExt, channel::mpsc};
 use gpui::*;
 
 mod app;
-mod core;
+mod editor;
 mod engine;
+mod model;
 mod platform;
 mod services;
 mod ui;

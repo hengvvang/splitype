@@ -17,10 +17,10 @@ pub(crate) fn render_html_block(
     let t = &theme.typography;
 
     let html = block.record.html.as_ref().cloned().unwrap_or_else(|| {
-        crate::core::extensions::html_doc::parse_html_document(
+        crate::model::syntax::html::parse_html_document(
             block
                 .record
-                .raw_fallback
+                .raw_source
                 .as_deref()
                 .unwrap_or_else(|| block.display_text()),
         )

@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use gpui::*;
 
-use crate::core::extensions::table::{TableAxisKind, TableColumnAlignment, TableData};
+use crate::model::syntax::table::{TableAxisKind, TableColumnAlignment, TableData};
 use crate::engine::editor::{EditMode, Editor, TableAxisSelection};
 use crate::services::i18n::I18nManager;
 use crate::ui::input::shortcuts::DismissTransientUi;

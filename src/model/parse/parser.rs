@@ -1,30 +1,30 @@
 //! Pure Markdown-to-NodeTree parser.
 //!
-//! Converts raw Markdown text into a flat list of [`NodeData`] with
-//! parent-child relationships expressed through [`NodeId`] references.
+//! Converts raw Markdown text into a flat list of [`BlockData`] with
+//! parent-child relationships expressed through [`BlockId`] references.
 //! This module has no GPUI context or entity dependencies — it operates
 //! entirely on plain data types from `core::ast` and `core::text`.
 
-use crate::core::ast::block_kind::BlockKind;
-use crate::core::ast::callout_kind::CalloutKind;
-use crate::core::ast::code_fence::CodeFenceOpening;
-use crate::core::ast::node::NodeData;
-use crate::core::extensions::footnote_def::parse_footnote_definition_head;
-use crate::core::extensions::html_doc::{HtmlSafetyClass, parse_html_document};
-use crate::core::extensions::image_ref::parse_standalone_image;
-use crate::core::extensions::mermaid_source::is_mermaid_info_string;
-use crate::core::extensions::table::{
-    collect_pipeless_table_region, collect_root_table_candidate_region,
-    collect_table_candidate_region, is_root_table_candidate_line, is_table_candidate_line,
-    parse_root_table_region, parse_table_region,
-};
-use crate::core::io::helpers::{
+use crate::model::block::callout::CalloutKind;
+use crate::model::block::fence::CodeFenceOpening;
+use crate::model::block::kind::BlockKind;
+use crate::model::block::record::BlockData;
+use crate::model::inline::text::RichText;
+use crate::model::parse::indent::{
     collect_until_blank_line, dedent_lines, display_columns, is_quote_start,
     leading_indent_columns_and_bytes, strip_fence_indent, strip_indented_code_prefix,
     strip_leading_columns, strip_one_quote_level,
 };
-use crate::core::text::rich_text::RichText;
-use crate::services::latex_render::parse_display_math_source;
+use crate::model::syntax::footnote::parse_footnote_definition_head;
+use crate::model::syntax::html::{HtmlSafetyClass, parse_html_document};
+use crate::model::syntax::image::parse_standalone_image;
+use crate::model::syntax::math::parse_display_math_source;
+use crate::model::syntax::mermaid::is_mermaid_info_string;
+use crate::model::syntax::table::{
+    collect_pipeless_table_region, collect_root_table_candidate_region,
+    collect_table_candidate_region, is_root_table_candidate_line, is_table_candidate_line,
+    parse_root_table_region, parse_table_region,
+};
 
 // ---------------------------------------------------------------------------
 // Local types
@@ -201,7 +201,7 @@ fn parse_list_marker(line: &str) -> Option<ListMarker> {
                     text[prefix_len..].to_string(),
                 )
             } else {
-                (BlockKind::UnorderedListItem, text.to_string())
+                (BlockKind::BulletListItem, text.to_string())
             };
         return Some(ListMarker {
             kind,
@@ -215,7 +215,7 @@ fn parse_list_marker(line: &str) -> Option<ListMarker> {
 
     let (digit_len, marker_len, text) = parse_ordered_list_marker(rest)?;
     Some(ListMarker {
-        kind: BlockKind::OrderedListItem,
+        kind: BlockKind::NumberedListItem,
         indent_columns,
         content_indent_columns: display_columns(&line[..indent_bytes + digit_len + marker_len]),
         text: text.to_string(),
@@ -600,17 +600,17 @@ fn looks_like_root_block_start(lines: &[String], index: usize) -> bool {
 // Node-tree relationship helpers
 // ---------------------------------------------------------------------------
 
-/// Set up parent -> child relationship between two `NodeData` nodes.
-fn attach_child_node(parent: &mut NodeData, child: &mut NodeData) {
-    child.parent_id = Some(parent.id);
-    parent.child_ids.push(child.id);
+/// Set up parent -> child relationship between two `BlockData` nodes.
+fn attach_child_node(parent: &mut BlockData, child: &mut BlockData) {
+    child.parent = Some(parent.id);
+    parent.children.push(child.id);
 }
 
 /// Set up parent -> children relationships for multiple children.
-fn attach_child_nodes(parent: &mut NodeData, children: &mut [NodeData]) {
+fn attach_child_nodes(parent: &mut BlockData, children: &mut [BlockData]) {
     for child in children.iter_mut() {
-        child.parent_id = Some(parent.id);
-        parent.child_ids.push(child.id);
+        child.parent = Some(parent.id);
+        parent.children.push(child.id);
     }
 }
 
@@ -618,45 +618,45 @@ fn attach_child_nodes(parent: &mut NodeData, children: &mut [NodeData]) {
 // Block constructors (pure - no GPUI)
 // ---------------------------------------------------------------------------
 
-fn native_block(kind: BlockKind, markdown: &str) -> NodeData {
-    NodeData::new(kind, RichText::from_markdown(markdown))
+fn native_block(kind: BlockKind, markdown: &str) -> BlockData {
+    BlockData::new(kind, RichText::from_markdown(markdown))
 }
 
-fn build_code_block(language: Option<gpui::SharedString>, content: String) -> NodeData {
-    NodeData::with_plain_text(BlockKind::CodeBlock { language }, content)
+fn build_code_block(language: Option<gpui::SharedString>, content: String) -> BlockData {
+    BlockData::with_plain_text(BlockKind::CodeBlock { language }, content)
 }
 
-fn raw_block(markdown: String) -> NodeData {
-    NodeData::raw_markdown(markdown)
+fn raw_block(markdown: String) -> BlockData {
+    BlockData::raw_markdown(markdown)
 }
 
-fn comment_block(markdown: String) -> NodeData {
-    NodeData::html_comment(markdown)
+fn comment_block(markdown: String) -> BlockData {
+    BlockData::html_comment(markdown)
 }
 
-fn html_or_raw_block(markdown: String) -> NodeData {
+fn html_or_raw_block(markdown: String) -> BlockData {
     let document = parse_html_document(&markdown);
     if document.safety == HtmlSafetyClass::Semantic {
-        NodeData::html_block(markdown)
+        BlockData::html_block(markdown)
     } else {
         raw_block(markdown)
     }
 }
 
-fn math_or_raw_block(markdown: String) -> NodeData {
+fn math_or_raw_block(markdown: String) -> BlockData {
     if parse_display_math_source(&markdown).is_some() {
-        NodeData::latex_math(markdown)
+        BlockData::latex_math(markdown)
     } else {
         raw_block(markdown)
     }
 }
 
-fn plain_text_paragraph_block(text: String) -> NodeData {
-    NodeData::paragraph(text)
+fn plain_text_paragraph_block(text: String) -> BlockData {
+    BlockData::paragraph(text)
 }
 
-fn standalone_image_block(markdown: String) -> NodeData {
-    NodeData::paragraph(markdown.trim().to_string())
+fn standalone_image_block(markdown: String) -> BlockData {
+    BlockData::paragraph(markdown.trim().to_string())
 }
 
 fn is_standalone_image_paragraph(lines: &[String]) -> bool {
@@ -682,17 +682,17 @@ fn starts_with_standalone_image_child_paragraph(lines: &[String]) -> bool {
     })
 }
 
-fn append_markdown_to_node(node: &mut NodeData, separator: &str, markdown: &str) {
+fn append_markdown_to_node(node: &mut BlockData, separator: &str, markdown: &str) {
     if !separator.is_empty() {
-        node.title
+        node.text
             .append_tree(RichText::plain(separator.to_string()));
     }
-    node.title.append_tree(RichText::from_markdown(markdown));
+    node.text.append_tree(RichText::from_markdown(markdown));
 }
 
-fn append_separator_children(children: &mut Vec<NodeData>, count: usize) {
+fn append_separator_children(children: &mut Vec<BlockData>, count: usize) {
     for _ in 0..count {
-        children.push(NodeData::paragraph(""));
+        children.push(BlockData::paragraph(""));
     }
 }
 
@@ -700,12 +700,12 @@ fn append_separator_children(children: &mut Vec<NodeData>, count: usize) {
 // Collectors - return (block(s), next_index)
 // ---------------------------------------------------------------------------
 
-fn collect_fenced_code_block(lines: &[String], start: usize) -> Option<(NodeData, usize)> {
+fn collect_fenced_code_block(lines: &[String], start: usize) -> Option<(BlockData, usize)> {
     let fence = parse_opening_fence(&lines[start])?;
     let closing_index = find_matching_closing_fence(lines, start, &fence)?;
     if is_mermaid_info_string(fence.language.as_ref().map(|language| language.as_ref())) {
         let raw = lines[start..=closing_index].join("\n");
-        return Some((NodeData::mermaid_diagram(raw), closing_index + 1));
+        return Some((BlockData::mermaid_diagram(raw), closing_index + 1));
     }
 
     let code_lines = lines[start + 1..closing_index].to_vec();
@@ -715,7 +715,7 @@ fn collect_fenced_code_block(lines: &[String], start: usize) -> Option<(NodeData
     ))
 }
 
-fn collect_indented_code_block(lines: &[String], start: usize) -> Option<(NodeData, usize)> {
+fn collect_indented_code_block(lines: &[String], start: usize) -> Option<(BlockData, usize)> {
     let stripped = strip_indented_code_prefix(&lines[start])?;
     let mut code_lines = vec![stripped.to_string()];
     let mut code_index = start + 1;
@@ -734,12 +734,12 @@ fn collect_indented_code_block(lines: &[String], start: usize) -> Option<(NodeDa
     Some((build_code_block(None, code_lines.join("\n")), code_index))
 }
 
-fn collect_comment_block(lines: &[String], start: usize) -> Option<(NodeData, usize)> {
+fn collect_comment_block(lines: &[String], start: usize) -> Option<(BlockData, usize)> {
     let end = collect_closed_html_comment_region(lines, start)?;
     Some((comment_block(lines[start..end].join("\n")), end))
 }
 
-fn collect_paragraph_block(lines: &[String], start: usize) -> (NodeData, usize) {
+fn collect_paragraph_block(lines: &[String], start: usize) -> (BlockData, usize) {
     let mut paragraph_lines = vec![lines[start].to_string()];
     let mut index = start + 1;
     while index < lines.len() {
@@ -759,10 +759,10 @@ fn collect_paragraph_block(lines: &[String], start: usize) -> (NodeData, usize) 
 }
 
 // ---------------------------------------------------------------------------
-// Compound block builders - return Vec<NodeData> with parent-child ids set up
+// Compound block builders - return Vec<BlockData> with parent-child ids set up
 // ---------------------------------------------------------------------------
 
-fn build_native_footnote_definition_node(lines: &[String]) -> Option<Vec<NodeData>> {
+fn build_native_footnote_definition_node(lines: &[String]) -> Option<Vec<BlockData>> {
     let (id, first_line) = parse_footnote_definition_head(lines.first()?)?;
     let mut body_lines = Vec::new();
     if !first_line.is_empty() {
@@ -782,7 +782,7 @@ fn build_native_footnote_definition_node(lines: &[String]) -> Option<Vec<NodeDat
     }
 
     let mut children = build_blocks_from_lines_internal(&body_lines, false);
-    let mut block = NodeData::with_plain_text(BlockKind::FootnoteDefinition, id);
+    let mut block = BlockData::with_plain_text(BlockKind::FootnoteDefinition, id);
 
     attach_child_nodes(&mut block, &mut children);
 
@@ -791,7 +791,7 @@ fn build_native_footnote_definition_node(lines: &[String]) -> Option<Vec<NodeDat
     Some(result)
 }
 
-fn collect_quote_block(lines: &[String], start: usize) -> (Vec<NodeData>, usize) {
+fn collect_quote_block(lines: &[String], start: usize) -> (Vec<BlockData>, usize) {
     let end = collect_quote_raw_region(lines, start);
     let region = &lines[start..end];
     let mut dequoted = Vec::with_capacity(region.len());
@@ -816,7 +816,7 @@ fn collect_quote_block(lines: &[String], start: usize) -> (Vec<NodeData>, usize)
     (result, end)
 }
 
-fn build_native_quote_block(lines: &[String]) -> Option<Vec<NodeData>> {
+fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
     if let Some(header_index) = lines.iter().position(|line| !line.trim().is_empty())
         && let Some((variant, title)) = CalloutKind::parse_header_line(&lines[header_index])
     {
@@ -824,7 +824,7 @@ fn build_native_quote_block(lines: &[String]) -> Option<Vec<NodeData>> {
     }
 
     let mut title_markdown = String::new();
-    let mut child_nodes: Vec<NodeData> = Vec::new();
+    let mut child_nodes: Vec<BlockData> = Vec::new();
     let mut index = 0usize;
     let mut pending_blank_lines = 0usize;
     let mut saw_child = false;
@@ -844,7 +844,7 @@ fn build_native_quote_block(lines: &[String]) -> Option<Vec<NodeData>> {
             let table_end = collect_table_candidate_region(lines, index);
             let table_region = &lines[index..table_end];
             if let Some(table) = parse_table_region(table_region) {
-                child_nodes.push(NodeData::table(table));
+                child_nodes.push(BlockData::table(table));
             } else {
                 child_nodes.push(raw_block(table_region.join("\n")));
             }
@@ -1055,7 +1055,7 @@ fn build_native_callout_block(
     lines: &[String],
     variant: CalloutKind,
     title: String,
-) -> Option<Vec<NodeData>> {
+) -> Option<Vec<BlockData>> {
     let mut child_nodes = Vec::new();
     let mut index = 0usize;
     let mut pending_blank_lines = 0usize;
@@ -1077,7 +1077,7 @@ fn build_native_callout_block(
             let table_end = collect_table_candidate_region(lines, index);
             let table_region = &lines[index..table_end];
             if let Some(table) = parse_table_region(table_region) {
-                child_nodes.push(NodeData::table(table));
+                child_nodes.push(BlockData::table(table));
             } else {
                 child_nodes.push(raw_block(table_region.join("\n")));
             }
@@ -1197,7 +1197,7 @@ fn build_native_callout_block(
         append_separator_children(&mut child_nodes, pending_blank_lines);
     }
 
-    let mut block = NodeData::new(BlockKind::Callout(variant), RichText::from_markdown(&title));
+    let mut block = BlockData::new(BlockKind::Callout(variant), RichText::from_markdown(&title));
     attach_child_nodes(&mut block, &mut child_nodes);
 
     let mut result = vec![block];
@@ -1205,7 +1205,7 @@ fn build_native_callout_block(
     Some(result)
 }
 
-fn collect_list_blocks(lines: &[String], start: usize) -> (Vec<NodeData>, usize) {
+fn collect_list_blocks(lines: &[String], start: usize) -> (Vec<BlockData>, usize) {
     let mut roots = Vec::new();
     let mut index = start;
 
@@ -1220,7 +1220,7 @@ fn collect_list_blocks(lines: &[String], start: usize) -> (Vec<NodeData>, usize)
         let mut pending_blank_lines = 0usize;
         let mut fallback_raw = false;
         let mut saw_child = false;
-        let mut item_children: Vec<NodeData> = Vec::new();
+        let mut item_children: Vec<BlockData> = Vec::new();
 
         while body_index < item_end {
             let line = &lines[body_index];
@@ -1276,7 +1276,7 @@ fn collect_list_blocks(lines: &[String], start: usize) -> (Vec<NodeData>, usize)
                     let table_end = collect_root_table_candidate_region(&anchor_dedented, 0);
                     let table_region = &anchor_dedented[..table_end];
                     let mut child = if let Some(table) = parse_root_table_region(table_region) {
-                        NodeData::table(table)
+                        BlockData::table(table)
                     } else {
                         raw_block(table_region.join("\n"))
                     };
@@ -1372,8 +1372,8 @@ fn collect_list_blocks(lines: &[String], start: usize) -> (Vec<NodeData>, usize)
 
                 let should_promote_plain_child = pending_blank_lines > 0
                     || saw_child
-                    || block.title.visible_text().is_empty()
-                    || parse_standalone_image(&block.title.serialize_markdown()).is_some();
+                    || block.text.visible_text().is_empty()
+                    || parse_standalone_image(&block.text.serialize_markdown()).is_some();
                 if should_promote_plain_child {
                     let (mut paragraph, consumed) = collect_paragraph_block(&anchor_dedented, 0);
                     attach_child_node(&mut block, &mut paragraph);
@@ -1434,11 +1434,11 @@ fn collect_list_blocks(lines: &[String], start: usize) -> (Vec<NodeData>, usize)
 // Public API
 // ---------------------------------------------------------------------------
 
-/// Parse a full Markdown document into a flat list of [`NodeData`] nodes.
+/// Parse a full Markdown document into a flat list of [`BlockData`] nodes.
 ///
 /// The returned nodes have `parent_id` and `child_ids` set up for tree
 /// reconstruction. Root nodes have `parent_id == None`.
-pub fn parse_document(markdown: &str) -> Vec<NodeData> {
+pub fn parse_document(markdown: &str) -> Vec<BlockData> {
     let lines = markdown
         .split('\n')
         .map(ToOwned::to_owned)
@@ -1450,7 +1450,7 @@ pub fn parse_document(markdown: &str) -> Vec<NodeData> {
 ///
 /// Equivalent to the (now pure) version of the legacy
 /// `Editor::build_blocks_from_lines`.
-pub fn build_blocks_from_lines(lines: &[String]) -> Vec<NodeData> {
+pub fn build_blocks_from_lines(lines: &[String]) -> Vec<BlockData> {
     build_blocks_from_lines_internal(lines, true)
 }
 
@@ -1458,7 +1458,7 @@ pub fn build_blocks_from_lines(lines: &[String]) -> Vec<NodeData> {
 fn build_blocks_from_lines_internal(
     lines: &[String],
     allow_root_footnote_definitions: bool,
-) -> Vec<NodeData> {
+) -> Vec<BlockData> {
     let mut roots = Vec::new();
     let mut index = 0;
 
@@ -1473,7 +1473,7 @@ fn build_blocks_from_lines_internal(
             let blank_run_len = index - blank_start;
             let previous_root_is_list_item = roots
                 .last()
-                .map(|node: &NodeData| node.kind.is_list_item())
+                .map(|node: &BlockData| node.kind.is_list_item())
                 .unwrap_or(false);
             let next_root_is_list_item = lines
                 .get(index)
@@ -1586,7 +1586,7 @@ fn build_blocks_from_lines_internal(
         }
 
         if BlockKind::parse_thematic_break_line(line) {
-            roots.push(NodeData::with_plain_text(
+            roots.push(BlockData::with_plain_text(
                 BlockKind::ThematicBreak,
                 line.to_string(),
             ));
@@ -1598,7 +1598,7 @@ fn build_blocks_from_lines_internal(
             let end = collect_root_table_candidate_region(lines, index);
             let region = &lines[index..end];
             if let Some(table) = parse_root_table_region(region) {
-                roots.push(NodeData::table(table));
+                roots.push(BlockData::table(table));
             } else {
                 roots.extend(
                     region
@@ -1614,7 +1614,7 @@ fn build_blocks_from_lines_internal(
         if let Some(end) = collect_pipeless_table_region(lines, index)
             && let Some(table) = parse_root_table_region(&lines[index..end])
         {
-            roots.push(NodeData::table(table));
+            roots.push(BlockData::table(table));
             index = end;
             continue;
         }

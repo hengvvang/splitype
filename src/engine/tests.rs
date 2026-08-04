@@ -8,12 +8,12 @@ use gpui::{
 };
 
 use super::{EditMode, Editor};
-use crate::engine::block_types::BlockType;
+use crate::model::block::BlockKind;
 use crate::ui::input::shortcuts::{CloseWindow, FocusNext, Newline, QuitApplication, SaveDocument};
-use crate::core::text::rich_text::RichText;
-use crate::core::extensions::table::TableColumnAlignment;
-use crate::core::text::inline_footnote::superscript_ordinal;
-use crate::core::extensions::image_ref::{
+use crate::model::inline::text::RichText;
+use crate::model::syntax::table::TableColumnAlignment;
+use crate::model::inline::footnote::superscript_ordinal;
+use crate::model::syntax::image::{
     ImageReferenceDefinitions, ImageResolvedSource, TableCellInlineImageSegment,
     parse_table_cell_inline_images,
 };
@@ -379,7 +379,7 @@ async fn export_html_uses_source_mode_raw_text(cx: &mut TestAppContext) {
             .expect("source mode should keep one root block")
             .clone();
         source_block.update(cx, |block, _cx| {
-            block.record.set_title(RichText::plain(
+            block.record.set_text(RichText::plain(
                 "# Source\n\n<!--\n<strong>visible</strong>\n-->".to_string(),
             ));
             block.sync_render_cache();
@@ -439,7 +439,7 @@ async fn dropped_markdown_replaces_clean_editor_in_current_window(cx: &mut TestA
                 .expect("table block")
                 .read(cx)
                 .kind(),
-            BlockType::Table
+            BlockKind::Table
         );
         assert!(editor.document.to_markdown(cx).contains("# Dropped"));
     });
@@ -564,7 +564,7 @@ async fn dirty_drop_saves_existing_document_before_replace(cx: &mut TestAppConte
         first.update(cx, |block, _cx| {
             block
                 .record
-                .set_title(RichText::plain("edited".to_string()));
+                .set_text(RichText::plain("edited".to_string()));
             block.sync_render_cache();
         });
         editor.mark_dirty(cx);
@@ -1009,7 +1009,7 @@ async fn parsed_table_runtime_installs_column_alignment_on_cells(cx: &mut TestAp
 
     editor.read_with(cx, |editor, cx| {
         let table = editor.document.first_root().expect("table root").clone();
-        assert_eq!(table.read(cx).kind(), BlockType::Table);
+        assert_eq!(table.read(cx).kind(), BlockKind::Table);
         let runtime = table
             .read(cx)
             .table_runtime
@@ -1117,7 +1117,7 @@ async fn setting_column_alignment_updates_record_and_selection(cx: &mut TestAppC
             editor.table_axis_selection,
             Some(super::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: crate::core::extensions::table::TableAxisKind::Column,
+                kind: crate::model::syntax::table::TableAxisKind::Column,
                 index: 1,
             })
         );
@@ -1140,7 +1140,7 @@ async fn moving_table_row_updates_focus_and_selection(cx: &mut TestAppContext) {
             editor.table_axis_selection,
             Some(super::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: crate::core::extensions::table::TableAxisKind::Row,
+                kind: crate::model::syntax::table::TableAxisKind::Row,
                 index: 1,
             })
         );
@@ -1171,7 +1171,7 @@ async fn moving_first_body_row_up_swaps_with_header(cx: &mut TestAppContext) {
             editor.table_axis_selection,
             Some(super::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: crate::core::extensions::table::TableAxisKind::Row,
+                kind: crate::model::syntax::table::TableAxisKind::Row,
                 index: 0,
             })
         );
@@ -1195,7 +1195,7 @@ async fn moving_header_row_down_swaps_with_first_body(cx: &mut TestAppContext) {
             editor.table_axis_selection,
             Some(super::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: crate::core::extensions::table::TableAxisKind::Row,
+                kind: crate::model::syntax::table::TableAxisKind::Row,
                 index: 1,
             })
         );
@@ -1204,7 +1204,7 @@ async fn moving_header_row_down_swaps_with_first_body(cx: &mut TestAppContext) {
 
 #[gpui::test]
 async fn selecting_first_body_row_does_not_highlight_header(cx: &mut TestAppContext) {
-    use crate::core::extensions::table::{TableAxisHighlight, TableAxisKind};
+    use crate::model::syntax::table::{TableAxisHighlight, TableAxisKind};
     let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |", "| 3 | 4 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -1235,7 +1235,7 @@ async fn selecting_first_body_row_does_not_highlight_header(cx: &mut TestAppCont
 
 #[gpui::test]
 async fn selecting_header_row_highlights_only_header(cx: &mut TestAppContext) {
-    use crate::core::extensions::table::{TableAxisHighlight, TableAxisKind};
+    use crate::model::syntax::table::{TableAxisHighlight, TableAxisKind};
     let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -1258,7 +1258,7 @@ async fn selecting_header_row_highlights_only_header(cx: &mut TestAppContext) {
 
 #[gpui::test]
 async fn body_row_preview_survives_stale_header_leave(cx: &mut TestAppContext) {
-    use crate::core::extensions::table::TableAxisKind;
+    use crate::model::syntax::table::TableAxisKind;
     let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -1302,7 +1302,7 @@ async fn deleting_table_column_moves_selection_to_nearest_survivor(cx: &mut Test
             editor.table_axis_selection,
             Some(super::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: crate::core::extensions::table::TableAxisKind::Column,
+                kind: crate::model::syntax::table::TableAxisKind::Column,
                 index: 1,
             })
         );
@@ -1347,7 +1347,7 @@ async fn deleting_last_body_row_leaves_header_only_table(cx: &mut TestAppContext
         assert!(record.rows.is_empty());
         assert_eq!(record.header[0].serialize_markdown(), "A");
         assert_eq!(editor.document.root_count(), 1);
-        assert_eq!(table.read(cx).kind(), BlockType::Table);
+        assert_eq!(table.read(cx).kind(), BlockKind::Table);
     });
 }
 
@@ -1367,13 +1367,13 @@ async fn removing_table_block_replaces_it_with_empty_paragraph(cx: &mut TestAppC
 
     editor.update(cx, |editor, cx| {
         let table = editor.document.root_blocks()[1].clone();
-        assert_eq!(table.read(cx).kind(), BlockType::Table);
+        assert_eq!(table.read(cx).kind(), BlockKind::Table);
         editor.remove_table_block(&table, cx);
 
         let roots = editor.document.root_blocks();
         assert_eq!(roots.len(), 3);
         assert_eq!(roots[0].read(cx).display_text(), "intro");
-        assert_eq!(roots[1].read(cx).kind(), BlockType::Paragraph);
+        assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(roots[1].read(cx).display_text(), "");
         assert_eq!(roots[2].read(cx).display_text(), "outro");
         assert_eq!(editor.pending_focus, Some(roots[1].entity_id()));
@@ -1391,7 +1391,7 @@ async fn removing_the_only_table_leaves_one_empty_paragraph(cx: &mut TestAppCont
 
         let roots = editor.document.root_blocks();
         assert_eq!(roots.len(), 1);
-        assert_eq!(roots[0].read(cx).kind(), BlockType::Paragraph);
+        assert_eq!(roots[0].read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(roots[0].read(cx).display_text(), "");
     });
 }
@@ -1483,7 +1483,7 @@ async fn indented_root_images_install_runtime_before_indented_code(cx: &mut Test
         assert!(
             roots
                 .iter()
-                .any(|block| matches!(block.read(cx).kind(), BlockType::CodeBlock { .. }))
+                .any(|block| matches!(block.read(cx).kind(), BlockKind::CodeBlock { .. }))
         );
     });
 }
@@ -1595,7 +1595,7 @@ async fn html_fallback_before_image_does_not_swallow_standalone_image(cx: &mut T
         assert_eq!(editor.document.root_count(), 2);
         {
             let html = editor.document.root_blocks()[0].read(cx);
-            assert_eq!(html.kind(), BlockType::HtmlBlock);
+            assert_eq!(html.kind(), BlockKind::HtmlBlock);
             assert!(
                 html.display_text()
                     .starts_with("<span style='color:blue;'>")
@@ -1631,7 +1631,7 @@ async fn unclosed_html_fallback_stops_before_standalone_image_without_blank(
         assert_eq!(editor.document.root_count(), 2);
         assert_eq!(
             editor.document.root_blocks()[0].read(cx).kind(),
-            BlockType::RawMarkdown
+            BlockKind::RawMarkdown
         );
         let image = editor.document.root_blocks()[1].read(cx);
         let runtime = image.image_runtime().expect("image runtime");
@@ -1785,7 +1785,7 @@ async fn list_scoped_reference_definition_supports_list_item_image_runtime(
                 .expect("reference definition child")
                 .read(cx)
                 .kind(),
-            BlockType::RawMarkdown
+            BlockKind::RawMarkdown
         );
     });
 }
@@ -1916,7 +1916,7 @@ async fn callout_child_reference_style_image_uses_container_scoped_definition(
             .children
             .iter()
             .find(|child| {
-                child.read(cx).kind() == BlockType::Paragraph
+                child.read(cx).kind() == BlockKind::Paragraph
                     && child.read(cx).image_runtime().is_some()
             })
             .expect("callout image child")
@@ -1989,7 +1989,7 @@ async fn table_cell_with_mixed_inline_image_uses_inline_image_segments(cx: &mut 
         let cell = runtime.rows[0][0].read(cx);
         assert!(cell.image_runtime().is_none());
 
-        let segments = parse_table_cell_inline_images(&cell.record.title_markdown());
+        let segments = parse_table_cell_inline_images(&cell.record.text_markdown());
         assert_eq!(segments.len(), 2);
         assert_eq!(
             segments[0],
@@ -2168,7 +2168,7 @@ async fn root_level_footnotes_number_by_first_reference_and_render_in_place(
             .iter()
             .filter_map(|visible| {
                 let block = visible.entity.read(cx);
-                (block.kind() == BlockType::FootnoteDefinition).then_some(visible.entity.clone())
+                (block.kind() == BlockKind::FootnoteDefinition).then_some(visible.entity.clone())
             })
             .collect::<Vec<_>>();
         assert_eq!(footnote_defs.len(), 2);
@@ -2221,7 +2221,7 @@ async fn callout_footnotes_number_and_render_in_place(cx: &mut TestAppContext) {
 
         let definition = visible
             .iter()
-            .find(|visible| visible.entity.read(cx).kind() == BlockType::FootnoteDefinition)
+            .find(|visible| visible.entity.read(cx).kind() == BlockKind::FootnoteDefinition)
             .expect("callout footnote definition")
             .entity
             .clone();
@@ -2253,7 +2253,7 @@ async fn root_reference_binds_to_nested_quote_footnote_definition(cx: &mut TestA
 
         let definition = visible
             .iter()
-            .find(|visible| visible.entity.read(cx).kind() == BlockType::FootnoteDefinition)
+            .find(|visible| visible.entity.read(cx).kind() == BlockKind::FootnoteDefinition)
             .expect("nested quote footnote definition")
             .entity
             .clone();
@@ -2408,7 +2408,7 @@ async fn undo_reverts_recent_rendered_typing(cx: &mut TestAppContext) {
         let block = editor.document.first_root().expect("root").clone();
         editor.active_entity_id = Some(block.entity_id());
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::engine::block_types::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
         });
     });
@@ -2430,11 +2430,11 @@ async fn consecutive_text_edits_within_window_coalesce_into_one_undo(cx: &mut Te
         editor.active_entity_id = Some(block.entity_id());
 
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::engine::block_types::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(1..1, "b", None, false, cx);
         });
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::engine::block_types::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(2..2, "c", None, false, cx);
         });
     });
@@ -2456,7 +2456,7 @@ async fn redo_restores_text_reverted_by_undo(cx: &mut TestAppContext) {
         let block = editor.document.first_root().expect("root").clone();
         editor.active_entity_id = Some(block.entity_id());
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::engine::block_types::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
         });
     });
@@ -2480,7 +2480,7 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
         let block = editor.document.first_root().expect("root").clone();
         editor.active_entity_id = Some(block.entity_id());
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::engine::block_types::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
         });
     });
@@ -2492,7 +2492,7 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
         // A new edit invalidates the redo stack so it cannot revive stale text.
         let block = editor.document.first_root().expect("root").clone();
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::engine::block_types::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(5..5, " gamma", None, false, cx);
         });
     });
@@ -2893,7 +2893,7 @@ async fn down_from_code_language_at_document_end_creates_trailing_paragraph(
     editor.update(cx, |editor, cx| {
         let roots = editor.document.root_blocks();
         assert_eq!(roots.len(), 2, "a trailing paragraph should be created");
-        assert_eq!(roots[1].read(cx).kind(), BlockType::Paragraph);
+        assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(roots[1].read(cx).display_text(), "");
     });
 }
@@ -2932,7 +2932,7 @@ async fn newline_at_start_of_heading_moves_entire_heading_down(cx: &mut TestAppC
         block.update(cx, |block, block_cx| {
             block.move_to(0, block_cx);
         });
-        editor.on_block_event(block, &crate::engine::block_types::BlockAction::RequestNewlineAbove, cx);
+        editor.on_block_event(block, &crate::editor::actions::BlockAction::RequestNewlineAbove, cx);
     });
     redraw(cx);
 
@@ -2941,12 +2941,12 @@ async fn newline_at_start_of_heading_moves_entire_heading_down(cx: &mut TestAppC
         let blocks = editor.document.blocks();
         assert_eq!(
             blocks[0].entity.read(cx).kind(),
-            crate::engine::block_types::BlockType::Paragraph
+            crate::model::block::BlockKind::Paragraph
         );
         assert_eq!(blocks[0].entity.read(cx).display_text(), "");
         assert_eq!(
             blocks[1].entity.read(cx).kind(),
-            crate::engine::block_types::BlockType::Heading { level: 2 }
+            crate::model::block::BlockKind::Heading { level: 2 }
         );
         assert_eq!(blocks[1].entity.read(cx).display_text(), "1111");
     });
@@ -3144,11 +3144,11 @@ async fn inserting_table_at_document_end_adds_trailing_paragraph(cx: &mut TestAp
             .collect::<Vec<_>>();
         let table_index = kinds
             .iter()
-            .position(|kind| *kind == BlockType::Table)
+            .position(|kind| *kind == BlockKind::Table)
             .expect("table inserted");
         // The table is the last meaningful block, so an empty paragraph is
         // appended after it to give the caret somewhere to land.
-        assert_eq!(kinds.get(table_index + 1), Some(&BlockType::Paragraph));
+        assert_eq!(kinds.get(table_index + 1), Some(&BlockKind::Paragraph));
         assert_eq!(table_index + 1, kinds.len() - 1);
         assert_eq!(roots[table_index + 1].entity.read(cx).display_text(), "");
     });
@@ -3175,9 +3175,9 @@ async fn ctrl_enter_exits_focused_math_block(cx: &mut TestAppContext) {
     editor.update(cx, |editor, cx| {
         let visible = editor.document.blocks();
         assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockType::MathBlock);
+        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MathBlock);
         assert_eq!(visible[0].entity.read(cx).display_text(), "$$n^2$$");
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(visible[1].entity.read(cx).display_text(), "");
         assert_eq!(editor.document.to_markdown(cx), "$$n^2$$\n\n");
     });
@@ -3212,8 +3212,8 @@ async fn ctrl_enter_exits_focused_table_cell(cx: &mut TestAppContext) {
     editor.update(cx, |editor, cx| {
         let visible = editor.document.blocks();
         assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Table);
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Table);
+        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(visible[1].entity.read(cx).display_text(), "");
         assert_eq!(editor.active_entity_id, Some(visible[1].entity.entity_id()));
     });
@@ -3303,7 +3303,7 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
             .read(cx)
             .children
             .iter()
-            .find(|child| child.read(cx).kind() == BlockType::Table)
+            .find(|child| child.read(cx).kind() == BlockKind::Table)
             .expect("nested table child")
             .clone();
         let cell = table
@@ -3332,7 +3332,7 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
             .read(cx)
             .children
             .iter()
-            .find(|child| child.read(cx).kind() == BlockType::Table)
+            .find(|child| child.read(cx).kind() == BlockKind::Table)
             .expect("restored nested table")
             .clone();
         let restored_cell = restored_table

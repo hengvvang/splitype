@@ -13,23 +13,24 @@ use std::sync::Arc;
 
 pub(crate) use gpui::*;
 
-pub(crate) use crate::core::extensions::footnote_def::{
+pub(crate) use crate::editor::actions::UndoCaptureKind;
+pub(crate) use crate::editor::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
-pub(crate) use crate::core::extensions::image_ref::{
+pub(crate) use crate::engine::document::Document;
+pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
+pub(crate) use crate::model::inline::text::RichText;
+pub(crate) use crate::model::syntax::image::{
     ImageReferenceDefinitions, parse_image_reference_definitions,
 };
-pub(crate) use crate::core::extensions::table::{
+pub(crate) use crate::model::syntax::link::{
+    LinkReferenceDefinitions, parse_link_reference_definitions,
+};
+pub(crate) use crate::model::syntax::table::TableCellPosition;
+pub(crate) use crate::model::syntax::table::{
     TableAxisHighlight, TableAxisKind, TableAxisMarker, TableColumnAlignment, TableData,
     serialize_table_cell_markdown,
 };
-pub(crate) use crate::core::extensions::table_cell::TableCellPosition;
-pub(crate) use crate::core::text::link_ref::{
-    LinkReferenceDefinitions, parse_link_reference_definitions,
-};
-pub(crate) use crate::core::text::rich_text::RichText;
-pub(crate) use crate::engine::block_types::{BlockData, BlockType, UndoCaptureKind};
-pub(crate) use crate::engine::document::Document;
 pub(crate) use crate::ui::blocks::block_view::Block;
 pub(crate) use crate::ui::blocks::table_block::TableGrid;
 pub(crate) use crate::ui::components::context_menu::{ContextMenuState, TableInsertDialogState};
@@ -47,7 +48,7 @@ pub(crate) struct PendingOpenLink {
 /// Top-level controller that owns editor-wide state and delegates tree
 /// mutations to [`Document`].
 ///
-/// The editor subscribes to every [`BlockAction`](crate::engine::block_types::BlockAction)
+/// The editor subscribes to every [`BlockAction`](crate::editor::actions::BlockAction)
 /// emitted by child blocks. Structural changes are handled centrally so focus,
 /// scrolling, dirty tracking, and serialization stay synchronized.
 pub struct Editor {

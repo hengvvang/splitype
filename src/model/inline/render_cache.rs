@@ -7,12 +7,12 @@
 
 use std::ops::Range;
 
-use crate::core::text::inline_footnote::InlineFootnoteReference;
-use crate::core::text::inline_link::InlineLink;
-use crate::core::text::inline_latex::InlineLatex;
-use crate::core::text::inline_style::InlineStyle;
-use crate::core::text::rich_text::{RichText, TextCursor};
-use crate::core::extensions::html_doc::HtmlInlineStyle;
+use crate::model::inline::footnote::InlineFootnoteReference;
+use crate::model::inline::link::InlineLink;
+use crate::model::inline::latex::InlineLatex;
+use crate::model::inline::style::InlineStyle;
+use crate::model::inline::text::{RichText, TextCursor};
+use crate::model::syntax::html::HtmlInlineStyle;
 
 /// A visible-text range with its associated [`InlineStyle`], used by
 /// the render cache to build styled text runs for the text system.
@@ -21,8 +21,8 @@ pub struct InlineSpan {
     pub range: Range<usize>,
     pub style: InlineStyle,
     pub html_style: Option<HtmlInlineStyle>,
-    pub link: Option<crate::core::text::inline_link::InlineLinkHit>,
-    pub footnote: Option<crate::core::text::inline_footnote::InlineFootnoteHit>,
+    pub link: Option<crate::model::inline::link::InlineLinkHit>,
+    pub footnote: Option<crate::model::inline::footnote::InlineFootnoteHit>,
     pub math: Option<InlineLatex>,
 }
 
@@ -124,7 +124,7 @@ impl InlineRenderCache {
         self.link_hit_at(offset).map(|hit| hit.open_target.as_str())
     }
 
-    pub fn link_hit_at(&self, offset: usize) -> Option<&crate::core::text::inline_link::InlineLinkHit> {
+    pub fn link_hit_at(&self, offset: usize) -> Option<&crate::model::inline::link::InlineLinkHit> {
         self.spans
             .iter()
             .find(|span| span.range.start <= offset && offset < span.range.end)
@@ -132,7 +132,7 @@ impl InlineRenderCache {
     }
 
     #[allow(dead_code)]
-    pub fn footnote_hit_at(&self, offset: usize) -> Option<&crate::core::text::inline_footnote::InlineFootnoteHit> {
+    pub fn footnote_hit_at(&self, offset: usize) -> Option<&crate::model::inline::footnote::InlineFootnoteHit> {
         self.spans
             .iter()
             .find(|span| span.range.start <= offset && offset < span.range.end)

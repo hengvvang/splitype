@@ -3,13 +3,13 @@
 
 use gpui::*;
 
-use crate::core::extensions::table_cell::TableCellPosition;
-use crate::core::extensions::table::TableColumnAlignment;
+use crate::model::syntax::table::TableCellPosition;
+use crate::model::syntax::table::TableColumnAlignment;
 use crate::ui::blocks::block_view::Block;
-use crate::engine::block_types::BlockAction;
-use crate::core::extensions::table::{TableAxisKind, TableAxisMarker, TableColumnLayout};
+use crate::editor::actions::BlockAction;
+use crate::model::syntax::table::{TableAxisKind, TableAxisMarker, TableColumnLayout};
 use crate::ui::blocks::block_view::EditMode;
-use crate::core::extensions::table::TableAxisHighlight;
+use crate::model::syntax::table::TableAxisHighlight;
 use crate::ui::blocks::render::effective_table_width;
 use crate::ui::theme::Theme;
 

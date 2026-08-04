@@ -1,0 +1,91 @@
+//! Callout kind enumeration for GitHub-flavored callout blocks.
+//!
+//! Callouts are parsed from `[!TYPE]` headers inside blockquote containers.
+
+/// Supported callout variant parsed from `[!TYPE]` quote headers.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CalloutKind {
+    /// Informational note callout.
+    Note,
+    /// Helpful tip callout.
+    Tip,
+    /// High-emphasis important callout.
+    Important,
+    /// Warning callout for risky or surprising content.
+    Warning,
+    /// Caution callout for potentially harmful actions.
+    Caution,
+}
+
+impl CalloutKind {
+    /// The `[!TYPE]` marker text of this callout.
+    pub fn marker(self) -> &'static str {
+        match self {
+            Self::Note => "NOTE",
+            Self::Tip => "TIP",
+            Self::Important => "IMPORTANT",
+            Self::Warning => "WARNING",
+            Self::Caution => "CAUTION",
+        }
+    }
+
+    /// The display label of this callout.
+    pub fn label(self) -> &'static str {
+        self.marker()
+    }
+
+    #[allow(dead_code)]
+    pub fn icon_path(self) -> &'static str {
+        match self {
+            Self::Note => "icon/callout/note.svg",
+            Self::Tip => "icon/callout/tip.svg",
+            Self::Important => "icon/callout/important.svg",
+            Self::Warning => "icon/callout/warning.svg",
+            Self::Caution => "icon/callout/caution.svg",
+        }
+    }
+
+    /// Parse a `[!TYPE]` header line, returning the kind and trailing title text.
+    pub fn parse_header_line(line: &str) -> Option<(Self, String)> {
+        let trimmed = line.trim_start();
+        let rest = trimmed.strip_prefix("[!")?;
+        let marker_end = rest.find(']')?;
+        let marker = &rest[..marker_end];
+        let variant = match marker.to_ascii_uppercase().as_str() {
+            "NOTE" => Self::Note,
+            "TIP" => Self::Tip,
+            "IMPORTANT" => Self::Important,
+            "WARNING" => Self::Warning,
+            "CAUTION" => Self::Caution,
+            _ => return None,
+        };
+        let title = rest[marker_end + 1..].trim_start().to_string();
+        Some((variant, title))
+    }
+
+    /// Build the `[!TYPE]` header line for this callout.
+    pub fn header_markdown(self, title_markdown: &str) -> String {
+        if title_markdown.trim().is_empty() {
+            format!("[!{}]", self.marker())
+        } else {
+            format!("[!{}] {}", self.marker(), title_markdown)
+        }
+    }
+
+    /// Escape a plain quote header so it cannot be mistaken for a callout
+    /// header when serializing a plain blockquote.
+    pub fn escape_plain_quote_header(title_markdown: &str) -> String {
+        let mut lines = title_markdown.splitn(2, '\n');
+        let first = lines.next().unwrap_or_default();
+        let rest = lines.next();
+        let escaped_first = if Self::parse_header_line(first).is_some() {
+            format!("\\{first}")
+        } else {
+            first.to_string()
+        };
+        match rest {
+            Some(rest) => format!("{escaped_first}\n{rest}"),
+            None => escaped_first,
+        }
+    }
+}

@@ -7,8 +7,9 @@ use std::time::Duration;
 
 use gpui::*;
 
-use crate::core::text::rich_text::RichText;
-use crate::engine::block_types::{BlockAction, BlockType, PastedImageSource, UndoCaptureKind};
+use crate::model::inline::text::RichText;
+use crate::editor::actions::{BlockAction, PastedImageSource, UndoCaptureKind};
+use crate::model::block::BlockKind;
 use crate::services::code_highlight::language::code_language_options_matching;
 use crate::ui::blocks::block_view::{Block, CollapsedCaretAffinity, InlineFormat};
 use crate::ui::input::paste::should_split_plain_multiline_paste;
@@ -80,19 +81,19 @@ impl Block {
 
     fn paste_image_split(&self) -> (RichText, RichText) {
         let clean_selected = self.selection_clean_range();
-        let (leading, tail) = self.record.title.split_at(clean_selected.start);
+        let (leading, tail) = self.record.text.split_at(clean_selected.start);
         let (_, trailing) = tail.split_at(clean_selected.end.saturating_sub(clean_selected.start));
         (leading, trailing)
     }
 
     fn is_leaf_quote(&self) -> bool {
-        self.kind() == BlockType::Quote
+        self.kind() == BlockKind::Blockquote
             && self.children.is_empty()
             && !self.display_text().contains('\n')
     }
 
     fn is_leaf_callout(&self) -> bool {
-        matches!(self.kind(), BlockType::Callout(_)) && self.children.is_empty()
+        matches!(self.kind(), BlockKind::Callout(_)) && self.children.is_empty()
     }
 
     fn is_empty_leaf_quote(&self) -> bool {
@@ -104,13 +105,13 @@ impl Block {
             return false;
         }
 
-        let BlockType::Callout(variant) = self.kind() else {
+        let BlockKind::Callout(variant) = self.kind() else {
             return false;
         };
-        let header_markdown = variant.header_markdown(&self.record.title.serialize_markdown());
-        self.record.kind = BlockType::Quote;
+        let header_markdown = variant.header_markdown(&self.record.text.serialize_markdown());
+        self.record.kind = BlockKind::Blockquote;
         self.record
-            .set_title(RichText::from_markdown(&header_markdown));
+            .set_text(RichText::from_markdown(&header_markdown));
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
         self.assign_collapsed_selection_offset(0, CollapsedCaretAffinity::Default, None);
@@ -274,7 +275,7 @@ impl Block {
     fn trailing_code_fence_line_start(&self) -> Option<usize> {
         let text = self.display_text();
         let line_start = text.rfind('\n').map(|idx| idx + 1).unwrap_or(0);
-        let is_bare_fence = BlockType::parse_code_fence_opening(&text[line_start..])
+        let is_bare_fence = BlockKind::parse_code_fence_opening(&text[line_start..])
             .is_some_and(|fence| fence.language.is_none());
         // Cut from the preceding newline too, unless the fence is the only line.
         is_bare_fence.then(|| line_start.saturating_sub(1))
@@ -307,14 +308,14 @@ impl Block {
             return;
         }
 
-        if self.kind() == BlockType::Paragraph
+        if self.kind() == BlockKind::Paragraph
             && self.selected_range.is_empty()
             && self.cursor_offset() == self.visible_len()
-            && BlockType::parse_separator_line(self.display_text())
+            && BlockKind::parse_thematic_break_line(self.display_text())
             // A dash run is also a setext underline; defer it to the editor so a
             // preceding paragraph can become a heading (the editor falls back to
             // a separator when there is no heading target).
-            && BlockType::parse_setext_underline(self.display_text()).is_none()
+            && BlockKind::parse_setext_underline(self.display_text()).is_none()
         {
             self.convert_to_separator(cx);
             cx.emit(BlockAction::RequestNewline {
@@ -329,7 +330,7 @@ impl Block {
         // means it also fires after pressing Home on an existing line and typing
         // the fence in front of a formula: the rest of the line becomes the math
         // body instead of being split off into a new paragraph.
-        if self.kind() == BlockType::Paragraph
+        if self.kind() == BlockKind::Paragraph
             && self.selected_range.is_empty()
             && self.cursor_offset() == "$$".len()
             && self.display_text().starts_with("$$")
@@ -339,16 +340,16 @@ impl Block {
             return;
         }
 
-        if self.kind() == BlockType::Paragraph
+        if self.kind() == BlockKind::Paragraph
             && self.selected_range.is_empty()
             && self.cursor_offset() == self.visible_len()
-            && let Some(fence) = BlockType::parse_code_fence_opening(self.display_text())
+            && let Some(fence) = BlockKind::parse_code_fence_opening(self.display_text())
         {
             self.enter_code_block(fence.language, cx);
             return;
         }
 
-        if self.kind().is_separator() {
+        if self.kind().is_thematic_break() {
             cx.emit(BlockAction::RequestNewline {
                 trailing: RichText::plain(String::new()),
                 source_already_mutated: false,
@@ -361,7 +362,7 @@ impl Block {
             return;
         }
 
-        if self.kind() == BlockType::Quote {
+        if self.kind() == BlockKind::Blockquote {
             if !self.selected_range.is_empty() {
                 self.replace_text_in_range(None, "", window, cx);
             }
@@ -370,7 +371,7 @@ impl Block {
             return;
         }
 
-        if matches!(self.kind(), BlockType::Callout(_)) {
+        if matches!(self.kind(), BlockKind::Callout(_)) {
             cx.emit(BlockAction::RequestEnterCalloutBody);
             return;
         }
@@ -424,7 +425,7 @@ impl Block {
 
         let (leading, trailing) = self.split_title(cursor);
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
-        self.record.set_title(leading);
+        self.record.set_text(leading);
         self.mark_changed(cx);
         let cursor = self.visible_len();
         self.assign_collapsed_selection_offset(cursor, CollapsedCaretAffinity::Default, None);
@@ -462,7 +463,7 @@ impl Block {
         }
 
         if self.selected_range.is_empty() && self.cursor_offset() == 0 {
-            if self.kind() == BlockType::Paragraph && self.is_direct_list_child() && self.is_empty()
+            if self.kind() == BlockKind::Paragraph && self.is_direct_list_child() && self.is_empty()
             {
                 cx.emit(BlockAction::RequestOutdent);
                 return;
@@ -472,33 +473,33 @@ impl Block {
                 return;
             }
             match self.kind() {
-                BlockType::BulletedListItem
-                | BlockType::TaskListItem { .. }
-                | BlockType::NumberedListItem => {
+                BlockKind::BulletListItem
+                | BlockKind::TaskListItem { .. }
+                | BlockKind::NumberedListItem => {
                     cx.emit(BlockAction::RequestOutdent);
                     return;
                 }
-                BlockType::Heading { .. } => {
+                BlockKind::Heading { .. } => {
                     self.convert_to_paragraph(cx);
                     return;
                 }
-                BlockType::Quote => {
+                BlockKind::Blockquote => {
                     if self.is_leaf_quote() {
                         self.convert_to_paragraph(cx);
                     }
                     return;
                 }
-                BlockType::Callout(_) => {
+                BlockKind::Callout(_) => {
                     if self.downgrade_leaf_callout_to_quote_at_start(cx) {
                         return;
                     }
                     return;
                 }
-                BlockType::Separator => {
+                BlockKind::ThematicBreak => {
                     self.convert_to_paragraph(cx);
                     return;
                 }
-                BlockType::CodeBlock { .. } => {
+                BlockKind::CodeBlock { .. } => {
                     self.convert_to_paragraph(cx);
                     return;
                 }
@@ -519,7 +520,7 @@ impl Block {
 
         if self.selected_range.is_empty() && self.cursor_offset() == 0 {
             cx.emit(BlockAction::RequestMergeIntoPrev {
-                content: self.record.title.clone(),
+                content: self.record.text.clone(),
             });
             return;
         }
@@ -557,7 +558,7 @@ impl Block {
             return;
         }
 
-        if self.kind().is_separator() {
+        if self.kind().is_thematic_break() {
             self.convert_to_paragraph(cx);
             return;
         }
@@ -618,7 +619,7 @@ impl Block {
             cx.emit(BlockAction::RequestIndent);
             return;
         }
-        if self.kind() == BlockType::Paragraph || self.kind().is_code_block() {
+        if self.kind() == BlockKind::Paragraph || self.kind().is_code_block() {
             self.replace_text_in_range(None, "    ", window, cx);
         }
     }
@@ -907,7 +908,7 @@ impl Block {
     }
 
     pub(crate) fn on_paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
-        if self.kind().is_separator() && !self.uses_raw_text_editing() {
+        if self.kind().is_thematic_break() && !self.uses_raw_text_editing() {
             return;
         }
 
@@ -969,7 +970,7 @@ impl Block {
                     return;
                 }
                 let clean_selected = self.selection_clean_range();
-                let (leading, tail) = self.record.title.split_at(clean_selected.start);
+                let (leading, tail) = self.record.text.split_at(clean_selected.start);
                 let (_, trailing) =
                     tail.split_at(clean_selected.end.saturating_sub(clean_selected.start));
                 let lines = normalized
@@ -1032,7 +1033,7 @@ impl Block {
         cx: &mut Context<Self>,
     ) {
         cx.stop_propagation();
-        cx.write_to_clipboard(ClipboardItem::new_string(self.record.title.visible_text()));
+        cx.write_to_clipboard(ClipboardItem::new_string(self.record.text.visible_text()));
     }
 
     pub(crate) fn on_code_language_newline(
@@ -1475,7 +1476,7 @@ impl Block {
     pub(crate) fn pointer_link_hit(
         &self,
         position: Point<Pixels>,
-    ) -> Option<crate::core::text::inline_link::InlineLinkHit> {
+    ) -> Option<crate::model::inline::link::InlineLinkHit> {
         self.last_layout
             .as_ref()
             .zip(self.last_bounds)
@@ -1510,7 +1511,7 @@ impl Block {
     /// Open a rendered inline link's destination through the editor prompt.
     pub(crate) fn open_rendered_link(
         &mut self,
-        link: &crate::core::text::inline_link::InlineLinkHit,
+        link: &crate::model::inline::link::InlineLinkHit,
         cx: &mut Context<Self>,
     ) {
         cx.stop_propagation();
@@ -1693,7 +1694,7 @@ impl Block {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.kind() == BlockType::Table {
+        if self.kind() == BlockKind::Table {
             cx.emit(BlockAction::RequestAppendTableColumn);
         }
     }
@@ -1704,7 +1705,7 @@ impl Block {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.kind() == BlockType::Table {
+        if self.kind() == BlockKind::Table {
             cx.emit(BlockAction::RequestAppendTableRow);
         }
     }
@@ -1715,7 +1716,7 @@ impl Block {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.kind() == BlockType::Table {
+        if self.kind() == BlockKind::Table {
             cx.emit(BlockAction::RequestExpandTable);
         }
     }
@@ -1780,8 +1781,9 @@ impl Block {
 #[cfg(test)]
 mod tests {
     use super::Block;
-    use crate::core::text::rich_text::RichText;
-    use crate::engine::block_types::{BlockData, BlockType, PastedImageSource};
+    use crate::model::inline::text::RichText;
+    use crate::editor::actions::PastedImageSource;
+use crate::model::block::{BlockData, BlockKind};
     use gpui::{AppContext, TestAppContext};
     use std::fs;
 
@@ -1920,8 +1922,8 @@ mod tests {
         let block = cx.new(|cx| Block::with_record(cx, BlockData::paragraph(String::new())));
 
         block.update(cx, |block, cx| {
-            block.record.kind = BlockType::Quote;
-            block.record.set_title(RichText::plain("first\n"));
+            block.record.kind = BlockKind::Blockquote;
+            block.record.set_text(RichText::plain("first\n"));
             block.sync_edit_mode_from_kind();
             block.sync_render_cache();
             cx.notify();

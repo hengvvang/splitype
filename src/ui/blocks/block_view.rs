@@ -8,24 +8,21 @@ use std::time::{Duration, Instant};
 use gpui::*;
 use unicode_segmentation::*;
 
-use crate::core::extensions::table::{TableAxisHighlight, TableAxisMarker, TableColumnAlignment};
-use crate::core::extensions::table_cell::TableCellPosition;
-use crate::ui::blocks::table_block::TableGrid;
-use crate::core::extensions::footnote_def::FootnoteMap;
-use crate::core::extensions::image_ref::ImageReferenceDefinitions;
-use crate::core::extensions::image_ref::ImageResolvedSource;
-use crate::core::text::inline_footnote::InlineFootnoteHit;
-use crate::core::text::inline_link::InlineLinkHit;
-use crate::core::text::inline_style::{InlineStyle, StyleFlag};
-use crate::core::text::link_ref::LinkReferenceDefinitions;
-use crate::core::text::render_cache::{InlineRenderCache, InlineSpan};
-use crate::core::text::rich_text::{
-    InlineFragment, InlineInsertionAttributes, RichText,
-};
-use crate::engine::block_types::{
-    BlockAction, BlockData, BlockType, CalloutVariant, UndoCaptureKind,
-};
+use crate::editor::actions::{BlockAction, UndoCaptureKind};
+use crate::model::block::{BlockData, BlockId, BlockKind, CalloutKind};
+use crate::model::inline::footnote::InlineFootnoteHit;
+use crate::model::inline::link::InlineLinkHit;
+use crate::model::inline::render_cache::{InlineRenderCache, InlineSpan};
+use crate::model::inline::style::{InlineStyle, StyleFlag};
+use crate::model::inline::text::{InlineFragment, InlineInsertionAttributes, RichText};
+use crate::editor::footnotes::FootnoteMap;
+use crate::model::syntax::image::ImageReferenceDefinitions;
+use crate::model::syntax::image::ImageResolvedSource;
+use crate::model::syntax::link::LinkReferenceDefinitions;
+use crate::model::syntax::table::TableCellPosition;
+use crate::model::syntax::table::{TableAxisHighlight, TableAxisMarker, TableColumnAlignment};
 use crate::services::code_highlight::highlight::CodeHighlightResult;
+use crate::ui::blocks::table_block::TableGrid;
 use crate::ui::inline::projection::{
     ExpandedInlineProjection, ExpandedInlineSegment, ExpandedInlineSegmentKind, ExpandedLinkRun,
     ProjectedLinkSelectionSnapshot,
@@ -72,16 +69,16 @@ pub(crate) enum EditMode {
 }
 
 impl EditMode {
-    pub(crate) fn for_kind(kind: &BlockType) -> Self {
+    pub(crate) fn for_kind(kind: &BlockKind) -> Self {
         if kind.is_code_block() {
             Self::CodeBlockRaw
         } else if matches!(
             kind,
-            BlockType::RawMarkdown
-                | BlockType::Comment
-                | BlockType::HtmlBlock
-                | BlockType::MathBlock
-                | BlockType::MermaidBlock
+            BlockKind::RawMarkdown
+                | BlockKind::HtmlComment
+                | BlockKind::HtmlBlock
+                | BlockKind::MathBlock
+                | BlockKind::MermaidBlock
         ) {
             Self::SourceRaw
         } else {
@@ -134,13 +131,13 @@ pub struct Block {
     pub last_line_height: Pixels,
     pub render_depth: usize,
     pub quote_depth: usize,
-    pub(crate) quote_group_anchor: Option<uuid::Uuid>,
+    pub(crate) quote_group_anchor: Option<BlockId>,
     pub(crate) visible_quote_depth: usize,
-    pub(crate) visible_quote_group_anchor: Option<uuid::Uuid>,
+    pub(crate) visible_quote_group_anchor: Option<BlockId>,
     pub(crate) callout_depth: usize,
-    pub(crate) callout_anchor: Option<uuid::Uuid>,
-    pub(crate) callout_variant: Option<CalloutVariant>,
-    pub(crate) footnote_anchor: Option<uuid::Uuid>,
+    pub(crate) callout_anchor: Option<BlockId>,
+    pub(crate) callout_variant: Option<CalloutKind>,
+    pub(crate) footnote_anchor: Option<BlockId>,
     pub(crate) parent_is_list_item: bool,
     pub list_ordinal: Option<usize>,
     pub is_selecting: bool,
@@ -201,7 +198,7 @@ pub struct Block {
 impl Block {
     pub fn with_record(cx: &mut Context<Self>, record: BlockData) -> Self {
         let edit_mode = EditMode::for_kind(&record.kind);
-        let render_cache = record.title.render_cache();
+        let render_cache = record.text.render_cache();
         let mut block = Self {
             record,
             render_cache,
@@ -283,7 +280,7 @@ impl Block {
         block
     }
 
-    pub fn kind(&self) -> BlockType {
+    pub fn kind(&self) -> BlockKind {
         self.record.kind.clone()
     }
 
@@ -391,7 +388,7 @@ impl Block {
     pub(crate) fn inline_html_style_at(
         &self,
         offset: usize,
-    ) -> Option<crate::core::extensions::html_doc::HtmlInlineStyle> {
+    ) -> Option<crate::model::syntax::html::HtmlInlineStyle> {
         self.current_cache().html_style_at(offset)
     }
 
@@ -411,18 +408,21 @@ impl Block {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn inline_math_at(&self, offset: usize) -> Option<&crate::core::text::inline_latex::InlineLatex> {
+    pub(crate) fn inline_math_at(
+        &self,
+        offset: usize,
+    ) -> Option<&crate::model::inline::latex::InlineLatex> {
         self.current_cache().inline_math_at(offset)
     }
 
     pub(crate) fn has_mixed_inline_visuals(&self) -> bool {
-        self.record.title.has_mixed_inline_visuals()
+        self.record.text.has_mixed_inline_visuals()
     }
 
     pub(crate) fn footnote_definition_id(&self) -> Option<String> {
         self.kind()
             .is_footnote_definition()
-            .then(|| self.record.title.visible_text())
+            .then(|| self.record.text.visible_text())
     }
 
     pub(crate) fn footnote_definition_ordinal(&self) -> Option<usize> {
@@ -445,7 +445,7 @@ impl Block {
         occurrence_index: usize,
     ) -> Option<Range<usize>> {
         let mut clean_offset = 0usize;
-        for fragment in &self.record.title.fragments {
+        for fragment in &self.record.text.fragments {
             let len = fragment.text.len();
             if fragment
                 .footnote
@@ -485,7 +485,7 @@ impl Block {
 
     pub(crate) fn split_title(&self, offset: usize) -> (RichText, RichText) {
         self.record
-            .title
+            .text
             .split_at(self.current_to_clean_offset(offset))
     }
 
@@ -504,7 +504,7 @@ impl Block {
         let collapsed_affinity = self.current_collapsed_caret_affinity();
         let keep_projection =
             self.projection.is_some() && self.edit_mode.supports_inline_projection();
-        self.render_cache = self.record.title.render_cache();
+        self.render_cache = self.record.text.render_cache();
         self.sync_code_highlight();
         self.sync_image_runtime();
         self.projection = None;
@@ -561,16 +561,16 @@ impl Block {
             return;
         }
 
-        let markdown = self.record.title.serialize_markdown();
+        let markdown = self.record.text.serialize_markdown();
         let next_title = RichText::from_markdown_with_link_references(
             &markdown,
             &self.link_reference_definitions,
         );
-        if self.record.title == next_title {
+        if self.record.text == next_title {
             return;
         }
 
-        self.record.set_title(next_title);
+        self.record.set_text(next_title);
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
 
@@ -616,11 +616,11 @@ impl Block {
         let had_projection = self.projection.is_some();
 
         self.footnote_registry = footnote_registry;
-        if self.uses_raw_text_editing() || !self.record.title.has_footnote_references() {
+        if self.uses_raw_text_editing() || !self.record.text.has_footnote_references() {
             return;
         }
 
-        let mut next_title = self.record.title.clone();
+        let mut next_title = self.record.text.clone();
         let mut occurrence_iter = self
             .footnote_registry
             .occurrences_for_block(self.record.id)
@@ -633,11 +633,11 @@ impl Block {
             }
             Some((occurrence.ordinal?, occurrence.occurrence_index))
         });
-        if self.record.title == next_title {
+        if self.record.text == next_title {
             return;
         }
 
-        self.record.set_title(next_title);
+        self.record.set_text(next_title);
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
 
@@ -665,7 +665,7 @@ impl Block {
     }
 
     fn should_use_markdown_space_link_edit(&self) -> bool {
-        !self.uses_raw_text_editing() && self.record.title.has_source_preserving_links()
+        !self.uses_raw_text_editing() && self.record.text.has_source_preserving_links()
     }
 
     fn apply_markdown_space_title_edit(
@@ -676,9 +676,9 @@ impl Block {
         mark_inserted_text: bool,
         cx: &mut Context<Self>,
     ) {
-        let old_visible_len = self.record.title.visible_text().len();
+        let old_visible_len = self.record.text.visible_text().len();
         let markdown_range = self.current_range_to_markdown_range(visible_range.clone());
-        let mut markdown = self.record.title.serialize_markdown();
+        let mut markdown = self.record.text.serialize_markdown();
         let replaced_text = markdown[markdown_range.clone()].to_string();
         markdown.replace_range(markdown_range.clone(), new_text);
 
@@ -710,7 +710,7 @@ impl Block {
         let quote_structure_edit = self.quote_depth > 0
             && (new_text.contains('\n')
                 || replaced_text.contains('\n')
-                || (self.kind() == BlockType::Quote
+                || (self.kind() == BlockKind::Blockquote
                     && Self::multiline_quote_edit_requires_reparse(&next_title.visible_text())));
         if quote_structure_edit {
             self.quote_reparse_requested = true;
@@ -773,7 +773,7 @@ impl Block {
             .clone()
             .map(|range| self.current_to_clean_range(range));
         let heading_level = match self.kind() {
-            BlockType::Heading { level } => Some(level),
+            BlockKind::Heading { level } => Some(level),
             _ => None,
         };
         if self.projection_cache_key.as_ref()
@@ -852,7 +852,7 @@ impl Block {
         clean_marked: Option<Range<usize>>,
     ) {
         let heading_level = match self.kind() {
-            BlockType::Heading { level } => Some(level),
+            BlockKind::Heading { level } => Some(level),
             _ => None,
         };
         self.projection_cache_key = Some((
@@ -863,7 +863,7 @@ impl Block {
         ));
         let block_prefix = heading_level.map(|level| format!("{} ", "#".repeat(level as usize)));
         self.projection = ExpandedInlineProjection::build_with_prefix(
-            &self.record.title.fragments,
+            &self.record.text.fragments,
             clean_selected,
             clean_marked,
             block_prefix.as_deref(),
@@ -1030,7 +1030,7 @@ impl Block {
         }
 
         if let Some(link_run) = self.projected_link_run_fully_covering_range(&range) {
-            let map = self.record.title.markdown_offset_map();
+            let map = self.record.text.markdown_offset_map();
             let label_markdown_start = map.visible_to_markdown_offset(link_run.clean_range.start);
             let run_markdown_start =
                 label_markdown_start.saturating_sub(link_run.link.open_marker().len());
@@ -1064,14 +1064,14 @@ impl Block {
                 .min(footnote_run.display_range.len());
             let mapped_start = (raw_len * local_start) / footnote_run.display_range.len().max(1);
             let mapped_end = (raw_len * local_end) / footnote_run.display_range.len().max(1);
-            let map = self.record.title.markdown_offset_map();
+            let map = self.record.text.markdown_offset_map();
             let run_markdown_start = map.visible_to_markdown_offset(footnote_run.clean_range.start);
             return run_markdown_start + mapped_start..run_markdown_start + mapped_end;
         }
 
         let clean_range = self.current_to_clean_range(range);
         self.record
-            .title
+            .text
             .markdown_offset_map()
             .visible_to_markdown_range(clean_range)
     }
@@ -1084,7 +1084,7 @@ impl Block {
 
         let clean_range = self
             .record
-            .title
+            .text
             .markdown_offset_map()
             .markdown_to_visible_range(range);
         self.clean_to_current_range(clean_range)
@@ -1140,21 +1140,21 @@ impl Block {
     /// Detect Markdown shortcut prefixes in the edited title and convert the
     /// block's kind accordingly (e.g. `"- " -> BulletedListItem`).
     ///
-    /// Only triggers when the current kind is [`BlockType::Paragraph`].
+    /// Only triggers when the current kind is [`BlockKind::Paragraph`].
     /// Returns the potentially updated kind, the title with prefix stripped,
     /// the new cursor offset, and the number of prefix characters removed.
     fn normalize_after_title_edit(
         &self,
         mut next_title: RichText,
         cursor: usize,
-    ) -> (BlockType, RichText, usize, usize) {
+    ) -> (BlockKind, RichText, usize, usize) {
         if self.is_table_cell() {
             return (self.kind(), next_title, cursor, 0);
         }
 
-        if !self.uses_raw_text_editing() && self.kind() == BlockType::Paragraph {
+        if !self.uses_raw_text_editing() && self.kind() == BlockKind::Paragraph {
             let visible_text = next_title.visible_text();
-            if let Some((kind, prefix_len)) = BlockType::detect_markdown_shortcut(&visible_text) {
+            if let Some((kind, prefix_len)) = BlockKind::detect_markdown_shortcut(&visible_text) {
                 next_title.remove_visible_prefix(prefix_len);
                 return (
                     kind,
@@ -1165,14 +1165,14 @@ impl Block {
             }
         }
 
-        if !self.uses_raw_text_editing() && self.kind() == BlockType::BulletedListItem {
+        if !self.uses_raw_text_editing() && self.kind() == BlockKind::BulletListItem {
             let visible_text = next_title.visible_text();
             if let Some((checked, prefix_len)) =
-                BlockType::parse_task_list_item_prefix(&visible_text)
+                BlockKind::parse_task_list_item_prefix(&visible_text)
             {
                 next_title.remove_visible_prefix(prefix_len);
                 return (
-                    BlockType::TaskListItem { checked },
+                    BlockKind::TaskListItem { checked },
                     next_title,
                     cursor.saturating_sub(prefix_len),
                     prefix_len,
@@ -1194,11 +1194,11 @@ impl Block {
             return true;
         }
 
-        BlockType::detect_markdown_shortcut(&format!("{trimmed_end} "))
-            .is_some_and(|(kind, _)| kind != BlockType::Paragraph)
-            || BlockType::parse_code_fence_opening(trimmed_end).is_some()
-            || BlockType::parse_separator_line(trimmed_end)
-            || BlockType::parse_atx_heading_line(trimmed_end).is_some()
+        BlockKind::detect_markdown_shortcut(&format!("{trimmed_end} "))
+            .is_some_and(|(kind, _)| kind != BlockKind::Paragraph)
+            || BlockKind::parse_code_fence_opening(trimmed_end).is_some()
+            || BlockKind::parse_thematic_break_line(trimmed_end)
+            || BlockKind::parse_atx_heading_line(trimmed_end).is_some()
     }
 
     fn multiline_quote_edit_requires_reparse(text: &str) -> bool {
@@ -1286,10 +1286,10 @@ impl Block {
 
         let replacement_start = link_run.start_fragment_index;
         let replacement_clean_start = Self::clean_offset_before_fragment_index(
-            &self.record.title.fragments,
+            &self.record.text.fragments,
             replacement_start,
         );
-        let mut next_title = self.record.title.clone();
+        let mut next_title = self.record.text.clone();
         next_title.replace_fragment_range(
             link_run.start_fragment_index..link_run.end_fragment_index,
             replacement_fragments.clone(),
@@ -1297,8 +1297,8 @@ impl Block {
 
         if Self::replacement_is_pure_link_run(&replacement_fragments) {
             let old_kind = self.record.kind.clone();
-            let old_title = self.record.title.clone();
-            self.record.set_title(next_title.clone());
+            let old_title = self.record.text.clone();
+            self.record.set_text(next_title.clone());
             self.sync_edit_mode_from_kind();
             self.sync_render_cache();
 
@@ -1338,7 +1338,7 @@ impl Block {
                 self.collapsed_caret_affinity = CollapsedCaretAffinity::Default;
                 self.cursor_blink_epoch = Instant::now();
                 self.clear_vertical_motion();
-                if self.record.kind != old_kind || self.record.title != old_title {
+                if self.record.kind != old_kind || self.record.text != old_title {
                     cx.emit(BlockAction::Changed);
                 }
                 cx.notify();
@@ -1389,7 +1389,7 @@ impl Block {
         if self.projection.is_none() {
             return self
                 .record
-                .title
+                .text
                 .attributes_for_insertion_at(current_offset);
         }
 
@@ -1399,7 +1399,7 @@ impl Block {
                     if current_offset >= segment.display_range.start
                         && current_offset <= segment.display_range.end =>
                 {
-                    let fragment = &self.record.title.fragments[segment.fragment_index];
+                    let fragment = &self.record.text.fragments[segment.fragment_index];
                     return InlineInsertionAttributes {
                         style: fragment.style,
                         html_style: fragment.html_style,
@@ -1411,7 +1411,7 @@ impl Block {
                 ExpandedInlineSegmentKind::OpeningDelimiter(_)
                     if current_offset == segment.display_range.end =>
                 {
-                    let fragment = &self.record.title.fragments[segment.fragment_index];
+                    let fragment = &self.record.text.fragments[segment.fragment_index];
                     return InlineInsertionAttributes {
                         style: fragment.style,
                         html_style: fragment.html_style,
@@ -1423,7 +1423,7 @@ impl Block {
                 ExpandedInlineSegmentKind::ClosingDelimiter(_)
                     if current_offset == segment.display_range.start =>
                 {
-                    let fragment = &self.record.title.fragments[segment.fragment_index];
+                    let fragment = &self.record.text.fragments[segment.fragment_index];
                     return InlineInsertionAttributes {
                         style: fragment.style,
                         html_style: fragment.html_style,
@@ -1462,7 +1462,7 @@ impl Block {
         }
 
         self.record
-            .title
+            .text
             .attributes_for_insertion_at(self.current_to_clean_offset(current_offset))
     }
 
@@ -1508,7 +1508,7 @@ impl Block {
                 && visible_range.end <= segment.display_range.end)
                 .then(|| {
                     self.record
-                        .title
+                        .text
                         .fragments
                         .get(segment.fragment_index)
                         .map(Self::attributes_for_fragment)
@@ -1526,7 +1526,7 @@ impl Block {
         }
 
         let mut cursor = 0usize;
-        for fragment in &self.record.title.fragments {
+        for fragment in &self.record.text.fragments {
             let fragment_start = cursor;
             let fragment_end = fragment_start + fragment.text.len();
             if fragment_start <= clean_range.start && clean_range.end <= fragment_end {
@@ -1561,7 +1561,7 @@ impl Block {
         cx: &mut Context<Self>,
     ) {
         let old_kind = self.record.kind.clone();
-        let old_title = self.record.title.clone();
+        let old_title = self.record.text.clone();
         let old_title_was_empty = old_title.visible_text().is_empty();
         let mut collapsed_affinity = self.current_collapsed_caret_affinity();
         let keep_projection =
@@ -1569,10 +1569,10 @@ impl Block {
 
         let (next_kind, normalized_title, adjusted_cursor, shortcut_removed_len) =
             self.normalize_after_title_edit(next_title, cursor_clean);
-        let should_restart_numbered_list = old_kind == BlockType::Paragraph
+        let should_restart_numbered_list = old_kind == BlockKind::Paragraph
             && old_title_was_empty
             && self.list_group_separator_candidate
-            && next_kind == BlockType::NumberedListItem;
+            && next_kind == BlockKind::NumberedListItem;
 
         let next_marked_clean = marked_range_clean
             .as_ref()
@@ -1583,7 +1583,7 @@ impl Block {
             .unwrap_or_else(|| adjusted_cursor..adjusted_cursor);
 
         self.record.kind = next_kind;
-        self.record.set_title(normalized_title);
+        self.record.set_text(normalized_title);
         self.numbered_list_restart_requested = should_restart_numbered_list;
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
@@ -1623,7 +1623,7 @@ impl Block {
         self.cursor_blink_epoch = Instant::now();
         self.clear_vertical_motion();
 
-        if self.record.kind != old_kind || self.record.title != old_title {
+        if self.record.kind != old_kind || self.record.text != old_title {
             cx.emit(BlockAction::Changed);
         }
         cx.notify();
@@ -1665,13 +1665,13 @@ impl Block {
         content_source_start: usize,
         source_offset: usize,
     ) -> usize {
-        if matches!(self.kind(), BlockType::Heading { .. }) && source_offset <= content_source_start
+        if matches!(self.kind(), BlockKind::Heading { .. }) && source_offset <= content_source_start
         {
             source_offset
         } else {
             let clean = self
                 .record
-                .title
+                .text
                 .markdown_offset_map()
                 .markdown_to_visible_offset(source_offset.saturating_sub(content_source_start));
             self.clean_to_current_cursor_offset(clean)
@@ -1700,7 +1700,7 @@ impl Block {
         let mut source = format!(
             "{}{}",
             &self.display_text()[prefix_range],
-            self.record.title.serialize_markdown()
+            self.record.text.serialize_markdown()
         );
         source.replace_range(source_range.clone(), new_text);
 
@@ -1718,9 +1718,9 @@ impl Block {
         };
 
         let (next_kind, next_title, content_source_start) =
-            if let Some((level, content)) = BlockType::parse_atx_heading_line(&source) {
+            if let Some((level, content)) = BlockKind::parse_atx_heading_line(&source) {
                 (
-                    BlockType::Heading { level },
+                    BlockKind::Heading { level },
                     RichText::from_markdown_with_link_references(
                         &content,
                         &self.link_reference_definitions,
@@ -1729,7 +1729,7 @@ impl Block {
                 )
             } else {
                 (
-                    BlockType::Paragraph,
+                    BlockKind::Paragraph,
                     RichText::from_markdown_with_link_references(
                         &source,
                         &self.link_reference_definitions,
@@ -1750,10 +1750,10 @@ impl Block {
             Self::source_range_to_clean_range(&next_title, content_source_start, range.clone())
         });
         let old_kind = self.record.kind.clone();
-        let old_title = self.record.title.clone();
+        let old_title = self.record.text.clone();
 
         self.record.kind = next_kind;
-        self.record.set_title(next_title);
+        self.record.set_text(next_title);
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
         if self.edit_mode.supports_inline_projection() {
@@ -1772,7 +1772,7 @@ impl Block {
         self.cursor_blink_epoch = Instant::now();
         self.clear_vertical_motion();
 
-        if self.record.kind != old_kind || self.record.title != old_title {
+        if self.record.kind != old_kind || self.record.text != old_title {
             cx.emit(BlockAction::Changed);
         }
         cx.notify();
@@ -1795,7 +1795,7 @@ impl Block {
         mark_inserted_text: bool,
         cx: &mut Context<Self>,
     ) {
-        if self.kind().is_separator() && !self.uses_raw_text_editing() {
+        if self.kind().is_thematic_break() && !self.uses_raw_text_editing() {
             return;
         }
 
@@ -1849,7 +1849,7 @@ impl Block {
         // inline tree from collapsed visible text, which no longer contains the
         // `[label](url)` markers and silently drops the link. Edit in markdown
         // space (as source-preserving links already do) so the link round-trips.
-        if !self.uses_raw_text_editing() && self.record.title.has_inline_links() {
+        if !self.uses_raw_text_editing() && self.record.text.has_inline_links() {
             self.apply_markdown_space_title_edit(
                 visible_range,
                 new_text,
@@ -1861,7 +1861,7 @@ impl Block {
         }
 
         let clean_range = self.current_to_clean_range(visible_range.clone());
-        let mut base_title = self.record.title.clone();
+        let mut base_title = self.record.text.clone();
         let overlaps_delimiters = self.projection.is_some() && !self.uses_raw_text_editing();
         if overlaps_delimiters {
             let touched_styles = self.projected_styles_touching_display_range(&visible_range);
@@ -1899,7 +1899,7 @@ impl Block {
             && self.quote_depth > 0
             && (new_text.contains('\n')
                 || replaced_text.contains('\n')
-                || (self.kind() == BlockType::Quote
+                || (self.kind() == BlockKind::Blockquote
                     && Self::multiline_quote_edit_requires_reparse(&result.tree.visible_text())));
         if quote_structure_edit {
             self.quote_reparse_requested = true;
@@ -1943,8 +1943,8 @@ impl Block {
 
     pub(crate) fn convert_to_paragraph(&mut self, cx: &mut Context<Self>) {
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
-        self.record.kind = BlockType::Paragraph;
-        self.record.raw_fallback = None;
+        self.record.kind = BlockKind::Paragraph;
+        self.record.raw_source = None;
         self.quote_reparse_requested = false;
         self.mark_changed(cx);
     }
@@ -1968,9 +1968,9 @@ impl Block {
         };
         let source_len = source_text.len();
         self.clear_inline_projection();
-        self.record.kind = BlockType::Separator;
-        self.record.raw_fallback = Some(source_text.clone());
-        self.record.set_title(RichText::plain(source_text));
+        self.record.kind = BlockKind::ThematicBreak;
+        self.record.raw_source = Some(source_text.clone());
+        self.record.set_text(RichText::plain(source_text));
         self.quote_reparse_requested = false;
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
@@ -1987,9 +1987,9 @@ impl Block {
     ) {
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.clear_inline_projection();
-        self.record.kind = BlockType::CodeBlock { language };
-        self.record.raw_fallback = None;
-        self.record.set_title(RichText::plain(String::new()));
+        self.record.kind = BlockKind::CodeBlock { language };
+        self.record.raw_source = None;
+        self.record.set_text(RichText::plain(String::new()));
         self.quote_reparse_requested = false;
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
@@ -2010,8 +2010,8 @@ impl Block {
 
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.clear_inline_projection();
-        self.record.kind = BlockType::MathBlock;
-        self.record.set_title(RichText::plain(source));
+        self.record.kind = BlockKind::MathBlock;
+        self.record.set_text(RichText::plain(source));
         self.quote_reparse_requested = false;
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
@@ -2033,7 +2033,7 @@ impl Block {
             return;
         }
 
-        let mut next_title = self.record.title.clone();
+        let mut next_title = self.record.text.clone();
         let selection = self.selection_clean_range();
         let changed = match format {
             InlineFormat::Bold => next_title.toggle_bold(selection.clone()),

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context as AnyhowContext, Result};
 use gpui::*;
 
-use crate::engine::block_types::BlockData;
+use crate::model::block::BlockData;
 use crate::engine::editor::{EditMode, Editor};
 use crate::services::i18n::I18nManager;
 

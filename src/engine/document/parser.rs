@@ -1,141 +1,61 @@
 //! Markdown-to-editor-tree deserialization.
 //!
-//! Raw Markdown is parsed into the subset of native block structures Velotype
-//! can edit safely. Syntax that exceeds the current runtime model is preserved
-//! as raw Markdown blocks so it can round-trip without loss.
+//! Raw Markdown is parsed by `model::parse` into `BlockData` records, then
+//! converted into the runtime tree of GPUI `Entity<Block>` values.
+
+use std::collections::HashMap;
 
 use gpui::*;
 
-use crate::core::ast::block_kind::BlockKind as CoreBlockKind;
-use crate::core::ast::callout_kind::CalloutKind as CoreCalloutKind;
-use crate::core::ast::node::NodeData;
-use crate::core::extensions::table::TableColumnAlignment as CoreTableAlignment;
-use crate::core::extensions::table::{TableColumnAlignment as BlocksTableAlignment, TableData};
-use crate::core::text::rich_text::RichText;
-use crate::engine::block_types::{BlockData, BlockType, CalloutVariant};
 use crate::engine::editor::Editor;
+use crate::model::block::BlockData;
 use crate::ui::blocks::block_view::Block;
-use std::collections::HashMap;
-
-// ---------------------------------------------------------------------------
-// Conversion from pure AST (core) to runtime entity tree (blocks/GPUI)
-// ---------------------------------------------------------------------------
-
-/// Map a core `CalloutKind` to the blocks `CalloutVariant`.
-fn callout_kind_to_variant(kind: CoreCalloutKind) -> CalloutVariant {
-    match kind {
-        CoreCalloutKind::Note => CalloutVariant::Note,
-        CoreCalloutKind::Tip => CalloutVariant::Tip,
-        CoreCalloutKind::Important => CalloutVariant::Important,
-        CoreCalloutKind::Warning => CalloutVariant::Warning,
-        CoreCalloutKind::Caution => CalloutVariant::Caution,
-    }
-}
-
-/// Map a core `BlockKind` to the blocks `BlockType`.
-fn block_kind_to_block_type(kind: &CoreBlockKind) -> BlockType {
-    match kind {
-        CoreBlockKind::Paragraph => BlockType::Paragraph,
-        CoreBlockKind::ThematicBreak => BlockType::Separator,
-        CoreBlockKind::Heading { level } => BlockType::Heading { level: *level },
-        CoreBlockKind::UnorderedListItem => BlockType::BulletedListItem,
-        CoreBlockKind::TaskListItem { checked } => BlockType::TaskListItem { checked: *checked },
-        CoreBlockKind::OrderedListItem => BlockType::NumberedListItem,
-        CoreBlockKind::Blockquote => BlockType::Quote,
-        CoreBlockKind::Callout(kind) => BlockType::Callout(callout_kind_to_variant(*kind)),
-        CoreBlockKind::FootnoteDefinition => BlockType::FootnoteDefinition,
-        CoreBlockKind::Table => BlockType::Table,
-        CoreBlockKind::CodeBlock { language } => BlockType::CodeBlock {
-            language: language.clone(),
-        },
-        CoreBlockKind::HtmlComment => BlockType::Comment,
-        CoreBlockKind::HtmlBlock => BlockType::HtmlBlock,
-        CoreBlockKind::LatexMath => BlockType::MathBlock,
-        CoreBlockKind::MermaidDiagram => BlockType::MermaidBlock,
-        CoreBlockKind::RawMarkdown => BlockType::RawMarkdown,
-    }
-}
-
-/// Convert core `RichText` to blocks `RichText` by round-tripping through Markdown.
-fn convert_rich_text(rt: &crate::core::text::rich_text::RichText) -> RichText {
-    RichText::from_markdown(&rt.serialize_markdown())
-}
-
-/// Convert a core `TableData` to a blocks `TableData`.
-fn convert_table_data(td: crate::core::extensions::table::TableData) -> TableData {
-    TableData {
-        header: td.header,
-        rows: td.rows,
-        alignments: td
-            .alignments
-            .into_iter()
-            .map(|a| match a {
-                CoreTableAlignment::Default => BlocksTableAlignment::Default,
-                CoreTableAlignment::Left => BlocksTableAlignment::Left,
-                CoreTableAlignment::Center => BlocksTableAlignment::Center,
-                CoreTableAlignment::Right => BlocksTableAlignment::Right,
-            })
-            .collect(),
-    }
-}
-
-/// Convert a `NodeData` record (from the pure parser) into a `BlockData` record.
-fn node_data_to_block_data(node: &NodeData) -> BlockData {
-    BlockData {
-        id: node.id.0,
-        kind: block_kind_to_block_type(&node.kind),
-        title: convert_rich_text(&node.title),
-        table: node.table_data.clone().map(convert_table_data),
-        html: node.html_document.clone(),
-        parent: node.parent_id.map(|id| id.0),
-        content: node.child_ids.iter().map(|id| id.0).collect(),
-        raw_fallback: node.raw_fallback.clone(),
-    }
-}
 
 impl Editor {
     /// Parse a Markdown string into a tree of block entities.
     ///
-    /// Delegates to the pure parser in `core::io::parser` and converts the
-    /// resulting `NodeData` records into GPUI `Entity<Block>` values.
+    /// Delegates to the pure parser in `model::parse` and converts the
+    /// resulting `BlockData` records into GPUI `Entity<Block>` values.
     pub(crate) fn parse_document(cx: &mut Context<Self>, markdown: &str) -> Vec<Entity<Block>> {
-        let nodes = crate::core::io::parser::parse_document(markdown);
-        nodes_to_entity_blocks(nodes, cx)
+        let records = crate::model::parse::parser::parse_document(markdown);
+        records_to_entity_blocks(records, cx)
     }
 
     /// Build runtime blocks from pre-split Markdown lines.
     ///
-    /// Delegates to `core::io::parser::build_blocks_from_lines`.
+    /// Delegates to `model::parse::parser::build_blocks_from_lines`.
     pub(crate) fn build_blocks_from_lines(
         cx: &mut Context<Self>,
         lines: &[String],
     ) -> Vec<Entity<Block>> {
-        let nodes = crate::core::io::parser::build_blocks_from_lines(lines);
-        nodes_to_entity_blocks(nodes, cx)
+        let records = crate::model::parse::parser::build_blocks_from_lines(lines);
+        records_to_entity_blocks(records, cx)
     }
 }
 
-/// Convert a flat list of `NodeData` into a tree of `Entity<Block>`.
+/// Convert a flat list of `BlockData` into a tree of `Entity<Block>`.
 ///
-/// Parent-child relationships encoded in `NodeData.parent_id` /
-/// `NodeData.child_ids` are reconstructed as `Block.children` vectors.
-fn nodes_to_entity_blocks(nodes: Vec<NodeData>, cx: &mut Context<Editor>) -> Vec<Entity<Block>> {
-    // Create GPUI entities for every node.
+/// Parent-child relationships encoded in `BlockData.parent` / `BlockData.children`
+/// are reconstructed as `Block.children` vectors.
+fn records_to_entity_blocks(
+    records: Vec<BlockData>,
+    cx: &mut Context<Editor>,
+) -> Vec<Entity<Block>> {
+    // Create GPUI entities for every record.
     let mut entities: HashMap<uuid::Uuid, Entity<Block>> = HashMap::new();
-    for node in &nodes {
-        let block_data = node_data_to_block_data(node);
-        let entity = Editor::new_block(cx, block_data);
-        entities.insert(node.id.0, entity);
+    for record in &records {
+        let entity = Editor::new_block(cx, record.clone());
+        entities.insert(record.id.0, entity);
     }
 
     // Wire up child relationships on each parent entity.
-    for node in &nodes {
-        if node.child_ids.is_empty() {
+    for record in &records {
+        if record.children.is_empty() {
             continue;
         }
-        if let Some(parent_entity) = entities.get(&node.id.0) {
-            let child_entities: Vec<Entity<Block>> = node
-                .child_ids
+        if let Some(parent_entity) = entities.get(&record.id.0) {
+            let child_entities: Vec<Entity<Block>> = record
+                .children
                 .iter()
                 .filter_map(|child_id| entities.get(&child_id.0).cloned())
                 .collect();
@@ -148,20 +68,19 @@ fn nodes_to_entity_blocks(nodes: Vec<NodeData>, cx: &mut Context<Editor>) -> Vec
         }
     }
 
-    // Return only root nodes (those without a parent).
-    nodes
+    // Return only root records (those without a parent).
+    records
         .iter()
-        .filter(|node| node.parent_id.is_none())
-        .filter_map(|node| entities.get(&node.id.0).cloned())
+        .filter(|record| record.parent.is_none())
+        .filter_map(|record| entities.get(&record.id.0).cloned())
         .collect()
 }
-
 #[cfg(test)]
 mod tests {
     use gpui::TestAppContext;
 
-    use crate::core::extensions::html_doc::HtmlCssColor;
-    use crate::engine::block_types::{BlockType, CalloutVariant};
+    use crate::model::syntax::html::HtmlCssColor;
+    use crate::engine::block_types::{BlockKind, CalloutKind};
     use crate::engine::editor::Editor;
 
     #[gpui::test]
@@ -179,10 +98,10 @@ mod tests {
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::Heading { level: 2 }
+                BlockKind::Heading { level: 2 }
             );
             assert_eq!(visible[0].entity.read(cx).display_text(), "Heading");
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(
                 visible[1].entity.read(cx).display_text(),
                 "first line\nsecond line"
@@ -303,7 +222,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 1);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "alpha  \nbeta");
             assert_eq!(editor.document.to_markdown(cx), "> alpha  \n> beta");
         });
@@ -318,7 +237,7 @@ mod tests {
             assert_eq!(visible.len(), 1);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
             assert_eq!(visible[0].entity.read(cx).display_text(), "alpha  \nbeta");
             assert_eq!(editor.document.to_markdown(cx), "- alpha  \n  beta");
@@ -340,17 +259,17 @@ mod tests {
             assert_eq!(visible.len(), 3);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
             assert_eq!(visible[0].entity.read(cx).display_text(), "parent");
             assert_eq!(
                 visible[1].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
             assert_eq!(visible[1].entity.read(cx).display_text(), "nested bullet");
             assert_eq!(
                 visible[2].entity.read(cx).kind(),
-                BlockType::TaskListItem { checked: true }
+                BlockKind::TaskListItem { checked: true }
             );
             assert_eq!(visible[2].entity.read(cx).display_text(), "nested task");
         });
@@ -371,11 +290,11 @@ mod tests {
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
             assert_eq!(
                 visible[1].entity.read(cx).kind(),
-                BlockType::CodeBlock { language: None }
+                BlockKind::CodeBlock { language: None }
             );
             assert_eq!(
                 visible[1].entity.read(cx).display_text(),
@@ -393,7 +312,7 @@ mod tests {
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[1].entity.read(cx).kind(),
-                BlockType::CodeBlock { language: None }
+                BlockKind::CodeBlock { language: None }
             );
             assert_eq!(
                 visible[1].entity.read(cx).display_text(),
@@ -417,11 +336,11 @@ mod tests {
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
             assert_eq!(
                 visible[1].entity.read(cx).kind(),
-                BlockType::CodeBlock {
+                BlockKind::CodeBlock {
                     language: Some("rust".into())
                 }
             );
@@ -445,13 +364,13 @@ mod tests {
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::NumberedListItem
+                BlockKind::NumberedListItem
             );
             assert_eq!(
                 visible[0].entity.read(cx).display_text(),
                 "item with nested quote"
             );
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(
                 visible[1].entity.read(cx).display_text(),
                 "quoted text\n\nquoted paragraph two"
@@ -468,9 +387,9 @@ mod tests {
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::NumberedListItem
+                BlockKind::NumberedListItem
             );
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(
                 visible[1].entity.read(cx).display_text(),
                 "quoted text\n\nquoted paragraph two"
@@ -488,16 +407,16 @@ mod tests {
             assert_eq!(visible.len(), 5);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::NumberedListItem
+                BlockKind::NumberedListItem
             );
             assert_eq!(visible[0].entity.read(cx).list_ordinal, Some(1));
             assert_eq!(visible[1].entity.read(cx).list_ordinal, Some(2));
             assert_eq!(visible[2].entity.read(cx).list_ordinal, Some(3));
-            assert_eq!(visible[3].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[3].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[3].entity.read(cx).display_text(), "");
             assert_eq!(
                 visible[4].entity.read(cx).kind(),
-                BlockType::NumberedListItem
+                BlockKind::NumberedListItem
             );
             assert_eq!(visible[4].entity.read(cx).display_text(), "dd");
             assert_eq!(visible[4].entity.read(cx).list_ordinal, Some(1));
@@ -519,11 +438,11 @@ mod tests {
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::NumberedListItem
+                BlockKind::NumberedListItem
             );
             assert_eq!(
                 visible[1].entity.read(cx).kind(),
-                BlockType::NumberedListItem
+                BlockKind::NumberedListItem
             );
             assert_eq!(visible[0].entity.read(cx).display_text(), "one");
             assert_eq!(visible[1].entity.read(cx).display_text(), "two");
@@ -543,11 +462,11 @@ mod tests {
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::NumberedListItem
+                BlockKind::NumberedListItem
             );
             assert_eq!(
                 visible[1].entity.read(cx).kind(),
-                BlockType::NumberedListItem
+                BlockKind::NumberedListItem
             );
             assert_eq!(visible[0].entity.read(cx).display_text(), "parent");
             assert_eq!(visible[1].entity.read(cx).display_text(), "child");
@@ -565,13 +484,13 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 3);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "level1");
             assert_eq!(visible[0].entity.read(cx).quote_depth, 1);
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[1].entity.read(cx).display_text(), "level2");
             assert_eq!(visible[1].entity.read(cx).quote_depth, 2);
-            assert_eq!(visible[2].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[2].entity.read(cx).display_text(), "level3");
             assert_eq!(visible[2].entity.read(cx).quote_depth, 3);
             assert_eq!(
@@ -589,10 +508,10 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "first");
             assert_eq!(visible[0].entity.read(cx).quote_depth, 1);
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[1].entity.read(cx).display_text(), "second");
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(editor.document.to_markdown(cx), "> first\n\n> second");
@@ -607,7 +526,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 1);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "first\n\nsecond");
             assert_eq!(editor.document.to_markdown(cx), "> first\n> \n> second");
         });
@@ -626,20 +545,20 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 3);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(
                 visible[0].entity.read(cx).display_text(),
                 "Quote with list:"
             );
             assert_eq!(
                 visible[1].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
             assert_eq!(visible[1].entity.read(cx).display_text(), "item 1");
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(
                 visible[2].entity.read(cx).kind(),
-                BlockType::TaskListItem { checked: false }
+                BlockKind::TaskListItem { checked: false }
             );
             assert_eq!(visible[2].entity.read(cx).quote_depth, 1);
             assert_eq!(
@@ -663,17 +582,17 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 3);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(
                 visible[0].entity.read(cx).display_text(),
                 "Quote with code block:"
             );
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(
                 visible[2].entity.read(cx).kind(),
-                BlockType::CodeBlock { language: None }
+                BlockKind::CodeBlock { language: None }
             );
             assert_eq!(visible[2].entity.read(cx).quote_depth, 1);
             assert_eq!(
@@ -695,9 +614,9 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "");
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(editor.document.to_markdown(cx), markdown);
         });
@@ -713,7 +632,7 @@ mod tests {
             assert_eq!(visible.len(), 1);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
             assert!(visible[0].entity.read(cx).children.is_empty());
             assert_eq!(editor.document.to_markdown(cx), markdown);
@@ -730,10 +649,10 @@ mod tests {
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
             assert_eq!(visible[0].entity.read(cx).display_text(), "item");
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).render_depth, 1);
             assert_eq!(editor.document.to_markdown(cx), markdown);
         });
@@ -750,9 +669,9 @@ mod tests {
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "child text");
             assert_eq!(visible[1].entity.read(cx).render_depth, 1);
             assert_eq!(editor.document.to_markdown(cx), canonical_markdown);
@@ -767,10 +686,10 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(
                 visible[1].entity.read(cx).kind(),
-                BlockType::NumberedListItem
+                BlockKind::NumberedListItem
             );
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(editor.document.to_markdown(cx), markdown);
@@ -787,15 +706,15 @@ mod tests {
             let visible = editor.document.blocks();
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::Callout(CalloutVariant::Note)
+                BlockKind::Callout(CalloutKind::Note)
             );
             assert_eq!(
                 visible[1].entity.read(cx).kind(),
-                BlockType::TaskListItem { checked: false }
+                BlockKind::TaskListItem { checked: false }
             );
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(visible[1].entity.read(cx).callout_depth, 1);
-            assert_eq!(visible[2].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[2].entity.read(cx).render_depth, 1);
             assert_eq!(visible[2].entity.read(cx).quote_depth, 1);
             assert_eq!(visible[2].entity.read(cx).callout_depth, 1);
@@ -812,9 +731,9 @@ mod tests {
             let visible = editor.document.blocks();
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::Callout(CalloutVariant::Note)
+                BlockKind::Callout(CalloutKind::Note)
             );
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(visible[1].entity.read(cx).callout_depth, 1);
             assert_eq!(editor.document.to_markdown(cx), markdown);
@@ -830,13 +749,13 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 3);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(
                 visible[1].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
-            assert_eq!(visible[2].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[2].entity.read(cx).display_text(), "child text");
             assert_eq!(visible[2].entity.read(cx).render_depth, 1);
             assert_eq!(visible[2].entity.read(cx).quote_depth, 1);
@@ -854,15 +773,15 @@ mod tests {
             let visible = editor.document.blocks();
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::Callout(CalloutVariant::Note)
+                BlockKind::Callout(CalloutKind::Note)
             );
             assert_eq!(
                 visible[1].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(visible[1].entity.read(cx).callout_depth, 1);
-            assert_eq!(visible[2].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[2].entity.read(cx).display_text(), "child text");
             assert_eq!(visible[2].entity.read(cx).render_depth, 1);
             assert_eq!(visible[2].entity.read(cx).quote_depth, 1);
@@ -879,7 +798,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 1);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(editor.document.to_markdown(cx), markdown);
         });
     }
@@ -893,7 +812,7 @@ mod tests {
             assert_eq!(visible.len(), 1);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::Callout(CalloutVariant::Note)
+                BlockKind::Callout(CalloutKind::Note)
             );
             assert_eq!(visible[0].entity.read(cx).display_text(), "");
             assert!(visible[0].entity.read(cx).children.is_empty());
@@ -912,7 +831,7 @@ mod tests {
             assert_eq!(visible.len(), 1);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::Callout(CalloutVariant::Important)
+                BlockKind::Callout(CalloutKind::Important)
             );
             assert_eq!(visible[0].entity.read(cx).display_text(), "Optional title");
             assert_eq!(
@@ -937,12 +856,12 @@ mod tests {
             assert_eq!(visible.len(), 3);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::Callout(CalloutVariant::Warning)
+                BlockKind::Callout(CalloutKind::Warning)
             );
             assert_eq!(visible[0].entity.read(cx).display_text(), "Custom title");
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "body");
-            assert_eq!(visible[2].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[2].entity.read(cx).display_text(), "nested");
             assert_eq!(visible[2].entity.read(cx).quote_depth, 2);
             assert_eq!(
@@ -979,11 +898,11 @@ mod tests {
             assert_eq!(visible.len(), 4);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::Callout(CalloutVariant::Warning)
+                BlockKind::Callout(CalloutKind::Warning)
             );
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "body");
-            assert_eq!(visible[2].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(
                 visible[2].entity.read(cx).display_text(),
                 "inner one\n\ninner two"
@@ -996,7 +915,7 @@ mod tests {
                     .visible_quote_group_anchor
                     .is_some()
             );
-            assert_eq!(visible[3].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[3].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[3].entity.read(cx).display_text(), "after");
             assert_eq!(visible[3].entity.read(cx).quote_depth, 1);
             assert!(
@@ -1017,7 +936,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 1);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "[!UNKNOWN]");
             assert_eq!(editor.document.to_markdown(cx), "> [!UNKNOWN]");
         });
@@ -1031,12 +950,12 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 3);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "outer");
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
-            assert_eq!(visible[2].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[2].entity.read(cx).display_text(), "inner");
             assert_eq!(visible[2].entity.read(cx).quote_depth, 2);
             assert_eq!(editor.document.to_markdown(cx), "> outer\n> \n> > inner");
@@ -1051,12 +970,12 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(
                 visible[0].entity.read(cx).display_text(),
                 "Quote with table:"
             );
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Table);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Table);
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             let table = visible[1]
                 .entity
@@ -1082,12 +1001,12 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(
                 visible[0].entity.read(cx).display_text(),
                 "Quote with broken table:"
             );
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::RawMarkdown);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::RawMarkdown);
             assert_eq!(
                 visible[1].entity.read(cx).display_text(),
                 "| A |\n| --- | --- |\n| 1 |"
@@ -1109,23 +1028,23 @@ mod tests {
             let visible = editor.document.blocks();
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::Callout(CalloutVariant::Important)
+                BlockKind::Callout(CalloutKind::Important)
             );
             assert!(visible.iter().any(|visible| {
                 let block = visible.entity.read(cx);
-                block.kind() == BlockType::BulletedListItem && block.quote_depth == 1
+                block.kind() == BlockKind::BulletListItem && block.quote_depth == 1
             }));
             assert!(visible.iter().any(|visible| {
                 let block = visible.entity.read(cx);
                 block.kind()
-                    == BlockType::CodeBlock {
+                    == BlockKind::CodeBlock {
                         language: Some("ts".into()),
                     }
                     && block.display_text().contains("export const answer = 42;")
             }));
             assert!(visible.iter().any(|visible| {
                 let block = visible.entity.read(cx);
-                block.kind() == BlockType::Table
+                block.kind() == BlockKind::Table
                     && block.quote_depth == 1
                     && block.record.table.as_ref().is_some_and(|table| {
                         table.header.len() == 2
@@ -1136,19 +1055,19 @@ mod tests {
             }));
             assert!(visible.iter().any(|visible| {
                 let block = visible.entity.read(cx);
-                block.kind() == BlockType::Paragraph
+                block.kind() == BlockKind::Paragraph
                     && block.display_text().contains("And a table:")
                     && block.quote_depth == 1
             }));
             assert!(visible.iter().any(|visible| {
                 let block = visible.entity.read(cx);
-                block.kind() == BlockType::FootnoteDefinition
+                block.kind() == BlockKind::FootnoteDefinition
                     && block.display_text() == "final"
                     && block.quote_depth == 1
             }));
             assert!(visible.iter().any(|visible| {
                 let block = visible.entity.read(cx);
-                block.kind() == BlockType::Paragraph
+                block.kind() == BlockKind::Paragraph
                     && block.display_text() == "Final footnote text with nested list:"
                     && block.footnote_anchor.is_some()
                     && block.quote_depth == 1
@@ -1158,7 +1077,7 @@ mod tests {
                     .iter()
                     .filter(|visible| {
                         let block = visible.entity.read(cx);
-                        block.kind() == BlockType::BulletedListItem
+                        block.kind() == BlockKind::BulletListItem
                             && block.footnote_anchor.is_some()
                             && block.quote_depth == 1
                     })
@@ -1187,19 +1106,19 @@ mod tests {
             assert_eq!(visible.len(), 4);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
             assert_eq!(visible[0].entity.read(cx).display_text(), "native before");
             assert_eq!(
                 visible[1].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
             assert_eq!(visible[1].entity.read(cx).display_text(), "raw item");
-            assert_eq!(visible[2].entity.read(cx).kind(), BlockType::HtmlBlock);
+            assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::HtmlBlock);
             assert!(visible[2].entity.read(cx).display_text().contains("<div>"));
             assert_eq!(
                 visible[3].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
             assert_eq!(visible[3].entity.read(cx).display_text(), "native after");
         });
@@ -1220,12 +1139,12 @@ mod tests {
             assert_eq!(visible.len(), 3);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::TaskListItem { checked: false }
+                BlockKind::TaskListItem { checked: false }
             );
             assert_eq!(visible[0].entity.read(cx).display_text(), "todo");
             assert_eq!(
                 visible[1].entity.read(cx).kind(),
-                BlockType::TaskListItem { checked: true }
+                BlockKind::TaskListItem { checked: true }
             );
             assert_eq!(
                 editor.document.to_markdown(cx),
@@ -1242,7 +1161,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 1);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Table);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Table);
             let table = visible[0]
                 .entity
                 .read(cx)
@@ -1265,9 +1184,9 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 3);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Paragraph);
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
-            assert_eq!(visible[2].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
+            assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[0].entity.read(cx).display_text(), "| A | B |");
             assert_eq!(visible[1].entity.read(cx).display_text(), "| nope | --- |");
             assert_eq!(visible[2].entity.read(cx).display_text(), "| 1 | 2 |");
@@ -1286,7 +1205,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 1);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::MathBlock);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MathBlock);
             assert_eq!(visible[0].entity.read(cx).display_text(), markdown);
             assert_eq!(editor.document.to_markdown(cx), markdown);
         });
@@ -1300,10 +1219,10 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 3);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Paragraph);
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::MathBlock);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::MathBlock);
             assert_eq!(visible[1].entity.read(cx).display_text(), "$$x^2$$");
-            assert_eq!(visible[2].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(
                 editor.document.to_markdown(cx),
                 "before\n\n$$x^2$$\n\nafter"
@@ -1319,7 +1238,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 1);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::RawMarkdown);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::RawMarkdown);
             assert_eq!(editor.document.to_markdown(cx), markdown);
         });
     }
@@ -1332,13 +1251,13 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 3);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Paragraph);
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::MermaidBlock);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::MermaidBlock);
             assert_eq!(
                 visible[1].entity.read(cx).display_text(),
                 "```mermaid\nflowchart LR\nA --> B\n```"
             );
-            assert_eq!(visible[2].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(
                 editor.document.to_markdown(cx),
                 "before\n\n```mermaid\nflowchart LR\nA --> B\n```\n\nafter"
@@ -1354,7 +1273,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 1);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::MermaidBlock);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MermaidBlock);
             assert_eq!(editor.document.to_markdown(cx), markdown);
         });
     }
@@ -1369,7 +1288,7 @@ mod tests {
             assert_eq!(visible.len(), 1);
             assert!(matches!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::CodeBlock { .. }
+                BlockKind::CodeBlock { .. }
             ));
         });
     }
@@ -1386,7 +1305,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 1);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::HtmlBlock);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::HtmlBlock);
             assert_eq!(visible[0].entity.read(cx).display_text(), markdown);
             assert!(
                 visible[0]
@@ -1410,7 +1329,7 @@ mod tests {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 1);
             let block = visible[0].entity.read(cx);
-            assert_eq!(block.kind(), BlockType::HtmlBlock);
+            assert_eq!(block.kind(), BlockKind::HtmlBlock);
             assert_eq!(block.display_text(), markdown);
             assert_eq!(editor.document.to_markdown(cx), markdown);
         });
@@ -1426,7 +1345,7 @@ mod tests {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 1);
             let block = visible[0].entity.read(cx);
-            assert_eq!(block.kind(), BlockType::HtmlBlock);
+            assert_eq!(block.kind(), BlockKind::HtmlBlock);
             assert_eq!(block.display_text(), markdown);
             assert_eq!(editor.document.to_markdown(cx), markdown);
         });
@@ -1446,7 +1365,7 @@ mod tests {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 3);
             for block in visible {
-                assert_eq!(block.entity.read(cx).kind(), BlockType::BulletedListItem);
+                assert_eq!(block.entity.read(cx).kind(), BlockKind::BulletListItem);
             }
 
             let first = visible[0].entity.read(cx);
@@ -1480,7 +1399,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 1);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::RawMarkdown);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::RawMarkdown);
             assert_eq!(visible[0].entity.read(cx).display_text(), markdown);
             assert_eq!(editor.document.to_markdown(cx), markdown);
         });
@@ -1497,7 +1416,7 @@ mod tests {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 1);
             let block = visible[0].entity.read(cx);
-            assert_eq!(block.kind(), BlockType::HtmlBlock);
+            assert_eq!(block.kind(), BlockKind::HtmlBlock);
             assert!(
                 block
                     .record
@@ -1517,7 +1436,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 1);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Comment);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::HtmlComment);
             assert_eq!(visible[0].entity.read(cx).display_text(), markdown);
             assert_eq!(editor.document.to_markdown(cx), markdown);
         });
@@ -1533,15 +1452,15 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 3);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Paragraph);
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Comment);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::HtmlComment);
             assert_eq!(
                 visible[1].entity.read(cx).display_text(),
                 "<!--\na\n--> trailing"
             );
             assert_eq!(
                 visible[2].entity.read(cx).kind(),
-                BlockType::Heading { level: 1 }
+                BlockKind::Heading { level: 1 }
             );
             assert_eq!(visible[2].entity.read(cx).display_text(), "after");
             assert_eq!(
@@ -1561,9 +1480,9 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::RawMarkdown);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::RawMarkdown);
             assert_eq!(visible[0].entity.read(cx).display_text(), "<!--\na");
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "paragraph");
             assert_eq!(editor.document.to_markdown(cx), "<!--\na\n\nparagraph");
         });
@@ -1578,9 +1497,9 @@ mod tests {
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Comment);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::HtmlComment);
             assert_eq!(visible[1].entity.read(cx).display_text(), "<!--\nlist\n-->");
             assert_eq!(visible[1].entity.read(cx).render_depth, 1);
             assert_eq!(
@@ -1595,8 +1514,8 @@ mod tests {
         quote_editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 3);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
-            assert_eq!(visible[2].entity.read(cx).kind(), BlockType::Comment);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
+            assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::HtmlComment);
             assert_eq!(
                 visible[2].entity.read(cx).display_text(),
                 "<!--\nquoted\n-->"
@@ -1620,9 +1539,9 @@ mod tests {
             assert_eq!(visible.len(), 3);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::Callout(CalloutVariant::Note)
+                BlockKind::Callout(CalloutKind::Note)
             );
-            assert_eq!(visible[2].entity.read(cx).kind(), BlockType::Comment);
+            assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::HtmlComment);
             assert_eq!(
                 visible[2].entity.read(cx).display_text(),
                 "<!--\ncallout\n-->"
@@ -1646,25 +1565,25 @@ mod tests {
             assert_eq!(visible.len(), 5);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::FootnoteDefinition
+                BlockKind::FootnoteDefinition
             );
             assert_eq!(visible[0].entity.read(cx).display_text(), "note");
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(
                 visible[1].entity.read(cx).display_text(),
                 "Footnote text with bold"
             );
             assert_eq!(
                 visible[2].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
             assert_eq!(visible[2].entity.read(cx).display_text(), "item 1");
             assert_eq!(
                 visible[3].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
             assert_eq!(visible[3].entity.read(cx).display_text(), "item 2");
-            assert_eq!(visible[4].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[4].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(
                 visible[4].entity.read(cx).display_text(),
                 "Second paragraph."
@@ -1682,18 +1601,18 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 4);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "outer");
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(
                 visible[2].entity.read(cx).kind(),
-                BlockType::FootnoteDefinition
+                BlockKind::FootnoteDefinition
             );
             assert_eq!(visible[2].entity.read(cx).display_text(), "note");
             assert_eq!(visible[2].entity.read(cx).quote_depth, 1);
-            assert_eq!(visible[3].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[3].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[3].entity.read(cx).display_text(), "nested footnote");
             assert_eq!(visible[3].entity.read(cx).quote_depth, 1);
             assert!(visible[3].entity.read(cx).footnote_anchor.is_some());
@@ -1714,13 +1633,13 @@ mod tests {
 
             assert!(visible.iter().any(|block| {
                 let block = block.entity.read(cx);
-                block.kind() == BlockType::Heading { level: 1 }
+                block.kind() == BlockKind::Heading { level: 1 }
                     && block.display_text() == "Markdown Rendering Test Suite"
             }));
 
             assert!(visible.iter().any(|block| {
                 let block = block.entity.read(cx);
-                block.kind() == BlockType::Quote
+                block.kind() == BlockKind::Blockquote
                     && block.display_text().contains("Blockquote paragraph one.")
             }));
 
@@ -1734,13 +1653,13 @@ mod tests {
 
             assert!(visible.iter().any(|block| {
                 let block = block.entity.read(cx);
-                block.kind() == BlockType::TaskListItem { checked: false }
+                block.kind() == BlockKind::TaskListItem { checked: false }
                     && block.display_text().contains("Unchecked task")
             }));
 
             assert!(visible.iter().any(|block| {
                 let block = block.entity.read(cx);
-                block.kind() == BlockType::BulletedListItem
+                block.kind() == BlockKind::BulletListItem
                     && block.display_text() == "Mixed list item"
             }));
 
@@ -1802,13 +1721,13 @@ mod tests {
 
             assert!(visible.iter().any(|block| {
                 let block = block.entity.read(cx);
-                block.kind() == BlockType::Quote
+                block.kind() == BlockKind::Blockquote
                     && block.display_text().contains("quoted paragraph two")
             }));
 
             assert!(visible.iter().any(|block| {
                 let block = block.entity.read(cx);
-                block.kind() == BlockType::Table
+                block.kind() == BlockKind::Table
                     && block
                         .record
                         .table
@@ -1818,12 +1737,12 @@ mod tests {
 
             assert!(visible.iter().any(|block| {
                 let block = block.entity.read(cx);
-                block.kind() == BlockType::HtmlBlock && block.display_text().contains("<details>")
+                block.kind() == BlockKind::HtmlBlock && block.display_text().contains("<details>")
             }));
 
             assert!(!visible.iter().any(|block| {
                 let block = block.entity.read(cx);
-                block.kind() == BlockType::RawMarkdown
+                block.kind() == BlockKind::RawMarkdown
                     && block.display_text().contains("- Mixed list item")
             }));
         });
@@ -1840,10 +1759,10 @@ mod tests {
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
             assert_eq!(visible[0].entity.read(cx).display_text(), "item");
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "text");
             assert_eq!(visible[1].entity.read(cx).render_depth, 0);
         });
@@ -1869,9 +1788,9 @@ mod tests {
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "text");
             assert_eq!(visible[1].entity.read(cx).render_depth, 0);
         });
@@ -1886,12 +1805,12 @@ mod tests {
             assert_eq!(visible.len(), 3);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.read(cx).render_depth, 0);
-            assert_eq!(visible[2].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[2].entity.read(cx).display_text(), "text");
             assert_eq!(visible[2].entity.read(cx).render_depth, 0);
         });
@@ -1909,10 +1828,10 @@ mod tests {
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
-                BlockType::BulletedListItem
+                BlockKind::BulletListItem
             );
             assert_eq!(visible[0].entity.read(cx).display_text(), "item");
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "child text");
             assert_eq!(visible[1].entity.read(cx).render_depth, 1);
             assert_eq!(editor.document.to_markdown(cx), "- item\n\n  child text");
@@ -1933,7 +1852,7 @@ mod tests {
         reference_editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 1);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::RawMarkdown);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::RawMarkdown);
             assert_eq!(
                 editor.document.to_markdown(cx),
                 "[id]: http://example.com/\n    \"Title\""
@@ -1945,9 +1864,9 @@ mod tests {
         quote_editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "quoted");
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "continued");
             assert_eq!(editor.document.to_markdown(cx), "> quoted\n\ncontinued");
         });
@@ -1966,15 +1885,15 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 3);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(
                 visible[0].entity.read(cx).display_text(),
                 "quoted line\nsecond line"
             );
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Separator);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::ThematicBreak);
             assert_eq!(
                 visible[2].entity.read(cx).kind(),
-                BlockType::Heading { level: 2 }
+                BlockKind::Heading { level: 2 }
             );
             assert_eq!(visible[2].entity.read(cx).display_text(), "Next");
         });
@@ -1991,13 +1910,13 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 3);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Quote);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "quoted");
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "continued");
             assert_eq!(
                 visible[2].entity.read(cx).kind(),
-                BlockType::Heading { level: 2 }
+                BlockKind::Heading { level: 2 }
             );
             assert_eq!(visible[2].entity.read(cx).display_text(), "Next");
         });
@@ -2048,7 +1967,7 @@ mod tests {
             assert_eq!(visible.len(), 1);
             let block = visible[0].entity.read(cx);
             let text = "line 1\n\nline 2";
-            assert_eq!(block.kind(), BlockType::Paragraph);
+            assert_eq!(block.kind(), BlockKind::Paragraph);
             assert_eq!(block.display_text(), text);
             assert!(
                 block
@@ -2067,9 +1986,9 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[0].entity.read(cx).display_text(), "`line 1");
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "line 2");
         });
     }
@@ -2121,7 +2040,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.document.blocks();
             assert_eq!(visible.len(), 1);
-            assert_eq!(visible[0].entity.read(cx).kind(), BlockType::Paragraph);
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[0].entity.read(cx).display_text(), "");
             assert_eq!(editor.document.to_markdown(cx), "");
         });

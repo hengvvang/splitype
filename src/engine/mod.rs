@@ -1,5 +1,4 @@
 // ── Core engine modules ────────────────────────────────────────────────────
-pub(crate) mod block_types;
 pub(crate) mod document;
 pub(crate) mod editor;
 pub mod history;

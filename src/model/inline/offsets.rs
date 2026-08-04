@@ -6,7 +6,7 @@
 
 use std::ops::Range;
 
-use crate::core::text::rich_text::RichText;
+use crate::model::inline::text::RichText;
 
 /// Bidirectional offset map between source Markdown and visible inline text.
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context as _, anyhow};
 use directories::ProjectDirs;
 
-use crate::core::extensions::mermaid_source::MermaidSource;
+use crate::model::syntax::mermaid::MermaidSource;
 
 const SIMPLE_MERMAID_LINE_LIMIT: usize = 8;
 const MERMAID_COMPLEX_TARGET_WIDTH_RATIO: f32 = 0.9;
@@ -501,7 +501,7 @@ fn looks_like_supported_mermaid_source(source: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::extensions::mermaid_source::{MermaidSource, parse_mermaid_fence_source};
+    use crate::model::syntax::mermaid::{MermaidSource, parse_mermaid_fence_source};
     use std::collections::HashMap;
     use std::sync::{Mutex, OnceLock};
 

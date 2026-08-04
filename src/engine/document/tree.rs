@@ -9,10 +9,10 @@ use std::collections::HashMap;
 
 use gpui::*;
 
-use crate::core::extensions::table::serialize_table_markdown_lines;
+use crate::model::syntax::table::serialize_table_markdown_lines;
 use crate::ui::blocks::block_view::Block;
-use crate::engine::block_types::{BlockType, CalloutVariant};
-use crate::core::extensions::image_ref::parse_standalone_image;
+use crate::model::block::{BlockId, BlockKind, CalloutKind};
+use crate::model::syntax::image::parse_standalone_image;
 use crate::engine::editor::Editor;
 
 /// A block together with its position in the current visible DFS order.
@@ -285,15 +285,15 @@ impl Document {
     pub(crate) fn sync_block_list(
         blocks: &[Entity<Block>],
         parent_entity: Option<Entity<Block>>,
-        parent_id: Option<uuid::Uuid>,
+        parent_id: Option<BlockId>,
         list_depth: usize,
         inherited_quote_depth: usize,
-        inherited_quote_group_anchor: Option<uuid::Uuid>,
-        inherited_visible_quote_group_anchor: Option<uuid::Uuid>,
+        inherited_quote_group_anchor: Option<BlockId>,
+        inherited_visible_quote_group_anchor: Option<BlockId>,
         inherited_callout_depth: usize,
-        inherited_callout_anchor: Option<uuid::Uuid>,
-        inherited_callout_variant: Option<CalloutVariant>,
-        inherited_footnote_anchor: Option<uuid::Uuid>,
+        inherited_callout_anchor: Option<BlockId>,
+        inherited_callout_variant: Option<CalloutKind>,
+        inherited_footnote_anchor: Option<BlockId>,
         cx: &mut Context<Editor>,
         snapshot: &mut BlockIndex,
     ) {
@@ -322,8 +322,8 @@ impl Document {
                     block_ref.record.id,
                     block_ref.kind(),
                     block_ref.children.clone(),
-                    block_ref.kind() == BlockType::Paragraph
-                        && block_ref.record.title.visible_text().is_empty()
+                    block_ref.kind() == BlockKind::Paragraph
+                        && block_ref.record.text.visible_text().is_empty()
                         && block_ref.children.is_empty(),
                 )
             };
@@ -343,7 +343,7 @@ impl Document {
                 None
             };
             let is_quote_container = kind.is_quote_container();
-            let own_callout_variant = kind.callout_variant();
+            let own_callout_variant = kind.callout_kind();
             let quote_depth = inherited_quote_depth + usize::from(is_quote_container);
             let quote_group_anchor = if is_quote_container {
                 inherited_quote_group_anchor.or(Some(block_id))
@@ -360,8 +360,8 @@ impl Document {
             let callout_variant = own_callout_variant.or(inherited_callout_variant);
             let visible_quote_depth = quote_depth.saturating_sub(callout_depth);
             let visible_quote_group_anchor = match kind {
-                BlockType::Quote => inherited_visible_quote_group_anchor.or(Some(block_id)),
-                BlockType::Callout(_) => None,
+                BlockKind::Blockquote => inherited_visible_quote_group_anchor.or(Some(block_id)),
+                BlockKind::Callout(_) => None,
                 _ if visible_quote_depth == 0 => None,
                 _ => inherited_visible_quote_group_anchor,
             };
@@ -380,7 +380,7 @@ impl Document {
 
             block.update(cx, move |block, _cx| {
                 block.record.parent = parent_id;
-                block.record.content = content.clone();
+                block.record.children = content.clone();
                 block.render_depth = list_depth;
                 block.quote_depth = quote_depth;
                 block.quote_group_anchor = quote_group_anchor;
@@ -428,8 +428,8 @@ impl Document {
     }
 
     pub(crate) fn is_empty_root_paragraph(block: &Block) -> bool {
-        block.kind() == BlockType::Paragraph
-            && block.record.title.visible_text().is_empty()
+        block.kind() == BlockKind::Paragraph
+            && block.record.text.visible_text().is_empty()
             && block.children.is_empty()
     }
 
@@ -483,31 +483,31 @@ impl Document {
         lines: &mut Vec<String>,
     ) {
         match block_ref.kind() {
-            BlockType::Table => {
+            BlockKind::Table => {
                 if let Some(table) = block_ref.record.table.as_ref() {
                     lines.extend(serialize_table_markdown_lines(table));
                 }
             }
-            BlockType::CodeBlock { language } => {
+            BlockKind::CodeBlock { language } => {
                 let indentation = "  ".repeat(list_depth);
                 let lang_str = language.as_ref().map(|s| s.as_ref()).unwrap_or("");
                 let fence = crate::engine::document::serializer::safe_code_fence_with_info(
-                    &block_ref.record.title.visible_text(),
+                    &block_ref.record.text.visible_text(),
                     language.as_ref().map(|language| language.as_ref()),
                 );
                 lines.push(format!("{indentation}{fence}{lang_str}"));
-                let content = block_ref.record.title.visible_text();
+                let content = block_ref.record.text.visible_text();
                 for code_line in content.split('\n') {
                     lines.push(format!("{indentation}{code_line}"));
                 }
                 lines.push(format!("{indentation}{fence}"));
             }
-            BlockType::Quote => {
-                let title_markdown =
-                    CalloutVariant::escape_plain_quote_header(&block_ref.record.title_markdown());
+            BlockKind::Blockquote => {
+                let text_markdown =
+                    CalloutKind::escape_plain_quote_header(&block_ref.record.text_markdown());
                 let indentation = "  ".repeat(list_depth);
-                if !title_markdown.is_empty() || block_ref.children.is_empty() {
-                    for line in title_markdown.split('\n') {
+                if !text_markdown.is_empty() || block_ref.children.is_empty() {
+                    for line in text_markdown.split('\n') {
                         lines.push(format!("{indentation}> {line}"));
                     }
                 }
@@ -528,11 +528,11 @@ impl Document {
                     );
                 }
             }
-            BlockType::Callout(variant) => {
+            BlockKind::Callout(variant) => {
                 let indentation = "  ".repeat(list_depth);
                 lines.push(format!(
                     "{indentation}> {}",
-                    variant.header_markdown(&block_ref.record.title_markdown())
+                    variant.header_markdown(&block_ref.record.text_markdown())
                 ));
                 if !block_ref.children.is_empty() {
                     let mut child_lines = Vec::new();
@@ -550,18 +550,18 @@ impl Document {
                     );
                 }
             }
-            BlockType::FootnoteDefinition => {
+            BlockKind::FootnoteDefinition => {
                 let indentation = "  ".repeat(list_depth);
-                let id = block_ref.record.title.visible_text();
+                let id = block_ref.record.text.visible_text();
                 if block_ref.children.is_empty() {
                     lines.push(format!("{indentation}[^{}]:", id));
                     return;
                 }
 
                 let first_child = block_ref.children.first().cloned().expect("checked");
-                let first_is_paragraph = first_child.read(cx).kind() == BlockType::Paragraph;
+                let first_is_paragraph = first_child.read(cx).kind() == BlockKind::Paragraph;
                 if first_is_paragraph {
-                    let first_title = first_child.read(cx).record.title_markdown();
+                    let first_title = first_child.read(cx).record.text_markdown();
                     let mut first_lines = first_title.split('\n');
                     let first_line = first_lines.next().unwrap_or_default();
                     lines.push(format!("{indentation}[^{}]: {}", id, first_line));
@@ -582,17 +582,17 @@ impl Document {
                     Self::collect_markdown_lines(&block_ref.children, 2, cx, lines, true);
                 }
             }
-            BlockType::RawMarkdown
-            | BlockType::Comment
-            | BlockType::HtmlBlock
-            | BlockType::MathBlock
-            | BlockType::MermaidBlock => {
+            BlockKind::RawMarkdown
+            | BlockKind::HtmlComment
+            | BlockKind::HtmlBlock
+            | BlockKind::MathBlock
+            | BlockKind::MermaidBlock => {
                 let indentation = "  ".repeat(list_depth);
                 let raw_markdown = block_ref
                     .record
-                    .raw_fallback
+                    .raw_source
                     .clone()
-                    .unwrap_or_else(|| block_ref.record.title_markdown());
+                    .unwrap_or_else(|| block_ref.record.text_markdown());
                 for line in raw_markdown.split('\n') {
                     if indentation.is_empty() {
                         lines.push(line.to_string());
@@ -601,9 +601,9 @@ impl Document {
                     }
                 }
             }
-            BlockType::BulletedListItem
-            | BlockType::TaskListItem { .. }
-            | BlockType::NumberedListItem => {
+            BlockKind::BulletListItem
+            | BlockKind::TaskListItem { .. }
+            | BlockKind::NumberedListItem => {
                 lines.push(
                     block_ref
                         .record
@@ -642,11 +642,11 @@ impl Document {
     }
 
     pub(crate) fn list_child_requires_leading_blank_line(block_ref: &Block) -> bool {
-        if block_ref.kind() != BlockType::Paragraph || !block_ref.children.is_empty() {
+        if block_ref.kind() != BlockKind::Paragraph || !block_ref.children.is_empty() {
             return false;
         }
 
-        let markdown = block_ref.record.title_markdown();
+        let markdown = block_ref.record.text_markdown();
         !markdown.is_empty() && parse_standalone_image(&markdown).is_none()
     }
 
@@ -680,7 +680,7 @@ impl Document {
 mod tests {
     use gpui::{AppContext, TestAppContext};
 
-    use crate::engine::block_types::{BlockData, BlockType};
+    use crate::model::block::{BlockData, BlockKind};
 use crate::engine::editor::Editor;
 
     #[gpui::test]
@@ -808,7 +808,7 @@ use crate::engine::editor::Editor;
         round_tripped.update(cx, |editor, cx| {
             let block = editor.document.first_root().expect("code block");
             assert_eq!(block.read(cx).code_language_text(), "we`rd");
-            assert!(matches!(block.read(cx).kind(), BlockType::CodeBlock { .. }));
+            assert!(matches!(block.read(cx).kind(), BlockKind::CodeBlock { .. }));
         });
     }
 

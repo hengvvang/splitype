@@ -8,27 +8,30 @@ use gpui::*;
 
 const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
 
-use crate::ui::blocks::block_view::{Block, ImageHandle};
-use crate::engine::block_types::{BlockAction, BlockType};
-use crate::services::code_highlight::language::{code_language_display_name, code_language_options_matching};
-use crate::core::text::inline_style::InlineScript;
-use crate::core::extensions::table::{TableAxisHighlight, TableAxisKind};
-use crate::core::extensions::html_doc::{
+use crate::editor::actions::BlockAction;
+use crate::engine::editor::Editor;
+use crate::model::block::BlockKind;
+use crate::model::inline::style::InlineScript;
+use crate::model::syntax::html::{
     HtmlCssColor, HtmlDocument, HtmlNode, HtmlNodeKind, attr_value, parse_html_image_block,
     style_for_node,
 };
-use crate::core::extensions::image_ref::{
+use crate::model::syntax::image::{
     ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
     resolve_image_source,
 };
-use crate::core::extensions::mermaid_source::parse_mermaid_fence_source;
-use crate::engine::editor::Editor;
+use crate::model::syntax::math::parse_display_math_source;
+use crate::model::syntax::mermaid::parse_mermaid_fence_source;
+use crate::model::syntax::table::{TableAxisHighlight, TableAxisKind};
+use crate::services::code_highlight::language::{
+    code_language_display_name, code_language_options_matching,
+};
 use crate::services::i18n::{I18nManager, I18nStrings};
 use crate::services::latex_render::{
-    display_math_font_size, inline_math_font_size, parse_display_math_source,
-    render_display_math_svg, render_inline_math_svg,
+    display_math_font_size, inline_math_font_size, render_display_math_svg, render_inline_math_svg,
 };
 use crate::services::mermaid_render::render_mermaid_svg_for_display;
+use crate::ui::blocks::block_view::{Block, ImageHandle};
 use crate::ui::blocks::{
     blockquote::render_blockquote,
     callout::render_callout,
@@ -218,22 +221,20 @@ fn wrap_with_quote_guides(content: AnyElement, quote_depth: usize, theme: &Theme
 }
 
 pub(crate) fn callout_accent_and_background(
-    variant: crate::engine::block_types::CalloutVariant,
+    variant: crate::model::block::CalloutKind,
     theme: &Theme,
 ) -> (Hsla, Hsla) {
     let c = &theme.colors;
     match variant {
-        crate::engine::block_types::CalloutVariant::Note => {
-            (c.callout_note_border, c.callout_note_bg)
-        }
-        crate::engine::block_types::CalloutVariant::Tip => (c.callout_tip_border, c.callout_tip_bg),
-        crate::engine::block_types::CalloutVariant::Important => {
+        crate::model::block::CalloutKind::Note => (c.callout_note_border, c.callout_note_bg),
+        crate::model::block::CalloutKind::Tip => (c.callout_tip_border, c.callout_tip_bg),
+        crate::model::block::CalloutKind::Important => {
             (c.callout_important_border, c.callout_important_bg)
         }
-        crate::engine::block_types::CalloutVariant::Warning => {
+        crate::model::block::CalloutKind::Warning => {
             (c.callout_warning_border, c.callout_warning_bg)
         }
-        crate::engine::block_types::CalloutVariant::Caution => {
+        crate::model::block::CalloutKind::Caution => {
             (c.callout_caution_border, c.callout_caution_bg)
         }
     }
@@ -290,9 +291,9 @@ pub(crate) fn effective_list_item_image_width(
     d: &ThemeDimensions,
 ) -> f32 {
     let marker_width = match block.kind() {
-        BlockType::BulletedListItem => d.list_marker_width,
-        BlockType::TaskListItem { .. } => d.list_marker_width.max(d.task_checkbox_size),
-        BlockType::NumberedListItem => d.ordered_list_marker_width,
+        BlockKind::BulletListItem => d.list_marker_width,
+        BlockKind::TaskListItem { .. } => d.list_marker_width.max(d.task_checkbox_size),
+        BlockKind::NumberedListItem => d.ordered_list_marker_width,
         _ => 0.0,
     };
     let list_inset = d.nested_block_indent * block.render_depth as f32;
@@ -592,7 +593,7 @@ impl Block {
         let t = &theme.typography;
         let raw = self
             .record
-            .raw_fallback
+            .raw_source
             .as_deref()
             .unwrap_or_else(|| self.display_text());
 
@@ -605,7 +606,7 @@ impl Block {
                 .unwrap_or(raw.trim())
                 .trim()
                 .to_string();
-            crate::services::latex_render::DisplayMathSource {
+            crate::model::syntax::math::DisplayMathSource {
                 raw: raw.to_string(),
                 body,
             }
@@ -664,7 +665,7 @@ impl Block {
         let t = &theme.typography;
         let raw = self
             .record
-            .raw_fallback
+            .raw_source
             .as_deref()
             .unwrap_or_else(|| self.display_text());
 
@@ -678,7 +679,7 @@ impl Block {
             } else {
                 trimmed.to_string()
             };
-            crate::core::extensions::mermaid_source::MermaidSource {
+            crate::model::syntax::mermaid::MermaidSource {
                 raw: raw.to_string(),
                 body,
                 info: "mermaid".to_string(),
@@ -1169,7 +1170,7 @@ impl Block {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         self.render_inline_tree_runs(
-            &self.record.title,
+            &self.record.text,
             theme,
             base_color,
             font_size,
@@ -1180,7 +1181,7 @@ impl Block {
 
     fn render_inline_tree_runs(
         &self,
-        tree: &crate::core::text::rich_text::RichText,
+        tree: &crate::model::inline::text::RichText,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -1209,7 +1210,7 @@ impl Block {
 
     fn render_inline_tree_children(
         &self,
-        tree: &crate::core::text::rich_text::RichText,
+        tree: &crate::model::inline::text::RichText,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -1223,9 +1224,9 @@ impl Block {
 
         for span in cache.spans() {
             if cursor < span.range.start {
-                let fallback_span = crate::core::text::render_cache::InlineSpan {
+                let fallback_span = crate::model::inline::render_cache::InlineSpan {
                     range: cursor..span.range.start,
-                    style: crate::core::text::inline_style::InlineStyle::default(),
+                    style: crate::model::inline::style::InlineStyle::default(),
                     html_style: None,
                     link: None,
                     footnote: None,
@@ -1262,9 +1263,9 @@ impl Block {
         }
 
         if cursor < text.len() {
-            let fallback_span = crate::core::text::render_cache::InlineSpan {
+            let fallback_span = crate::model::inline::render_cache::InlineSpan {
                 range: cursor..text.len(),
-                style: crate::core::text::inline_style::InlineStyle::default(),
+                style: crate::model::inline::style::InlineStyle::default(),
                 html_style: None,
                 link: None,
                 footnote: None,
@@ -1294,7 +1295,7 @@ impl Block {
     fn render_inline_text_word_segments(
         &self,
         text: &str,
-        span: &crate::core::text::render_cache::InlineSpan,
+        span: &crate::model::inline::render_cache::InlineSpan,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -1322,7 +1323,7 @@ impl Block {
     fn render_inline_text_segment(
         &self,
         text: &str,
-        span: &crate::core::text::render_cache::InlineSpan,
+        span: &crate::model::inline::render_cache::InlineSpan,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -1422,8 +1423,8 @@ impl Block {
 
     fn render_inline_math_segment(
         &self,
-        math: &crate::core::text::inline_latex::InlineLatex,
-        span: &crate::core::text::render_cache::InlineSpan,
+        math: &crate::model::inline::latex::InlineLatex,
+        span: &crate::model::inline::render_cache::InlineSpan,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -1519,7 +1520,7 @@ impl Block {
         font_weight: FontWeight,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
-        let segments = parse_table_cell_inline_images(&self.record.title.serialize_markdown());
+        let segments = parse_table_cell_inline_images(&self.record.text.serialize_markdown());
         if !segments
             .iter()
             .any(|segment| matches!(segment, TableCellInlineImageSegment::Image { .. }))
@@ -1548,7 +1549,7 @@ impl Block {
                     if let Some(runtime) = self.image_runtime_for_syntax(syntax) {
                         children.push(self.render_inline_image_content(&runtime, theme, strings));
                     } else {
-                        let tree = crate::core::text::rich_text::RichText::plain(markdown);
+                        let tree = crate::model::inline::text::RichText::plain(markdown);
                         children.extend(self.render_inline_tree_children(
                             &tree,
                             theme,
@@ -2331,9 +2332,9 @@ impl Render for Block {
             && (focused
                 || !matches!(
                     self.kind(),
-                    BlockType::HtmlBlock | BlockType::MathBlock | BlockType::MermaidBlock
+                    BlockKind::HtmlBlock | BlockKind::MathBlock | BlockKind::MermaidBlock
                 ))
-            && !matches!(self.kind(), BlockType::MathBlock | BlockType::MermaidBlock)
+            && !matches!(self.kind(), BlockKind::MathBlock | BlockKind::MermaidBlock)
         {
             if focused && self.cursor_blink_task.is_none() {
                 self.start_cursor_blink(cx);
@@ -2354,7 +2355,7 @@ impl Render for Block {
                 .text_color(c.text_default)
                 .line_height(rems(t.text_line_height));
 
-            let source_base = if self.kind() == BlockType::Comment {
+            let source_base = if self.kind() == BlockKind::HtmlComment {
                 source_base.bg(c.comment_bg).rounded_sm()
             } else if focused {
                 source_base.bg(c.source_mode_block_bg).rounded_sm()
@@ -2381,7 +2382,7 @@ impl Render for Block {
             cx,
         );
 
-        if showing_rendered_image && self.kind() == BlockType::Paragraph {
+        if showing_rendered_image && self.kind() == BlockKind::Paragraph {
             let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
             let max_width = px(effective_image_width(self, viewport_width, d));
             if let Some(runtime) = self.image_runtime() {
@@ -2444,7 +2445,7 @@ impl Render for Block {
             }
         }
         let content = match self.kind() {
-            BlockType::Separator => {
+            BlockKind::ThematicBreak => {
                 if !focused {
                     render_thematic_break_unfocused(focused_base, &theme)
                 } else {
@@ -2458,7 +2459,7 @@ impl Render for Block {
                     )
                 }
             }
-            BlockType::Heading { level } => render_heading(
+            BlockKind::Heading { level } => render_heading(
                 self,
                 level,
                 focused,
@@ -2467,7 +2468,7 @@ impl Render for Block {
                 &theme,
                 cx,
             ),
-            BlockType::BulletedListItem => render_bulleted_list_item(
+            BlockKind::BulletListItem => render_bulleted_list_item(
                 self,
                 focused,
                 is_placeholder,
@@ -2477,7 +2478,7 @@ impl Render for Block {
                 window,
                 cx,
             ),
-            BlockType::TaskListItem { checked } => render_task_list_item(
+            BlockKind::TaskListItem { checked } => render_task_list_item(
                 self,
                 checked,
                 focused,
@@ -2488,7 +2489,7 @@ impl Render for Block {
                 window,
                 cx,
             ),
-            BlockType::NumberedListItem => render_numbered_list_item(
+            BlockKind::NumberedListItem => render_numbered_list_item(
                 self,
                 focused,
                 is_placeholder,
@@ -2498,10 +2499,10 @@ impl Render for Block {
                 window,
                 cx,
             ),
-            BlockType::Quote => {
+            BlockKind::Blockquote => {
                 render_blockquote(self, focused, is_placeholder, focused_base, &theme, cx)
             }
-            BlockType::Callout(variant) => render_callout(
+            BlockKind::Callout(variant) => render_callout(
                 self,
                 variant,
                 focused,
@@ -2510,10 +2511,10 @@ impl Render for Block {
                 &theme,
                 cx,
             ),
-            BlockType::FootnoteDefinition => {
+            BlockKind::FootnoteDefinition => {
                 render_footnote_definition(self, focused, is_placeholder, focused_base, &theme, cx)
             }
-            BlockType::CodeBlock { .. } => render_fenced_code(
+            BlockKind::CodeBlock { .. } => render_fenced_code(
                 self,
                 is_placeholder,
                 code_language_focused,
@@ -2522,7 +2523,7 @@ impl Render for Block {
                 &strings,
                 cx,
             ),
-            BlockType::Table => render_table(
+            BlockKind::Table => render_table(
                 self,
                 focused,
                 is_placeholder,
@@ -2531,8 +2532,8 @@ impl Render for Block {
                 window,
                 cx,
             ),
-            BlockType::HtmlBlock => render_html_block(self, focused_base, &theme, cx),
-            BlockType::MathBlock => render_latex_math(
+            BlockKind::HtmlBlock => render_html_block(self, focused_base, &theme, cx),
+            BlockKind::MathBlock => render_latex_math(
                 self,
                 focused,
                 is_placeholder,
@@ -2542,7 +2543,7 @@ impl Render for Block {
                 &strings,
                 cx,
             ),
-            BlockType::MermaidBlock => render_mermaid_diagram(
+            BlockKind::MermaidBlock => render_mermaid_diagram(
                 self,
                 focused,
                 is_placeholder,
@@ -2553,10 +2554,10 @@ impl Render for Block {
                 window,
                 cx,
             ),
-            BlockType::RawMarkdown => {
+            BlockKind::RawMarkdown => {
                 render_raw_markdown(self, focused, is_placeholder, focused_base, &theme, cx)
             }
-            BlockType::Paragraph | BlockType::Comment => {
+            BlockKind::Paragraph | BlockKind::HtmlComment => {
                 render_paragraph(self, focused, is_placeholder, focused_base, &theme, cx)
             }
         };
@@ -2659,12 +2660,12 @@ mod tests {
     use super::{
         HtmlComputedStyle, column_axis_gutter_visible, html_node_visual_style, inline_word_chunks,
     };
-    use crate::ui::blocks::block_view::Block;
-use crate::engine::block_types::{BlockData, BlockType};
-use crate::core::text::rich_text::RichText;
-use crate::core::extensions::html_doc::parse_html_document;
-    use crate::core::extensions::table::{TableAxisKind, TableAxisMarker};
+    use crate::model::block::{BlockData, BlockKind};
+    use crate::model::inline::text::RichText;
+    use crate::model::syntax::html::parse_html_document;
+    use crate::model::syntax::table::{TableAxisKind, TableAxisMarker};
     use crate::services::i18n::I18nManager;
+    use crate::ui::blocks::block_view::Block;
     use crate::ui::theme::{Theme, ThemeManager};
     use gpui::{Hsla, Rgba, TestAppContext, px};
 
@@ -2790,7 +2791,7 @@ use crate::core::extensions::html_doc::parse_html_document;
                 Block::with_record(
                     cx,
                     BlockData::new(
-                        BlockType::CodeBlock {
+                        BlockKind::CodeBlock {
                             language: Some("rust".into()),
                         },
                         RichText::plain("fn main() {}\n"),

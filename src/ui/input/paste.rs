@@ -5,8 +5,8 @@
 //! separate blocks, while structural Markdown and block/risky HTML are left to
 //! the document block builder.
 
-use crate::core::extensions::table::collect_pipeless_table_region;
-use crate::core::extensions::html_doc::is_inline_tag;
+use crate::model::syntax::table::collect_pipeless_table_region;
+use crate::model::syntax::html::is_inline_tag;
 
 pub(crate) fn should_split_plain_multiline_paste(lines: &[String]) -> bool {
     // A pipeless GFM table reads cell-by-cell as plain lines, so detect the

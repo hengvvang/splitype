@@ -1,5 +1,6 @@
 //! Native table runtime installation and table-editing operations.
 
+use crate::editor::actions::UndoCaptureKind;
 use crate::engine::editor::*;
 
 impl Editor {
@@ -90,7 +91,7 @@ impl Editor {
             let Some(table) = visible.entity.read(cx).record.table.clone() else {
                 continue;
             };
-            if visible.entity.read(cx).kind() == BlockType::Table {
+            if visible.entity.read(cx).kind() == BlockKind::Table {
                 self.install_table_runtime_for_block(&visible.entity, &table, cx);
             }
         }
@@ -116,14 +117,14 @@ impl Editor {
         let header = runtime
             .header
             .iter()
-            .map(|cell| cell.read(cx).record.title.clone())
+            .map(|cell| cell.read(cx).record.text.clone())
             .collect::<Vec<_>>();
         let rows = runtime
             .rows
             .iter()
             .map(|row| {
                 row.iter()
-                    .map(|cell| cell.read(cx).record.title.clone())
+                    .map(|cell| cell.read(cx).record.text.clone())
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
@@ -680,7 +681,7 @@ impl Editor {
             .document
             .flatten_visible_blocks()
             .into_iter()
-            .filter(|visible| visible.entity.read(cx).kind() == BlockType::Table)
+            .filter(|visible| visible.entity.read(cx).kind() == BlockKind::Table)
             .map(|visible| visible.entity)
             .collect::<Vec<_>>();
 

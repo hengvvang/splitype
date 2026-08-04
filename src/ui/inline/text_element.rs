@@ -8,9 +8,9 @@ use std::rc::Rc;
 use gpui::*;
 
 use crate::ui::blocks::block_view::Block;
-use crate::core::text::inline_link::InlineLinkHit;
-use crate::core::extensions::html_doc::HtmlCssColor;
-use crate::core::text::inline_footnote::InlineFootnoteHit;
+use crate::model::inline::link::InlineLinkHit;
+use crate::model::syntax::html::HtmlCssColor;
+use crate::model::inline::footnote::InlineFootnoteHit;
 use crate::services::code_highlight::highlight::code_highlight_color;
 use crate::ui::theme::{ThemeColors, ThemeManager};
 
@@ -1270,9 +1270,9 @@ mod tests {
         source_text_bounds, wrapped_line_height,
     };
     use crate::ui::blocks::block_view::Block;
-use crate::engine::block_types::{BlockData, BlockType};
-use crate::core::text::rich_text::RichText;
-use crate::core::extensions::table_cell::TableCellPosition;
+use crate::model::block::{BlockData, BlockKind};
+use crate::model::inline::text::RichText;
+use crate::model::syntax::table::TableCellPosition;
     use gpui::{
         AppContext, Bounds, Hsla, Modifiers, MouseButton, MouseDownEvent, SharedString,
         TestAppContext, TextAlign, TextRun, VisualTestContext, font, point, px, rgba, size,
@@ -1351,7 +1351,7 @@ use crate::core::extensions::table_cell::TableCellPosition;
             Block::with_record(
                 cx,
                 BlockData::new(
-                    BlockType::Paragraph,
+                    BlockKind::Paragraph,
                     RichText::from_markdown("[link](https://example.com)"),
                 ),
             )
@@ -1394,7 +1394,7 @@ use crate::core::extensions::table_cell::TableCellPosition;
             Block::with_record(
                 cx,
                 BlockData::new(
-                    BlockType::Paragraph,
+                    BlockKind::Paragraph,
                     RichText::from_markdown("a [link](https://example.com) bbbb"),
                 ),
             )
@@ -1463,13 +1463,13 @@ use crate::core::extensions::table_cell::TableCellPosition;
             let mut block = Block::with_record(
                 cx,
                 BlockData::new(
-                    BlockType::Paragraph,
+                    BlockKind::Paragraph,
                     RichText::from_markdown("[link](https://example.com)"),
                 ),
             );
             block.set_table_cell_mode(
                 TableCellPosition { row: 0, column: 0 },
-                crate::core::extensions::table::TableColumnAlignment::Center,
+                crate::model::syntax::table::TableColumnAlignment::Center,
             );
             block
         });
@@ -1512,7 +1512,7 @@ use crate::core::extensions::table_cell::TableCellPosition;
             Block::with_record(
                 cx,
                 BlockData::new(
-                    BlockType::Paragraph,
+                    BlockKind::Paragraph,
                     RichText::from_markdown(
                         "before <span style='color:blue;background-color:#ff0'>marked</span>",
                     ),
@@ -1586,7 +1586,7 @@ use crate::core::extensions::table_cell::TableCellPosition;
             Block::with_record(
                 cx,
                 BlockData::new(
-                    BlockType::Paragraph,
+                    BlockKind::Paragraph,
                     RichText::from_markdown(&format!("[{label}](https://example.com)")),
                 ),
             )
