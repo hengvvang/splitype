@@ -40,7 +40,7 @@ pub(crate) fn open_about_github_url(cx: &mut App) {
     cx.open_url(ABOUT_GITHUB_URL);
 }
 
-use crate::editor::windows::wysiwyg::render::{
+use crate::editor::windows::wysiwyg::render::layout::{
     RenderedRowSpacingInfo, callout_colors, callout_row_top_gap, editor_text_font,
     footnote_row_top_gap, rendered_row_top_gap,
 };

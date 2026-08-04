@@ -2,7 +2,26 @@
 //!
 //! Each block kind produces a distinct visual style: H1 has a bottom border,
 //! list items render a marker column (bullet / ordinal), and raw Markdown
-//! fallback renders as plain text.
+//! fallback renders as plain text. This is the WYSIWYG editing presentation;
+//! the read-only preview presentation lives in
+//! `crate::editor::windows::preview::render`.
+
+pub(crate) mod blockquote;
+pub(crate) mod callout;
+pub(crate) mod fenced_code;
+pub(crate) mod footnote;
+pub(crate) mod heading;
+pub(crate) mod html_block;
+pub(crate) mod image_handle;
+pub(crate) mod inline;
+pub(crate) mod latex_math;
+pub(crate) mod layout;
+pub(crate) mod list_item;
+pub(crate) mod mermaid_diagram;
+pub(crate) mod paragraph;
+pub(crate) mod raw_markdown;
+pub(crate) mod table_block;
+pub(crate) mod thematic_break;
 
 use crate::ui::components::menu_item::menu_item;
 
@@ -14,21 +33,6 @@ const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
 
 use crate::editor::actions::BlockAction;
 use crate::editor::controller::Editor;
-use crate::editor::tree::block::{Block, ImageHandle};
-use crate::infra::i18n::{I18nManager, I18nStrings};
-use crate::model::block::BlockKind;
-use crate::model::inline::style::InlineScript;
-use crate::model::syntax::html::{
-    HtmlCssColor, HtmlDocument, HtmlNode, HtmlNodeKind, attr_value, parse_html_image_block,
-    style_for_node,
-};
-use crate::model::syntax::image::{
-    ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
-    resolve_image_source,
-};
-use crate::model::syntax::math::parse_display_math_source;
-use crate::model::syntax::mermaid::parse_mermaid_fence_source;
-use crate::model::syntax::table::{TableAxisHighlight, TableAxisKind};
 use crate::editor::render::code_highlight::options::{
     code_language_display_name, code_language_options_matching,
 };
@@ -36,11 +40,11 @@ use crate::editor::render::latex_render::{
     display_math_font_size, inline_math_font_size, render_display_math_svg, render_inline_math_svg,
 };
 use crate::editor::render::mermaid_render::render_mermaid_svg_for_display;
-use crate::theme::{Theme, ThemeDimensions, ThemeManager};
-use crate::editor::windows::blocks::inline::text_element::{
+use crate::editor::tree::block::{Block, ImageHandle};
+use crate::editor::windows::wysiwyg::render::inline::text_element::{
     BlockTextElement, CodeLanguageInputElement,
 };
-use crate::editor::windows::blocks::{
+use crate::editor::windows::wysiwyg::render::{
     blockquote::render_blockquote,
     callout::render_callout,
     fenced_code::render_fenced_code,
@@ -55,6 +59,21 @@ use crate::editor::windows::blocks::{
     table_block::render_table,
     thematic_break::{render_thematic_break_focused, render_thematic_break_unfocused},
 };
+use crate::infra::i18n::{I18nManager, I18nStrings};
+use crate::model::block::BlockKind;
+use crate::model::inline::style::InlineScript;
+use crate::model::syntax::html::{
+    HtmlCssColor, HtmlDocument, HtmlNode, HtmlNodeKind, attr_value, parse_html_image_block,
+    style_for_node,
+};
+use crate::model::syntax::image::{
+    ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
+    resolve_image_source,
+};
+use crate::model::syntax::math::parse_display_math_source;
+use crate::model::syntax::mermaid::parse_mermaid_fence_source;
+use crate::model::syntax::table::{TableAxisHighlight, TableAxisKind};
+use crate::theme::{Theme, ThemeDimensions, ThemeManager};
 
 #[allow(dead_code)]
 const TASK_CHECKMARK: &str = "\u{2713}";
@@ -1056,48 +1075,54 @@ impl Block {
                         let value = option.value;
                         let is_selected =
                             code_language_display_name(&selected_language) == option.label;
-menu_item(ElementId::Name( format!("code-language-option-{}-{index}", self.record.id).into(), ), c, d)
-                            .w_full()
-                            .flex_shrink_0()
-                            .justify_between()
-                            .bg(if is_selected {
-                                c.dialog_secondary_button_bg
-                            } else {
-                                c.dialog_surface
-                            })
-                            .active(|this| this.opacity(0.9))
-                            .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
-                                let _ = option_block.update(cx, |block, block_cx| {
-                                    block_cx.stop_propagation();
-                                    block.choose_code_language(value, block_cx);
-                                    block.focus_handle.focus(window);
-                                });
-                            })
-                            .child(
-                                div()
-                                    .text_size(px(13.0))
-                                    .font_weight(if is_selected {
-                                        FontWeight::MEDIUM
-                                    } else {
-                                        FontWeight::NORMAL
-                                    })
-                                    .text_color(if is_selected {
-                                        c.text_default
-                                    } else {
-                                        c.dialog_body
-                                    })
-                                    .child(option.label),
+                        menu_item(
+                            ElementId::Name(
+                                format!("code-language-option-{}-{index}", self.record.id).into(),
+                            ),
+                            c,
+                            d,
+                        )
+                        .w_full()
+                        .flex_shrink_0()
+                        .justify_between()
+                        .bg(if is_selected {
+                            c.dialog_secondary_button_bg
+                        } else {
+                            c.dialog_surface
+                        })
+                        .active(|this| this.opacity(0.9))
+                        .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
+                            let _ = option_block.update(cx, |block, block_cx| {
+                                block_cx.stop_propagation();
+                                block.choose_code_language(value, block_cx);
+                                block.focus_handle.focus(window);
+                            });
+                        })
+                        .child(
+                            div()
+                                .text_size(px(13.0))
+                                .font_weight(if is_selected {
+                                    FontWeight::MEDIUM
+                                } else {
+                                    FontWeight::NORMAL
+                                })
+                                .text_color(if is_selected {
+                                    c.text_default
+                                } else {
+                                    c.dialog_body
+                                })
+                                .child(option.label),
+                        )
+                        .children(if is_selected {
+                            Some(
+                                svg()
+                                    .path("icon/panel/select-check.svg")
+                                    .size(px(14.0))
+                                    .text_color(c.text_default),
                             )
-                            .children(if is_selected {
-                                Some(
-                                    svg()
-                                        .path("icon/panel/select-check.svg")
-                                        .size(px(14.0))
-                                        .text_color(c.text_default),
-                                )
-                            } else {
-                                None
-                            })
+                        } else {
+                            None
+                        })
                     })),
             )
             .into_any_element()

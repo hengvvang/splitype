@@ -3,7 +3,6 @@
 //! (WYSIWYG, source code, preview, outline) with their shared block views.
 
 pub mod actions;
-pub mod blocks;
 pub mod chrome;
 pub mod commands;
 pub mod file;
