@@ -4,6 +4,8 @@
 //! shared chrome.  Editor-level state machines that track open / hover
 //! indices stay in [`crate::editor::render`].
 
+use crate::ui::components::menu_item::menu_item_row;
+
 use crate::ui::components::menu_item::menu_item;
 
 use crate::ui::components::popover::overlay;
@@ -452,21 +454,11 @@ menu_bar_button(("app-menu-button", index), c, d)
                 let is_theme_or_lang = action.as_ref().as_any().is::<SelectTheme>()
                     || action.as_ref().as_any().is::<SelectLanguage>();
 
-                let base = div()
+        let base = menu_item_row(c, d)
                     .id(("app-menu-item", item_index))
                     .w_full()
-                    .h(px(d.menu_item_height))
                     .flex_shrink_0()
-                    .px(px(d.menu_item_padding_x))
-                    .flex()
-                    .items_center()
                     .when(is_theme_or_lang, |this| this.justify_between())
-                    .rounded(px(d.menu_item_radius))
-                    .bg(if is_selected {
-                        c.dialog_secondary_button_hover
-                    } else {
-                        c.dialog_surface
-                    })
                     .text_size(px(d.menu_text_size))
                     .font_weight(t.dialog_body_weight.to_font_weight())
                     .text_color(if is_disabled {
@@ -543,16 +535,10 @@ menu_item(("app-menu-submenu", item_index), c, d)
                     })
                     .into_any_element()
             }
-            OwnedMenuItem::SystemMenu(os_menu) => div()
+            OwnedMenuItem::SystemMenu(os_menu) => menu_item_row(c, d)
                 .id(("app-menu-system", item_index))
                 .w_full()
-                .h(px(d.menu_item_height))
                 .flex_shrink_0()
-                .px(px(d.menu_item_padding_x))
-                .flex()
-                .items_center()
-                .rounded(px(d.menu_item_radius))
-                .bg(c.dialog_surface)
                 .text_size(px(d.menu_text_size))
                 .text_color(c.dialog_muted)
                 .child(os_menu.name.to_string())

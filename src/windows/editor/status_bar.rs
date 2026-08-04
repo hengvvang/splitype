@@ -1,6 +1,8 @@
 //! Bottom status bar helpers: cursor position, word count, custom
 //! buttons, and status-bar rendering.
 
+use crate::ui::components::status_bar::status_bar_container;
+
 use crate::ui::components::button::{icon_chip_button, small_pill_button};
 
 use gpui::prelude::*;
@@ -305,18 +307,8 @@ impl Editor {
             ));
         }
 
-        let bar = div()
+        let bar = status_bar_container(c, d.status_bar_height, d.status_bar_padding_x)
             .id("status-bar")
-            .h(px(d.status_bar_height))
-            .w_full()
-            .flex_shrink_0()
-            .flex()
-            .items_center()
-            .justify_between()
-            .px(px(d.status_bar_padding_x))
-            .bg(c.status_bar_background)
-            .border_t(px(1.0))
-            .border_color(c.dialog_border)
             .child(
                 div()
                     .flex()
@@ -486,20 +478,10 @@ impl Editor {
             ));
         }
 
-        div()
+status_bar_container(c, 24.0, 10.0)
             .id(ElementId::Name(
                 format!("panel-status-bar-{:?}", area_type).into(),
             ))
-            .h(px(24.0))
-            .w_full()
-            .flex_shrink_0()
-            .flex()
-            .items_center()
-            .justify_between()
-            .px(px(10.0))
-            .bg(c.status_bar_background)
-            .border_t(px(1.0))
-            .border_color(c.dialog_border)
             .child(
                 div()
                     .flex()
