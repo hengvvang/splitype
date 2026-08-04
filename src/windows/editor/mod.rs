@@ -11,7 +11,6 @@
 //! 6. **Chrome** — titlebar, tiled sidebar, menu panel, context menu,
 //!    table-insert dialog, info/drop/unsaved overlays.
 
-pub(crate) mod blocks;
 pub(crate) mod context_menu;
 pub(crate) mod dialogs;
 pub(crate) mod export;

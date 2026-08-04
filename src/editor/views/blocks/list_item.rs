@@ -4,7 +4,7 @@
 use gpui::*;
 
 use crate::editor::tree::block::Block;
-use crate::windows::editor::blocks::render::{
+use crate::editor::views::blocks::render::{
     effective_list_item_image_width, numbered_list_marker, render_custom_bullet_marker,
 };
 use crate::theme::Theme;
