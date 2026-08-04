@@ -1,7 +1,11 @@
 //! Context menu rendering functions and Editor action handlers.
 // Migrated from engine/input/context_menu.rs
 
+use crate::ui::components::dialog::dialog_card;
+use crate::ui::components::menu_item::menu_item;
+
 use crate::ui::components::button::{primary_button, secondary_button};
+use crate::ui::components::popover::menu_panel;
 
 use std::time::Duration;
 
@@ -761,14 +765,7 @@ impl Editor {
         let d = &theme.dimensions;
         let t = &theme.typography;
         if enabled {
-            div()
-                .id(id)
-                .h(px(d.menu_item_height))
-                .px(px(d.menu_item_padding_x))
-                .flex()
-                .items_center()
-                .rounded(px(d.menu_item_radius))
-                .bg(c.dialog_surface)
+            menu_item(id, c, d)
                 .text_size(px(d.menu_text_size))
                 .font_weight(t.dialog_body_weight.to_font_weight())
                 .text_color(if danger {
@@ -777,8 +774,6 @@ impl Editor {
                     c.dialog_secondary_button_text
                 })
                 .child(label)
-                .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                .cursor_pointer()
                 .on_click(cx.listener(on_click))
                 .into_any_element()
         } else {
@@ -824,38 +819,18 @@ impl Editor {
                 let panel_width = px(d.context_menu_panel_width);
 
                 let submenu = submenu_open.then(|| {
-                    div()
+                    menu_panel(c, d)
                         .id("editor-context-menu-submenu")
                         .absolute()
                         .left(panel_x + panel_width + px(d.context_menu_submenu_gap))
                         .top(panel_y)
                         .w(px(d.context_menu_submenu_width))
-                        .p(px(d.menu_panel_padding))
-                        .flex()
-                        .flex_col()
-                        .gap(px(d.menu_panel_gap))
-                        .occlude()
-                        .bg(c.dialog_surface)
-                        .border(px(d.dialog_border_width))
-                        .border_color(c.dialog_border)
-                        .rounded(px(d.menu_panel_radius))
-                        .shadow_lg()
                         .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
                             cx.stop_propagation()
                         })
                         .on_hover(cx.listener(Self::on_context_menu_submenu_hover))
                         .child(
-                            div()
-                                .id("editor-context-menu-insert-table")
-                                .h(px(d.menu_item_height))
-                                .px(px(d.menu_item_padding_x))
-                                .flex()
-                                .items_center()
-                                .rounded(px(d.menu_item_radius))
-                                .bg(c.dialog_surface)
-                                .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                                .active(|this| this.opacity(0.92))
-                                .cursor_pointer()
+                            menu_item("editor-context-menu-insert-table", c, d)
                                 .text_size(px(d.menu_text_size))
                                 .font_weight(t.dialog_body_weight.to_font_weight())
                                 .text_color(c.dialog_secondary_button_text)
@@ -877,39 +852,23 @@ impl Editor {
                         cx.listener(Self::on_dismiss_context_menu_overlay),
                     )
                     .child(
-                        div()
+                        menu_panel(c, d)
                             .id("editor-context-menu-panel")
                             .absolute()
                             .left(panel_x)
                             .top(panel_y)
                             .w(panel_width)
-                            .p(px(d.menu_panel_padding))
-                            .flex()
-                            .flex_col()
-                            .gap(px(d.menu_panel_gap))
-                            .bg(c.dialog_surface)
-                            .border(px(d.dialog_border_width))
-                            .border_color(c.dialog_border)
-                            .rounded(px(d.menu_panel_radius))
-                            .shadow_lg()
                             .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
                                 cx.stop_propagation()
                             })
                             .child(
-                                div()
-                                    .id("editor-context-menu-insert")
-                                    .h(px(d.menu_item_height))
-                                    .px(px(d.menu_item_padding_x))
-                                    .flex()
-                                    .items_center()
+                                menu_item("editor-context-menu-insert", c, d)
                                     .justify_between()
-                                    .rounded(px(d.menu_item_radius))
                                     .bg(if *submenu_open {
                                         c.dialog_secondary_button_hover
                                     } else {
                                         c.dialog_surface
                                     })
-                                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
                                     .text_size(px(d.menu_text_size))
                                     .font_weight(t.dialog_body_weight.to_font_weight())
                                     .text_color(c.dialog_secondary_button_text)
@@ -1082,23 +1041,14 @@ impl Editor {
                                     cx,
                                 );
                             items.push(
-                                div()
-                                    .id("table-header-toggle")
-                                    .h(px(d.menu_item_height))
-                                    .px(px(d.menu_item_padding_x))
-                                    .flex()
-                                    .items_center()
+                                menu_item("table-header-toggle", c, d)
                                     .justify_between()
                                     .gap(px(d.menu_item_padding_x))
-                                    .rounded(px(d.menu_item_radius))
-                                    .bg(c.dialog_surface)
                                     .text_size(px(d.menu_text_size))
                                     .font_weight(t.dialog_body_weight.to_font_weight())
                                     .text_color(c.dialog_secondary_button_text)
                                     .child(s.table_header_row.clone())
                                     .child(if headers_shown { "✓" } else { "" })
-                                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                                    .cursor_pointer()
                                     .on_click(cx.listener(Self::on_toggle_table_headers))
                                     .into_any_element(),
                             );
@@ -1212,16 +1162,8 @@ impl Editor {
                 if is_dir {
                     let p_file = path.clone();
                     items.push(
-                        div()
-                            .id("ws-ctx-new-file")
-                            .h(px(d.menu_item_height))
-                            .px(px(d.menu_item_padding_x))
-                            .rounded(px(d.menu_item_radius))
-                            .flex()
-                            .items_center()
+                        menu_item("ws-ctx-new-file", c, d)
                             .gap(px(8.0))
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                            .cursor_pointer()
                             .child(
                                 svg()
                                     .path("icon/workspace/file-plus.svg")
@@ -1247,16 +1189,8 @@ impl Editor {
 
                     let p_folder = path.clone();
                     items.push(
-                        div()
-                            .id("ws-ctx-new-folder")
-                            .h(px(d.menu_item_height))
-                            .px(px(d.menu_item_padding_x))
-                            .rounded(px(d.menu_item_radius))
-                            .flex()
-                            .items_center()
+                        menu_item("ws-ctx-new-folder", c, d)
                             .gap(px(8.0))
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                            .cursor_pointer()
                             .child(
                                 svg()
                                     .path("icon/workspace/folder-plus.svg")
@@ -1292,16 +1226,8 @@ impl Editor {
 
                 let p_rename = path.clone();
                 items.push(
-                    div()
-                        .id("ws-ctx-rename")
-                        .h(px(d.menu_item_height))
-                        .px(px(d.menu_item_padding_x))
-                        .rounded(px(d.menu_item_radius))
-                        .flex()
-                        .items_center()
+                    menu_item("ws-ctx-rename", c, d)
                         .gap(px(8.0))
-                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                        .cursor_pointer()
                         .child(
                             div()
                                 .text_size(px(t.text_size * 0.9))
@@ -1321,16 +1247,8 @@ impl Editor {
 
                 let p_delete = path.clone();
                 items.push(
-                    div()
-                        .id("ws-ctx-delete")
-                        .h(px(d.menu_item_height))
-                        .px(px(d.menu_item_padding_x))
-                        .rounded(px(d.menu_item_radius))
-                        .flex()
-                        .items_center()
+                    menu_item("ws-ctx-delete", c, d)
                         .gap(px(8.0))
-                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                        .cursor_pointer()
                         .child(
                             div()
                                 .text_size(px(t.text_size * 0.9))
@@ -1359,16 +1277,8 @@ impl Editor {
 
                 let p_reveal = path.clone();
                 items.push(
-                    div()
-                        .id("ws-ctx-reveal")
-                        .h(px(d.menu_item_height))
-                        .px(px(d.menu_item_padding_x))
-                        .rounded(px(d.menu_item_radius))
-                        .flex()
-                        .items_center()
+                    menu_item("ws-ctx-reveal", c, d)
                         .gap(px(8.0))
-                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                        .cursor_pointer()
                         .child(
                             div()
                                 .text_size(px(t.text_size * 0.9))
@@ -1565,15 +1475,9 @@ impl Editor {
                         .flex()
                         .justify_center()
                         .child(
-                            div()
+                            dialog_card(c, d)
                                 .id("table-insert-dialog")
                                 .w(px(d.dialog_width.min(d.table_insert_dialog_width)))
-                                .max_w(relative(1.0))
-                                .p(px(d.dialog_padding))
-                                .flex()
-                                .flex_col()
-                                .gap(px(d.dialog_gap))
-                                .bg(c.dialog_surface)
                                 .border(px(d.dialog_border_width))
                                 .border_color(c.dialog_border)
                                 .rounded(px(d.dialog_radius))

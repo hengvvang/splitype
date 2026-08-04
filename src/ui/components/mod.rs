@@ -4,4 +4,7 @@
 //! they only consume `theme` and gpui so any view can reuse them.
 
 pub mod button;
+pub mod dialog;
+pub mod menu_item;
+pub mod popover;
 pub mod switch;

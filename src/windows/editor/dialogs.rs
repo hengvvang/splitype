@@ -1,6 +1,8 @@
 //! In-window overlay dialogs and their action handlers: unsaved changes,
 //! drop-replace, and info/about overlays.
 
+use crate::ui::components::dialog::dialog_card;
+
 use crate::ui::components::button::{
     compact_danger_button, compact_primary_button, compact_secondary_button, primary_button,
 };
@@ -123,15 +125,9 @@ impl Editor {
                     .flex()
                     .justify_center()
                     .child(
-                        div()
+dialog_card(c, d)
                             .id("unsaved-changes-dialog")
                             .w(px(d.dialog_width))
-                            .max_w(relative(1.0))
-                            .flex()
-                            .flex_col()
-                            .gap(px(d.dialog_gap))
-                            .p(px(d.dialog_padding))
-                            .bg(c.dialog_surface)
                             .border(px(d.dialog_border_width))
                             .border_color(c.dialog_border)
                             .rounded(px(d.menu_panel_radius))
@@ -219,15 +215,9 @@ impl Editor {
                     .flex()
                     .justify_center()
                     .child(
-                        div()
+dialog_card(c, d)
                             .id("drop-replace-dialog")
                             .w(px(d.dialog_width))
-                            .max_w(relative(1.0))
-                            .flex()
-                            .flex_col()
-                            .gap(px(d.dialog_gap))
-                            .p(px(d.dialog_padding))
-                            .bg(c.dialog_surface)
                             .border(px(d.dialog_border_width))
                             .border_color(c.dialog_border)
                             .rounded(px(d.menu_panel_radius))
@@ -430,15 +420,9 @@ impl Editor {
                     .flex()
                     .justify_center()
                     .child(
-                        div()
+dialog_card(c, d)
                             .id("info-dialog")
                             .w(px(d.dialog_width))
-                            .max_w(relative(1.0))
-                            .flex()
-                            .flex_col()
-                            .gap(px(d.dialog_gap))
-                            .p(px(d.dialog_padding))
-                            .bg(c.dialog_surface)
                             .border(px(d.dialog_border_width))
                             .border_color(c.dialog_border)
                             .rounded(px(d.dialog_radius))
