@@ -2163,7 +2163,7 @@ impl Render for Block {
             // The header row is only styled distinctly (shaded background, medium
             // weight) when the show-table-headers preference is enabled.
             let style_as_header = is_header
-                && crate::services::storage::settings::EditorSettings::show_table_headers(cx);
+                && crate::services::config::settings::EditorSettings::show_table_headers(cx);
             let highlight = self.table_axis_highlight;
             let base_bg = if style_as_header {
                 c.table_header_bg

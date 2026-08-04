@@ -228,7 +228,7 @@ fn about_dialog_body_lines_include_repository_and_star_message() {
         lines[2],
         format!(
             "GitHub: {}",
-            crate::ui::views::editor_view::ABOUT_GITHUB_URL
+            crate::ui::window::editor_view::ABOUT_GITHUB_URL
         )
     );
     assert_eq!(
@@ -240,12 +240,12 @@ fn about_dialog_body_lines_include_repository_and_star_message() {
 #[gpui::test]
 async fn about_github_link_uses_gpui_url_opening(cx: &mut TestAppContext) {
     cx.update(|cx| {
-        crate::ui::views::editor_view::open_about_github_url(cx);
+        crate::ui::window::editor_view::open_about_github_url(cx);
     });
 
     assert_eq!(
         cx.opened_url(),
-        Some(crate::ui::views::editor_view::ABOUT_GITHUB_URL.to_string())
+        Some(crate::ui::window::editor_view::ABOUT_GITHUB_URL.to_string())
     );
 }
 

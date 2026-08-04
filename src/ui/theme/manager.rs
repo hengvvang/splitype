@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use gpui::{App, Global};
 
-use crate::services::storage::config_dirs::VelotypeConfigDirs;
-use crate::services::storage::jsonc::{read_json_or_jsonc, sanitize_config_file_stem};
+use crate::services::config::dirs::VelotypeConfigDirs;
+use crate::services::config::jsonc::{read_json_or_jsonc, sanitize_config_file_stem};
 
 use super::theme::{
     BUILTIN_THEME_VELOTYPE_ID, BUILTIN_THEME_VELOTYPE_LIGHT_ID, BUILTIN_THEME_VELOTYPE_LIGHT_NAME,
@@ -42,7 +42,7 @@ impl Default for ThemeManager {
 impl ThemeManager {
     /// Installs the configured theme into GPUI's global state.
     pub fn init(cx: &mut App) {
-        let theme_id = crate::services::storage::settings::read_app_settings()
+        let theme_id = crate::services::config::settings::read_app_settings()
             .map(|preferences| preferences.default_theme_id)
             .unwrap_or_else(|_| BUILTIN_THEME_VELOTYPE_ID.into());
         Self::init_with_theme_id(cx, &theme_id);
@@ -246,7 +246,7 @@ impl ThemeManager {
 #[cfg(test)]
 mod tests {
     use super::ThemeManager;
-    use crate::services::storage::config_dirs::VelotypeConfigDirs;
+    use crate::services::config::dirs::VelotypeConfigDirs;
     use crate::ui::theme::theme::Theme;
     use gpui::rgba;
 

@@ -7,7 +7,7 @@ use gpui::{Hsla, hsla, rgba};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::services::storage::jsonc::{
+use crate::services::config::jsonc::{
     merge_non_empty_json_values, object_without_empty_values, prune_empty_json_values,
     sanitize_config_file_stem,
 };

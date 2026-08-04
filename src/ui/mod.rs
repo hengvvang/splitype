@@ -1,6 +1,8 @@
+//! Presentation layer: window chrome, block rendering, inline elements,
+//! input handling, and theming.
+
 pub mod blocks;
-pub mod components;
 pub mod inline;
 pub mod input;
 pub mod theme;
-pub mod views;
+pub mod window;

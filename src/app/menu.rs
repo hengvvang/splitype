@@ -12,14 +12,15 @@ use gpui::*;
 use crate::editor::controller::{Editor, InfoDialogKind};
 use crate::services::export::ExportFormat;
 use crate::services::i18n::I18nManager;
-use crate::services::storage::recent_files::{
+use crate::services::config::recent::{
     read_recent_files, record_recent_file, remove_recent_file,
 };
-use crate::services::storage::settings::{
+use crate::services::config::settings::{
     apply_configured_language, apply_configured_theme, import_language_config_and_select,
-    import_theme_config_and_select, open_settings_window,
+    import_theme_config_and_select,
 };
-use crate::ui::components::titlebar::velotype_window_options;
+use crate::ui::window::settings::open_settings_window;
+use crate::ui::window::titlebar::velotype_window_options;
 use crate::ui::input::shortcuts::{
     AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
     InstallCliTool, NewWindow, NoRecentFiles, OpenFile, OpenRecentFile, OpenSettings,

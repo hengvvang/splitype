@@ -34,11 +34,11 @@ use crate::ui::theme::ThemeManager;
 
 fn open_startup_window(
     cx: &mut App,
-    startup_open: crate::services::storage::settings::StartupOpenSetting,
+    startup_open: crate::services::config::settings::StartupOpenSetting,
 ) {
-    if startup_open == crate::services::storage::settings::StartupOpenSetting::LastOpenedFile
+    if startup_open == crate::services::config::settings::StartupOpenSetting::LastOpenedFile
         && let Some(path) =
-            crate::services::storage::settings::first_existing_recent_markdown_file()
+            crate::services::config::settings::first_existing_recent_markdown_file()
     {
         match std::fs::read_to_string(&path) {
             Ok(markdown) => {
@@ -151,14 +151,14 @@ fn main() {
     }
 
     app.run(move |cx: &mut App| {
-        let settings = crate::services::storage::settings::load_or_create_app_settings()
+        let settings = crate::services::config::settings::load_or_create_app_settings()
             .unwrap_or_else(|err| {
                 eprintln!("failed to initialize app settings: {err}");
                 Default::default()
             });
         I18nManager::init_with_language_id(cx, &settings.default_language_id);
         ThemeManager::init_with_theme_id(cx, &settings.default_theme_id);
-        crate::services::storage::settings::EditorSettings::init(cx, settings.show_table_headers);
+        crate::services::config::settings::EditorSettings::init(cx, settings.show_table_headers);
         services::net::http_client::install_http_client(cx);
         init_editor(cx, &settings.keybindings);
         init_app_menu(cx);
@@ -210,7 +210,7 @@ fn main() {
             let markdown = match std::fs::read_to_string(&absolute_path) {
                 Ok(content) => {
                     if let Err(err) =
-                        crate::services::storage::recent_files::record_recent_file(&absolute_path)
+                        crate::services::config::recent::record_recent_file(&absolute_path)
                     {
                         eprintln!("failed to update recent file history: {err}");
                     }

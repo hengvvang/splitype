@@ -1,7 +1,11 @@
 pub mod block_actions;
+pub mod block_events;
 pub mod drop;
 pub mod ime;
 pub mod keyboard;
 pub mod mouse;
+pub mod navigation;
 pub mod paste;
+pub mod paste_img;
 pub mod shortcuts;
+pub mod typing;

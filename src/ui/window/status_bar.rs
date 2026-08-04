@@ -8,7 +8,7 @@ use crate::editor::EditorMode;
 use crate::editor::chrome::StatusBarState;
 use crate::editor::controller::Editor;
 use crate::services::i18n::I18nStrings;
-use crate::services::storage::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
+use crate::services::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
 use crate::ui::theme::Theme;
 use crate::editor::layout::{Axis, PaneKind};
 

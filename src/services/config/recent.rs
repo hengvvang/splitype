@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context as _, bail};
 
-use super::config_dirs::VelotypeConfigDirs;
+use super::dirs::VelotypeConfigDirs;
 
 pub(crate) const RECENT_FILES_LIMIT: usize = 20;
 

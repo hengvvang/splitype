@@ -3,7 +3,7 @@
 //! This module owns the pure workspace model: [`WorkspaceNodeKind`],
 //! [`WorkspaceNode`], [`WorkspaceSelection`], and [`Workspace`], plus the
 //! pure functions that scan directories and build outline trees.
-//! Rendering and editor interactions stay in `ui::views::workspace_view`.
+//! Rendering and editor interactions stay in `ui::window::workspace_view`.
 
 use std::collections::HashSet;
 use std::fs;
