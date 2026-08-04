@@ -15,7 +15,7 @@ use crate::model::syntax::math::parse_display_math_source;
 use crate::render::latex_render::{inline_math_font_size, render_latex_to_svg};
 use crate::render::mermaid_render::render_mermaid_to_svg;
 use crate::infra::net;
-use crate::ui::theme::{FontWeightDef, Theme};
+use crate::theme::{FontWeightDef, Theme};
 
 /// Builds a full HTML document with embedded CSS derived from the active theme.
 #[cfg_attr(not(test), allow(dead_code))]
@@ -1022,7 +1022,7 @@ mod tests {
         contains_tibetan_text, render_chromium_pdf_html_with_base_dir, render_html,
         render_html_with_base_dir,
     };
-    use crate::ui::theme::Theme;
+    use crate::theme::Theme;
     use std::fs;
     use uuid::Uuid;
 

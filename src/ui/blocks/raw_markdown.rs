@@ -4,7 +4,7 @@
 use gpui::*;
 
 use crate::editor::block::Block;
-use crate::ui::theme::Theme;
+use crate::theme::Theme;
 
 /// Render a raw Markdown fallback block (identical to paragraph rendering).
 pub(crate) fn render_raw_markdown(

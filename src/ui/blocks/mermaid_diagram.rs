@@ -5,7 +5,7 @@ use gpui::*;
 
 use crate::editor::block::Block;
 use crate::infra::i18n::I18nStrings;
-use crate::ui::theme::Theme;
+use crate::theme::Theme;
 
 /// Render a Mermaid diagram block.
 pub(crate) fn render_mermaid_diagram(

@@ -22,7 +22,7 @@ use crate::editor::controller::*;
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::ui::window::menu_bar::*;
 use crate::ui::window::titlebar::{custom_titlebar_height, render_custom_titlebar};
-use crate::ui::theme::{Theme, ThemeColors, ThemeDimensions, ThemeManager};
+use crate::theme::{Theme, ThemeColors, ThemeDimensions, ThemeManager};
 
 // ── Constants ────────────────────────────────────────────────────────────
 
@@ -1016,7 +1016,7 @@ mod tests {
     };
     use crate::ui::input::shortcuts::NoRecentFiles;
     use crate::ui::input::shortcuts::{AddLanguageConfig, AddThemeConfig};
-    use crate::ui::theme::Theme;
+    use crate::theme::Theme;
     use gpui::{OwnedMenu, OwnedMenuItem};
     use uuid::Uuid;
 

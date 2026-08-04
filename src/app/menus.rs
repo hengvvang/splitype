@@ -29,7 +29,7 @@ use crate::ui::input::shortcuts::{
     QuitApplication, SaveDocument, SaveDocumentAs, SelectLanguage, SelectTheme, ShowAbout,
     ToggleWorkspace, UninstallCliTool,
 };
-use crate::ui::theme::ThemeManager;
+use crate::theme::ThemeManager;
 use crate::ui::window::settings::open_settings_window;
 
 /// Global app-menu state for platform menu lifecycle hooks.
@@ -787,7 +787,7 @@ mod tests {
         NewWindow, NoRecentFiles, OpenFile, OpenPreferences as OpenSettings, OpenRecentFile,
         QuitApplication, SaveDocument, SelectLanguage, SelectTheme, ShowAbout,
     };
-    use crate::ui::theme::ThemeManager;
+    use crate::theme::ThemeManager;
     use gpui::MenuItem;
     use std::path::PathBuf;
 

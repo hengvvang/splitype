@@ -922,7 +922,7 @@ mod tests {
     use crate::ui::input::shortcuts::{Cut, Undo};
 use crate::editor::actions::UndoCaptureKind;
     use crate::infra::i18n::I18nManager;
-    use crate::ui::theme::ThemeManager;
+    use crate::theme::ThemeManager;
 
     fn init_editor_test_app(cx: &mut TestAppContext) {
         cx.update(|cx| {

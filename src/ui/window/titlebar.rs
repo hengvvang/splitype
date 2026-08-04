@@ -10,7 +10,7 @@ use gpui::{
 };
 
 use crate::platform::app_identity::VELOTYPE_APP_ID;
-use crate::ui::theme::{Theme, ThemeDimensions};
+use crate::theme::{Theme, ThemeDimensions};
 
 const TITLEBAR_MIN_HEIGHT: f32 = 32.0;
 const TITLEBAR_BUTTON_WIDTH: f32 = 46.0;

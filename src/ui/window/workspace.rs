@@ -11,7 +11,7 @@ use crate::editor::controller::Editor;
 use crate::editor::workspace::*;
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::ui::input::shortcuts::ToggleWorkspace;
-use crate::ui::theme::Theme;
+use crate::theme::Theme;
 
 impl Editor {
     pub(crate) fn toggle_workspace_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {

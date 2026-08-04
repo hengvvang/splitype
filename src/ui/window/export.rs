@@ -10,7 +10,7 @@ use gpui::*;
 use crate::editor::controller::Editor;
 use crate::render::export::{self as document_export, ExportFormat};
 use crate::infra::i18n::I18nManager;
-use crate::ui::theme::{Theme, ThemeManager};
+use crate::theme::{Theme, ThemeManager};
 
 
 impl Editor {

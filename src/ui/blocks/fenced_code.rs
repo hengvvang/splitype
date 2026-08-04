@@ -5,7 +5,7 @@ use gpui::*;
 
 use crate::editor::block::Block;
 use crate::infra::i18n::I18nStrings;
-use crate::ui::theme::Theme;
+use crate::theme::Theme;
 
 /// Render a fenced code block with optional toolbar and language picker.
 pub(crate) fn render_fenced_code(

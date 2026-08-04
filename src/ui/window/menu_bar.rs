@@ -14,7 +14,7 @@ use crate::ui::input::shortcuts::{
     AddLanguageConfig, AddThemeConfig, NoRecentFiles, SelectLanguage, SelectTheme,
 };
 
-use crate::ui::theme::{Theme, ThemeDimensions, ThemeManager};
+use crate::theme::{Theme, ThemeDimensions, ThemeManager};
 
 // ── Character width estimation ────────────────────────────────────────────
 

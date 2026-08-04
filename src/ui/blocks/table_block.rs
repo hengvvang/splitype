@@ -12,7 +12,7 @@ use crate::model::syntax::table::{TableAxisKind, TableAxisMarker, TableColumnLay
 use crate::editor::block::BlockEditMode;
 use crate::model::syntax::table::TableAxisHighlight;
 use crate::ui::blocks::render::effective_table_width;
-use crate::ui::theme::Theme;
+use crate::theme::Theme;
 
 /// Render a native table block.
 pub(crate) fn render_table(

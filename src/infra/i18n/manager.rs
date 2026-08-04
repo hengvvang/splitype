@@ -194,7 +194,7 @@ impl I18nManager {
 mod tests {
     use super::{I18nLanguagePack, I18nManager, I18nStrings, language_id_for_locale_settings};
     use crate::infra::config::dirs::VelotypeConfigDirs;
-    use crate::ui::theme::ThemeManager;
+    use crate::theme::ThemeManager;
 
     #[test]
     fn built_in_chinese_strings_are_utf8() {

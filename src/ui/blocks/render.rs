@@ -48,7 +48,7 @@ use crate::ui::blocks::{
     thematic_break::{render_thematic_break_focused, render_thematic_break_unfocused},
 };
 use crate::ui::inline::text_element::{BlockTextElement, CodeLanguageInputElement};
-use crate::ui::theme::{Theme, ThemeDimensions, ThemeManager};
+use crate::theme::{Theme, ThemeDimensions, ThemeManager};
 
 #[allow(dead_code)]
 const TASK_CHECKMARK: &str = "\u{2713}";
@@ -2666,7 +2666,7 @@ mod tests {
     use crate::model::syntax::table::{TableAxisKind, TableAxisMarker};
     use crate::infra::i18n::I18nManager;
     use crate::editor::block::Block;
-    use crate::ui::theme::{Theme, ThemeManager};
+    use crate::theme::{Theme, ThemeManager};
     use gpui::{Hsla, Rgba, TestAppContext, px};
 
     #[test]

@@ -16,7 +16,7 @@ use crate::ui::window::titlebar::{
 use crate::ui::input::shortcuts::{
     ShortcutCommand, install_keybindings, normalize_shortcut_config,
 };
-use crate::ui::theme::{ThemeCatalogEntry, ThemeManager};
+use crate::theme::{ThemeCatalogEntry, ThemeManager};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SettingsNav {

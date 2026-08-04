@@ -9,7 +9,7 @@ use gpui::Hsla;
 #[cfg(feature = "code-highlight-core")]
 use tree_sitter_highlight::{Highlight, HighlightConfiguration, HighlightEvent, Highlighter};
 
-use crate::ui::theme::ThemeColors;
+use crate::theme::ThemeColors;
 
 /// Canonical language key used by the syntax-highlighting registry.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

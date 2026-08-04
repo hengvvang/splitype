@@ -6,7 +6,7 @@
 
 use std::path::Path;
 
-use crate::ui::theme::Theme;
+use crate::theme::Theme;
 
 mod html;
 mod pdf;

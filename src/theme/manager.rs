@@ -247,7 +247,7 @@ impl ThemeManager {
 mod tests {
     use super::ThemeManager;
     use crate::infra::config::dirs::VelotypeConfigDirs;
-    use crate::ui::theme::theme::Theme;
+    use crate::theme::theme::Theme;
     use gpui::rgba;
 
     #[test]

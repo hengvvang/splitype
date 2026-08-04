@@ -10,7 +10,7 @@ use crate::editor::controller::{Editor, EditorMode, TableAxisSelection};
 use crate::model::syntax::table::{TableAxisKind, TableColumnAlignment, TableData};
 use crate::infra::i18n::I18nManager;
 use crate::ui::input::shortcuts::DismissTransientUi;
-use crate::ui::theme::Theme;
+use crate::theme::Theme;
 impl Editor {
     pub(crate) fn root_ancestor_entity_id(&self, entity_id: EntityId) -> EntityId {
         let mut current = entity_id;

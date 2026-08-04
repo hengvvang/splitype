@@ -9,7 +9,7 @@ use crate::editor::layout::{
     EditTabState, EditorPanel, PaneKind, SettingsTab, SplitTree, SplitterDragSession,
 };
 use crate::infra::i18n::I18nStrings;
-use crate::ui::theme::{Theme, ThemeManager};
+use crate::theme::{Theme, ThemeManager};
 use crate::ui::window::render::render_empty_panel_prompt;
 use crate::ui::window::switch::Switch;
 

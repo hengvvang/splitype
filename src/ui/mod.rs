@@ -4,5 +4,4 @@
 pub mod blocks;
 pub mod inline;
 pub mod input;
-pub mod theme;
 pub mod window;
