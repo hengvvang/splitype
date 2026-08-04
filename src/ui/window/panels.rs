@@ -1448,7 +1448,7 @@ impl Editor {
                     .layout
                     .get_or_create_edit_inner_layout(container_id)
                     .find_leaf_area(inner_id)
-                    .unwrap_or(crate::editor::layout::EditorPanel::Source);
+                    .unwrap_or(crate::editor::layout::EditorPanel::SourceCode);
                 Some(self.render_inner_area_dropdown_menu(
                     container_id,
                     inner_id,
@@ -1518,7 +1518,7 @@ impl Editor {
                     // Source — interactive source code editor.  Uses a cached
                     // block in source-document mode.  Edits sync to the shared
                     // document via the block's Changed event.
-                    EditorPanel::Source => {
+                    EditorPanel::SourceCode => {
                         if has_content {
                             self.refresh_source_panel_block(cx);
                             self.render_source_editor_panel(theme, cx)

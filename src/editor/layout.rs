@@ -59,8 +59,8 @@ impl PaneKind {
 /// which process it independently and render in their own tile.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditorPanel {
-    /// Raw Markdown text editor.
-    Source,
+    /// Raw Markdown source code editor.
+    SourceCode,
     /// Visual block editor (WYSIWYG rendered view).
     Wysiwyg,
     /// Read-only rendered Markdown preview.
@@ -72,7 +72,7 @@ pub enum EditorPanel {
 impl EditorPanel {
     pub fn name(&self) -> &'static str {
         match self {
-            Self::Source => "Source",
+            Self::SourceCode => "Source Code",
             Self::Wysiwyg => "Wysiwyg",
             Self::Preview => "Preview",
             Self::Outline => "Outline",
@@ -82,7 +82,7 @@ impl EditorPanel {
     #[allow(dead_code)]
     pub fn description(&self) -> &'static str {
         match self {
-            Self::Source => "Raw Markdown text editor",
+            Self::SourceCode => "Raw Markdown source code editor",
             Self::Wysiwyg => "Visual block editor (Rendered)",
             Self::Preview => "Read-only rendered Markdown preview",
             Self::Outline => "Document section headings outline",
@@ -91,7 +91,12 @@ impl EditorPanel {
 
     /// All inner Edit sub-panel types.
     pub fn all() -> &'static [EditorPanel] {
-        &[Self::Wysiwyg, Self::Preview, Self::Source, Self::Outline]
+        &[
+            Self::Wysiwyg,
+            Self::Preview,
+            Self::SourceCode,
+            Self::Outline,
+        ]
     }
 }
 
@@ -881,7 +886,7 @@ impl WindowLayout {
     // ------------------------------------------------------------------
 
     /// Get or create the inner layout for an Edit area.
-    /// New Edit areas default to a single `EditorPanel::Source` panel.
+    /// New Edit areas default to a single `EditorPanel::SourceCode` panel.
     #[allow(dead_code)]
     pub fn get_or_create_edit_inner_layout(
         &mut self,
@@ -895,7 +900,7 @@ impl WindowLayout {
                 *next_id += 1;
                 SplitTree::Leaf {
                     id: inner_id,
-                    area_type: EditorPanel::Source,
+                    area_type: EditorPanel::SourceCode,
                 }
             })
     }
@@ -911,7 +916,7 @@ impl WindowLayout {
         self.next_id += 1;
         let root = self.get_or_create_edit_inner_layout(container_id);
         // Inner splits always create a Source panel on the new side.
-        root.split_leaf_with_ratio(target_id, new_id, direction, 0.5, EditorPanel::Source);
+        root.split_leaf_with_ratio(target_id, new_id, direction, 0.5, EditorPanel::SourceCode);
     }
 
     #[allow(dead_code)]
@@ -954,7 +959,13 @@ impl WindowLayout {
         let new_id = self.next_id;
         self.next_id += 1;
         if let Some(root) = self.edit_inner_layouts.get_mut(&container_id) {
-            root.split_leaf_with_ratio(target_leaf_id, new_id, direction, ratio, EditorPanel::Source);
+            root.split_leaf_with_ratio(
+                target_leaf_id,
+                new_id,
+                direction,
+                ratio,
+                EditorPanel::SourceCode,
+            );
         }
     }
 
@@ -1719,7 +1730,7 @@ mod tests {
         let mut layout = WindowLayout::default();
         let inner = layout.get_or_create_edit_inner_layout(1);
         assert_eq!(inner.count_leaves(), 1);
-        assert_eq!(inner.find_leaf_area(1), Some(EditorPanel::Source));
+        assert_eq!(inner.find_leaf_area(1), Some(EditorPanel::SourceCode));
     }
 
     #[test]
