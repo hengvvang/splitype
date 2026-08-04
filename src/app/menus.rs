@@ -8,16 +8,21 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
+use crate::app::windows::{
+    open_editor_window, open_file_in_new_window, record_recent_file_and_refresh,
+};
 use crate::editor::controller::{Editor, InfoDialogKind};
-use crate::services::export::ExportFormat;
-use crate::services::i18n::I18nManager;
-use crate::app::windows::{open_editor_window, open_file_in_new_window, record_recent_file_and_refresh};
+#[cfg(target_os = "macos")]
+use crate::platform::cli_tool::{install_cli_tool, is_cli_symlink_current_app, uninstall_cli_tool};
+#[cfg(not(target_os = "macos"))]
+use crate::platform::cli_tool::{install_cli_tool, uninstall_cli_tool};
 use crate::services::config::recent::{read_recent_files, remove_recent_file};
 use crate::services::config::settings::{
     apply_configured_language, apply_configured_theme, import_language_config_and_select,
     import_theme_config_and_select,
 };
-use crate::ui::window::settings::open_settings_window;
+use crate::services::export::ExportFormat;
+use crate::services::i18n::I18nManager;
 use crate::ui::input::shortcuts::{
     AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
     InstallCliTool, NewWindow, NoRecentFiles, OpenFile, OpenRecentFile, OpenSettings,
@@ -25,6 +30,7 @@ use crate::ui::input::shortcuts::{
     ToggleWorkspace, UninstallCliTool,
 };
 use crate::ui::theme::ThemeManager;
+use crate::ui::window::settings::open_settings_window;
 
 /// Global app-menu state for platform menu lifecycle hooks.
 #[derive(Default)]
@@ -33,217 +39,6 @@ pub(crate) struct AppMenuState {
 }
 
 impl Global for AppMenuState {}
-
-/// one level of canonicalization) to the currently running executable.
-fn is_cli_symlink_current_app() -> bool {
-    let link = std::path::Path::new("/usr/local/bin/velotype");
-    let Ok(target) = std::fs::read_link(link) else {
-        return false; // does not exist or not a symlink
-    };
-    let resolved = if target.is_absolute() {
-        // Canonicalize the target itself (may fail if dangling).
-        std::fs::canonicalize(&target).unwrap_or(target)
-    } else {
-        // Relative — resolve from symlink's parent directory.
-        link.parent()
-            .unwrap_or(std::path::Path::new("/"))
-            .join(&target)
-            .canonicalize()
-            .unwrap_or(target)
-    };
-    match std::env::current_exe() {
-        Ok(exe) => resolved == exe,
-        Err(_) => false,
-    }
-}
-
-#[cfg(any(target_os = "macos", test))]
-fn applescript_string_literal(value: &str) -> String {
-    let mut escaped = String::with_capacity(value.len() + 2);
-    escaped.push('"');
-    for ch in value.chars() {
-        match ch {
-            '\\' => escaped.push_str("\\\\"),
-            '"' => escaped.push_str("\\\""),
-            '\n' => escaped.push_str("\\n"),
-            '\r' => escaped.push_str("\\r"),
-            _ => escaped.push(ch),
-        }
-    }
-    escaped.push('"');
-    escaped
-}
-
-#[cfg(target_os = "macos")]
-pub(crate) fn install_cli_tool(cx: &mut App) {
-    use std::process::Command;
-
-    let bin_link = "/usr/local/bin/velotype";
-    let strings = cx.global::<I18nManager>().strings();
-
-    let current_exe = match std::env::current_exe() {
-        Ok(path) => path,
-        Err(err) => {
-            show_install_cli_error(cx, &format!("Failed to get executable path: {err}"));
-            return;
-        }
-    };
-
-    // Only allow from a portable .app bundle (e.g. drag-installed to /Applications)
-    if !current_exe
-        .to_string_lossy()
-        .contains(".app/Contents/MacOS/")
-    {
-        show_install_cli_error(
-            cx,
-            "Command-line tool installation requires running from an .app bundle.\n\n\
-             If the app was installed via the `.pkg` installer,\n\
-             the CLI command is configured automatically.",
-        );
-        return;
-    }
-
-    let exe_path = applescript_string_literal(&current_exe.to_string_lossy());
-    let link_path = applescript_string_literal(bin_link);
-    let script = format!(
-        r#"set exePath to {exe_path}
-set linkPath to {link_path}
-do shell script "rm -f " & quoted form of linkPath & linefeed & "ln -s " & quoted form of exePath & space & quoted form of linkPath with administrator privileges"#
-    );
-
-    match Command::new("osascript").arg("-e").arg(&script).output() {
-        Ok(output) => {
-            if output.status.success() {
-                let title = "CLI Command Installed";
-                let detail = format!(
-                    "Successfully installed! You can now use 'velotype' from the terminal:\n\n\
-                     \x1b[1mvelotype README.md\x1b[0m\n\
-                     \x1b[1mvelotype file1.md file2.md\x1b[0m\n\n\
-                     Location: {bin_link}\n\n\
-                     Note: If you move or delete Velotype.app,\n\
-                     the 'velotype' command will stop working\n\
-                     automatically (no cleanup needed)."
-                );
-                if let Some(window) = cx.active_window() {
-                    let ok = strings.info_dialog_ok.clone();
-                    let _ = window.update(cx, |_view, window, cx| {
-                        let _ = window.prompt(
-                            PromptLevel::Info,
-                            &title,
-                            Some(&detail),
-                            &[ok.as_str()],
-                            cx,
-                        );
-                    });
-                }
-            } else {
-                // User pressed Cancel on the admin password dialog
-                // or the link creation failed for another reason.
-                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-                let detail = if stderr.contains("User canceled") || stderr.contains("(-128)") {
-                    "Installation cancelled.".to_string()
-                } else {
-                    format!("Installation failed: {stderr}")
-                };
-                show_install_cli_error(cx, &detail);
-            }
-        }
-        Err(err) => {
-            show_install_cli_error(cx, &format!("Failed to run installer: {err}"));
-        }
-    }
-    // Refresh menus so the label changes between Install -> Uninstall.
-    install_menus(cx);
-}
-
-#[cfg(target_os = "macos")]
-pub(crate) fn uninstall_cli_tool(cx: &mut App) {
-    use std::process::Command;
-
-    let bin_link = "/usr/local/bin/velotype";
-    let strings = cx.global::<I18nManager>().strings();
-
-    if !is_cli_symlink_current_app() {
-        show_install_cli_error(cx, "CLI command is not installed for this app.");
-        return;
-    }
-
-    let link_path = applescript_string_literal(bin_link);
-    let script = format!(
-        r#"set linkPath to {link_path}
-do shell script "rm -f " & quoted form of linkPath with administrator privileges"#
-    );
-
-    match Command::new("osascript").arg("-e").arg(&script).output() {
-        Ok(output) => {
-            if output.status.success() {
-                let title = "CLI Command Uninstalled";
-                let detail = "CLI command has been removed successfully.".to_string();
-                if let Some(window) = cx.active_window() {
-                    let ok = strings.info_dialog_ok.clone();
-                    let _ = window.update(cx, |_view, window, cx| {
-                        let _ = window.prompt(
-                            PromptLevel::Info,
-                            &title,
-                            Some(&detail),
-                            &[ok.as_str()],
-                            cx,
-                        );
-                    });
-                }
-            } else {
-                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-                let detail = if stderr.contains("User canceled") || stderr.contains("(-128)") {
-                    "Uninstall cancelled.".to_string()
-                } else {
-                    format!("Uninstall failed: {stderr}")
-                };
-                show_install_cli_error(cx, &detail);
-            }
-        }
-        Err(err) => {
-            show_install_cli_error(cx, &format!("Failed to run uninstaller: {err}"));
-        }
-    }
-    // Refresh menus so the label changes between Install -> Uninstall.
-    install_menus(cx);
-}
-
-#[cfg(not(target_os = "macos"))]
-pub(crate) fn install_cli_tool(cx: &mut App) {
-    show_install_cli_error(
-        cx,
-        "Command-line tool installation is only available on macOS.",
-    );
-}
-
-#[cfg(not(target_os = "macos"))]
-pub(crate) fn uninstall_cli_tool(cx: &mut App) {
-    show_install_cli_error(
-        cx,
-        "Command-line tool uninstallation is only available on macOS.",
-    );
-}
-
-fn show_install_cli_error(cx: &mut App, detail: &str) {
-    let strings = cx.global::<I18nManager>().strings();
-    let title = "Install Command-Line Tool Failed";
-
-    if let Some(window) = cx.active_window() {
-        let ok = strings.info_dialog_ok.clone();
-        let _ = window.update(cx, |_view, window, cx| {
-            let _ = window.prompt(
-                PromptLevel::Critical,
-                title,
-                Some(detail),
-                &[ok.as_str()],
-                cx,
-            );
-        });
-    } else {
-        eprintln!("{title}: {detail}");
-    }
-}
 
 pub(crate) fn record_recent_file_from_editor(path: &Path, cx: &mut App) {
     record_recent_file_and_refresh(path, cx);
@@ -501,8 +296,10 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
         show_info_dialog_on_active_editor(cx, InfoDialogKind::About);
     } else if action.as_any().is::<InstallCliTool>() {
         install_cli_tool(cx);
+        install_menus(cx);
     } else if action.as_any().is::<UninstallCliTool>() {
         uninstall_cli_tool(cx);
+        install_menus(cx);
     } else if action.as_any().is::<ToggleWorkspace>() {
         let _ = with_active_editor(cx, |editor, window, cx| {
             editor.toggle_workspace_drawer(window, cx);
@@ -574,8 +371,10 @@ pub(crate) fn dispatch_menu_action_for_editor(
         });
     } else if action.as_any().is::<InstallCliTool>() {
         install_cli_tool(cx);
+        install_menus(cx);
     } else if action.as_any().is::<UninstallCliTool>() {
         uninstall_cli_tool(cx);
+        install_menus(cx);
     } else if action.as_any().is::<ToggleWorkspace>() {
         let _ = target.update(cx, |editor, cx| {
             editor.toggle_workspace_drawer(window, cx);
@@ -980,9 +779,14 @@ pub(crate) fn init(cx: &mut App) {
 
 #[cfg(test)]
 mod tests {
-    use super::{applescript_string_literal, build_menus};
-    use crate::ui::input::shortcuts::{AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf, NewWindow, NoRecentFiles, OpenFile, OpenPreferences as OpenSettings, OpenRecentFile, QuitApplication, SaveDocument, SelectLanguage, SelectTheme, ShowAbout};
+    use super::build_menus;
+    use crate::platform::cli_tool::applescript_string_literal;
     use crate::services::i18n::I18nManager;
+    use crate::ui::input::shortcuts::{
+        AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
+        NewWindow, NoRecentFiles, OpenFile, OpenPreferences as OpenSettings, OpenRecentFile,
+        QuitApplication, SaveDocument, SelectLanguage, SelectTheme, ShowAbout,
+    };
     use crate::ui::theme::ThemeManager;
     use gpui::MenuItem;
     use std::path::PathBuf;

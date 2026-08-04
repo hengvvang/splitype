@@ -267,7 +267,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        crate::app::menus::install_cli_tool(cx);
+        crate::platform::cli_tool::install_cli_tool(cx);
     }
 
     pub(crate) fn on_uninstall_cli_tool(
@@ -276,7 +276,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        crate::app::menus::uninstall_cli_tool(cx);
+        crate::platform::cli_tool::uninstall_cli_tool(cx);
     }
 
     #[allow(dead_code)]
