@@ -10,8 +10,8 @@ use crate::editor::window::layout::{
 };
 use crate::infra::i18n::I18nStrings;
 use crate::theme::{Theme, ThemeManager};
-use crate::ui::window::render::render_empty_panel_prompt;
-use crate::ui::window::switch::Switch;
+use crate::windows::editor::render_empty_panel_prompt;
+use crate::ui::components::switch::Switch;
 
 impl Editor {
     pub(crate) fn render_tiled_layout(

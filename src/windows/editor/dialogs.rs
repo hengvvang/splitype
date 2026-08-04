@@ -4,7 +4,7 @@ use gpui::*;
 
 use crate::editor::controller::{Editor, InfoDialogKind};
 use crate::infra::i18n::{I18nManager, I18nStrings};
-use crate::ui::window::render::{ABOUT_GITHUB_URL, open_about_github_url};
+use crate::windows::editor::{ABOUT_GITHUB_URL, open_about_github_url};
 use crate::theme::Theme;
 
 

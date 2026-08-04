@@ -30,7 +30,7 @@ use crate::editor::editing::input::shortcuts::{
     ToggleWorkspace, UninstallCliTool,
 };
 use crate::theme::ThemeManager;
-use crate::ui::window::settings::open_settings_window;
+use crate::windows::settings::open_settings_window;
 
 /// Global app-menu state for platform menu lifecycle hooks.
 #[derive(Default)]

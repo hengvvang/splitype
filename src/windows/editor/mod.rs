@@ -1,7 +1,4 @@
-//! Editor view — `Editor::render`, all dialog/menu/scrollbar rendering,
-//! tiled layout, settings panel, and export helpers.
-//!
-//! Migrated from `crate::editor::render`.
+//! Editor window rendering — `Editor::render`, chrome, and panel views.
 //!
 //! # Render phases
 //! 1. **Pre-frame bookkeeping** — pending focus, scroll-into-view,
@@ -14,15 +11,25 @@
 //! 6. **Chrome** — titlebar, tiled sidebar, menu panel, context menu,
 //!    table-insert dialog, info/drop/unsaved overlays.
 
+pub(crate) mod context_menu;
+pub(crate) mod dialog;
+pub(crate) mod dialogs;
+pub(crate) mod export;
+pub(crate) mod menu_bar;
+pub(crate) mod panels;
+pub(crate) mod status_bar;
+pub(crate) mod titlebar;
+pub(crate) mod workspace;
+
 use std::time::{Duration, Instant};
 
 use gpui::*;
 
 use crate::editor::controller::*;
 use crate::infra::i18n::{I18nManager, I18nStrings};
-use crate::ui::window::menu_bar::*;
-use crate::ui::window::titlebar::{custom_titlebar_height, render_custom_titlebar};
 use crate::theme::{Theme, ThemeColors, ThemeDimensions, ThemeManager};
+use crate::windows::editor::menu_bar::*;
+use crate::windows::editor::titlebar::{custom_titlebar_height, render_custom_titlebar};
 
 // ── Constants ────────────────────────────────────────────────────────────
 
@@ -202,7 +209,6 @@ pub fn render_empty_panel_prompt(colors: &ThemeColors, message: &str) -> AnyElem
 
 // ── Export methods ────────────────────────────────────────────────────────
 
-
 impl Editor {
     fn on_titlebar_close(
         &mut self,
@@ -311,12 +317,13 @@ impl Editor {
     /// when called from within `render`, so without this the retry would wait
     /// for the next external notify (e.g. the cursor blink, ~0.5s later).
     fn schedule_scroll_recheck(&mut self, cx: &mut Context<Self>) {
-        self.scroll.scroll_recheck_task = Some(cx.spawn(async move |this: WeakEntity<Self>, cx| {
-            cx.background_executor()
-                .timer(Duration::from_millis(16))
-                .await;
-            let _ = this.update(cx, |_this, cx| cx.notify());
-        }));
+        self.scroll.scroll_recheck_task =
+            Some(cx.spawn(async move |this: WeakEntity<Self>, cx| {
+                cx.background_executor()
+                    .timer(Duration::from_millis(16))
+                    .await;
+                let _ = this.update(cx, |_this, cx| cx.notify());
+            }));
     }
 
     fn sync_pending_save(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -692,7 +699,8 @@ impl Render for Editor {
                 .zip(&self.scroll.prev_visible_block_ids)
                 .any(|(visible, prev)| visible.entity.entity_id() != *prev);
         if structural_change {
-            self.scroll.prev_visible_block_ids = blocks.iter().map(|v| v.entity.entity_id()).collect();
+            self.scroll.prev_visible_block_ids =
+                blocks.iter().map(|v| v.entity.entity_id()).collect();
         }
 
         // Rows mounted together last frame shared one scroll offset, so their
@@ -705,7 +713,9 @@ impl Render for Editor {
                     if let (Some(top), Some(next_top)) = (row_tops[row], row_tops[row + 1]) {
                         let stride = next_top - top;
                         if stride > 0.0 && stride.is_finite() {
-                            self.scroll.row_stride_cache.insert(row_first_ids[row], stride);
+                            self.scroll
+                                .row_stride_cache
+                                .insert(row_first_ids[row], stride);
                         }
                     }
                 }
@@ -717,13 +727,21 @@ impl Render for Editor {
         let estimate = d.block_min_height.max(1.0);
         let strides: Vec<f32> = row_first_ids
             .iter()
-            .map(|id| self.scroll.row_stride_cache.get(id).copied().unwrap_or(estimate))
+            .map(|id| {
+                self.scroll
+                    .row_stride_cache
+                    .get(id)
+                    .copied()
+                    .unwrap_or(estimate)
+            })
             .collect();
 
         // Bound the cache against block churn, only when it outgrows the live rows.
         if self.scroll.row_stride_cache.len() > row_first_ids.len().saturating_mul(2) {
             let live: std::collections::HashSet<EntityId> = row_first_ids.iter().copied().collect();
-            self.scroll.row_stride_cache.retain(|id, _| live.contains(id));
+            self.scroll
+                .row_stride_cache
+                .retain(|id, _| live.contains(id));
         }
 
         let render_window = Self::rendered_window(
@@ -936,8 +954,7 @@ impl Render for Editor {
             .as_ref()
             .map(|m| m.iter().map(|menu| menu.name.clone()).collect())
             .unwrap_or_default();
-        let window_title =
-            Self::window_title(self.file.path.as_deref(), self.file.dirty, &strings);
+        let window_title = Self::window_title(self.file.path.as_deref(), self.file.dirty, &strings);
         let inline_menu =
             self.render_inline_titlebar_menu(&theme, cx, menus.as_deref(), &menu_labels);
         let base = if let Some(titlebar) = render_custom_titlebar(
@@ -1008,15 +1025,15 @@ mod tests {
         RenderedRowSpacingInfo, callout_row_top_gap, editor_text_font, rendered_row_top_gap,
         tibetan_font_fallbacks_for_target_os,
     };
-    use crate::ui::window::menu_bar::{
+    use crate::editor::editing::input::shortcuts::NoRecentFiles;
+    use crate::editor::editing::input::shortcuts::{AddLanguageConfig, AddThemeConfig};
+    use crate::theme::Theme;
+    use crate::windows::editor::menu_bar::{
         import_menu_split_index, in_window_menu_bar_height_for_target_os, menu_bar_button_width,
         menu_items_visual_height_with_gaps, menu_panel_left, menu_panel_width_for_labels,
         owned_menu_item_labels, scrollable_import_menu_scroll_height, submenu_bridge_geometry,
         supports_in_window_menu_for_target_os,
     };
-    use crate::editor::editing::input::shortcuts::NoRecentFiles;
-    use crate::editor::editing::input::shortcuts::{AddLanguageConfig, AddThemeConfig};
-    use crate::theme::Theme;
     use gpui::{OwnedMenu, OwnedMenuItem};
     use uuid::Uuid;
 

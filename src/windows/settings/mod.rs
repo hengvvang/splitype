@@ -9,8 +9,8 @@ use crate::infra::config::settings::{
     apply_configured_language, read_app_settings, save_settings_from_window, DEFAULT_THEME_ID,
 };
 use crate::infra::i18n::manager::I18nManager;
-use crate::ui::window::switch::Switch;
-use crate::ui::window::titlebar::{
+use crate::ui::components::switch::Switch;
+use crate::windows::editor::titlebar::{
     custom_titlebar_height, render_custom_titlebar, velotype_window_options,
 };
 use crate::editor::editing::input::shortcuts::{

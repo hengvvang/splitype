@@ -14,6 +14,7 @@ mod platform;
 mod render;
 mod theme;
 mod ui;
+mod windows;
 
 fn main() {
     let args = app::cli::parse();

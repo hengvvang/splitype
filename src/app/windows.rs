@@ -8,7 +8,7 @@ use gpui::*;
 use crate::app::menus::install_menus;
 use crate::editor::controller::Editor;
 use crate::infra::config::recent::record_recent_file;
-use crate::ui::window::titlebar::velotype_window_options;
+use crate::windows::editor::titlebar::velotype_window_options;
 
 fn window_title(file_path: Option<&Path>) -> SharedString {
     if let Some(path) = file_path {
