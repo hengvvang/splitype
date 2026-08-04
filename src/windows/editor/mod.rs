@@ -16,10 +16,11 @@ pub(crate) mod dialog;
 pub(crate) mod dialogs;
 pub(crate) mod export;
 pub(crate) mod menu_bar;
-pub(crate) mod panels;
+pub(crate) mod outline;
+pub(crate) mod preview;
+pub(crate) mod source_code;
 pub(crate) mod status_bar;
 pub(crate) mod titlebar;
-pub(crate) mod workspace;
 
 use std::time::{Duration, Instant};
 

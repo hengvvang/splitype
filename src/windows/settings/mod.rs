@@ -1,22 +1,25 @@
-//! Independent settings window view.
+//! Settings — the standalone settings window and the in-editor settings
+//! panel.
+
+pub(crate) mod panels;
 
 use std::collections::BTreeMap;
 
 use gpui::*;
 
+use crate::editor::editing::input::shortcuts::{
+    ShortcutCommand, install_keybindings, normalize_shortcut_config,
+};
 use crate::infra::config::settings::{
-    AppSettings, EditorSettings, ImagePasteBehavior, StartupOpenSetting, StatusBarSettings,
-    apply_configured_language, read_app_settings, save_settings_from_window, DEFAULT_THEME_ID,
+    AppSettings, DEFAULT_THEME_ID, EditorSettings, ImagePasteBehavior, StartupOpenSetting,
+    StatusBarSettings, apply_configured_language, read_app_settings, save_settings_from_window,
 };
 use crate::infra::i18n::manager::I18nManager;
+use crate::theme::{ThemeCatalogEntry, ThemeManager};
 use crate::ui::components::switch::Switch;
 use crate::windows::editor::titlebar::{
     custom_titlebar_height, render_custom_titlebar, velotype_window_options,
 };
-use crate::editor::editing::input::shortcuts::{
-    ShortcutCommand, install_keybindings, normalize_shortcut_config,
-};
-use crate::theme::{ThemeCatalogEntry, ThemeManager};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SettingsNav {

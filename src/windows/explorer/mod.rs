@@ -1,7 +1,4 @@
-//! Workspace sidebar rendering and editor interactions.
-//!
-//! Rendering methods call into the workspace model defined in
-//! `crate::editor::workspace`.
+//! Explorer — file-tree sidebar with create/rename/delete actions.
 
 use std::path::{Path, PathBuf};
 
@@ -9,7 +6,6 @@ use gpui::*;
 
 use crate::editor::controller::Editor;
 use crate::editor::editing::input::shortcuts::ToggleWorkspace;
-use crate::editor::views::outline::{build_outline_tree, prune_outline_state};
 use crate::editor::window::workspace::*;
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::theme::Theme;
@@ -27,7 +23,6 @@ impl Editor {
         }
         cx.notify();
     }
-
     pub(crate) fn on_toggle_workspace_action(
         &mut self,
         _: &ToggleWorkspace,
@@ -36,7 +31,6 @@ impl Editor {
     ) {
         self.toggle_workspace_drawer(window, cx);
     }
-
     pub(crate) fn sync_workspace_after_document_path_change(&mut self, cx: &mut Context<Self>) {
         if self.panels.workspace.root.is_none() {
             self.panels.workspace.root = self.workspace_root_for_current_file();
@@ -48,16 +42,13 @@ impl Editor {
             self.sync_workspace_models(cx);
         }
     }
-
     pub(crate) fn sync_workspace_models(&mut self, cx: &mut Context<Self>) {
         self.sync_workspace_file_tree();
         self.sync_workspace_outline(cx);
     }
-
     pub(crate) fn workspace_root_for_current_file(&self) -> Option<PathBuf> {
         self.file.path.as_ref()?.parent().map(Path::to_path_buf)
     }
-
     pub(crate) fn prompt_open_workspace_folder(
         &mut self,
         _window: &mut Window,
@@ -101,7 +92,6 @@ impl Editor {
         })
         .detach();
     }
-
     pub(crate) fn create_new_file_in_workspace(
         &mut self,
         parent_dir: Option<PathBuf>,
@@ -153,7 +143,6 @@ impl Editor {
             }
         });
     }
-
     pub(crate) fn create_new_folder_in_workspace(
         &mut self,
         parent_dir: Option<PathBuf>,
@@ -181,7 +170,6 @@ impl Editor {
             }
         });
     }
-
     pub(crate) fn collapse_all_workspace_nodes(&mut self, cx: &mut Context<Self>) {
         self.panels.workspace.expanded.clear();
         if let Some(root) = &self.panels.workspace.file_tree {
@@ -189,7 +177,6 @@ impl Editor {
         }
         cx.notify();
     }
-
     pub(crate) fn refresh_workspace_tree(&mut self, cx: &mut Context<Self>) {
         self.panels.workspace.file_tree = None;
         self.sync_workspace_models(cx);
@@ -265,7 +252,6 @@ impl Editor {
             }
         });
     }
-
     pub(crate) fn start_inline_create_file(&mut self, parent: PathBuf, cx: &mut Context<Self>) {
         let default_name = "untitled.md";
         let target_path = parent.join(default_name);
@@ -274,7 +260,6 @@ impl Editor {
             self.panels.workspace.selected = Some(WorkspaceSelection::File(target_path));
         }
     }
-
     pub(crate) fn start_inline_create_folder(&mut self, parent: PathBuf, cx: &mut Context<Self>) {
         let default_name = "new_folder";
         let target_path = parent.join(default_name);
@@ -282,9 +267,7 @@ impl Editor {
             self.refresh_workspace_tree(cx);
         }
     }
-
     pub(crate) fn start_inline_rename(&mut self, _target: PathBuf, _cx: &mut Context<Self>) {}
-
     pub(crate) fn delete_workspace_entry(&mut self, path: PathBuf, cx: &mut Context<Self>) {
         if path.is_dir() {
             let _ = std::fs::remove_dir_all(&path);
@@ -293,13 +276,11 @@ impl Editor {
         }
         self.refresh_workspace_tree(cx);
     }
-
     pub(crate) fn copy_path_to_clipboard(&self, path: &Path, cx: &mut Context<Self>) {
         cx.write_to_clipboard(ClipboardItem::new_string(
             path.to_string_lossy().to_string(),
         ));
     }
-
     pub(crate) fn sync_workspace_file_tree(&mut self) {
         if self.panels.workspace.root.is_none() {
             self.panels.workspace.root = self.workspace_root_for_current_file();
@@ -332,31 +313,12 @@ impl Editor {
             }
         }
     }
-
-    pub(crate) fn sync_workspace_outline(&mut self, cx: &mut Context<Self>) {
-        let source = self.serialized_document_text(cx);
-        if self.panels.workspace.outline_source.as_deref() == Some(source.as_str()) {
-            return;
-        }
-
-        let outline = build_outline_tree(&source);
-        prune_outline_state(&mut self.panels.workspace, &outline);
-        self.panels.workspace.outline_tree = outline;
-        self.panels.workspace.outline_source = Some(source);
-    }
-
     pub(crate) fn toggle_workspace_node(&mut self, id: &str, cx: &mut Context<Self>) {
         if !self.panels.workspace.expanded.remove(id) {
             self.panels.workspace.expanded.insert(id.to_string());
         }
         cx.notify();
     }
-
-    pub(crate) fn select_outline_node(&mut self, id: String, cx: &mut Context<Self>) {
-        self.panels.workspace.selected = Some(WorkspaceSelection::Outline(id));
-        cx.notify();
-    }
-
     pub(crate) fn open_workspace_file(
         &mut self,
         path: PathBuf,
@@ -366,7 +328,6 @@ impl Editor {
         self.panels.workspace.selected = Some(WorkspaceSelection::File(path.clone()));
         self.request_dropped_markdown_replace(path, window, cx);
     }
-
     pub(crate) fn render_workspace_files_tree(
         &self,
         theme: &Theme,
@@ -577,35 +538,6 @@ impl Editor {
             .child(tree_nodes)
             .into_any_element()
     }
-
-    pub(crate) fn render_workspace_outline_tree(
-        &self,
-        theme: &Theme,
-        strings: &I18nStrings,
-        editor: &WeakEntity<Editor>,
-    ) -> AnyElement {
-        if self.panels.workspace.outline_tree.is_empty() {
-            return self.render_workspace_empty_state(
-                "",
-                &strings.workspace_empty_outline,
-                theme,
-                editor,
-            );
-        }
-
-        div()
-            .w_full()
-            .flex()
-            .flex_col()
-            .children(self.render_workspace_nodes(
-                &self.panels.workspace.outline_tree,
-                0,
-                theme,
-                editor,
-            ))
-            .into_any_element()
-    }
-
     pub(crate) fn render_workspace_empty_state(
         &self,
         title: &str,
@@ -699,7 +631,6 @@ impl Editor {
             )
             .into_any_element()
     }
-
     pub(crate) fn render_workspace_nodes(
         &self,
         nodes: &[WorkspaceNode],
@@ -721,7 +652,6 @@ impl Editor {
         }
         elements
     }
-
     pub(crate) fn render_workspace_node(
         &self,
         node: &WorkspaceNode,
@@ -900,5 +830,15 @@ impl Editor {
                 });
             })
             .into_any_element()
+    }
+    pub(crate) fn render_tiled_workspace_files_panel(
+        &mut self,
+        theme: &Theme,
+        strings: &I18nStrings,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        self.sync_workspace_models(cx);
+        let editor = cx.entity().downgrade();
+        self.render_workspace_files_tree(theme, strings, &editor)
     }
 }

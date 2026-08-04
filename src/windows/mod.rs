@@ -5,4 +5,6 @@
 //! tiled layout that splits and rearranges these views lives in `layout`.
 
 pub(crate) mod editor;
+pub(crate) mod explorer;
+pub(crate) mod layout;
 pub(crate) mod settings;
