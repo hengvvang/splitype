@@ -610,7 +610,7 @@ impl Editor {
                 self.rebuild_table_runtimes(cx);
                 self.rebuild_image_runtimes(cx);
             }
-            EditorMode::Source => {
+            EditorMode::SourceCode => {
                 let block = Self::new_block(
                     cx,
                     crate::model::block::BlockData::paragraph(source.clone()),

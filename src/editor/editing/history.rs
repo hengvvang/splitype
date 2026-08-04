@@ -25,7 +25,7 @@ impl Editor {
             return snapshot;
         }
 
-        if self.mode == EditorMode::Source {
+        if self.mode == EditorMode::SourceCode {
             return self
                 .document
                 .first_root()
@@ -152,7 +152,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         match self.mode {
-            EditorMode::Source => {
+            EditorMode::SourceCode => {
                 let Some(block) = self.document.first_root().cloned() else {
                     return;
                 };
@@ -291,7 +291,7 @@ impl Editor {
                 self.rebuild_table_runtimes(cx);
                 self.rebuild_image_runtimes(cx);
             }
-            EditorMode::Source => {
+            EditorMode::SourceCode => {
                 let block = Self::new_block(cx, BlockData::paragraph(entry.source_text.clone()));
                 block.update(cx, |block, _cx| block.set_source_document_mode());
                 self.document.replace_blocks(vec![block], cx);

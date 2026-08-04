@@ -1776,7 +1776,7 @@ mod tests {
             editor.toggle_view_mode(cx);
             assert!(matches!(
                 editor.mode,
-                crate::editor::controller::EditorMode::Source
+                crate::editor::controller::EditorMode::SourceCode
             ));
             editor.toggle_view_mode(cx);
             assert!(matches!(
@@ -1941,7 +1941,7 @@ mod tests {
             editor.toggle_view_mode(cx);
             assert!(matches!(
                 editor.mode,
-                crate::editor::controller::EditorMode::Source
+                crate::editor::controller::EditorMode::SourceCode
             ));
             editor.toggle_view_mode(cx);
             assert!(matches!(

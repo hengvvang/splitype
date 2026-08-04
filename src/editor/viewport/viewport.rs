@@ -297,10 +297,10 @@ impl Editor {
                 let block = Self::new_block(cx, BlockData::paragraph(markdown));
                 block.update(cx, |block, _cx| block.set_source_document_mode());
                 self.document.replace_blocks(vec![block], cx);
-                self.mode = EditorMode::Source;
+                self.mode = EditorMode::SourceCode;
                 self.tables.cells.clear();
             }
-            EditorMode::Source => {
+            EditorMode::SourceCode => {
                 let source = self.document.to_raw_source(cx);
                 let mut roots = Self::parse_document(cx, &source);
                 if roots.is_empty() {

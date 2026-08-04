@@ -9,7 +9,7 @@ impl Editor {
     pub(crate) fn current_document_source(&self, cx: &App) -> String {
         match self.mode {
             EditorMode::Wysiwyg => self.document.to_markdown(cx),
-            EditorMode::Source => self.document.to_raw_source(cx),
+            EditorMode::SourceCode => self.document.to_raw_source(cx),
         }
     }
 

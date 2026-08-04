@@ -17,13 +17,13 @@ pub(crate) use gpui::*;
 
 pub(crate) use crate::editor::actions::UndoCaptureKind;
 pub(crate) use crate::editor::tree::block::Block;
-pub(crate) use crate::editor::window::chrome::WindowChrome;
 pub(crate) use crate::editor::tree::document::Document;
 pub(crate) use crate::editor::tree::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
-pub(crate) use crate::editor::window::panels::WindowPanels;
 pub(crate) use crate::editor::views::{PreviewState, SourcePanelState};
+pub(crate) use crate::editor::window::chrome::WindowChrome;
+pub(crate) use crate::editor::window::panels::WindowPanels;
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::model::inline::text::RichText;
 pub(crate) use crate::model::syntax::image::{
@@ -286,7 +286,7 @@ pub enum EditorMode {
     Wysiwyg,
     /// Plain source view where the full Markdown document is edited as a
     /// single raw buffer.
-    Source,
+    SourceCode,
 }
 
 /// The informational dialogs that can be shown from the Help menu.

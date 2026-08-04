@@ -159,7 +159,7 @@ pub fn render_mode_switch(
     let d = &theme.dimensions;
 
     let label = match view_mode {
-        EditorMode::Source => strings.status_bar_mode_rendered.clone(),
+        EditorMode::SourceCode => strings.status_bar_mode_rendered.clone(),
         EditorMode::Wysiwyg => strings.status_bar_mode_source.clone(),
     };
 
@@ -273,7 +273,7 @@ impl Editor {
 
         let mut right_items: Vec<AnyElement> = Vec::new();
 
-        if prefs.show_cursor_position && self.mode == EditorMode::Source {
+        if prefs.show_cursor_position && self.mode == EditorMode::SourceCode {
             right_items.push(render_cursor(
                 self.compute_source_cursor_position(cx),
                 theme,

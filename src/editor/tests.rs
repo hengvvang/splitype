@@ -415,7 +415,7 @@ async fn dropped_markdown_replaces_clean_editor_in_current_window(cx: &mut TestA
 
     editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
-        assert!(editor.mode == EditorMode::Source);
+        assert!(editor.mode == EditorMode::SourceCode);
     });
 
     cx.update(|window, cx| {
@@ -2294,7 +2294,7 @@ async fn toggling_source_mode_preserves_root_image_runtime(cx: &mut TestAppConte
 
     editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::Source));
+        assert!(matches!(editor.mode, EditorMode::SourceCode));
         editor.toggle_view_mode(cx);
         assert!(matches!(editor.mode, EditorMode::Wysiwyg));
     });
@@ -2314,7 +2314,7 @@ async fn toggling_source_mode_preserves_reference_style_root_image_runtime(
 
     editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::Source));
+        assert!(matches!(editor.mode, EditorMode::SourceCode));
         editor.toggle_view_mode(cx);
         assert!(matches!(editor.mode, EditorMode::Wysiwyg));
     });
@@ -2333,7 +2333,7 @@ async fn toggling_source_mode_preserves_quote_child_image_runtime(cx: &mut TestA
 
     editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::Source));
+        assert!(matches!(editor.mode, EditorMode::SourceCode));
         editor.toggle_view_mode(cx);
         assert!(matches!(editor.mode, EditorMode::Wysiwyg));
     });
@@ -2357,7 +2357,7 @@ async fn toggling_source_mode_preserves_list_item_image_runtime(cx: &mut TestApp
 
     editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::Source));
+        assert!(matches!(editor.mode, EditorMode::SourceCode));
         editor.toggle_view_mode(cx);
         assert!(matches!(editor.mode, EditorMode::Wysiwyg));
     });
@@ -2379,7 +2379,7 @@ async fn toggling_source_mode_preserves_list_child_image_runtime(cx: &mut TestAp
 
     editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::Source));
+        assert!(matches!(editor.mode, EditorMode::SourceCode));
         editor.toggle_view_mode(cx);
         assert!(matches!(editor.mode, EditorMode::Wysiwyg));
     });
@@ -2518,7 +2518,7 @@ async fn toggle_view_mode_preserves_paragraph_caret_position(cx: &mut TestAppCon
         editor.focus.active_entity = Some(target.entity_id());
 
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::Source));
+        assert!(matches!(editor.mode, EditorMode::SourceCode));
         let source = editor.document.first_root().expect("source root").clone();
         assert_eq!(source.read(cx).selected_range, 9..9);
         assert!(source.read(cx).show_source_line_numbers());
@@ -2554,7 +2554,7 @@ async fn toggle_view_mode_ends_stale_code_block_pointer_selection(cx: &mut TestA
 
         editor.toggle_view_mode(cx);
 
-        assert!(matches!(editor.mode, EditorMode::Source));
+        assert!(matches!(editor.mode, EditorMode::SourceCode));
         target.read_with(cx, |block, _cx| {
             assert!(!block.is_selecting);
             assert!(!block.code_language_is_selecting);
@@ -2574,7 +2574,7 @@ async fn ctrl_tab_toggles_view_mode(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.update(cx, |editor, _cx| {
-        assert!(matches!(editor.mode, EditorMode::Source));
+        assert!(matches!(editor.mode, EditorMode::SourceCode));
     });
 
     cx.simulate_keystrokes("ctrl-tab");
@@ -2594,7 +2594,7 @@ async fn ctrl_a_selects_entire_source_document_in_source_mode(cx: &mut TestAppCo
 
     editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::Source));
+        assert!(matches!(editor.mode, EditorMode::SourceCode));
         let source = editor.document.blocks()[0].entity.clone();
         editor.focus_block(source.entity_id());
         source.update(cx, |block, _cx| {
@@ -3264,7 +3264,7 @@ async fn toggle_view_mode_preserves_table_cell_position(cx: &mut TestAppContext)
         editor.focus.active_entity = Some(cell.entity_id());
 
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::Source));
+        assert!(matches!(editor.mode, EditorMode::SourceCode));
 
         editor.toggle_view_mode(cx);
         assert!(matches!(editor.mode, EditorMode::Wysiwyg));
@@ -3319,7 +3319,7 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
         editor.focus.active_entity = Some(cell.entity_id());
 
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::Source));
+        assert!(matches!(editor.mode, EditorMode::SourceCode));
 
         editor.toggle_view_mode(cx);
         assert!(matches!(editor.mode, EditorMode::Wysiwyg));
