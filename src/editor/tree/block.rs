@@ -27,7 +27,7 @@ use crate::editor::editing::projection::{
     ExpandedInlineProjection, ExpandedInlineSegment, ExpandedInlineSegmentKind, ExpandedLinkRun,
     ProjectedLinkSelectionSnapshot,
 };
-use crate::editor::viewport::text_layout as element;
+use crate::editor::geometry::text_layout as element;
 
 // ---------------------------------------------------------------------------
 // View-local types

@@ -1481,7 +1481,7 @@ impl Block {
             .as_ref()
             .zip(self.last_bounds)
             .and_then(|(lines, bounds)| {
-                crate::editor::viewport::text_layout::link_at_position(
+                crate::editor::geometry::text_layout::link_at_position(
                     self,
                     lines,
                     bounds,
@@ -1544,7 +1544,7 @@ impl Block {
                 .as_ref()
                 .zip(self.last_bounds)
                 .and_then(|(lines, bounds)| {
-                    crate::editor::viewport::text_layout::footnote_at_position(
+                    crate::editor::geometry::text_layout::footnote_at_position(
                         self,
                         lines,
                         bounds,

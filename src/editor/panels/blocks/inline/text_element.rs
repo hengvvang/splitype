@@ -7,7 +7,7 @@ use std::rc::Rc;
 use gpui::*;
 
 use crate::editor::tree::block::Block;
-use crate::editor::viewport::text_layout::*;
+use crate::editor::geometry::text_layout::*;
 use crate::model::syntax::html::HtmlCssColor;
 use crate::editor::render::code_highlight::highlight::code_highlight_color;
 use crate::theme::{ThemeColors, ThemeManager};
