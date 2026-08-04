@@ -1,16 +1,18 @@
 //! In-window overlay dialogs and their action handlers: unsaved changes,
 //! drop-replace, and info/about overlays.
 
+use crate::ui::components::button::{
+    compact_danger_button, compact_primary_button, compact_secondary_button, primary_button,
+};
+
 use gpui::*;
 
 use crate::editor::controller::{Editor, InfoDialogKind};
 use crate::infra::i18n::{I18nManager, I18nStrings};
-use crate::windows::editor::{ABOUT_GITHUB_URL, open_about_github_url};
 use crate::theme::Theme;
-
+use crate::windows::editor::{ABOUT_GITHUB_URL, open_about_github_url};
 
 impl Editor {
-
     /// Dismiss the unsaved-changes dialog without closing the window.
     pub(crate) fn on_cancel_close_dialog(
         &mut self,
@@ -157,18 +159,7 @@ impl Editor {
                                     .justify_end()
                                     .gap(px(d.dialog_button_gap))
                                     .child(
-                                        div()
-                                            .id("save-and-close-dialog")
-                                            .h(px(32.0))
-                                            .px(px(14.0))
-                                            .flex()
-                                            .items_center()
-                                            .justify_center()
-                                            .rounded(px(d.menu_item_radius))
-                                            .bg(c.dialog_primary_button_bg)
-                                            .hover(|this| this.bg(c.dialog_primary_button_hover))
-                                            .active(|this| this.opacity(0.92))
-                                            .cursor_pointer()
+                                        compact_primary_button("save-and-close-dialog", c, d)
                                             .text_size(px(13.0))
                                             .font_weight(t.dialog_button_weight.to_font_weight())
                                             .text_color(c.dialog_primary_button_text)
@@ -176,20 +167,7 @@ impl Editor {
                                             .on_click(cx.listener(Self::on_save_and_close)),
                                     )
                                     .child(
-                                        div()
-                                            .id("discard-and-close-dialog")
-                                            .h(px(32.0))
-                                            .px(px(14.0))
-                                            .flex()
-                                            .items_center()
-                                            .justify_center()
-                                            .rounded(px(d.menu_item_radius))
-                                            .border(px(d.dialog_border_width))
-                                            .border_color(c.dialog_border)
-                                            .bg(c.dialog_danger_button_bg)
-                                            .hover(|this| this.bg(c.dialog_danger_button_hover))
-                                            .active(|this| this.opacity(0.92))
-                                            .cursor_pointer()
+                                        compact_danger_button("discard-and-close-dialog", c, d)
                                             .text_size(px(13.0))
                                             .font_weight(t.dialog_button_weight.to_font_weight())
                                             .text_color(c.dialog_danger_button_text)
@@ -199,20 +177,7 @@ impl Editor {
                                             .on_click(cx.listener(Self::on_discard_and_close)),
                                     )
                                     .child(
-                                        div()
-                                            .id("cancel-close-dialog")
-                                            .h(px(32.0))
-                                            .px(px(14.0))
-                                            .flex()
-                                            .items_center()
-                                            .justify_center()
-                                            .rounded(px(d.menu_item_radius))
-                                            .border(px(d.dialog_border_width))
-                                            .border_color(c.dialog_border)
-                                            .bg(c.dialog_secondary_button_bg)
-                                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                                            .active(|this| this.opacity(0.92))
-                                            .cursor_pointer()
+                                        compact_secondary_button("cancel-close-dialog", c, d)
                                             .text_size(px(13.0))
                                             .font_weight(t.dialog_button_weight.to_font_weight())
                                             .text_color(c.dialog_secondary_button_text)
@@ -290,23 +255,16 @@ impl Editor {
                                     .justify_end()
                                     .gap(px(d.dialog_button_gap))
                                     .child(
-                                        div()
-                                            .id("save-and-replace-drop-dialog")
-                                            .h(px(32.0))
-                                            .px(px(14.0))
-                                            .flex()
-                                            .items_center()
-                                            .justify_center()
-                                            .rounded(px(d.menu_item_radius))
-                                            .bg(c.dialog_primary_button_bg)
-                                            .hover(|this| this.bg(c.dialog_primary_button_hover))
-                                            .active(|this| this.opacity(0.92))
-                                            .cursor_pointer()
-                                            .text_size(px(13.0))
-                                            .font_weight(t.dialog_button_weight.to_font_weight())
-                                            .text_color(c.dialog_primary_button_text)
-                                            .child(strings.drop_replace_save_and_replace.clone())
-                                            .on_click(cx.listener(Self::on_save_and_replace_drop)),
+                                        compact_primary_button(
+                                            "save-and-replace-drop-dialog",
+                                            c,
+                                            d,
+                                        )
+                                        .text_size(px(13.0))
+                                        .font_weight(t.dialog_button_weight.to_font_weight())
+                                        .text_color(c.dialog_primary_button_text)
+                                        .child(strings.drop_replace_save_and_replace.clone())
+                                        .on_click(cx.listener(Self::on_save_and_replace_drop)),
                                     )
                                     .child(
                                         div()
@@ -332,34 +290,27 @@ impl Editor {
                                             ),
                                     )
                                     .child(
-                                        div()
-                                            .id("cancel-drop-replace-dialog")
-                                            .h(px(32.0))
-                                            .px(px(14.0))
-                                            .flex()
-                                            .items_center()
-                                            .justify_center()
-                                            .rounded(px(d.menu_item_radius))
-                                            .border(px(d.dialog_border_width))
-                                            .border_color(c.dialog_border)
-                                            .bg(c.dialog_secondary_button_bg)
-                                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                                            .active(|this| this.opacity(0.92))
-                                            .cursor_pointer()
-                                            .text_size(px(13.0))
-                                            .font_weight(t.dialog_button_weight.to_font_weight())
-                                            .text_color(c.dialog_secondary_button_text)
-                                            .child(strings.drop_replace_cancel.clone())
-                                            .on_click(
-                                                cx.listener(Self::on_cancel_drop_replace_dialog),
-                                            ),
+                                        compact_secondary_button(
+                                            "cancel-drop-replace-dialog",
+                                            c,
+                                            d,
+                                        )
+                                        .text_size(px(13.0))
+                                        .font_weight(t.dialog_button_weight.to_font_weight())
+                                        .text_color(c.dialog_secondary_button_text)
+                                        .child(strings.drop_replace_cancel.clone())
+                                        .on_click(cx.listener(Self::on_cancel_drop_replace_dialog)),
                                     ),
                             ),
                     ),
             )
     }
 
-    pub(crate) fn info_dialog_title<'a>(&self, strings: &'a I18nStrings, kind: InfoDialogKind) -> &'a str {
+    pub(crate) fn info_dialog_title<'a>(
+        &self,
+        strings: &'a I18nStrings,
+        kind: InfoDialogKind,
+    ) -> &'a str {
         match kind {
             InfoDialogKind::CheckForUpdates => &strings.help_check_updates_title,
             InfoDialogKind::About => &strings.help_about_title,
@@ -506,18 +457,7 @@ impl Editor {
                                     .justify_end()
                                     .gap(px(d.dialog_button_gap))
                                     .child(
-                                        div()
-                                            .id("dismiss-info-dialog")
-                                            .h(px(d.dialog_button_height))
-                                            .px(px(d.dialog_button_padding_x))
-                                            .flex()
-                                            .items_center()
-                                            .justify_center()
-                                            .rounded(px((d.dialog_radius - 4.0).max(0.0)))
-                                            .bg(c.dialog_primary_button_bg)
-                                            .hover(|this| this.bg(c.dialog_primary_button_hover))
-                                            .active(|this| this.opacity(0.92))
-                                            .cursor_pointer()
+                                        primary_button("dismiss-info-dialog", c, d)
                                             .text_size(px(t.dialog_button_size))
                                             .font_weight(t.dialog_button_weight.to_font_weight())
                                             .text_color(c.dialog_primary_button_text)

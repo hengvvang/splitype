@@ -4,12 +4,16 @@
 //! list items render a marker column (bullet / ordinal), and raw Markdown
 //! fallback renders as plain text.
 
+use crate::ui::components::button::icon_button;
+
 use gpui::*;
 
 const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
 
 use crate::editor::actions::BlockAction;
 use crate::editor::controller::Editor;
+use crate::editor::tree::block::{Block, ImageHandle};
+use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::model::block::BlockKind;
 use crate::model::inline::style::InlineScript;
 use crate::model::syntax::html::{
@@ -26,12 +30,14 @@ use crate::model::syntax::table::{TableAxisHighlight, TableAxisKind};
 use crate::render::code_highlight::options::{
     code_language_display_name, code_language_options_matching,
 };
-use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::render::latex_render::{
     display_math_font_size, inline_math_font_size, render_display_math_svg, render_inline_math_svg,
 };
 use crate::render::mermaid_render::render_mermaid_svg_for_display;
-use crate::editor::tree::block::{Block, ImageHandle};
+use crate::theme::{Theme, ThemeDimensions, ThemeManager};
+use crate::windows::editor::blocks::inline::text_element::{
+    BlockTextElement, CodeLanguageInputElement,
+};
 use crate::windows::editor::blocks::{
     blockquote::render_blockquote,
     callout::render_callout,
@@ -47,8 +53,6 @@ use crate::windows::editor::blocks::{
     table_block::render_table,
     thematic_break::{render_thematic_break_focused, render_thematic_break_unfocused},
 };
-use crate::windows::editor::blocks::inline::text_element::{BlockTextElement, CodeLanguageInputElement};
-use crate::theme::{Theme, ThemeDimensions, ThemeManager};
 
 #[allow(dead_code)]
 const TASK_CHECKMARK: &str = "\u{2713}";
@@ -893,80 +897,57 @@ impl Block {
             )
             .child(div().w(px(1.0)).h(px(14.0)).bg(c.table_border))
             .child(
-                div()
-                    .id(ElementId::Name(
-                        format!("code-line-numbers-{}", self.record.id).into(),
-                    ))
-                    .relative()
-                    .w(px(26.0))
-                    .h_full()
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .rounded(px(d.menu_item_radius - 2.0))
-                    .bg(if self.show_code_line_numbers {
-                        c.dialog_secondary_button_hover
-                    } else {
-                        gpui::transparent_black()
-                    })
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                    .active(|this| this.opacity(0.9))
-                    .cursor_pointer()
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(Self::on_code_line_numbers_toggle),
-                    )
-                    .child(
-                        svg()
-                            .path("icon/panel/line-numbers.svg")
-                            .size(px(10.0))
-                            .text_color(if self.show_code_line_numbers {
-                                c.code_language_input_text
-                            } else {
-                                c.code_language_input_placeholder
-                            }),
-                    ),
+                icon_button(
+                    ElementId::Name(format!("code-line-numbers-{}", self.record.id).into()),
+                    c,
+                    d,
+                )
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(Self::on_code_line_numbers_toggle),
+                )
+                .child(
+                    svg()
+                        .path("icon/panel/line-numbers.svg")
+                        .size(px(10.0))
+                        .text_color(if self.show_code_line_numbers {
+                            c.code_language_input_text
+                        } else {
+                            c.code_language_input_placeholder
+                        }),
+                ),
             )
             .child(
-                div()
-                    .id(ElementId::Name(
-                        format!("code-copy-{}", self.record.id).into(),
-                    ))
-                    .relative()
-                    .w(px(26.0))
-                    .h_full()
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .rounded(px(d.menu_item_radius - 2.0))
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                    .active(|this| this.opacity(0.9))
-                    .cursor_pointer()
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(Self::on_code_copy_button_mouse_down),
-                    )
-                    .child(
-                        div()
-                            .absolute()
-                            .left(px(7.5))
-                            .top(px(6.5))
-                            .size(px(7.0))
-                            .rounded(px(1.5))
-                            .border(px(1.0))
-                            .border_color(c.code_language_input_placeholder),
-                    )
-                    .child(
-                        div()
-                            .absolute()
-                            .left(px(9.5))
-                            .top(px(8.5))
-                            .size(px(7.0))
-                            .rounded(px(1.5))
-                            .border(px(1.0))
-                            .border_color(c.code_language_input_text)
-                            .bg(gpui::transparent_black()),
-                    ),
+                icon_button(
+                    ElementId::Name(format!("code-copy-{}", self.record.id).into()),
+                    c,
+                    d,
+                )
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(Self::on_code_copy_button_mouse_down),
+                )
+                .child(
+                    div()
+                        .absolute()
+                        .left(px(7.5))
+                        .top(px(6.5))
+                        .size(px(7.0))
+                        .rounded(px(1.5))
+                        .border(px(1.0))
+                        .border_color(c.code_language_input_placeholder),
+                )
+                .child(
+                    div()
+                        .absolute()
+                        .left(px(9.5))
+                        .top(px(8.5))
+                        .size(px(7.0))
+                        .rounded(px(1.5))
+                        .border(px(1.0))
+                        .border_color(c.code_language_input_text)
+                        .bg(gpui::transparent_black()),
+                ),
             )
             .into_any_element()
     }
@@ -2162,8 +2143,8 @@ impl Render for Block {
                 .unwrap_or(false);
             // The header row is only styled distinctly (shaded background, medium
             // weight) when the show-table-headers preference is enabled.
-            let style_as_header = is_header
-                && crate::infra::config::settings::EditorSettings::show_table_headers(cx);
+            let style_as_header =
+                is_header && crate::infra::config::settings::EditorSettings::show_table_headers(cx);
             let highlight = self.table_axis_highlight;
             let base_bg = if style_as_header {
                 c.table_header_bg
@@ -2660,12 +2641,12 @@ mod tests {
     use super::{
         HtmlComputedStyle, column_axis_gutter_visible, html_node_visual_style, inline_word_chunks,
     };
+    use crate::editor::tree::block::Block;
+    use crate::infra::i18n::I18nManager;
     use crate::model::block::{BlockData, BlockKind};
     use crate::model::inline::text::RichText;
     use crate::model::syntax::html::parse_html_document;
     use crate::model::syntax::table::{TableAxisKind, TableAxisMarker};
-    use crate::infra::i18n::I18nManager;
-    use crate::editor::tree::block::Block;
     use crate::theme::{Theme, ThemeManager};
     use gpui::{Hsla, Rgba, TestAppContext, px};
 

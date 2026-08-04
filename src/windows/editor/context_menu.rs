@@ -1,15 +1,17 @@
 //! Context menu rendering functions and Editor action handlers.
 // Migrated from engine/input/context_menu.rs
 
+use crate::ui::components::button::{primary_button, secondary_button};
+
 use std::time::Duration;
 
 use gpui::*;
 
-use crate::editor::window::chrome::{ContextMenuState, TableInsertDialogState, TableInsertTarget};
 use crate::editor::controller::{Editor, EditorMode, TableAxisSelection};
-use crate::model::syntax::table::{TableAxisKind, TableColumnAlignment, TableData};
-use crate::infra::i18n::I18nManager;
 use crate::editor::editing::input::shortcuts::DismissTransientUi;
+use crate::editor::window::chrome::{ContextMenuState, TableInsertDialogState, TableInsertTarget};
+use crate::infra::i18n::I18nManager;
+use crate::model::syntax::table::{TableAxisKind, TableColumnAlignment, TableData};
 use crate::theme::Theme;
 impl Editor {
     pub(crate) fn root_ancestor_entity_id(&self, entity_id: EntityId) -> EntityId {
@@ -105,7 +107,10 @@ impl Editor {
     }
 
     pub(crate) fn schedule_context_menu_submenu_close(&mut self, cx: &mut Context<Self>) {
-        if !matches!(self.chrome.context_menu, Some(ContextMenuState::Insert { .. })) {
+        if !matches!(
+            self.chrome.context_menu,
+            Some(ContextMenuState::Insert { .. })
+        ) {
             return;
         }
 
@@ -1073,7 +1078,9 @@ impl Editor {
                         // menu, with its Header Row styling toggle added on top.
                         if selection.index == 0 {
                             let headers_shown =
-                                crate::infra::config::settings::EditorSettings::show_table_headers(cx);
+                                crate::infra::config::settings::EditorSettings::show_table_headers(
+                                    cx,
+                                );
                             items.push(
                                 div()
                                     .id("table-header-toggle")
@@ -1608,21 +1615,7 @@ impl Editor {
                                         .justify_end()
                                         .gap(px(d.dialog_button_gap))
                                         .child(
-                                            div()
-                                                .id("cancel-table-insert-dialog")
-                                                .h(px(d.dialog_button_height))
-                                                .px(px(d.dialog_button_padding_x))
-                                                .flex()
-                                                .items_center()
-                                                .justify_center()
-                                                .rounded(px((d.dialog_radius - 4.0).max(0.0)))
-                                                .border(px(d.dialog_border_width))
-                                                .border_color(c.dialog_border)
-                                                .bg(c.dialog_secondary_button_bg)
-                                                .hover(|this| {
-                                                    this.bg(c.dialog_secondary_button_hover)
-                                                })
-                                                .cursor_pointer()
+                                            secondary_button("cancel-table-insert-dialog", c, d)
                                                 .text_size(px(t.dialog_button_size))
                                                 .font_weight(
                                                     t.dialog_button_weight.to_font_weight(),
@@ -1636,19 +1629,7 @@ impl Editor {
                                                 .child(s.table_insert_cancel.clone()),
                                         )
                                         .child(
-                                            div()
-                                                .id("confirm-table-insert-dialog")
-                                                .h(px(d.dialog_button_height))
-                                                .px(px(d.dialog_button_padding_x))
-                                                .flex()
-                                                .items_center()
-                                                .justify_center()
-                                                .rounded(px((d.dialog_radius - 4.0).max(0.0)))
-                                                .bg(c.dialog_primary_button_bg)
-                                                .hover(|this| {
-                                                    this.bg(c.dialog_primary_button_hover)
-                                                })
-                                                .cursor_pointer()
+                                            primary_button("confirm-table-insert-dialog", c, d)
                                                 .text_size(px(t.dialog_button_size))
                                                 .font_weight(
                                                     t.dialog_button_weight.to_font_weight(),
@@ -1689,7 +1670,8 @@ mod tests {
             );
 
             editor.set_context_menu_hover_state(true, false, cx);
-            let Some(ContextMenuState::Insert { submenu_open, .. }) = editor.chrome.context_menu.as_ref()
+            let Some(ContextMenuState::Insert { submenu_open, .. }) =
+                editor.chrome.context_menu.as_ref()
             else {
                 panic!("expected insert context menu");
             };
@@ -1697,7 +1679,8 @@ mod tests {
             assert!(editor.chrome.context_menu_submenu_close_task.is_none());
 
             editor.set_context_menu_hover_state(false, false, cx);
-            let Some(ContextMenuState::Insert { submenu_open, .. }) = editor.chrome.context_menu.as_ref()
+            let Some(ContextMenuState::Insert { submenu_open, .. }) =
+                editor.chrome.context_menu.as_ref()
             else {
                 panic!("expected insert context menu");
             };
@@ -1705,7 +1688,8 @@ mod tests {
             assert!(editor.chrome.context_menu_submenu_close_task.is_some());
 
             editor.set_context_menu_hover_state(true, true, cx);
-            let Some(ContextMenuState::Insert { submenu_open, .. }) = editor.chrome.context_menu.as_ref()
+            let Some(ContextMenuState::Insert { submenu_open, .. }) =
+                editor.chrome.context_menu.as_ref()
             else {
                 panic!("expected insert context menu");
             };

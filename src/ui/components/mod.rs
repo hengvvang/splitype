@@ -3,4 +3,5 @@
 //! Components here must not depend on `editor`, `model`, or `windows`;
 //! they only consume `theme` and gpui so any view can reuse them.
 
+pub mod button;
 pub mod switch;
