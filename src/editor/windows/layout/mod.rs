@@ -9,6 +9,10 @@
 use gpui::*;
 use std::collections::{HashMap, HashSet};
 
+use self::workspace::Workspace;
+
+pub(crate) mod workspace;
+
 // ---------------------------------------------------------------------------
 // Area type (outer tiled layout)
 // ---------------------------------------------------------------------------
@@ -1613,6 +1617,19 @@ fn leaf_id_from_point(rects: &[(usize, f32, f32, f32, f32)], pos: Point<Pixels>)
         }
     }
     None
+}
+
+// ---------------------------------------------------------------------------
+// Window panels aggregate
+// ---------------------------------------------------------------------------
+
+/// Sidebar and tiled-layout state of the editor window.
+///
+/// Pure state records; their rendering lives in `src/windows`.
+#[derive(Default)]
+pub struct WindowPanels {
+    pub(crate) workspace: Workspace,
+    pub(crate) layout: WindowLayout,
 }
 
 // ---------------------------------------------------------------------------

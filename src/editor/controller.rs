@@ -21,9 +21,9 @@ pub(crate) use crate::editor::tree::document::Document;
 pub(crate) use crate::editor::tree::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
-pub(crate) use crate::editor::panels::{PreviewState, SourcePanelState};
-pub(crate) use crate::editor::window::chrome::WindowChrome;
-pub(crate) use crate::editor::window::panels::WindowPanels;
+pub(crate) use crate::editor::windows::{PreviewState, SourcePanelState};
+pub(crate) use crate::editor::windows::chrome::WindowChrome;
+pub(crate) use crate::editor::windows::layout::WindowPanels;
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::model::inline::text::RichText;
 pub(crate) use crate::model::syntax::image::{

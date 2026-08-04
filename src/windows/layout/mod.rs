@@ -1,6 +1,6 @@
 //! Tiled pane layout — splitting, resizing, and rearranging views.
 //!
-//! The layout state model lives in `editor::window::layout`; this module
+//! The layout state model lives in `editor::windows::layout`; this module
 //! renders the split tree and hosts the drag/resize interactions.
 
 use crate::ui::components::popover::overlay;
@@ -14,7 +14,7 @@ use crate::ui::components::popover::menu_panel;
 use gpui::*;
 
 use crate::editor::controller::*;
-use crate::editor::window::layout::{
+use crate::editor::windows::layout::{
     Axis, BorderMenuState, CornerDragAction, CornerDragModifier, CornerDragPreview, Direction,
     EditTabState, EditorPanel, PaneKind, SplitTree, SplitterDragSession,
 };
@@ -511,7 +511,7 @@ impl Editor {
     }
     pub(crate) fn render_tiled_layout_node(
         &mut self,
-        node: &crate::editor::window::layout::SplitTree<crate::editor::window::layout::PaneKind>,
+        node: &crate::editor::windows::layout::SplitTree<crate::editor::windows::layout::PaneKind>,
         primary_content: &mut Option<AnyElement>,
         theme: &Theme,
         strings: &I18nStrings,
@@ -708,7 +708,7 @@ impl Editor {
     pub(crate) fn render_area_tile(
         &mut self,
         leaf_id: usize,
-        area_type: crate::editor::window::layout::PaneKind,
+        area_type: crate::editor::windows::layout::PaneKind,
         primary_content: &mut Option<AnyElement>,
         theme: &Theme,
         strings: &I18nStrings,
@@ -835,7 +835,7 @@ impl Editor {
     pub(crate) fn render_area_header(
         &mut self,
         leaf_id: usize,
-        area_type: crate::editor::window::layout::PaneKind,
+        area_type: crate::editor::windows::layout::PaneKind,
         theme: &Theme,
         leaf_count: usize,
         is_maximized: bool,
@@ -1116,7 +1116,7 @@ impl Editor {
     pub(crate) fn render_area_dropdown_menu(
         &mut self,
         leaf_id: usize,
-        current_type: crate::editor::window::layout::PaneKind,
+        current_type: crate::editor::windows::layout::PaneKind,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -1171,7 +1171,7 @@ impl Editor {
     }
     pub(crate) fn render_border_context_menu_overlay(
         &mut self,
-        border_menu: crate::editor::window::layout::BorderMenuState,
+        border_menu: crate::editor::windows::layout::BorderMenuState,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -1317,7 +1317,7 @@ impl Editor {
                     .layout
                     .get_or_create_edit_inner_layout(container_id)
                     .find_leaf_area(inner_id)
-                    .unwrap_or(crate::editor::window::layout::EditorPanel::SourceCode);
+                    .unwrap_or(crate::editor::windows::layout::EditorPanel::SourceCode);
                 Some(self.render_inner_area_dropdown_menu(
                     container_id,
                     inner_id,
@@ -1348,7 +1348,9 @@ impl Editor {
     }
     pub(crate) fn render_edit_inner_node(
         &mut self,
-        node: &crate::editor::window::layout::SplitTree<crate::editor::window::layout::EditorPanel>,
+        node: &crate::editor::windows::layout::SplitTree<
+            crate::editor::windows::layout::EditorPanel,
+        >,
         container_id: usize,
         primary_content: &mut Option<AnyElement>,
         theme: &Theme,
@@ -1665,7 +1667,7 @@ impl Editor {
         &mut self,
         container_id: usize,
         inner_id: usize,
-        current_area_type: crate::editor::window::layout::EditorPanel,
+        current_area_type: crate::editor::windows::layout::EditorPanel,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {

@@ -10,8 +10,8 @@ use gpui::*;
 
 use crate::editor::EditorMode;
 use crate::editor::controller::Editor;
-use crate::editor::window::chrome::StatusBarState;
-use crate::editor::window::layout::{Axis, PaneKind};
+use crate::editor::windows::chrome::StatusBarState;
+use crate::editor::windows::layout::{Axis, PaneKind};
 use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
 use crate::infra::i18n::I18nStrings;
 use crate::theme::{Theme, ThemeColors, ThemeDimensions};

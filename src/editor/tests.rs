@@ -19,7 +19,7 @@ use crate::model::syntax::image::{
 };
 use crate::editor::render::export::ExportFormat;
 use crate::infra::i18n::{I18nManager, I18nStrings};
-use crate::editor::window::chrome::{TableInsertDialogState, TableInsertTarget};
+use crate::editor::windows::chrome::{TableInsertDialogState, TableInsertTarget};
 use crate::theme::{Theme, ThemeManager};
 fn init_editor_test_app(cx: &mut TestAppContext) {
     cx.update(|cx| {

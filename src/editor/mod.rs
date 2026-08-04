@@ -5,10 +5,9 @@ pub mod actions;
 pub mod controller;
 pub mod editing;
 pub mod geometry;
-pub mod panels;
 pub mod render;
 pub mod tree;
-pub mod window;
+pub mod windows;
 
 // ── Re-exports ─────────────────────────────────────────────────────────────
 pub(crate) use controller::EditorMode;

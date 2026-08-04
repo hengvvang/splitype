@@ -15,7 +15,7 @@ use gpui::*;
 
 use crate::editor::controller::{Editor, EditorMode, TableAxisSelection};
 use crate::editor::editing::input::shortcuts::DismissTransientUi;
-use crate::editor::window::chrome::{ContextMenuState, TableInsertDialogState, TableInsertTarget};
+use crate::editor::windows::chrome::{ContextMenuState, TableInsertDialogState, TableInsertTarget};
 use crate::infra::i18n::I18nManager;
 use crate::model::syntax::table::{TableAxisKind, TableColumnAlignment, TableData};
 use crate::theme::Theme;
