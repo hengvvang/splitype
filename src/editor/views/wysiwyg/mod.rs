@@ -1,7 +1,10 @@
 //! WYSIWYG panel — the primary rendered editing view.
 //!
 //! WYSIWYG renders the document tree directly; the only panel-specific
-//! behavior is re-normalizing quote/container structure after edits.
+//! behavior is re-normalizing quote/container structure after edits. The
+//! row layout helpers live in `render`.
+
+pub(crate) mod render;
 
 use gpui::*;
 

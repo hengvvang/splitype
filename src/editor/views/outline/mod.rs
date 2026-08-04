@@ -1,5 +1,7 @@
 //! Outline panel — heading tree derived from the document source.
 
+pub(crate) mod render;
+
 use std::collections::HashSet;
 
 use crate::editor::window::workspace::{Workspace, WorkspaceNode, WorkspaceNodeKind, WorkspaceSelection};

@@ -1,5 +1,7 @@
 //! Preview panel — read-only rendered snapshot of the document.
 
+pub(crate) mod render;
+
 use gpui::*;
 
 use crate::editor::tree::block::Block;

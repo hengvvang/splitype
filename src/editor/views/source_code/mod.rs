@@ -1,5 +1,7 @@
 //! Source code panel — the raw Markdown buffer as a standalone block.
 
+pub(crate) mod render;
+
 use gpui::*;
 
 use crate::editor::actions::BlockAction;

@@ -15,12 +15,8 @@ pub(crate) mod context_menu;
 pub(crate) mod dialogs;
 pub(crate) mod export;
 pub(crate) mod menu_bar;
-pub(crate) mod outline;
-pub(crate) mod preview;
-pub(crate) mod source_code;
 pub(crate) mod status_bar;
 pub(crate) mod titlebar;
-pub(crate) mod wysiwyg;
 
 use std::time::{Duration, Instant};
 
@@ -44,7 +40,7 @@ pub(crate) fn open_about_github_url(cx: &mut App) {
     cx.open_url(ABOUT_GITHUB_URL);
 }
 
-use crate::windows::editor::wysiwyg::{
+use crate::editor::views::wysiwyg::render::{
     RenderedRowSpacingInfo, callout_colors, callout_row_top_gap, editor_text_font,
     footnote_row_top_gap, rendered_row_top_gap,
 };
