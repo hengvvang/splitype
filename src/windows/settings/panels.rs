@@ -1,5 +1,7 @@
 //! Settings panel rendered inside the editor's tiled layout.
 
+use crate::ui::components::select::{select_option, select_panel, select_trigger};
+
 use gpui::*;
 
 use crate::editor::controller::*;
@@ -333,20 +335,7 @@ impl Editor {
                     };
 
                     let mut theme_btn_wrap = div().relative().child(
-                        div()
-                            .id("pref-btn-theme")
-                            .cursor_pointer()
-                            .flex()
-                            .items_center()
-                            .justify_between()
-                            .w(px(145.0))
-                            .h(px(28.0))
-                            .px(px(8.0))
-                            .rounded(px(d.menu_item_radius))
-                            .bg(c.dialog_secondary_button_bg)
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                            .border_1()
-                            .border_color(c.dialog_border)
+select_trigger("pref-btn-theme", c, d)
                             .text_size(px(12.0))
                             .text_color(c.text_default)
                             .child(
@@ -414,15 +403,7 @@ impl Editor {
                             };
 
                             menu_items.push(
-                                div()
-                                    .id(ElementId::Name(format!("theme-item-{}", t_id).into()))
-                                    .cursor_pointer()
-                                    .flex()
-                                    .items_center()
-                                    .justify_between()
-                                    .px(px(10.0))
-                                    .py(px(6.0))
-                                    .rounded(px(4.0))
+select_option(ElementId::Name(format!("theme-item-{}", t_id).into()), c)
                                     .bg(if is_selected {
                                         c.dialog_secondary_button_hover
                                     } else {
@@ -467,22 +448,7 @@ impl Editor {
                         }
 
                         theme_btn_wrap = theme_btn_wrap.child(gpui::deferred(
-                            div()
-                                .absolute()
-                                .top_full()
-                                .right_0()
-                                .mt(px(4.0))
-                                .w(px(160.0))
-                                .occlude()
-                                .bg(c.dialog_surface)
-                                .border_1()
-                                .border_color(c.dialog_border)
-                                .rounded(px(6.0))
-                                .shadow_lg()
-                                .p(px(4.0))
-                                .flex()
-                                .flex_col()
-                                .gap(px(2.0))
+select_panel(c)
                                 .children(menu_items),
                         ));
                     }
@@ -496,20 +462,7 @@ impl Editor {
                     ));
 
                     let mut lang_btn_wrap = div().relative().child(
-                        div()
-                            .id("pref-btn-lang")
-                            .cursor_pointer()
-                            .flex()
-                            .items_center()
-                            .justify_between()
-                            .w(px(145.0))
-                            .h(px(28.0))
-                            .px(px(8.0))
-                            .rounded(px(d.menu_item_radius))
-                            .bg(c.dialog_secondary_button_bg)
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                            .border_1()
-                            .border_color(c.dialog_border)
+select_trigger("pref-btn-lang", c, d)
                             .text_size(px(12.0))
                             .text_color(c.text_default)
                             .child(div().flex_1().min_w(px(0.0)).truncate().child(current_lang))
@@ -546,15 +499,7 @@ impl Editor {
                             let item_ed = lang_ed.clone();
 
                             menu_items.push(
-                                div()
-                                    .id(ElementId::Name(format!("lang-item-{}", code).into()))
-                                    .cursor_pointer()
-                                    .flex()
-                                    .items_center()
-                                    .justify_between()
-                                    .px(px(10.0))
-                                    .py(px(6.0))
-                                    .rounded(px(4.0))
+select_option(ElementId::Name(format!("lang-item-{}", code).into()), c)
                                     .bg(if is_selected {
                                         c.dialog_secondary_button_hover
                                     } else {
@@ -584,22 +529,7 @@ impl Editor {
                         }
 
                         lang_btn_wrap = lang_btn_wrap.child(gpui::deferred(
-                            div()
-                                .absolute()
-                                .top_full()
-                                .right_0()
-                                .mt(px(4.0))
-                                .w(px(160.0))
-                                .occlude()
-                                .bg(c.dialog_surface)
-                                .border_1()
-                                .border_color(c.dialog_border)
-                                .rounded(px(6.0))
-                                .shadow_lg()
-                                .p(px(4.0))
-                                .flex()
-                                .flex_col()
-                                .gap(px(2.0))
+select_panel(c)
                                 .children(menu_items),
                         ));
                     }
@@ -952,20 +882,7 @@ impl Editor {
                     ));
 
                     let mut img_btn_wrap = div().relative().child(
-                        div()
-                            .id("pref-btn-img")
-                            .cursor_pointer()
-                            .flex()
-                            .items_center()
-                            .justify_between()
-                            .w(px(145.0))
-                            .h(px(28.0))
-                            .px(px(8.0))
-                            .rounded(px(d.menu_item_radius))
-                            .bg(c.dialog_secondary_button_bg)
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                            .border_1()
-                            .border_color(c.dialog_border)
+select_trigger("pref-btn-img", c, d)
                             .text_size(px(12.0))
                             .text_color(c.text_default)
                             .child(
@@ -1008,15 +925,7 @@ impl Editor {
                             let item_ed = img_ed.clone();
 
                             menu_items.push(
-                                div()
-                                    .id(ElementId::Name(format!("img-item-{}", idx).into()))
-                                    .cursor_pointer()
-                                    .flex()
-                                    .items_center()
-                                    .justify_between()
-                                    .px(px(10.0))
-                                    .py(px(6.0))
-                                    .rounded(px(4.0))
+select_option(ElementId::Name(format!("img-item-{}", idx).into()), c)
                                     .bg(if is_selected {
                                         c.dialog_secondary_button_hover
                                     } else {
@@ -1047,22 +956,7 @@ impl Editor {
                         }
 
                         img_btn_wrap = img_btn_wrap.child(gpui::deferred(
-                            div()
-                                .absolute()
-                                .top_full()
-                                .right_0()
-                                .mt(px(4.0))
-                                .w(px(160.0))
-                                .occlude()
-                                .bg(c.dialog_surface)
-                                .border_1()
-                                .border_color(c.dialog_border)
-                                .rounded(px(6.0))
-                                .shadow_lg()
-                                .p(px(4.0))
-                                .flex()
-                                .flex_col()
-                                .gap(px(2.0))
+select_panel(c)
                                 .children(menu_items),
                         ));
                     }
@@ -1110,20 +1004,7 @@ impl Editor {
 
                 if is_sec3_expanded {
                     let mut startup_btn_wrap = div().relative().child(
-                        div()
-                            .id("pref-btn-startup")
-                            .cursor_pointer()
-                            .flex()
-                            .items_center()
-                            .justify_between()
-                            .w(px(145.0))
-                            .h(px(28.0))
-                            .px(px(8.0))
-                            .rounded(px(d.menu_item_radius))
-                            .bg(c.dialog_secondary_button_bg)
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                            .border_1()
-                            .border_color(c.dialog_border)
+select_trigger("pref-btn-startup", c, d)
                             .text_size(px(12.0))
                             .text_color(c.text_default)
                             .child(
@@ -1166,15 +1047,7 @@ impl Editor {
                             let item_ed = startup_ed.clone();
 
                             menu_items.push(
-                                div()
-                                    .id(ElementId::Name(format!("startup-item-{}", idx).into()))
-                                    .cursor_pointer()
-                                    .flex()
-                                    .items_center()
-                                    .justify_between()
-                                    .px(px(10.0))
-                                    .py(px(6.0))
-                                    .rounded(px(4.0))
+select_option(ElementId::Name(format!("startup-item-{}", idx).into()), c)
                                     .bg(if is_selected {
                                         c.dialog_secondary_button_hover
                                     } else {
@@ -1205,22 +1078,7 @@ impl Editor {
                         }
 
                         startup_btn_wrap = startup_btn_wrap.child(gpui::deferred(
-                            div()
-                                .absolute()
-                                .top_full()
-                                .right_0()
-                                .mt(px(4.0))
-                                .w(px(160.0))
-                                .occlude()
-                                .bg(c.dialog_surface)
-                                .border_1()
-                                .border_color(c.dialog_border)
-                                .rounded(px(6.0))
-                                .shadow_lg()
-                                .p(px(4.0))
-                                .flex()
-                                .flex_col()
-                                .gap(px(2.0))
+select_panel(c)
                                 .children(menu_items),
                         ));
                     }

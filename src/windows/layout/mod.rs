@@ -3,6 +3,8 @@
 //! The layout state model lives in `editor::window::layout`; this module
 //! renders the split tree and hosts the drag/resize interactions.
 
+use crate::ui::components::menu_item::menu_item;
+
 use gpui::*;
 
 use crate::editor::controller::*;
@@ -1276,18 +1278,7 @@ impl Editor {
                     .rounded(px(d.menu_panel_radius))
                     .shadow_lg()
                     .child(
-                        div()
-                            .id("border-menu-split-h")
-                            .w_full()
-                            .h(px(d.menu_item_height))
-                            .px(px(d.menu_item_padding_x))
-                            .flex()
-                            .items_center()
-                            .rounded(px(d.menu_item_radius))
-                            .bg(c.dialog_surface)
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                            .active(|this| this.opacity(0.92))
-                            .cursor_pointer()
+menu_item("border-menu-split-h", c, d)
                             .text_size(px(d.menu_text_size))
                             .font_weight(t.dialog_body_weight.to_font_weight())
                             .text_color(c.dialog_secondary_button_text)
@@ -1300,18 +1291,7 @@ impl Editor {
                             }),
                     )
                     .child(
-                        div()
-                            .id("border-menu-split-v")
-                            .w_full()
-                            .h(px(d.menu_item_height))
-                            .px(px(d.menu_item_padding_x))
-                            .flex()
-                            .items_center()
-                            .rounded(px(d.menu_item_radius))
-                            .bg(c.dialog_surface)
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                            .active(|this| this.opacity(0.92))
-                            .cursor_pointer()
+menu_item("border-menu-split-v", c, d)
                             .text_size(px(d.menu_text_size))
                             .font_weight(t.dialog_body_weight.to_font_weight())
                             .text_color(c.dialog_secondary_button_text)
@@ -1332,18 +1312,7 @@ impl Editor {
                             .bg(c.dialog_border),
                     )
                     .child(
-                        div()
-                            .id("border-menu-swap")
-                            .w_full()
-                            .h(px(d.menu_item_height))
-                            .px(px(d.menu_item_padding_x))
-                            .flex()
-                            .items_center()
-                            .rounded(px(d.menu_item_radius))
-                            .bg(c.dialog_surface)
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                            .active(|this| this.opacity(0.92))
-                            .cursor_pointer()
+menu_item("border-menu-swap", c, d)
                             .text_size(px(d.menu_text_size))
                             .font_weight(t.dialog_body_weight.to_font_weight())
                             .text_color(c.dialog_secondary_button_text)
@@ -1364,18 +1333,7 @@ impl Editor {
                             .bg(c.dialog_border),
                     )
                     .child(
-                        div()
-                            .id("border-menu-close")
-                            .w_full()
-                            .h(px(d.menu_item_height))
-                            .px(px(d.menu_item_padding_x))
-                            .flex()
-                            .items_center()
-                            .rounded(px(d.menu_item_radius))
-                            .bg(c.dialog_surface)
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                            .active(|this| this.opacity(0.92))
-                            .cursor_pointer()
+menu_item("border-menu-close", c, d)
                             .text_size(px(d.menu_text_size))
                             .font_weight(t.dialog_body_weight.to_font_weight())
                             .text_color(c.dialog_secondary_button_text)
