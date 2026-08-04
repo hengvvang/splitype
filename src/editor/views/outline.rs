@@ -2,7 +2,7 @@
 
 use std::collections::HashSet;
 
-use crate::editor::workspace::{Workspace, WorkspaceNode, WorkspaceNodeKind, WorkspaceSelection};
+use crate::editor::window::workspace::{Workspace, WorkspaceNode, WorkspaceNodeKind, WorkspaceSelection};
 use crate::model::block::BlockKind;
 
 /// Prune expanded-node state and selection that no longer exist in the

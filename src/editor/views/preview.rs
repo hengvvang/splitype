@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use crate::editor::block::Block;
+use crate::editor::tree::block::Block;
 use crate::editor::controller::Editor;
 use crate::model::block::BlockData;
 

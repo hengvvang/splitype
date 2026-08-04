@@ -248,7 +248,7 @@ impl Editor {
 
 
     pub(crate) fn inserted_image_tree_for_block(
-        block: &crate::editor::block::Block,
+        block: &crate::editor::tree::block::Block,
         markdown: &str,
     ) -> RichText {
         if block.uses_raw_text_editing() || block.kind().is_code_block() {
@@ -261,7 +261,7 @@ impl Editor {
 
     pub(crate) fn replace_current_block_selection_with_image_text(
         &mut self,
-        block: &Entity<crate::editor::block::Block>,
+        block: &Entity<crate::editor::tree::block::Block>,
         leading: &RichText,
         markdown: &str,
         trailing: &RichText,
@@ -285,7 +285,7 @@ impl Editor {
 
     pub(crate) fn insert_image_block_after_paragraph(
         &mut self,
-        block: &Entity<crate::editor::block::Block>,
+        block: &Entity<crate::editor::tree::block::Block>,
         leading: &RichText,
         markdown: &str,
         trailing: &RichText,
@@ -345,7 +345,7 @@ impl Editor {
 
     pub(crate) fn handle_paste_image_request(
         &mut self,
-        block: Entity<crate::editor::block::Block>,
+        block: Entity<crate::editor::tree::block::Block>,
         leading: &RichText,
         source: &PastedImageSource,
         trailing: &RichText,

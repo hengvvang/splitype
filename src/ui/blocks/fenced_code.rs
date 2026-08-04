@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::editor::block::Block;
+use crate::editor::tree::block::Block;
 use crate::infra::i18n::I18nStrings;
 use crate::theme::Theme;
 

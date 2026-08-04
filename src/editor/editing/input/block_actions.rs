@@ -8,7 +8,7 @@ use std::time::Duration;
 use gpui::*;
 
 use crate::editor::actions::{BlockAction, PastedImageSource, UndoCaptureKind};
-use crate::editor::block::{Block, CollapsedCaretAffinity, InlineFormat};
+use crate::editor::tree::block::{Block, CollapsedCaretAffinity, InlineFormat};
 use crate::model::block::BlockKind;
 use crate::model::inline::text::RichText;
 use crate::render::code_highlight::options::code_language_options_matching;
@@ -1481,7 +1481,7 @@ impl Block {
             .as_ref()
             .zip(self.last_bounds)
             .and_then(|(lines, bounds)| {
-                crate::editor::text_layout::link_at_position(
+                crate::editor::viewport::text_layout::link_at_position(
                     self,
                     lines,
                     bounds,
@@ -1544,7 +1544,7 @@ impl Block {
                 .as_ref()
                 .zip(self.last_bounds)
                 .and_then(|(lines, bounds)| {
-                    crate::editor::text_layout::footnote_at_position(
+                    crate::editor::viewport::text_layout::footnote_at_position(
                         self,
                         lines,
                         bounds,

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use crate::editor::block::Block;
+use crate::editor::tree::block::Block;
 use crate::editor::controller::*;
 
 

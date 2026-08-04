@@ -10,7 +10,7 @@ use crate::editor::controller::*;
 impl Editor {
     pub(crate) fn on_block_event(
         &mut self,
-        block: Entity<crate::editor::block::Block>,
+        block: Entity<crate::editor::tree::block::Block>,
         event: &BlockAction,
         cx: &mut Context<Self>,
     ) {
@@ -263,7 +263,7 @@ impl Editor {
                 );
 
                 let cursor_pos = prev.read(cx).display_text().len();
-                let adopted_children = crate::editor::document::Document::take_children(&block, cx);
+                let adopted_children = crate::editor::tree::document::Document::take_children(&block, cx);
                 let removed_entity_id = block.entity_id();
 
                 self.document.with_structure_mutation(cx, |document, cx| {
@@ -795,7 +795,7 @@ impl Editor {
                     visible_before_ids.get(current_visible_index + 1).copied()
                 };
 
-                let adopted_children = crate::editor::document::Document::take_children(&block, cx);
+                let adopted_children = crate::editor::tree::document::Document::take_children(&block, cx);
                 let removed = self.document.with_structure_mutation(cx, |document, cx| {
                     let (_, location) = document.remove_block_by_id_raw(block.entity_id(), cx)?;
                     if !adopted_children.is_empty() {

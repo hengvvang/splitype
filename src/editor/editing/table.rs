@@ -2,7 +2,7 @@
 //! [`TableGrid`] of cell editors attached to a table block.
 
 use crate::editor::actions::UndoCaptureKind;
-use crate::editor::block::Block;
+use crate::editor::tree::block::Block;
 use crate::editor::controller::*;
 
 /// Runtime cell editors attached to one native table block.

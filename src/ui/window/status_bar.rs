@@ -5,12 +5,12 @@ use gpui::prelude::*;
 use gpui::*;
 
 use crate::editor::EditorMode;
-use crate::editor::chrome::StatusBarState;
+use crate::editor::window::chrome::StatusBarState;
 use crate::editor::controller::Editor;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
 use crate::theme::Theme;
-use crate::editor::layout::{Axis, PaneKind};
+use crate::editor::viewport::layout::{Axis, PaneKind};
 
 /// Render a cursor-position label (e.g. `12 : 47`).
 pub fn render_cursor((line, col): (usize, usize), theme: &Theme) -> AnyElement {

@@ -8,7 +8,7 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::editor::block::Block;
+use crate::editor::tree::block::Block;
 use crate::model::inline::footnote::InlineFootnoteHit;
 use crate::model::inline::link::InlineLinkHit;
 

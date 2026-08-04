@@ -54,7 +54,7 @@ pub struct RenderedRowSpacingInfo {
 
 impl RenderedRowSpacingInfo {
     /// Read spacing metadata from a block entity.
-    pub fn from_block(block: &crate::editor::block::Block) -> Self {
+    pub fn from_block(block: &crate::editor::tree::block::Block) -> Self {
         Self {
             quote_group_anchor: block.quote_group_anchor,
             visible_quote_group_anchor: block.visible_quote_group_anchor,

@@ -15,19 +15,19 @@ use crate::model::inline::link::InlineLinkHit;
 use crate::model::inline::render_cache::{InlineRenderCache, InlineSpan};
 use crate::model::inline::style::{InlineStyle, StyleFlag};
 use crate::model::inline::text::{InlineFragment, InlineInsertionAttributes, RichText};
-use crate::editor::footnotes::FootnoteMap;
+use crate::editor::tree::footnotes::FootnoteMap;
 use crate::model::syntax::image::ImageReferenceDefinitions;
 use crate::model::syntax::image::ImageResolvedSource;
 use crate::model::syntax::link::LinkReferenceDefinitions;
 use crate::model::syntax::table::TableCellPosition;
 use crate::model::syntax::table::{TableAxisHighlight, TableAxisMarker, TableColumnAlignment};
 use crate::render::code_highlight::highlight::{CodeHighlightResult, highlight_code_block};
-use crate::editor::table::TableGrid;
-use crate::editor::projection::{
+use crate::editor::editing::table::TableGrid;
+use crate::editor::editing::projection::{
     ExpandedInlineProjection, ExpandedInlineSegment, ExpandedInlineSegmentKind, ExpandedLinkRun,
     ProjectedLinkSelectionSnapshot,
 };
-use crate::editor::text_layout as element;
+use crate::editor::viewport::text_layout as element;
 
 // ---------------------------------------------------------------------------
 // View-local types

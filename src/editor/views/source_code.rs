@@ -3,8 +3,8 @@
 use gpui::*;
 
 use crate::editor::actions::BlockAction;
-use crate::editor::block::Block;
 use crate::editor::controller::Editor;
+use crate::editor::tree::block::Block;
 use crate::model::block::BlockData;
 
 /// The standalone raw-source block backing the source-code panel.
@@ -61,9 +61,5 @@ impl Editor {
         self.rebuild_image_runtimes(cx);
         self.source_panel.doc_hash = Self::hash_str(&text);
         self.mark_dirty(cx);
-    }
-
-    pub(crate) fn source_panel_hash(&self) -> u64 {
-        self.source_panel.doc_hash
     }
 }

@@ -7,7 +7,7 @@ use gpui::*;
 
 use super::shortcuts::{JumpToBottom, JumpToTop, PageDown, PageUp};
 use crate::editor::actions::BlockAction;
-use crate::editor::block::CollapsedCaretAffinity;
+use crate::editor::tree::block::CollapsedCaretAffinity;
 use crate::editor::controller::*;
 use crate::model::block::BlockKind;
 use crate::model::syntax::table::TableCellPosition;
@@ -243,7 +243,7 @@ impl Editor {
 
     pub(crate) fn focus_table_cell_position(
         &mut self,
-        table_block: &Entity<crate::editor::block::Block>,
+        table_block: &Entity<crate::editor::tree::block::Block>,
         position: TableCellPosition,
         cx: &mut Context<Self>,
     ) -> bool {
@@ -267,7 +267,7 @@ impl Editor {
 
     pub(crate) fn focus_table_entry_cell(
         &mut self,
-        table_block: &Entity<crate::editor::block::Block>,
+        table_block: &Entity<crate::editor::tree::block::Block>,
         from_top: bool,
         cx: &mut Context<Self>,
     ) -> bool {
@@ -302,7 +302,7 @@ impl Editor {
 
     pub(crate) fn focus_block_adjacent_to_table(
         &mut self,
-        table_block: &Entity<crate::editor::block::Block>,
+        table_block: &Entity<crate::editor::tree::block::Block>,
         delta: i32,
         to_block_start: bool,
         cx: &mut Context<Self>,
@@ -348,7 +348,7 @@ impl Editor {
 
     pub(crate) fn focus_table_cell_horizontal_neighbor(
         &mut self,
-        table_block: &Entity<crate::editor::block::Block>,
+        table_block: &Entity<crate::editor::tree::block::Block>,
         position: TableCellPosition,
         delta: i32,
         cx: &mut Context<Self>,
@@ -385,7 +385,7 @@ impl Editor {
 
     pub(crate) fn focus_table_cell_vertical_neighbor(
         &mut self,
-        table_block: &Entity<crate::editor::block::Block>,
+        table_block: &Entity<crate::editor::tree::block::Block>,
         position: TableCellPosition,
         delta: i32,
         cx: &mut Context<Self>,
@@ -529,7 +529,7 @@ impl Editor {
         &self,
         entity_id: EntityId,
         cx: &App,
-    ) -> Option<Entity<crate::editor::block::Block>> {
+    ) -> Option<Entity<crate::editor::tree::block::Block>> {
         let mut current = self.focusable_entity_by_id(entity_id)?;
         loop {
             if current.read(cx).kind().is_quote_container() {
@@ -545,7 +545,7 @@ impl Editor {
         &self,
         entity_id: EntityId,
         cx: &App,
-    ) -> Option<Entity<crate::editor::block::Block>> {
+    ) -> Option<Entity<crate::editor::tree::block::Block>> {
         let mut current = self.nearest_quote_ancestor(entity_id, cx)?;
         loop {
             let Some(location) = self.document.find_block_location(current.entity_id()) else {
@@ -567,7 +567,7 @@ impl Editor {
         &self,
         entity_id: EntityId,
         cx: &App,
-    ) -> Option<(Option<Entity<crate::editor::block::Block>>, usize)> {
+    ) -> Option<(Option<Entity<crate::editor::tree::block::Block>>, usize)> {
         let quote_block = self.nearest_quote_ancestor(entity_id, cx)?;
         let location = self.document.find_block_location(quote_block.entity_id())?;
         Some((location.parent.clone(), location.index + 1))
@@ -578,7 +578,7 @@ impl Editor {
         &self,
         entity_id: EntityId,
         cx: &App,
-    ) -> Option<(Option<Entity<crate::editor::block::Block>>, usize)> {
+    ) -> Option<(Option<Entity<crate::editor::tree::block::Block>>, usize)> {
         let callout_root = self.topmost_quote_ancestor(entity_id, cx)?;
         let location = self
             .document
@@ -589,9 +589,9 @@ impl Editor {
 
     pub(crate) fn ensure_callout_body_entry(
         &mut self,
-        callout: &Entity<crate::editor::block::Block>,
+        callout: &Entity<crate::editor::tree::block::Block>,
         cx: &mut Context<Self>,
-    ) -> Option<Entity<crate::editor::block::Block>> {
+    ) -> Option<Entity<crate::editor::tree::block::Block>> {
         if !matches!(callout.read(cx).kind(), BlockKind::Callout(_)) {
             return None;
         }
@@ -609,7 +609,7 @@ impl Editor {
 
     pub(crate) fn materialize_empty_callout_shortcut(
         &mut self,
-        block: &Entity<crate::editor::block::Block>,
+        block: &Entity<crate::editor::tree::block::Block>,
         cx: &mut Context<Self>,
     ) -> Option<EntityId> {
         if self.mode != crate::editor::controller::EditorMode::Wysiwyg {
@@ -648,7 +648,7 @@ impl Editor {
 
     pub(crate) fn downgrade_empty_callout_body_to_quote(
         &mut self,
-        block: &Entity<crate::editor::block::Block>,
+        block: &Entity<crate::editor::tree::block::Block>,
         cx: &mut Context<Self>,
     ) -> bool {
         let Some(location) = self.document.find_block_location(block.entity_id()) else {

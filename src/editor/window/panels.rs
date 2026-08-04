@@ -1,7 +1,7 @@
 //! Editor window panels: the workspace sidebar and the tiled pane layout.
 
-use crate::editor::layout::WindowLayout;
-use crate::editor::workspace::Workspace;
+use crate::editor::viewport::layout::WindowLayout;
+use crate::editor::window::workspace::Workspace;
 
 /// Sidebar and tiled-layout state of the editor window.
 ///

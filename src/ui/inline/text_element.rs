@@ -6,8 +6,8 @@ use std::rc::Rc;
 
 use gpui::*;
 
-use crate::editor::block::Block;
-use crate::editor::text_layout::*;
+use crate::editor::tree::block::Block;
+use crate::editor::viewport::text_layout::*;
 use crate::model::syntax::html::HtmlCssColor;
 use crate::render::code_highlight::highlight::code_highlight_color;
 use crate::theme::{ThemeColors, ThemeManager};
@@ -865,7 +865,7 @@ mod tests {
         link_at_position, source_line_number_gutter_width, source_line_number_tops,
         source_text_bounds, wrapped_line_height,
     };
-    use crate::editor::block::Block;
+    use crate::editor::tree::block::Block;
     use crate::model::block::{BlockData, BlockKind};
     use crate::model::inline::text::RichText;
     use crate::model::syntax::table::TableCellPosition;

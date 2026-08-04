@@ -58,7 +58,7 @@ impl Editor {
 
 
     pub(crate) fn set_block_title_and_kind(
-        block: &Entity<crate::editor::block::Block>,
+        block: &Entity<crate::editor::tree::block::Block>,
         kind: BlockKind,
         title: RichText,
         cursor: usize,
@@ -84,7 +84,7 @@ impl Editor {
     /// non-empty, single-line, plain paragraph with no children.
 
     pub(crate) fn is_setext_heading_target(
-        block: &Entity<crate::editor::block::Block>,
+        block: &Entity<crate::editor::tree::block::Block>,
         cx: &App,
     ) -> bool {
         let block = block.read(cx);
@@ -102,7 +102,7 @@ impl Editor {
 
     pub(crate) fn try_form_setext_heading_on_newline(
         &mut self,
-        block: &Entity<crate::editor::block::Block>,
+        block: &Entity<crate::editor::tree::block::Block>,
         cx: &mut Context<Self>,
     ) -> bool {
         let text = block.read(cx).display_text().to_string();
@@ -192,7 +192,7 @@ impl Editor {
 
     pub(crate) fn try_form_or_extend_table_on_newline(
         &mut self,
-        block: &Entity<crate::editor::block::Block>,
+        block: &Entity<crate::editor::tree::block::Block>,
         cx: &mut Context<Self>,
     ) -> bool {
         let text = block.read(cx).display_text().to_string();
@@ -258,8 +258,8 @@ impl Editor {
 
     pub(crate) fn extend_table_with_typed_row(
         &mut self,
-        table_block: &Entity<crate::editor::block::Block>,
-        row_block: &Entity<crate::editor::block::Block>,
+        table_block: &Entity<crate::editor::tree::block::Block>,
+        row_block: &Entity<crate::editor::tree::block::Block>,
         text: &str,
         cx: &mut Context<Self>,
     ) -> bool {
@@ -313,7 +313,7 @@ impl Editor {
 
     pub(crate) fn ensure_trailing_paragraph_after_structural(
         &mut self,
-        block: &Entity<crate::editor::block::Block>,
+        block: &Entity<crate::editor::tree::block::Block>,
         cx: &mut Context<Self>,
     ) {
         let strands = {

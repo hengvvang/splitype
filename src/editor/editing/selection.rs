@@ -5,15 +5,15 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::editor::block::Block;
-use crate::model::block::BlockKind;
 use crate::editor::actions::UndoCaptureKind;
-use crate::model::syntax::table::serialize_table_markdown_lines;
 use crate::editor::controller::{
-    CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, EditorMode, Editor,
+    CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, EditorMode,
     SourceTargetMapping, UndoSelectionSnapshot,
 };
 use crate::editor::editing::input::shortcuts::{Copy, Cut, Delete, DeleteBack};
+use crate::editor::tree::block::Block;
+use crate::model::block::BlockKind;
+use crate::model::syntax::table::serialize_table_markdown_lines;
 
 /// Cross-block selection with endpoints ordered by visible block position.
 #[derive(Clone, Copy)]
@@ -291,7 +291,7 @@ impl Editor {
         }
         .min(3);
 
-        self.selection.select_all_cycle = Some(super::RenderedSelectAllCycle {
+        self.selection.select_all_cycle = Some(crate::editor::controller::RenderedSelectAllCycle {
             entity_id: block_id,
             count,
             last_pressed_at: now,
@@ -611,8 +611,10 @@ impl Editor {
                 self.rebuild_image_runtimes(cx);
             }
             EditorMode::Source => {
-                let block =
-                    Self::new_block(cx, crate::model::block::BlockData::paragraph(source.clone()));
+                let block = Self::new_block(
+                    cx,
+                    crate::model::block::BlockData::paragraph(source.clone()),
+                );
                 block.update(cx, |block, _cx| block.set_source_document_mode());
                 self.document.replace_blocks(vec![block], cx);
                 self.tables.cells.clear();
@@ -919,8 +921,8 @@ mod tests {
     use gpui::{AppContext, Bounds, Context, TestAppContext, point, px, size};
 
     use super::{CrossBlockSelection, CrossBlockSelectionEndpoint, Editor};
+    use crate::editor::actions::UndoCaptureKind;
     use crate::editor::editing::input::shortcuts::{Cut, Undo};
-use crate::editor::actions::UndoCaptureKind;
     use crate::infra::i18n::I18nManager;
     use crate::theme::ThemeManager;
 
@@ -1276,7 +1278,8 @@ use crate::editor::actions::UndoCaptureKind;
             // Append a trailing empty paragraph, exactly as inserting a table at
             // the end of a document does. Ending the selection on it used to
             // abort deletion because empty roots had no source span.
-            let empty = Editor::new_block(cx, crate::model::block::BlockData::paragraph(String::new()));
+            let empty =
+                Editor::new_block(cx, crate::model::block::BlockData::paragraph(String::new()));
             let index = editor.document.root_count();
             editor
                 .document
@@ -1307,7 +1310,8 @@ use crate::editor::actions::UndoCaptureKind;
             // Prepend a leading empty paragraph; starting the highlight on it used
             // to abort deletion (the user's "drag up from the text below into an
             // empty block above the table" case).
-            let empty = Editor::new_block(cx, crate::model::block::BlockData::paragraph(String::new()));
+            let empty =
+                Editor::new_block(cx, crate::model::block::BlockData::paragraph(String::new()));
             editor.document.insert_blocks_at(None, 0, vec![empty], cx);
 
             let visible = editor.document.blocks().to_vec();

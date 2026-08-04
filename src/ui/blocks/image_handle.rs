@@ -3,7 +3,7 @@
 use std::path::Path;
 use std::time::Instant;
 
-use crate::editor::block::{Block, CollapsedCaretAffinity, ImageHandle};
+use crate::editor::tree::block::{Block, CollapsedCaretAffinity, ImageHandle};
 use crate::model::block::BlockKind;
 use crate::model::syntax::image::{
     ImageSyntax, parse_standalone_image, resolve_image_source,

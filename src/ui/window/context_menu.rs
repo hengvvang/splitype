@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use gpui::*;
 
-use crate::editor::chrome::{ContextMenuState, TableInsertDialogState, TableInsertTarget};
+use crate::editor::window::chrome::{ContextMenuState, TableInsertDialogState, TableInsertTarget};
 use crate::editor::controller::{Editor, EditorMode, TableAxisSelection};
 use crate::model::syntax::table::{TableAxisKind, TableColumnAlignment, TableData};
 use crate::infra::i18n::I18nManager;

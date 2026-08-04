@@ -9,9 +9,9 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::editor::block::Block;
+use crate::editor::tree::block::Block;
 use crate::editor::actions::{BlockAction, UndoCaptureKind};
-use crate::editor::text_layout as element;
+use crate::editor::viewport::text_layout as element;
 
 impl EntityInputHandler for Block {
     fn text_for_range(

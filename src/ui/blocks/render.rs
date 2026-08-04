@@ -31,7 +31,7 @@ use crate::render::latex_render::{
     display_math_font_size, inline_math_font_size, render_display_math_svg, render_inline_math_svg,
 };
 use crate::render::mermaid_render::render_mermaid_svg_for_display;
-use crate::editor::block::{Block, ImageHandle};
+use crate::editor::tree::block::{Block, ImageHandle};
 use crate::ui::blocks::{
     blockquote::render_blockquote,
     callout::render_callout,
@@ -2665,7 +2665,7 @@ mod tests {
     use crate::model::syntax::html::parse_html_document;
     use crate::model::syntax::table::{TableAxisKind, TableAxisMarker};
     use crate::infra::i18n::I18nManager;
-    use crate::editor::block::Block;
+    use crate::editor::tree::block::Block;
     use crate::theme::{Theme, ThemeManager};
     use gpui::{Hsla, Rgba, TestAppContext, px};
 

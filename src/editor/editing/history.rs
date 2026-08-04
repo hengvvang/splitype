@@ -7,7 +7,7 @@ use std::time::Instant;
 
 use gpui::*;
 
-use super::controller::{
+use crate::editor::controller::{
     BlockData, Editor, EditorMode, HistoryEntry, InfoDialogKind, PendingUndoCapture,
     UndoCaptureKind, UndoSelectionSnapshot,
 };
@@ -249,7 +249,7 @@ impl Editor {
                 mapping.entity.update(cx, move |block, cx| {
                     block.assign_collapsed_selection_offset(
                         current_offset,
-                        crate::editor::block::CollapsedCaretAffinity::Default,
+                        crate::editor::tree::block::CollapsedCaretAffinity::Default,
                         None,
                     );
                     block.marked_range = None;

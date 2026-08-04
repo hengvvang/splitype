@@ -35,8 +35,8 @@ impl Editor {
         &self,
         window: &mut Window,
         cx: &App,
-    ) -> Option<Entity<crate::editor::block::Block>> {
-        let is_focused = |block: &Entity<crate::editor::block::Block>| {
+    ) -> Option<Entity<crate::editor::tree::block::Block>> {
+        let is_focused = |block: &Entity<crate::editor::tree::block::Block>| {
             let block = block.read(cx);
             block.focus_handle.is_focused(window)
                 || block.code_language_focus_handle.is_focused(window)
@@ -113,7 +113,7 @@ impl Editor {
     pub(crate) fn build_plain_paste_blocks_from_lines(
         cx: &mut Context<Self>,
         lines: &[String],
-    ) -> Vec<Entity<crate::editor::block::Block>> {
+    ) -> Vec<Entity<crate::editor::tree::block::Block>> {
         let mut blocks = lines
             .iter()
             .filter(|line| !line.trim().is_empty())
@@ -137,7 +137,7 @@ impl Editor {
 
     pub(crate) fn block_is_quote_structure_related(
         &self,
-        block: &Entity<crate::editor::block::Block>,
+        block: &Entity<crate::editor::tree::block::Block>,
         cx: &App,
     ) -> bool {
         if self.mode != crate::editor::controller::EditorMode::Wysiwyg {
@@ -152,7 +152,7 @@ impl Editor {
 
     pub(crate) fn refresh_rendered_quote_metadata_if_needed(
         &mut self,
-        block: &Entity<crate::editor::block::Block>,
+        block: &Entity<crate::editor::tree::block::Block>,
         cx: &mut Context<Self>,
     ) {
         if !self.block_is_quote_structure_related(block, cx) {
@@ -163,7 +163,7 @@ impl Editor {
     }
 
     pub(crate) fn rendered_quote_text_requires_reparse(
-        block: &Entity<crate::editor::block::Block>,
+        block: &Entity<crate::editor::tree::block::Block>,
         cx: &App,
     ) -> bool {
         let block_ref = block.read(cx);
@@ -225,7 +225,7 @@ impl Editor {
     }
 
     pub(crate) fn reset_block_cursor(
-        block: &Entity<crate::editor::block::Block>,
+        block: &Entity<crate::editor::tree::block::Block>,
         cursor: usize,
         cx: &mut Context<Self>,
     ) {
@@ -241,7 +241,7 @@ impl Editor {
 
     pub(crate) fn focus_block_range(
         &mut self,
-        block: &Entity<crate::editor::block::Block>,
+        block: &Entity<crate::editor::tree::block::Block>,
         range: std::ops::Range<usize>,
         cx: &mut Context<Self>,
     ) {
@@ -261,7 +261,7 @@ impl Editor {
 mod tests {
     use super::Editor;
     use crate::editor::actions::BlockAction;
-    use crate::editor::block::Block;
+    use crate::editor::tree::block::Block;
     use crate::model::block::{BlockData, BlockKind, CalloutKind};
     use crate::model::inline::text::RichText;
     use crate::editor::editing::input::shortcuts::ExitCodeBlock;

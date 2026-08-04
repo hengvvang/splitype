@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::editor::block::Block;
+use crate::editor::tree::block::Block;
 use crate::theme::Theme;
 
 /// Render a plain paragraph block.

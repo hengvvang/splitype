@@ -5,11 +5,11 @@ use gpui::*;
 
 use crate::model::syntax::table::TableCellPosition;
 use crate::model::syntax::table::TableColumnAlignment;
-use crate::editor::block::Block;
+use crate::editor::tree::block::Block;
 use crate::editor::actions::BlockAction;
-use crate::editor::table::TableGrid;
+use crate::editor::editing::table::TableGrid;
 use crate::model::syntax::table::{TableAxisKind, TableAxisMarker, TableColumnLayout};
-use crate::editor::block::BlockEditMode;
+use crate::editor::tree::block::BlockEditMode;
 use crate::model::syntax::table::TableAxisHighlight;
 use crate::ui::blocks::render::effective_table_width;
 use crate::theme::Theme;

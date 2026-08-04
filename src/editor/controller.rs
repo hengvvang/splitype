@@ -16,13 +16,13 @@ use std::sync::Arc;
 pub(crate) use gpui::*;
 
 pub(crate) use crate::editor::actions::UndoCaptureKind;
-pub(crate) use crate::editor::block::Block;
-pub(crate) use crate::editor::chrome::WindowChrome;
-pub(crate) use crate::editor::document::Document;
-pub(crate) use crate::editor::footnotes::{
+pub(crate) use crate::editor::tree::block::Block;
+pub(crate) use crate::editor::window::chrome::WindowChrome;
+pub(crate) use crate::editor::tree::document::Document;
+pub(crate) use crate::editor::tree::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
-pub(crate) use crate::editor::panels::WindowPanels;
+pub(crate) use crate::editor::window::panels::WindowPanels;
 pub(crate) use crate::editor::views::{PreviewState, SourcePanelState};
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::model::inline::text::RichText;

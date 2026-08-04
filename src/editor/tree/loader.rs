@@ -9,7 +9,7 @@ use gpui::*;
 
 use crate::editor::controller::Editor;
 use crate::model::block::BlockData;
-use crate::editor::block::Block;
+use crate::editor::tree::block::Block;
 
 impl Editor {
     /// Parse a Markdown string into a tree of block entities.

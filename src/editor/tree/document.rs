@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use gpui::*;
 
 use crate::model::syntax::table::serialize_table_markdown_lines;
-use crate::editor::block::Block;
+use crate::editor::tree::block::Block;
 use crate::model::block::{BlockId, BlockKind, CalloutKind};
 use crate::model::syntax::image::parse_standalone_image;
 use crate::editor::controller::Editor;
@@ -491,7 +491,7 @@ impl Document {
             BlockKind::CodeBlock { language } => {
                 let indentation = "  ".repeat(list_depth);
                 let lang_str = language.as_ref().map(|s| s.as_ref()).unwrap_or("");
-                let fence = crate::editor::serialize::safe_code_fence_with_info(
+                let fence = crate::editor::tree::serialize::safe_code_fence_with_info(
                     &block_ref.record.text.visible_text(),
                     language.as_ref().map(|language| language.as_ref()),
                 );

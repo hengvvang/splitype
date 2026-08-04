@@ -69,7 +69,7 @@ impl Editor {
         indentation: &str,
         language: Option<&SharedString>,
     ) -> (String, Vec<usize>, Vec<usize>) {
-        let fence = crate::editor::serialize::safe_code_fence_with_info(
+        let fence = crate::editor::tree::serialize::safe_code_fence_with_info(
             content,
             language.map(|language| language.as_ref()),
         );
