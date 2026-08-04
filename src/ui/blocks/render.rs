@@ -23,7 +23,7 @@ use crate::model::syntax::image::{
 use crate::model::syntax::math::parse_display_math_source;
 use crate::model::syntax::mermaid::parse_mermaid_fence_source;
 use crate::model::syntax::table::{TableAxisHighlight, TableAxisKind};
-use crate::render::code_highlight::language::{
+use crate::render::code_highlight::options::{
     code_language_display_name, code_language_options_matching,
 };
 use crate::infra::i18n::{I18nManager, I18nStrings};

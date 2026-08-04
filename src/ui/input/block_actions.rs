@@ -7,11 +7,11 @@ use std::time::Duration;
 
 use gpui::*;
 
-use crate::model::inline::text::RichText;
 use crate::editor::actions::{BlockAction, PastedImageSource, UndoCaptureKind};
-use crate::model::block::BlockKind;
-use crate::render::code_highlight::language::code_language_options_matching;
 use crate::editor::block::{Block, CollapsedCaretAffinity, InlineFormat};
+use crate::model::block::BlockKind;
+use crate::model::inline::text::RichText;
+use crate::render::code_highlight::options::code_language_options_matching;
 use crate::ui::input::paste::should_split_plain_multiline_paste;
 use crate::ui::input::shortcuts::{
     BlockDown, BlockUp, BoldSelection, CodeSelection, Copy, Cut, Delete, DeleteBack,
@@ -1781,9 +1781,9 @@ impl Block {
 #[cfg(test)]
 mod tests {
     use super::Block;
-    use crate::model::inline::text::RichText;
     use crate::editor::actions::PastedImageSource;
-use crate::model::block::{BlockData, BlockKind};
+    use crate::model::block::{BlockData, BlockKind};
+    use crate::model::inline::text::RichText;
     use gpui::{AppContext, TestAppContext};
     use std::fs;
 
