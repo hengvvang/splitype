@@ -29,13 +29,13 @@ use crate::model::syntax::image::{
 use crate::model::syntax::math::parse_display_math_source;
 use crate::model::syntax::mermaid::parse_mermaid_fence_source;
 use crate::model::syntax::table::{TableAxisHighlight, TableAxisKind};
-use crate::render::code_highlight::options::{
+use crate::editor::render::code_highlight::options::{
     code_language_display_name, code_language_options_matching,
 };
-use crate::render::latex_render::{
+use crate::editor::render::latex_render::{
     display_math_font_size, inline_math_font_size, render_display_math_svg, render_inline_math_svg,
 };
-use crate::render::mermaid_render::render_mermaid_svg_for_display;
+use crate::editor::render::mermaid_render::render_mermaid_svg_for_display;
 use crate::theme::{Theme, ThemeDimensions, ThemeManager};
 use crate::windows::editor::blocks::inline::text_element::{
     BlockTextElement, CodeLanguageInputElement,

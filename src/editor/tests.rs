@@ -17,7 +17,7 @@ use crate::model::syntax::image::{
     ImageReferenceDefinitions, ImageResolvedSource, TableCellInlineImageSegment,
     parse_table_cell_inline_images,
 };
-use crate::render::export::ExportFormat;
+use crate::editor::render::export::ExportFormat;
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::editor::window::chrome::{TableInsertDialogState, TableInsertTarget};
 use crate::theme::{Theme, ThemeManager};

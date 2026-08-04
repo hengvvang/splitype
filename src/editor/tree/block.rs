@@ -21,7 +21,7 @@ use crate::model::syntax::image::ImageResolvedSource;
 use crate::model::syntax::link::LinkReferenceDefinitions;
 use crate::model::syntax::table::TableCellPosition;
 use crate::model::syntax::table::{TableAxisHighlight, TableAxisMarker, TableColumnAlignment};
-use crate::render::code_highlight::highlight::{CodeHighlightResult, highlight_code_block};
+use crate::editor::render::code_highlight::highlight::{CodeHighlightResult, highlight_code_block};
 use crate::editor::editing::table::TableGrid;
 use crate::editor::editing::projection::{
     ExpandedInlineProjection, ExpandedInlineSegment, ExpandedInlineSegmentKind, ExpandedLinkRun,

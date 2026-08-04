@@ -9,7 +9,7 @@ use gpui::*;
 use crate::editor::tree::block::Block;
 use crate::editor::viewport::text_layout::*;
 use crate::model::syntax::html::HtmlCssColor;
-use crate::render::code_highlight::highlight::code_highlight_color;
+use crate::editor::render::code_highlight::highlight::code_highlight_color;
 use crate::theme::{ThemeColors, ThemeManager};
 
 const SOURCE_LINE_NUMBER_GAP: f32 = 12.0;

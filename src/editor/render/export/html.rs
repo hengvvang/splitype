@@ -12,8 +12,8 @@ use crate::model::syntax::mermaid::{
     is_mermaid_closing_fence, parse_mermaid_fence_source, parse_mermaid_fence_start,
 };
 use crate::model::syntax::math::parse_display_math_source;
-use crate::render::latex_render::{inline_math_font_size, render_latex_to_svg};
-use crate::render::mermaid_render::render_mermaid_to_svg;
+use crate::editor::render::latex_render::{inline_math_font_size, render_latex_to_svg};
+use crate::editor::render::mermaid_render::render_mermaid_to_svg;
 use crate::infra::net;
 use crate::theme::{FontWeightDef, Theme};
 

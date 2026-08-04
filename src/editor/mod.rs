@@ -4,6 +4,7 @@
 pub mod actions;
 pub mod controller;
 pub mod editing;
+pub mod render;
 pub mod tree;
 pub mod viewport;
 pub mod views;

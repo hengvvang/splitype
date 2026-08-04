@@ -21,7 +21,7 @@ use crate::infra::config::settings::{
     apply_configured_language, apply_configured_theme, import_language_config_and_select,
     import_theme_config_and_select,
 };
-use crate::render::export::ExportFormat;
+use crate::editor::render::export::ExportFormat;
 use crate::infra::i18n::I18nManager;
 use crate::editor::editing::input::shortcuts::{
     AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,

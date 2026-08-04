@@ -14,7 +14,7 @@ use chromiumoxide::cdp::browser_protocol::page::PrintToPdfParams;
 use futures::StreamExt;
 use uuid::Uuid;
 
-use crate::render::export::html::render_chromium_pdf_html_with_base_dir;
+use crate::editor::render::export::html::render_chromium_pdf_html_with_base_dir;
 use crate::theme::Theme;
 
 const CHROMIUM_VIEWPORT_WIDTH: u32 = 1280;
@@ -155,7 +155,7 @@ impl Drop for PdfTempFiles {
 #[cfg(test)]
 mod tests {
     use super::{chromium_pdf_params, file_url_from_path, render_pdf};
-    use crate::render::export::html::render_chromium_pdf_html_with_base_dir;
+    use crate::editor::render::export::html::render_chromium_pdf_html_with_base_dir;
     use crate::theme::Theme;
 
     #[test]

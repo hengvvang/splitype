@@ -11,7 +11,7 @@ use crate::editor::actions::{BlockAction, PastedImageSource, UndoCaptureKind};
 use crate::editor::tree::block::{Block, CollapsedCaretAffinity, InlineFormat};
 use crate::model::block::BlockKind;
 use crate::model::inline::text::RichText;
-use crate::render::code_highlight::options::code_language_options_matching;
+use crate::editor::render::code_highlight::options::code_language_options_matching;
 use crate::editor::editing::input::paste::should_split_plain_multiline_paste;
 use crate::editor::editing::input::shortcuts::{
     BlockDown, BlockUp, BoldSelection, CodeSelection, Copy, Cut, Delete, DeleteBack,

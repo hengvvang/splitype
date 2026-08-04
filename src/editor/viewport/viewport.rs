@@ -231,7 +231,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.export_document_via_prompt(crate::render::export::ExportFormat::Html, window, cx);
+        self.export_document_via_prompt(crate::editor::render::export::ExportFormat::Html, window, cx);
     }
 
     pub(crate) fn on_export_pdf(
@@ -240,7 +240,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.export_document_via_prompt(crate::render::export::ExportFormat::Pdf, window, cx);
+        self.export_document_via_prompt(crate::editor::render::export::ExportFormat::Pdf, window, cx);
     }
 
     pub(crate) fn on_quit_application(

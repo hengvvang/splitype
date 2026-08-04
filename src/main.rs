@@ -11,7 +11,6 @@ mod editor;
 mod infra;
 mod model;
 mod platform;
-mod render;
 mod theme;
 mod ui;
 mod windows;
