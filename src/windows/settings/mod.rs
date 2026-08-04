@@ -281,7 +281,6 @@ impl Render for SettingsWindow {
                 } else {
                     c.dialog_surface
                 })
-                .hover(|this| this.bg(c.dialog_secondary_button_hover))
                 .active(|this| this.opacity(0.92))
                 .text_size(px(d.menu_text_size))
                 .font_weight(if is_selected {
@@ -599,7 +598,6 @@ settings_row(inner_border_color, c, d)
                             } else {
                                 c.dialog_surface
                             })
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
                             .text_size(px(12.0))
                             .text_color(c.text_default)
                             .child(
@@ -693,7 +691,6 @@ settings_row(inner_border_color, c, d)
                             } else {
                                 c.dialog_surface
                             })
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
                             .text_size(px(12.0))
                             .text_color(c.text_default)
                             .child(label)
@@ -1036,7 +1033,6 @@ settings_row(inner_border_color, c, d)
                             } else {
                                 c.dialog_surface
                             })
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
                             .text_size(px(12.0))
                             .text_color(c.text_default)
                             .child(label)
@@ -1136,7 +1132,6 @@ settings_row(inner_border_color, c, d)
                             } else {
                                 c.dialog_surface
                             })
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
                             .text_size(px(12.0))
                             .text_color(c.text_default)
                             .child(label)

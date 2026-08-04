@@ -1700,7 +1700,6 @@ impl Editor {
                     } else {
                         c.dialog_surface
                     })
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
                     .cursor_pointer()
                     .text_size(px(d.menu_text_size))
                     .font_weight(t.dialog_body_weight.to_font_weight())

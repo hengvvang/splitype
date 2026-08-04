@@ -46,7 +46,6 @@ nav_tab(("pref-tab", tab_idx), c, d)
                     } else {
                         c.dialog_surface
                     })
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
                     .child(
                         div()
                             .text_size(px(13.0))
@@ -348,7 +347,6 @@ select_option(ElementId::Name(format!("theme-item-{}", t_id).into()), c)
                                     } else {
                                         c.dialog_surface
                                     })
-                                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
                                     .text_size(px(12.0))
                                     .text_color(c.text_default)
                                     .child(
@@ -444,7 +442,6 @@ select_option(ElementId::Name(format!("lang-item-{}", code).into()), c)
                                     } else {
                                         c.dialog_surface
                                     })
-                                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
                                     .text_size(px(12.0))
                                     .text_color(c.text_default)
                                     .child(label)
@@ -870,7 +867,6 @@ select_option(ElementId::Name(format!("img-item-{}", idx).into()), c)
                                     } else {
                                         c.dialog_surface
                                     })
-                                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
                                     .text_size(px(12.0))
                                     .text_color(c.text_default)
                                     .child(label)
@@ -992,7 +988,6 @@ select_option(ElementId::Name(format!("startup-item-{}", idx).into()), c)
                                     } else {
                                         c.dialog_surface
                                     })
-                                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
                                     .text_size(px(12.0))
                                     .text_color(c.text_default)
                                     .child(label)
