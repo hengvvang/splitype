@@ -17,24 +17,27 @@ use std::sync::{
 use futures::{StreamExt, channel::mpsc};
 use gpui::*;
 
-mod app_menu;
-mod assets;
-mod blocks;
+mod app;
+mod core;
 mod engine;
-mod export;
-mod net;
-mod shell;
-mod workspace;
+mod platform;
+mod services;
+mod ui;
 
+use crate::app::menu::{init as init_app_menu, open_editor_window};
 #[cfg(target_os = "macos")]
-use crate::shell::file_url::parse_file_url;
-use app_menu::{init as init_app_menu, open_editor_window};
-use blocks::action_defs::init_with_keybindings as init_editor;
-use workspace::{I18nManager, ThemeManager};
+use crate::platform::file_url::parse_file_url;
+use crate::services::i18n::I18nManager;
+use crate::ui::input::shortcuts::init_with_keybindings as init_editor;
+use crate::ui::theme::ThemeManager;
 
-fn open_startup_window(cx: &mut App, startup_open: workspace::StartupOpenSetting) {
-    if startup_open == workspace::StartupOpenSetting::LastOpenedFile
-        && let Some(path) = workspace::first_existing_recent_markdown_file()
+fn open_startup_window(
+    cx: &mut App,
+    startup_open: crate::services::storage::settings::StartupOpenSetting,
+) {
+    if startup_open == crate::services::storage::settings::StartupOpenSetting::LastOpenedFile
+        && let Some(path) =
+            crate::services::storage::settings::first_existing_recent_markdown_file()
     {
         match std::fs::read_to_string(&path) {
             Ok(markdown) => {
@@ -130,7 +133,7 @@ fn main() {
     #[cfg(target_os = "macos")]
     let open_file_requested = Arc::new(AtomicBool::new(false));
 
-    let app = Application::new().with_assets(assets::VelotypeAssets);
+    let app = Application::new().with_assets(crate::app::assets::VelotypeAssets);
 
     #[cfg(target_os = "macos")]
     {
@@ -147,14 +150,15 @@ fn main() {
     }
 
     app.run(move |cx: &mut App| {
-        let settings = workspace::load_or_create_app_settings().unwrap_or_else(|err| {
-            eprintln!("failed to initialize app settings: {err}");
-            Default::default()
-        });
+        let settings = crate::services::storage::settings::load_or_create_app_settings()
+            .unwrap_or_else(|err| {
+                eprintln!("failed to initialize app settings: {err}");
+                Default::default()
+            });
         I18nManager::init_with_language_id(cx, &settings.default_language_id);
         ThemeManager::init_with_theme_id(cx, &settings.default_theme_id);
-        workspace::EditorSettings::init(cx, settings.show_table_headers);
-        net::install_http_client(cx);
+        crate::services::storage::settings::EditorSettings::init(cx, settings.show_table_headers);
+        services::net::http_client::install_http_client(cx);
         init_editor(cx, &settings.keybindings);
         init_app_menu(cx);
 
@@ -162,7 +166,7 @@ fn main() {
         cx.spawn(async move |cx| {
             while let Some(path) = open_file_rx.next().await {
                 let _ = cx.update(move |cx| {
-                    if let Err(err) = app_menu::open_file_in_new_window(cx, &path) {
+                    if let Err(err) = crate::app::menu::open_file_in_new_window(cx, &path) {
                         eprintln!("failed to open '{}': {err}", path.display());
                     }
                 });
@@ -204,7 +208,9 @@ fn main() {
 
             let markdown = match std::fs::read_to_string(&absolute_path) {
                 Ok(content) => {
-                    if let Err(err) = workspace::record_recent_file(&absolute_path) {
+                    if let Err(err) =
+                        crate::services::storage::recent_files::record_recent_file(&absolute_path)
+                    {
                         eprintln!("failed to update recent file history: {err}");
                     }
                     content
@@ -219,7 +225,7 @@ fn main() {
             };
             open_editor_window(cx, markdown, Some(absolute_path));
         }
-        app_menu::install_menus(cx);
+        crate::app::menu::install_menus(cx);
         cx.refresh_windows();
     });
 }

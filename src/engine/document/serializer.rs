@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use gpui::*;
 
 use crate::engine::editor::Editor;
-use crate::workspace::I18nManager;
+use crate::services::i18n::I18nManager;
 
 fn longest_marker_run(text: &str, marker: char) -> usize {
     let mut longest = 0usize;

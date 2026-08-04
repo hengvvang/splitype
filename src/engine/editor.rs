@@ -13,20 +13,29 @@ use std::sync::Arc;
 
 pub(crate) use gpui::*;
 
-pub(crate) use crate::blocks::{
-    Block, BlockData, BlockType, FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation,
-    FootnoteResolvedOccurrence, ImageReferenceDefinitions, LinkReferenceDefinitions, RichText,
-    parse_image_reference_definitions, parse_link_reference_definitions,
+pub(crate) use crate::core::extensions::footnote_def::{
+    FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
-pub(crate) use crate::blocks::{
-    TableAxisHighlight, TableAxisKind, TableAxisMarker, TableCellPosition, TableColumnAlignment,
-    TableData, TableGrid, UndoCaptureKind, serialize_table_cell_markdown,
+pub(crate) use crate::core::extensions::image_ref::{
+    ImageReferenceDefinitions, parse_image_reference_definitions,
 };
+pub(crate) use crate::core::extensions::table::{
+    TableAxisHighlight, TableAxisKind, TableAxisMarker, TableColumnAlignment, TableData,
+    serialize_table_cell_markdown,
+};
+pub(crate) use crate::core::extensions::table_cell::TableCellPosition;
+pub(crate) use crate::core::text::link_ref::{
+    LinkReferenceDefinitions, parse_link_reference_definitions,
+};
+pub(crate) use crate::core::text::rich_text::RichText;
+pub(crate) use crate::engine::block_types::{BlockData, BlockType, UndoCaptureKind};
 pub(crate) use crate::engine::document::Document;
-pub(crate) use crate::engine::explorer::Explorer;
-pub(crate) use crate::engine::input::context_menu::{ContextMenuState, TableInsertDialogState};
-pub(crate) use crate::engine::layout::Layout;
-pub(crate) use crate::engine::status_bar::StatusBarState;
+pub(crate) use crate::ui::blocks::block_view::Block;
+pub(crate) use crate::ui::blocks::table_block::TableGrid;
+pub(crate) use crate::ui::components::context_menu::{ContextMenuState, TableInsertDialogState};
+pub(crate) use crate::ui::components::status_bar::StatusBarState;
+pub(crate) use crate::ui::views::explorer_view::Explorer;
+pub(crate) use crate::ui::views::layout::Layout;
 
 /// Link navigation request deferred until a `Window` is available.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -38,7 +47,7 @@ pub(crate) struct PendingOpenLink {
 /// Top-level controller that owns editor-wide state and delegates tree
 /// mutations to [`Document`].
 ///
-/// The editor subscribes to every [`BlockAction`](crate::blocks::BlockAction)
+/// The editor subscribes to every [`BlockAction`](crate::engine::block_types::BlockAction)
 /// emitted by child blocks. Structural changes are handled centrally so focus,
 /// scrolling, dirty tracking, and serialization stay synchronized.
 pub struct Editor {

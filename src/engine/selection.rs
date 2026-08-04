@@ -5,14 +5,14 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::blocks::{
-    Block, BlockType, Copy, Cut, Delete, DeleteBack, UndoCaptureKind,
-    serialize_table_markdown_lines,
-};
+use crate::ui::blocks::block_view::Block;
+use crate::engine::block_types::{BlockType, UndoCaptureKind};
+use crate::core::extensions::table::serialize_table_markdown_lines;
 use crate::engine::editor::{
-    CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, SourceTargetMapping,
-    UndoSelectionSnapshot, EditMode,
+    CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, EditMode, Editor,
+    SourceTargetMapping, UndoSelectionSnapshot,
 };
+use crate::ui::input::shortcuts::{Copy, Cut, Delete, DeleteBack};
 
 /// Cross-block selection with endpoints ordered by visible block position.
 #[derive(Clone, Copy)]
@@ -602,7 +602,7 @@ impl Editor {
                 if roots.is_empty() {
                     roots.push(Self::new_block(
                         cx,
-                        crate::blocks::BlockData::paragraph(String::new()),
+                        crate::engine::block_types::BlockData::paragraph(String::new()),
                     ));
                 }
                 self.document.replace_blocks(roots, cx);
@@ -611,7 +611,7 @@ impl Editor {
             }
             EditMode::Source => {
                 let block =
-                    Self::new_block(cx, crate::blocks::BlockData::paragraph(source.clone()));
+                    Self::new_block(cx, crate::engine::block_types::BlockData::paragraph(source.clone()));
                 block.update(cx, |block, _cx| block.set_source_document_mode());
                 self.document.replace_blocks(vec![block], cx);
                 self.table_cells.clear();
@@ -918,15 +918,16 @@ mod tests {
     use gpui::{AppContext, Bounds, Context, TestAppContext, point, px, size};
 
     use super::{CrossBlockSelection, CrossBlockSelectionEndpoint, Editor};
-    use crate::blocks::{Cut, Undo, UndoCaptureKind};
-    use crate::workspace::I18nManager;
-    use crate::workspace::ThemeManager;
+    use crate::ui::input::shortcuts::{Cut, Undo};
+use crate::engine::block_types::UndoCaptureKind;
+    use crate::services::i18n::I18nManager;
+    use crate::ui::theme::ThemeManager;
 
     fn init_editor_test_app(cx: &mut TestAppContext) {
         cx.update(|cx| {
             I18nManager::init(cx);
             ThemeManager::init(cx);
-            crate::blocks::init(cx);
+            crate::ui::input::shortcuts::init(cx);
         });
     }
 
@@ -960,13 +961,7 @@ mod tests {
     }
 
     fn assign_visible_block_bounds(editor: &mut Editor, cx: &mut Context<Editor>) {
-        for (index, visible) in editor
-            .document
-            .blocks()
-            .to_vec()
-            .into_iter()
-            .enumerate()
-        {
+        for (index, visible) in editor.document.blocks().to_vec().into_iter().enumerate() {
             visible.entity.update(cx, move |block, _cx| {
                 block.last_bounds = Some(Bounds::new(
                     point(px(0.0), px(index as f32 * 32.0)),
@@ -988,11 +983,11 @@ mod tests {
             set_selection(editor, 0, 0, 2, 2, cx);
             assert!(editor.cross_block_selection.is_some());
             assert!(
-                editor
-                    .document
-                    .blocks()
-                    .iter()
-                    .any(|visible| visible.entity.read(cx).editor_selection_range.is_some())
+                editor.document.blocks().iter().any(|visible| visible
+                    .entity
+                    .read(cx)
+                    .editor_selection_range
+                    .is_some())
             );
 
             editor.begin_cross_block_drag_at_point(point(px(8.0), px(4.0)), cx);
@@ -1000,11 +995,11 @@ mod tests {
             assert!(editor.cross_block_selection.is_none());
             assert!(editor.cross_block_drag.is_some());
             assert!(
-                editor
-                    .document
-                    .blocks()
-                    .iter()
-                    .all(|visible| visible.entity.read(cx).editor_selection_range.is_none())
+                editor.document.blocks().iter().all(|visible| visible
+                    .entity
+                    .read(cx)
+                    .editor_selection_range
+                    .is_none())
             );
         });
         cx.quit();
@@ -1280,7 +1275,7 @@ mod tests {
             // Append a trailing empty paragraph, exactly as inserting a table at
             // the end of a document does. Ending the selection on it used to
             // abort deletion because empty roots had no source span.
-            let empty = Editor::new_block(cx, crate::blocks::BlockData::paragraph(String::new()));
+            let empty = Editor::new_block(cx, crate::engine::block_types::BlockData::paragraph(String::new()));
             let index = editor.document.root_count();
             editor
                 .document
@@ -1311,7 +1306,7 @@ mod tests {
             // Prepend a leading empty paragraph; starting the highlight on it used
             // to abort deletion (the user's "drag up from the text below into an
             // empty block above the table" case).
-            let empty = Editor::new_block(cx, crate::blocks::BlockData::paragraph(String::new()));
+            let empty = Editor::new_block(cx, crate::engine::block_types::BlockData::paragraph(String::new()));
             editor.document.insert_blocks_at(None, 0, vec![empty], cx);
 
             let visible = editor.document.blocks().to_vec();

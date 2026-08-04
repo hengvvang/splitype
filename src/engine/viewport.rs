@@ -3,6 +3,10 @@
 use std::path::Path;
 
 use crate::engine::editor::*;
+use crate::ui::input::shortcuts::{
+    CloseWindow, ExportHtml, ExportPdf, InstallCliTool, QuitApplication, Redo, SaveDocument,
+    SaveDocumentAs, ToggleViewMode, Undo, UninstallCliTool,
+};
 
 impl Editor {
     pub(crate) fn scrollbar_geometry(
@@ -132,7 +136,7 @@ impl Editor {
     /// shrinks to `centered_min_ratio` at `centered_shrink_end`.
     pub(crate) fn centered_column_ratio(
         viewport_width: f32,
-        dimensions: &crate::workspace::ThemeDimensions,
+        dimensions: &crate::ui::theme::ThemeDimensions,
     ) -> f32 {
         if viewport_width <= dimensions.centered_shrink_start {
             return 1.0;
@@ -146,7 +150,7 @@ impl Editor {
 
     pub(crate) fn centered_column_width(
         viewport_width: f32,
-        dimensions: &crate::workspace::ThemeDimensions,
+        dimensions: &crate::ui::theme::ThemeDimensions,
     ) -> f32 {
         let available_content_width = (viewport_width - dimensions.editor_padding * 2.0).max(1.0);
         let centered_ratio = Self::centered_column_ratio(viewport_width, dimensions);
@@ -160,7 +164,7 @@ impl Editor {
     pub(crate) fn window_title(
         file_path: Option<&Path>,
         is_dirty: bool,
-        strings: &crate::workspace::I18nStrings,
+        strings: &crate::services::i18n::I18nStrings,
     ) -> String {
         let base_title = if let Some(path) = file_path {
             path.file_name().map_or_else(
@@ -182,7 +186,7 @@ impl Editor {
 
     pub(crate) fn on_toggle_view_mode_action(
         &mut self,
-        _: &crate::blocks::ToggleViewMode,
+        _: &ToggleViewMode,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -195,27 +199,17 @@ impl Editor {
         self.toggle_view_mode(cx);
     }
 
-    pub(crate) fn on_undo(
-        &mut self,
-        _: &crate::blocks::Undo,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub(crate) fn on_undo(&mut self, _: &Undo, _window: &mut Window, cx: &mut Context<Self>) {
         self.undo_document(cx);
     }
 
-    pub(crate) fn on_redo(
-        &mut self,
-        _: &crate::blocks::Redo,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
+    pub(crate) fn on_redo(&mut self, _: &Redo, _window: &mut Window, cx: &mut Context<Self>) {
         self.redo_document(cx);
     }
 
     pub(crate) fn on_save_document(
         &mut self,
-        _: &crate::blocks::SaveDocument,
+        _: &SaveDocument,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -224,7 +218,7 @@ impl Editor {
 
     pub(crate) fn on_save_document_as(
         &mut self,
-        _: &crate::blocks::SaveDocumentAs,
+        _: &SaveDocumentAs,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -233,34 +227,34 @@ impl Editor {
 
     pub(crate) fn on_export_html(
         &mut self,
-        _: &crate::blocks::ExportHtml,
+        _: &ExportHtml,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.export_document_via_prompt(crate::export::ExportFormat::Html, window, cx);
+        self.export_document_via_prompt(crate::services::export::ExportFormat::Html, window, cx);
     }
 
     pub(crate) fn on_export_pdf(
         &mut self,
-        _: &crate::blocks::ExportPdf,
+        _: &ExportPdf,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.export_document_via_prompt(crate::export::ExportFormat::Pdf, window, cx);
+        self.export_document_via_prompt(crate::services::export::ExportFormat::Pdf, window, cx);
     }
 
     pub(crate) fn on_quit_application(
         &mut self,
-        _: &crate::blocks::QuitApplication,
+        _: &QuitApplication,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        crate::app_menu::request_quit_application(cx);
+        crate::app::menu::request_quit_application(cx);
     }
 
     pub(crate) fn on_close_window(
         &mut self,
-        _: &crate::blocks::CloseWindow,
+        _: &CloseWindow,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -269,20 +263,20 @@ impl Editor {
 
     pub(crate) fn on_install_cli_tool(
         &mut self,
-        _: &crate::blocks::InstallCliTool,
+        _: &InstallCliTool,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        crate::app_menu::install_cli_tool(cx);
+        crate::app::menu::install_cli_tool(cx);
     }
 
     pub(crate) fn on_uninstall_cli_tool(
         &mut self,
-        _: &crate::blocks::UninstallCliTool,
+        _: &UninstallCliTool,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        crate::app_menu::uninstall_cli_tool(cx);
+        crate::app::menu::uninstall_cli_tool(cx);
     }
 
     #[allow(dead_code)]

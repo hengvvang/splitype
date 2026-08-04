@@ -7,20 +7,25 @@ use gpui::{
     VisualTestContext,
 };
 
-use super::{Editor, EditMode};
-use crate::blocks::{
-    BlockType, CloseWindow, FocusNext, ImageReferenceDefinitions, ImageResolvedSource,
-    RichText, Newline, QuitApplication, SaveDocument, TableCellInlineImageSegment,
-    TableColumnAlignment, parse_table_cell_inline_images, superscript_ordinal,
+use super::{EditMode, Editor};
+use crate::engine::block_types::BlockType;
+use crate::ui::input::shortcuts::{CloseWindow, FocusNext, Newline, QuitApplication, SaveDocument};
+use crate::core::text::rich_text::RichText;
+use crate::core::extensions::table::TableColumnAlignment;
+use crate::core::text::inline_footnote::superscript_ordinal;
+use crate::core::extensions::image_ref::{
+    ImageReferenceDefinitions, ImageResolvedSource, TableCellInlineImageSegment,
+    parse_table_cell_inline_images,
 };
-use crate::export::ExportFormat;
-use crate::workspace::{I18nManager, I18nStrings};
-use crate::workspace::{Theme, ThemeManager};
+use crate::services::export::ExportFormat;
+use crate::services::i18n::{I18nManager, I18nStrings};
+use crate::ui::components::context_menu::{TableInsertDialogState, TableInsertTarget};
+use crate::ui::theme::{Theme, ThemeManager};
 fn init_editor_test_app(cx: &mut TestAppContext) {
     cx.update(|cx| {
         I18nManager::init(cx);
         ThemeManager::init(cx);
-        crate::blocks::init(cx);
+        crate::ui::input::shortcuts::init(cx);
     });
 }
 
@@ -221,7 +226,10 @@ fn about_dialog_body_lines_include_repository_and_star_message() {
     assert_eq!(lines[0], format!("Velotype {}", env!("CARGO_PKG_VERSION")));
     assert_eq!(
         lines[2],
-        format!("GitHub: {}", super::render::ABOUT_GITHUB_URL)
+        format!(
+            "GitHub: {}",
+            crate::ui::views::editor_view::ABOUT_GITHUB_URL
+        )
     );
     assert_eq!(
         lines[3],
@@ -232,12 +240,12 @@ fn about_dialog_body_lines_include_repository_and_star_message() {
 #[gpui::test]
 async fn about_github_link_uses_gpui_url_opening(cx: &mut TestAppContext) {
     cx.update(|cx| {
-        super::render::open_about_github_url(cx);
+        crate::ui::views::editor_view::open_about_github_url(cx);
     });
 
     assert_eq!(
         cx.opened_url(),
-        Some(super::render::ABOUT_GITHUB_URL.to_string())
+        Some(crate::ui::views::editor_view::ABOUT_GITHUB_URL.to_string())
     );
 }
 
@@ -599,7 +607,7 @@ async fn close_window_menu_action_closes_only_active_editor_window(cx: &mut Test
     assert_eq!(cx.cx.windows().len(), 2);
 
     cx.cx.update(|cx| {
-        crate::app_menu::dispatch_menu_action(&CloseWindow, cx);
+        crate::app::menu::dispatch_menu_action(&CloseWindow, cx);
     });
     cx.run_until_parked();
 
@@ -614,10 +622,10 @@ async fn app_menu_opened_windows_activate_and_close_independently(cx: &mut TestA
     init_editor_test_app(cx);
 
     let first_window =
-        cx.update(|cx| crate::app_menu::open_editor_window(cx, "first".to_string(), None));
+        cx.update(|cx| crate::app::menu::open_editor_window(cx, "first".to_string(), None));
     cx.run_until_parked();
     let second_window =
-        cx.update(|cx| crate::app_menu::open_editor_window(cx, "second".to_string(), None));
+        cx.update(|cx| crate::app::menu::open_editor_window(cx, "second".to_string(), None));
     cx.run_until_parked();
 
     let active_window = cx.update(|cx| cx.active_window().expect("window should be active"));
@@ -632,7 +640,7 @@ async fn app_menu_opened_windows_activate_and_close_independently(cx: &mut TestA
     );
 
     cx.update(|cx| {
-        crate::app_menu::dispatch_menu_action(&CloseWindow, cx);
+        crate::app::menu::dispatch_menu_action(&CloseWindow, cx);
     });
     cx.run_until_parked();
 
@@ -641,7 +649,7 @@ async fn app_menu_opened_windows_activate_and_close_independently(cx: &mut TestA
     assert_eq!(remaining[0].window_id(), first_window.window_id());
 
     cx.update(|cx| {
-        crate::app_menu::dispatch_menu_action(&CloseWindow, cx);
+        crate::app::menu::dispatch_menu_action(&CloseWindow, cx);
     });
     cx.run_until_parked();
 
@@ -658,10 +666,10 @@ async fn app_menu_opened_file_window_reinstalls_close_guard_after_registration(
     fs::write(&opened_path, "opened from file").expect("write opened markdown");
 
     let first_window =
-        cx.update(|cx| crate::app_menu::open_editor_window(cx, "first".to_string(), None));
+        cx.update(|cx| crate::app::menu::open_editor_window(cx, "first".to_string(), None));
     cx.run_until_parked();
     let second_window = cx.update(|cx| {
-        crate::app_menu::open_editor_window(
+        crate::app::menu::open_editor_window(
             cx,
             fs::read_to_string(&opened_path).expect("read opened markdown"),
             Some(opened_path.clone()),
@@ -681,7 +689,7 @@ async fn app_menu_opened_file_window_reinstalls_close_guard_after_registration(
         .expect("second editor window should be open");
 
     cx.update(|cx| {
-        crate::app_menu::dispatch_menu_action(&CloseWindow, cx);
+        crate::app::menu::dispatch_menu_action(&CloseWindow, cx);
     });
     cx.run_until_parked();
 
@@ -701,9 +709,9 @@ async fn app_menu_opened_dirty_file_window_prompts_only_that_window(cx: &mut Tes
     fs::write(&opened_path, "opened from file").expect("write opened markdown");
 
     let first_window =
-        cx.update(|cx| crate::app_menu::open_editor_window(cx, "first".to_string(), None));
+        cx.update(|cx| crate::app::menu::open_editor_window(cx, "first".to_string(), None));
     let second_window = cx.update(|cx| {
-        crate::app_menu::open_editor_window(
+        crate::app::menu::open_editor_window(
             cx,
             fs::read_to_string(&opened_path).expect("read opened markdown"),
             Some(opened_path.clone()),
@@ -739,9 +747,9 @@ async fn app_menu_opened_dirty_window_close_guard_prompts_only_that_window(
     init_editor_test_app(cx);
 
     let first_window =
-        cx.update(|cx| crate::app_menu::open_editor_window(cx, "first".to_string(), None));
+        cx.update(|cx| crate::app::menu::open_editor_window(cx, "first".to_string(), None));
     let second_window =
-        cx.update(|cx| crate::app_menu::open_editor_window(cx, "second".to_string(), None));
+        cx.update(|cx| crate::app::menu::open_editor_window(cx, "second".to_string(), None));
     cx.run_until_parked();
 
     second_window
@@ -779,7 +787,7 @@ async fn quit_application_allows_clean_editor_windows_to_quit(cx: &mut TestAppCo
     assert_eq!(cx.cx.windows().len(), 2);
 
     cx.cx.update(|cx| {
-        crate::app_menu::dispatch_menu_action(&QuitApplication, cx);
+        crate::app::menu::dispatch_menu_action(&QuitApplication, cx);
     });
     cx.run_until_parked();
 
@@ -808,7 +816,7 @@ async fn quit_application_prompts_dirty_editor_without_quitting(cx: &mut TestApp
     assert_eq!(cx.cx.windows().len(), 2);
 
     cx.cx.update(|cx| {
-        crate::app_menu::dispatch_menu_action(&QuitApplication, cx);
+        crate::app::menu::dispatch_menu_action(&QuitApplication, cx);
     });
     cx.run_until_parked();
 
@@ -844,7 +852,7 @@ async fn windows_fallback_close_window_dispatch_closes_target_editor_window(
 
     cx.update(|window, cx| {
         let editor = editor.downgrade();
-        crate::app_menu::dispatch_menu_action_for_editor(&CloseWindow, &editor, window, cx);
+        crate::app::menu::dispatch_menu_action_for_editor(&CloseWindow, &editor, window, cx);
     });
     cx.run_until_parked();
 
@@ -1109,7 +1117,7 @@ async fn setting_column_alignment_updates_record_and_selection(cx: &mut TestAppC
             editor.table_axis_selection,
             Some(super::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: crate::blocks::TableAxisKind::Column,
+                kind: crate::core::extensions::table::TableAxisKind::Column,
                 index: 1,
             })
         );
@@ -1132,7 +1140,7 @@ async fn moving_table_row_updates_focus_and_selection(cx: &mut TestAppContext) {
             editor.table_axis_selection,
             Some(super::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: crate::blocks::TableAxisKind::Row,
+                kind: crate::core::extensions::table::TableAxisKind::Row,
                 index: 1,
             })
         );
@@ -1163,7 +1171,7 @@ async fn moving_first_body_row_up_swaps_with_header(cx: &mut TestAppContext) {
             editor.table_axis_selection,
             Some(super::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: crate::blocks::TableAxisKind::Row,
+                kind: crate::core::extensions::table::TableAxisKind::Row,
                 index: 0,
             })
         );
@@ -1187,7 +1195,7 @@ async fn moving_header_row_down_swaps_with_first_body(cx: &mut TestAppContext) {
             editor.table_axis_selection,
             Some(super::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: crate::blocks::TableAxisKind::Row,
+                kind: crate::core::extensions::table::TableAxisKind::Row,
                 index: 1,
             })
         );
@@ -1196,7 +1204,7 @@ async fn moving_header_row_down_swaps_with_first_body(cx: &mut TestAppContext) {
 
 #[gpui::test]
 async fn selecting_first_body_row_does_not_highlight_header(cx: &mut TestAppContext) {
-    use crate::blocks::{TableAxisHighlight, TableAxisKind};
+    use crate::core::extensions::table::{TableAxisHighlight, TableAxisKind};
     let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |", "| 3 | 4 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -1227,7 +1235,7 @@ async fn selecting_first_body_row_does_not_highlight_header(cx: &mut TestAppCont
 
 #[gpui::test]
 async fn selecting_header_row_highlights_only_header(cx: &mut TestAppContext) {
-    use crate::blocks::{TableAxisHighlight, TableAxisKind};
+    use crate::core::extensions::table::{TableAxisHighlight, TableAxisKind};
     let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -1250,7 +1258,7 @@ async fn selecting_header_row_highlights_only_header(cx: &mut TestAppContext) {
 
 #[gpui::test]
 async fn body_row_preview_survives_stale_header_leave(cx: &mut TestAppContext) {
-    use crate::blocks::TableAxisKind;
+    use crate::core::extensions::table::TableAxisKind;
     let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -1294,7 +1302,7 @@ async fn deleting_table_column_moves_selection_to_nearest_survivor(cx: &mut Test
             editor.table_axis_selection,
             Some(super::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: crate::blocks::TableAxisKind::Column,
+                kind: crate::core::extensions::table::TableAxisKind::Column,
                 index: 1,
             })
         );
@@ -2400,7 +2408,7 @@ async fn undo_reverts_recent_rendered_typing(cx: &mut TestAppContext) {
         let block = editor.document.first_root().expect("root").clone();
         editor.active_entity_id = Some(block.entity_id());
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::blocks::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::engine::block_types::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
         });
     });
@@ -2422,11 +2430,11 @@ async fn consecutive_text_edits_within_window_coalesce_into_one_undo(cx: &mut Te
         editor.active_entity_id = Some(block.entity_id());
 
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::blocks::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::engine::block_types::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(1..1, "b", None, false, cx);
         });
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::blocks::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::engine::block_types::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(2..2, "c", None, false, cx);
         });
     });
@@ -2448,7 +2456,7 @@ async fn redo_restores_text_reverted_by_undo(cx: &mut TestAppContext) {
         let block = editor.document.first_root().expect("root").clone();
         editor.active_entity_id = Some(block.entity_id());
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::blocks::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::engine::block_types::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
         });
     });
@@ -2472,7 +2480,7 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
         let block = editor.document.first_root().expect("root").clone();
         editor.active_entity_id = Some(block.entity_id());
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::blocks::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::engine::block_types::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
         });
     });
@@ -2484,7 +2492,7 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
         // A new edit invalidates the redo stack so it cannot revive stale text.
         let block = editor.document.first_root().expect("root").clone();
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::blocks::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::engine::block_types::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(5..5, " gamma", None, false, cx);
         });
     });
@@ -2924,11 +2932,7 @@ async fn newline_at_start_of_heading_moves_entire_heading_down(cx: &mut TestAppC
         block.update(cx, |block, block_cx| {
             block.move_to(0, block_cx);
         });
-        editor.on_block_event(
-            block,
-            &crate::blocks::BlockAction::RequestNewlineAbove,
-            cx,
-        );
+        editor.on_block_event(block, &crate::engine::block_types::BlockAction::RequestNewlineAbove, cx);
     });
     redraw(cx);
 
@@ -2937,12 +2941,12 @@ async fn newline_at_start_of_heading_moves_entire_heading_down(cx: &mut TestAppC
         let blocks = editor.document.blocks();
         assert_eq!(
             blocks[0].entity.read(cx).kind(),
-            crate::blocks::BlockType::Paragraph
+            crate::engine::block_types::BlockType::Paragraph
         );
         assert_eq!(blocks[0].entity.read(cx).display_text(), "");
         assert_eq!(
             blocks[1].entity.read(cx).kind(),
-            crate::blocks::BlockType::Heading { level: 2 }
+            crate::engine::block_types::BlockType::Heading { level: 2 }
         );
         assert_eq!(blocks[1].entity.read(cx).display_text(), "1111");
     });
@@ -3123,8 +3127,8 @@ async fn inserting_table_at_document_end_adds_trailing_paragraph(cx: &mut TestAp
 
     cx.update(|window, cx| {
         editor.update(cx, |editor, cx| {
-            editor.table_insert_dialog = Some(super::context_menu::TableInsertDialogState {
-                target: super::context_menu::TableInsertTarget::Append,
+            editor.table_insert_dialog = Some(TableInsertDialogState {
+                target: TableInsertTarget::Append,
                 body_rows: 2,
                 columns: 2,
             });

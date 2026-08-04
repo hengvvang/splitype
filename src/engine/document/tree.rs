@@ -9,8 +9,10 @@ use std::collections::HashMap;
 
 use gpui::*;
 
-use crate::blocks::serialize_table_markdown_lines;
-use crate::blocks::{Block, BlockType, CalloutVariant, parse_standalone_image};
+use crate::core::extensions::table::serialize_table_markdown_lines;
+use crate::ui::blocks::block_view::Block;
+use crate::engine::block_types::{BlockType, CalloutVariant};
+use crate::core::extensions::image_ref::parse_standalone_image;
 use crate::engine::editor::Editor;
 
 /// A block together with its position in the current visible DFS order.
@@ -431,7 +433,11 @@ impl Document {
             && block.children.is_empty()
     }
 
-    pub(crate) fn collect_root_markdown_lines(blocks: &[Entity<Block>], cx: &App, lines: &mut Vec<String>) {
+    pub(crate) fn collect_root_markdown_lines(
+        blocks: &[Entity<Block>],
+        cx: &App,
+        lines: &mut Vec<String>,
+    ) {
         let mut pending_empty_roots = 0usize;
         let mut wrote_non_empty_root = false;
         let mut previous_was_list_item = false;
@@ -674,7 +680,8 @@ impl Document {
 mod tests {
     use gpui::{AppContext, TestAppContext};
 
-    use crate::blocks::{BlockType, BlockData, Editor};
+    use crate::engine::block_types::{BlockData, BlockType};
+use crate::engine::editor::Editor;
 
     #[gpui::test]
     async fn snapshot_tracks_nested_visible_order(cx: &mut TestAppContext) {

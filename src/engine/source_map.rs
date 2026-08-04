@@ -323,7 +323,7 @@ impl Editor {
             return 0;
         };
 
-        let lines = crate::blocks::serialize_table_markdown_lines(&table);
+        let lines = crate::core::extensions::table::serialize_table_markdown_lines(&table);
         let indentation = "  ".repeat(list_depth);
         let quote_prefix = "> ".repeat(quote_depth);
         let line_prefix_len = indentation.len() + quote_prefix.len();
