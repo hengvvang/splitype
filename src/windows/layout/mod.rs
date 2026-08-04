@@ -3,6 +3,8 @@
 //! The layout state model lives in `editor::window::layout`; this module
 //! renders the split tree and hosts the drag/resize interactions.
 
+use crate::ui::components::popover::overlay;
+
 use crate::ui::components::button::{icon_chip_button, small_pill_button};
 use crate::ui::components::splitter::{splitter_bar_h, splitter_bar_v};
 
@@ -1204,13 +1206,8 @@ impl Editor {
         let close_ed = editor.clone();
         let dismiss_ed = editor.clone();
 
-        div()
+overlay()
             .id("tiled-border-context-menu-wrapper")
-            .absolute()
-            .top_0()
-            .left_0()
-            .right_0()
-            .bottom_0()
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                 let _ = dismiss_ed.update(cx, |ed, cx| {
                     ed.panels.layout.active_border_menu = None;

@@ -28,3 +28,19 @@ pub fn section_card(c: &ThemeColors, d: &ThemeDimensions) -> Div {
         .flex()
         .flex_col()
 }
+
+/// Settings row — title/description label and a control on the right.
+/// The label block stays at call sites.
+pub fn settings_row(border: Hsla, c: &ThemeColors, d: &ThemeDimensions) -> Div {
+    div()
+        .w_full()
+        .h(px(56.0))
+        .px(px(16.0))
+        .rounded(px(d.menu_panel_radius))
+        .bg(c.dialog_surface)
+        .border_1()
+        .border_color(border)
+        .flex()
+        .items_center()
+        .justify_between()
+}

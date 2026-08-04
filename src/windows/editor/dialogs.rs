@@ -1,6 +1,8 @@
 //! In-window overlay dialogs and their action handlers: unsaved changes,
 //! drop-replace, and info/about overlays.
 
+use crate::ui::components::popover::overlay;
+
 use crate::ui::components::dialog::dialog_card;
 
 use crate::ui::components::button::{
@@ -107,13 +109,8 @@ impl Editor {
         let t = &theme.typography;
         let strings = cx.global::<I18nManager>().strings();
 
-        div()
+overlay()
             .id("unsaved-changes-overlay")
-            .absolute()
-            .top_0()
-            .left_0()
-            .right_0()
-            .bottom_0()
             .flex()
             .items_center()
             .justify_center()
@@ -197,13 +194,8 @@ dialog_card(c, d)
         let t = &theme.typography;
         let strings = cx.global::<I18nManager>().strings();
 
-        div()
+overlay()
             .id("drop-replace-overlay")
-            .absolute()
-            .top_0()
-            .left_0()
-            .right_0()
-            .bottom_0()
             .flex()
             .items_center()
             .justify_center()
@@ -401,13 +393,8 @@ dialog_card(c, d)
         let t = &theme.typography;
         let strings = cx.global::<I18nManager>().strings();
 
-        div()
+overlay()
             .id("info-dialog-overlay")
-            .absolute()
-            .top_0()
-            .left_0()
-            .right_0()
-            .bottom_0()
             .occlude()
             .flex()
             .items_center()

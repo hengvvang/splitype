@@ -1,6 +1,8 @@
 //! Context menu rendering functions and Editor action handlers.
 // Migrated from engine/input/context_menu.rs
 
+use crate::ui::components::popover::overlay;
+
 use crate::ui::components::dialog::dialog_card;
 use crate::ui::components::menu_item::menu_item;
 
@@ -839,13 +841,8 @@ impl Editor {
                         )
                 });
 
-                let overlay = div()
+                let overlay = overlay()
                     .id("editor-context-menu-overlay")
-                    .absolute()
-                    .top_0()
-                    .left_0()
-                    .right_0()
-                    .bottom_0()
                     .occlude()
                     .on_mouse_down(
                         MouseButton::Left,
@@ -1104,13 +1101,8 @@ impl Editor {
                 };
 
                 Some(
-                    div()
+overlay()
                         .id("table-axis-context-menu-overlay")
-                        .absolute()
-                        .top_0()
-                        .left_0()
-                        .right_0()
-                        .bottom_0()
                         .occlude()
                         .on_mouse_down(
                             MouseButton::Left,
@@ -1326,13 +1318,8 @@ impl Editor {
                 );
 
                 Some(
-                    div()
+overlay()
                         .id("workspace-file-context-menu-overlay")
-                        .absolute()
-                        .top_0()
-                        .left_0()
-                        .right_0()
-                        .bottom_0()
                         .occlude()
                         .on_mouse_down(
                             MouseButton::Left,
@@ -1452,13 +1439,8 @@ impl Editor {
             };
 
         Some(
-            div()
+overlay()
                 .id("table-insert-dialog-overlay")
-                .absolute()
-                .top_0()
-                .left_0()
-                .right_0()
-                .bottom_0()
                 .occlude()
                 .flex()
                 .items_center()

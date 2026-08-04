@@ -4,6 +4,8 @@
 //! shared chrome.  Editor-level state machines that track open / hover
 //! indices stay in [`crate::editor::render`].
 
+use crate::ui::components::popover::overlay;
+
 use crate::ui::components::button::menu_bar_button;
 
 use gpui::prelude::FluentBuilder;
@@ -886,13 +888,8 @@ menu_bar_button(("app-menu-button", index), c, d)
             main_panel.children(items).into_any_element()
         };
 
-        let layer = div()
+        let layer = overlay()
             .id(("app-menu-panel-layer", open_index))
-            .absolute()
-            .top_0()
-            .left_0()
-            .right_0()
-            .bottom_0()
             .child(main_panel);
         let layer = if let Some(submenu_bridge) = submenu_bridge {
             layer.child(submenu_bridge)

@@ -4,6 +4,8 @@
 //! list items render a marker column (bullet / ordinal), and raw Markdown
 //! fallback renders as plain text.
 
+use crate::ui::components::menu_item::menu_item;
+
 use crate::ui::components::button::icon_button;
 
 use gpui::*;
@@ -1054,26 +1056,16 @@ impl Block {
                         let value = option.value;
                         let is_selected =
                             code_language_display_name(&selected_language) == option.label;
-                        div()
-                            .id(ElementId::Name(
-                                format!("code-language-option-{}-{index}", self.record.id).into(),
-                            ))
+menu_item(ElementId::Name( format!("code-language-option-{}-{index}", self.record.id).into(), ), c, d)
                             .w_full()
-                            .h(px(28.0))
                             .flex_shrink_0()
-                            .flex()
-                            .items_center()
                             .justify_between()
-                            .px(px(8.0))
-                            .rounded(px(d.menu_item_radius))
                             .bg(if is_selected {
                                 c.dialog_secondary_button_bg
                             } else {
                                 c.dialog_surface
                             })
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
                             .active(|this| this.opacity(0.9))
-                            .cursor_pointer()
                             .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
                                 let _ = option_block.update(cx, |block, block_cx| {
                                     block_cx.stop_propagation();

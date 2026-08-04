@@ -1,6 +1,6 @@
 //! Settings panel rendered inside the editor's tiled layout.
 
-use crate::ui::components::section::{section_card, section_header};
+use crate::ui::components::section::{section_card, section_header, settings_row,};
 use crate::ui::components::stepper::{stepper_container, stepper_divider, stepper_step_button, stepper_value};
 use crate::ui::components::tab::nav_tab;
 
@@ -96,17 +96,7 @@ nav_tab(("pref-tab", tab_idx), c, d)
          -> AnyElement {
             let tc = &theme.colors;
             let td = &theme.dimensions;
-            div()
-                .w_full()
-                .h(px(56.0))
-                .px(px(16.0))
-                .rounded(px(td.menu_panel_radius))
-                .bg(tc.dialog_surface)
-                .border_1()
-                .border_color(border_col)
-                .flex()
-                .items_center()
-                .justify_between()
+settings_row(border_col, tc, td)
                 .child(
                     div()
                         .flex()

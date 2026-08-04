@@ -21,3 +21,11 @@ pub fn menu_panel(c: &ThemeColors, d: &ThemeDimensions) -> Div {
         .flex_col()
         .gap(px(d.menu_panel_gap))
 }
+
+/// Full-window overlay layer — covers the editor viewport.
+///
+/// Event handling (`on_mouse_down`), occlude, and centering stay at call
+/// sites; this builder supplies the four-corner full-screen geometry.
+pub fn overlay() -> Div {
+    div().absolute().top_0().left_0().right_0().bottom_0()
+}

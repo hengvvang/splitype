@@ -3,7 +3,7 @@
 
 pub(crate) mod panels;
 
-use crate::ui::components::section::{section_card, section_header};
+use crate::ui::components::section::{section_card, section_header, settings_row,};
 use crate::ui::components::stepper::{
     stepper_container, stepper_divider, stepper_step_button, stepper_value,
 };
@@ -370,17 +370,7 @@ impl Render for SettingsWindow {
         // Helper closures for Sections and Rows
         let make_row =
             |title: &'static str, desc: &'static str, control: AnyElement| -> AnyElement {
-                div()
-                    .w_full()
-                    .h(px(56.0))
-                    .px(px(16.0))
-                    .rounded(px(d.menu_panel_radius))
-                    .bg(c.dialog_surface)
-                    .border_1()
-                    .border_color(inner_border_color)
-                    .flex()
-                    .items_center()
-                    .justify_between()
+settings_row(inner_border_color, c, d)
                     .child(
                         div()
                             .flex()
