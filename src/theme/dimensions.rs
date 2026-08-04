@@ -217,22 +217,6 @@ pub struct ThemeDimensions {
     pub table_insert_stepper_value_padding_x: f32,
     /// Corner radius of table-insert stepper controls.
     pub table_insert_stepper_radius: f32,
-    /// Left inset of the view-mode toggle.
-    pub view_mode_toggle_left: f32,
-    /// Bottom inset of the view-mode toggle.
-    pub view_mode_toggle_bottom: f32,
-    /// Horizontal padding inside the view-mode toggle.
-    pub view_mode_toggle_padding_x: f32,
-    /// Vertical padding inside the view-mode toggle.
-    pub view_mode_toggle_padding_y: f32,
-    /// Minimum width of the view-mode toggle.
-    pub view_mode_toggle_min_width: f32,
-    /// Corner radius of the view-mode toggle.
-    pub view_mode_toggle_radius: f32,
-    /// Border width of the view-mode toggle.
-    pub view_mode_toggle_border_width: f32,
-    /// Text size of the view-mode toggle.
-    pub view_mode_toggle_text_size: f32,
     /// Height of the status bar.
     pub status_bar_height: f32,
     /// Horizontal padding inside the status bar.
@@ -354,14 +338,6 @@ struct ThemeDimensionsDe {
     table_insert_stepper_value_min_width: Option<f32>,
     table_insert_stepper_value_padding_x: Option<f32>,
     table_insert_stepper_radius: Option<f32>,
-    view_mode_toggle_left: Option<f32>,
-    view_mode_toggle_bottom: Option<f32>,
-    view_mode_toggle_padding_x: Option<f32>,
-    view_mode_toggle_padding_y: Option<f32>,
-    view_mode_toggle_min_width: Option<f32>,
-    view_mode_toggle_radius: Option<f32>,
-    view_mode_toggle_border_width: Option<f32>,
-    view_mode_toggle_text_size: Option<f32>,
     status_bar_height: Option<f32>,
     status_bar_padding_x: Option<f32>,
     status_bar_item_gap: Option<f32>,
@@ -487,14 +463,6 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
                 .table_insert_stepper_value_padding_x
                 .unwrap_or(10.0),
             table_insert_stepper_radius: raw.table_insert_stepper_radius.unwrap_or(8.0),
-            view_mode_toggle_left: raw.view_mode_toggle_left.unwrap_or(12.0),
-            view_mode_toggle_bottom: raw.view_mode_toggle_bottom.unwrap_or(12.0),
-            view_mode_toggle_padding_x: raw.view_mode_toggle_padding_x.unwrap_or(8.0),
-            view_mode_toggle_padding_y: raw.view_mode_toggle_padding_y.unwrap_or(4.0),
-            view_mode_toggle_min_width: raw.view_mode_toggle_min_width.unwrap_or(88.0),
-            view_mode_toggle_radius: raw.view_mode_toggle_radius.unwrap_or(999.0),
-            view_mode_toggle_border_width: raw.view_mode_toggle_border_width.unwrap_or(1.0),
-            view_mode_toggle_text_size: raw.view_mode_toggle_text_size.unwrap_or(11.0),
             status_bar_height: raw.status_bar_height.unwrap_or(28.0),
             status_bar_padding_x: raw.status_bar_padding_x.unwrap_or(12.0),
             status_bar_item_gap: raw.status_bar_item_gap.unwrap_or(12.0),

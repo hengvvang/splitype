@@ -244,14 +244,6 @@ impl Theme {
                 table_insert_stepper_value_min_width: 56.0,
                 table_insert_stepper_value_padding_x: 10.0,
                 table_insert_stepper_radius: 8.0,
-                view_mode_toggle_left: 12.0,
-                view_mode_toggle_bottom: 12.0,
-                view_mode_toggle_padding_x: 8.0,
-                view_mode_toggle_padding_y: 4.0,
-                view_mode_toggle_min_width: 88.0,
-                view_mode_toggle_radius: 999.0,
-                view_mode_toggle_border_width: 1.0,
-                view_mode_toggle_text_size: 11.0,
                 status_bar_height: 28.0,
                 status_bar_padding_x: 12.0,
                 status_bar_item_gap: 12.0,
@@ -872,8 +864,6 @@ mod tests {
         dimensions.remove("menu_item_height");
         dimensions.remove("context_menu_panel_width");
         dimensions.remove("table_insert_dialog_width");
-        dimensions.remove("view_mode_toggle_min_width");
-        dimensions.remove("view_mode_toggle_text_size");
 
         let json = serde_json::to_string(&object).expect("theme json should serialize");
         let theme = Theme::from_json(&json).expect("theme without menu tokens should load");
@@ -882,8 +872,6 @@ mod tests {
         assert_eq!(theme.dimensions.menu_item_height, 28.0);
         assert_eq!(theme.dimensions.context_menu_panel_width, 132.0);
         assert_eq!(theme.dimensions.table_insert_dialog_width, 380.0);
-        assert_eq!(theme.dimensions.view_mode_toggle_min_width, 88.0);
-        assert_eq!(theme.dimensions.view_mode_toggle_text_size, 11.0);
     }
 
     #[test]
