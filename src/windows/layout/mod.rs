@@ -9,6 +9,7 @@ use crate::ui::components::button::{icon_chip_button, small_pill_button};
 use crate::ui::components::splitter::{splitter_bar_h, splitter_bar_v};
 
 use crate::ui::components::menu_item::menu_item;
+use crate::ui::components::popover::menu_panel;
 
 use gpui::*;
 
@@ -1126,42 +1127,25 @@ impl Editor {
 
         let available_types = PaneKind::all();
 
-        div()
+        menu_panel(c, d)
             .id(("area-dropdown-overlay", leaf_id))
             .absolute()
             .occlude()
             .top(px(28.0))
             .left(px(8.0))
             .w(px(d.menu_panel_width))
-            .p(px(d.menu_panel_padding))
-            .flex()
-            .flex_col()
-            .gap(px(d.menu_panel_gap))
-            .bg(c.dialog_surface)
-            .border(px(d.dialog_border_width))
-            .border_color(c.dialog_border)
-            .rounded(px(d.menu_panel_radius))
-            .shadow_lg()
             .children(available_types.iter().enumerate().map(|(idx, area_type)| {
                 let area_type = *area_type;
                 let is_current = area_type == current_type;
                 let option_editor = editor.clone();
-                div()
-                    .id(("area-type-opt", idx))
+                menu_item(("area-type-opt", idx), c, d)
                     .w_full()
-                    .h(px(d.menu_item_height))
-                    .px(px(d.menu_item_padding_x))
-                    .flex()
-                    .items_center()
                     .justify_between()
-                    .rounded(px(d.menu_item_radius))
                     .bg(if is_current {
                         c.dialog_secondary_button_hover
                     } else {
                         c.dialog_surface
                     })
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                    .cursor_pointer()
                     .text_size(px(d.menu_text_size))
                     .font_weight(t.dialog_button_weight.to_font_weight())
                     .text_color(c.dialog_secondary_button_text)
@@ -1206,7 +1190,7 @@ impl Editor {
         let close_ed = editor.clone();
         let dismiss_ed = editor.clone();
 
-overlay()
+        overlay()
             .id("tiled-border-context-menu-wrapper")
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                 let _ = dismiss_ed.update(cx, |ed, cx| {
@@ -1692,22 +1676,12 @@ overlay()
 
         let available_types = EditorPanel::all();
 
-        div()
+        menu_panel(c, d)
             .id(("inner-area-dropdown-overlay", inner_id))
             .absolute()
             .occlude()
-            .bottom(px(0.0))
             .left(px(0.0))
             .w(px(d.menu_panel_width))
-            .p(px(d.menu_panel_padding))
-            .flex()
-            .flex_col()
-            .gap(px(d.menu_panel_gap))
-            .bg(c.dialog_surface)
-            .border(px(d.dialog_border_width))
-            .border_color(c.dialog_border)
-            .rounded(px(d.menu_panel_radius))
-            .shadow_lg()
             .children(available_types.iter().enumerate().map(|(idx, area_type)| {
                 let area_type = *area_type;
                 let is_current = area_type == current_area_type;

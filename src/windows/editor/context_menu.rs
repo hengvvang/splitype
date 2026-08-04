@@ -1290,15 +1290,8 @@ overlay()
 
                 let p_copy = path.clone();
                 items.push(
-                    div()
-                        .id("ws-ctx-copy-path")
-                        .h(px(d.menu_item_height))
-                        .px(px(d.menu_item_padding_x))
-                        .rounded(px(d.menu_item_radius))
-                        .flex()
-                        .items_center()
+menu_item("ws-ctx-copy-path", c, d)
                         .gap(px(8.0))
-                        .hover(|this| this.bg(c.dialog_secondary_button_hover))
                         .cursor_pointer()
                         .child(
                             div()

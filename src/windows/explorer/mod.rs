@@ -1,5 +1,7 @@
 //! Explorer — file-tree sidebar with create/rename/delete actions.
 
+use crate::ui::components::button::icon_chip_button;
+
 use std::path::{Path, PathBuf};
 
 use gpui::*;
@@ -372,6 +374,7 @@ impl Editor {
         }
 
         let c = &theme.colors;
+        let d = &theme.dimensions;
         let root_name = self
             .panels
             .workspace
@@ -423,12 +426,8 @@ impl Editor {
                     .items_center()
                     .gap(px(2.0))
                     .child(
-                        div()
+                        icon_chip_button(c, d)
                             .id("ws-tb-open")
-                            .cursor_pointer()
-                            .p(px(3.0))
-                            .rounded(px(4.0))
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
                             .child(
                                 svg()
                                     .path("icon/workspace/folder-open.svg")
@@ -442,12 +441,8 @@ impl Editor {
                             }),
                     )
                     .child(
-                        div()
+                        icon_chip_button(c, d)
                             .id("ws-tb-newfile")
-                            .cursor_pointer()
-                            .p(px(3.0))
-                            .rounded(px(4.0))
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
                             .child(
                                 svg()
                                     .path("icon/workspace/file-plus.svg")
@@ -461,12 +456,8 @@ impl Editor {
                             }),
                     )
                     .child(
-                        div()
+                        icon_chip_button(c, d)
                             .id("ws-tb-newfolder")
-                            .cursor_pointer()
-                            .p(px(3.0))
-                            .rounded(px(4.0))
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
                             .child(
                                 svg()
                                     .path("icon/workspace/folder-plus.svg")
@@ -480,12 +471,8 @@ impl Editor {
                             }),
                     )
                     .child(
-                        div()
+                        icon_chip_button(c, d)
                             .id("ws-tb-refresh")
-                            .cursor_pointer()
-                            .p(px(3.0))
-                            .rounded(px(4.0))
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
                             .child(
                                 svg()
                                     .path("icon/workspace/refresh.svg")
@@ -499,12 +486,8 @@ impl Editor {
                             }),
                     )
                     .child(
-                        div()
+                        icon_chip_button(c, d)
                             .id("ws-tb-collapse")
-                            .cursor_pointer()
-                            .p(px(3.0))
-                            .rounded(px(4.0))
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
                             .child(
                                 svg()
                                     .path("icon/workspace/collapse-all.svg")

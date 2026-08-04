@@ -4,6 +4,8 @@
 //! shared chrome.  Editor-level state machines that track open / hover
 //! indices stay in [`crate::editor::render`].
 
+use crate::ui::components::menu_item::menu_item;
+
 use crate::ui::components::popover::overlay;
 
 use crate::ui::components::button::menu_bar_button;
@@ -514,23 +516,15 @@ menu_bar_button(("app-menu-button", index), c, d)
             OwnedMenuItem::Submenu(submenu) => {
                 let is_open = self.chrome.menu_submenu_open == Some(item_index);
                 let hover_editor = editor.clone();
-                div()
-                    .id(("app-menu-submenu", item_index))
+menu_item(("app-menu-submenu", item_index), c, d)
                     .w_full()
-                    .h(px(d.menu_item_height))
                     .flex_shrink_0()
-                    .px(px(d.menu_item_padding_x))
-                    .flex()
-                    .items_center()
                     .justify_between()
-                    .rounded(px(d.menu_item_radius))
                     .bg(if is_open {
                         c.dialog_secondary_button_hover
                     } else {
                         c.dialog_surface
                     })
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                    .cursor_pointer()
                     .text_size(px(d.menu_text_size))
                     .font_weight(t.dialog_body_weight.to_font_weight())
                     .text_color(c.dialog_secondary_button_text)
