@@ -584,7 +584,7 @@ impl Editor {
                             )
                             .child(
                                 // Splitter bar between the two padded tiles.
-splitter_bar_h(("tiled-splitter-bar-h", split_id), c)
+                                splitter_bar_h(("tiled-splitter-bar-h", split_id), c)
                                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                         let start_pos = f32::from(event.position.x);
                                         let _ = bar_editor.update(cx, |ed, cx| {
@@ -654,7 +654,7 @@ splitter_bar_h(("tiled-splitter-bar-h", split_id), c)
                             )
                             .child(
                                 // Splitter bar between the two padded tiles.
-splitter_bar_v(("tiled-splitter-bar-v", split_id), c)
+                                splitter_bar_v(("tiled-splitter-bar-v", split_id), c)
                                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                         let start_pos = f32::from(event.position.y);
                                         let _ = bar_editor.update(cx, |ed, cx| {
@@ -983,8 +983,9 @@ splitter_bar_v(("tiled-splitter-bar-v", split_id), c)
                 let close_editor = editor.clone();
 
                 tab_elements.push(
-small_pill_button(c, d)
+                    small_pill_button(c, d)
                         .px(px(6.0))
+                        .bg(tab_bg)
                         .text_size(px(11.0))
                         .child(
                             // Switch area: clicking the file name switches to this tab.
@@ -1234,7 +1235,7 @@ small_pill_button(c, d)
                     .rounded(px(d.menu_panel_radius))
                     .shadow_lg()
                     .child(
-menu_item("border-menu-split-h", c, d)
+                        menu_item("border-menu-split-h", c, d)
                             .text_size(px(d.menu_text_size))
                             .font_weight(t.dialog_body_weight.to_font_weight())
                             .text_color(c.dialog_secondary_button_text)
@@ -1247,7 +1248,7 @@ menu_item("border-menu-split-h", c, d)
                             }),
                     )
                     .child(
-menu_item("border-menu-split-v", c, d)
+                        menu_item("border-menu-split-v", c, d)
                             .text_size(px(d.menu_text_size))
                             .font_weight(t.dialog_body_weight.to_font_weight())
                             .text_color(c.dialog_secondary_button_text)
@@ -1268,7 +1269,7 @@ menu_item("border-menu-split-v", c, d)
                             .bg(c.dialog_border),
                     )
                     .child(
-menu_item("border-menu-swap", c, d)
+                        menu_item("border-menu-swap", c, d)
                             .text_size(px(d.menu_text_size))
                             .font_weight(t.dialog_body_weight.to_font_weight())
                             .text_color(c.dialog_secondary_button_text)
@@ -1289,7 +1290,7 @@ menu_item("border-menu-swap", c, d)
                             .bg(c.dialog_border),
                     )
                     .child(
-menu_item("border-menu-close", c, d)
+                        menu_item("border-menu-close", c, d)
                             .text_size(px(d.menu_text_size))
                             .font_weight(t.dialog_body_weight.to_font_weight())
                             .text_color(c.dialog_secondary_button_text)
@@ -1560,7 +1561,7 @@ menu_item("border-menu-close", c, d)
                                     .child(first_elem),
                             )
                             .child(
-splitter_bar_h(("inner-splitter-bar-h", split_id), c)
+                                splitter_bar_h(("inner-splitter-bar-h", split_id), c)
                                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                         let start_pos = f32::from(event.position.x);
                                         let _ = bar_editor.update(cx, |ed, cx| {
@@ -1629,7 +1630,7 @@ splitter_bar_h(("inner-splitter-bar-h", split_id), c)
                                     .child(first_elem),
                             )
                             .child(
-splitter_bar_v(("inner-splitter-bar-v", split_id), c)
+                                splitter_bar_v(("inner-splitter-bar-v", split_id), c)
                                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                         let start_pos = f32::from(event.position.y);
                                         let _ = bar_editor.update(cx, |ed, cx| {

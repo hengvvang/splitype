@@ -3,6 +3,12 @@
 
 pub(crate) mod panels;
 
+use crate::ui::components::section::{section_card, section_header};
+use crate::ui::components::stepper::{
+    stepper_container, stepper_divider, stepper_step_button, stepper_value,
+};
+use crate::ui::components::tab::nav_tab;
+
 use crate::ui::components::select::{select_option, select_panel, select_trigger};
 
 use std::collections::BTreeMap;
@@ -269,13 +275,7 @@ impl Render for SettingsWindow {
 
         // Left Sidebar Navigation
         let nav_item = |id: &'static str, label: &'static str, is_selected: bool| -> AnyElement {
-            div()
-                .id(id)
-                .cursor_pointer()
-                .w_full()
-                .px(px(12.0))
-                .py(px(8.0))
-                .rounded(px(d.menu_item_radius))
+            nav_tab(id, c, d)
                 .bg(if is_selected {
                     c.dialog_secondary_button_hover
                 } else {
@@ -414,17 +414,8 @@ impl Render for SettingsWindow {
              on_inc: Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>,
              on_click_center: Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>|
              -> AnyElement {
-                let mut center_box = div()
+                let mut center_box = stepper_value()
                     .id(ElementId::Name(format!("{}-center", id_dec).into()))
-                    .cursor_pointer()
-                    .h_full()
-                    .flex_1()
-                    .min_w(px(0.0))
-                    .px(px(4.0))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .gap(px(3.0))
                     .bg(if is_editing {
                         c.dialog_surface
                     } else {
@@ -456,47 +447,19 @@ impl Render for SettingsWindow {
 
                 let center_box = center_box.on_click(on_click_center);
 
-                div()
-                    .flex()
-                    .items_center()
-                    .w(px(145.0))
-                    .h(px(28.0))
-                    .rounded(px(d.menu_item_radius))
-                    .border_1()
-                    .border_color(c.dialog_border)
-                    .bg(c.dialog_secondary_button_bg)
+                stepper_container(c, d)
                     .child(
-                        div()
+                        stepper_step_button(id_dec, c)
                             .id(id_dec)
-                            .cursor_pointer()
-                            .h_full()
-                            .w(px(32.0))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                            .text_size(px(13.0))
-                            .font_weight(gpui::FontWeight::MEDIUM)
-                            .text_color(c.text_default)
                             .child("-")
                             .on_click(on_dec),
                     )
-                    .child(div().w(px(1.0)).h_full().bg(c.dialog_border))
+                    .child(stepper_divider(c))
                     .child(center_box)
-                    .child(div().w(px(1.0)).h_full().bg(c.dialog_border))
+                    .child(stepper_divider(c))
                     .child(
-                        div()
+                        stepper_step_button(id_inc, c)
                             .id(id_inc)
-                            .cursor_pointer()
-                            .h_full()
-                            .w(px(32.0))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                            .text_size(px(13.0))
-                            .font_weight(gpui::FontWeight::MEDIUM)
-                            .text_color(c.text_default)
                             .child("+")
                             .on_click(on_inc),
                     )
@@ -514,15 +477,8 @@ impl Render for SettingsWindow {
             let expanded = is_section_expanded(key);
             let toggle_ed = toggle_section_ed.clone();
 
-            let header = div()
+            let header = section_header()
                 .id(ElementId::Name(format!("{}-header", id).into()))
-                .w_full()
-                .px(px(14.0))
-                .py(px(10.0))
-                .cursor_pointer()
-                .flex()
-                .items_center()
-                .gap(px(8.0))
                 .child(
                     svg()
                         .path(if expanded {
@@ -551,17 +507,7 @@ impl Render for SettingsWindow {
                     });
                 });
 
-            let mut card = div()
-                .id(id)
-                .relative()
-                .w_full()
-                .rounded(px(d.menu_panel_radius))
-                .bg(c.dialog_surface)
-                .border_1()
-                .border_color(c.dialog_border)
-                .flex()
-                .flex_col()
-                .child(header);
+            let mut card = section_card(c, d).id(id).child(header);
 
             if expanded && !items.is_empty() {
                 let body = div()
@@ -597,7 +543,7 @@ impl Render for SettingsWindow {
                 };
 
                 let mut theme_btn_wrap = div().relative().child(
-select_trigger("pref-btn-win-theme", c, d)
+                    select_trigger("pref-btn-win-theme", c, d)
                         .text_size(px(12.0))
                         .text_color(c.text_default)
                         .child(
@@ -654,52 +600,53 @@ select_trigger("pref-btn-win-theme", c, d)
                         };
 
                         menu_items.push(
-select_option(ElementId::Name(format!("win-theme-item-{}", t_id).into()), c)
-                                .bg(if is_selected {
-                                    c.dialog_secondary_button_hover
-                                } else {
-                                    c.dialog_surface
-                                })
-                                .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                                .text_size(px(12.0))
-                                .text_color(c.text_default)
-                                .child(
-                                    div()
-                                        .flex()
-                                        .items_center()
-                                        .gap(px(6.0))
-                                        .child(
-                                            svg()
-                                                .path(item_icon)
-                                                .size(px(13.0))
-                                                .text_color(c.text_default),
-                                        )
-                                        .child(display_label),
-                                )
-                                .child(if is_selected {
-                                    svg()
-                                        .path("icon/panel/check.svg")
-                                        .size(px(13.0))
-                                        .text_color(c.dialog_primary_button_bg)
-                                        .into_any_element()
-                                } else {
-                                    div().w(px(13.0)).into_any_element()
-                                })
-                                .on_click(move |ev, win, cx| {
-                                    let _ = item_ed.update(cx, |this, cx| {
-                                        this.selected_theme_id = t_id.clone();
-                                        this.theme_dropdown_open = false;
-                                        this.save(ev, win, cx);
-                                    });
-                                })
-                                .into_any_element(),
+                            select_option(
+                                ElementId::Name(format!("win-theme-item-{}", t_id).into()),
+                                c,
+                            )
+                            .bg(if is_selected {
+                                c.dialog_secondary_button_hover
+                            } else {
+                                c.dialog_surface
+                            })
+                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                            .text_size(px(12.0))
+                            .text_color(c.text_default)
+                            .child(
+                                div()
+                                    .flex()
+                                    .items_center()
+                                    .gap(px(6.0))
+                                    .child(
+                                        svg()
+                                            .path(item_icon)
+                                            .size(px(13.0))
+                                            .text_color(c.text_default),
+                                    )
+                                    .child(display_label),
+                            )
+                            .child(if is_selected {
+                                svg()
+                                    .path("icon/panel/check.svg")
+                                    .size(px(13.0))
+                                    .text_color(c.dialog_primary_button_bg)
+                                    .into_any_element()
+                            } else {
+                                div().w(px(13.0)).into_any_element()
+                            })
+                            .on_click(move |ev, win, cx| {
+                                let _ = item_ed.update(cx, |this, cx| {
+                                    this.selected_theme_id = t_id.clone();
+                                    this.theme_dropdown_open = false;
+                                    this.save(ev, win, cx);
+                                });
+                            })
+                            .into_any_element(),
                         );
                     }
 
-                    theme_btn_wrap = theme_btn_wrap.child(gpui::deferred(
-select_panel(c)
-                            .children(menu_items),
-                    ));
+                    theme_btn_wrap =
+                        theme_btn_wrap.child(gpui::deferred(select_panel(c).children(menu_items)));
                 }
 
                 sec1_items.push(make_row(
@@ -716,7 +663,7 @@ select_panel(c)
                 };
                 let lang_btn_ed = cx.entity().downgrade();
                 let mut lang_btn_wrap = div().relative().child(
-select_trigger("pref-btn-win-lang", c, d)
+                    select_trigger("pref-btn-win-lang", c, d)
                         .text_size(px(12.0))
                         .text_color(c.text_default)
                         .child(div().flex_1().min_w(px(0.0)).truncate().child(lang_display))
@@ -747,40 +694,41 @@ select_trigger("pref-btn-win-lang", c, d)
                         let item_ed = cx.entity().downgrade();
 
                         menu_items.push(
-select_option(ElementId::Name(format!("win-lang-item-{}", code).into()), c)
-                                .bg(if is_selected {
-                                    c.dialog_secondary_button_hover
-                                } else {
-                                    c.dialog_surface
-                                })
-                                .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                                .text_size(px(12.0))
-                                .text_color(c.text_default)
-                                .child(label)
-                                .child(if is_selected {
-                                    svg()
-                                        .path("icon/panel/check.svg")
-                                        .size(px(13.0))
-                                        .text_color(c.dialog_primary_button_bg)
-                                        .into_any_element()
-                                } else {
-                                    div().w(px(13.0)).into_any_element()
-                                })
-                                .on_click(move |ev, win, cx| {
-                                    let _ = item_ed.update(cx, |this, cx| {
-                                        this.lang_dropdown_open = false;
-                                        let _ = apply_configured_language(cx, code);
-                                        this.save(ev, win, cx);
-                                    });
-                                })
-                                .into_any_element(),
+                            select_option(
+                                ElementId::Name(format!("win-lang-item-{}", code).into()),
+                                c,
+                            )
+                            .bg(if is_selected {
+                                c.dialog_secondary_button_hover
+                            } else {
+                                c.dialog_surface
+                            })
+                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                            .text_size(px(12.0))
+                            .text_color(c.text_default)
+                            .child(label)
+                            .child(if is_selected {
+                                svg()
+                                    .path("icon/panel/check.svg")
+                                    .size(px(13.0))
+                                    .text_color(c.dialog_primary_button_bg)
+                                    .into_any_element()
+                            } else {
+                                div().w(px(13.0)).into_any_element()
+                            })
+                            .on_click(move |ev, win, cx| {
+                                let _ = item_ed.update(cx, |this, cx| {
+                                    this.lang_dropdown_open = false;
+                                    let _ = apply_configured_language(cx, code);
+                                    this.save(ev, win, cx);
+                                });
+                            })
+                            .into_any_element(),
                         );
                     }
 
-                    lang_btn_wrap = lang_btn_wrap.child(gpui::deferred(
-select_panel(c)
-                            .children(menu_items),
-                    ));
+                    lang_btn_wrap =
+                        lang_btn_wrap.child(gpui::deferred(select_panel(c).children(menu_items)));
                 }
 
                 sec1_items.push(make_row(
@@ -1045,7 +993,7 @@ select_panel(c)
                 };
                 let image_btn_ed = cx.entity().downgrade();
                 let mut image_btn_wrap = div().relative().child(
-select_trigger("pref-btn-win-image", c, d)
+                    select_trigger("pref-btn-win-image", c, d)
                         .text_size(px(12.0))
                         .text_color(c.text_default)
                         .child(div().flex_1().min_w(px(0.0)).truncate().child(image_label))
@@ -1089,40 +1037,41 @@ select_trigger("pref-btn-win-image", c, d)
                         let item_ed = cx.entity().downgrade();
 
                         menu_items.push(
-select_option(ElementId::Name(format!("win-image-item-{:?}", pref).into()), c)
-                                .bg(if is_selected {
-                                    c.dialog_secondary_button_hover
-                                } else {
-                                    c.dialog_surface
-                                })
-                                .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                                .text_size(px(12.0))
-                                .text_color(c.text_default)
-                                .child(label)
-                                .child(if is_selected {
-                                    svg()
-                                        .path("icon/panel/check.svg")
-                                        .size(px(13.0))
-                                        .text_color(c.dialog_primary_button_bg)
-                                        .into_any_element()
-                                } else {
-                                    div().w(px(13.0)).into_any_element()
-                                })
-                                .on_click(move |ev, win, cx| {
-                                    let _ = item_ed.update(cx, |this, cx| {
-                                        this.image_paste_behavior = pref;
-                                        this.image_dropdown_open = false;
-                                        this.save(ev, win, cx);
-                                    });
-                                })
-                                .into_any_element(),
+                            select_option(
+                                ElementId::Name(format!("win-image-item-{:?}", pref).into()),
+                                c,
+                            )
+                            .bg(if is_selected {
+                                c.dialog_secondary_button_hover
+                            } else {
+                                c.dialog_surface
+                            })
+                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                            .text_size(px(12.0))
+                            .text_color(c.text_default)
+                            .child(label)
+                            .child(if is_selected {
+                                svg()
+                                    .path("icon/panel/check.svg")
+                                    .size(px(13.0))
+                                    .text_color(c.dialog_primary_button_bg)
+                                    .into_any_element()
+                            } else {
+                                div().w(px(13.0)).into_any_element()
+                            })
+                            .on_click(move |ev, win, cx| {
+                                let _ = item_ed.update(cx, |this, cx| {
+                                    this.image_paste_behavior = pref;
+                                    this.image_dropdown_open = false;
+                                    this.save(ev, win, cx);
+                                });
+                            })
+                            .into_any_element(),
                         );
                     }
 
-                    image_btn_wrap = image_btn_wrap.child(gpui::deferred(
-select_panel(c)
-                            .children(menu_items),
-                    ));
+                    image_btn_wrap =
+                        image_btn_wrap.child(gpui::deferred(select_panel(c).children(menu_items)));
                 }
 
                 sec2_items.push(make_row(
@@ -1148,7 +1097,7 @@ select_panel(c)
                 };
                 let startup_btn_ed = cx.entity().downgrade();
                 let mut startup_btn_wrap = div().relative().child(
-select_trigger("pref-btn-win-startup", c, d)
+                    select_trigger("pref-btn-win-startup", c, d)
                         .text_size(px(12.0))
                         .text_color(c.text_default)
                         .child(
@@ -1188,40 +1137,41 @@ select_trigger("pref-btn-win-startup", c, d)
                         let item_ed = cx.entity().downgrade();
 
                         menu_items.push(
-select_option(ElementId::Name( format!("win-startup-item-{:?}", pref).into(), ), c)
-                                .bg(if is_selected {
-                                    c.dialog_secondary_button_hover
-                                } else {
-                                    c.dialog_surface
-                                })
-                                .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                                .text_size(px(12.0))
-                                .text_color(c.text_default)
-                                .child(label)
-                                .child(if is_selected {
-                                    svg()
-                                        .path("icon/panel/check.svg")
-                                        .size(px(13.0))
-                                        .text_color(c.dialog_primary_button_bg)
-                                        .into_any_element()
-                                } else {
-                                    div().w(px(13.0)).into_any_element()
-                                })
-                                .on_click(move |ev, win, cx| {
-                                    let _ = item_ed.update(cx, |this, cx| {
-                                        this.startup_open = pref;
-                                        this.startup_dropdown_open = false;
-                                        this.save(ev, win, cx);
-                                    });
-                                })
-                                .into_any_element(),
+                            select_option(
+                                ElementId::Name(format!("win-startup-item-{:?}", pref).into()),
+                                c,
+                            )
+                            .bg(if is_selected {
+                                c.dialog_secondary_button_hover
+                            } else {
+                                c.dialog_surface
+                            })
+                            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                            .text_size(px(12.0))
+                            .text_color(c.text_default)
+                            .child(label)
+                            .child(if is_selected {
+                                svg()
+                                    .path("icon/panel/check.svg")
+                                    .size(px(13.0))
+                                    .text_color(c.dialog_primary_button_bg)
+                                    .into_any_element()
+                            } else {
+                                div().w(px(13.0)).into_any_element()
+                            })
+                            .on_click(move |ev, win, cx| {
+                                let _ = item_ed.update(cx, |this, cx| {
+                                    this.startup_open = pref;
+                                    this.startup_dropdown_open = false;
+                                    this.save(ev, win, cx);
+                                });
+                            })
+                            .into_any_element(),
                         );
                     }
 
-                    startup_btn_wrap = startup_btn_wrap.child(gpui::deferred(
-select_panel(c)
-                            .children(menu_items),
-                    ));
+                    startup_btn_wrap = startup_btn_wrap
+                        .child(gpui::deferred(select_panel(c).children(menu_items)));
                 }
 
                 sec3_items.push(make_row(

@@ -1,5 +1,9 @@
 //! Settings panel rendered inside the editor's tiled layout.
 
+use crate::ui::components::section::{section_card, section_header};
+use crate::ui::components::stepper::{stepper_container, stepper_divider, stepper_step_button, stepper_value};
+use crate::ui::components::tab::nav_tab;
+
 use crate::ui::components::select::{select_option, select_panel, select_trigger};
 
 use gpui::*;
@@ -32,11 +36,8 @@ impl Editor {
             let tab_item = *tab;
 
             left_nav_items.push(
-                div()
+nav_tab(("pref-tab", tab_idx), c, d)
                     .id(("pref-tab", tab_idx))
-                    .px(px(12.0))
-                    .py(px(8.0))
-                    .rounded(px(d.menu_item_radius))
                     .cursor_pointer()
                     .flex()
                     .items_center()
@@ -143,17 +144,8 @@ impl Editor {
                 let tc = &theme.colors;
                 let td = &theme.dimensions;
 
-                let mut center_box = div()
+                let mut center_box = stepper_value()
                     .id(ElementId::Name(format!("{}-center", id_dec).into()))
-                    .cursor_pointer()
-                    .h_full()
-                    .flex_1()
-                    .min_w(px(0.0))
-                    .px(px(4.0))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .gap(px(3.0))
                     .bg(if is_editing {
                         tc.dialog_surface
                     } else {
@@ -185,47 +177,19 @@ impl Editor {
 
                 let center_box = center_box.on_click(on_click_center);
 
-                div()
-                    .flex()
-                    .items_center()
-                    .w(px(145.0))
-                    .h(px(28.0))
-                    .rounded(px(td.menu_item_radius))
-                    .border_1()
-                    .border_color(tc.dialog_border)
-                    .bg(tc.dialog_secondary_button_bg)
+stepper_container(tc, td)
                     .child(
-                        div()
+stepper_step_button(id_dec, tc)
                             .id(id_dec)
-                            .cursor_pointer()
-                            .h_full()
-                            .w(px(32.0))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .hover(|this| this.bg(tc.dialog_secondary_button_hover))
-                            .text_size(px(13.0))
-                            .font_weight(gpui::FontWeight::MEDIUM)
-                            .text_color(tc.text_default)
                             .child("-")
                             .on_click(on_dec),
                     )
-                    .child(div().w(px(1.0)).h_full().bg(tc.dialog_border))
+                    .child(stepper_divider(tc))
                     .child(center_box)
-                    .child(div().w(px(1.0)).h_full().bg(tc.dialog_border))
+                    .child(stepper_divider(tc))
                     .child(
-                        div()
+stepper_step_button(id_inc, tc)
                             .id(id_inc)
-                            .cursor_pointer()
-                            .h_full()
-                            .w(px(32.0))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .hover(|this| this.bg(tc.dialog_secondary_button_hover))
-                            .text_size(px(13.0))
-                            .font_weight(gpui::FontWeight::MEDIUM)
-                            .text_color(tc.text_default)
                             .child("+")
                             .on_click(on_inc),
                     )
@@ -242,15 +206,8 @@ impl Editor {
             let tc = &theme.colors;
             let td = &theme.dimensions;
 
-            let header = div()
+            let header = section_header()
                 .id(sec_id)
-                .w_full()
-                .px(px(14.0))
-                .py(px(10.0))
-                .cursor_pointer()
-                .flex()
-                .items_center()
-                .gap(px(8.0))
                 .child(
                     svg()
                         .path(if is_expanded {
@@ -270,15 +227,7 @@ impl Editor {
                 )
                 .on_click(move |ev, window, cx| toggle_fn(ev, window, cx));
 
-            let mut card = div()
-                .relative()
-                .w_full()
-                .rounded(px(td.menu_panel_radius))
-                .bg(tc.dialog_surface)
-                .border_1()
-                .border_color(tc.dialog_border)
-                .flex()
-                .flex_col()
+let mut card = section_card(tc, td)
                 .child(header);
 
             if is_expanded && !items.is_empty() {
