@@ -1,23 +1,20 @@
 //! Preview Mermaid diagram block rendering — centered SVG with horizontal
-//! scroll fallback. The preview has no window viewport, so a fixed content
-//! width budget is used for the overflow decision.
+//! scroll fallback, sized from the live viewport like the WYSIWYG panel.
 
 use gpui::*;
 
 use crate::editor::render::mermaid_render::render_mermaid_svg_for_display;
 use crate::editor::tree::block::Block;
+use crate::editor::windows::preview::render::preview_centered_column_width;
 use crate::model::syntax::mermaid::parse_mermaid_fence_source;
 use crate::theme::Theme;
-
-/// Fixed width budget for diagram overflow, since the preview panel has no
-/// viewport measurement of its own.
-const PREVIEW_CONTENT_WIDTH: f32 = 720.0;
 
 /// Renders a Mermaid diagram block read-only.
 pub(crate) fn render_preview_mermaid_diagram(
     block: &Block,
     base: Div,
     theme: &Theme,
+    window: &Window,
 ) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
@@ -55,7 +52,11 @@ pub(crate) fn render_preview_mermaid_diagram(
             .into_any_element();
     }
 
-    match render_mermaid_svg_for_display(&source, PREVIEW_CONTENT_WIDTH, PREVIEW_CONTENT_WIDTH) {
+    let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
+    let available_width =
+        (preview_centered_column_width(viewport_width, d) - d.block_padding_x * 2.0).max(160.0);
+
+    match render_mermaid_svg_for_display(&source, available_width, viewport_width) {
         Ok(rendered) => {
             let display_width = rendered.display_width.max(1.0);
             let display_height = rendered.display_height.max(1.0);
@@ -65,7 +66,7 @@ pub(crate) fn render_preview_mermaid_diagram(
                     .w(px(display_width))
                     .h(px(display_height))
             };
-            let content = if display_width <= PREVIEW_CONTENT_WIDTH + 0.5 {
+            let content = if display_width <= available_width + 0.5 {
                 div()
                     .w_full()
                     .flex()

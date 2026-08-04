@@ -28,7 +28,7 @@ impl Editor {
         content_area: AnyElement,
         theme: &Theme,
         strings: &I18nStrings,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let root = self.panels.layout.root.clone();
@@ -45,6 +45,7 @@ impl Editor {
                     strings,
                     leaf_count,
                     true,
+                    window,
                     cx,
                 )
             } else {
@@ -54,6 +55,7 @@ impl Editor {
                     theme,
                     strings,
                     leaf_count,
+                    window,
                     cx,
                 )
             }
@@ -64,6 +66,7 @@ impl Editor {
                 theme,
                 strings,
                 leaf_count,
+                window,
                 cx,
             )
         };
@@ -276,7 +279,7 @@ impl Editor {
             match drag.preview {
                 CornerDragPreview::SplitPreview { direction, ratio } => {
                     // Calculate the pixel rect of the leaf being split.
-                    let viewport = _window.viewport_size();
+                    let viewport = window.viewport_size();
                     let leaf_rects = self.panels.layout.collect_leaf_rects(viewport);
                     let leaf_rect = self
                         .panels
@@ -328,7 +331,7 @@ impl Editor {
                     target_leaf_id,
                     direction,
                 } => {
-                    let viewport = _window.viewport_size();
+                    let viewport = window.viewport_size();
                     let leaf_rects = self.panels.layout.collect_leaf_rects(viewport);
                     let target_rect = self
                         .panels
@@ -391,7 +394,7 @@ impl Editor {
             if let Some((container_id, ref drag)) = self.panels.layout.active_inner_corner_drag {
                 match drag.preview {
                     CornerDragPreview::SplitPreview { direction, ratio } => {
-                        let viewport = _window.viewport_size();
+                        let viewport = window.viewport_size();
                         let outer_rects = self.panels.layout.collect_leaf_rects(viewport);
                         if let Some((_eid, ex, ey, ew, eh)) = self
                             .panels
@@ -438,7 +441,7 @@ impl Editor {
                         target_leaf_id,
                         direction,
                     } => {
-                        let viewport = _window.viewport_size();
+                        let viewport = window.viewport_size();
                         let outer_rects = self.panels.layout.collect_leaf_rects(viewport);
                         if let Some((_eid, ex, ey, ew, eh)) = self
                             .panels
@@ -516,6 +519,7 @@ impl Editor {
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
@@ -530,6 +534,7 @@ impl Editor {
                 strings,
                 leaf_count,
                 false,
+                window,
                 cx,
             ),
             SplitTree::Split {
@@ -549,6 +554,7 @@ impl Editor {
                     theme,
                     strings,
                     leaf_count,
+                    window,
                     cx,
                 );
                 let second_elem = self.render_tiled_layout_node(
@@ -557,6 +563,7 @@ impl Editor {
                     theme,
                     strings,
                     leaf_count,
+                    window,
                     cx,
                 );
 
@@ -714,6 +721,7 @@ impl Editor {
         strings: &I18nStrings,
         leaf_count: usize,
         is_maximized: bool,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
@@ -726,7 +734,7 @@ impl Editor {
 
         let body: AnyElement = match area_type {
             PaneKind::Editor => {
-                self.render_tiled_edit_container_panel(leaf_id, primary_content, theme, strings, cx)
+                self.render_tiled_edit_container_panel(leaf_id, primary_content, theme, strings, window, cx)
             }
             PaneKind::Workspace => self.render_tiled_workspace_files_panel(theme, strings, cx),
             PaneKind::Settings => self.render_tiled_settings_panel(theme, strings, cx),
@@ -1292,6 +1300,7 @@ impl Editor {
         primary_content: &mut Option<AnyElement>,
         theme: &Theme,
         strings: &I18nStrings,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
@@ -1307,6 +1316,7 @@ impl Editor {
             primary_content,
             theme,
             strings,
+            window,
             cx,
         );
 
@@ -1355,6 +1365,7 @@ impl Editor {
         primary_content: &mut Option<AnyElement>,
         theme: &Theme,
         strings: &I18nStrings,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
@@ -1378,7 +1389,7 @@ impl Editor {
                         if let Some(content) = primary_content.take() {
                             content
                         } else if has_content {
-                            self.render_tiled_preview_panel(primary_content, theme, strings, cx)
+                            self.render_tiled_preview_panel(primary_content, theme, strings, window, cx)
                         } else if workspace_open {
                             render_empty_panel_prompt(c, "Open a file")
                         } else {
@@ -1400,7 +1411,7 @@ impl Editor {
                     }
                     EditorPanel::Preview => {
                         if has_content {
-                            self.render_tiled_preview_panel(primary_content, theme, strings, cx)
+                            self.render_tiled_preview_panel(primary_content, theme, strings, window, cx)
                         } else if workspace_open {
                             render_empty_panel_prompt(c, "Open a file to preview")
                         } else {
@@ -1507,6 +1518,7 @@ impl Editor {
                     primary_content,
                     theme,
                     strings,
+                    window,
                     cx,
                 );
                 let second_elem = self.render_edit_inner_node(
@@ -1515,6 +1527,7 @@ impl Editor {
                     primary_content,
                     theme,
                     strings,
+                    window,
                     cx,
                 );
 

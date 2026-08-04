@@ -6,13 +6,17 @@ use gpui::*;
 
 use crate::editor::tree::block::Block;
 use crate::editor::windows::preview::render::inline;
+use crate::editor::windows::preview::render::preview_centered_column_width;
+use crate::model::syntax::table::TableColumnLayout;
 use crate::theme::Theme;
 
-/// Renders a native table block read-only.
+/// Renders a native table block read-only with content-measured column
+/// widths, mirroring the WYSIWYG table layout.
 pub(crate) fn render_preview_table(
     block: &Block,
     base: Div,
     theme: &Theme,
+    window: &mut Window,
 ) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
@@ -33,13 +37,17 @@ pub(crate) fn render_preview_table(
             .into_any_element();
     };
 
-    let column_count = table.column_count();
-    let _ = column_count;
+    let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
+    let table_width = preview_centered_column_width(viewport_width, d);
+    let column_layout = TableColumnLayout::measure(table, table_width, window, theme);
 
     let header_cells = table
         .header
         .iter()
-        .map(|cell| render_preview_table_cell(cell, true, theme))
+        .enumerate()
+        .map(|(index, cell)| {
+            render_preview_table_cell(cell, true, column_layout.fraction(index), theme)
+        })
         .collect::<Vec<_>>();
 
     let header_row = div()
@@ -61,7 +69,10 @@ pub(crate) fn render_preview_table(
         .map(|row| {
             let cells = row
                 .iter()
-                .map(|cell| render_preview_table_cell(cell, false, theme))
+                .enumerate()
+                .map(|(index, cell)| {
+                    render_preview_table_cell(cell, false, column_layout.fraction(index), theme)
+                })
                 .collect::<Vec<_>>();
             div().w_full().flex().children(cells).into_any_element()
         })
@@ -87,6 +98,7 @@ pub(crate) fn render_preview_table(
 fn render_preview_table_cell(
     cell: &crate::model::inline::text::RichText,
     is_header: bool,
+    fraction: f32,
     theme: &Theme,
 ) -> AnyElement {
     let c = &theme.colors;
@@ -94,7 +106,7 @@ fn render_preview_table_cell(
     let t = &theme.typography;
 
     div()
-        .flex_1()
+        .w(relative(fraction))
         .min_w(px(0.0))
         .px(px(d.table_cell_padding_x))
         .py(px(d.table_cell_padding_y))
