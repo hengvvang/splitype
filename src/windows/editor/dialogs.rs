@@ -14,7 +14,7 @@ use gpui::*;
 use crate::editor::controller::{Editor, InfoDialogKind};
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::theme::Theme;
-use crate::windows::editor::{SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
+use crate::windows::editor::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
 
 impl Editor {
     /// Dismiss the unsaved-changes dialog without closing the window.
@@ -357,13 +357,15 @@ impl Editor {
                 )
                 .into_any_element(),
             InfoDialogKind::About => {
-                // About panel, four logical rectangles:
-                //   rect 1 (large)     contains rect 1a (logo fill, left) and
-                //                       rect 1b (name, right-aligned)
-                //   rect 2             Version line
-                //   rect 3             project link row (left edge aligned
-                //                       with the version line above)
-                // The dismiss button lives in the shared dialog footer.
+                // About panel — three stacked sections:
+                //   section ① top: logo rect (left) beside the name rect
+                //                   (right); the name rect splits into the
+                //                   title row (Splitype v0.0.1) above the
+                //                   tagline row
+                //   section ②      link row (GitHub / Releases / Website /
+                //                   Wiki)
+                //   section ③      the dismiss button lives in the shared
+                //                   dialog footer below this body
                 let meta_line = |this: Div| {
                     this.text_size(px(t.dialog_body_size + 2.0))
                         .font_weight(t.dialog_body_weight.to_font_weight())
@@ -383,46 +385,74 @@ impl Editor {
                 div()
                     .flex()
                     .flex_col()
-                    .gap(px(d.dialog_gap * 0.5))
+                    .gap(px(d.dialog_gap * 1.5))
                     .child(
-                        // Rect 1: top large rectangle holding the logo
-                        // (left) and the app name (right).
+                        // Section ①: horizontal top rect — logo rect on the
+                        // left, name rect on the right.
                         div()
                             .flex()
                             .items_center()
-                            .gap(px(16.0))
+                            .gap(px(28.0))
                             .child(
-                                // Rect 1a: logo fill, centered in the left
-                                // half.
-                                div().flex_1().flex().justify_center().child(
-                                    img("icon/splitype-logo.svg")
-                                        .w(px(84.0))
-                                        .h(px(96.0))
+                                // Rect ①-left: the logo container. The PNG
+                                // keeps the true white-on-black look; the SVG
+                                // source renders as a monochrome mask and
+                                // loses the line art.
+                                div().child(
+                                    img("icon/splitype-logo.png")
+                                        .w(px(56.0))
+                                        .h(px(64.0))
                                         .object_fit(ObjectFit::Contain),
                                 ),
                             )
                             .child(
-                                // Rect 1b: app name pushed toward the right
-                                // edge of the right half.
-                                div().flex_1().flex().justify_end().child(
-                                    div()
-                                        .text_size(px(t.dialog_title_size))
-                                        .font_weight(t.dialog_title_weight.to_font_weight())
-                                        .text_color(c.dialog_title)
-                                        .child("Splitype"),
-                                ),
+                                // Rect ①-right: the name rect, split into
+                                // the title row above the tagline row.
+                                div()
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(2.0))
+                                    .child(
+                                        // Rect ①-right-top: title row
+                                        // (Splitype + inline grey version).
+                                        div()
+                                            .flex()
+                                            .items_baseline()
+                                            .gap(px(6.0))
+                                            .child(
+                                                div()
+                                                    .text_size(px(t.dialog_title_size - 2.0))
+                                                    .font_weight(
+                                                        t.dialog_title_weight.to_font_weight(),
+                                                    )
+                                                    .text_color(c.dialog_title)
+                                                    .child("Splitype"),
+                                            )
+                                            .child(
+                                                div()
+                                                    .text_size(px(t.dialog_body_size))
+                                                    .font_weight(
+                                                        t.dialog_body_weight.to_font_weight(),
+                                                    )
+                                                    .text_color(c.dialog_muted)
+                                                    .child(format!(
+                                                        "v{}",
+                                                        env!("CARGO_PKG_VERSION")
+                                                    )),
+                                            ),
+                                    )
+                                    .child(
+                                        // Rect ①-right-bottom: tagline row.
+                                        div()
+                                            .text_size(px(t.dialog_body_size))
+                                            .font_weight(t.dialog_body_weight.to_font_weight())
+                                            .text_color(c.dialog_muted)
+                                            .child(strings.about_tagline.clone()),
+                                    ),
                             ),
                     )
                     .child(
-                        // Rect 2: version line, left-aligned.
-                        meta_line(div())
-                            .flex()
-                            .child(format!("{}: ", strings.about_version_label))
-                            .child(env!("CARGO_PKG_VERSION")),
-                    )
-                    .child(
-                        // Rect 3: link row; its left edge matches the version
-                        // line above (both left-aligned).
+                        // Section ②: the link row, left-aligned.
                         meta_line(div())
                             .flex()
                             .gap(px(16.0))
@@ -430,6 +460,11 @@ impl Editor {
                                 "about-github-link",
                                 strings.help_about_github_label.clone(),
                                 SPLITYPE_REPOSITORY_URL,
+                            ))
+                            .child(link(
+                                "about-releases-link",
+                                strings.about_releases_label.clone(),
+                                SPLITYPE_RELEASES_URL,
                             ))
                             .child(link(
                                 "about-website-link",

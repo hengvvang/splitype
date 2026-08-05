@@ -112,6 +112,10 @@ pub struct I18nStrings {
     pub about_website_label: String,
     /// About panel label for the wiki link.
     pub about_wiki_label: String,
+    /// About panel label for the releases link.
+    pub about_releases_label: String,
+    /// About panel tagline shown under the app name.
+    pub about_tagline: String,
     /// Help menu item for installing the CLI tool (symlink to /usr/local/bin).
     pub menu_install_cli_tool: String,
     /// Help menu item for uninstalling the CLI tool.
@@ -385,6 +389,8 @@ pub struct I18nStringsDe {
     about_version_label: Option<String>,
     about_website_label: Option<String>,
     about_wiki_label: Option<String>,
+    about_releases_label: Option<String>,
+    about_tagline: Option<String>,
     menu_install_cli_tool: Option<String>,
     menu_uninstall_cli_tool: Option<String>,
     menu_repository: Option<String>,
@@ -579,6 +585,8 @@ pub(crate) const I18N_STRING_KEYS: &[&str] = &[
     "about_version_label",
     "about_website_label",
     "about_wiki_label",
+    "about_releases_label",
+    "about_tagline",
     "menu_install_cli_tool",
     "menu_uninstall_cli_tool",
     "menu_repository",
@@ -837,6 +845,10 @@ impl I18nStringsDe {
                 .about_website_label
                 .unwrap_or(defaults.about_website_label),
             about_wiki_label: self.about_wiki_label.unwrap_or(defaults.about_wiki_label),
+            about_releases_label: self
+                .about_releases_label
+                .unwrap_or(defaults.about_releases_label),
+            about_tagline: self.about_tagline.unwrap_or(defaults.about_tagline),
             menu_install_cli_tool: self
                 .menu_install_cli_tool
                 .unwrap_or(defaults.menu_install_cli_tool),
@@ -1297,6 +1309,8 @@ impl I18nStrings {
             about_version_label: "版本".into(),
             about_website_label: "网站".into(),
             about_wiki_label: "文档".into(),
+            about_releases_label: "版本发布".into(),
+            about_tagline: "拆分窗口，键入代码".into(),
             menu_install_cli_tool: "安装CLI命令".into(),
             menu_uninstall_cli_tool: "卸载CLI命令".into(),
             menu_repository: "Splitype 仓库".into(),
@@ -1509,6 +1523,8 @@ impl I18nStrings {
             about_version_label: "Version".into(),
             about_website_label: "Website".into(),
             about_wiki_label: "Wiki".into(),
+            about_releases_label: "Releases".into(),
+            about_tagline: "Split the window, type your code".into(),
             menu_install_cli_tool: "Install CLI Command".into(),
             menu_uninstall_cli_tool: "Uninstall CLI Command".into(),
             menu_repository: "Splitype Repository".into(),

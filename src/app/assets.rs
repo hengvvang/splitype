@@ -108,6 +108,9 @@ impl AssetSource for SplitypeAssets {
             "icon/splitype-logo.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icon/logo.svg"
             )))),
+            "icon/splitype-logo.png" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icon/splitype-icon.png"
+            )))),
             _ => Ok(None),
         }
     }

@@ -43,6 +43,7 @@ pub(crate) const SPLITYPE_FEATURE_REQUEST_URL: &str =
 pub(crate) const SPLITYPE_DISCUSSIONS_URL: &str =
     "https://github.com/hengvvang/splitype/discussions";
 pub(crate) const SPLITYPE_WIKI_URL: &str = "https://github.com/hengvvang/splitype/wiki";
+pub(crate) const SPLITYPE_RELEASES_URL: &str = "https://github.com/hengvvang/splitype/releases";
 
 pub(crate) fn open_splitype_repository(cx: &mut App) {
     cx.open_url(SPLITYPE_REPOSITORY_URL);
