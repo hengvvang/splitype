@@ -40,7 +40,7 @@ impl Theme {
     /// Returns the built-in fallback theme used when no custom theme is loaded.
     pub fn default_theme() -> Self {
         Self {
-            name: "Velotype".into(),
+            name: "Dark".into(),
             colors: ThemeColors {
                 editor_background: Hsla::from(rgba(0x191919ff)),
                 source_mode_block_bg: Hsla::from(rgba(0x313131ff)),
@@ -412,9 +412,9 @@ pub struct ThemeCatalogEntry {
 }
 
 pub(crate) const BUILTIN_THEME_VELOTYPE_ID: &str = "velotype";
-pub(crate) const BUILTIN_THEME_VELOTYPE_NAME: &str = "Velotype";
+pub(crate) const BUILTIN_THEME_VELOTYPE_NAME: &str = "Dark";
 pub(crate) const BUILTIN_THEME_VELOTYPE_LIGHT_ID: &str = "velotype-light";
-pub(crate) const BUILTIN_THEME_VELOTYPE_LIGHT_NAME: &str = "Velotype Light";
+pub(crate) const BUILTIN_THEME_VELOTYPE_LIGHT_NAME: &str = "Light";
 pub(crate) const CUSTOM_THEME_ID: &str = "custom";
 
 pub(crate) fn builtin_theme_catalog() -> Vec<ThemeCatalogEntry> {

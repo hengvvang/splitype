@@ -1119,8 +1119,8 @@ mod tests {
         }
 
         let theme_items = &menus[THEME_IDX].items;
-        assert_eq!(action_name(&theme_items[0]), "Velotype");
-        assert_eq!(action_name(&theme_items[1]), "Velotype Light");
+        assert_eq!(action_name(&theme_items[0]), "Dark");
+        assert_eq!(action_name(&theme_items[1]), "Light");
         assert!(matches!(
             theme_items[theme_items.len() - 2],
             MenuItem::Separator
@@ -1151,8 +1151,8 @@ mod tests {
         let menus = build_menus(&theme_manager, &i18n_manager, &[]);
         let theme_items = &menus[THEME_IDX].items;
 
-        assert_eq!(action_name(&theme_items[0]), "Velotype");
-        assert_eq!(action_name(&theme_items[1]), "Velotype Light");
+        assert_eq!(action_name(&theme_items[0]), "Dark");
+        assert_eq!(action_name(&theme_items[1]), "Light");
         match &theme_items[1] {
             MenuItem::Action { action, .. } => {
                 let action = action

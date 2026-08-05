@@ -1,7 +1,9 @@
 //! Settings panel rendered inside the editor's tiled layout.
 
-use crate::ui::components::section::{section_card, section_header, settings_row,};
-use crate::ui::components::stepper::{stepper_container, stepper_divider, stepper_step_button, stepper_value};
+use crate::ui::components::section::{section_card, section_header, settings_row};
+use crate::ui::components::stepper::{
+    stepper_container, stepper_divider, stepper_step_button, stepper_value,
+};
 use crate::ui::components::tab::nav_tab;
 
 use crate::ui::components::select::{select_option, select_panel, select_trigger};
@@ -9,10 +11,10 @@ use crate::ui::components::select::{select_option, select_panel, select_trigger}
 use gpui::*;
 
 use crate::editor::controller::*;
-use crate::windows::settings::state::SettingsTab;
 use crate::infra::i18n::I18nStrings;
 use crate::theme::{Theme, ThemeManager};
 use crate::ui::components::switch::Switch;
+use crate::windows::settings::state::SettingsTab;
 
 impl Editor {
     pub(crate) fn render_tiled_settings_panel(
@@ -36,7 +38,7 @@ impl Editor {
             let tab_item = *tab;
 
             left_nav_items.push(
-nav_tab(("pref-tab", tab_idx), c, d)
+                nav_tab(("pref-tab", tab_idx), c, d)
                     .id(("pref-tab", tab_idx))
                     .cursor_pointer()
                     .flex()
@@ -95,7 +97,7 @@ nav_tab(("pref-tab", tab_idx), c, d)
          -> AnyElement {
             let tc = &theme.colors;
             let td = &theme.dimensions;
-settings_row(border_col, tc, td)
+            settings_row(border_col, tc, td)
                 .child(
                     div()
                         .flex()
@@ -166,9 +168,9 @@ settings_row(border_col, tc, td)
 
                 let center_box = center_box.on_click(on_click_center);
 
-stepper_container(tc, td)
+                stepper_container(tc, td)
                     .child(
-stepper_step_button(id_dec, tc)
+                        stepper_step_button(id_dec, tc)
                             .id(id_dec)
                             .child("-")
                             .on_click(on_dec),
@@ -177,7 +179,7 @@ stepper_step_button(id_dec, tc)
                     .child(center_box)
                     .child(stepper_divider(tc))
                     .child(
-stepper_step_button(id_inc, tc)
+                        stepper_step_button(id_inc, tc)
                             .id(id_inc)
                             .child("+")
                             .on_click(on_inc),
@@ -216,8 +218,7 @@ stepper_step_button(id_inc, tc)
                 )
                 .on_click(move |ev, window, cx| toggle_fn(ev, window, cx));
 
-let mut card = section_card(tc, td)
-                .child(header);
+            let mut card = section_card(tc, td).child(header);
 
             if is_expanded && !items.is_empty() {
                 let body = div()
@@ -240,30 +241,19 @@ let mut card = section_card(tc, td)
             SettingsTab::Interface => {
                 // Section 1: Visual Theme & Language
                 let sec1_key = "theme";
-                let is_sec1_expanded = self
-                    .panels
-                    .settings
-                    .expanded_sections
-                    .contains(sec1_key);
+                let is_sec1_expanded = self.panels.settings.expanded_sections.contains(sec1_key);
                 let mut sec1_items = Vec::new();
 
                 let theme_ed = cx.entity().downgrade();
                 let available_themes = cx.global::<ThemeManager>().available_themes();
-                let raw_theme_name = theme.name.clone();
-                let current_theme_name: String = match raw_theme_name.as_str() {
-                    "Velotype" => "Dark".to_string(),
-                    "Velotype Light" => "Light".to_string(),
-                    other => other.to_string(),
-                };
+                let current_theme_name = theme.name.clone();
 
                 let lang_ed = cx.entity().downgrade();
                 let lang_options = [("en-US", "English (en-US)"), ("zh-CN", "简体中文 (zh-CN)")];
                 let current_lang = "English (en-US)";
 
-                let is_theme_open =
-                    self.panels.settings.open_dropdown.as_deref() == Some("theme");
-                let is_lang_open =
-                    self.panels.settings.open_dropdown.as_deref() == Some("lang");
+                let is_theme_open = self.panels.settings.open_dropdown.as_deref() == Some("theme");
+                let is_lang_open = self.panels.settings.open_dropdown.as_deref() == Some("lang");
 
                 if is_sec1_expanded {
                     let theme_icon_path = if current_theme_name == "Light" {
@@ -273,7 +263,7 @@ let mut card = section_card(tc, td)
                     };
 
                     let mut theme_btn_wrap = div().relative().child(
-select_trigger("pref-btn-theme", c, d)
+                        select_trigger("pref-btn-theme", c, d)
                             .text_size(px(12.0))
                             .text_color(c.text_default)
                             .child(
@@ -327,11 +317,7 @@ select_trigger("pref-btn-theme", c, d)
                         let mut menu_items = Vec::new();
                         for t_entry in available_themes {
                             let t_id = t_entry.id.clone();
-                            let display_label: String = match t_entry.name.as_str() {
-                                "Velotype" | "Dark" => "Dark".to_string(),
-                                "Velotype Light" | "Light" => "Light".to_string(),
-                                other => other.to_string(),
-                            };
+                            let display_label = t_entry.name.clone();
                             let is_selected = display_label == current_theme_name;
                             let item_ed = theme_ed.clone();
                             let item_icon = if display_label == "Light" {
@@ -341,53 +327,54 @@ select_trigger("pref-btn-theme", c, d)
                             };
 
                             menu_items.push(
-select_option(ElementId::Name(format!("theme-item-{}", t_id).into()), c)
-                                    .bg(if is_selected {
-                                        c.dialog_secondary_button_hover
-                                    } else {
-                                        c.dialog_surface
-                                    })
-                                    .text_size(px(12.0))
-                                    .text_color(c.text_default)
-                                    .child(
-                                        div()
-                                            .flex()
-                                            .items_center()
-                                            .gap(px(6.0))
-                                            .child(
-                                                svg()
-                                                    .path(item_icon)
-                                                    .size(px(13.0))
-                                                    .text_color(c.text_default),
-                                            )
-                                            .child(display_label),
-                                    )
-                                    .child(if is_selected {
-                                        svg()
-                                            .path("icon/panel/check.svg")
-                                            .size(px(13.0))
-                                            .text_color(c.dialog_primary_button_bg)
-                                            .into_any_element()
-                                    } else {
-                                        div().w(px(13.0)).into_any_element()
-                                    })
-                                    .on_click(move |_ev, _win, cx| {
-                                        let _ = item_ed.update(cx, |ed, cx| {
-                                            cx.update_global::<ThemeManager, _>(|manager, _cx| {
-                                                let _ = manager.set_theme_by_id(&t_id);
-                                            });
-                                            ed.panels.settings.open_dropdown = None;
-                                            cx.notify();
+                                select_option(
+                                    ElementId::Name(format!("theme-item-{}", t_id).into()),
+                                    c,
+                                )
+                                .bg(if is_selected {
+                                    c.dialog_secondary_button_hover
+                                } else {
+                                    c.dialog_surface
+                                })
+                                .text_size(px(12.0))
+                                .text_color(c.text_default)
+                                .child(
+                                    div()
+                                        .flex()
+                                        .items_center()
+                                        .gap(px(6.0))
+                                        .child(
+                                            svg()
+                                                .path(item_icon)
+                                                .size(px(13.0))
+                                                .text_color(c.text_default),
+                                        )
+                                        .child(display_label),
+                                )
+                                .child(if is_selected {
+                                    svg()
+                                        .path("icon/panel/check.svg")
+                                        .size(px(13.0))
+                                        .text_color(c.dialog_primary_button_bg)
+                                        .into_any_element()
+                                } else {
+                                    div().w(px(13.0)).into_any_element()
+                                })
+                                .on_click(move |_ev, _win, cx| {
+                                    let _ = item_ed.update(cx, |ed, cx| {
+                                        cx.update_global::<ThemeManager, _>(|manager, _cx| {
+                                            let _ = manager.set_theme_by_id(&t_id);
                                         });
-                                    })
-                                    .into_any_element(),
+                                        ed.panels.settings.open_dropdown = None;
+                                        cx.notify();
+                                    });
+                                })
+                                .into_any_element(),
                             );
                         }
 
-                        theme_btn_wrap = theme_btn_wrap.child(gpui::deferred(
-select_panel(c)
-                                .children(menu_items),
-                        ));
+                        theme_btn_wrap = theme_btn_wrap
+                            .child(gpui::deferred(select_panel(c).children(menu_items)));
                     }
 
                     sec1_items.push(make_row(
@@ -399,7 +386,7 @@ select_panel(c)
                     ));
 
                     let mut lang_btn_wrap = div().relative().child(
-select_trigger("pref-btn-lang", c, d)
+                        select_trigger("pref-btn-lang", c, d)
                             .text_size(px(12.0))
                             .text_color(c.text_default)
                             .child(div().flex_1().min_w(px(0.0)).truncate().child(current_lang))
@@ -436,38 +423,39 @@ select_trigger("pref-btn-lang", c, d)
                             let item_ed = lang_ed.clone();
 
                             menu_items.push(
-select_option(ElementId::Name(format!("lang-item-{}", code).into()), c)
-                                    .bg(if is_selected {
-                                        c.dialog_secondary_button_hover
-                                    } else {
-                                        c.dialog_surface
-                                    })
-                                    .text_size(px(12.0))
-                                    .text_color(c.text_default)
-                                    .child(label)
-                                    .child(if is_selected {
-                                        svg()
-                                            .path("icon/panel/check.svg")
-                                            .size(px(13.0))
-                                            .text_color(c.dialog_primary_button_bg)
-                                            .into_any_element()
-                                    } else {
-                                        div().w(px(13.0)).into_any_element()
-                                    })
-                                    .on_click(move |_ev, _win, cx| {
-                                        let _ = item_ed.update(cx, |ed, cx| {
-                                            ed.panels.settings.open_dropdown = None;
-                                            cx.notify();
-                                        });
-                                    })
-                                    .into_any_element(),
+                                select_option(
+                                    ElementId::Name(format!("lang-item-{}", code).into()),
+                                    c,
+                                )
+                                .bg(if is_selected {
+                                    c.dialog_secondary_button_hover
+                                } else {
+                                    c.dialog_surface
+                                })
+                                .text_size(px(12.0))
+                                .text_color(c.text_default)
+                                .child(label)
+                                .child(if is_selected {
+                                    svg()
+                                        .path("icon/panel/check.svg")
+                                        .size(px(13.0))
+                                        .text_color(c.dialog_primary_button_bg)
+                                        .into_any_element()
+                                } else {
+                                    div().w(px(13.0)).into_any_element()
+                                })
+                                .on_click(move |_ev, _win, cx| {
+                                    let _ = item_ed.update(cx, |ed, cx| {
+                                        ed.panels.settings.open_dropdown = None;
+                                        cx.notify();
+                                    });
+                                })
+                                .into_any_element(),
                             );
                         }
 
-                        lang_btn_wrap = lang_btn_wrap.child(gpui::deferred(
-select_panel(c)
-                                .children(menu_items),
-                        ));
+                        lang_btn_wrap = lang_btn_wrap
+                            .child(gpui::deferred(select_panel(c).children(menu_items)));
                     }
 
                     sec1_items.push(make_row(
@@ -496,11 +484,7 @@ select_panel(c)
 
                 // Section 2: Status Bar Options
                 let sec2_key = "status_bar";
-                let is_sec2_expanded = self
-                    .panels
-                    .settings
-                    .expanded_sections
-                    .contains(sec2_key);
+                let is_sec2_expanded = self.panels.settings.expanded_sections.contains(sec2_key);
                 let mut sec2_items = Vec::new();
 
                 if is_sec2_expanded {
@@ -623,11 +607,7 @@ select_panel(c)
             SettingsTab::Editing => {
                 // Section 1: Typography & Formatting
                 let sec1_key = "typography";
-                let is_sec1_expanded = self
-                    .panels
-                    .settings
-                    .expanded_sections
-                    .contains(sec1_key);
+                let is_sec1_expanded = self.panels.settings.expanded_sections.contains(sec1_key);
                 let mut sec1_items = Vec::new();
 
                 if is_sec1_expanded {
@@ -664,8 +644,7 @@ select_panel(c)
                         }),
                         Box::new(move |_ev, _win, cx| {
                             let _ = font_ctr.update(cx, |ed, cx| {
-                                ed.panels.settings.editing_stepper =
-                                    Some("font".to_string());
+                                ed.panels.settings.editing_stepper = Some("font".to_string());
                                 ed.panels.settings.pref_font_size =
                                     match ed.panels.settings.pref_font_size {
                                         12 => 14,
@@ -694,8 +673,8 @@ select_panel(c)
                     let lh_inc = cx.entity().downgrade();
                     let lh_ctr = cx.entity().downgrade();
                     let curr_lh = self.panels.settings.pref_line_height;
-                    let is_editing_lh = self.panels.settings.editing_stepper.as_deref()
-                        == Some("line_height");
+                    let is_editing_lh =
+                        self.panels.settings.editing_stepper.as_deref() == Some("line_height");
 
                     let ctrl_lh = render_zed_stepper(
                         "lh-dec",
@@ -727,21 +706,24 @@ select_panel(c)
                             let _ = lh_ctr.update(cx, |ed, cx| {
                                 ed.panels.settings.editing_stepper =
                                     Some("line_height".to_string());
-                                ed.panels.settings.pref_line_height =
-                                    if (ed.panels.settings.pref_line_height - 1.2).abs() < 0.05 {
-                                        1.4
-                                    } else if (ed.panels.settings.pref_line_height - 1.4).abs() < 0.05
-                                    {
-                                        1.6
-                                    } else if (ed.panels.settings.pref_line_height - 1.6).abs() < 0.05
-                                    {
-                                        1.8
-                                    } else if (ed.panels.settings.pref_line_height - 1.8).abs() < 0.05
-                                    {
-                                        2.0
-                                    } else {
-                                        1.2
-                                    };
+                                ed.panels.settings.pref_line_height = if (ed
+                                    .panels
+                                    .settings
+                                    .pref_line_height
+                                    - 1.2)
+                                    .abs()
+                                    < 0.05
+                                {
+                                    1.4
+                                } else if (ed.panels.settings.pref_line_height - 1.4).abs() < 0.05 {
+                                    1.6
+                                } else if (ed.panels.settings.pref_line_height - 1.6).abs() < 0.05 {
+                                    1.8
+                                } else if (ed.panels.settings.pref_line_height - 1.8).abs() < 0.05 {
+                                    2.0
+                                } else {
+                                    1.2
+                                };
                                 cx.notify();
                             });
                         }),
@@ -774,11 +756,7 @@ select_panel(c)
 
                 // Section 2: Markdown & Assets
                 let sec2_key = "markdown";
-                let is_sec2_expanded = self
-                    .panels
-                    .settings
-                    .expanded_sections
-                    .contains(sec2_key);
+                let is_sec2_expanded = self.panels.settings.expanded_sections.contains(sec2_key);
                 let mut sec2_items = Vec::new();
 
                 let img_ed = cx.entity().downgrade();
@@ -789,8 +767,7 @@ select_panel(c)
                 ];
                 let curr_img_idx = self.panels.settings.pref_image_paste_action % img_options.len();
                 let curr_img_label = img_options[curr_img_idx].1;
-                let is_img_open =
-                    self.panels.settings.open_dropdown.as_deref() == Some("image");
+                let is_img_open = self.panels.settings.open_dropdown.as_deref() == Some("image");
 
                 if is_sec2_expanded {
                     let tbl_ed = cx.entity().downgrade();
@@ -818,7 +795,7 @@ select_panel(c)
                     ));
 
                     let mut img_btn_wrap = div().relative().child(
-select_trigger("pref-btn-img", c, d)
+                        select_trigger("pref-btn-img", c, d)
                             .text_size(px(12.0))
                             .text_color(c.text_default)
                             .child(
@@ -861,39 +838,40 @@ select_trigger("pref-btn-img", c, d)
                             let item_ed = img_ed.clone();
 
                             menu_items.push(
-select_option(ElementId::Name(format!("img-item-{}", idx).into()), c)
-                                    .bg(if is_selected {
-                                        c.dialog_secondary_button_hover
-                                    } else {
-                                        c.dialog_surface
-                                    })
-                                    .text_size(px(12.0))
-                                    .text_color(c.text_default)
-                                    .child(label)
-                                    .child(if is_selected {
-                                        svg()
-                                            .path("icon/panel/check.svg")
-                                            .size(px(13.0))
-                                            .text_color(c.dialog_primary_button_bg)
-                                            .into_any_element()
-                                    } else {
-                                        div().w(px(13.0)).into_any_element()
-                                    })
-                                    .on_click(move |_ev, _win, cx| {
-                                        let _ = item_ed.update(cx, |ed, cx| {
-                                            ed.panels.settings.pref_image_paste_action = idx;
-                                            ed.panels.settings.open_dropdown = None;
-                                            cx.notify();
-                                        });
-                                    })
-                                    .into_any_element(),
+                                select_option(
+                                    ElementId::Name(format!("img-item-{}", idx).into()),
+                                    c,
+                                )
+                                .bg(if is_selected {
+                                    c.dialog_secondary_button_hover
+                                } else {
+                                    c.dialog_surface
+                                })
+                                .text_size(px(12.0))
+                                .text_color(c.text_default)
+                                .child(label)
+                                .child(if is_selected {
+                                    svg()
+                                        .path("icon/panel/check.svg")
+                                        .size(px(13.0))
+                                        .text_color(c.dialog_primary_button_bg)
+                                        .into_any_element()
+                                } else {
+                                    div().w(px(13.0)).into_any_element()
+                                })
+                                .on_click(move |_ev, _win, cx| {
+                                    let _ = item_ed.update(cx, |ed, cx| {
+                                        ed.panels.settings.pref_image_paste_action = idx;
+                                        ed.panels.settings.open_dropdown = None;
+                                        cx.notify();
+                                    });
+                                })
+                                .into_any_element(),
                             );
                         }
 
-                        img_btn_wrap = img_btn_wrap.child(gpui::deferred(
-select_panel(c)
-                                .children(menu_items),
-                        ));
+                        img_btn_wrap = img_btn_wrap
+                            .child(gpui::deferred(select_panel(c).children(menu_items)));
                     }
 
                     sec2_items.push(make_row(
@@ -922,11 +900,7 @@ select_panel(c)
 
                 // Section 3: Startup Behavior
                 let sec3_key = "startup";
-                let is_sec3_expanded = self
-                    .panels
-                    .settings
-                    .expanded_sections
-                    .contains(sec3_key);
+                let is_sec3_expanded = self.panels.settings.expanded_sections.contains(sec3_key);
                 let mut sec3_items = Vec::new();
 
                 let startup_ed = cx.entity().downgrade();
@@ -939,7 +913,7 @@ select_panel(c)
 
                 if is_sec3_expanded {
                     let mut startup_btn_wrap = div().relative().child(
-select_trigger("pref-btn-startup", c, d)
+                        select_trigger("pref-btn-startup", c, d)
                             .text_size(px(12.0))
                             .text_color(c.text_default)
                             .child(
@@ -982,39 +956,40 @@ select_trigger("pref-btn-startup", c, d)
                             let item_ed = startup_ed.clone();
 
                             menu_items.push(
-select_option(ElementId::Name(format!("startup-item-{}", idx).into()), c)
-                                    .bg(if is_selected {
-                                        c.dialog_secondary_button_hover
-                                    } else {
-                                        c.dialog_surface
-                                    })
-                                    .text_size(px(12.0))
-                                    .text_color(c.text_default)
-                                    .child(label)
-                                    .child(if is_selected {
-                                        svg()
-                                            .path("icon/panel/check.svg")
-                                            .size(px(13.0))
-                                            .text_color(c.dialog_primary_button_bg)
-                                            .into_any_element()
-                                    } else {
-                                        div().w(px(13.0)).into_any_element()
-                                    })
-                                    .on_click(move |_ev, _win, cx| {
-                                        let _ = item_ed.update(cx, |ed, cx| {
-                                            ed.panels.settings.pref_startup_option = idx;
-                                            ed.panels.settings.open_dropdown = None;
-                                            cx.notify();
-                                        });
-                                    })
-                                    .into_any_element(),
+                                select_option(
+                                    ElementId::Name(format!("startup-item-{}", idx).into()),
+                                    c,
+                                )
+                                .bg(if is_selected {
+                                    c.dialog_secondary_button_hover
+                                } else {
+                                    c.dialog_surface
+                                })
+                                .text_size(px(12.0))
+                                .text_color(c.text_default)
+                                .child(label)
+                                .child(if is_selected {
+                                    svg()
+                                        .path("icon/panel/check.svg")
+                                        .size(px(13.0))
+                                        .text_color(c.dialog_primary_button_bg)
+                                        .into_any_element()
+                                } else {
+                                    div().w(px(13.0)).into_any_element()
+                                })
+                                .on_click(move |_ev, _win, cx| {
+                                    let _ = item_ed.update(cx, |ed, cx| {
+                                        ed.panels.settings.pref_startup_option = idx;
+                                        ed.panels.settings.open_dropdown = None;
+                                        cx.notify();
+                                    });
+                                })
+                                .into_any_element(),
                             );
                         }
 
-                        startup_btn_wrap = startup_btn_wrap.child(gpui::deferred(
-select_panel(c)
-                                .children(menu_items),
-                        ));
+                        startup_btn_wrap = startup_btn_wrap
+                            .child(gpui::deferred(select_panel(c).children(menu_items)));
                     }
 
                     sec3_items.push(make_row(
@@ -1044,11 +1019,7 @@ select_panel(c)
             SettingsTab::Keymap => {
                 // Section 1: Document Actions
                 let sec1_key = "doc_actions";
-                let is_sec1_expanded = self
-                    .panels
-                    .settings
-                    .expanded_sections
-                    .contains(sec1_key);
+                let is_sec1_expanded = self.panels.settings.expanded_sections.contains(sec1_key);
                 let mut sec1_items = Vec::new();
 
                 if is_sec1_expanded {
@@ -1108,11 +1079,7 @@ select_panel(c)
 
                 // Section 2: Interface & View Controls
                 let sec2_key = "view_controls";
-                let is_sec2_expanded = self
-                    .panels
-                    .settings
-                    .expanded_sections
-                    .contains(sec2_key);
+                let is_sec2_expanded = self.panels.settings.expanded_sections.contains(sec2_key);
                 let mut sec2_items = Vec::new();
 
                 if is_sec2_expanded {
