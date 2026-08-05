@@ -1696,6 +1696,10 @@ impl Editor {
             .absolute()
             .occlude()
             .left(px(0.0))
+            // Anchor to the bottom of the editor area (directly above the
+            // status bar) and grow upward, so the menu never overflows past
+            // the window bottom edge.
+            .bottom(px(0.0))
             .w(px(d.menu_panel_width))
             .children(available_types.iter().enumerate().map(|(idx, area_type)| {
                 let area_type = *area_type;
