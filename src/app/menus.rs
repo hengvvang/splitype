@@ -13,9 +13,9 @@ use crate::app::windows::{
 };
 use crate::editor::actions::{
     AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
-    InstallCliTool, NewWindow, NoRecentFiles, OpenFile, OpenRecentFile, OpenSettings,
-    QuitApplication, SaveDocument, SaveDocumentAs, SelectLanguage, SelectTheme, ShowAbout,
-    ToggleExplorer, UninstallCliTool,
+    InstallCliTool, NewWindow, NoRecentFiles, OpenBugReport, OpenDiscussions, OpenFeatureRequest,
+    OpenFile, OpenRecentFile, OpenSettings, OpenSplitypeRepository, QuitApplication, SaveDocument,
+    SaveDocumentAs, SelectLanguage, SelectTheme, ShowAbout, ToggleExplorer, UninstallCliTool,
 };
 use crate::editor::controller::{Editor, InfoDialogKind};
 use crate::editor::render::export::ExportFormat;
@@ -30,6 +30,9 @@ use crate::platform::cli_tool::{install_cli_tool, is_cli_symlink_current_app, un
 #[cfg(not(target_os = "macos"))]
 use crate::platform::cli_tool::{install_cli_tool, uninstall_cli_tool};
 use crate::theme::ThemeManager;
+use crate::windows::editor::{
+    open_bug_report, open_discussions, open_feature_request, open_splitype_repository,
+};
 use crate::windows::settings::open_settings_window;
 
 /// Global app-menu state for platform menu lifecycle hooks.
@@ -301,6 +304,14 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
         request_quit_application(cx);
     } else if action.as_any().is::<CloseWindow>() {
         request_close_current_editor_window(cx);
+    } else if action.as_any().is::<OpenSplitypeRepository>() {
+        open_splitype_repository(cx);
+    } else if action.as_any().is::<OpenBugReport>() {
+        open_bug_report(cx);
+    } else if action.as_any().is::<OpenFeatureRequest>() {
+        open_feature_request(cx);
+    } else if action.as_any().is::<OpenDiscussions>() {
+        open_discussions(cx);
     }
 }
 
@@ -329,8 +340,6 @@ pub(crate) fn dispatch_menu_action_for_editor(
         || action.as_any().is::<SaveDocumentAs>()
         || action.as_any().is::<ExportHtml>()
         || action.as_any().is::<ExportPdf>()
-        || action.as_any().is::<CheckForUpdates>()
-        || action.as_any().is::<ShowAbout>()
     {
         let no_tab = target
             .update(cx, |editor, _cx| !editor.has_active_tab())
@@ -456,7 +465,10 @@ fn build_menus(
     let help_items = {
         let cli_installed = is_cli_symlink_current_app();
         let mut items = vec![
-            MenuItem::action(strings.menu_check_updates.clone(), CheckForUpdates),
+            MenuItem::action(strings.menu_repository.clone(), OpenSplitypeRepository),
+            MenuItem::action(strings.menu_bug_report.clone(), OpenBugReport),
+            MenuItem::action(strings.menu_feature_request.clone(), OpenFeatureRequest),
+            MenuItem::action(strings.menu_discussions.clone(), OpenDiscussions),
             MenuItem::separator(),
         ];
         if cli_installed {
@@ -470,25 +482,24 @@ fn build_menus(
                 InstallCliTool,
             ));
         }
-        items.push(MenuItem::separator());
-        items.push(MenuItem::action(strings.menu_about.clone(), ShowAbout));
         items
     };
     #[cfg(not(target_os = "macos"))]
     let help_items = vec![
-        MenuItem::action(strings.menu_check_updates.clone(), CheckForUpdates),
-        MenuItem::separator(),
-        MenuItem::action(strings.menu_about.clone(), ShowAbout),
+        MenuItem::action(strings.menu_repository.clone(), OpenSplitypeRepository),
+        MenuItem::action(strings.menu_bug_report.clone(), OpenBugReport),
+        MenuItem::action(strings.menu_feature_request.clone(), OpenFeatureRequest),
+        MenuItem::action(strings.menu_discussions.clone(), OpenDiscussions),
     ];
 
     vec![
         Menu {
             name: "Splitype".into(),
             items: vec![
-                MenuItem::action(strings.menu_settings.clone(), OpenSettings),
-                MenuItem::separator(),
                 MenuItem::action(strings.menu_about.clone(), ShowAbout),
                 MenuItem::action(strings.menu_check_updates.clone(), CheckForUpdates),
+                MenuItem::separator(),
+                MenuItem::action(strings.menu_settings.clone(), OpenSettings),
                 MenuItem::separator(),
                 MenuItem::action(strings.menu_quit.clone(), QuitApplication),
             ],
@@ -796,6 +807,18 @@ pub(crate) fn init(cx: &mut App) {
     cx.on_action(|_: &CloseWindow, cx| {
         dispatch_menu_action(&CloseWindow, cx);
     });
+    cx.on_action(|_: &OpenSplitypeRepository, cx| {
+        dispatch_menu_action(&OpenSplitypeRepository, cx);
+    });
+    cx.on_action(|_: &OpenBugReport, cx| {
+        dispatch_menu_action(&OpenBugReport, cx);
+    });
+    cx.on_action(|_: &OpenFeatureRequest, cx| {
+        dispatch_menu_action(&OpenFeatureRequest, cx);
+    });
+    cx.on_action(|_: &OpenDiscussions, cx| {
+        dispatch_menu_action(&OpenDiscussions, cx);
+    });
 
     install_menus(cx);
     cx.activate(true);
@@ -806,13 +829,14 @@ mod tests {
     use super::build_menus;
     use crate::editor::actions::{
         AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
-        NewWindow, NoRecentFiles, OpenFile, OpenRecentFile, OpenSettings, QuitApplication,
-        SaveDocument, SelectLanguage, SelectTheme, ShowAbout,
+        NewWindow, NoRecentFiles, OpenBugReport, OpenDiscussions, OpenFeatureRequest, OpenFile,
+        OpenRecentFile, OpenSettings, OpenSplitypeRepository, QuitApplication, SaveDocument,
+        SelectLanguage, SelectTheme, ShowAbout,
     };
     use crate::infra::i18n::I18nManager;
     use crate::platform::cli_tool::applescript_string_literal;
     use crate::theme::ThemeManager;
-    use gpui::MenuItem;
+    use gpui::{Action, MenuItem};
     use std::path::PathBuf;
 
     fn action_name(item: &MenuItem) -> &str {
@@ -843,32 +867,14 @@ mod tests {
         );
     }
 
-    // On macOS the menu bar is: [Splitype app menu, File, Export, Language, Theme, ExplorerState, Help]
-    // On other platforms:       [File, Export, Language, Theme, ExplorerState, Help]
-    #[cfg(target_os = "macos")]
-    const EXPORT_IDX: usize = 2;
-    #[cfg(not(target_os = "macos"))]
-    const EXPORT_IDX: usize = 1;
-
-    #[cfg(target_os = "macos")]
-    const LANGUAGE_IDX: usize = 3;
-    #[cfg(not(target_os = "macos"))]
-    const LANGUAGE_IDX: usize = 2;
-
-    #[cfg(target_os = "macos")]
-    const THEME_IDX: usize = 4;
-    #[cfg(not(target_os = "macos"))]
-    const THEME_IDX: usize = 3;
-
-    #[cfg(target_os = "macos")]
-    const EXPLORER_IDX: usize = 5;
-    #[cfg(not(target_os = "macos"))]
-    const EXPLORER_IDX: usize = 4;
-
-    #[cfg(target_os = "macos")]
-    const HELP_IDX: usize = 6;
-    #[cfg(not(target_os = "macos"))]
-    const HELP_IDX: usize = 5;
+    // Menu bar: [Splitype, File, View, Help] on every platform.
+    const FILE_IDX: usize = 1;
+    const VIEW_IDX: usize = 2;
+    const HELP_IDX: usize = 3;
+    // Export is a submenu of File; Theme and Language are submenus of View.
+    const EXPORT_ITEM_IDX: usize = 8;
+    const THEME_SUBMENU_IDX: usize = 0;
+    const LANGUAGE_SUBMENU_IDX: usize = 2;
 
     #[test]
     fn build_menus_uses_english_fallback_by_default() {
@@ -880,56 +886,48 @@ mod tests {
             .iter()
             .map(|menu| menu.name.to_string())
             .collect::<Vec<_>>();
+        assert_eq!(menu_names, vec!["Splitype", "File", "View", "Help"]);
 
-        #[cfg(target_os = "macos")]
-        assert_eq!(
-            menu_names,
-            vec![
-                "Splitype", "File", "Export", "Language", "Theme", "Explorer", "Help"
-            ]
-        );
-        #[cfg(not(target_os = "macos"))]
-        assert_eq!(
-            menu_names,
-            vec!["File", "Export", "Language", "Theme", "Explorer", "Help"]
-        );
+        // Splitype menu: About, Check for Updates, separator, Open Settings,
+        // separator, Quit Splitype.
+        assert_eq!(action_name(&menus[0].items[0]), "About Splitype");
+        assert_eq!(action_name(&menus[0].items[1]), "Check for Updates");
+        assert!(matches!(menus[0].items[2], MenuItem::Separator));
+        assert_eq!(action_name(&menus[0].items[3]), "Open Settings");
+        assert!(matches!(menus[0].items[4], MenuItem::Separator));
+        assert_eq!(action_name(&menus[0].items[5]), "Quit Splitype");
 
-        // New Window belongs with file operations on macOS and remains the
-        // first File menu item on other platforms.
-        #[cfg(target_os = "macos")]
-        assert_eq!(action_name(&menus[1].items[0]), "New Window");
-        #[cfg(not(target_os = "macos"))]
-        assert_eq!(action_name(&menus[0].items[0]), "New Window");
-
-        // Open Recent File submenu location differs by platform.
-        #[cfg(target_os = "macos")]
+        // File menu: New Window, Close Window, Open File, Open Recent File,
+        // separator, Save, Save As, separator, Export submenu.
+        assert_eq!(action_name(&menus[FILE_IDX].items[0]), "New Window");
+        assert_eq!(action_name(&menus[FILE_IDX].items[1]), "Close Window");
+        assert_eq!(action_name(&menus[FILE_IDX].items[2]), "Open File");
         assert_eq!(
-            submenu(&menus[1].items[3]).name.to_string(),
+            submenu(&menus[FILE_IDX].items[3]).name.to_string(),
             "Open Recent File"
         );
-        #[cfg(not(target_os = "macos"))]
         assert_eq!(
-            submenu(&menus[0].items[3]).name.to_string(),
-            "Open Recent File"
+            submenu(&menus[FILE_IDX].items[EXPORT_ITEM_IDX])
+                .name
+                .to_string(),
+            "Export"
         );
 
-        // Close Window is colocated with New Window in the File menu.
-        #[cfg(target_os = "macos")]
-        assert_eq!(action_name(&menus[1].items[1]), "Close Window");
-        #[cfg(not(target_os = "macos"))]
-        assert_eq!(action_name(&menus[0].items[1]), "Close Window");
+        // Export submenu: HTML and PDF.
+        let export_items = &submenu(&menus[FILE_IDX].items[EXPORT_ITEM_IDX]).items;
+        assert_eq!(action_name(&export_items[0]), "HTML");
+        assert_eq!(action_name(&export_items[1]), "PDF");
 
-        // Settings location differs by platform.
-        #[cfg(target_os = "macos")]
-        assert_eq!(action_name(&menus[0].items[0]), "Settings");
-        #[cfg(not(target_os = "macos"))]
-        assert_eq!(action_name(&menus[0].items[4]), "Settings");
-
-        assert_eq!(action_name(&menus[EXPORT_IDX].items[0]), "HTML");
-        assert_eq!(action_name(&menus[EXPORT_IDX].items[1]), "PDF");
-        assert_eq!(action_name(&menus[LANGUAGE_IDX].items[0]), "简体中文");
-        assert_eq!(action_name(&menus[LANGUAGE_IDX].items[1]), "English");
-        assert_eq!(action_name(&menus[EXPLORER_IDX].items[0]), "切换资源管理器");
+        // View menu: Theme submenu, separator, Language submenu.
+        assert_eq!(
+            submenu(&menus[VIEW_IDX].items[THEME_SUBMENU_IDX])
+                .name
+                .to_string(),
+            "Theme"
+        );
+        let language_items = &submenu(&menus[VIEW_IDX].items[LANGUAGE_SUBMENU_IDX]).items;
+        assert_eq!(action_name(&language_items[0]), "简体中文");
+        assert_eq!(action_name(&language_items[1]), "English");
     }
 
     #[test]
@@ -938,14 +936,8 @@ mod tests {
         let i18n_manager = I18nManager::new_with_language_id("zh-CN");
         let menus = build_menus(&theme_manager, &i18n_manager, &[]);
 
-        #[cfg(target_os = "macos")]
         assert_eq!(
-            submenu(&menus[1].items[3]).name.to_string(),
-            i18n_manager.strings().menu_open_recent_file.as_str()
-        );
-        #[cfg(not(target_os = "macos"))]
-        assert_eq!(
-            submenu(&menus[0].items[3]).name.to_string(),
+            submenu(&menus[FILE_IDX].items[3]).name.to_string(),
             i18n_manager.strings().menu_open_recent_file.as_str()
         );
 
@@ -953,33 +945,17 @@ mod tests {
             .iter()
             .map(|menu| menu.name.to_string())
             .collect::<Vec<_>>();
+        assert_eq!(menu_names, vec!["Splitype", "文件", "视图", "帮助"]);
 
-        #[cfg(target_os = "macos")]
-        assert_eq!(
-            menu_names,
-            vec![
-                "Splitype",
-                "文件",
-                "导出",
-                "语言",
-                "主题",
-                "资源管理器",
-                "帮助"
-            ]
-        );
-        #[cfg(not(target_os = "macos"))]
-        assert_eq!(
-            menu_names,
-            vec!["文件", "导出", "语言", "主题", "资源管理器", "帮助"]
-        );
-
-        #[cfg(target_os = "macos")]
-        assert_eq!(action_name(&menus[1].items[0]), "新建窗口");
-        #[cfg(not(target_os = "macos"))]
-        assert_eq!(action_name(&menus[0].items[0]), "新建窗口");
-        assert_eq!(action_name(&menus[EXPORT_IDX].items[0]), "HTML");
-        assert_eq!(action_name(&menus[EXPORT_IDX].items[1]), "PDF");
-        assert_eq!(action_name(&menus[LANGUAGE_IDX].items[0]), "简体中文");
+        assert_eq!(action_name(&menus[FILE_IDX].items[0]), "新建窗口");
+        assert_eq!(action_name(&menus[0].items[0]), "关于 Splitype");
+        assert_eq!(action_name(&menus[0].items[3]), "打开设置");
+        assert_eq!(action_name(&menus[0].items[5]), "退出 Splitype");
+        let export_items = &submenu(&menus[FILE_IDX].items[EXPORT_ITEM_IDX]).items;
+        assert_eq!(action_name(&export_items[0]), "HTML");
+        assert_eq!(action_name(&export_items[1]), "PDF");
+        let language_items = &submenu(&menus[VIEW_IDX].items[LANGUAGE_SUBMENU_IDX]).items;
+        assert_eq!(action_name(&language_items[0]), "简体中文");
     }
 
     #[test]
@@ -987,15 +963,16 @@ mod tests {
         let theme_manager = ThemeManager::default();
         let i18n_manager = I18nManager::default();
         let menus = build_menus(&theme_manager, &i18n_manager, &[]);
+        let export_items = &submenu(&menus[FILE_IDX].items[EXPORT_ITEM_IDX]).items;
 
-        match &menus[EXPORT_IDX].items[0] {
+        match &export_items[0] {
             MenuItem::Action { action, .. } => {
                 assert!(action.as_any().is::<ExportHtml>());
             }
             _ => panic!("expected export html action item"),
         }
 
-        match &menus[EXPORT_IDX].items[1] {
+        match &export_items[1] {
             MenuItem::Action { action, .. } => {
                 assert!(action.as_any().is::<ExportPdf>());
             }
@@ -1008,8 +985,9 @@ mod tests {
         let theme_manager = ThemeManager::default();
         let i18n_manager = I18nManager::default();
         let menus = build_menus(&theme_manager, &i18n_manager, &[]);
+        let language_items = &submenu(&menus[VIEW_IDX].items[LANGUAGE_SUBMENU_IDX]).items;
 
-        match &menus[LANGUAGE_IDX].items[0] {
+        match &language_items[0] {
             MenuItem::Action { action, .. } => {
                 let action = action
                     .as_any()
@@ -1027,12 +1005,8 @@ mod tests {
         let i18n_manager = I18nManager::default();
         let menus = build_menus(&theme_manager, &i18n_manager, &[]);
 
-        // On macOS: File menu is index 1, Open Recent is item 3 within it.
-        // On other platforms: File menu is index 0, Open Recent is item 3.
-        #[cfg(target_os = "macos")]
-        let recent_menu = submenu(&menus[1].items[3]);
-        #[cfg(not(target_os = "macos"))]
-        let recent_menu = submenu(&menus[0].items[3]);
+        // File menu is index 1 on every platform; Open Recent is item 3.
+        let recent_menu = submenu(&menus[FILE_IDX].items[3]);
 
         assert_eq!(recent_menu.name.to_string(), "Open Recent File");
         assert_eq!(recent_menu.items.len(), 1);
@@ -1055,10 +1029,7 @@ mod tests {
         ];
         let menus = build_menus(&theme_manager, &i18n_manager, &recent_files);
 
-        #[cfg(target_os = "macos")]
-        let recent_menu = submenu(&menus[1].items[3]);
-        #[cfg(not(target_os = "macos"))]
-        let recent_menu = submenu(&menus[0].items[3]);
+        let recent_menu = submenu(&menus[FILE_IDX].items[3]);
 
         assert_eq!(recent_menu.items.len(), 2);
         assert_eq!(action_name(&recent_menu.items[0]), r"C:\docs\one.md");
@@ -1102,7 +1073,7 @@ mod tests {
         let i18n_manager = I18nManager::default();
         let menus = build_menus(&theme_manager, &i18n_manager, &[]);
 
-        let language_items = &menus[LANGUAGE_IDX].items;
+        let language_items = &submenu(&menus[VIEW_IDX].items[LANGUAGE_SUBMENU_IDX]).items;
         assert!(matches!(
             language_items[language_items.len() - 2],
             MenuItem::Separator
@@ -1118,7 +1089,7 @@ mod tests {
             _ => panic!("expected add language config action item"),
         }
 
-        let theme_items = &menus[THEME_IDX].items;
+        let theme_items = &submenu(&menus[VIEW_IDX].items[THEME_SUBMENU_IDX]).items;
         assert_eq!(action_name(&theme_items[0]), "Dark");
         assert_eq!(action_name(&theme_items[1]), "Light");
         assert!(matches!(
@@ -1149,7 +1120,7 @@ mod tests {
         assert!(theme_manager.set_theme_by_id("splitype-light"));
         let i18n_manager = I18nManager::default();
         let menus = build_menus(&theme_manager, &i18n_manager, &[]);
-        let theme_items = &menus[THEME_IDX].items;
+        let theme_items = &submenu(&menus[VIEW_IDX].items[THEME_SUBMENU_IDX]).items;
 
         assert_eq!(action_name(&theme_items[0]), "Dark");
         assert_eq!(action_name(&theme_items[1]), "Light");
@@ -1166,54 +1137,68 @@ mod tests {
     }
 
     #[test]
-    fn help_menu_first_item_is_check_for_updates() {
+    fn help_menu_first_item_opens_repository() {
         let theme_manager = ThemeManager::default();
         let i18n_manager = I18nManager::default();
         let menus = build_menus(&theme_manager, &i18n_manager, &[]);
         let help_items = &menus[HELP_IDX].items;
 
+        assert_eq!(action_name(&help_items[0]), "Splitype Repository");
         match &help_items[0] {
             MenuItem::Action { action, .. } => {
-                assert!(action.as_any().is::<CheckForUpdates>());
+                assert!(action.as_any().is::<OpenSplitypeRepository>());
             }
-            _ => panic!("expected check updates action item"),
+            _ => panic!("expected repository action item"),
         }
-        assert!(matches!(help_items[1], MenuItem::Separator));
     }
 
     #[test]
     #[cfg(not(target_os = "macos"))]
-    fn help_menu_contains_update_and_about_only() {
+    fn help_menu_contains_repository_links_only() {
         let theme_manager = ThemeManager::default();
         let i18n_manager = I18nManager::default();
         let menus = build_menus(&theme_manager, &i18n_manager, &[]);
         let help_items = &menus[HELP_IDX].items;
 
-        assert_eq!(help_items.len(), 3);
-        match &help_items[2] {
-            MenuItem::Action { action, .. } => {
-                assert!(action.as_any().is::<ShowAbout>());
-            }
-            _ => panic!("expected about action item"),
+        assert_eq!(help_items.len(), 4);
+        let cases: [(usize, &str, &dyn Action); 4] = [
+            (0, "Splitype Repository", &OpenSplitypeRepository),
+            (1, "File Bug Report...", &OpenBugReport),
+            (2, "Request Feature...", &OpenFeatureRequest),
+            (3, "Join the Discussion", &OpenDiscussions),
+        ];
+        for (index, label, expected_action) in cases {
+            assert_eq!(action_name(&help_items[index]), label);
+            let action = match &help_items[index] {
+                MenuItem::Action { action, .. } => action,
+                _ => panic!("expected action menu item"),
+            };
+            assert_eq!(
+                action.as_any().type_id(),
+                expected_action.as_any().type_id()
+            );
         }
     }
 
     #[test]
     #[cfg(target_os = "macos")]
-    fn help_menu_contains_cli_and_about_on_macos() {
+    fn help_menu_contains_cli_on_macos() {
         let theme_manager = ThemeManager::default();
         let i18n_manager = I18nManager::default();
         let menus = build_menus(&theme_manager, &i18n_manager, &[]);
         let help_items = &menus[HELP_IDX].items;
 
-        // CheckForUpdates, separator, Install/Uninstall CLI, separator, About
-        assert_eq!(help_items.len(), 5);
-        assert!(matches!(help_items[3], MenuItem::Separator));
-        match &help_items[4] {
+        // 4 GitHub links, separator, Install/Uninstall CLI
+        assert_eq!(help_items.len(), 6);
+        assert!(matches!(help_items[4], MenuItem::Separator));
+        match &help_items[5] {
             MenuItem::Action { action, .. } => {
-                assert!(action.as_any().is::<ShowAbout>());
+                assert!(
+                    action.as_any().is::<InstallCliTool>()
+                        || action.as_any().is::<UninstallCliTool>()
+                );
             }
-            _ => panic!("expected about action item"),
+            _ => panic!("expected cli tool action item"),
         }
     }
 }

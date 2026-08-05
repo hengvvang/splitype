@@ -7,21 +7,21 @@ use gpui::{
     VisualTestContext,
 };
 
-use super::{EditorMode, Editor};
-use crate::model::block::BlockKind;
-use crate::editor::editing::input::shortcuts::{FocusNext, Newline};
+use super::{Editor, EditorMode};
 use crate::editor::actions::{CloseWindow, QuitApplication, SaveDocument};
-use crate::model::inline::text::RichText;
-use crate::model::syntax::table::TableColumnAlignment;
+use crate::editor::editing::input::shortcuts::{FocusNext, Newline};
+use crate::editor::render::export::ExportFormat;
+use crate::infra::i18n::{I18nManager, I18nStrings};
+use crate::model::block::BlockKind;
 use crate::model::inline::footnote::superscript_ordinal;
+use crate::model::inline::text::RichText;
 use crate::model::syntax::image::{
     ImageReferenceDefinitions, ImageResolvedSource, TableCellInlineImageSegment,
     parse_table_cell_inline_images,
 };
-use crate::editor::render::export::ExportFormat;
-use crate::infra::i18n::{I18nManager, I18nStrings};
-use crate::windows::editor::chrome::{TableInsertDialogState, TableInsertTarget};
+use crate::model::syntax::table::TableColumnAlignment;
 use crate::theme::{Theme, ThemeManager};
+use crate::windows::editor::chrome::{TableInsertDialogState, TableInsertTarget};
 fn init_editor_test_app(cx: &mut TestAppContext) {
     cx.update(|cx| {
         I18nManager::init(cx);
@@ -229,7 +229,7 @@ fn about_dialog_body_lines_include_repository_and_star_message() {
         lines[2],
         format!(
             "GitHub: {}",
-            crate::windows::editor::ABOUT_GITHUB_URL
+            crate::windows::editor::SPLITYPE_REPOSITORY_URL
         )
     );
     assert_eq!(
@@ -241,12 +241,12 @@ fn about_dialog_body_lines_include_repository_and_star_message() {
 #[gpui::test]
 async fn about_github_link_uses_gpui_url_opening(cx: &mut TestAppContext) {
     cx.update(|cx| {
-        crate::windows::editor::open_about_github_url(cx);
+        crate::windows::editor::open_splitype_repository(cx);
     });
 
     assert_eq!(
         cx.opened_url(),
-        Some(crate::windows::editor::ABOUT_GITHUB_URL.to_string())
+        Some(crate::windows::editor::SPLITYPE_REPOSITORY_URL.to_string())
     );
 }
 
@@ -563,9 +563,7 @@ async fn dirty_drop_saves_existing_document_before_replace(cx: &mut TestAppConte
     editor.update(cx, |editor, cx| {
         let first = editor.doc().first_root().expect("current root").clone();
         first.update(cx, |block, _cx| {
-            block
-                .record
-                .set_text(RichText::plain("edited".to_string()));
+            block.record.set_text(RichText::plain("edited".to_string()));
             block.sync_render_cache();
         });
         editor.mark_dirty(cx);
@@ -636,7 +634,10 @@ async fn app_menu_opened_windows_activate_and_close_independently(cx: &mut TestA
 
     assert!(
         second_window
-            .update(cx, |editor, _window, _cx| editor.tab().file.close_guard_installed)
+            .update(cx, |editor, _window, _cx| editor
+                .tab()
+                .file
+                .close_guard_installed)
             .expect("second editor window should be open")
     );
 
@@ -1151,7 +1152,10 @@ async fn moving_table_row_updates_focus_and_selection(cx: &mut TestAppContext) {
             .table_runtime
             .as_ref()
             .expect("rebuilt runtime");
-        assert_eq!(editor.tab().focus.pending, Some(runtime.rows[0][0].entity_id()));
+        assert_eq!(
+            editor.tab().focus.pending,
+            Some(runtime.rows[0][0].entity_id())
+        );
     });
 }
 
@@ -1329,7 +1333,10 @@ async fn deleting_table_header_promotes_next_row(cx: &mut TestAppContext) {
             .table_runtime
             .as_ref()
             .expect("rebuilt runtime");
-        assert_eq!(editor.tab().focus.pending, Some(runtime.header[0].entity_id()));
+        assert_eq!(
+            editor.tab().focus.pending,
+            Some(runtime.header[0].entity_id())
+        );
     });
 }
 
@@ -1563,11 +1570,7 @@ async fn bulleted_list_item_standalone_image_installs_runtime(cx: &mut TestAppCo
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
-        let block = editor
-            .doc()
-            .first_root()
-            .expect("list item root")
-            .clone();
+        let block = editor.doc().first_root().expect("list item root").clone();
         let runtime = block.read(cx).image_runtime().expect("image runtime");
         assert_eq!(runtime.alt, "diagram");
         assert_eq!(runtime.src, "./assets/diagram.png");
@@ -1647,11 +1650,7 @@ async fn numbered_list_item_standalone_image_installs_runtime(cx: &mut TestAppCo
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.read_with(cx, |editor, cx| {
-        let block = editor
-            .doc()
-            .first_root()
-            .expect("list item root")
-            .clone();
+        let block = editor.doc().first_root().expect("list item root").clone();
         let runtime = block.read(cx).image_runtime().expect("image runtime");
         assert_eq!(runtime.alt, "diagram");
         assert_eq!(runtime.title.as_deref(), Some("Caption"));
@@ -1698,11 +1697,7 @@ async fn mixed_list_item_title_does_not_activate_image_runtime(cx: &mut TestAppC
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.read_with(cx, |editor, cx| {
-        let block = editor
-            .doc()
-            .first_root()
-            .expect("list item root")
-            .clone();
+        let block = editor.doc().first_root().expect("list item root").clone();
         assert!(block.read(cx).image_runtime().is_none());
     });
 }
@@ -1720,11 +1715,7 @@ async fn list_child_reference_style_image_installs_runtime(cx: &mut TestAppConte
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
-        let list_item = editor
-            .doc()
-            .first_root()
-            .expect("list item root")
-            .clone();
+        let list_item = editor.doc().first_root().expect("list item root").clone();
         let image_block = list_item
             .read(cx)
             .children
@@ -1760,11 +1751,7 @@ async fn list_scoped_reference_definition_supports_list_item_image_runtime(
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
-        let list_item = editor
-            .doc()
-            .first_root()
-            .expect("list item root")
-            .clone();
+        let list_item = editor.doc().first_root().expect("list item root").clone();
         let runtime = list_item.read(cx).image_runtime().expect("image runtime");
         assert_eq!(runtime.alt, "diagram");
         assert_eq!(runtime.src, "./assets/diagram.png");
@@ -2271,11 +2258,7 @@ async fn unresolved_footnote_reference_stays_literal_and_unlinked(cx: &mut TestA
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
     editor.read_with(cx, |editor, cx| {
-        let block = editor
-            .doc()
-            .first_root()
-            .expect("root paragraph")
-            .clone();
+        let block = editor.doc().first_root().expect("root paragraph").clone();
         assert_eq!(block.read(cx).display_text(), markdown);
         assert!(
             block
@@ -2283,7 +2266,14 @@ async fn unresolved_footnote_reference_stays_literal_and_unlinked(cx: &mut TestA
                 .inline_footnote_hit_at("Missing footnote".len())
                 .is_none()
         );
-        assert!(editor.tab().references.footnotes.binding("missing").is_none());
+        assert!(
+            editor
+                .tab()
+                .references
+                .footnotes
+                .binding("missing")
+                .is_none()
+        );
         assert_eq!(editor.doc().to_markdown(cx), markdown);
     });
 }
@@ -2364,11 +2354,7 @@ async fn toggling_source_mode_preserves_list_item_image_runtime(cx: &mut TestApp
     });
 
     editor.read_with(cx, |editor, cx| {
-        let block = editor
-            .doc()
-            .first_root()
-            .expect("list item root")
-            .clone();
+        let block = editor.doc().first_root().expect("list item root").clone();
         assert!(block.read(cx).image_runtime().is_some());
     });
 }
@@ -2386,11 +2372,7 @@ async fn toggling_source_mode_preserves_list_child_image_runtime(cx: &mut TestAp
     });
 
     editor.read_with(cx, |editor, cx| {
-        let list_item = editor
-            .doc()
-            .first_root()
-            .expect("list item root")
-            .clone();
+        let list_item = editor.doc().first_root().expect("list item root").clone();
         let image_block = list_item
             .read(cx)
             .children
@@ -2409,7 +2391,10 @@ async fn undo_reverts_recent_rendered_typing(cx: &mut TestAppContext) {
         let block = editor.doc().first_root().expect("root").clone();
         editor.tab_mut().focus.active_entity = Some(block.entity_id());
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(
+                crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
+                cx,
+            );
             block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
         });
     });
@@ -2431,11 +2416,17 @@ async fn consecutive_text_edits_within_window_coalesce_into_one_undo(cx: &mut Te
         editor.tab_mut().focus.active_entity = Some(block.entity_id());
 
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(
+                crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
+                cx,
+            );
             block.replace_text_in_visible_range(1..1, "b", None, false, cx);
         });
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(
+                crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
+                cx,
+            );
             block.replace_text_in_visible_range(2..2, "c", None, false, cx);
         });
     });
@@ -2457,7 +2448,10 @@ async fn redo_restores_text_reverted_by_undo(cx: &mut TestAppContext) {
         let block = editor.doc().first_root().expect("root").clone();
         editor.tab_mut().focus.active_entity = Some(block.entity_id());
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(
+                crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
+                cx,
+            );
             block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
         });
     });
@@ -2481,7 +2475,10 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
         let block = editor.doc().first_root().expect("root").clone();
         editor.tab_mut().focus.active_entity = Some(block.entity_id());
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(
+                crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
+                cx,
+            );
             block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
         });
     });
@@ -2493,7 +2490,10 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
         // A new edit invalidates the redo stack so it cannot revive stale text.
         let block = editor.doc().first_root().expect("root").clone();
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(
+                crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
+                cx,
+            );
             block.replace_text_in_visible_range(5..5, " gamma", None, false, cx);
         });
     });
@@ -2535,7 +2535,10 @@ async fn toggle_view_mode_preserves_paragraph_caret_position(cx: &mut TestAppCon
         );
         assert_eq!(visible[1].entity.read(cx).display_text(), "beta");
         assert_eq!(visible[1].entity.read(cx).selected_range, 2..2);
-        assert_eq!(editor.tab().focus.pending, Some(visible[1].entity.entity_id()));
+        assert_eq!(
+            editor.tab().focus.pending,
+            Some(visible[1].entity.entity_id())
+        );
     });
 }
 
@@ -2695,13 +2698,15 @@ async fn repeated_ctrl_a_selects_all_rendered_blocks(cx: &mut TestAppContext) {
         }
     });
 
-    let selected_after_second = editor.read_with(cx, |editor, _cx| editor.tab().selection.cross_block);
+    let selected_after_second =
+        editor.read_with(cx, |editor, _cx| editor.tab().selection.cross_block);
     cx.simulate_keystrokes("ctrl-a");
     redraw(cx);
 
     editor.read_with(cx, |editor, cx| {
         assert_eq!(
-            editor.tab().selection.cross_block, selected_after_second,
+            editor.tab().selection.cross_block,
+            selected_after_second,
             "third Ctrl+A should keep the full rendered document selected"
         );
         for visible in editor.doc().blocks() {
@@ -2933,7 +2938,11 @@ async fn newline_at_start_of_heading_moves_entire_heading_down(cx: &mut TestAppC
         block.update(cx, |block, block_cx| {
             block.move_to(0, block_cx);
         });
-        editor.on_block_event(block, &crate::editor::block_protocol::BlockAction::RequestNewlineAbove, cx);
+        editor.on_block_event(
+            block,
+            &crate::editor::block_protocol::BlockAction::RequestNewlineAbove,
+            cx,
+        );
     });
     redraw(cx);
 
@@ -3216,7 +3225,10 @@ async fn ctrl_enter_exits_focused_table_cell(cx: &mut TestAppContext) {
         assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Table);
         assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(visible[1].entity.read(cx).display_text(), "");
-        assert_eq!(editor.tab().focus.active_entity, Some(visible[1].entity.entity_id()));
+        assert_eq!(
+            editor.tab().focus.active_entity,
+            Some(visible[1].entity.entity_id())
+        );
     });
 }
 
@@ -3269,11 +3281,7 @@ async fn toggle_view_mode_preserves_table_cell_position(cx: &mut TestAppContext)
 
         editor.toggle_view_mode(cx);
         assert!(matches!(editor.tab().mode, EditorMode::Wysiwyg));
-        let restored_table = editor
-            .doc()
-            .first_root()
-            .expect("restored table")
-            .clone();
+        let restored_table = editor.doc().first_root().expect("restored table").clone();
         let restored_cell = restored_table
             .read(cx)
             .table_runtime
@@ -3324,11 +3332,7 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
 
         editor.toggle_view_mode(cx);
         assert!(matches!(editor.tab().mode, EditorMode::Wysiwyg));
-        let restored_callout = editor
-            .doc()
-            .first_root()
-            .expect("restored callout")
-            .clone();
+        let restored_callout = editor.doc().first_root().expect("restored callout").clone();
         let restored_table = restored_callout
             .read(cx)
             .children

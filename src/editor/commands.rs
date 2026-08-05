@@ -9,12 +9,12 @@ use std::path::Path;
 use futures::FutureExt;
 use futures::channel::oneshot;
 
-use crate::editor::controller::*;
-use crate::editor::editing::input::shortcuts::{Redo, Undo};
 use crate::editor::actions::{
     CloseWindow, ExportHtml, ExportPdf, InstallCliTool, QuitApplication, SaveDocument,
     SaveDocumentAs, ToggleViewMode, UninstallCliTool,
 };
+use crate::editor::controller::*;
+use crate::editor::editing::input::shortcuts::{Redo, Undo};
 use crate::infra::i18n::I18nManager;
 use crate::infra::net::update_checker::{
     self as update_check, UpdateCheckResult, UpdateVersionInfo,
@@ -213,7 +213,11 @@ impl Editor {
 
 impl Editor {
     pub(crate) fn request_check_updates(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.tab().file.show_unsaved_changes_dialog {
+        if self
+            .tabs
+            .get(self.active_tab)
+            .is_some_and(|tab| tab.file.show_unsaved_changes_dialog)
+        {
             return;
         }
         if self.chrome.update_check_in_progress {

@@ -55,7 +55,11 @@ impl Editor {
     }
 
     pub(crate) fn show_info_dialog(&mut self, kind: InfoDialogKind, cx: &mut Context<Self>) {
-        if self.tab().file.show_unsaved_changes_dialog {
+        if self
+            .tabs
+            .get(self.active_tab)
+            .is_some_and(|tab| tab.file.show_unsaved_changes_dialog)
+        {
             return;
         }
 

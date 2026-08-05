@@ -106,10 +106,24 @@ pub struct I18nStrings {
     pub menu_check_updates: String,
     /// Help menu item for showing About information.
     pub menu_about: String,
+    /// About panel label for the version line.
+    pub about_version_label: String,
+    /// About panel label for the website link.
+    pub about_website_label: String,
+    /// About panel label for the wiki link.
+    pub about_wiki_label: String,
     /// Help menu item for installing the CLI tool (symlink to /usr/local/bin).
     pub menu_install_cli_tool: String,
     /// Help menu item for uninstalling the CLI tool.
     pub menu_uninstall_cli_tool: String,
+    /// Help menu item for opening the splitype repository on GitHub.
+    pub menu_repository: String,
+    /// Help menu item for filing a bug report on GitHub.
+    pub menu_bug_report: String,
+    /// Help menu item for requesting a feature on GitHub.
+    pub menu_feature_request: String,
+    /// Help menu item for joining the GitHub discussions.
+    pub menu_discussions: String,
     /// ExplorerState menu item for opening or closing the explorer drawer.
     pub menu_toggle_explorer: String,
     /// Native file-dialog prompt for opening Markdown files.
@@ -368,8 +382,15 @@ pub struct I18nStringsDe {
     menu_export_pdf: Option<String>,
     menu_check_updates: Option<String>,
     menu_about: Option<String>,
+    about_version_label: Option<String>,
+    about_website_label: Option<String>,
+    about_wiki_label: Option<String>,
     menu_install_cli_tool: Option<String>,
     menu_uninstall_cli_tool: Option<String>,
+    menu_repository: Option<String>,
+    menu_bug_report: Option<String>,
+    menu_feature_request: Option<String>,
+    menu_discussions: Option<String>,
     menu_toggle_explorer: Option<String>,
     open_markdown_files_prompt: Option<String>,
     add_language_config_prompt: Option<String>,
@@ -555,8 +576,15 @@ pub(crate) const I18N_STRING_KEYS: &[&str] = &[
     "menu_export_pdf",
     "menu_check_updates",
     "menu_about",
+    "about_version_label",
+    "about_website_label",
+    "about_wiki_label",
     "menu_install_cli_tool",
     "menu_uninstall_cli_tool",
+    "menu_repository",
+    "menu_bug_report",
+    "menu_feature_request",
+    "menu_discussions",
     "menu_toggle_explorer",
     "open_markdown_files_prompt",
     "add_language_config_prompt",
@@ -802,12 +830,25 @@ impl I18nStringsDe {
                 .menu_check_updates
                 .unwrap_or(defaults.menu_check_updates),
             menu_about: self.menu_about.unwrap_or(defaults.menu_about),
+            about_version_label: self
+                .about_version_label
+                .unwrap_or(defaults.about_version_label),
+            about_website_label: self
+                .about_website_label
+                .unwrap_or(defaults.about_website_label),
+            about_wiki_label: self.about_wiki_label.unwrap_or(defaults.about_wiki_label),
             menu_install_cli_tool: self
                 .menu_install_cli_tool
                 .unwrap_or(defaults.menu_install_cli_tool),
             menu_uninstall_cli_tool: self
                 .menu_uninstall_cli_tool
                 .unwrap_or(defaults.menu_uninstall_cli_tool),
+            menu_repository: self.menu_repository.unwrap_or(defaults.menu_repository),
+            menu_bug_report: self.menu_bug_report.unwrap_or(defaults.menu_bug_report),
+            menu_feature_request: self
+                .menu_feature_request
+                .unwrap_or(defaults.menu_feature_request),
+            menu_discussions: self.menu_discussions.unwrap_or(defaults.menu_discussions),
             menu_toggle_explorer: self
                 .menu_toggle_explorer
                 .unwrap_or(defaults.menu_toggle_explorer),
@@ -1244,17 +1285,24 @@ impl I18nStrings {
             menu_close_window: "关闭窗口".into(),
             menu_open_file: "打开文件".into(),
             menu_open_recent_file: "打开最近文件".into(),
-            menu_settings: "设置".into(),
+            menu_settings: "打开设置".into(),
             menu_no_recent_files: "无最近文件".into(),
             menu_save: "保存".into(),
             menu_save_as: "另存为".into(),
-            menu_quit: "退出".into(),
+            menu_quit: "退出 Splitype".into(),
             menu_export_html: "HTML".into(),
             menu_export_pdf: "PDF".into(),
             menu_check_updates: "检查更新".into(),
-            menu_about: "关于".into(),
+            menu_about: "关于 Splitype".into(),
+            about_version_label: "版本".into(),
+            about_website_label: "网站".into(),
+            about_wiki_label: "文档".into(),
             menu_install_cli_tool: "安装CLI命令".into(),
             menu_uninstall_cli_tool: "卸载CLI命令".into(),
+            menu_repository: "Splitype 仓库".into(),
+            menu_bug_report: "报告 Bug...".into(),
+            menu_feature_request: "请求功能...".into(),
+            menu_discussions: "加入讨论".into(),
             menu_toggle_explorer: "切换资源管理器".into(),
             open_markdown_files_prompt: "打开 Markdown 文件".into(),
             add_language_config_prompt: "选择语言配置文件".into(),
@@ -1449,17 +1497,24 @@ impl I18nStrings {
             menu_close_window: "Close Window".into(),
             menu_open_file: "Open File".into(),
             menu_open_recent_file: "Open Recent File".into(),
-            menu_settings: "Settings".into(),
+            menu_settings: "Open Settings".into(),
             menu_no_recent_files: "No Recent Files".into(),
             menu_save: "Save".into(),
             menu_save_as: "Save As".into(),
-            menu_quit: "Quit".into(),
+            menu_quit: "Quit Splitype".into(),
             menu_export_html: "HTML".into(),
             menu_export_pdf: "PDF".into(),
             menu_check_updates: "Check for Updates".into(),
-            menu_about: "About".into(),
+            menu_about: "About Splitype".into(),
+            about_version_label: "Version".into(),
+            about_website_label: "Website".into(),
+            about_wiki_label: "Wiki".into(),
             menu_install_cli_tool: "Install CLI Command".into(),
             menu_uninstall_cli_tool: "Uninstall CLI Command".into(),
+            menu_repository: "Splitype Repository".into(),
+            menu_bug_report: "File Bug Report...".into(),
+            menu_feature_request: "Request Feature...".into(),
+            menu_discussions: "Join the Discussion".into(),
             menu_toggle_explorer: "Toggle Explorer".into(),
             open_markdown_files_prompt: "Open Markdown Files".into(),
             add_language_config_prompt: "Choose Language Config".into(),

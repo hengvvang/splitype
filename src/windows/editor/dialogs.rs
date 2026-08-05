@@ -6,7 +6,7 @@ use crate::ui::components::popover::overlay;
 use crate::ui::components::dialog::dialog_card;
 
 use crate::ui::components::button::{
-    compact_danger_button, compact_primary_button, compact_secondary_button, primary_button,
+    compact_danger_button, compact_primary_button, compact_secondary_button,
 };
 
 use gpui::*;
@@ -14,7 +14,7 @@ use gpui::*;
 use crate::editor::controller::{Editor, InfoDialogKind};
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::theme::Theme;
-use crate::windows::editor::{ABOUT_GITHUB_URL, open_about_github_url};
+use crate::windows::editor::{SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
 
 impl Editor {
     /// Dismiss the unsaved-changes dialog without closing the window.
@@ -312,7 +312,10 @@ impl Editor {
         vec![
             format!("Splitype {}", env!("CARGO_PKG_VERSION")),
             strings.help_about_message.clone(),
-            format!("{}: {}", strings.help_about_github_label, ABOUT_GITHUB_URL),
+            format!(
+                "{}: {}",
+                strings.help_about_github_label, SPLITYPE_REPOSITORY_URL
+            ),
             strings.help_about_star_message.clone(),
         ]
     }
@@ -353,32 +356,94 @@ impl Editor {
                     ),
                 )
                 .into_any_element(),
-            InfoDialogKind::About => div()
-                .flex()
-                .flex_col()
-                .gap(px(d.dialog_gap * 0.5))
-                .child(body_style(div()).child(format!("Splitype {}", env!("CARGO_PKG_VERSION"))))
-                .child(body_style(div()).child(strings.help_about_message.clone()))
-                .child(
-                    body_style(div())
-                        .flex()
-                        .flex_wrap()
-                        .gap(px(4.0))
-                        .child(format!("{}:", strings.help_about_github_label))
-                        .child(
-                            div()
-                                .id("about-github-link")
-                                .cursor_pointer()
-                                .text_color(c.text_link)
-                                .underline()
-                                .child(ABOUT_GITHUB_URL)
-                                .on_click(move |_, _, cx| {
-                                    open_about_github_url(cx);
-                                }),
-                        ),
-                )
-                .child(body_style(div()).child(strings.help_about_star_message.clone()))
-                .into_any_element(),
+            InfoDialogKind::About => {
+                // About panel, four logical rectangles:
+                //   rect 1 (large)     contains rect 1a (logo fill, left) and
+                //                       rect 1b (name, right-aligned)
+                //   rect 2             Version line
+                //   rect 3             project link row (left edge aligned
+                //                       with the version line above)
+                // The dismiss button lives in the shared dialog footer.
+                let meta_line = |this: Div| {
+                    this.text_size(px(t.dialog_body_size + 2.0))
+                        .font_weight(t.dialog_body_weight.to_font_weight())
+                        .line_height(rems(t.text_line_height))
+                        .text_color(c.dialog_body)
+                };
+                let link = |id: &'static str, label: String, url: &'static str| {
+                    div()
+                        .id(id)
+                        .cursor_pointer()
+                        .text_color(c.text_link)
+                        .underline()
+                        .child(label)
+                        .on_click(move |_, _, cx| cx.open_url(url))
+                };
+
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap(px(d.dialog_gap * 0.5))
+                    .child(
+                        // Rect 1: top large rectangle holding the logo
+                        // (left) and the app name (right).
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(16.0))
+                            .child(
+                                // Rect 1a: logo fill, centered in the left
+                                // half.
+                                div().flex_1().flex().justify_center().child(
+                                    img("icon/splitype-logo.svg")
+                                        .w(px(84.0))
+                                        .h(px(96.0))
+                                        .object_fit(ObjectFit::Contain),
+                                ),
+                            )
+                            .child(
+                                // Rect 1b: app name pushed toward the right
+                                // edge of the right half.
+                                div().flex_1().flex().justify_end().child(
+                                    div()
+                                        .text_size(px(t.dialog_title_size))
+                                        .font_weight(t.dialog_title_weight.to_font_weight())
+                                        .text_color(c.dialog_title)
+                                        .child("Splitype"),
+                                ),
+                            ),
+                    )
+                    .child(
+                        // Rect 2: version line, left-aligned.
+                        meta_line(div())
+                            .flex()
+                            .child(format!("{}: ", strings.about_version_label))
+                            .child(env!("CARGO_PKG_VERSION")),
+                    )
+                    .child(
+                        // Rect 3: link row; its left edge matches the version
+                        // line above (both left-aligned).
+                        meta_line(div())
+                            .flex()
+                            .gap(px(16.0))
+                            .child(link(
+                                "about-github-link",
+                                strings.help_about_github_label.clone(),
+                                SPLITYPE_REPOSITORY_URL,
+                            ))
+                            .child(link(
+                                "about-website-link",
+                                strings.about_website_label.clone(),
+                                SPLITYPE_REPOSITORY_URL,
+                            ))
+                            .child(link(
+                                "about-wiki-link",
+                                strings.about_wiki_label.clone(),
+                                SPLITYPE_WIKI_URL,
+                            )),
+                    )
+                    .into_any_element()
+            }
         }
     }
 
@@ -400,7 +465,7 @@ impl Editor {
         let c = &theme.colors;
         let d = &theme.dimensions;
         let t = &theme.typography;
-        let strings = cx.global::<I18nManager>().strings();
+        let strings = cx.global::<I18nManager>().strings().clone();
 
         overlay()
             .id("info-dialog-overlay")
@@ -408,7 +473,7 @@ impl Editor {
             .flex()
             .items_center()
             .justify_center()
-            .bg(c.dialog_backdrop)
+            .on_click(cx.listener(Self::on_dismiss_info_dialog))
             .child(
                 div()
                     .w_full()
@@ -421,29 +486,35 @@ impl Editor {
                             .w(px(d.dialog_width))
                             .border(px(d.dialog_border_width))
                             .border_color(c.dialog_border)
-                            .rounded(px(d.dialog_radius))
+                            .rounded(px(d.area_tile_radius))
                             .shadow_lg()
+                            .occlude()
+                            .on_click(|_, _, _| {})
                             .child(
-                                div()
-                                    .text_size(px(t.dialog_title_size))
-                                    .font_weight(t.dialog_title_weight.to_font_weight())
-                                    .text_color(c.dialog_title)
-                                    .child(self.info_dialog_title(strings, kind).to_string()),
+                                // The About panel has no title bar; other
+                                // info dialogs keep one.
+                                if kind == InfoDialogKind::About {
+                                    div()
+                                } else {
+                                    div()
+                                        .text_size(px(t.dialog_title_size))
+                                        .font_weight(t.dialog_title_weight.to_font_weight())
+                                        .text_color(c.dialog_title)
+                                        .child(self.info_dialog_title(&strings, kind).to_string())
+                                },
                             )
-                            .child(self.render_info_dialog_body(theme, strings, kind))
+                            .child(self.render_info_dialog_body(theme, &strings, kind))
                             .child(
-                                div()
-                                    .flex()
-                                    .justify_end()
-                                    .gap(px(d.dialog_button_gap))
-                                    .child(
-                                        primary_button("dismiss-info-dialog", c, d)
-                                            .text_size(px(t.dialog_button_size))
-                                            .font_weight(t.dialog_button_weight.to_font_weight())
-                                            .text_color(c.dialog_primary_button_text)
-                                            .child(strings.info_dialog_ok.clone())
-                                            .on_click(cx.listener(Self::on_dismiss_info_dialog)),
-                                    ),
+                                div().flex().justify_end().child(
+                                    compact_primary_button("dismiss-info-dialog", c, d)
+                                        .h(px(26.0))
+                                        .px(px(28.0))
+                                        .text_size(px(13.0))
+                                        .font_weight(t.dialog_button_weight.to_font_weight())
+                                        .text_color(c.dialog_primary_button_text)
+                                        .child(strings.info_dialog_ok.clone())
+                                        .on_click(cx.listener(Self::on_dismiss_info_dialog)),
+                                ),
                             ),
                     ),
             )

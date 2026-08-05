@@ -35,10 +35,29 @@ use crate::windows::editor::titlebar::{custom_titlebar_height, render_custom_tit
 /// Rows within this many pixels of the viewport stay mounted.
 pub const RENDER_OVERDRAW_PX: f32 = 800.0;
 
-pub(crate) const ABOUT_GITHUB_URL: &str = "https://github.com/hengvvang/splitype";
+pub(crate) const SPLITYPE_REPOSITORY_URL: &str = "https://github.com/hengvvang/splitype";
+pub(crate) const SPLITYPE_BUG_REPORT_URL: &str =
+    "https://github.com/hengvvang/splitype/issues/new?template=bug_report.yml";
+pub(crate) const SPLITYPE_FEATURE_REQUEST_URL: &str =
+    "https://github.com/hengvvang/splitype/issues/new?template=feature_request.yml";
+pub(crate) const SPLITYPE_DISCUSSIONS_URL: &str =
+    "https://github.com/hengvvang/splitype/discussions";
+pub(crate) const SPLITYPE_WIKI_URL: &str = "https://github.com/hengvvang/splitype/wiki";
 
-pub(crate) fn open_about_github_url(cx: &mut App) {
-    cx.open_url(ABOUT_GITHUB_URL);
+pub(crate) fn open_splitype_repository(cx: &mut App) {
+    cx.open_url(SPLITYPE_REPOSITORY_URL);
+}
+
+pub(crate) fn open_bug_report(cx: &mut App) {
+    cx.open_url(SPLITYPE_BUG_REPORT_URL);
+}
+
+pub(crate) fn open_feature_request(cx: &mut App) {
+    cx.open_url(SPLITYPE_FEATURE_REQUEST_URL);
+}
+
+pub(crate) fn open_discussions(cx: &mut App) {
+    cx.open_url(SPLITYPE_DISCUSSIONS_URL);
 }
 
 use crate::editor::panels::wysiwyg::render::layout::{
@@ -969,7 +988,12 @@ impl Editor {
         } else {
             base
         };
-        base.into_any_element()
+        if let Some(kind) = self.chrome.info_dialog {
+            base.child(self.render_info_dialog_overlay(&theme, kind, cx))
+        } else {
+            base
+        }
+        .into_any_element()
     }
 }
 
