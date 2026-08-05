@@ -11,14 +11,14 @@ use gpui::*;
 use crate::app::windows::{
     open_editor_window, open_file_in_new_window, record_recent_file_and_refresh,
 };
-use crate::editor::controller::{Editor, InfoDialogKind};
-use crate::editor::render::export::ExportFormat;
-use crate::editor::windows::actions::{
+use crate::editor::actions::{
     AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
     InstallCliTool, NewWindow, NoRecentFiles, OpenFile, OpenRecentFile, OpenSettings,
     QuitApplication, SaveDocument, SaveDocumentAs, SelectLanguage, SelectTheme, ShowAbout,
-    ToggleWorkspace, UninstallCliTool,
+    ToggleExplorer, UninstallCliTool,
 };
+use crate::editor::controller::{Editor, InfoDialogKind};
+use crate::editor::render::export::ExportFormat;
 use crate::infra::config::recent::{read_recent_files, remove_recent_file};
 use crate::infra::config::settings::{
     apply_configured_language, apply_configured_theme, import_language_config_and_select,
@@ -129,7 +129,7 @@ fn is_editor_scoped_menu_action(action: &dyn Action) -> bool {
         || action.as_any().is::<ShowAbout>()
         || action.as_any().is::<InstallCliTool>()
         || action.as_any().is::<UninstallCliTool>()
-        || action.as_any().is::<ToggleWorkspace>()
+        || action.as_any().is::<ToggleExplorer>()
 }
 
 fn is_window_context_menu_action(action: &dyn Action) -> bool {
@@ -293,9 +293,9 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
     } else if action.as_any().is::<UninstallCliTool>() {
         uninstall_cli_tool(cx);
         install_menus(cx);
-    } else if action.as_any().is::<ToggleWorkspace>() {
+    } else if action.as_any().is::<ToggleExplorer>() {
         let _ = with_active_editor(cx, |editor, window, cx| {
-            editor.toggle_workspace_drawer(window, cx);
+            editor.toggle_explorer_drawer(window, cx);
         });
     } else if action.as_any().is::<QuitApplication>() {
         request_quit_application(cx);
@@ -385,9 +385,9 @@ pub(crate) fn dispatch_menu_action_for_editor(
     } else if action.as_any().is::<UninstallCliTool>() {
         uninstall_cli_tool(cx);
         install_menus(cx);
-    } else if action.as_any().is::<ToggleWorkspace>() {
+    } else if action.as_any().is::<ToggleExplorer>() {
         let _ = target.update(cx, |editor, cx| {
-            editor.toggle_workspace_drawer(window, cx);
+            editor.toggle_explorer_drawer(window, cx);
         });
     }
 }
@@ -787,8 +787,8 @@ pub(crate) fn init(cx: &mut App) {
     cx.on_action(|_: &ShowAbout, cx| {
         dispatch_menu_action(&ShowAbout, cx);
     });
-    cx.on_action(|_: &ToggleWorkspace, cx| {
-        dispatch_menu_action(&ToggleWorkspace, cx);
+    cx.on_action(|_: &ToggleExplorer, cx| {
+        dispatch_menu_action(&ToggleExplorer, cx);
     });
     cx.on_action(|_: &QuitApplication, cx| {
         dispatch_menu_action(&QuitApplication, cx);
@@ -804,7 +804,7 @@ pub(crate) fn init(cx: &mut App) {
 #[cfg(test)]
 mod tests {
     use super::build_menus;
-    use crate::editor::windows::actions::{
+    use crate::editor::actions::{
         AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
         NewWindow, NoRecentFiles, OpenFile, OpenRecentFile, OpenSettings, QuitApplication,
         SaveDocument, SelectLanguage, SelectTheme, ShowAbout,
@@ -843,8 +843,8 @@ mod tests {
         );
     }
 
-    // On macOS the menu bar is: [Velotype app menu, File, Export, Language, Theme, Workspace, Help]
-    // On other platforms:       [File, Export, Language, Theme, Workspace, Help]
+    // On macOS the menu bar is: [Velotype app menu, File, Export, Language, Theme, ExplorerState, Help]
+    // On other platforms:       [File, Export, Language, Theme, ExplorerState, Help]
     #[cfg(target_os = "macos")]
     const EXPORT_IDX: usize = 2;
     #[cfg(not(target_os = "macos"))]
@@ -861,9 +861,9 @@ mod tests {
     const THEME_IDX: usize = 3;
 
     #[cfg(target_os = "macos")]
-    const WORKSPACE_IDX: usize = 5;
+    const EXPLORER_IDX: usize = 5;
     #[cfg(not(target_os = "macos"))]
-    const WORKSPACE_IDX: usize = 4;
+    const EXPLORER_IDX: usize = 4;
 
     #[cfg(target_os = "macos")]
     const HELP_IDX: usize = 6;
@@ -885,19 +885,13 @@ mod tests {
         assert_eq!(
             menu_names,
             vec![
-                "Velotype",
-                "File",
-                "Export",
-                "Language",
-                "Theme",
-                "Workspace",
-                "Help"
+                "Velotype", "File", "Export", "Language", "Theme", "Explorer", "Help"
             ]
         );
         #[cfg(not(target_os = "macos"))]
         assert_eq!(
             menu_names,
-            vec!["File", "Export", "Language", "Theme", "Workspace", "Help"]
+            vec!["File", "Export", "Language", "Theme", "Explorer", "Help"]
         );
 
         // New Window belongs with file operations on macOS and remains the
@@ -935,7 +929,7 @@ mod tests {
         assert_eq!(action_name(&menus[EXPORT_IDX].items[1]), "PDF");
         assert_eq!(action_name(&menus[LANGUAGE_IDX].items[0]), "简体中文");
         assert_eq!(action_name(&menus[LANGUAGE_IDX].items[1]), "English");
-        assert_eq!(action_name(&menus[WORKSPACE_IDX].items[0]), "切换工作区");
+        assert_eq!(action_name(&menus[EXPLORER_IDX].items[0]), "切换资源管理器");
     }
 
     #[test]
@@ -963,12 +957,20 @@ mod tests {
         #[cfg(target_os = "macos")]
         assert_eq!(
             menu_names,
-            vec!["Velotype", "文件", "导出", "语言", "主题", "工作区", "帮助"]
+            vec![
+                "Velotype",
+                "文件",
+                "导出",
+                "语言",
+                "主题",
+                "资源管理器",
+                "帮助"
+            ]
         );
         #[cfg(not(target_os = "macos"))]
         assert_eq!(
             menu_names,
-            vec!["文件", "导出", "语言", "主题", "工作区", "帮助"]
+            vec!["文件", "导出", "语言", "主题", "资源管理器", "帮助"]
         );
 
         #[cfg(target_os = "macos")]

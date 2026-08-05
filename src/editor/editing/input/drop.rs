@@ -2,7 +2,7 @@
 //!
 //! Pure path detection plus the document replace flow that loads a dropped
 //! file into the editor. The dirty-document dialogs that gate a replace
-//! live in `crate::editor::windows::file`.
+//! live in `crate::editor::file`.
 
 use std::path::{Path, PathBuf};
 
@@ -93,7 +93,7 @@ impl Editor {
         self.tab_mut().undo.last_stable_source_text = normalized;
         self.tab_mut().undo.restore_in_progress = false;
         self.refresh_stable_document_snapshot(cx);
-        self.sync_workspace_after_document_path_change(cx);
+        self.sync_explorer_after_document_path_change(cx);
         cx.notify();
     }
 }

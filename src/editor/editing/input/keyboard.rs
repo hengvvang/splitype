@@ -25,7 +25,7 @@ use std::time::Instant;
 use gpui::*;
 
 use super::shortcuts::{IndentBlock, OutdentBlock};
-use crate::editor::actions::BlockAction;
+use crate::editor::block_protocol::BlockAction;
 use crate::editor::controller::Editor;
 use crate::model::block::{BlockData, BlockKind};
 use crate::model::inline::text::RichText;
@@ -260,7 +260,7 @@ impl Editor {
 #[cfg(test)]
 mod tests {
     use super::Editor;
-    use crate::editor::actions::BlockAction;
+    use crate::editor::block_protocol::BlockAction;
     use crate::editor::tree::block::Block;
     use crate::model::block::{BlockData, BlockKind, CalloutKind};
     use crate::model::inline::text::RichText;
@@ -302,7 +302,7 @@ mod tests {
                 .clone();
             paragraph.update(cx, |block, cx| {
                 block.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::CoalescibleText,
+                    crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                     cx,
                 );
                 block.replace_text_in_visible_range(0..0, "> ", None, false, cx);
@@ -433,7 +433,7 @@ mod tests {
                 .clone();
             paragraph.update(cx, |block, cx| {
                 block.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::CoalescibleText,
+                    crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                     cx,
                 );
                 block.replace_text_in_visible_range(0..0, "> [!NOTE]", None, false, cx);
@@ -481,7 +481,7 @@ mod tests {
             assert!(separator.read(cx).list_group_separator_candidate);
             separator.update(cx, |block, cx| {
                 block.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::CoalescibleText,
+                    crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                     cx,
                 );
                 block.replace_text_in_visible_range(0..0, "1. ", None, false, cx);
@@ -565,7 +565,7 @@ mod tests {
                 let child = editor.doc().blocks()[1].entity.clone();
                 child.update(cx, |block, block_cx| {
                     block.prepare_undo_capture(
-                        crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                        crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                         block_cx,
                     );
                     block.replace_text_in_visible_range(
@@ -607,7 +607,7 @@ mod tests {
                 let child = editor.doc().blocks()[1].entity.clone();
                 child.update(cx, |block, block_cx| {
                     block.prepare_undo_capture(
-                        crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                        crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                         block_cx,
                     );
                     block.replace_text_in_visible_range(
@@ -2296,7 +2296,7 @@ mod tests {
                 .clone();
             paragraph.update(cx, |block, cx| {
                 block.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::CoalescibleText,
+                    crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                     cx,
                 );
                 block.replace_text_in_visible_range(0..0, "> ", None, false, cx);
@@ -2520,7 +2520,7 @@ mod tests {
             let quote = editor.doc().first_root().expect("root quote").clone();
             quote.update(cx, |block, cx| {
                 block.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
                 block.replace_text_in_visible_range(5..5, "\n", None, false, cx);
@@ -2571,7 +2571,7 @@ mod tests {
             let quote = editor.doc().first_root().expect("root quote").clone();
             quote.update(cx, |block, cx| {
                 block.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
                 block.replace_text_in_visible_range(5..5, "\n- item", None, false, cx);

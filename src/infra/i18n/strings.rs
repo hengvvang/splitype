@@ -72,8 +72,8 @@ pub struct I18nStrings {
     pub menu_language: String,
     /// Top-level Theme menu label.
     pub menu_theme: String,
-    /// Top-level Workspace menu label.
-    pub menu_workspace: String,
+    /// Top-level ExplorerState menu label.
+    pub menu_explorer: String,
     /// Top-level Help menu label.
     pub menu_help: String,
     /// Language menu item for importing a custom language pack.
@@ -110,8 +110,8 @@ pub struct I18nStrings {
     pub menu_install_cli_tool: String,
     /// Help menu item for uninstalling the CLI tool.
     pub menu_uninstall_cli_tool: String,
-    /// Workspace menu item for opening or closing the workspace drawer.
-    pub menu_toggle_workspace: String,
+    /// ExplorerState menu item for opening or closing the explorer drawer.
+    pub menu_toggle_explorer: String,
     /// Native file-dialog prompt for opening Markdown files.
     pub open_markdown_files_prompt: String,
     /// Native file-dialog prompt for importing a language pack.
@@ -219,21 +219,21 @@ pub struct I18nStrings {
     pub settings_shortcut_close_window: String,
     pub settings_shortcut_dismiss_transient_ui: String,
     pub settings_shortcut_toggle_view_mode: String,
-    pub settings_shortcut_toggle_workspace: String,
-    /// Workspace drawer Files tab.
-    pub workspace_tab_files: String,
-    /// Workspace drawer Outline tab.
-    pub workspace_tab_outline: String,
-    /// Title shown when no Markdown file path is available for workspace mode.
-    pub workspace_no_file_title: String,
-    /// Message shown when no Markdown file path is available for workspace mode.
-    pub workspace_no_file_message: String,
-    /// Message shown when a workspace directory has no visible Markdown files.
-    pub workspace_empty_files: String,
+    pub settings_shortcut_toggle_explorer: String,
+    /// Explorer drawer Files tab.
+    pub explorer_tab_files: String,
+    /// Explorer drawer Outline tab.
+    pub explorer_tab_outline: String,
+    /// Title shown when no Markdown file path is available for explorer mode.
+    pub explorer_no_file_title: String,
+    /// Message shown when no Markdown file path is available for explorer mode.
+    pub explorer_no_file_message: String,
+    /// Message shown when a explorer directory has no visible Markdown files.
+    pub explorer_empty_files: String,
     /// Message shown when the current document has no headings.
-    pub workspace_empty_outline: String,
-    /// Title shown when the workspace file tree cannot be scanned.
-    pub workspace_scan_failed_title: String,
+    pub explorer_empty_outline: String,
+    /// Title shown when the explorer file tree cannot be scanned.
+    pub explorer_scan_failed_title: String,
     /// Title of the link-opening confirmation prompt.
     pub open_link_title: String,
     /// Confirm button for the link-opening prompt.
@@ -351,7 +351,7 @@ pub struct I18nStringsDe {
     menu_export: Option<String>,
     menu_language: Option<String>,
     menu_theme: Option<String>,
-    menu_workspace: Option<String>,
+    menu_explorer: Option<String>,
     menu_help: Option<String>,
     menu_add_language_config: Option<String>,
     menu_add_theme_config: Option<String>,
@@ -370,7 +370,7 @@ pub struct I18nStringsDe {
     menu_about: Option<String>,
     menu_install_cli_tool: Option<String>,
     menu_uninstall_cli_tool: Option<String>,
-    menu_toggle_workspace: Option<String>,
+    menu_toggle_explorer: Option<String>,
     open_markdown_files_prompt: Option<String>,
     add_language_config_prompt: Option<String>,
     add_theme_config_prompt: Option<String>,
@@ -455,14 +455,14 @@ pub struct I18nStringsDe {
     settings_shortcut_close_window: Option<String>,
     settings_shortcut_dismiss_transient_ui: Option<String>,
     settings_shortcut_toggle_view_mode: Option<String>,
-    settings_shortcut_toggle_workspace: Option<String>,
-    workspace_tab_files: Option<String>,
-    workspace_tab_outline: Option<String>,
-    workspace_no_file_title: Option<String>,
-    workspace_no_file_message: Option<String>,
-    workspace_empty_files: Option<String>,
-    workspace_empty_outline: Option<String>,
-    workspace_scan_failed_title: Option<String>,
+    settings_shortcut_toggle_explorer: Option<String>,
+    explorer_tab_files: Option<String>,
+    explorer_tab_outline: Option<String>,
+    explorer_no_file_title: Option<String>,
+    explorer_no_file_message: Option<String>,
+    explorer_empty_files: Option<String>,
+    explorer_empty_outline: Option<String>,
+    explorer_scan_failed_title: Option<String>,
     open_link_title: Option<String>,
     open_link_open: Option<String>,
     open_link_cancel: Option<String>,
@@ -538,7 +538,7 @@ pub(crate) const I18N_STRING_KEYS: &[&str] = &[
     "menu_export",
     "menu_language",
     "menu_theme",
-    "menu_workspace",
+    "menu_explorer",
     "menu_help",
     "menu_add_language_config",
     "menu_add_theme_config",
@@ -557,7 +557,7 @@ pub(crate) const I18N_STRING_KEYS: &[&str] = &[
     "menu_about",
     "menu_install_cli_tool",
     "menu_uninstall_cli_tool",
-    "menu_toggle_workspace",
+    "menu_toggle_explorer",
     "open_markdown_files_prompt",
     "add_language_config_prompt",
     "add_theme_config_prompt",
@@ -642,14 +642,14 @@ pub(crate) const I18N_STRING_KEYS: &[&str] = &[
     "settings_shortcut_close_window",
     "settings_shortcut_dismiss_transient_ui",
     "settings_shortcut_toggle_view_mode",
-    "settings_shortcut_toggle_workspace",
-    "workspace_tab_files",
-    "workspace_tab_outline",
-    "workspace_no_file_title",
-    "workspace_no_file_message",
-    "workspace_empty_files",
-    "workspace_empty_outline",
-    "workspace_scan_failed_title",
+    "settings_shortcut_toggle_explorer",
+    "explorer_tab_files",
+    "explorer_tab_outline",
+    "explorer_no_file_title",
+    "explorer_no_file_message",
+    "explorer_empty_files",
+    "explorer_empty_outline",
+    "explorer_scan_failed_title",
     "open_link_title",
     "open_link_open",
     "open_link_cancel",
@@ -775,7 +775,7 @@ impl I18nStringsDe {
             menu_export: self.menu_export.unwrap_or(defaults.menu_export),
             menu_language: self.menu_language.unwrap_or(defaults.menu_language),
             menu_theme: self.menu_theme.unwrap_or(defaults.menu_theme),
-            menu_workspace: self.menu_workspace.unwrap_or(defaults.menu_workspace),
+            menu_explorer: self.menu_explorer.unwrap_or(defaults.menu_explorer),
             menu_help: self.menu_help.unwrap_or(defaults.menu_help),
             menu_add_language_config: self
                 .menu_add_language_config
@@ -808,9 +808,9 @@ impl I18nStringsDe {
             menu_uninstall_cli_tool: self
                 .menu_uninstall_cli_tool
                 .unwrap_or(defaults.menu_uninstall_cli_tool),
-            menu_toggle_workspace: self
-                .menu_toggle_workspace
-                .unwrap_or(defaults.menu_toggle_workspace),
+            menu_toggle_explorer: self
+                .menu_toggle_explorer
+                .unwrap_or(defaults.menu_toggle_explorer),
             open_markdown_files_prompt: self
                 .open_markdown_files_prompt
                 .unwrap_or(defaults.open_markdown_files_prompt),
@@ -1053,30 +1053,30 @@ impl I18nStringsDe {
             settings_shortcut_toggle_view_mode: self
                 .settings_shortcut_toggle_view_mode
                 .unwrap_or(defaults.settings_shortcut_toggle_view_mode),
-            settings_shortcut_toggle_workspace: self
-                .settings_shortcut_toggle_workspace
-                .unwrap_or(defaults.settings_shortcut_toggle_workspace),
-            workspace_tab_files: self
-                .workspace_tab_files
-                .unwrap_or(defaults.workspace_tab_files),
-            workspace_tab_outline: self
-                .workspace_tab_outline
-                .unwrap_or(defaults.workspace_tab_outline),
-            workspace_no_file_title: self
-                .workspace_no_file_title
-                .unwrap_or(defaults.workspace_no_file_title),
-            workspace_no_file_message: self
-                .workspace_no_file_message
-                .unwrap_or(defaults.workspace_no_file_message),
-            workspace_empty_files: self
-                .workspace_empty_files
-                .unwrap_or(defaults.workspace_empty_files),
-            workspace_empty_outline: self
-                .workspace_empty_outline
-                .unwrap_or(defaults.workspace_empty_outline),
-            workspace_scan_failed_title: self
-                .workspace_scan_failed_title
-                .unwrap_or(defaults.workspace_scan_failed_title),
+            settings_shortcut_toggle_explorer: self
+                .settings_shortcut_toggle_explorer
+                .unwrap_or(defaults.settings_shortcut_toggle_explorer),
+            explorer_tab_files: self
+                .explorer_tab_files
+                .unwrap_or(defaults.explorer_tab_files),
+            explorer_tab_outline: self
+                .explorer_tab_outline
+                .unwrap_or(defaults.explorer_tab_outline),
+            explorer_no_file_title: self
+                .explorer_no_file_title
+                .unwrap_or(defaults.explorer_no_file_title),
+            explorer_no_file_message: self
+                .explorer_no_file_message
+                .unwrap_or(defaults.explorer_no_file_message),
+            explorer_empty_files: self
+                .explorer_empty_files
+                .unwrap_or(defaults.explorer_empty_files),
+            explorer_empty_outline: self
+                .explorer_empty_outline
+                .unwrap_or(defaults.explorer_empty_outline),
+            explorer_scan_failed_title: self
+                .explorer_scan_failed_title
+                .unwrap_or(defaults.explorer_scan_failed_title),
             open_link_title: self.open_link_title.unwrap_or(defaults.open_link_title),
             open_link_open: self.open_link_open.unwrap_or(defaults.open_link_open),
             open_link_cancel: self.open_link_cancel.unwrap_or(defaults.open_link_cancel),
@@ -1236,7 +1236,7 @@ impl I18nStrings {
             menu_export: "导出".into(),
             menu_language: "语言".into(),
             menu_theme: "主题".into(),
-            menu_workspace: "工作区".into(),
+            menu_explorer: "资源管理器".into(),
             menu_help: "帮助".into(),
             menu_add_language_config: "添加语言配置".into(),
             menu_add_theme_config: "添加主题配置".into(),
@@ -1255,7 +1255,7 @@ impl I18nStrings {
             menu_about: "关于".into(),
             menu_install_cli_tool: "安装CLI命令".into(),
             menu_uninstall_cli_tool: "卸载CLI命令".into(),
-            menu_toggle_workspace: "切换工作区".into(),
+            menu_toggle_explorer: "切换资源管理器".into(),
             open_markdown_files_prompt: "打开 Markdown 文件".into(),
             add_language_config_prompt: "选择语言配置文件".into(),
             add_theme_config_prompt: "选择主题配置文件".into(),
@@ -1334,15 +1334,15 @@ impl I18nStrings {
             settings_shortcut_close_window: "关闭窗口".into(),
             settings_shortcut_dismiss_transient_ui: "关闭临时界面".into(),
             settings_shortcut_toggle_view_mode: "切换视图模式".into(),
-            settings_shortcut_toggle_workspace: "切换工作区".into(),
-            workspace_tab_files: "文件".into(),
-            workspace_tab_outline: "大纲".into(),
-            workspace_no_file_title: "未打开 Markdown 文件".into(),
-            workspace_no_file_message: "打开或保存一个 .md 文件后，工作区会使用该文件所在目录。"
+            settings_shortcut_toggle_explorer: "切换资源管理器".into(),
+            explorer_tab_files: "文件".into(),
+            explorer_tab_outline: "大纲".into(),
+            explorer_no_file_title: "未打开 Markdown 文件".into(),
+            explorer_no_file_message: "打开或保存一个 .md 文件后，工作区会使用该文件所在目录。"
                 .into(),
-            workspace_empty_files: "没有可显示的 Markdown 文件".into(),
-            workspace_empty_outline: "当前文档没有标题".into(),
-            workspace_scan_failed_title: "无法读取工作区".into(),
+            explorer_empty_files: "没有可显示的 Markdown 文件".into(),
+            explorer_empty_outline: "当前文档没有标题".into(),
+            explorer_scan_failed_title: "无法读取工作区".into(),
             open_link_title: "打开链接？".into(),
             open_link_open: "打开".into(),
             open_link_cancel: "取消".into(),
@@ -1441,7 +1441,7 @@ impl I18nStrings {
             menu_export: "Export".into(),
             menu_language: "Language".into(),
             menu_theme: "Theme".into(),
-            menu_workspace: "Workspace".into(),
+            menu_explorer: "Explorer".into(),
             menu_help: "Help".into(),
             menu_add_language_config: "Add Language Config".into(),
             menu_add_theme_config: "Add Theme Config".into(),
@@ -1460,7 +1460,7 @@ impl I18nStrings {
             menu_about: "About".into(),
             menu_install_cli_tool: "Install CLI Command".into(),
             menu_uninstall_cli_tool: "Uninstall CLI Command".into(),
-            menu_toggle_workspace: "Toggle Workspace".into(),
+            menu_toggle_explorer: "Toggle Explorer".into(),
             open_markdown_files_prompt: "Open Markdown Files".into(),
             add_language_config_prompt: "Choose Language Config".into(),
             add_theme_config_prompt: "Choose Theme Config".into(),
@@ -1550,15 +1550,15 @@ impl I18nStrings {
             settings_shortcut_close_window: "Close Window".into(),
             settings_shortcut_dismiss_transient_ui: "Dismiss Temporary UI".into(),
             settings_shortcut_toggle_view_mode: "Toggle View Mode".into(),
-            settings_shortcut_toggle_workspace: "Toggle Workspace".into(),
-            workspace_tab_files: "Files".into(),
-            workspace_tab_outline: "Outline".into(),
-            workspace_no_file_title: "No Markdown File Open".into(),
-            workspace_no_file_message:
-                "Open or save a .md file to use its folder as the workspace.".into(),
-            workspace_empty_files: "No Markdown files to show".into(),
-            workspace_empty_outline: "This document has no headings".into(),
-            workspace_scan_failed_title: "Unable to Read Workspace".into(),
+            settings_shortcut_toggle_explorer: "Toggle Explorer".into(),
+            explorer_tab_files: "Files".into(),
+            explorer_tab_outline: "Outline".into(),
+            explorer_no_file_title: "No Markdown File Open".into(),
+            explorer_no_file_message:
+                "Open or save a .md file to use its folder as the explorer.".into(),
+            explorer_empty_files: "No Markdown files to show".into(),
+            explorer_empty_outline: "This document has no headings".into(),
+            explorer_scan_failed_title: "Unable to Read ExplorerState".into(),
             open_link_title: "Open link?".into(),
             open_link_open: "Open".into(),
             open_link_cancel: "Cancel".into(),

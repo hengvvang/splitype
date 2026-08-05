@@ -2,8 +2,9 @@
 //! panel.
 
 pub(crate) mod panels;
+pub(crate) mod state;
 
-use crate::ui::components::section::{section_card, section_header, settings_row,};
+use crate::ui::components::section::{section_card, section_header, settings_row};
 use crate::ui::components::stepper::{
     stepper_container, stepper_divider, stepper_step_button, stepper_value,
 };
@@ -15,7 +16,7 @@ use std::collections::BTreeMap;
 
 use gpui::*;
 
-use crate::editor::windows::keybindings::{
+use crate::editor::keybindings::{
     ShortcutCommand, install_keybindings, normalize_shortcut_config,
 };
 use crate::infra::config::settings::{
@@ -369,7 +370,7 @@ impl Render for SettingsWindow {
         // Helper closures for Sections and Rows
         let make_row =
             |title: &'static str, desc: &'static str, control: AnyElement| -> AnyElement {
-settings_row(inner_border_color, c, d)
+                settings_row(inner_border_color, c, d)
                     .child(
                         div()
                             .flex()
@@ -1233,7 +1234,7 @@ settings_row(inner_border_color, c, d)
                         "Ctrl + M",
                     ),
                     (
-                        "Toggle Workspace Tree",
+                        "Toggle ExplorerState Tree",
                         "Show or collapse the left file navigation sidebar",
                         "Ctrl + E",
                     ),

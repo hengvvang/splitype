@@ -15,7 +15,7 @@ use gpui::*;
 
 use crate::editor::controller::{Editor, EditorMode, TableAxisSelection};
 use crate::editor::editing::input::shortcuts::DismissTransientUi;
-use crate::editor::windows::chrome::{ContextMenuState, TableInsertDialogState, TableInsertTarget};
+use crate::windows::editor::chrome::{ContextMenuState, TableInsertDialogState, TableInsertTarget};
 use crate::infra::i18n::I18nManager;
 use crate::model::syntax::table::{TableAxisKind, TableColumnAlignment, TableData};
 use crate::theme::Theme;
@@ -72,7 +72,7 @@ impl Editor {
         cx.notify();
     }
 
-    pub(crate) fn open_workspace_file_context_menu(
+    pub(crate) fn open_explorer_file_context_menu(
         &mut self,
         position: Point<Pixels>,
         path: std::path::PathBuf,
@@ -81,7 +81,7 @@ impl Editor {
     ) {
         self.close_menu_bar(cx);
         self.dismiss_contextual_overlays(cx);
-        self.chrome.context_menu = Some(ContextMenuState::WorkspaceFile {
+        self.chrome.context_menu = Some(ContextMenuState::ExplorerFile {
             position,
             path,
             is_dir,
@@ -1126,7 +1126,7 @@ impl Editor {
                         .into_any_element(),
                 )
             }
-            ContextMenuState::WorkspaceFile {
+            ContextMenuState::ExplorerFile {
                 position,
                 path,
                 is_dir,
@@ -1152,7 +1152,7 @@ impl Editor {
                             .gap(px(8.0))
                             .child(
                                 svg()
-                                    .path("icon/workspace/file-plus.svg")
+                                    .path("icon/explorer/file-plus.svg")
                                     .size(px(14.0))
                                     .text_color(c.dialog_muted),
                             )
@@ -1179,7 +1179,7 @@ impl Editor {
                             .gap(px(8.0))
                             .child(
                                 svg()
-                                    .path("icon/workspace/folder-plus.svg")
+                                    .path("icon/explorer/folder-plus.svg")
                                     .size(px(14.0))
                                     .text_color(c.dialog_muted),
                             )
@@ -1245,7 +1245,7 @@ impl Editor {
                             let p = p_delete.clone();
                             let _ = ed_delete.update(cx, |ed, cx| {
                                 ed.dismiss_contextual_overlays(cx);
-                                ed.delete_workspace_entry(p, cx);
+                                ed.delete_explorer_entry(p, cx);
                             });
                             cx.stop_propagation();
                         })
@@ -1306,7 +1306,7 @@ impl Editor {
 
                 Some(
                     overlay()
-                        .id("workspace-file-context-menu-overlay")
+                        .id("explorer-file-context-menu-overlay")
                         .occlude()
                         .on_mouse_down(
                             MouseButton::Left,
@@ -1314,7 +1314,7 @@ impl Editor {
                         )
                         .child(
                             div()
-                                .id("workspace-file-context-menu-panel")
+                                .id("explorer-file-context-menu-panel")
                                 .absolute()
                                 .left(panel_x)
                                 .top(panel_y)

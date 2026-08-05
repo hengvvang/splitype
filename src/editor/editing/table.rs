@@ -1,7 +1,7 @@
 //! Native table runtime installation, table-editing operations, and the
 //! [`TableGrid`] of cell editors attached to a table block.
 
-use crate::editor::actions::UndoCaptureKind;
+use crate::editor::block_protocol::UndoCaptureKind;
 use crate::editor::tree::block::Block;
 use crate::editor::controller::*;
 

@@ -11,9 +11,11 @@
 //! 6. **Chrome** — titlebar, tiled sidebar, menu panel, context menu,
 //!    table-insert dialog, info/drop/unsaved overlays.
 
+pub(crate) mod chrome;
 pub(crate) mod context_menu;
 pub(crate) mod dialogs;
 pub(crate) mod export;
+pub(crate) mod menu;
 pub(crate) mod menu_bar;
 pub(crate) mod status_bar;
 pub(crate) mod titlebar;
@@ -39,7 +41,7 @@ pub(crate) fn open_about_github_url(cx: &mut App) {
     cx.open_url(ABOUT_GITHUB_URL);
 }
 
-use crate::editor::windows::wysiwyg::render::layout::{
+use crate::editor::panels::wysiwyg::render::layout::{
     RenderedRowSpacingInfo, callout_colors, callout_row_top_gap, editor_text_font,
     footnote_row_top_gap, rendered_row_top_gap,
 };
@@ -792,7 +794,7 @@ impl Render for Editor {
             .on_action(cx.listener(Self::on_quit_application))
             .on_action(cx.listener(Self::on_close_window))
             .on_action(cx.listener(Self::on_toggle_view_mode_action))
-            .on_action(cx.listener(Self::on_toggle_workspace_action))
+            .on_action(cx.listener(Self::on_toggle_explorer_action))
             .on_action(cx.listener(Self::on_page_up))
             .on_action(cx.listener(Self::on_page_down))
             .on_action(cx.listener(Self::on_jump_to_top))
@@ -886,7 +888,7 @@ impl Render for Editor {
 impl Editor {
     /// Renders the window chrome when no document tab exists (welcome state):
     /// titlebar, menus, and the tiled panels. Every editor panel body shows
-    /// the welcome prompt via `render_edit_inner_node`; no document-dependent
+    /// the welcome prompt via `render_editor_inner_panel_node`; no document-dependent
     /// bookkeeping runs.
     pub(crate) fn render_welcome_window(
         &mut self,
@@ -975,7 +977,7 @@ impl Editor {
 
 #[cfg(test)]
 mod tests {
-    use crate::editor::windows::actions::{AddLanguageConfig, AddThemeConfig, NoRecentFiles};
+    use crate::editor::actions::{AddLanguageConfig, AddThemeConfig, NoRecentFiles};
     use crate::theme::Theme;
     use crate::windows::editor::menu_bar::{
         import_menu_split_index, in_window_menu_bar_height_for_target_os, menu_bar_button_width,

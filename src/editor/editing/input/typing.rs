@@ -8,7 +8,6 @@ use crate::model::block::BlockKind;
 use crate::model::inline::text::RichText;
 use crate::model::syntax::table::*;
 
-
 impl Editor {
     pub(crate) fn jump_to_footnote_definition(&mut self, id: &str, cx: &mut Context<Self>) -> bool {
         let Some(binding) = self.tab().references.footnotes.binding(id) else {
@@ -20,7 +19,6 @@ impl Editor {
         self.focus_block_range(&block, 0..0, cx);
         true
     }
-
 
     pub(crate) fn jump_to_footnote_backref(&mut self, id: &str, cx: &mut Context<Self>) -> bool {
         let Some(binding) = self.tab().references.footnotes.binding(id) else {
@@ -40,7 +38,6 @@ impl Editor {
         true
     }
 
-
     pub(crate) fn insert_list_group_separator_before(
         &mut self,
         entity_id: EntityId,
@@ -55,7 +52,6 @@ impl Editor {
             .insert_blocks_at(location.parent, location.index, vec![separator], cx);
         true
     }
-
 
     pub(crate) fn set_block_title_and_kind(
         block: &Entity<crate::editor::tree::block::Block>,
@@ -135,10 +131,7 @@ impl Editor {
         // The newline's own capture was already finalized by the block's Changed
         // event (nothing had changed yet), so start a fresh one here that spans
         // the heading/separator conversion. prepare is a no-op if one is pending.
-        self.prepare_undo_capture(
-            crate::editor::actions::UndoCaptureKind::NonCoalescible,
-            cx,
-        );
+        self.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::NonCoalescible, cx);
 
         if let Some(prev) = target {
             let heading_title = prev.read(cx).record.text.clone();
@@ -227,10 +220,7 @@ impl Editor {
             return false;
         };
 
-        self.prepare_undo_capture(
-            crate::editor::actions::UndoCaptureKind::NonCoalescible,
-            cx,
-        );
+        self.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::NonCoalescible, cx);
         // Remove the lower (delimiter) block first so the header index is stable.
         let header_index = location.index - 1;
         let removed_delimiter = block.entity_id();
@@ -255,7 +245,6 @@ impl Editor {
         true
     }
 
-
     pub(crate) fn extend_table_with_typed_row(
         &mut self,
         table_block: &Entity<crate::editor::tree::block::Block>,
@@ -272,10 +261,7 @@ impl Editor {
             return false;
         };
 
-        self.prepare_undo_capture(
-            crate::editor::actions::UndoCaptureKind::NonCoalescible,
-            cx,
-        );
+        self.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::NonCoalescible, cx);
         table.rows.push(row);
         table_block.update(cx, |block, cx| {
             block.record.table = Some(table);
@@ -341,7 +327,6 @@ impl Editor {
         self.doc_mut()
             .insert_blocks_at(location.parent, location.index + 1, vec![trailing], cx);
     }
-
 
     pub(crate) fn apply_paragraph_shortcuts(
         kind: BlockKind,

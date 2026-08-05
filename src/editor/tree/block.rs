@@ -8,26 +8,26 @@ use std::time::{Duration, Instant};
 use gpui::*;
 use unicode_segmentation::*;
 
-use crate::editor::actions::{BlockAction, UndoCaptureKind};
+use crate::editor::block_protocol::{BlockAction, UndoCaptureKind};
+use crate::editor::editing::projection::{
+    ExpandedInlineProjection, ExpandedInlineSegment, ExpandedInlineSegmentKind, ExpandedLinkRun,
+    ProjectedLinkSelectionSnapshot,
+};
+use crate::editor::editing::table::TableGrid;
+use crate::editor::geometry::text_layout as element;
+use crate::editor::render::code_highlight::highlight::{CodeHighlightResult, highlight_code_block};
+use crate::editor::tree::footnotes::FootnoteMap;
 use crate::model::block::{BlockData, BlockId, BlockKind, CalloutKind};
 use crate::model::inline::footnote::InlineFootnoteHit;
 use crate::model::inline::link::InlineLinkHit;
 use crate::model::inline::render_cache::{InlineRenderCache, InlineSpan};
 use crate::model::inline::style::{InlineStyle, StyleFlag};
 use crate::model::inline::text::{InlineFragment, InlineInsertionAttributes, RichText};
-use crate::editor::tree::footnotes::FootnoteMap;
 use crate::model::syntax::image::ImageReferenceDefinitions;
 use crate::model::syntax::image::ImageResolvedSource;
 use crate::model::syntax::link::LinkReferenceDefinitions;
 use crate::model::syntax::table::TableCellPosition;
 use crate::model::syntax::table::{TableAxisHighlight, TableAxisMarker, TableColumnAlignment};
-use crate::editor::render::code_highlight::highlight::{CodeHighlightResult, highlight_code_block};
-use crate::editor::editing::table::TableGrid;
-use crate::editor::editing::projection::{
-    ExpandedInlineProjection, ExpandedInlineSegment, ExpandedInlineSegmentKind, ExpandedLinkRun,
-    ProjectedLinkSelectionSnapshot,
-};
-use crate::editor::geometry::text_layout as element;
 
 // ---------------------------------------------------------------------------
 // View-local types
@@ -1387,10 +1387,7 @@ impl Block {
         }
 
         if self.projection.is_none() {
-            return self
-                .record
-                .text
-                .attributes_for_insertion_at(current_offset);
+            return self.record.text.attributes_for_insertion_at(current_offset);
         }
 
         for segment in self.projection_segments() {

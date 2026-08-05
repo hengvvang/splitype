@@ -5,7 +5,7 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::editor::actions::UndoCaptureKind;
+use crate::editor::block_protocol::UndoCaptureKind;
 use crate::editor::controller::{
     CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, EditorMode,
     SourceTargetMapping, UndoSelectionSnapshot,
@@ -291,11 +291,12 @@ impl Editor {
         }
         .min(3);
 
-        self.tab_mut().selection.select_all_cycle = Some(crate::editor::controller::RenderedSelectAllCycle {
-            entity_id: block_id,
-            count,
-            last_pressed_at: now,
-        });
+        self.tab_mut().selection.select_all_cycle =
+            Some(crate::editor::controller::RenderedSelectAllCycle {
+                entity_id: block_id,
+                count,
+                last_pressed_at: now,
+            });
 
         if count == 1 {
             self.select_focused_block_text_for_rendered_select_all(block, cx);
@@ -426,9 +427,7 @@ impl Editor {
         let selection = self.tab().selection.cross_block?;
         let anchor = self.clamp_cross_block_endpoint(selection.anchor, cx)?;
         let focus = self.clamp_cross_block_endpoint(selection.focus, cx)?;
-        let anchor_index = self
-            .doc()
-            .visible_index_for_entity_id(anchor.entity_id)?;
+        let anchor_index = self.doc().visible_index_for_entity_id(anchor.entity_id)?;
         let focus_index = self.doc().visible_index_for_entity_id(focus.entity_id)?;
         let reversed = focus_index < anchor_index
             || (focus_index == anchor_index && focus.offset < anchor.offset);
@@ -921,7 +920,7 @@ mod tests {
     use gpui::{AppContext, Bounds, Context, TestAppContext, point, px, size};
 
     use super::{CrossBlockSelection, CrossBlockSelectionEndpoint, Editor};
-    use crate::editor::actions::UndoCaptureKind;
+    use crate::editor::block_protocol::UndoCaptureKind;
     use crate::editor::editing::input::shortcuts::{Cut, Undo};
     use crate::infra::i18n::I18nManager;
     use crate::theme::ThemeManager;
@@ -930,7 +929,7 @@ mod tests {
         cx.update(|cx| {
             I18nManager::init(cx);
             ThemeManager::init(cx);
-            crate::editor::windows::keybindings::init(cx);
+            crate::editor::keybindings::init(cx);
         });
     }
 
@@ -1281,9 +1280,7 @@ mod tests {
             let empty =
                 Editor::new_block(cx, crate::model::block::BlockData::paragraph(String::new()));
             let index = editor.doc().root_count();
-            editor
-                .doc()
-                .insert_blocks_at(None, index, vec![empty], cx);
+            editor.doc().insert_blocks_at(None, index, vec![empty], cx);
 
             let visible = editor.doc().blocks().to_vec();
             assert_eq!(visible.len(), 3);

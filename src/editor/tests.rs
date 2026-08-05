@@ -10,7 +10,7 @@ use gpui::{
 use super::{EditorMode, Editor};
 use crate::model::block::BlockKind;
 use crate::editor::editing::input::shortcuts::{FocusNext, Newline};
-use crate::editor::windows::actions::{CloseWindow, QuitApplication, SaveDocument};
+use crate::editor::actions::{CloseWindow, QuitApplication, SaveDocument};
 use crate::model::inline::text::RichText;
 use crate::model::syntax::table::TableColumnAlignment;
 use crate::model::inline::footnote::superscript_ordinal;
@@ -20,13 +20,13 @@ use crate::model::syntax::image::{
 };
 use crate::editor::render::export::ExportFormat;
 use crate::infra::i18n::{I18nManager, I18nStrings};
-use crate::editor::windows::chrome::{TableInsertDialogState, TableInsertTarget};
+use crate::windows::editor::chrome::{TableInsertDialogState, TableInsertTarget};
 use crate::theme::{Theme, ThemeManager};
 fn init_editor_test_app(cx: &mut TestAppContext) {
     cx.update(|cx| {
         I18nManager::init(cx);
         ThemeManager::init(cx);
-        crate::editor::windows::keybindings::init(cx);
+        crate::editor::keybindings::init(cx);
     });
 }
 
@@ -1402,7 +1402,7 @@ async fn standalone_root_image_installs_runtime_and_resolves_relative_path(
     cx: &mut TestAppContext,
 ) {
     let markdown = "![diagram](./assets/diagram.png \"System diagram\")".to_string();
-    let file_path = PathBuf::from("D:/workspace/docs/note.md");
+    let file_path = PathBuf::from("D:/explorer/docs/note.md");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
@@ -1426,7 +1426,7 @@ async fn standalone_root_image_installs_runtime_and_resolves_relative_path(
 async fn standalone_root_image_with_underscores_installs_runtime(cx: &mut TestAppContext) {
     let markdown =
         "![1.1_进制转换例子](./NetworkEngineerSummer.assets/1.1_进制转换例子.jpg)".to_string();
-    let file_path = PathBuf::from("D:/workspace/docs/note.md");
+    let file_path = PathBuf::from("D:/explorer/docs/note.md");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
@@ -1505,7 +1505,7 @@ async fn reference_style_root_image_installs_runtime(cx: &mut TestAppContext) {
     let markdown =
         "![reference image][ref-image]\n\n[ref-image]: ./assets/ref-image.png \"Caption\""
             .to_string();
-    let file_path = PathBuf::from("D:/workspace/docs/note.md");
+    let file_path = PathBuf::from("D:/explorer/docs/note.md");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
@@ -1529,7 +1529,7 @@ async fn reference_style_root_image_installs_runtime(cx: &mut TestAppContext) {
 #[gpui::test]
 async fn quote_child_standalone_image_installs_runtime(cx: &mut TestAppContext) {
     let markdown = ">     ![diagram](./assets/diagram.png \"Caption\")".to_string();
-    let file_path = PathBuf::from("D:/workspace/docs/note.md");
+    let file_path = PathBuf::from("D:/explorer/docs/note.md");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
@@ -1559,7 +1559,7 @@ async fn quote_child_standalone_image_installs_runtime(cx: &mut TestAppContext) 
 #[gpui::test]
 async fn bulleted_list_item_standalone_image_installs_runtime(cx: &mut TestAppContext) {
     let markdown = "-     ![diagram](./assets/diagram.png \"Caption\")".to_string();
-    let file_path = PathBuf::from("D:/workspace/docs/note.md");
+    let file_path = PathBuf::from("D:/explorer/docs/note.md");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
@@ -1667,7 +1667,7 @@ async fn numbered_list_item_standalone_image_installs_runtime(cx: &mut TestAppCo
 #[gpui::test]
 async fn task_list_item_reference_style_image_installs_runtime(cx: &mut TestAppContext) {
     let markdown = "- [ ] ![diagram][cover]\n\n[cover]: ./assets/diagram.png \"Cover\"".to_string();
-    let file_path = PathBuf::from("D:/workspace/docs/note.md");
+    let file_path = PathBuf::from("D:/explorer/docs/note.md");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
@@ -1716,7 +1716,7 @@ async fn list_child_reference_style_image_installs_runtime(cx: &mut TestAppConte
         "[cover]: ./assets/diagram.png \"Cover\"",
     ]
     .join("\n");
-    let file_path = PathBuf::from("D:/workspace/docs/note.md");
+    let file_path = PathBuf::from("D:/explorer/docs/note.md");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
@@ -1756,7 +1756,7 @@ async fn list_scoped_reference_definition_supports_list_item_image_runtime(
         "  [cover]: ./assets/diagram.png \"Cover\"",
     ]
     .join("\n");
-    let file_path = PathBuf::from("D:/workspace/docs/note.md");
+    let file_path = PathBuf::from("D:/explorer/docs/note.md");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
@@ -1794,7 +1794,7 @@ async fn list_scoped_reference_definition_supports_list_item_image_runtime(
 #[gpui::test]
 async fn quote_list_item_standalone_image_installs_runtime(cx: &mut TestAppContext) {
     let markdown = "> - ![diagram](./assets/diagram.png)".to_string();
-    let file_path = PathBuf::from("D:/workspace/docs/note.md");
+    let file_path = PathBuf::from("D:/explorer/docs/note.md");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
@@ -1830,7 +1830,7 @@ async fn callout_task_list_reference_style_image_uses_container_scoped_definitio
         "> [cover]: ./assets/diagram.png \"Cover\"",
     ]
     .join("\n");
-    let file_path = PathBuf::from("D:/workspace/docs/note.md");
+    let file_path = PathBuf::from("D:/explorer/docs/note.md");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
@@ -1865,7 +1865,7 @@ async fn callout_list_child_image_installs_runtime(cx: &mut TestAppContext) {
         ">   ![diagram](./assets/diagram.png)",
     ]
     .join("\n");
-    let file_path = PathBuf::from("D:/workspace/docs/note.md");
+    let file_path = PathBuf::from("D:/explorer/docs/note.md");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
@@ -1907,7 +1907,7 @@ async fn callout_child_reference_style_image_uses_container_scoped_definition(
         "> [anim]: ./assets/diagram.png \"Animated\"",
     ]
     .join("\n");
-    let file_path = PathBuf::from("D:/workspace/docs/note.md");
+    let file_path = PathBuf::from("D:/explorer/docs/note.md");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
@@ -2409,7 +2409,7 @@ async fn undo_reverts_recent_rendered_typing(cx: &mut TestAppContext) {
         let block = editor.doc().first_root().expect("root").clone();
         editor.tab_mut().focus.active_entity = Some(block.entity_id());
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
         });
     });
@@ -2431,11 +2431,11 @@ async fn consecutive_text_edits_within_window_coalesce_into_one_undo(cx: &mut Te
         editor.tab_mut().focus.active_entity = Some(block.entity_id());
 
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(1..1, "b", None, false, cx);
         });
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(2..2, "c", None, false, cx);
         });
     });
@@ -2457,7 +2457,7 @@ async fn redo_restores_text_reverted_by_undo(cx: &mut TestAppContext) {
         let block = editor.doc().first_root().expect("root").clone();
         editor.tab_mut().focus.active_entity = Some(block.entity_id());
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
         });
     });
@@ -2481,7 +2481,7 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
         let block = editor.doc().first_root().expect("root").clone();
         editor.tab_mut().focus.active_entity = Some(block.entity_id());
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
         });
     });
@@ -2493,7 +2493,7 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
         // A new edit invalidates the redo stack so it cannot revive stale text.
         let block = editor.doc().first_root().expect("root").clone();
         block.update(cx, |block, cx| {
-            block.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::CoalescibleText, cx);
+            block.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(5..5, " gamma", None, false, cx);
         });
     });
@@ -2933,7 +2933,7 @@ async fn newline_at_start_of_heading_moves_entire_heading_down(cx: &mut TestAppC
         block.update(cx, |block, block_cx| {
             block.move_to(0, block_cx);
         });
-        editor.on_block_event(block, &crate::editor::actions::BlockAction::RequestNewlineAbove, cx);
+        editor.on_block_event(block, &crate::editor::block_protocol::BlockAction::RequestNewlineAbove, cx);
     });
     redraw(cx);
 

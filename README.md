@@ -103,7 +103,7 @@ Velotype already supports almost all basic Markdown syntax and most commonly use
 Syntax support will continue to improve. Planned work includes:
 
 - [x] ~~Optimize the parsing and rendering capabilities for extremely large Markdown documents~~
-- [x] ~~Workspace Mode and Outline Parsing~~
+- [x] ~~Explorer Mode and Outline Parsing~~
 - [ ] Built-in image hosting
 - [ ] More complete IME behavior
 

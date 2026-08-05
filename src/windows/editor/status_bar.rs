@@ -10,10 +10,10 @@ use gpui::*;
 
 use crate::editor::EditorMode;
 use crate::editor::controller::Editor;
-use crate::editor::windows::chrome::StatusBarState;
-use crate::editor::windows::layout::{Axis, PaneKind};
+use crate::windows::editor::chrome::StatusBarState;
 use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
 use crate::infra::i18n::I18nStrings;
+use crate::layout::{Axis, WindowAreaKind};
 use crate::theme::{Theme, ThemeColors, ThemeDimensions};
 
 /// Render a cursor-position label (e.g. `12 : 47`).
@@ -153,7 +153,7 @@ pub fn render_sidebar_toggle(
              _: &gpui::ClickEvent,
              window: &mut Window,
              cx: &mut Context<Editor>| {
-                editor.toggle_workspace_drawer(window, cx);
+                editor.toggle_explorer_drawer(window, cx);
             },
         ))
         .into_any_element()
@@ -328,10 +328,10 @@ impl Editor {
         Some(bar)
     }
 
-    pub(crate) fn render_panel_status_bar(
+    pub(crate) fn render_editor_inner_panel_status_bar(
         &mut self,
-        container_id: usize,
-        area_type: PaneKind,
+        area_id: usize,
+        kind: WindowAreaKind,
         theme: &Theme,
         strings: &I18nStrings,
         cx: &mut Context<Self>,
@@ -343,17 +343,17 @@ impl Editor {
         let inner_leaf_count = self
             .panels
             .layout
-            .get_or_create_edit_inner_layout(container_id)
+            .ensure_editor_inner_panel_layout(area_id)
             .count_leaves();
 
-        let focused = self.panels.layout.focused_inner_panel;
-        let focused_inner_id =
-            focused.and_then(|(cid, iid)| if cid == container_id { Some(iid) } else { None });
-        let focused_area_type = focused_inner_id.and_then(|iid| {
+        let focused = self.panels.layout.focused_editor_inner_panel;
+        let focused_panel_id =
+            focused.and_then(|(cid, iid)| if cid == area_id { Some(iid) } else { None });
+        let focused_kind = focused_panel_id.and_then(|iid| {
             self.panels
                 .layout
-                .get_or_create_edit_inner_layout(container_id)
-                .find_leaf_area(iid)
+                .ensure_editor_inner_panel_layout(area_id)
+                .find_leaf_kind(iid)
         });
 
         let mut left_items: Vec<AnyElement> = Vec::new();
@@ -362,7 +362,7 @@ impl Editor {
         // Type button with dropdown for focused inner panel. Hidden in the
         // welcome state: with no document the edit-mode switch is meaningless.
         if self.has_active_tab()
-            && let (Some(inner_id), Some(ftype)) = (focused_inner_id, focused_area_type)
+            && let (Some(panel_id), Some(ftype)) = (focused_panel_id, focused_kind)
         {
             let toggle_editor = cx.entity().downgrade();
             let type_button = small_pill_button(c, d)
@@ -373,7 +373,7 @@ impl Editor {
                     let _ = toggle_editor.update(cx, |ed, cx| {
                         ed.panels
                             .layout
-                            .toggle_inner_dropdown(container_id, inner_id);
+                            .toggle_editor_inner_panel_dropdown(area_id, panel_id);
                         cx.notify();
                     });
                 });
@@ -382,7 +382,7 @@ impl Editor {
 
         // Split / close buttons: available even in the welcome state so the
         // panels can be split before any document is opened.
-        if let (Some(inner_id), Some(_)) = (focused_inner_id, focused_area_type) {
+        if let (Some(panel_id), Some(_)) = (focused_panel_id, focused_kind) {
             let editor = cx.entity().downgrade();
 
             // Split H button.
@@ -397,9 +397,9 @@ impl Editor {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = split_h_editor.update(cx, |ed, cx| {
-                            ed.panels.layout.split_inner_edit_area(
-                                container_id,
-                                inner_id,
+                            ed.panels.layout.split_editor_inner_panel(
+                                area_id,
+                                panel_id,
                                 Axis::Horizontal,
                             );
                             cx.notify();
@@ -420,9 +420,9 @@ impl Editor {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = split_v_editor.update(cx, |ed, cx| {
-                            ed.panels.layout.split_inner_edit_area(
-                                container_id,
-                                inner_id,
+                            ed.panels.layout.split_editor_inner_panel(
+                                area_id,
+                                panel_id,
                                 Axis::Vertical,
                             );
                             cx.notify();
@@ -446,11 +446,11 @@ impl Editor {
                             let _ = close_editor.update(cx, |ed, cx| {
                                 ed.panels
                                     .layout
-                                    .close_inner_edit_area(container_id, inner_id);
-                                if ed.panels.layout.focused_inner_panel
-                                    == Some((container_id, inner_id))
+                                    .close_editor_inner_panel(area_id, panel_id);
+                                if ed.panels.layout.focused_editor_inner_panel
+                                    == Some((area_id, panel_id))
                                 {
-                                    ed.panels.layout.focused_inner_panel = None;
+                                    ed.panels.layout.focused_editor_inner_panel = None;
                                 }
                                 cx.notify();
                             });
@@ -488,7 +488,7 @@ impl Editor {
 
         status_bar_container(c, 24.0, 10.0)
             .id(ElementId::Name(
-                format!("panel-status-bar-{:?}", area_type).into(),
+                format!("panel-status-bar-{:?}", kind).into(),
             ))
             .child(
                 div()

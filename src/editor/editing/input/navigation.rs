@@ -1,11 +1,11 @@
 //! Navigation: page keys, viewport scrolling, and table-cell focus
 //! movement. Mouse/scrollbar interactions live in `mouse`; menu input
-//! lives in `crate::editor::windows::menu`.
+//! lives in `crate::windows::editor::menu`.
 
 use gpui::*;
 
 use super::shortcuts::{JumpToBottom, JumpToTop, PageDown, PageUp};
-use crate::editor::actions::BlockAction;
+use crate::editor::block_protocol::BlockAction;
 use crate::editor::controller::*;
 use crate::editor::tree::block::CollapsedCaretAffinity;
 use crate::model::block::BlockKind;
@@ -295,7 +295,7 @@ impl Editor {
                 self.clear_table_axis_selection(cx);
                 self.sync_table_record_from_runtime(&binding.table_block, cx);
                 self.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
                 let new_block = Self::new_block(cx, BlockData::paragraph(String::new()));
@@ -492,7 +492,7 @@ impl Editor {
             return false;
         }
 
-        self.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::NonCoalescible, cx);
+        self.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::NonCoalescible, cx);
         self.doc_mut().with_structure_mutation(cx, |document, cx| {
             let _ = document.remove_block_by_id_raw(block.entity_id(), cx);
             parent.update(cx, |parent, cx| {

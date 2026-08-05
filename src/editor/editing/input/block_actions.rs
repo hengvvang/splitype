@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use gpui::*;
 
-use crate::editor::actions::{BlockAction, PastedImageSource, UndoCaptureKind};
+use crate::editor::block_protocol::{BlockAction, PastedImageSource, UndoCaptureKind};
 use crate::editor::tree::block::{Block, CollapsedCaretAffinity, InlineFormat};
 use crate::model::block::BlockKind;
 use crate::model::inline::text::RichText;
@@ -1781,7 +1781,7 @@ impl Block {
 #[cfg(test)]
 mod tests {
     use super::Block;
-    use crate::editor::actions::PastedImageSource;
+    use crate::editor::block_protocol::PastedImageSource;
     use crate::model::block::{BlockData, BlockKind};
     use crate::model::inline::text::RichText;
     use gpui::{AppContext, TestAppContext};

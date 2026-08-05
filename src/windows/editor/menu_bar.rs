@@ -16,11 +16,11 @@ use gpui::prelude::FluentBuilder;
 use gpui::*;
 
 use crate::app::menus::dispatch_menu_action_for_editor;
-use crate::editor::controller::Editor;
-use crate::infra::i18n::I18nManager;
-use crate::editor::windows::actions::{
+use crate::editor::actions::{
     AddLanguageConfig, AddThemeConfig, NoRecentFiles, SelectLanguage, SelectTheme,
 };
+use crate::editor::controller::Editor;
+use crate::infra::i18n::I18nManager;
 
 use crate::theme::{Theme, ThemeDimensions, ThemeManager};
 
@@ -365,7 +365,7 @@ impl Editor {
                 let button_width = button_widths[index];
 
                 row = row.child(
-menu_bar_button(("app-menu-button", index), c, d)
+                    menu_bar_button(("app-menu-button", index), c, d)
                         .w(px(button_width))
                         .bg(if is_open {
                             c.dialog_secondary_button_hover
@@ -454,7 +454,7 @@ menu_bar_button(("app-menu-button", index), c, d)
                 let is_theme_or_lang = action.as_ref().as_any().is::<SelectTheme>()
                     || action.as_ref().as_any().is::<SelectLanguage>();
 
-        let base = menu_item_row(c, d)
+                let base = menu_item_row(c, d)
                     .id(("app-menu-item", item_index))
                     .w_full()
                     .flex_shrink_0()
@@ -508,7 +508,7 @@ menu_bar_button(("app-menu-button", index), c, d)
             OwnedMenuItem::Submenu(submenu) => {
                 let is_open = self.chrome.menu_submenu_open == Some(item_index);
                 let hover_editor = editor.clone();
-menu_item(("app-menu-submenu", item_index), c, d)
+                menu_item(("app-menu-submenu", item_index), c, d)
                     .w_full()
                     .flex_shrink_0()
                     .justify_between()
@@ -568,35 +568,36 @@ menu_item(("app-menu-submenu", item_index), c, d)
         let editor = cx.entity().downgrade();
         let menu_item_labels = owned_menu_item_labels(&menu_items);
         let menu_panel_width = menu_panel_width_for_labels(&menu_item_labels, d);
-        let submenu_bridge = self.chrome.menu_submenu_open.and_then(|submenu_index| {
-            match menu_items.get(submenu_index)? {
-                OwnedMenuItem::Submenu(submenu) => {
-                    let submenu_labels = owned_menu_item_labels(&submenu.items);
-                    let geometry = submenu_bridge_geometry(
-                        open_index,
-                        menu_labels,
-                        &menu_items,
-                        submenu_index,
-                        &submenu_labels,
-                        d,
-                    )?;
-                    Some(
-                        div()
-                            .id(("app-submenu-bridge", open_index * 1000 + submenu_index))
-                            .absolute()
-                            .occlude()
-                            .top(px(top_offset + geometry.top))
-                            .left(px(geometry.left))
-                            .w(px(geometry.width))
-                            .h(px(geometry.height))
-                            .bg(hsla(0.0, 0.0, 0.0, 0.0))
-                            .on_hover(cx.listener(Self::on_menu_submenu_bridge_hover))
-                            .into_any_element(),
-                    )
+        let submenu_bridge =
+            self.chrome.menu_submenu_open.and_then(|submenu_index| {
+                match menu_items.get(submenu_index)? {
+                    OwnedMenuItem::Submenu(submenu) => {
+                        let submenu_labels = owned_menu_item_labels(&submenu.items);
+                        let geometry = submenu_bridge_geometry(
+                            open_index,
+                            menu_labels,
+                            &menu_items,
+                            submenu_index,
+                            &submenu_labels,
+                            d,
+                        )?;
+                        Some(
+                            div()
+                                .id(("app-submenu-bridge", open_index * 1000 + submenu_index))
+                                .absolute()
+                                .occlude()
+                                .top(px(top_offset + geometry.top))
+                                .left(px(geometry.left))
+                                .w(px(geometry.width))
+                                .h(px(geometry.height))
+                                .bg(hsla(0.0, 0.0, 0.0, 0.0))
+                                .on_hover(cx.listener(Self::on_menu_submenu_bridge_hover))
+                                .into_any_element(),
+                        )
+                    }
+                    _ => None,
                 }
-                _ => None,
-            }
-        });
+            });
         let submenu_panel =
             self.chrome.menu_submenu_open.and_then(|submenu_index| {
                 match menu_items.get(submenu_index)? {
@@ -884,5 +885,4 @@ menu_item(("app-menu-submenu", item_index), c, d)
 
         Some(layer.into_any_element())
     }
-
 }

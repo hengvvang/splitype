@@ -9,6 +9,7 @@
 mod app;
 mod editor;
 mod infra;
+mod layout;
 mod model;
 mod platform;
 mod theme;

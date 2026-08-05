@@ -15,15 +15,14 @@ use std::sync::Arc;
 
 pub(crate) use gpui::*;
 
-pub(crate) use crate::editor::actions::UndoCaptureKind;
+pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
 pub(crate) use crate::editor::tree::block::Block;
 pub(crate) use crate::editor::tree::document::Document;
 pub(crate) use crate::editor::tree::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
-pub(crate) use crate::editor::windows::chrome::WindowChrome;
-pub(crate) use crate::editor::windows::layout::WindowPanels;
-pub(crate) use crate::editor::windows::{PreviewState, SourcePanelState};
+pub(crate) use crate::windows::editor::chrome::WindowChrome;
+pub(crate) use crate::editor::panels::{PreviewState, SourcePanelState};
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::model::inline::text::RichText;
 pub(crate) use crate::model::syntax::image::{
@@ -37,6 +36,7 @@ pub(crate) use crate::model::syntax::table::{
     TableAxisHighlight, TableAxisKind, TableAxisMarker, TableColumnAlignment, TableData,
     serialize_table_cell_markdown,
 };
+pub(crate) use crate::windows::layout::WindowPanels;
 
 /// Link navigation request deferred until a `Window` is available.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -176,7 +176,7 @@ pub(crate) struct DocumentTab {
 /// Top-level controller that owns editor-wide state and delegates tree
 /// mutations to [`Document`].
 ///
-/// The editor subscribes to every [`BlockAction`](crate::editor::actions::BlockAction)
+/// The editor subscribes to every [`BlockAction`](crate::editor::block_protocol::BlockAction)
 /// emitted by child blocks. Structural changes are handled centrally so focus,
 /// scrolling, dirty tracking, and serialization stay synchronized. Documents
 /// live in [`DocumentTab`]s; the editor always holds at least one tab.

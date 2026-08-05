@@ -1,66 +1,68 @@
 //! Explorer — file-tree sidebar with create/rename/delete actions.
 
+pub(crate) mod state;
+
 use crate::ui::components::button::icon_chip_button;
 
 use std::path::{Path, PathBuf};
 
 use gpui::*;
 
+use crate::editor::actions::ToggleExplorer;
 use crate::editor::controller::Editor;
-use crate::editor::windows::actions::ToggleWorkspace;
-use crate::editor::windows::layout::workspace::*;
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::theme::Theme;
 use crate::ui::components::empty_state::empty_state_container;
+use crate::windows::explorer::state::*;
 
 impl Editor {
-    pub(crate) fn toggle_workspace_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.panels.workspace.is_open {
-            self.panels.workspace.is_open = false;
+    pub(crate) fn toggle_explorer_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.panels.explorer.is_open {
+            self.panels.explorer.is_open = false;
         } else {
             self.close_menu_bar(cx);
             self.dismiss_contextual_overlays(cx);
-            self.panels.workspace.is_open = true;
-            self.sync_workspace_models(cx);
+            self.panels.explorer.is_open = true;
+            self.sync_explorer_models(cx);
             window.activate_window();
         }
         cx.notify();
     }
-    pub(crate) fn on_toggle_workspace_action(
+    pub(crate) fn on_toggle_explorer_action(
         &mut self,
-        _: &ToggleWorkspace,
+        _: &ToggleExplorer,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.toggle_workspace_drawer(window, cx);
+        self.toggle_explorer_drawer(window, cx);
     }
-    pub(crate) fn sync_workspace_after_document_path_change(&mut self, cx: &mut Context<Self>) {
-        if self.panels.workspace.root.is_none() {
-            self.panels.workspace.root = self.workspace_root_for_current_file();
+    pub(crate) fn sync_explorer_after_document_path_change(&mut self, cx: &mut Context<Self>) {
+        if self.panels.explorer.root.is_none() {
+            self.panels.explorer.root = self.explorer_root_for_current_file();
         }
-        self.panels.workspace.file_tree = None;
-        self.panels.workspace.file_error = None;
-        self.panels.workspace.outline_source = None;
-        if self.panels.workspace.is_open {
-            self.sync_workspace_models(cx);
+        self.panels.explorer.file_tree = None;
+        self.panels.explorer.file_error = None;
+        self.panels.explorer.outline_source = None;
+        if self.panels.explorer.is_open {
+            self.sync_explorer_models(cx);
         }
     }
-    pub(crate) fn sync_workspace_models(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn sync_explorer_models(&mut self, cx: &mut Context<Self>) {
         // Welcome state (no tabs): both syncs read the active document, which
         // does not exist yet — the explorer panel renders without them.
         if !self.has_active_tab() {
             return;
         }
-        self.sync_workspace_file_tree();
-        self.sync_workspace_outline(cx);
+        self.sync_explorer_file_tree();
+        self.sync_explorer_outline(cx);
     }
-    pub(crate) fn workspace_root_for_current_file(&self) -> Option<PathBuf> {
+    pub(crate) fn explorer_root_for_current_file(&self) -> Option<PathBuf> {
         self.tabs
             .get(self.active_tab)
             .and_then(|tab| tab.file.path.as_ref())
             .and_then(|path| path.parent().map(Path::to_path_buf))
     }
-    pub(crate) fn prompt_open_workspace_folder(
+    pub(crate) fn prompt_open_explorer_folder(
         &mut self,
         _window: &mut Window,
         cx: &mut Context<Self>,
@@ -77,23 +79,23 @@ impl Editor {
                 Ok(Ok(Some(paths))) => paths,
                 Ok(Ok(None)) | Err(_) => return,
                 Ok(Err(err)) => {
-                    eprintln!("[workspace] dialog error: {err}");
+                    eprintln!("[explorer] dialog error: {err}");
                     return;
                 }
             };
             let Some(folder_path) = paths.into_iter().next() else {
                 return;
             };
-            eprintln!("[workspace] selected folder: {folder_path:?}");
+            eprintln!("[explorer] selected folder: {folder_path:?}");
             let _ = weak_editor.update(cx, |editor, cx| {
-                editor.panels.workspace.root = Some(folder_path);
-                editor.panels.workspace.is_open = true;
-                editor.panels.workspace.file_tree = None;
-                editor.panels.workspace.file_error = None;
-                editor.sync_workspace_models(cx);
-                if let Some(ref tree) = editor.panels.workspace.file_tree {
+                editor.panels.explorer.root = Some(folder_path);
+                editor.panels.explorer.is_open = true;
+                editor.panels.explorer.file_tree = None;
+                editor.panels.explorer.file_error = None;
+                editor.sync_explorer_models(cx);
+                if let Some(ref tree) = editor.panels.explorer.file_tree {
                     eprintln!(
-                        "[workspace] file_tree: {} children: {}",
+                        "[explorer] file_tree: {} children: {}",
                         tree.label,
                         tree.children.len()
                     );
@@ -103,14 +105,14 @@ impl Editor {
         })
         .detach();
     }
-    pub(crate) fn create_new_file_in_workspace(
+    pub(crate) fn create_new_file_in_explorer(
         &mut self,
         parent_dir: Option<PathBuf>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let base_dir = parent_dir
-            .or_else(|| self.panels.workspace.root.clone())
+            .or_else(|| self.panels.explorer.root.clone())
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
 
         let prompt = cx.prompt_for_new_path(&base_dir, Some("untitled.md"));
@@ -140,28 +142,28 @@ impl Editor {
                 let path_for_open = path.clone();
                 let weak_editor_for_open = weak_editor.clone();
                 let _ = weak_editor.update(cx, |editor, cx| {
-                    if editor.panels.workspace.root.is_none() {
-                        editor.panels.workspace.root = path.parent().map(Path::to_path_buf);
+                    if editor.panels.explorer.root.is_none() {
+                        editor.panels.explorer.root = path.parent().map(Path::to_path_buf);
                     }
-                    editor.panels.workspace.file_tree = None;
-                    editor.sync_workspace_models(cx);
+                    editor.panels.explorer.file_tree = None;
+                    editor.sync_explorer_models(cx);
                     let _ = cx.update_window(window_handle, move |_, window, cx| {
                         let _ = weak_editor_for_open.update(cx, |editor, cx| {
-                            editor.open_workspace_file(path_for_open, window, cx);
+                            editor.open_explorer_file(path_for_open, window, cx);
                         });
                     });
                 });
             }
         });
     }
-    pub(crate) fn create_new_folder_in_workspace(
+    pub(crate) fn create_new_folder_in_explorer(
         &mut self,
         parent_dir: Option<PathBuf>,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let base_dir = parent_dir
-            .or_else(|| self.panels.workspace.root.clone())
+            .or_else(|| self.panels.explorer.root.clone())
             .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));
 
         let prompt = cx.prompt_for_new_path(&base_dir, Some("new_folder"));
@@ -174,23 +176,23 @@ impl Editor {
                     return;
                 }
                 let _ = weak_editor.update(cx, |editor, cx| {
-                    editor.panels.workspace.file_tree = None;
-                    editor.sync_workspace_models(cx);
+                    editor.panels.explorer.file_tree = None;
+                    editor.sync_explorer_models(cx);
                     cx.notify();
                 });
             }
         });
     }
-    pub(crate) fn collapse_all_workspace_nodes(&mut self, cx: &mut Context<Self>) {
-        self.panels.workspace.expanded.clear();
-        if let Some(root) = &self.panels.workspace.file_tree {
-            self.panels.workspace.expanded.insert(root.id.clone());
+    pub(crate) fn collapse_all_explorer_nodes(&mut self, cx: &mut Context<Self>) {
+        self.panels.explorer.expanded.clear();
+        if let Some(root) = &self.panels.explorer.file_tree {
+            self.panels.explorer.expanded.insert(root.id.clone());
         }
         cx.notify();
     }
-    pub(crate) fn refresh_workspace_tree(&mut self, cx: &mut Context<Self>) {
-        self.panels.workspace.file_tree = None;
-        self.sync_workspace_models(cx);
+    pub(crate) fn refresh_explorer_tree(&mut self, cx: &mut Context<Self>) {
+        self.panels.explorer.file_tree = None;
+        self.sync_explorer_models(cx);
         cx.notify();
     }
 
@@ -219,7 +221,7 @@ impl Editor {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn delete_workspace_item(
+    pub(crate) fn delete_explorer_item(
         &mut self,
         path: PathBuf,
         window: &mut Window,
@@ -255,8 +257,8 @@ impl Editor {
                     eprintln!("failed to delete item: {err}");
                 } else {
                     let _ = weak_editor.update(cx, |editor, cx| {
-                        editor.panels.workspace.file_tree = None;
-                        editor.sync_workspace_models(cx);
+                        editor.panels.explorer.file_tree = None;
+                        editor.sync_explorer_models(cx);
                         cx.notify();
                     });
                 }
@@ -267,116 +269,110 @@ impl Editor {
         let default_name = "untitled.md";
         let target_path = parent.join(default_name);
         if std::fs::File::create(&target_path).is_ok() {
-            self.refresh_workspace_tree(cx);
-            self.panels.workspace.selected = Some(WorkspaceSelection::File(target_path));
+            self.refresh_explorer_tree(cx);
+            self.panels.explorer.selected = Some(ExplorerSelection::File(target_path));
         }
     }
     pub(crate) fn start_inline_create_folder(&mut self, parent: PathBuf, cx: &mut Context<Self>) {
         let default_name = "new_folder";
         let target_path = parent.join(default_name);
         if std::fs::create_dir_all(&target_path).is_ok() {
-            self.refresh_workspace_tree(cx);
+            self.refresh_explorer_tree(cx);
         }
     }
     pub(crate) fn start_inline_rename(&mut self, _target: PathBuf, _cx: &mut Context<Self>) {}
-    pub(crate) fn delete_workspace_entry(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+    pub(crate) fn delete_explorer_entry(&mut self, path: PathBuf, cx: &mut Context<Self>) {
         if path.is_dir() {
             let _ = std::fs::remove_dir_all(&path);
         } else {
             let _ = std::fs::remove_file(&path);
         }
-        self.refresh_workspace_tree(cx);
+        self.refresh_explorer_tree(cx);
     }
     pub(crate) fn copy_path_to_clipboard(&self, path: &Path, cx: &mut Context<Self>) {
         cx.write_to_clipboard(ClipboardItem::new_string(
             path.to_string_lossy().to_string(),
         ));
     }
-    pub(crate) fn sync_workspace_file_tree(&mut self) {
-        if self.panels.workspace.root.is_none() {
-            self.panels.workspace.root = self.workspace_root_for_current_file();
+    pub(crate) fn sync_explorer_file_tree(&mut self) {
+        if self.panels.explorer.root.is_none() {
+            self.panels.explorer.root = self.explorer_root_for_current_file();
         }
 
-        let Some(root) = self.panels.workspace.root.clone() else {
-            self.panels.workspace.selected = None;
+        let Some(root) = self.panels.explorer.root.clone() else {
+            self.panels.explorer.selected = None;
             return;
         };
 
         if root.as_os_str().is_empty() {
-            self.panels.workspace.file_error =
-                Some("Invalid workspace path: empty path".to_string());
-            self.panels.workspace.selected = None;
+            self.panels.explorer.file_error = Some("Invalid explorer path: empty path".to_string());
+            self.panels.explorer.selected = None;
             return;
         }
 
-        match scan_workspace_dir(&root) {
+        match scan_explorer_dir(&root) {
             Ok(tree) => {
-                self.panels.workspace.expanded.insert(tree.id.clone());
-                self.panels.workspace.file_tree = Some(tree);
-                self.panels.workspace.selected = self
+                self.panels.explorer.expanded.insert(tree.id.clone());
+                self.panels.explorer.file_tree = Some(tree);
+                self.panels.explorer.selected = self
                     .tab()
                     .file
                     .path
                     .as_ref()
-                    .map(|path| WorkspaceSelection::File(path.clone()));
+                    .map(|path| ExplorerSelection::File(path.clone()));
             }
             Err(err) => {
-                self.panels.workspace.file_error = Some(err.to_string());
+                self.panels.explorer.file_error = Some(err.to_string());
             }
         }
     }
-    pub(crate) fn toggle_workspace_node(&mut self, id: &str, cx: &mut Context<Self>) {
-        if !self.panels.workspace.expanded.remove(id) {
-            self.panels.workspace.expanded.insert(id.to_string());
+    pub(crate) fn toggle_explorer_node(&mut self, id: &str, cx: &mut Context<Self>) {
+        if !self.panels.explorer.expanded.remove(id) {
+            self.panels.explorer.expanded.insert(id.to_string());
         }
         cx.notify();
     }
-    pub(crate) fn open_workspace_file(
+    pub(crate) fn open_explorer_file(
         &mut self,
         path: PathBuf,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.panels.workspace.selected = Some(WorkspaceSelection::File(path.clone()));
+        self.panels.explorer.selected = Some(ExplorerSelection::File(path.clone()));
         self.request_dropped_markdown_replace(path, window, cx);
     }
-    pub(crate) fn render_workspace_files_tree(
+    pub(crate) fn render_explorer_files_tree(
         &self,
         theme: &Theme,
         _strings: &I18nStrings,
         editor: &WeakEntity<Editor>,
     ) -> AnyElement {
-        if self.panels.workspace.root.is_none() {
-            return self.render_workspace_empty_state(
+        if self.panels.explorer.root.is_none() {
+            return self.render_explorer_empty_state(
                 "Explorer is empty now",
-                "Open a folder as the workspace",
+                "Open a folder as the explorer",
                 theme,
                 editor,
             );
         }
 
-        if let Some(error) = self.panels.workspace.file_error.as_ref() {
-            return self.render_workspace_empty_state(
-                "Explorer is empty now",
-                error,
-                theme,
-                editor,
-            );
+        if let Some(error) = self.panels.explorer.file_error.as_ref() {
+            return self.render_explorer_empty_state("Explorer is empty now", error, theme, editor);
         }
 
-        let Some(root) = self.panels.workspace.file_tree.as_ref() else {
-            return self.render_workspace_empty_state(
+        let Some(root) = self.panels.explorer.file_tree.as_ref() else {
+            return self.render_explorer_empty_state(
                 "Explorer is empty now",
-                "Open a folder as the workspace",
+                "Open a folder as the explorer",
                 theme,
                 editor,
             );
         };
 
         if root.children.is_empty() {
-            return self.render_workspace_empty_state(
+            return self.render_explorer_empty_state(
                 "Explorer is empty now",
-                "Open a folder as the workspace",
+                "Open a folder as the explorer",
                 theme,
                 editor,
             );
@@ -386,12 +382,12 @@ impl Editor {
         let d = &theme.dimensions;
         let root_name = self
             .panels
-            .workspace
+            .explorer
             .root
             .as_ref()
             .and_then(|p| p.file_name())
             .map(|n| n.to_string_lossy().to_string())
-            .unwrap_or_else(|| "Workspace".to_string());
+            .unwrap_or_else(|| "Explorer".to_string());
 
         let ed_open = editor.clone();
         let ed_file = editor.clone();
@@ -416,7 +412,7 @@ impl Editor {
                     .gap(px(6.0))
                     .child(
                         svg()
-                            .path("icon/workspace/folder-open.svg")
+                            .path("icon/explorer/folder-open.svg")
                             .size(px(14.0))
                             .text_color(c.dialog_muted),
                     )
@@ -439,13 +435,13 @@ impl Editor {
                             .id("ws-tb-open")
                             .child(
                                 svg()
-                                    .path("icon/workspace/folder-open.svg")
+                                    .path("icon/explorer/folder-open.svg")
                                     .size(px(14.0))
                                     .text_color(c.dialog_muted),
                             )
                             .on_click(move |_ev, window, cx| {
                                 let _ = ed_open.update(cx, |ed, cx| {
-                                    ed.prompt_open_workspace_folder(window, cx);
+                                    ed.prompt_open_explorer_folder(window, cx);
                                 });
                             }),
                     )
@@ -454,13 +450,13 @@ impl Editor {
                             .id("ws-tb-newfile")
                             .child(
                                 svg()
-                                    .path("icon/workspace/file-plus.svg")
+                                    .path("icon/explorer/file-plus.svg")
                                     .size(px(14.0))
                                     .text_color(c.dialog_muted),
                             )
                             .on_click(move |_ev, window, cx| {
                                 let _ = ed_file.update(cx, |ed, cx| {
-                                    ed.create_new_file_in_workspace(None, window, cx);
+                                    ed.create_new_file_in_explorer(None, window, cx);
                                 });
                             }),
                     )
@@ -469,13 +465,13 @@ impl Editor {
                             .id("ws-tb-newfolder")
                             .child(
                                 svg()
-                                    .path("icon/workspace/folder-plus.svg")
+                                    .path("icon/explorer/folder-plus.svg")
                                     .size(px(14.0))
                                     .text_color(c.dialog_muted),
                             )
                             .on_click(move |_ev, window, cx| {
                                 let _ = ed_folder.update(cx, |ed, cx| {
-                                    ed.create_new_folder_in_workspace(None, window, cx);
+                                    ed.create_new_folder_in_explorer(None, window, cx);
                                 });
                             }),
                     )
@@ -484,13 +480,13 @@ impl Editor {
                             .id("ws-tb-refresh")
                             .child(
                                 svg()
-                                    .path("icon/workspace/refresh.svg")
+                                    .path("icon/explorer/refresh.svg")
                                     .size(px(14.0))
                                     .text_color(c.dialog_muted),
                             )
                             .on_click(move |_ev, _window, cx| {
                                 let _ = ed_refresh.update(cx, |ed, cx| {
-                                    ed.refresh_workspace_tree(cx);
+                                    ed.refresh_explorer_tree(cx);
                                 });
                             }),
                     )
@@ -499,20 +495,20 @@ impl Editor {
                             .id("ws-tb-collapse")
                             .child(
                                 svg()
-                                    .path("icon/workspace/collapse-all.svg")
+                                    .path("icon/explorer/collapse-all.svg")
                                     .size(px(14.0))
                                     .text_color(c.dialog_muted),
                             )
                             .on_click(move |_ev, _window, cx| {
                                 let _ = ed_collapse.update(cx, |ed, cx| {
-                                    ed.collapse_all_workspace_nodes(cx);
+                                    ed.collapse_all_explorer_nodes(cx);
                                 });
                             }),
                     ),
             );
 
         let tree_nodes = div()
-            .id("workspace-tree-scroll-container")
+            .id("explorer-tree-scroll-container")
             .w_full()
             .flex_1()
             .min_h(px(0.0))
@@ -520,7 +516,7 @@ impl Editor {
             .flex()
             .flex_col()
             .py(px(4.0))
-            .children(self.render_workspace_nodes(&root.children, 0, theme, editor));
+            .children(self.render_explorer_nodes(&root.children, 0, theme, editor));
 
         div()
             .w_full()
@@ -531,7 +527,7 @@ impl Editor {
             .child(tree_nodes)
             .into_any_element()
     }
-    pub(crate) fn render_workspace_empty_state(
+    pub(crate) fn render_explorer_empty_state(
         &self,
         title: &str,
         message: &str,
@@ -550,7 +546,7 @@ impl Editor {
         };
 
         let display_message = if message.is_empty() {
-            "Open a folder as the workspace"
+            "Open a folder as the explorer"
         } else {
             message
         };
@@ -560,7 +556,7 @@ impl Editor {
             .px(px(24.0))
             .child(
                 svg()
-                    .path("icon/workspace/folder-open.svg")
+                    .path("icon/explorer/folder-open.svg")
                     .size(px(36.0))
                     .text_color(c.dialog_muted),
             )
@@ -581,7 +577,7 @@ impl Editor {
             )
             .child(
                 div()
-                    .id("workspace-empty-open-btn")
+                    .id("explorer-empty-open-btn")
                     .cursor_pointer()
                     .mt(px(4.0))
                     .h(px(28.0))
@@ -598,7 +594,7 @@ impl Editor {
                     .active(|this| this.opacity(0.92))
                     .child(
                         svg()
-                            .path("icon/workspace/folder-open.svg")
+                            .path("icon/explorer/folder-open.svg")
                             .size(px(14.0))
                             .text_color(c.dialog_secondary_button_text),
                     )
@@ -611,24 +607,24 @@ impl Editor {
                     )
                     .on_click(move |_ev, window, cx| {
                         let _ = click_editor.update(cx, |ed, cx| {
-                            ed.prompt_open_workspace_folder(window, cx);
+                            ed.prompt_open_explorer_folder(window, cx);
                         });
                     }),
             )
             .into_any_element()
     }
-    pub(crate) fn render_workspace_nodes(
+    pub(crate) fn render_explorer_nodes(
         &self,
-        nodes: &[WorkspaceNode],
+        nodes: &[ExplorerNode],
         depth: usize,
         theme: &Theme,
         editor: &WeakEntity<Editor>,
     ) -> Vec<AnyElement> {
         let mut elements = Vec::new();
         for node in nodes {
-            elements.push(self.render_workspace_node(node, depth, theme, editor));
-            if !node.children.is_empty() && self.panels.workspace.expanded.contains(&node.id) {
-                elements.extend(self.render_workspace_nodes(
+            elements.push(self.render_explorer_node(node, depth, theme, editor));
+            if !node.children.is_empty() && self.panels.explorer.expanded.contains(&node.id) {
+                elements.extend(self.render_explorer_nodes(
                     &node.children,
                     depth + 1,
                     theme,
@@ -638,23 +634,23 @@ impl Editor {
         }
         elements
     }
-    pub(crate) fn render_workspace_node(
+    pub(crate) fn render_explorer_node(
         &self,
-        node: &WorkspaceNode,
+        node: &ExplorerNode,
         depth: usize,
         theme: &Theme,
         editor: &WeakEntity<Editor>,
     ) -> AnyElement {
         let c = &theme.colors;
         let t = &theme.typography;
-        let is_expanded = self.panels.workspace.expanded.contains(&node.id);
+        let is_expanded = self.panels.explorer.expanded.contains(&node.id);
         let has_children = !node.children.is_empty();
-        let selected = match (&self.panels.workspace.selected, &node.kind) {
-            (Some(WorkspaceSelection::File(selected)), WorkspaceNodeKind::MarkdownFile(path))
-            | (Some(WorkspaceSelection::File(selected)), WorkspaceNodeKind::File(path)) => {
+        let selected = match (&self.panels.explorer.selected, &node.kind) {
+            (Some(ExplorerSelection::File(selected)), ExplorerNodeKind::MarkdownFile(path))
+            | (Some(ExplorerSelection::File(selected)), ExplorerNodeKind::File(path)) => {
                 selected == path
             }
-            (Some(WorkspaceSelection::Outline(selected)), _) => selected == &node.id,
+            (Some(ExplorerSelection::Outline(selected)), _) => selected == &node.id,
             _ => false,
         };
         let node_id = node.id.clone();
@@ -666,11 +662,11 @@ impl Editor {
         let arrow_editor = editor.clone();
 
         let icon = match &node.kind {
-            WorkspaceNodeKind::Directory(_) => Some((FOLDER_ICON, Hsla::from(rgba(0xf59e0bff)))),
-            WorkspaceNodeKind::MarkdownFile(_) => {
+            ExplorerNodeKind::Directory(_) => Some((FOLDER_ICON, Hsla::from(rgba(0xf59e0bff)))),
+            ExplorerNodeKind::MarkdownFile(_) => {
                 Some((MARKDOWN_ICON, Hsla::from(rgba(0x2563ebff))))
             }
-            WorkspaceNodeKind::File(path) => {
+            ExplorerNodeKind::File(path) => {
                 let ext = path
                     .extension()
                     .and_then(|e| e.to_str())
@@ -685,11 +681,11 @@ impl Editor {
                     _ => Some((FILE_ICON, c.dialog_muted)),
                 }
             }
-            WorkspaceNodeKind::Heading { .. } => None,
+            ExplorerNodeKind::Heading { .. } => None,
         };
 
         let heading_badge = match &node.kind {
-            WorkspaceNodeKind::Heading { level, .. } => {
+            ExplorerNodeKind::Heading { level, .. } => {
                 let badge_color = match level {
                     1 => c.callout_note_border,
                     2 => c.callout_tip_border,
@@ -742,21 +738,21 @@ impl Editor {
                 )
                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                     let _ = arrow_editor.update(cx, |editor, cx| {
-                        editor.toggle_workspace_node(&arrow_node_id, cx);
+                        editor.toggle_explorer_node(&arrow_node_id, cx);
                     });
                     cx.stop_propagation();
                 });
         }
 
         div()
-            .id(("workspace-node", stable_node_hash(&node.id)))
-            .h(px(WORKSPACE_NODE_HEIGHT))
+            .id(("explorer-node", stable_node_hash(&node.id)))
+            .h(px(EXPLORER_NODE_HEIGHT))
             .w_full()
             .overflow_hidden()
             .flex()
             .items_center()
             .gap(px(6.0))
-            .pl(px(6.0 + depth as f32 * WORKSPACE_NODE_INDENT))
+            .pl(px(6.0 + depth as f32 * EXPLORER_NODE_INDENT))
             .pr(px(8.0))
             .rounded(px(4.0))
             .bg(if selected {
@@ -790,11 +786,11 @@ impl Editor {
             .on_mouse_down(MouseButton::Right, move |event, _window, cx| {
                 let node_kind = right_click_kind.clone();
                 let _ = right_click_editor.update(cx, |editor, cx| match node_kind {
-                    WorkspaceNodeKind::Directory(path) => {
-                        editor.open_workspace_file_context_menu(event.position, path, true, cx);
+                    ExplorerNodeKind::Directory(path) => {
+                        editor.open_explorer_file_context_menu(event.position, path, true, cx);
                     }
-                    WorkspaceNodeKind::MarkdownFile(path) | WorkspaceNodeKind::File(path) => {
-                        editor.open_workspace_file_context_menu(event.position, path, false, cx);
+                    ExplorerNodeKind::MarkdownFile(path) | ExplorerNodeKind::File(path) => {
+                        editor.open_explorer_file_context_menu(event.position, path, false, cx);
                     }
                     _ => {}
                 });
@@ -804,27 +800,27 @@ impl Editor {
                 let node_id = node_id.clone();
                 let click_kind = click_kind.clone();
                 let _ = click_editor.update(cx, |editor, cx| match click_kind {
-                    WorkspaceNodeKind::Directory(_) => {
-                        editor.toggle_workspace_node(&node_id, cx);
+                    ExplorerNodeKind::Directory(_) => {
+                        editor.toggle_explorer_node(&node_id, cx);
                     }
-                    WorkspaceNodeKind::MarkdownFile(path) | WorkspaceNodeKind::File(path) => {
-                        editor.open_workspace_file(path, window, cx);
+                    ExplorerNodeKind::MarkdownFile(path) | ExplorerNodeKind::File(path) => {
+                        editor.open_explorer_file(path, window, cx);
                     }
-                    WorkspaceNodeKind::Heading { .. } => {
+                    ExplorerNodeKind::Heading { .. } => {
                         editor.select_outline_node(node_id, cx);
                     }
                 });
             })
             .into_any_element()
     }
-    pub(crate) fn render_tiled_workspace_files_panel(
+    pub(crate) fn render_explorer_panel(
         &mut self,
         theme: &Theme,
         strings: &I18nStrings,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        self.sync_workspace_models(cx);
+        self.sync_explorer_models(cx);
         let editor = cx.entity().downgrade();
-        self.render_workspace_files_tree(theme, strings, &editor)
+        self.render_explorer_files_tree(theme, strings, &editor)
     }
 }

@@ -9,7 +9,7 @@ use crate::ui::components::select::{select_option, select_panel, select_trigger}
 use gpui::*;
 
 use crate::editor::controller::*;
-use crate::editor::windows::layout::SettingsTab;
+use crate::windows::settings::state::SettingsTab;
 use crate::infra::i18n::I18nStrings;
 use crate::theme::{Theme, ThemeManager};
 use crate::ui::components::switch::Switch;
@@ -23,7 +23,7 @@ impl Editor {
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let active_tab = self.panels.layout.settings_tab;
+        let active_tab = self.panels.settings.tab;
 
         let mut inner_border_color = c.dialog_border;
         inner_border_color.a *= 0.4;
@@ -63,7 +63,7 @@ nav_tab(("pref-tab", tab_idx), c, d)
                     )
                     .on_click(move |_event, _window, cx| {
                         let _ = editor.update(cx, |ed, cx| {
-                            ed.panels.layout.settings_tab = tab_item;
+                            ed.panels.settings.tab = tab_item;
                             cx.notify();
                         });
                     })
@@ -242,8 +242,8 @@ let mut card = section_card(tc, td)
                 let sec1_key = "theme";
                 let is_sec1_expanded = self
                     .panels
-                    .layout
-                    .settings_expanded_sections
+                    .settings
+                    .expanded_sections
                     .contains(sec1_key);
                 let mut sec1_items = Vec::new();
 
@@ -261,9 +261,9 @@ let mut card = section_card(tc, td)
                 let current_lang = "English (en-US)";
 
                 let is_theme_open =
-                    self.panels.layout.open_settings_dropdown.as_deref() == Some("theme");
+                    self.panels.settings.open_dropdown.as_deref() == Some("theme");
                 let is_lang_open =
-                    self.panels.layout.open_settings_dropdown.as_deref() == Some("lang");
+                    self.panels.settings.open_dropdown.as_deref() == Some("lang");
 
                 if is_sec1_expanded {
                     let theme_icon_path = if current_theme_name == "Light" {
@@ -309,12 +309,12 @@ select_trigger("pref-btn-theme", c, d)
                                 let theme_ed = theme_ed.clone();
                                 move |_ev, _win, cx| {
                                     let _ = theme_ed.update(cx, |ed, cx| {
-                                        if ed.panels.layout.open_settings_dropdown.as_deref()
+                                        if ed.panels.settings.open_dropdown.as_deref()
                                             == Some("theme")
                                         {
-                                            ed.panels.layout.open_settings_dropdown = None;
+                                            ed.panels.settings.open_dropdown = None;
                                         } else {
-                                            ed.panels.layout.open_settings_dropdown =
+                                            ed.panels.settings.open_dropdown =
                                                 Some("theme".to_string());
                                         }
                                         cx.notify();
@@ -376,7 +376,7 @@ select_option(ElementId::Name(format!("theme-item-{}", t_id).into()), c)
                                             cx.update_global::<ThemeManager, _>(|manager, _cx| {
                                                 let _ = manager.set_theme_by_id(&t_id);
                                             });
-                                            ed.panels.layout.open_settings_dropdown = None;
+                                            ed.panels.settings.open_dropdown = None;
                                             cx.notify();
                                         });
                                     })
@@ -415,12 +415,12 @@ select_trigger("pref-btn-lang", c, d)
                                 let lang_ed = lang_ed.clone();
                                 move |_ev, _win, cx| {
                                     let _ = lang_ed.update(cx, |ed, cx| {
-                                        if ed.panels.layout.open_settings_dropdown.as_deref()
+                                        if ed.panels.settings.open_dropdown.as_deref()
                                             == Some("lang")
                                         {
-                                            ed.panels.layout.open_settings_dropdown = None;
+                                            ed.panels.settings.open_dropdown = None;
                                         } else {
-                                            ed.panels.layout.open_settings_dropdown =
+                                            ed.panels.settings.open_dropdown =
                                                 Some("lang".to_string());
                                         }
                                         cx.notify();
@@ -456,7 +456,7 @@ select_option(ElementId::Name(format!("lang-item-{}", code).into()), c)
                                     })
                                     .on_click(move |_ev, _win, cx| {
                                         let _ = item_ed.update(cx, |ed, cx| {
-                                            ed.panels.layout.open_settings_dropdown = None;
+                                            ed.panels.settings.open_dropdown = None;
                                             cx.notify();
                                         });
                                     })
@@ -486,7 +486,7 @@ select_panel(c)
                     is_sec1_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec1_ed.update(cx, |ed, cx| {
-                            ed.panels.layout.toggle_settings_section(sec1_key);
+                            ed.panels.settings.toggle_section(sec1_key);
                             cx.notify();
                         });
                     }),
@@ -498,19 +498,19 @@ select_panel(c)
                 let sec2_key = "status_bar";
                 let is_sec2_expanded = self
                     .panels
-                    .layout
-                    .settings_expanded_sections
+                    .settings
+                    .expanded_sections
                     .contains(sec2_key);
                 let mut sec2_items = Vec::new();
 
                 if is_sec2_expanded {
                     let sub1_ed = cx.entity().downgrade();
                     let ctrl_sb_main = Switch::new("switch-sb-main")
-                        .checked(self.panels.layout.pref_show_status_bar)
+                        .checked(self.panels.settings.pref_show_status_bar)
                         .on_click(move |_ev, _win, cx| {
                             let _ = sub1_ed.update(cx, |ed, cx| {
-                                ed.panels.layout.pref_show_status_bar =
-                                    !ed.panels.layout.pref_show_status_bar;
+                                ed.panels.settings.pref_show_status_bar =
+                                    !ed.panels.settings.pref_show_status_bar;
                                 cx.notify();
                             });
                         })
@@ -526,11 +526,11 @@ select_panel(c)
 
                     let sub2_ed = cx.entity().downgrade();
                     let ctrl_sb_words = Switch::new("switch-sb-words")
-                        .checked(self.panels.layout.pref_show_word_count)
+                        .checked(self.panels.settings.pref_show_word_count)
                         .on_click(move |_ev, _win, cx| {
                             let _ = sub2_ed.update(cx, |ed, cx| {
-                                ed.panels.layout.pref_show_word_count =
-                                    !ed.panels.layout.pref_show_word_count;
+                                ed.panels.settings.pref_show_word_count =
+                                    !ed.panels.settings.pref_show_word_count;
                                 cx.notify();
                             });
                         })
@@ -546,11 +546,11 @@ select_panel(c)
 
                     let sub3_ed = cx.entity().downgrade();
                     let ctrl_sb_pos = Switch::new("switch-sb-pos")
-                        .checked(self.panels.layout.pref_show_cursor_pos)
+                        .checked(self.panels.settings.pref_show_cursor_pos)
                         .on_click(move |_ev, _win, cx| {
                             let _ = sub3_ed.update(cx, |ed, cx| {
-                                ed.panels.layout.pref_show_cursor_pos =
-                                    !ed.panels.layout.pref_show_cursor_pos;
+                                ed.panels.settings.pref_show_cursor_pos =
+                                    !ed.panels.settings.pref_show_cursor_pos;
                                 cx.notify();
                             });
                         })
@@ -566,11 +566,11 @@ select_panel(c)
 
                     let sub4_ed = cx.entity().downgrade();
                     let ctrl_sb_sidebar = Switch::new("switch-sb-sidebar")
-                        .checked(self.panels.layout.pref_show_sidebar_toggle)
+                        .checked(self.panels.settings.pref_show_sidebar_toggle)
                         .on_click(move |_ev, _win, cx| {
                             let _ = sub4_ed.update(cx, |ed, cx| {
-                                ed.panels.layout.pref_show_sidebar_toggle =
-                                    !ed.panels.layout.pref_show_sidebar_toggle;
+                                ed.panels.settings.pref_show_sidebar_toggle =
+                                    !ed.panels.settings.pref_show_sidebar_toggle;
                                 cx.notify();
                             });
                         })
@@ -586,11 +586,11 @@ select_panel(c)
 
                     let sub5_ed = cx.entity().downgrade();
                     let ctrl_sb_mode = Switch::new("switch-sb-mode")
-                        .checked(self.panels.layout.pref_show_mode_switch)
+                        .checked(self.panels.settings.pref_show_mode_switch)
                         .on_click(move |_ev, _win, cx| {
                             let _ = sub5_ed.update(cx, |ed, cx| {
-                                ed.panels.layout.pref_show_mode_switch =
-                                    !ed.panels.layout.pref_show_mode_switch;
+                                ed.panels.settings.pref_show_mode_switch =
+                                    !ed.panels.settings.pref_show_mode_switch;
                                 cx.notify();
                             });
                         })
@@ -612,7 +612,7 @@ select_panel(c)
                     is_sec2_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec2_ed.update(cx, |ed, cx| {
-                            ed.panels.layout.toggle_settings_section(sec2_key);
+                            ed.panels.settings.toggle_section(sec2_key);
                             cx.notify();
                         });
                     }),
@@ -625,8 +625,8 @@ select_panel(c)
                 let sec1_key = "typography";
                 let is_sec1_expanded = self
                     .panels
-                    .layout
-                    .settings_expanded_sections
+                    .settings
+                    .expanded_sections
                     .contains(sec1_key);
                 let mut sec1_items = Vec::new();
 
@@ -634,9 +634,9 @@ select_panel(c)
                     let font_dec = cx.entity().downgrade();
                     let font_inc = cx.entity().downgrade();
                     let font_ctr = cx.entity().downgrade();
-                    let curr_size = self.panels.layout.pref_font_size;
+                    let curr_size = self.panels.settings.pref_font_size;
                     let is_editing_font =
-                        self.panels.layout.editing_settings_stepper.as_deref() == Some("font");
+                        self.panels.settings.editing_stepper.as_deref() == Some("font");
 
                     let ctrl_font = render_zed_stepper(
                         "font-dec",
@@ -646,28 +646,28 @@ select_panel(c)
                         is_editing_font,
                         Box::new(move |_ev, _win, cx| {
                             let _ = font_dec.update(cx, |ed, cx| {
-                                ed.panels.layout.editing_settings_stepper = None;
-                                if ed.panels.layout.pref_font_size > 8 {
-                                    ed.panels.layout.pref_font_size -= 1;
+                                ed.panels.settings.editing_stepper = None;
+                                if ed.panels.settings.pref_font_size > 8 {
+                                    ed.panels.settings.pref_font_size -= 1;
                                     cx.notify();
                                 }
                             });
                         }),
                         Box::new(move |_ev, _win, cx| {
                             let _ = font_inc.update(cx, |ed, cx| {
-                                ed.panels.layout.editing_settings_stepper = None;
-                                if ed.panels.layout.pref_font_size < 48 {
-                                    ed.panels.layout.pref_font_size += 1;
+                                ed.panels.settings.editing_stepper = None;
+                                if ed.panels.settings.pref_font_size < 48 {
+                                    ed.panels.settings.pref_font_size += 1;
                                     cx.notify();
                                 }
                             });
                         }),
                         Box::new(move |_ev, _win, cx| {
                             let _ = font_ctr.update(cx, |ed, cx| {
-                                ed.panels.layout.editing_settings_stepper =
+                                ed.panels.settings.editing_stepper =
                                     Some("font".to_string());
-                                ed.panels.layout.pref_font_size =
-                                    match ed.panels.layout.pref_font_size {
+                                ed.panels.settings.pref_font_size =
+                                    match ed.panels.settings.pref_font_size {
                                         12 => 14,
                                         14 => 16,
                                         16 => 18,
@@ -693,8 +693,8 @@ select_panel(c)
                     let lh_dec = cx.entity().downgrade();
                     let lh_inc = cx.entity().downgrade();
                     let lh_ctr = cx.entity().downgrade();
-                    let curr_lh = self.panels.layout.pref_line_height;
-                    let is_editing_lh = self.panels.layout.editing_settings_stepper.as_deref()
+                    let curr_lh = self.panels.settings.pref_line_height;
+                    let is_editing_lh = self.panels.settings.editing_stepper.as_deref()
                         == Some("line_height");
 
                     let ctrl_lh = render_zed_stepper(
@@ -705,38 +705,38 @@ select_panel(c)
                         is_editing_lh,
                         Box::new(move |_ev, _win, cx| {
                             let _ = lh_dec.update(cx, |ed, cx| {
-                                ed.panels.layout.editing_settings_stepper = None;
-                                if ed.panels.layout.pref_line_height > 1.05 {
-                                    ed.panels.layout.pref_line_height =
-                                        (ed.panels.layout.pref_line_height - 0.1).max(1.0);
+                                ed.panels.settings.editing_stepper = None;
+                                if ed.panels.settings.pref_line_height > 1.05 {
+                                    ed.panels.settings.pref_line_height =
+                                        (ed.panels.settings.pref_line_height - 0.1).max(1.0);
                                     cx.notify();
                                 }
                             });
                         }),
                         Box::new(move |_ev, _win, cx| {
                             let _ = lh_inc.update(cx, |ed, cx| {
-                                ed.panels.layout.editing_settings_stepper = None;
-                                if ed.panels.layout.pref_line_height < 3.0 {
-                                    ed.panels.layout.pref_line_height =
-                                        (ed.panels.layout.pref_line_height + 0.1).min(3.0);
+                                ed.panels.settings.editing_stepper = None;
+                                if ed.panels.settings.pref_line_height < 3.0 {
+                                    ed.panels.settings.pref_line_height =
+                                        (ed.panels.settings.pref_line_height + 0.1).min(3.0);
                                     cx.notify();
                                 }
                             });
                         }),
                         Box::new(move |_ev, _win, cx| {
                             let _ = lh_ctr.update(cx, |ed, cx| {
-                                ed.panels.layout.editing_settings_stepper =
+                                ed.panels.settings.editing_stepper =
                                     Some("line_height".to_string());
-                                ed.panels.layout.pref_line_height =
-                                    if (ed.panels.layout.pref_line_height - 1.2).abs() < 0.05 {
+                                ed.panels.settings.pref_line_height =
+                                    if (ed.panels.settings.pref_line_height - 1.2).abs() < 0.05 {
                                         1.4
-                                    } else if (ed.panels.layout.pref_line_height - 1.4).abs() < 0.05
+                                    } else if (ed.panels.settings.pref_line_height - 1.4).abs() < 0.05
                                     {
                                         1.6
-                                    } else if (ed.panels.layout.pref_line_height - 1.6).abs() < 0.05
+                                    } else if (ed.panels.settings.pref_line_height - 1.6).abs() < 0.05
                                     {
                                         1.8
-                                    } else if (ed.panels.layout.pref_line_height - 1.8).abs() < 0.05
+                                    } else if (ed.panels.settings.pref_line_height - 1.8).abs() < 0.05
                                     {
                                         2.0
                                     } else {
@@ -764,7 +764,7 @@ select_panel(c)
                     is_sec1_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec1_ed.update(cx, |ed, cx| {
-                            ed.panels.layout.toggle_settings_section(sec1_key);
+                            ed.panels.settings.toggle_section(sec1_key);
                             cx.notify();
                         });
                     }),
@@ -776,8 +776,8 @@ select_panel(c)
                 let sec2_key = "markdown";
                 let is_sec2_expanded = self
                     .panels
-                    .layout
-                    .settings_expanded_sections
+                    .settings
+                    .expanded_sections
                     .contains(sec2_key);
                 let mut sec2_items = Vec::new();
 
@@ -787,22 +787,22 @@ select_panel(c)
                     (1, "Copy to Document Folder"),
                     (2, "Insert Direct Link"),
                 ];
-                let curr_img_idx = self.panels.layout.pref_image_paste_action % img_options.len();
+                let curr_img_idx = self.panels.settings.pref_image_paste_action % img_options.len();
                 let curr_img_label = img_options[curr_img_idx].1;
                 let is_img_open =
-                    self.panels.layout.open_settings_dropdown.as_deref() == Some("image");
+                    self.panels.settings.open_dropdown.as_deref() == Some("image");
 
                 if is_sec2_expanded {
                     let tbl_ed = cx.entity().downgrade();
                     let ctrl_tbl = Switch::new("switch-table-headers")
-                        .checked(self.panels.layout.pref_show_table_headers)
+                        .checked(self.panels.settings.pref_show_table_headers)
                         .on_click(move |_ev, _win, cx| {
                             let _ = tbl_ed.update(cx, |ed, cx| {
-                                ed.panels.layout.pref_show_table_headers =
-                                    !ed.panels.layout.pref_show_table_headers;
+                                ed.panels.settings.pref_show_table_headers =
+                                    !ed.panels.settings.pref_show_table_headers;
                                 crate::infra::config::settings::EditorSettings::set_show_table_headers(
                                     cx,
-                                    ed.panels.layout.pref_show_table_headers,
+                                    ed.panels.settings.pref_show_table_headers,
                                 );
                                 cx.notify();
                             });
@@ -840,12 +840,12 @@ select_trigger("pref-btn-img", c, d)
                                 let img_ed = img_ed.clone();
                                 move |_ev, _win, cx| {
                                     let _ = img_ed.update(cx, |ed, cx| {
-                                        if ed.panels.layout.open_settings_dropdown.as_deref()
+                                        if ed.panels.settings.open_dropdown.as_deref()
                                             == Some("image")
                                         {
-                                            ed.panels.layout.open_settings_dropdown = None;
+                                            ed.panels.settings.open_dropdown = None;
                                         } else {
-                                            ed.panels.layout.open_settings_dropdown =
+                                            ed.panels.settings.open_dropdown =
                                                 Some("image".to_string());
                                         }
                                         cx.notify();
@@ -881,8 +881,8 @@ select_option(ElementId::Name(format!("img-item-{}", idx).into()), c)
                                     })
                                     .on_click(move |_ev, _win, cx| {
                                         let _ = item_ed.update(cx, |ed, cx| {
-                                            ed.panels.layout.pref_image_paste_action = idx;
-                                            ed.panels.layout.open_settings_dropdown = None;
+                                            ed.panels.settings.pref_image_paste_action = idx;
+                                            ed.panels.settings.open_dropdown = None;
                                             cx.notify();
                                         });
                                     })
@@ -912,7 +912,7 @@ select_panel(c)
                     is_sec2_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec2_ed.update(cx, |ed, cx| {
-                            ed.panels.layout.toggle_settings_section(sec2_key);
+                            ed.panels.settings.toggle_section(sec2_key);
                             cx.notify();
                         });
                     }),
@@ -924,18 +924,18 @@ select_panel(c)
                 let sec3_key = "startup";
                 let is_sec3_expanded = self
                     .panels
-                    .layout
-                    .settings_expanded_sections
+                    .settings
+                    .expanded_sections
                     .contains(sec3_key);
                 let mut sec3_items = Vec::new();
 
                 let startup_ed = cx.entity().downgrade();
                 let startup_options = [(0, "New Blank Document"), (1, "Open Last Opened File")];
                 let curr_startup_idx =
-                    self.panels.layout.pref_startup_option % startup_options.len();
+                    self.panels.settings.pref_startup_option % startup_options.len();
                 let curr_startup_label = startup_options[curr_startup_idx].1;
                 let is_startup_open =
-                    self.panels.layout.open_settings_dropdown.as_deref() == Some("startup");
+                    self.panels.settings.open_dropdown.as_deref() == Some("startup");
 
                 if is_sec3_expanded {
                     let mut startup_btn_wrap = div().relative().child(
@@ -961,12 +961,12 @@ select_trigger("pref-btn-startup", c, d)
                                 let startup_ed = startup_ed.clone();
                                 move |_ev, _win, cx| {
                                     let _ = startup_ed.update(cx, |ed, cx| {
-                                        if ed.panels.layout.open_settings_dropdown.as_deref()
+                                        if ed.panels.settings.open_dropdown.as_deref()
                                             == Some("startup")
                                         {
-                                            ed.panels.layout.open_settings_dropdown = None;
+                                            ed.panels.settings.open_dropdown = None;
                                         } else {
-                                            ed.panels.layout.open_settings_dropdown =
+                                            ed.panels.settings.open_dropdown =
                                                 Some("startup".to_string());
                                         }
                                         cx.notify();
@@ -1002,8 +1002,8 @@ select_option(ElementId::Name(format!("startup-item-{}", idx).into()), c)
                                     })
                                     .on_click(move |_ev, _win, cx| {
                                         let _ = item_ed.update(cx, |ed, cx| {
-                                            ed.panels.layout.pref_startup_option = idx;
-                                            ed.panels.layout.open_settings_dropdown = None;
+                                            ed.panels.settings.pref_startup_option = idx;
+                                            ed.panels.settings.open_dropdown = None;
                                             cx.notify();
                                         });
                                     })
@@ -1033,7 +1033,7 @@ select_panel(c)
                     is_sec3_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec3_ed.update(cx, |ed, cx| {
-                            ed.panels.layout.toggle_settings_section(sec3_key);
+                            ed.panels.settings.toggle_section(sec3_key);
                             cx.notify();
                         });
                     }),
@@ -1046,8 +1046,8 @@ select_panel(c)
                 let sec1_key = "doc_actions";
                 let is_sec1_expanded = self
                     .panels
-                    .layout
-                    .settings_expanded_sections
+                    .settings
+                    .expanded_sections
                     .contains(sec1_key);
                 let mut sec1_items = Vec::new();
 
@@ -1098,7 +1098,7 @@ select_panel(c)
                     is_sec1_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec1_ed.update(cx, |ed, cx| {
-                            ed.panels.layout.toggle_settings_section(sec1_key);
+                            ed.panels.settings.toggle_section(sec1_key);
                             cx.notify();
                         });
                     }),
@@ -1110,8 +1110,8 @@ select_panel(c)
                 let sec2_key = "view_controls";
                 let is_sec2_expanded = self
                     .panels
-                    .layout
-                    .settings_expanded_sections
+                    .settings
+                    .expanded_sections
                     .contains(sec2_key);
                 let mut sec2_items = Vec::new();
 
@@ -1123,7 +1123,7 @@ select_panel(c)
                             "Ctrl + M",
                         ),
                         (
-                            "Toggle Workspace Tree",
+                            "Toggle ExplorerState Tree",
                             "Show or collapse the left file navigation sidebar",
                             "Ctrl + E",
                         ),
@@ -1157,7 +1157,7 @@ select_panel(c)
                     is_sec2_expanded,
                     Box::new(move |_ev, _win, cx| {
                         let _ = sec2_ed.update(cx, |ed, cx| {
-                            ed.panels.layout.toggle_settings_section(sec2_key);
+                            ed.panels.settings.toggle_section(sec2_key);
                             cx.notify();
                         });
                     }),

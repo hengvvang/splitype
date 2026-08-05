@@ -3,7 +3,7 @@
 //! Rendered mode serializes the semantic block tree back to normalized
 //! Markdown. Source mode writes the raw source buffer directly so literal
 //! delimiters are preserved. The save dialogs that use this text live in
-//! `crate::editor::windows::file`.
+//! `crate::editor::file`.
 
 use gpui::*;
 

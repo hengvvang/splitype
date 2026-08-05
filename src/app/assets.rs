@@ -9,29 +9,29 @@ pub(crate) struct VelotypeAssets;
 impl AssetSource for VelotypeAssets {
     fn load(&self, path: &str) -> gpui::Result<Option<Cow<'static, [u8]>>> {
         match path {
-            "icon/workspace/folder.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/workspace/folder.svg"
+            "icon/explorer/folder.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icon/explorer/folder.svg"
             )))),
-            "icon/workspace/markdown.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/workspace/markdown.svg"
+            "icon/explorer/markdown.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icon/explorer/markdown.svg"
             )))),
-            "icon/workspace/file.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/workspace/file.svg"
+            "icon/explorer/file.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icon/explorer/file.svg"
             )))),
-            "icon/workspace/folder-open.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/workspace/folder-open.svg"
+            "icon/explorer/folder-open.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icon/explorer/folder-open.svg"
             )))),
-            "icon/workspace/file-plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/workspace/file-plus.svg"
+            "icon/explorer/file-plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icon/explorer/file-plus.svg"
             )))),
-            "icon/workspace/folder-plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/workspace/folder-plus.svg"
+            "icon/explorer/folder-plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icon/explorer/folder-plus.svg"
             )))),
-            "icon/workspace/collapse-all.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/workspace/collapse-all.svg"
+            "icon/explorer/collapse-all.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icon/explorer/collapse-all.svg"
             )))),
-            "icon/workspace/refresh.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/workspace/refresh.svg"
+            "icon/explorer/refresh.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icon/explorer/refresh.svg"
             )))),
             "icon/titlebar/chrome-close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icon/titlebar/chrome-close.svg"

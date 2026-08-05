@@ -3,9 +3,8 @@
 
 use gpui::*;
 
-use crate::editor::actions::BlockAction;
+use crate::editor::block_protocol::BlockAction;
 use crate::editor::controller::*;
-
 
 impl Editor {
     pub(crate) fn on_block_event(
@@ -117,7 +116,7 @@ impl Editor {
                 };
                 if !source_already_mutated {
                     self.prepare_undo_capture(
-                        crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                        crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                         cx,
                     );
                 }
@@ -149,7 +148,7 @@ impl Editor {
                     return;
                 };
                 self.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
                 let new_block = Self::new_block(
@@ -175,7 +174,7 @@ impl Editor {
                 let needs_body = block.read(cx).children.is_empty();
                 if needs_body {
                     self.prepare_undo_capture(
-                        crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                        crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                         cx,
                     );
                 }
@@ -198,7 +197,7 @@ impl Editor {
                 };
 
                 self.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
 
@@ -230,7 +229,7 @@ impl Editor {
                 };
 
                 self.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
                 let plain = Self::new_block(cx, BlockData::paragraph(String::new()));
@@ -258,12 +257,13 @@ impl Editor {
                 let quote_related = self.block_is_quote_structure_related(&block, cx)
                     || self.block_is_quote_structure_related(&prev, cx);
                 self.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
 
                 let cursor_pos = prev.read(cx).display_text().len();
-                let adopted_children = crate::editor::tree::document::Document::take_children(&block, cx);
+                let adopted_children =
+                    crate::editor::tree::document::Document::take_children(&block, cx);
                 let removed_entity_id = block.entity_id();
 
                 self.doc_mut().with_structure_mutation(cx, |document, cx| {
@@ -308,7 +308,7 @@ impl Editor {
                 }
                 let quote_related = self.block_is_quote_structure_related(&block, cx);
                 self.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
 
@@ -469,7 +469,7 @@ impl Editor {
                     return;
                 }
                 self.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
 
@@ -499,13 +499,12 @@ impl Editor {
                     return;
                 };
                 self.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
 
                 if let Some(parent) = location.parent.clone() {
-                    let Some(parent_location) =
-                        self.doc().find_block_location(parent.entity_id())
+                    let Some(parent_location) = self.doc().find_block_location(parent.entity_id())
                     else {
                         return;
                     };
@@ -546,7 +545,7 @@ impl Editor {
                 }
 
                 self.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
 
@@ -582,7 +581,7 @@ impl Editor {
             }
             BlockAction::ToggleTaskChecked => {
                 self.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
                 block.update(cx, |block, cx| {
@@ -618,7 +617,7 @@ impl Editor {
             BlockAction::RequestAppendTableColumn => {
                 if block.read(cx).kind() == BlockKind::Table {
                     self.prepare_undo_capture(
-                        crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                        crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                         cx,
                     );
                     self.append_table_column(&block, cx);
@@ -628,7 +627,7 @@ impl Editor {
             BlockAction::RequestAppendTableRow => {
                 if block.read(cx).kind() == BlockKind::Table {
                     self.prepare_undo_capture(
-                        crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                        crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                         cx,
                     );
                     self.append_table_row(&block, cx);
@@ -638,7 +637,7 @@ impl Editor {
             BlockAction::RequestExpandTable => {
                 if block.read(cx).kind() == BlockKind::Table {
                     self.prepare_undo_capture(
-                        crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                        crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                         cx,
                     );
                     self.expand_table_block(&block, cx);
@@ -781,7 +780,7 @@ impl Editor {
                     return;
                 }
                 self.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
 
@@ -795,7 +794,8 @@ impl Editor {
                     visible_before_ids.get(current_visible_index + 1).copied()
                 };
 
-                let adopted_children = crate::editor::tree::document::Document::take_children(&block, cx);
+                let adopted_children =
+                    crate::editor::tree::document::Document::take_children(&block, cx);
                 let removed = self.doc_mut().with_structure_mutation(cx, |document, cx| {
                     let (_, location) = document.remove_block_by_id_raw(block.entity_id(), cx)?;
                     if !adopted_children.is_empty() {
@@ -845,11 +845,11 @@ impl Editor {
 #[cfg(test)]
 mod tests {
     use super::Editor;
-    use crate::model::inline::text::RichText;
-    use crate::editor::actions::BlockAction;
-use crate::model::block::{BlockData, BlockKind, CalloutKind};
-        use crate::editor::editing::input::shortcuts::ExitCodeBlock;
+    use crate::editor::block_protocol::BlockAction;
+    use crate::editor::editing::input::shortcuts::ExitCodeBlock;
     use crate::editor::editing::input::shortcuts::{Delete, DeleteBack, Newline};
+    use crate::model::block::{BlockData, BlockKind, CalloutKind};
+    use crate::model::inline::text::RichText;
     use gpui::{App, AppContext, Entity, TestAppContext};
 
     #[gpui::test]
@@ -868,7 +868,10 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(editor.doc().to_markdown(cx), "> first\n\n> ");
-            assert_eq!(editor.tab().focus.pending, Some(visible[1].entity.entity_id()));
+            assert_eq!(
+                editor.tab().focus.pending,
+                Some(visible[1].entity.entity_id())
+            );
         });
     }
 
@@ -879,14 +882,10 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
 
         editor.update(cx, |editor, cx| {
-            let paragraph = editor
-                .doc()
-                .first_root()
-                .expect("root paragraph")
-                .clone();
+            let paragraph = editor.doc().first_root().expect("root paragraph").clone();
             paragraph.update(cx, |block, cx| {
                 block.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::CoalescibleText,
+                    crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                     cx,
                 );
                 block.replace_text_in_visible_range(0..0, "> ", None, false, cx);
@@ -1010,14 +1009,10 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
 
         editor.update(cx, |editor, cx| {
-            let paragraph = editor
-                .doc()
-                .first_root()
-                .expect("root paragraph")
-                .clone();
+            let paragraph = editor.doc().first_root().expect("root paragraph").clone();
             paragraph.update(cx, |block, cx| {
                 block.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::CoalescibleText,
+                    crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                     cx,
                 );
                 block.replace_text_in_visible_range(0..0, "> [!NOTE]", None, false, cx);
@@ -1035,7 +1030,10 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(editor.doc().to_markdown(cx), "> [!NOTE]\n> ");
-            assert_eq!(editor.tab().focus.pending, Some(visible[1].entity.entity_id()));
+            assert_eq!(
+                editor.tab().focus.pending,
+                Some(visible[1].entity.entity_id())
+            );
         });
     }
 
@@ -1065,7 +1063,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             assert!(separator.read(cx).list_group_separator_candidate);
             separator.update(cx, |block, cx| {
                 block.prepare_undo_capture(
-                    crate::editor::actions::UndoCaptureKind::CoalescibleText,
+                    crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                     cx,
                 );
                 block.replace_text_in_visible_range(0..0, "1. ", None, false, cx);
@@ -1087,10 +1085,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             );
             assert_eq!(visible[4].entity.read(cx).display_text(), "");
             assert_eq!(visible[4].entity.read(cx).list_ordinal, Some(1));
-            assert_eq!(
-                editor.doc().to_markdown(cx),
-                "1. aa\n2. bb\n3. cc\n\n1. "
-            );
+            assert_eq!(editor.doc().to_markdown(cx), "1. aa\n2. bb\n3. cc\n\n1. ");
         });
     }
 
@@ -1104,14 +1099,8 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(
-                visible[0].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
-            assert_eq!(
-                visible[1].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[1].entity.read(cx).render_depth, 1);
             assert_eq!(editor.doc().to_markdown(cx), "- a\n  - b");
         });
@@ -1131,10 +1120,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         editor.update(cx, |editor, cx| {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(
-                visible[0].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[0].entity.read(cx).display_text(), "item");
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "child text");
@@ -1158,7 +1144,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
                 let child = editor.doc().blocks()[1].entity.clone();
                 child.update(cx, |block, block_cx| {
                     block.prepare_undo_capture(
-                        crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                        crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                         block_cx,
                     );
                     block.replace_text_in_visible_range(
@@ -1177,10 +1163,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         editor.update(cx, |editor, cx| {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(
-                visible[0].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.entity_id(), child_id);
@@ -1203,7 +1186,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
                 let child = editor.doc().blocks()[1].entity.clone();
                 child.update(cx, |block, block_cx| {
                     block.prepare_undo_capture(
-                        crate::editor::actions::UndoCaptureKind::NonCoalescible,
+                        crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                         block_cx,
                     );
                     block.replace_text_in_visible_range(
@@ -1222,10 +1205,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         editor.update(cx, |editor, cx| {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
-            assert_eq!(
-                visible[0].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.entity_id(), child_id);
@@ -1320,10 +1300,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             assert_eq!(visible[0].entity.read(cx).display_text(), "let x = 1;");
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
-            assert_eq!(
-                editor.doc().to_markdown(cx),
-                "```rust\nlet x = 1;\n```\n\n"
-            );
+            assert_eq!(editor.doc().to_markdown(cx), "```rust\nlet x = 1;\n```\n\n");
         });
     }
 

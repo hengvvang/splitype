@@ -7,11 +7,10 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context as _, anyhow};
 use gpui::*;
 
-use crate::editor::actions::PastedImageSource;
+use crate::editor::block_protocol::PastedImageSource;
 use crate::editor::controller::*;
-use crate::model::block::BlockKind;
 use crate::infra::config::settings::{ImagePasteBehavior, read_app_settings};
-
+use crate::model::block::BlockKind;
 
 impl Editor {
     pub(crate) fn current_image_paste_behavior() -> ImagePasteBehavior {
@@ -20,14 +19,12 @@ impl Editor {
             .unwrap_or(ImagePasteBehavior::None)
     }
 
-
     pub(crate) fn image_paste_root_dir(&self) -> anyhow::Result<PathBuf> {
         if let Some(parent) = self.tab().file.path.as_ref().and_then(|path| path.parent()) {
             return Ok(parent.to_path_buf());
         }
         std::env::current_dir().context("failed to resolve current working directory")
     }
-
 
     pub(crate) fn clipboard_image_extension(format: ImageFormat) -> &'static str {
         match format {
@@ -40,7 +37,6 @@ impl Editor {
             ImageFormat::Tiff => "tiff",
         }
     }
-
 
     pub(crate) fn image_target_dir(
         &self,
@@ -55,7 +51,9 @@ impl Editor {
             ImagePasteBehavior::CopyToAssetsFolder => Ok(root_dir.join("assets")),
             ImagePasteBehavior::CopyToNamedAssetsFolder => {
                 let base = self
-                    .tab().file.path
+                    .tab()
+                    .file
+                    .path
                     .as_ref()
                     .and_then(|path| path.file_stem())
                     .and_then(|stem| stem.to_str())
@@ -84,7 +82,6 @@ impl Editor {
         }
     }
 
-
     pub(crate) fn unique_file_path(dir: &Path, preferred_name: &str) -> PathBuf {
         let preferred = Path::new(preferred_name);
         let stem = preferred
@@ -109,7 +106,6 @@ impl Editor {
         unreachable!("unbounded search should always return");
     }
 
-
     pub(crate) fn path_parent_eq(left: &Path, right: &Path) -> bool {
         let Some(parent) = left.parent() else {
             return false;
@@ -120,7 +116,6 @@ impl Editor {
         let right = right.canonicalize().unwrap_or_else(|_| right.to_path_buf());
         left == right
     }
-
 
     pub(crate) fn materialize_pasted_image(
         &self,
@@ -171,11 +166,9 @@ impl Editor {
         }
     }
 
-
     pub(crate) fn markdown_path_string(path: &Path) -> String {
         path.to_string_lossy().replace('\\', "/")
     }
-
 
     pub(crate) fn markdown_image_target(path: &str) -> String {
         path.chars()
@@ -185,7 +178,6 @@ impl Editor {
             })
             .collect()
     }
-
 
     pub(crate) fn markdown_image_alt(path: &Path) -> String {
         let alt = path
@@ -201,12 +193,10 @@ impl Editor {
             .collect()
     }
 
-
     pub(crate) fn relative_markdown_path(root_dir: &Path, path: &Path) -> Option<String> {
         let relative = path.strip_prefix(root_dir).ok()?;
         Some(format!("./{}", Self::markdown_path_string(relative)))
     }
-
 
     pub(crate) fn pasted_image_markdown(
         &self,
@@ -227,7 +217,6 @@ impl Editor {
         ))
     }
 
-
     pub(crate) fn show_image_paste_error(&self, err: anyhow::Error, cx: &mut Context<Self>) {
         let strings = cx
             .global::<crate::infra::i18n::I18nManager>()
@@ -246,7 +235,6 @@ impl Editor {
         }
     }
 
-
     pub(crate) fn inserted_image_tree_for_block(
         block: &crate::editor::tree::block::Block,
         markdown: &str,
@@ -257,7 +245,6 @@ impl Editor {
             RichText::from_markdown(markdown)
         }
     }
-
 
     pub(crate) fn replace_current_block_selection_with_image_text(
         &mut self,
@@ -281,7 +268,6 @@ impl Editor {
         self.focus_block(block.entity_id());
         self.rebuild_image_runtimes(cx);
     }
-
 
     pub(crate) fn insert_image_block_after_paragraph(
         &mut self,
@@ -342,7 +328,6 @@ impl Editor {
         self.rebuild_image_runtimes(cx);
     }
 
-
     pub(crate) fn handle_paste_image_request(
         &mut self,
         block: Entity<crate::editor::tree::block::Block>,
@@ -363,17 +348,15 @@ impl Editor {
             &markdown,
             None,
             false,
-            crate::editor::actions::UndoCaptureKind::NonCoalescible,
+            crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
             cx,
         ) {
             return;
         }
 
-        self.prepare_undo_capture(
-            crate::editor::actions::UndoCaptureKind::NonCoalescible,
-            cx,
-        );
-        let can_insert_image_block = self.tab().mode == crate::editor::controller::EditorMode::Wysiwyg
+        self.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::NonCoalescible, cx);
+        let can_insert_image_block = self.tab().mode
+            == crate::editor::controller::EditorMode::Wysiwyg
             && block.read(cx).kind() == BlockKind::Paragraph
             && self.table_cell_binding(block.entity_id()).is_none()
             && !block.read(cx).uses_raw_text_editing();
