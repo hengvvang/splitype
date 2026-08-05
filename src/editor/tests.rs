@@ -269,9 +269,9 @@ async fn ctrl_s_saves_rendered_mode_edit_to_existing_file(cx: &mut TestAppContex
     cx.simulate_input("!");
     redraw(cx);
     let expected = editor.read_with(cx, |editor, cx| {
-        assert!(editor.file.dirty);
-        assert!(!editor.file.pending_save);
-        editor.document.to_markdown(cx)
+        assert!(editor.tab().file.dirty);
+        assert!(!editor.tab().file.pending_save);
+        editor.doc().to_markdown(cx)
     });
     assert_ne!(expected, "alpha");
 
@@ -283,8 +283,8 @@ async fn ctrl_s_saves_rendered_mode_edit_to_existing_file(cx: &mut TestAppContex
         expected
     );
     editor.read_with(cx, |editor, _cx| {
-        assert!(!editor.file.dirty);
-        assert!(!editor.file.pending_save);
+        assert!(!editor.tab().file.dirty);
+        assert!(!editor.tab().file.pending_save);
     });
 }
 
@@ -309,8 +309,8 @@ async fn window_save_action_saves_current_editor_without_global_menu_route(
     cx.simulate_input(" action");
     redraw(cx);
     let expected = editor.read_with(cx, |editor, cx| {
-        assert!(editor.file.dirty);
-        editor.document.to_markdown(cx)
+        assert!(editor.tab().file.dirty);
+        editor.doc().to_markdown(cx)
     });
     assert_ne!(expected, "alpha");
 
@@ -322,8 +322,8 @@ async fn window_save_action_saves_current_editor_without_global_menu_route(
         expected
     );
     editor.read_with(cx, |editor, _cx| {
-        assert!(!editor.file.dirty);
-        assert!(!editor.file.pending_save);
+        assert!(!editor.tab().file.dirty);
+        assert!(!editor.tab().file.pending_save);
     });
 }
 
@@ -345,13 +345,13 @@ async fn export_html_writes_rendered_document_without_changing_editor_state(
 
     editor.update(cx, |editor, cx| {
         editor.mark_dirty(cx);
-        assert!(editor.file.dirty);
-        assert!(editor.file.path.is_none());
+        assert!(editor.tab().file.dirty);
+        assert!(editor.tab().file.path.is_none());
         editor
             .export_document_to_path(ExportFormat::Html, &export_path, cx)
             .expect("html export should write");
-        assert!(editor.file.dirty);
-        assert!(editor.file.path.is_none());
+        assert!(editor.tab().file.dirty);
+        assert!(editor.tab().file.path.is_none());
     });
 
     let html = fs::read_to_string(&export_path).expect("read exported html");
@@ -375,7 +375,7 @@ async fn export_html_uses_source_mode_raw_text(cx: &mut TestAppContext) {
     editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
         let source_block = editor
-            .document
+            .doc()
             .first_root()
             .expect("source mode should keep one root block")
             .clone();
@@ -416,7 +416,7 @@ async fn dropped_markdown_replaces_clean_editor_in_current_window(cx: &mut TestA
 
     editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
-        assert!(editor.mode == EditorMode::SourceCode);
+        assert!(editor.tab().mode == EditorMode::SourceCode);
     });
 
     cx.update(|window, cx| {
@@ -427,14 +427,14 @@ async fn dropped_markdown_replaces_clean_editor_in_current_window(cx: &mut TestA
     redraw(cx);
 
     editor.read_with(cx, |editor, cx| {
-        assert_eq!(editor.file.path.as_ref(), Some(&dropped_path));
-        assert!(editor.mode == EditorMode::Wysiwyg);
-        assert!(!editor.file.dirty);
-        assert!(!editor.file.show_drop_replace_dialog);
-        assert_eq!(editor.document.root_count(), 2);
+        assert_eq!(editor.tab().file.path.as_ref(), Some(&dropped_path));
+        assert!(editor.tab().mode == EditorMode::Wysiwyg);
+        assert!(!editor.tab().file.dirty);
+        assert!(!editor.tab().file.show_drop_replace_dialog);
+        assert_eq!(editor.doc().root_count(), 2);
         assert_eq!(
             editor
-                .document
+                .doc()
                 .root_blocks()
                 .last()
                 .expect("table block")
@@ -442,7 +442,7 @@ async fn dropped_markdown_replaces_clean_editor_in_current_window(cx: &mut TestA
                 .kind(),
             BlockKind::Table
         );
-        assert!(editor.document.to_markdown(cx).contains("# Dropped"));
+        assert!(editor.doc().to_markdown(cx).contains("# Dropped"));
     });
     assert_eq!(cx.cx.windows().len(), 1);
 }
@@ -493,19 +493,19 @@ async fn dirty_drop_waits_for_replace_decision_and_cancel_preserves_document(
     redraw(cx);
 
     editor.read_with(cx, |editor, cx| {
-        assert!(editor.file.dirty);
-        assert!(editor.file.show_drop_replace_dialog);
-        assert_eq!(editor.document.to_markdown(cx), "current");
-        assert!(editor.file.pending_drop_replace_path.is_some());
+        assert!(editor.tab().file.dirty);
+        assert!(editor.tab().file.show_drop_replace_dialog);
+        assert_eq!(editor.doc().to_markdown(cx), "current");
+        assert!(editor.tab().file.pending_drop_replace_path.is_some());
     });
 
     editor.update(cx, |editor, cx| editor.cancel_drop_replace_dialog(cx));
 
     editor.read_with(cx, |editor, cx| {
-        assert!(editor.file.dirty);
-        assert!(!editor.file.show_drop_replace_dialog);
-        assert!(editor.file.pending_drop_replace_path.is_none());
-        assert_eq!(editor.document.to_markdown(cx), "current");
+        assert!(editor.tab().file.dirty);
+        assert!(!editor.tab().file.show_drop_replace_dialog);
+        assert!(editor.tab().file.pending_drop_replace_path.is_none());
+        assert_eq!(editor.doc().to_markdown(cx), "current");
     });
 }
 
@@ -533,10 +533,10 @@ async fn dirty_drop_can_replace_without_saving(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.read_with(cx, |editor, cx| {
-        assert_eq!(editor.file.path.as_ref(), Some(&dropped_path));
-        assert_eq!(editor.document.to_markdown(cx), "dropped");
-        assert!(!editor.file.dirty);
-        assert!(!editor.file.show_drop_replace_dialog);
+        assert_eq!(editor.tab().file.path.as_ref(), Some(&dropped_path));
+        assert_eq!(editor.doc().to_markdown(cx), "dropped");
+        assert!(!editor.tab().file.dirty);
+        assert!(!editor.tab().file.show_drop_replace_dialog);
     });
 }
 
@@ -561,7 +561,7 @@ async fn dirty_drop_saves_existing_document_before_replace(cx: &mut TestAppConte
     });
 
     editor.update(cx, |editor, cx| {
-        let first = editor.document.first_root().expect("current root").clone();
+        let first = editor.doc().first_root().expect("current root").clone();
         first.update(cx, |block, _cx| {
             block
                 .record
@@ -584,10 +584,10 @@ async fn dirty_drop_saves_existing_document_before_replace(cx: &mut TestAppConte
         "edited"
     );
     editor.read_with(cx, |editor, cx| {
-        assert_eq!(editor.file.path.as_ref(), Some(&dropped_path));
-        assert_eq!(editor.document.to_markdown(cx), "dropped");
-        assert!(!editor.file.dirty);
-        assert!(!editor.file.pending_drop_replace_after_save);
+        assert_eq!(editor.tab().file.path.as_ref(), Some(&dropped_path));
+        assert_eq!(editor.doc().to_markdown(cx), "dropped");
+        assert!(!editor.tab().file.dirty);
+        assert!(!editor.tab().file.pending_drop_replace_after_save);
     });
 }
 
@@ -636,7 +636,7 @@ async fn app_menu_opened_windows_activate_and_close_independently(cx: &mut TestA
 
     assert!(
         second_window
-            .update(cx, |editor, _window, _cx| editor.file.close_guard_installed)
+            .update(cx, |editor, _window, _cx| editor.tab().file.close_guard_installed)
             .expect("second editor window should be open")
     );
 
@@ -684,7 +684,7 @@ async fn app_menu_opened_file_window_reinstalls_close_guard_after_registration(
 
     second_window
         .update(cx, |editor, window, cx| {
-            assert!(editor.file.close_guard_installed);
+            assert!(editor.tab().file.close_guard_installed);
             assert!(editor.on_window_should_close(window, cx));
         })
         .expect("second editor window should be open");
@@ -729,12 +729,12 @@ async fn app_menu_opened_dirty_file_window_prompts_only_that_window(cx: &mut Tes
 
     first_window
         .update(cx, |editor, _window, _cx| {
-            assert!(!editor.file.show_unsaved_changes_dialog);
+            assert!(!editor.tab().file.show_unsaved_changes_dialog);
         })
         .expect("first editor window should be open");
     second_window
         .update(cx, |editor, _window, _cx| {
-            assert!(editor.file.show_unsaved_changes_dialog);
+            assert!(editor.tab().file.show_unsaved_changes_dialog);
         })
         .expect("second editor window should be open");
 
@@ -762,12 +762,12 @@ async fn app_menu_opened_dirty_window_close_guard_prompts_only_that_window(
 
     first_window
         .update(cx, |editor, _window, _cx| {
-            assert!(!editor.file.show_unsaved_changes_dialog);
+            assert!(!editor.tab().file.show_unsaved_changes_dialog);
         })
         .expect("first editor window should be open");
     second_window
         .update(cx, |editor, _window, _cx| {
-            assert!(editor.file.show_unsaved_changes_dialog);
+            assert!(editor.tab().file.show_unsaved_changes_dialog);
         })
         .expect("second editor window should be open");
 }
@@ -793,10 +793,10 @@ async fn quit_application_allows_clean_editor_windows_to_quit(cx: &mut TestAppCo
     cx.run_until_parked();
 
     first_editor.read_with(cx, |editor, _cx| {
-        assert!(!editor.file.show_unsaved_changes_dialog);
+        assert!(!editor.tab().file.show_unsaved_changes_dialog);
     });
     second_editor.read_with(cx, |editor, _cx| {
-        assert!(!editor.file.show_unsaved_changes_dialog);
+        assert!(!editor.tab().file.show_unsaved_changes_dialog);
     });
 }
 
@@ -834,10 +834,10 @@ async fn quit_application_prompts_dirty_editor_without_quitting(cx: &mut TestApp
             .any(|window| window.window_id() == second_window.window_id())
     );
     first_editor.read_with(cx, |editor, _cx| {
-        assert!(!editor.file.show_unsaved_changes_dialog);
+        assert!(!editor.tab().file.show_unsaved_changes_dialog);
     });
     second_editor.read_with(cx, |editor, _cx| {
-        assert!(editor.file.show_unsaved_changes_dialog);
+        assert!(editor.tab().file.show_unsaved_changes_dialog);
     });
 }
 
@@ -978,7 +978,7 @@ async fn starting_and_ending_scrollbar_drag_updates_editor_state(cx: &mut TestAp
 
         editor.start_scrollbar_drag(12.0, 320.0, 64.0, 500.0, cx);
         assert_eq!(
-            editor.scroll.scrollbar_drag,
+            editor.tab().scroll.scrollbar_drag,
             Some(super::ScrollbarDragSession {
                 pointer_offset_y: 12.0,
                 track_height: 320.0,
@@ -990,11 +990,11 @@ async fn starting_and_ending_scrollbar_drag_updates_editor_state(cx: &mut TestAp
         assert!(!editor.pending_scroll_recheck_after_layout);
 
         editor.update_scrollbar_drag(172.0, cx);
-        let offset_y = -f32::from(editor.scroll.handle.offset().y);
+        let offset_y = -f32::from(editor.tab().scroll.handle.offset().y);
         assert!(offset_y > 0.0);
 
         editor.end_scrollbar_drag(cx);
-        assert!(editor.scroll.scrollbar_drag.is_none());
+        assert!(editor.tab().scroll.scrollbar_drag.is_none());
     });
 }
 
@@ -1009,7 +1009,7 @@ async fn parsed_table_runtime_installs_column_alignment_on_cells(cx: &mut TestAp
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.read_with(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         assert_eq!(table.read(cx).kind(), BlockKind::Table);
         let runtime = table
             .read(cx)
@@ -1037,7 +1037,7 @@ async fn append_column_updates_table_and_focuses_new_header_cell(cx: &mut TestAp
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         editor.append_table_column(&table, cx);
 
         let record = table
@@ -1063,7 +1063,7 @@ async fn append_column_updates_table_and_focuses_new_header_cell(cx: &mut TestAp
             .as_ref()
             .expect("rebuilt runtime");
         let focused = runtime.header[2].entity_id();
-        assert_eq!(editor.focus.pending, Some(focused));
+        assert_eq!(editor.tab().focus.pending, Some(focused));
     });
 }
 
@@ -1073,7 +1073,7 @@ async fn append_row_updates_table_and_focuses_first_cell_of_new_row(cx: &mut Tes
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         editor.append_table_row(&table, cx);
 
         let record = table
@@ -1096,7 +1096,7 @@ async fn append_row_updates_table_and_focuses_first_cell_of_new_row(cx: &mut Tes
             .as_ref()
             .expect("rebuilt runtime");
         let focused = runtime.rows[1][0].entity_id();
-        assert_eq!(editor.focus.pending, Some(focused));
+        assert_eq!(editor.tab().focus.pending, Some(focused));
     });
 }
 
@@ -1106,7 +1106,7 @@ async fn setting_column_alignment_updates_record_and_selection(cx: &mut TestAppC
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         editor.set_table_column_alignment(&table, 1, TableColumnAlignment::Right, cx);
 
         let record = table.read(cx).record.table.as_ref().expect("table record");
@@ -1115,7 +1115,7 @@ async fn setting_column_alignment_updates_record_and_selection(cx: &mut TestAppC
             vec![TableColumnAlignment::Default, TableColumnAlignment::Right]
         );
         assert_eq!(
-            editor.tables.axis_selection,
+            editor.tab().tables.axis_selection,
             Some(super::TableAxisSelection {
                 table_block_id: table.entity_id(),
                 kind: crate::model::syntax::table::TableAxisKind::Column,
@@ -1131,14 +1131,14 @@ async fn moving_table_row_updates_focus_and_selection(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         // Visual row 2 is the second body row; move it up above the first.
         editor.move_table_row(&table, 2, -1, cx);
 
         let record = table.read(cx).record.table.as_ref().expect("table record");
         assert_eq!(record.rows[0][0].serialize_markdown(), "3");
         assert_eq!(
-            editor.tables.axis_selection,
+            editor.tab().tables.axis_selection,
             Some(super::TableAxisSelection {
                 table_block_id: table.entity_id(),
                 kind: crate::model::syntax::table::TableAxisKind::Row,
@@ -1151,7 +1151,7 @@ async fn moving_table_row_updates_focus_and_selection(cx: &mut TestAppContext) {
             .table_runtime
             .as_ref()
             .expect("rebuilt runtime");
-        assert_eq!(editor.focus.pending, Some(runtime.rows[0][0].entity_id()));
+        assert_eq!(editor.tab().focus.pending, Some(runtime.rows[0][0].entity_id()));
     });
 }
 
@@ -1161,7 +1161,7 @@ async fn moving_first_body_row_up_swaps_with_header(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         // Visual row 1 (first body row) moves up into the header position.
         editor.move_table_row(&table, 1, -1, cx);
 
@@ -1169,7 +1169,7 @@ async fn moving_first_body_row_up_swaps_with_header(cx: &mut TestAppContext) {
         assert_eq!(record.header[0].serialize_markdown(), "1");
         assert_eq!(record.rows[0][0].serialize_markdown(), "A");
         assert_eq!(
-            editor.tables.axis_selection,
+            editor.tab().tables.axis_selection,
             Some(super::TableAxisSelection {
                 table_block_id: table.entity_id(),
                 kind: crate::model::syntax::table::TableAxisKind::Row,
@@ -1185,7 +1185,7 @@ async fn moving_header_row_down_swaps_with_first_body(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         // Visual row 0 (header) moves down, swapping with the first body row.
         editor.move_table_row(&table, 0, 1, cx);
 
@@ -1193,7 +1193,7 @@ async fn moving_header_row_down_swaps_with_first_body(cx: &mut TestAppContext) {
         assert_eq!(record.header[0].serialize_markdown(), "1");
         assert_eq!(record.rows[0][0].serialize_markdown(), "A");
         assert_eq!(
-            editor.tables.axis_selection,
+            editor.tab().tables.axis_selection,
             Some(super::TableAxisSelection {
                 table_block_id: table.entity_id(),
                 kind: crate::model::syntax::table::TableAxisKind::Row,
@@ -1210,7 +1210,7 @@ async fn selecting_first_body_row_does_not_highlight_header(cx: &mut TestAppCont
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         // Visual row 1 is the first body row; the header (row 0) must stay clear.
         editor.select_table_axis(table.entity_id(), TableAxisKind::Row, 1, cx);
 
@@ -1241,7 +1241,7 @@ async fn selecting_header_row_highlights_only_header(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         editor.select_table_axis(table.entity_id(), TableAxisKind::Row, 0, cx);
 
         let runtime = table.read(cx).table_runtime.clone().expect("runtime");
@@ -1264,7 +1264,7 @@ async fn body_row_preview_survives_stale_header_leave(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         let id = table.entity_id();
 
         // Pointer crosses from the header handle down onto the first body row.
@@ -1273,7 +1273,7 @@ async fn body_row_preview_survives_stale_header_leave(cx: &mut TestAppContext) {
         editor.preview_table_axis(id, TableAxisKind::Row, 1, true, cx);
         editor.preview_table_axis(id, TableAxisKind::Row, 0, false, cx);
         assert_eq!(
-            editor.tables.axis_preview,
+            editor.tab().tables.axis_preview,
             Some(super::TableAxisSelection {
                 table_block_id: id,
                 kind: TableAxisKind::Row,
@@ -1284,7 +1284,7 @@ async fn body_row_preview_survives_stale_header_leave(cx: &mut TestAppContext) {
 
         // Leaving the body handle that owns the preview still clears it.
         editor.preview_table_axis(id, TableAxisKind::Row, 1, false, cx);
-        assert_eq!(editor.tables.axis_preview, None);
+        assert_eq!(editor.tab().tables.axis_preview, None);
     });
 }
 
@@ -1294,13 +1294,13 @@ async fn deleting_table_column_moves_selection_to_nearest_survivor(cx: &mut Test
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         editor.delete_table_column(&table, 2, cx);
 
         let record = table.read(cx).record.table.as_ref().expect("table record");
         assert_eq!(record.header.len(), 2);
         assert_eq!(
-            editor.tables.axis_selection,
+            editor.tab().tables.axis_selection,
             Some(super::TableAxisSelection {
                 table_block_id: table.entity_id(),
                 kind: crate::model::syntax::table::TableAxisKind::Column,
@@ -1316,7 +1316,7 @@ async fn deleting_table_header_promotes_next_row(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         editor.delete_table_header_row(&table, cx);
 
         let record = table.read(cx).record.table.as_ref().expect("table record");
@@ -1329,7 +1329,7 @@ async fn deleting_table_header_promotes_next_row(cx: &mut TestAppContext) {
             .table_runtime
             .as_ref()
             .expect("rebuilt runtime");
-        assert_eq!(editor.focus.pending, Some(runtime.header[0].entity_id()));
+        assert_eq!(editor.tab().focus.pending, Some(runtime.header[0].entity_id()));
     });
 }
 
@@ -1339,7 +1339,7 @@ async fn deleting_last_body_row_leaves_header_only_table(cx: &mut TestAppContext
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         // Deleting the only body row used to be blocked; now it leaves a
         // header-only table behind.
         editor.delete_table_row(&table, 0, cx);
@@ -1347,7 +1347,7 @@ async fn deleting_last_body_row_leaves_header_only_table(cx: &mut TestAppContext
         let record = table.read(cx).record.table.as_ref().expect("table record");
         assert!(record.rows.is_empty());
         assert_eq!(record.header[0].serialize_markdown(), "A");
-        assert_eq!(editor.document.root_count(), 1);
+        assert_eq!(editor.doc().root_count(), 1);
         assert_eq!(table.read(cx).kind(), BlockKind::Table);
     });
 }
@@ -1367,17 +1367,17 @@ async fn removing_table_block_replaces_it_with_empty_paragraph(cx: &mut TestAppC
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        let table = editor.document.root_blocks()[1].clone();
+        let table = editor.doc().root_blocks()[1].clone();
         assert_eq!(table.read(cx).kind(), BlockKind::Table);
         editor.remove_table_block(&table, cx);
 
-        let roots = editor.document.root_blocks();
+        let roots = editor.doc().root_blocks();
         assert_eq!(roots.len(), 3);
         assert_eq!(roots[0].read(cx).display_text(), "intro");
         assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(roots[1].read(cx).display_text(), "");
         assert_eq!(roots[2].read(cx).display_text(), "outro");
-        assert_eq!(editor.focus.pending, Some(roots[1].entity_id()));
+        assert_eq!(editor.tab().focus.pending, Some(roots[1].entity_id()));
     });
 }
 
@@ -1387,10 +1387,10 @@ async fn removing_the_only_table_leaves_one_empty_paragraph(cx: &mut TestAppCont
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         editor.remove_table_block(&table, cx);
 
-        let roots = editor.document.root_blocks();
+        let roots = editor.doc().root_blocks();
         assert_eq!(roots.len(), 1);
         assert_eq!(roots[0].read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(roots[0].read(cx).display_text(), "");
@@ -1406,7 +1406,7 @@ async fn standalone_root_image_installs_runtime_and_resolves_relative_path(
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
-        let block = editor.document.first_root().expect("root block").clone();
+        let block = editor.doc().first_root().expect("root block").clone();
         let runtime = block.read(cx).image_runtime().expect("image runtime");
         assert_eq!(runtime.alt, "diagram");
         assert_eq!(runtime.title.as_deref(), Some("System diagram"));
@@ -1430,7 +1430,7 @@ async fn standalone_root_image_with_underscores_installs_runtime(cx: &mut TestAp
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
-        let block = editor.document.first_root().expect("root block").clone();
+        let block = editor.doc().first_root().expect("root block").clone();
         let runtime = block.read(cx).image_runtime().expect("image runtime");
         assert_eq!(runtime.alt, "1.1_进制转换例子");
         assert_eq!(
@@ -1442,7 +1442,7 @@ async fn standalone_root_image_with_underscores_installs_runtime(cx: &mut TestAp
                     .join("NetworkEngineerSummer.assets/1.1_进制转换例子.jpg")
             )
         );
-        assert_eq!(editor.document.to_markdown(cx), markdown);
+        assert_eq!(editor.doc().to_markdown(cx), markdown);
     });
 }
 
@@ -1470,7 +1470,7 @@ async fn indented_root_images_install_runtime_before_indented_code(cx: &mut Test
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.read_with(cx, |editor, cx| {
-        let roots = editor.document.root_blocks();
+        let roots = editor.doc().root_blocks();
         let image_sources = roots
             .iter()
             .filter_map(|block| {
@@ -1495,7 +1495,7 @@ async fn mixed_text_does_not_activate_image_runtime(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.read_with(cx, |editor, cx| {
-        let block = editor.document.first_root().expect("root block").clone();
+        let block = editor.doc().first_root().expect("root block").clone();
         assert!(block.read(cx).image_runtime().is_none());
     });
 }
@@ -1509,7 +1509,7 @@ async fn reference_style_root_image_installs_runtime(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
-        let block = editor.document.first_root().expect("root block").clone();
+        let block = editor.doc().first_root().expect("root block").clone();
         let runtime = block.read(cx).image_runtime().expect("image runtime");
         assert_eq!(runtime.alt, "reference image");
         assert_eq!(runtime.src, "./assets/ref-image.png");
@@ -1533,7 +1533,7 @@ async fn quote_child_standalone_image_installs_runtime(cx: &mut TestAppContext) 
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
-        let quote = editor.document.first_root().expect("quote root").clone();
+        let quote = editor.doc().first_root().expect("quote root").clone();
         let image_block = quote
             .read(cx)
             .children
@@ -1564,7 +1564,7 @@ async fn bulleted_list_item_standalone_image_installs_runtime(cx: &mut TestAppCo
 
     editor.read_with(cx, |editor, cx| {
         let block = editor
-            .document
+            .doc()
             .first_root()
             .expect("list item root")
             .clone();
@@ -1593,9 +1593,9 @@ async fn html_fallback_before_image_does_not_swallow_standalone_image(cx: &mut T
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.read_with(cx, |editor, cx| {
-        assert_eq!(editor.document.root_count(), 2);
+        assert_eq!(editor.doc().root_count(), 2);
         {
-            let html = editor.document.root_blocks()[0].read(cx);
+            let html = editor.doc().root_blocks()[0].read(cx);
             assert_eq!(html.kind(), BlockKind::HtmlBlock);
             assert!(
                 html.display_text()
@@ -1609,7 +1609,7 @@ async fn html_fallback_before_image_does_not_swallow_standalone_image(cx: &mut T
             );
         }
 
-        let image = editor.document.root_blocks()[1].read(cx);
+        let image = editor.doc().root_blocks()[1].read(cx);
         let runtime = image.image_runtime().expect("image runtime");
         assert_eq!(runtime.alt, "image-20250820094109009");
         assert_eq!(runtime.src, image_url);
@@ -1629,12 +1629,12 @@ async fn unclosed_html_fallback_stops_before_standalone_image_without_blank(
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.read_with(cx, |editor, cx| {
-        assert_eq!(editor.document.root_count(), 2);
+        assert_eq!(editor.doc().root_count(), 2);
         assert_eq!(
-            editor.document.root_blocks()[0].read(cx).kind(),
+            editor.doc().root_blocks()[0].read(cx).kind(),
             BlockKind::RawMarkdown
         );
-        let image = editor.document.root_blocks()[1].read(cx);
+        let image = editor.doc().root_blocks()[1].read(cx);
         let runtime = image.image_runtime().expect("image runtime");
         assert_eq!(runtime.alt, "image");
         assert_eq!(runtime.src, image_url);
@@ -1648,7 +1648,7 @@ async fn numbered_list_item_standalone_image_installs_runtime(cx: &mut TestAppCo
 
     editor.read_with(cx, |editor, cx| {
         let block = editor
-            .document
+            .doc()
             .first_root()
             .expect("list item root")
             .clone();
@@ -1672,7 +1672,7 @@ async fn task_list_item_reference_style_image_installs_runtime(cx: &mut TestAppC
 
     editor.read_with(cx, |editor, cx| {
         let block = editor
-            .document
+            .doc()
             .first_root()
             .expect("task list item root")
             .clone();
@@ -1699,7 +1699,7 @@ async fn mixed_list_item_title_does_not_activate_image_runtime(cx: &mut TestAppC
 
     editor.read_with(cx, |editor, cx| {
         let block = editor
-            .document
+            .doc()
             .first_root()
             .expect("list item root")
             .clone();
@@ -1721,7 +1721,7 @@ async fn list_child_reference_style_image_installs_runtime(cx: &mut TestAppConte
 
     editor.read_with(cx, |editor, cx| {
         let list_item = editor
-            .document
+            .doc()
             .first_root()
             .expect("list item root")
             .clone();
@@ -1761,7 +1761,7 @@ async fn list_scoped_reference_definition_supports_list_item_image_runtime(
 
     editor.read_with(cx, |editor, cx| {
         let list_item = editor
-            .document
+            .doc()
             .first_root()
             .expect("list item root")
             .clone();
@@ -1798,7 +1798,7 @@ async fn quote_list_item_standalone_image_installs_runtime(cx: &mut TestAppConte
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
-        let quote = editor.document.first_root().expect("quote root").clone();
+        let quote = editor.doc().first_root().expect("quote root").clone();
         let list_item = quote
             .read(cx)
             .children
@@ -1834,7 +1834,7 @@ async fn callout_task_list_reference_style_image_uses_container_scoped_definitio
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
-        let callout = editor.document.first_root().expect("callout root").clone();
+        let callout = editor.doc().first_root().expect("callout root").clone();
         let list_item = callout
             .read(cx)
             .children
@@ -1869,7 +1869,7 @@ async fn callout_list_child_image_installs_runtime(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
-        let callout = editor.document.first_root().expect("callout root").clone();
+        let callout = editor.doc().first_root().expect("callout root").clone();
         let list_item = callout
             .read(cx)
             .children
@@ -1911,7 +1911,7 @@ async fn callout_child_reference_style_image_uses_container_scoped_definition(
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
-        let callout = editor.document.first_root().expect("callout root").clone();
+        let callout = editor.doc().first_root().expect("callout root").clone();
         let image_block = callout
             .read(cx)
             .children
@@ -1949,7 +1949,7 @@ async fn table_cell_with_standalone_image_installs_runtime(cx: &mut TestAppConte
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.read_with(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         let runtime = table
             .read(cx)
             .table_runtime
@@ -1981,7 +1981,7 @@ async fn table_cell_with_mixed_inline_image_uses_inline_image_segments(cx: &mut 
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.read_with(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         let runtime = table
             .read(cx)
             .table_runtime
@@ -2020,7 +2020,7 @@ async fn table_cell_with_reference_style_image_installs_runtime(cx: &mut TestApp
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.read_with(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         let runtime = table
             .read(cx)
             .table_runtime
@@ -2052,7 +2052,7 @@ async fn reference_style_link_in_root_paragraph_resolves_document_wide(cx: &mut 
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.read_with(cx, |editor, cx| {
-        let block = editor.document.first_root().expect("root block").clone();
+        let block = editor.doc().first_root().expect("root block").clone();
         assert_eq!(block.read(cx).display_text(), "reference link");
         assert_eq!(
             block.read(cx).inline_link_at(0),
@@ -2074,7 +2074,7 @@ async fn reference_style_link_in_table_cell_resolves_document_wide(cx: &mut Test
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.read_with(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         let runtime = table
             .read(cx)
             .table_runtime
@@ -2126,7 +2126,7 @@ async fn root_level_footnotes_number_by_first_reference_and_render_in_place(
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
     editor.read_with(cx, |editor, cx| {
-        let visible = editor.document.blocks();
+        let visible = editor.doc().blocks();
 
         let first_ref = visible
             .iter()
@@ -2184,7 +2184,7 @@ async fn root_level_footnotes_number_by_first_reference_and_render_in_place(
             Some(2)
         );
 
-        assert_eq!(editor.document.to_markdown(cx), canonical_markdown);
+        assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
     });
 }
 
@@ -2201,7 +2201,7 @@ async fn callout_footnotes_number_and_render_in_place(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
     editor.read_with(cx, |editor, cx| {
-        let visible = editor.document.blocks();
+        let visible = editor.doc().blocks();
 
         let reference_block = visible
             .iter()
@@ -2229,7 +2229,7 @@ async fn callout_footnotes_number_and_render_in_place(cx: &mut TestAppContext) {
         assert_eq!(definition.read(cx).display_text(), "final");
         assert_eq!(definition.read(cx).quote_depth, 1);
         assert_eq!(definition.read(cx).footnote_definition_ordinal(), Some(1));
-        assert_eq!(editor.document.to_markdown(cx), markdown);
+        assert_eq!(editor.doc().to_markdown(cx), markdown);
     });
 }
 
@@ -2239,7 +2239,7 @@ async fn root_reference_binds_to_nested_quote_footnote_definition(cx: &mut TestA
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
     editor.read_with(cx, |editor, cx| {
-        let visible = editor.document.blocks();
+        let visible = editor.doc().blocks();
 
         let root_reference = visible
             .iter()
@@ -2261,7 +2261,7 @@ async fn root_reference_binds_to_nested_quote_footnote_definition(cx: &mut TestA
         assert_eq!(definition.read(cx).display_text(), "note");
         assert_eq!(definition.read(cx).quote_depth, 1);
         assert_eq!(definition.read(cx).footnote_definition_ordinal(), Some(1));
-        assert_eq!(editor.document.to_markdown(cx), markdown);
+        assert_eq!(editor.doc().to_markdown(cx), markdown);
     });
 }
 
@@ -2272,7 +2272,7 @@ async fn unresolved_footnote_reference_stays_literal_and_unlinked(cx: &mut TestA
 
     editor.read_with(cx, |editor, cx| {
         let block = editor
-            .document
+            .doc()
             .first_root()
             .expect("root paragraph")
             .clone();
@@ -2283,8 +2283,8 @@ async fn unresolved_footnote_reference_stays_literal_and_unlinked(cx: &mut TestA
                 .inline_footnote_hit_at("Missing footnote".len())
                 .is_none()
         );
-        assert!(editor.references.footnotes.binding("missing").is_none());
-        assert_eq!(editor.document.to_markdown(cx), markdown);
+        assert!(editor.tab().references.footnotes.binding("missing").is_none());
+        assert_eq!(editor.doc().to_markdown(cx), markdown);
     });
 }
 
@@ -2295,13 +2295,13 @@ async fn toggling_source_mode_preserves_root_image_runtime(cx: &mut TestAppConte
 
     editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::SourceCode));
+        assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::Wysiwyg));
+        assert!(matches!(editor.tab().mode, EditorMode::Wysiwyg));
     });
 
     editor.read_with(cx, |editor, cx| {
-        let block = editor.document.first_root().expect("root block").clone();
+        let block = editor.doc().first_root().expect("root block").clone();
         assert!(block.read(cx).image_runtime().is_some());
     });
 }
@@ -2315,13 +2315,13 @@ async fn toggling_source_mode_preserves_reference_style_root_image_runtime(
 
     editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::SourceCode));
+        assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::Wysiwyg));
+        assert!(matches!(editor.tab().mode, EditorMode::Wysiwyg));
     });
 
     editor.read_with(cx, |editor, cx| {
-        let block = editor.document.first_root().expect("root block").clone();
+        let block = editor.doc().first_root().expect("root block").clone();
         let runtime = block.read(cx).image_runtime().expect("image runtime");
         assert_eq!(runtime.src, "./assets/diagram.png");
     });
@@ -2334,13 +2334,13 @@ async fn toggling_source_mode_preserves_quote_child_image_runtime(cx: &mut TestA
 
     editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::SourceCode));
+        assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::Wysiwyg));
+        assert!(matches!(editor.tab().mode, EditorMode::Wysiwyg));
     });
 
     editor.read_with(cx, |editor, cx| {
-        let quote = editor.document.first_root().expect("quote root").clone();
+        let quote = editor.doc().first_root().expect("quote root").clone();
         let image_block = quote
             .read(cx)
             .children
@@ -2358,14 +2358,14 @@ async fn toggling_source_mode_preserves_list_item_image_runtime(cx: &mut TestApp
 
     editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::SourceCode));
+        assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::Wysiwyg));
+        assert!(matches!(editor.tab().mode, EditorMode::Wysiwyg));
     });
 
     editor.read_with(cx, |editor, cx| {
         let block = editor
-            .document
+            .doc()
             .first_root()
             .expect("list item root")
             .clone();
@@ -2380,14 +2380,14 @@ async fn toggling_source_mode_preserves_list_child_image_runtime(cx: &mut TestAp
 
     editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::SourceCode));
+        assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::Wysiwyg));
+        assert!(matches!(editor.tab().mode, EditorMode::Wysiwyg));
     });
 
     editor.read_with(cx, |editor, cx| {
         let list_item = editor
-            .document
+            .doc()
             .first_root()
             .expect("list item root")
             .clone();
@@ -2406,8 +2406,8 @@ async fn undo_reverts_recent_rendered_typing(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, "alpha".to_string(), None));
 
     editor.update(cx, |editor, cx| {
-        let block = editor.document.first_root().expect("root").clone();
-        editor.focus.active_entity = Some(block.entity_id());
+        let block = editor.doc().first_root().expect("root").clone();
+        editor.tab_mut().focus.active_entity = Some(block.entity_id());
         block.update(cx, |block, cx| {
             block.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
@@ -2415,10 +2415,10 @@ async fn undo_reverts_recent_rendered_typing(cx: &mut TestAppContext) {
     });
 
     editor.update(cx, |editor, cx| {
-        assert_eq!(editor.document.to_markdown(cx), "alpha beta");
-        assert_eq!(editor.undo.undo_entries.len(), 1);
+        assert_eq!(editor.doc().to_markdown(cx), "alpha beta");
+        assert_eq!(editor.tab().undo.undo_entries.len(), 1);
         editor.undo_document(cx);
-        assert_eq!(editor.document.to_markdown(cx), "alpha");
+        assert_eq!(editor.doc().to_markdown(cx), "alpha");
     });
 }
 
@@ -2427,8 +2427,8 @@ async fn consecutive_text_edits_within_window_coalesce_into_one_undo(cx: &mut Te
     let editor = cx.new(|cx| Editor::from_markdown(cx, "a".to_string(), None));
 
     editor.update(cx, |editor, cx| {
-        let block = editor.document.first_root().expect("root").clone();
-        editor.focus.active_entity = Some(block.entity_id());
+        let block = editor.doc().first_root().expect("root").clone();
+        editor.tab_mut().focus.active_entity = Some(block.entity_id());
 
         block.update(cx, |block, cx| {
             block.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::CoalescibleText, cx);
@@ -2441,11 +2441,11 @@ async fn consecutive_text_edits_within_window_coalesce_into_one_undo(cx: &mut Te
     });
 
     editor.update(cx, |editor, cx| {
-        assert_eq!(editor.document.to_markdown(cx), "abc");
-        assert_eq!(editor.undo.undo_entries.len(), 1);
+        assert_eq!(editor.doc().to_markdown(cx), "abc");
+        assert_eq!(editor.tab().undo.undo_entries.len(), 1);
 
         editor.undo_document(cx);
-        assert_eq!(editor.document.to_markdown(cx), "a");
+        assert_eq!(editor.doc().to_markdown(cx), "a");
     });
 }
 
@@ -2454,8 +2454,8 @@ async fn redo_restores_text_reverted_by_undo(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, "alpha".to_string(), None));
 
     editor.update(cx, |editor, cx| {
-        let block = editor.document.first_root().expect("root").clone();
-        editor.focus.active_entity = Some(block.entity_id());
+        let block = editor.doc().first_root().expect("root").clone();
+        editor.tab_mut().focus.active_entity = Some(block.entity_id());
         block.update(cx, |block, cx| {
             block.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
@@ -2464,12 +2464,12 @@ async fn redo_restores_text_reverted_by_undo(cx: &mut TestAppContext) {
 
     editor.update(cx, |editor, cx| {
         editor.undo_document(cx);
-        assert_eq!(editor.document.to_markdown(cx), "alpha");
-        assert_eq!(editor.undo.redo_entries.len(), 1);
+        assert_eq!(editor.doc().to_markdown(cx), "alpha");
+        assert_eq!(editor.tab().undo.redo_entries.len(), 1);
 
         editor.redo_document(cx);
-        assert_eq!(editor.document.to_markdown(cx), "alpha beta");
-        assert!(editor.undo.redo_entries.is_empty());
+        assert_eq!(editor.doc().to_markdown(cx), "alpha beta");
+        assert!(editor.tab().undo.redo_entries.is_empty());
     });
 }
 
@@ -2478,8 +2478,8 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, "alpha".to_string(), None));
 
     editor.update(cx, |editor, cx| {
-        let block = editor.document.first_root().expect("root").clone();
-        editor.focus.active_entity = Some(block.entity_id());
+        let block = editor.doc().first_root().expect("root").clone();
+        editor.tab_mut().focus.active_entity = Some(block.entity_id());
         block.update(cx, |block, cx| {
             block.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
@@ -2488,10 +2488,10 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
 
     editor.update(cx, |editor, cx| {
         editor.undo_document(cx);
-        assert_eq!(editor.undo.redo_entries.len(), 1);
+        assert_eq!(editor.tab().undo.redo_entries.len(), 1);
 
         // A new edit invalidates the redo stack so it cannot revive stale text.
-        let block = editor.document.first_root().expect("root").clone();
+        let block = editor.doc().first_root().expect("root").clone();
         block.update(cx, |block, cx| {
             block.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::CoalescibleText, cx);
             block.replace_text_in_visible_range(5..5, " gamma", None, false, cx);
@@ -2500,10 +2500,10 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
 
     editor.update(cx, |editor, cx| {
         editor.finalize_pending_undo_capture(cx);
-        assert!(editor.undo.redo_entries.is_empty());
+        assert!(editor.tab().undo.redo_entries.is_empty());
 
         editor.redo_document(cx);
-        assert_eq!(editor.document.to_markdown(cx), "alpha gamma");
+        assert_eq!(editor.doc().to_markdown(cx), "alpha gamma");
     });
 }
 
@@ -2512,21 +2512,21 @@ async fn toggle_view_mode_preserves_paragraph_caret_position(cx: &mut TestAppCon
     let editor = cx.new(|cx| Editor::from_markdown(cx, "alpha\n\nbeta".to_string(), None));
 
     editor.update(cx, |editor, cx| {
-        let target = editor.document.blocks()[1].entity.clone();
+        let target = editor.doc().blocks()[1].entity.clone();
         target.update(cx, |block, _cx| {
             block.selected_range = 2..2;
         });
-        editor.focus.active_entity = Some(target.entity_id());
+        editor.tab_mut().focus.active_entity = Some(target.entity_id());
 
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::SourceCode));
-        let source = editor.document.first_root().expect("source root").clone();
+        assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
+        let source = editor.doc().first_root().expect("source root").clone();
         assert_eq!(source.read(cx).selected_range, 9..9);
         assert!(source.read(cx).show_source_line_numbers());
 
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::Wysiwyg));
-        let visible = editor.document.blocks();
+        assert!(matches!(editor.tab().mode, EditorMode::Wysiwyg));
+        let visible = editor.doc().blocks();
         assert_eq!(visible.len(), 2);
         assert!(
             visible
@@ -2535,7 +2535,7 @@ async fn toggle_view_mode_preserves_paragraph_caret_position(cx: &mut TestAppCon
         );
         assert_eq!(visible[1].entity.read(cx).display_text(), "beta");
         assert_eq!(visible[1].entity.read(cx).selected_range, 2..2);
-        assert_eq!(editor.focus.pending, Some(visible[1].entity.entity_id()));
+        assert_eq!(editor.tab().focus.pending, Some(visible[1].entity.entity_id()));
     });
 }
 
@@ -2545,17 +2545,17 @@ async fn toggle_view_mode_ends_stale_code_block_pointer_selection(cx: &mut TestA
         cx.new(|cx| Editor::from_markdown(cx, "```rust\nfn main() {}\n```".to_string(), None));
 
     editor.update(cx, |editor, cx| {
-        let target = editor.document.blocks()[0].entity.clone();
+        let target = editor.doc().blocks()[0].entity.clone();
         target.update(cx, |block, _cx| {
             block.selected_range = 3..7;
             block.is_selecting = true;
             block.code_language_is_selecting = true;
         });
-        editor.focus.active_entity = Some(target.entity_id());
+        editor.tab_mut().focus.active_entity = Some(target.entity_id());
 
         editor.toggle_view_mode(cx);
 
-        assert!(matches!(editor.mode, EditorMode::SourceCode));
+        assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
         target.read_with(cx, |block, _cx| {
             assert!(!block.is_selecting);
             assert!(!block.code_language_is_selecting);
@@ -2575,14 +2575,14 @@ async fn ctrl_tab_toggles_view_mode(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.update(cx, |editor, _cx| {
-        assert!(matches!(editor.mode, EditorMode::SourceCode));
+        assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
     });
 
     cx.simulate_keystrokes("ctrl-tab");
     redraw(cx);
 
     editor.update(cx, |editor, _cx| {
-        assert!(matches!(editor.mode, EditorMode::Wysiwyg));
+        assert!(matches!(editor.tab().mode, EditorMode::Wysiwyg));
     });
 }
 
@@ -2595,8 +2595,8 @@ async fn ctrl_a_selects_entire_source_document_in_source_mode(cx: &mut TestAppCo
 
     editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::SourceCode));
-        let source = editor.document.blocks()[0].entity.clone();
+        assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
+        let source = editor.doc().blocks()[0].entity.clone();
         editor.focus_block(source.entity_id());
         source.update(cx, |block, _cx| {
             block.selected_range = 1..3;
@@ -2608,9 +2608,9 @@ async fn ctrl_a_selects_entire_source_document_in_source_mode(cx: &mut TestAppCo
     redraw(cx);
 
     editor.read_with(cx, |editor, cx| {
-        let source = editor.document.blocks()[0].entity.read(cx);
+        let source = editor.doc().blocks()[0].entity.read(cx);
         assert_eq!(source.selected_range, 0..source.visible_len());
-        assert!(editor.selection.cross_block.is_none());
+        assert!(editor.tab().selection.cross_block.is_none());
     });
 }
 
@@ -2622,7 +2622,7 @@ async fn ctrl_a_selects_only_focused_block_text_in_rendered_mode(cx: &mut TestAp
     });
 
     editor.update(cx, |editor, cx| {
-        let block = editor.document.blocks()[1].entity.clone();
+        let block = editor.doc().blocks()[1].entity.clone();
         editor.focus_block(block.entity_id());
         block.update(cx, |block, _cx| {
             block.selected_range = 1..1;
@@ -2634,11 +2634,11 @@ async fn ctrl_a_selects_only_focused_block_text_in_rendered_mode(cx: &mut TestAp
     redraw(cx);
 
     editor.read_with(cx, |editor, cx| {
-        let first = editor.document.blocks()[0].entity.read(cx);
-        let second = editor.document.blocks()[1].entity.read(cx);
+        let first = editor.doc().blocks()[0].entity.read(cx);
+        let second = editor.doc().blocks()[1].entity.read(cx);
         assert_eq!(first.selected_range, 0..0);
         assert_eq!(second.selected_range, 0..second.visible_len());
-        assert!(editor.selection.cross_block.is_none());
+        assert!(editor.tab().selection.cross_block.is_none());
     });
 }
 
@@ -2653,7 +2653,7 @@ async fn repeated_ctrl_a_selects_all_rendered_blocks(cx: &mut TestAppContext) {
     });
 
     editor.update(cx, |editor, cx| {
-        let block = editor.document.blocks()[0].entity.clone();
+        let block = editor.doc().blocks()[0].entity.clone();
         editor.focus_block(block.entity_id());
         block.update(cx, |block, block_cx| {
             block.move_to(0, block_cx);
@@ -2665,16 +2665,16 @@ async fn repeated_ctrl_a_selects_all_rendered_blocks(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.read_with(cx, |editor, cx| {
-        let first = editor.document.blocks()[0].entity.read(cx);
+        let first = editor.doc().blocks()[0].entity.read(cx);
         assert_eq!(first.selected_range, 0..first.visible_len());
-        assert!(editor.selection.cross_block.is_none());
+        assert!(editor.tab().selection.cross_block.is_none());
     });
 
     cx.simulate_keystrokes("ctrl-a");
     redraw(cx);
 
     editor.read_with(cx, |editor, cx| {
-        let visible = editor.document.blocks();
+        let visible = editor.doc().blocks();
         let first_id = visible[0].entity.entity_id();
         let last = visible.last().expect("visible blocks");
         let last_id = last.entity.entity_id();
@@ -2695,16 +2695,16 @@ async fn repeated_ctrl_a_selects_all_rendered_blocks(cx: &mut TestAppContext) {
         }
     });
 
-    let selected_after_second = editor.read_with(cx, |editor, _cx| editor.selection.cross_block);
+    let selected_after_second = editor.read_with(cx, |editor, _cx| editor.tab().selection.cross_block);
     cx.simulate_keystrokes("ctrl-a");
     redraw(cx);
 
     editor.read_with(cx, |editor, cx| {
         assert_eq!(
-            editor.selection.cross_block, selected_after_second,
+            editor.tab().selection.cross_block, selected_after_second,
             "third Ctrl+A should keep the full rendered document selected"
         );
-        for visible in editor.document.blocks() {
+        for visible in editor.doc().blocks() {
             let block = visible.entity.read(cx);
             let len = block.visible_len();
             if len > 0 {
@@ -2722,7 +2722,7 @@ async fn rendered_ctrl_a_cycle_expires_before_second_press(cx: &mut TestAppConte
     });
 
     editor.update(cx, |editor, cx| {
-        let block = editor.document.blocks()[1].entity.clone();
+        let block = editor.doc().blocks()[1].entity.clone();
         editor.focus_block(block.entity_id());
         block.update(cx, |block, block_cx| {
             block.move_to(1, block_cx);
@@ -2734,7 +2734,7 @@ async fn rendered_ctrl_a_cycle_expires_before_second_press(cx: &mut TestAppConte
     redraw(cx);
 
     editor.update(cx, |editor, cx| {
-        let block = editor.document.blocks()[1].entity.clone();
+        let block = editor.doc().blocks()[1].entity.clone();
         block.update(cx, |block, _cx| {
             block.selected_range = 1..1;
         });
@@ -2750,9 +2750,9 @@ async fn rendered_ctrl_a_cycle_expires_before_second_press(cx: &mut TestAppConte
     redraw(cx);
 
     editor.read_with(cx, |editor, cx| {
-        let second = editor.document.blocks()[1].entity.read(cx);
+        let second = editor.doc().blocks()[1].entity.read(cx);
         assert_eq!(second.selected_range, 0..second.visible_len());
-        assert!(editor.selection.cross_block.is_none());
+        assert!(editor.tab().selection.cross_block.is_none());
         assert_eq!(
             editor
                 .rendered_select_all_cycle
@@ -2770,7 +2770,7 @@ async fn tab_key_inserts_tab_in_focused_paragraph(cx: &mut TestAppContext) {
         cx.add_window_view(|_window, cx| Editor::from_markdown(cx, "ab".to_string(), None));
 
     editor.update(cx, |editor, cx| {
-        let block = editor.document.blocks()[0].entity.clone();
+        let block = editor.doc().blocks()[0].entity.clone();
         editor.focus_block(block.entity_id());
         block.update(cx, |block, block_cx| {
             block.move_to(1, block_cx);
@@ -2782,9 +2782,9 @@ async fn tab_key_inserts_tab_in_focused_paragraph(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.update(cx, |editor, cx| {
-        let block = editor.document.blocks()[0].entity.clone();
+        let block = editor.doc().blocks()[0].entity.clone();
         assert_eq!(block.read(cx).display_text(), "a    b");
-        assert_eq!(editor.document.to_markdown(cx), "a    b");
+        assert_eq!(editor.doc().to_markdown(cx), "a    b");
     });
 }
 
@@ -2796,7 +2796,7 @@ async fn tab_key_inserts_tab_in_focused_code_block(cx: &mut TestAppContext) {
     });
 
     editor.update(cx, |editor, cx| {
-        let block = editor.document.blocks()[0].entity.clone();
+        let block = editor.doc().blocks()[0].entity.clone();
         editor.focus_block(block.entity_id());
         block.update(cx, |block, block_cx| {
             block.move_to(1, block_cx);
@@ -2808,9 +2808,9 @@ async fn tab_key_inserts_tab_in_focused_code_block(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.update(cx, |editor, cx| {
-        let block = editor.document.blocks()[0].entity.clone();
+        let block = editor.doc().blocks()[0].entity.clone();
         assert_eq!(block.read(cx).display_text(), "a    b");
-        assert_eq!(editor.document.to_markdown(cx), "```rust\na    b\n```");
+        assert_eq!(editor.doc().to_markdown(cx), "```rust\na    b\n```");
     });
 }
 
@@ -2821,7 +2821,7 @@ async fn captured_tab_key_inserts_visible_indent_in_paragraph(cx: &mut TestAppCo
         cx.add_window_view(|_window, cx| Editor::from_markdown(cx, "ab".to_string(), None));
 
     editor.update(cx, |editor, cx| {
-        let block = editor.document.blocks()[0].entity.clone();
+        let block = editor.doc().blocks()[0].entity.clone();
         editor.focus_block(block.entity_id());
         block.update(cx, |block, block_cx| {
             block.move_to(1, block_cx);
@@ -2839,7 +2839,7 @@ async fn captured_tab_key_inserts_visible_indent_in_paragraph(cx: &mut TestAppCo
     redraw(cx);
 
     editor.update(cx, |editor, cx| {
-        let block = editor.document.blocks()[0].entity.clone();
+        let block = editor.doc().blocks()[0].entity.clone();
         assert_eq!(block.read(cx).display_text(), "a    b");
     });
 }
@@ -2854,13 +2854,13 @@ async fn down_from_code_content_focuses_language_input(cx: &mut TestAppContext) 
     // Settle focus on the code content first (and clear any pending focus that a
     // later redraw would otherwise re-apply and steal back).
     editor.update_in(cx, |editor, _window, _cx| {
-        let block = editor.document.blocks()[0].entity.clone();
+        let block = editor.doc().blocks()[0].entity.clone();
         editor.focus_block(block.entity_id());
     });
     redraw(cx);
 
     editor.update_in(cx, |editor, window, cx| {
-        let block = editor.document.blocks()[0].entity.clone();
+        let block = editor.doc().blocks()[0].entity.clone();
         block.update(cx, |block, block_cx| {
             block.move_to(block.visible_len(), block_cx);
             block.on_focus_next(&FocusNext, window, block_cx);
@@ -2882,7 +2882,7 @@ async fn down_from_code_language_at_document_end_creates_trailing_paragraph(
     });
 
     editor.update_in(cx, |editor, window, cx| {
-        let block = editor.document.blocks()[0].entity.clone();
+        let block = editor.doc().blocks()[0].entity.clone();
         editor.focus_block(block.entity_id());
         block.update(cx, |block, block_cx| {
             block.code_language_focus_handle.focus(window);
@@ -2892,7 +2892,7 @@ async fn down_from_code_language_at_document_end_creates_trailing_paragraph(
     redraw(cx);
 
     editor.update(cx, |editor, cx| {
-        let roots = editor.document.root_blocks();
+        let roots = editor.doc().root_blocks();
         assert_eq!(roots.len(), 2, "a trailing paragraph should be created");
         assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(roots[1].read(cx).display_text(), "");
@@ -2907,7 +2907,7 @@ async fn enter_in_code_language_does_not_exit_block(cx: &mut TestAppContext) {
     });
 
     editor.update_in(cx, |editor, window, cx| {
-        let block = editor.document.blocks()[0].entity.clone();
+        let block = editor.doc().blocks()[0].entity.clone();
         editor.focus_block(block.entity_id());
         block.update(cx, |block, block_cx| {
             block.code_language_focus_handle.focus(window);
@@ -2918,7 +2918,7 @@ async fn enter_in_code_language_does_not_exit_block(cx: &mut TestAppContext) {
 
     editor.update(cx, |editor, _cx| {
         // Enter must not leave the block, so no trailing paragraph appears.
-        assert_eq!(editor.document.root_count(), 1);
+        assert_eq!(editor.doc().root_count(), 1);
     });
 }
 
@@ -2929,7 +2929,7 @@ async fn newline_at_start_of_heading_moves_entire_heading_down(cx: &mut TestAppC
         cx.add_window_view(|_window, cx| Editor::from_markdown(cx, "## 1111".to_string(), None));
 
     editor.update_in(cx, |editor, _window, cx| {
-        let block = editor.document.blocks()[0].entity.clone();
+        let block = editor.doc().blocks()[0].entity.clone();
         block.update(cx, |block, block_cx| {
             block.move_to(0, block_cx);
         });
@@ -2938,8 +2938,8 @@ async fn newline_at_start_of_heading_moves_entire_heading_down(cx: &mut TestAppC
     redraw(cx);
 
     editor.update(cx, |editor, cx| {
-        assert_eq!(editor.document.root_count(), 2);
-        let blocks = editor.document.blocks();
+        assert_eq!(editor.doc().root_count(), 2);
+        let blocks = editor.doc().blocks();
         assert_eq!(
             blocks[0].entity.read(cx).kind(),
             crate::model::block::BlockKind::Paragraph
@@ -2961,7 +2961,7 @@ async fn captured_tab_key_does_not_modify_code_language_input(cx: &mut TestAppCo
     });
 
     editor.update_in(cx, |editor, window, cx| {
-        let block = editor.document.blocks()[0].entity.clone();
+        let block = editor.doc().blocks()[0].entity.clone();
         editor.focus_block(block.entity_id());
         block.update(cx, |block, block_cx| {
             block.move_to(1, block_cx);
@@ -2973,7 +2973,7 @@ async fn captured_tab_key_does_not_modify_code_language_input(cx: &mut TestAppCo
     redraw(cx);
 
     editor.update_in(cx, |editor, window, cx| {
-        let block = editor.document.blocks()[0].entity.clone();
+        let block = editor.doc().blocks()[0].entity.clone();
         block.update(cx, |block, _cx| {
             block.code_language_focus_handle.focus(window);
         });
@@ -2989,7 +2989,7 @@ async fn captured_tab_key_does_not_modify_code_language_input(cx: &mut TestAppCo
     redraw(cx);
 
     editor.update(cx, |editor, cx| {
-        let block = editor.document.blocks()[0].entity.clone();
+        let block = editor.doc().blocks()[0].entity.clone();
         let block = block.read(cx);
         assert_eq!(block.code_language_text(), "rust");
         assert_eq!(block.display_text(), "ab");
@@ -3003,7 +3003,7 @@ async fn tab_key_keeps_list_indent_semantics(cx: &mut TestAppContext) {
         cx.add_window_view(|_window, cx| Editor::from_markdown(cx, "- a\n- b".to_string(), None));
 
     editor.update(cx, |editor, cx| {
-        let second = editor.document.blocks()[1].entity.clone();
+        let second = editor.doc().blocks()[1].entity.clone();
         editor.focus_block(second.entity_id());
         second.update(cx, |block, block_cx| {
             block.move_to(block.visible_len(), block_cx);
@@ -3015,10 +3015,10 @@ async fn tab_key_keeps_list_indent_semantics(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.document.blocks();
+        let visible = editor.doc().blocks();
         assert_eq!(visible.len(), 2);
         assert_eq!(visible[1].entity.read(cx).render_depth, 1);
-        assert_eq!(editor.document.to_markdown(cx), "- a\n  - b");
+        assert_eq!(editor.doc().to_markdown(cx), "- a\n  - b");
     });
 }
 
@@ -3030,7 +3030,7 @@ async fn tab_key_keeps_table_cell_navigation(cx: &mut TestAppContext) {
         cx.add_window_view(move |_window, cx| Editor::from_markdown(cx, markdown, None));
 
     let second_cell_id = editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         let runtime = table
             .read(cx)
             .table_runtime
@@ -3051,7 +3051,7 @@ async fn tab_key_keeps_table_cell_navigation(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.update(cx, |editor, _cx| {
-        assert_eq!(editor.focus.active_entity, Some(second_cell_id));
+        assert_eq!(editor.tab().focus.active_entity, Some(second_cell_id));
     });
 }
 
@@ -3063,7 +3063,7 @@ async fn right_arrow_at_cell_end_moves_to_next_cell(cx: &mut TestAppContext) {
         cx.add_window_view(move |_window, cx| Editor::from_markdown(cx, markdown, None));
 
     let second_cell_id = editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         let runtime = table
             .read(cx)
             .table_runtime
@@ -3084,7 +3084,7 @@ async fn right_arrow_at_cell_end_moves_to_next_cell(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.update(cx, |editor, _cx| {
-        assert_eq!(editor.focus.active_entity, Some(second_cell_id));
+        assert_eq!(editor.tab().focus.active_entity, Some(second_cell_id));
     });
 }
 
@@ -3096,7 +3096,7 @@ async fn left_arrow_at_cell_start_moves_to_previous_cell(cx: &mut TestAppContext
         cx.add_window_view(move |_window, cx| Editor::from_markdown(cx, markdown, None));
 
     let first_cell_id = editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         let runtime = table
             .read(cx)
             .table_runtime
@@ -3117,7 +3117,7 @@ async fn left_arrow_at_cell_start_moves_to_previous_cell(cx: &mut TestAppContext
     redraw(cx);
 
     editor.update(cx, |editor, _cx| {
-        assert_eq!(editor.focus.active_entity, Some(first_cell_id));
+        assert_eq!(editor.tab().focus.active_entity, Some(first_cell_id));
     });
 }
 
@@ -3138,7 +3138,7 @@ async fn inserting_table_at_document_end_adds_trailing_paragraph(cx: &mut TestAp
     });
 
     editor.update(cx, |editor, cx| {
-        let roots = editor.document.blocks();
+        let roots = editor.doc().blocks();
         let kinds = roots
             .iter()
             .map(|visible| visible.entity.read(cx).kind())
@@ -3162,7 +3162,7 @@ async fn ctrl_enter_exits_focused_math_block(cx: &mut TestAppContext) {
         cx.add_window_view(|_window, cx| Editor::from_markdown(cx, "$$n^2$$".to_string(), None));
 
     editor.update(cx, |editor, cx| {
-        let block = editor.document.blocks()[0].entity.clone();
+        let block = editor.doc().blocks()[0].entity.clone();
         editor.focus_block(block.entity_id());
         block.update(cx, |block, block_cx| {
             block.move_to(block.visible_len(), block_cx);
@@ -3174,13 +3174,13 @@ async fn ctrl_enter_exits_focused_math_block(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.document.blocks();
+        let visible = editor.doc().blocks();
         assert_eq!(visible.len(), 2);
         assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MathBlock);
         assert_eq!(visible[0].entity.read(cx).display_text(), "$$n^2$$");
         assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(visible[1].entity.read(cx).display_text(), "");
-        assert_eq!(editor.document.to_markdown(cx), "$$n^2$$\n\n");
+        assert_eq!(editor.doc().to_markdown(cx), "$$n^2$$\n\n");
     });
 }
 
@@ -3192,7 +3192,7 @@ async fn ctrl_enter_exits_focused_table_cell(cx: &mut TestAppContext) {
         cx.add_window_view(move |_window, cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         let cell = table
             .read(cx)
             .table_runtime
@@ -3211,12 +3211,12 @@ async fn ctrl_enter_exits_focused_table_cell(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.document.blocks();
+        let visible = editor.doc().blocks();
         assert_eq!(visible.len(), 2);
         assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Table);
         assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(visible[1].entity.read(cx).display_text(), "");
-        assert_eq!(editor.focus.active_entity, Some(visible[1].entity.entity_id()));
+        assert_eq!(editor.tab().focus.active_entity, Some(visible[1].entity.entity_id()));
     });
 }
 
@@ -3226,13 +3226,13 @@ async fn ending_editor_pointer_selection_sessions_keeps_normal_selection(cx: &mu
         cx.new(|cx| Editor::from_markdown(cx, "```rust\nfn main() {}\n```".to_string(), None));
 
     editor.update(cx, |editor, cx| {
-        let target = editor.document.blocks()[0].entity.clone();
+        let target = editor.doc().blocks()[0].entity.clone();
         target.update(cx, |block, _cx| {
             block.selected_range = 3..7;
             block.marked_range = Some(4..6);
             block.is_selecting = true;
         });
-        editor.focus.active_entity = Some(target.entity_id());
+        editor.tab_mut().focus.active_entity = Some(target.entity_id());
 
         assert!(editor.end_block_pointer_selection_sessions(cx));
         target.read_with(cx, |block, _cx| {
@@ -3251,7 +3251,7 @@ async fn toggle_view_mode_preserves_table_cell_position(cx: &mut TestAppContext)
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        let table = editor.document.first_root().expect("table root").clone();
+        let table = editor.doc().first_root().expect("table root").clone();
         let cell = table
             .read(cx)
             .table_runtime
@@ -3262,15 +3262,15 @@ async fn toggle_view_mode_preserves_table_cell_position(cx: &mut TestAppContext)
         cell.update(cx, |block, _cx| {
             block.selected_range = 2..2;
         });
-        editor.focus.active_entity = Some(cell.entity_id());
+        editor.tab_mut().focus.active_entity = Some(cell.entity_id());
 
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::SourceCode));
+        assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
 
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::Wysiwyg));
+        assert!(matches!(editor.tab().mode, EditorMode::Wysiwyg));
         let restored_table = editor
-            .document
+            .doc()
             .first_root()
             .expect("restored table")
             .clone();
@@ -3283,7 +3283,7 @@ async fn toggle_view_mode_preserves_table_cell_position(cx: &mut TestAppContext)
             .clone();
         assert_eq!(restored_cell.read(cx).display_text(), "beta");
         assert_eq!(restored_cell.read(cx).selected_range, 2..2);
-        assert_eq!(editor.focus.pending, Some(restored_cell.entity_id()));
+        assert_eq!(editor.tab().focus.pending, Some(restored_cell.entity_id()));
     });
 }
 
@@ -3299,7 +3299,7 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        let callout = editor.document.first_root().expect("callout root").clone();
+        let callout = editor.doc().first_root().expect("callout root").clone();
         let table = callout
             .read(cx)
             .children
@@ -3317,15 +3317,15 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
         cell.update(cx, |block, _cx| {
             block.selected_range = 2..2;
         });
-        editor.focus.active_entity = Some(cell.entity_id());
+        editor.tab_mut().focus.active_entity = Some(cell.entity_id());
 
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::SourceCode));
+        assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
 
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.mode, EditorMode::Wysiwyg));
+        assert!(matches!(editor.tab().mode, EditorMode::Wysiwyg));
         let restored_callout = editor
-            .document
+            .doc()
             .first_root()
             .expect("restored callout")
             .clone();
@@ -3345,6 +3345,6 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
             .clone();
         assert_eq!(restored_cell.read(cx).display_text(), "beta");
         assert_eq!(restored_cell.read(cx).selected_range, 2..2);
-        assert_eq!(editor.focus.pending, Some(restored_cell.entity_id()));
+        assert_eq!(editor.tab().focus.pending, Some(restored_cell.entity_id()));
     });
 }

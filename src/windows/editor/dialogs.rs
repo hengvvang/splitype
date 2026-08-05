@@ -24,10 +24,10 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.file.show_unsaved_changes_dialog = false;
-        self.file.pending_close_after_save = false;
-        if let Some(restore) = self.file.close_dialog_restore_focus.take() {
-            self.focus.active_entity = Some(restore);
+        self.tab_mut().file.show_unsaved_changes_dialog = false;
+        self.tab_mut().file.pending_close_after_save = false;
+        if let Some(restore) = self.tab_mut().file.close_dialog_restore_focus.take() {
+            self.tab_mut().focus.active_entity = Some(restore);
         }
         cx.notify();
     }
@@ -39,8 +39,8 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.file.show_unsaved_changes_dialog = false;
-        self.file.pending_close_after_save = true;
+        self.tab_mut().file.show_unsaved_changes_dialog = false;
+        self.tab_mut().file.pending_close_after_save = true;
         self.save_document(window, cx);
     }
 
@@ -51,9 +51,9 @@ impl Editor {
         window: &mut Window,
         _cx: &mut Context<Self>,
     ) {
-        self.file.show_unsaved_changes_dialog = false;
-        self.file.pending_close_after_save = false;
-        self.file.close_dialog_restore_focus = None;
+        self.tab_mut().file.show_unsaved_changes_dialog = false;
+        self.tab_mut().file.pending_close_after_save = false;
+        self.tab_mut().file.close_dialog_restore_focus = None;
         window.remove_window();
     }
 
@@ -64,9 +64,9 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.file.dirty {
-            self.file.show_unsaved_changes_dialog = true;
-            self.file.close_dialog_restore_focus = self.focus.active_entity;
+        if self.tab().file.dirty {
+            self.tab_mut().file.show_unsaved_changes_dialog = true;
+            self.tab_mut().file.close_dialog_restore_focus = self.tab().focus.active_entity;
             cx.notify();
         } else {
             window.remove_window();
@@ -81,13 +81,17 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        if self.file.dirty {
-            self.file.show_unsaved_changes_dialog = true;
-            self.file.close_dialog_restore_focus = self.focus.active_entity;
+        // Welcome state (no tabs): nothing to save, close freely.
+        let Some(tab) = self.tabs.get(self.active_tab) else {
+            return true;
+        };
+        if tab.file.dirty {
+            self.tab_mut().file.show_unsaved_changes_dialog = true;
+            self.tab_mut().file.close_dialog_restore_focus = self.tab().focus.active_entity;
             cx.notify();
             false
         } else {
-            self.file.close_guard_installed = false;
+            self.tab_mut().file.close_guard_installed = false;
             true
         }
     }
@@ -95,8 +99,8 @@ impl Editor {
     /// Cancel the pending-close-after-save flag (called when save fails or is
     /// cancelled, or when the save completes but close is no longer desired).
     pub(crate) fn abort_pending_close_after_save(&mut self, cx: &mut Context<Self>) {
-        self.file.pending_close_after_save = false;
-        self.file.close_dialog_restore_focus = None;
+        self.tab_mut().file.pending_close_after_save = false;
+        self.tab_mut().file.close_dialog_restore_focus = None;
         cx.notify();
     }
     pub(crate) fn render_unsaved_changes_overlay(
@@ -109,7 +113,7 @@ impl Editor {
         let t = &theme.typography;
         let strings = cx.global::<I18nManager>().strings();
 
-overlay()
+        overlay()
             .id("unsaved-changes-overlay")
             .flex()
             .items_center()
@@ -122,7 +126,7 @@ overlay()
                     .flex()
                     .justify_center()
                     .child(
-dialog_card(c, d)
+                        dialog_card(c, d)
                             .id("unsaved-changes-dialog")
                             .w(px(d.dialog_width))
                             .border(px(d.dialog_border_width))
@@ -194,7 +198,7 @@ dialog_card(c, d)
         let t = &theme.typography;
         let strings = cx.global::<I18nManager>().strings();
 
-overlay()
+        overlay()
             .id("drop-replace-overlay")
             .flex()
             .items_center()
@@ -207,7 +211,7 @@ overlay()
                     .flex()
                     .justify_center()
                     .child(
-dialog_card(c, d)
+                        dialog_card(c, d)
                             .id("drop-replace-dialog")
                             .w(px(d.dialog_width))
                             .border(px(d.dialog_border_width))
@@ -393,7 +397,7 @@ dialog_card(c, d)
         let t = &theme.typography;
         let strings = cx.global::<I18nManager>().strings();
 
-overlay()
+        overlay()
             .id("info-dialog-overlay")
             .occlude()
             .flex()
@@ -407,7 +411,7 @@ overlay()
                     .flex()
                     .justify_center()
                     .child(
-dialog_card(c, d)
+                        dialog_card(c, d)
                             .id("info-dialog")
                             .w(px(d.dialog_width))
                             .border(px(d.dialog_border_width))

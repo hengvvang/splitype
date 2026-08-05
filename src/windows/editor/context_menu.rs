@@ -22,7 +22,7 @@ use crate::theme::Theme;
 impl Editor {
     pub(crate) fn root_ancestor_entity_id(&self, entity_id: EntityId) -> EntityId {
         let mut current = entity_id;
-        while let Some(location) = self.document.find_block_location(current) {
+        while let Some(location) = self.doc().find_block_location(current) {
             let Some(parent) = location.parent else {
                 break;
             };
@@ -37,7 +37,7 @@ impl Editor {
         target: TableInsertTarget,
         cx: &mut Context<Self>,
     ) {
-        if self.mode != EditorMode::Wysiwyg {
+        if self.tab().mode != EditorMode::Wysiwyg {
             return;
         }
 
@@ -59,7 +59,7 @@ impl Editor {
         selection: TableAxisSelection,
         cx: &mut Context<Self>,
     ) {
-        if self.mode != EditorMode::Wysiwyg {
+        if self.tab().mode != EditorMode::Wysiwyg {
             return;
         }
 
@@ -205,7 +205,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.mode != EditorMode::Wysiwyg {
+        if self.tab().mode != EditorMode::Wysiwyg {
             return;
         }
         cx.stop_propagation();
@@ -219,7 +219,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.mode != EditorMode::Wysiwyg {
+        if self.tab().mode != EditorMode::Wysiwyg {
             return;
         }
         cx.stop_propagation();
@@ -364,29 +364,23 @@ impl Editor {
 
         match dialog.target {
             TableInsertTarget::After(entity_id) => {
-                if let Some(location) = self.document.find_block_location(entity_id) {
-                    self.document.insert_blocks_at(
+                if let Some(location) = self.doc().find_block_location(entity_id) {
+                    self.doc_mut().insert_blocks_at(
                         location.parent,
                         location.index + 1,
                         vec![new_block.clone()],
                         cx,
                     );
                 } else {
-                    self.document.insert_blocks_at(
-                        None,
-                        self.document.root_count(),
-                        vec![new_block.clone()],
-                        cx,
-                    );
+                    let root_count = self.doc().root_count();
+                    self.doc_mut()
+                        .insert_blocks_at(None, root_count, vec![new_block.clone()], cx);
                 }
             }
             TableInsertTarget::Append => {
-                self.document.insert_blocks_at(
-                    None,
-                    self.document.root_count(),
-                    vec![new_block.clone()],
-                    cx,
-                );
+                let root_count = self.doc().root_count();
+                self.doc_mut()
+                    .insert_blocks_at(None, root_count, vec![new_block.clone()], cx);
             }
         }
 
@@ -1101,7 +1095,7 @@ impl Editor {
                 };
 
                 Some(
-overlay()
+                    overlay()
                         .id("table-axis-context-menu-overlay")
                         .occlude()
                         .on_mouse_down(
@@ -1290,7 +1284,7 @@ overlay()
 
                 let p_copy = path.clone();
                 items.push(
-menu_item("ws-ctx-copy-path", c, d)
+                    menu_item("ws-ctx-copy-path", c, d)
                         .gap(px(8.0))
                         .cursor_pointer()
                         .child(
@@ -1311,7 +1305,7 @@ menu_item("ws-ctx-copy-path", c, d)
                 );
 
                 Some(
-overlay()
+                    overlay()
                         .id("workspace-file-context-menu-overlay")
                         .occlude()
                         .on_mouse_down(
@@ -1432,7 +1426,7 @@ overlay()
             };
 
         Some(
-overlay()
+            overlay()
                 .id("table-insert-dialog-overlay")
                 .occlude()
                 .flex()

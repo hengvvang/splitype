@@ -16,7 +16,7 @@ use crate::theme::{Theme, ThemeManager};
 impl Editor {
     pub(crate) fn export_dialog_defaults(&self, format: ExportFormat) -> (PathBuf, String) {
         let extension = format.extension();
-        if let Some(path) = self.file.path.as_ref() {
+        if let Some(path) = self.tab().file.path.as_ref() {
             let directory = path
                 .parent()
                 .map(Path::to_path_buf)
@@ -36,7 +36,7 @@ impl Editor {
     }
 
     pub(crate) fn export_title(&self) -> String {
-        self.file.path
+        self.tab().file.path
             .as_ref()
             .and_then(|path| path.file_stem())
             .map(|stem| stem.to_string_lossy().to_string())
@@ -87,7 +87,7 @@ impl Editor {
         let markdown = self.serialized_document_text(cx);
         let theme = cx.global::<ThemeManager>().current().clone();
         let title = self.export_title();
-        let source_base_dir = self.file.path.as_ref().and_then(|path| path.parent());
+        let source_base_dir = self.tab().file.path.as_ref().and_then(|path| path.parent());
         Self::write_export_bytes(format, &markdown, &theme, &title, path, source_base_dir)
     }
 
@@ -101,7 +101,7 @@ impl Editor {
         let theme = cx.global::<ThemeManager>().current().clone();
         let title = self.export_title();
         let source_base_dir = self
-            .file.path
+            .tab().file.path
             .as_ref()
             .and_then(|path| path.parent())
             .map(Path::to_path_buf);

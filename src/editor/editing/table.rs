@@ -49,7 +49,7 @@ impl Editor {
                     .unwrap_or(TableColumnAlignment::Default);
                 let position = TableCellPosition { row: 0, column };
                 let cell = Self::new_table_cell_block(cx, title, position, alignment);
-                self.tables.cells.insert(
+                self.tab_mut().tables.cells.insert(
                     cell.entity_id(),
                     TableCellBinding {
                         table_block: table_block.clone(),
@@ -80,7 +80,7 @@ impl Editor {
                             column,
                         };
                         let cell = Self::new_table_cell_block(cx, title, position, alignment);
-                        self.tables.cells.insert(
+                        self.tab_mut().tables.cells.insert(
                             cell.entity_id(),
                             TableCellBinding {
                                 table_block: table_block.clone(),
@@ -101,9 +101,9 @@ impl Editor {
     }
 
     pub(crate) fn rebuild_table_runtimes(&mut self, cx: &mut Context<Self>) {
-        self.tables.cells.clear();
-        self.tables.axis_preview = None;
-        let visible = self.document.blocks().to_vec();
+        self.tab_mut().tables.cells.clear();
+        self.tab_mut().tables.axis_preview = None;
+        let visible = self.doc().blocks().to_vec();
         for block in &visible {
             block
                 .entity
@@ -169,7 +169,7 @@ impl Editor {
         let Some(mut table) = table_block.read(cx).record.table.clone() else {
             return;
         };
-        let started_local_capture = if self.undo.pending_capture.is_none() {
+        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
             self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             true
         } else {
@@ -208,7 +208,7 @@ impl Editor {
         let Some(mut table) = table_block.read(cx).record.table.clone() else {
             return;
         };
-        let started_local_capture = if self.undo.pending_capture.is_none() {
+        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
             self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             true
         } else {
@@ -252,7 +252,7 @@ impl Editor {
         };
         if hovered {
             self.set_table_axis_preview(Some(marker), cx);
-        } else if self.tables.axis_preview == Some(marker) {
+        } else if self.tab().tables.axis_preview == Some(marker) {
             // Only clear on a leave that still owns the preview. Adjacent
             // handles share one preview slot, and a leave can arrive after
             // the next handle's enter; clearing unconditionally would erase
@@ -286,7 +286,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.select_table_axis(table_block_id, kind, index, cx);
-        if let Some(selection) = self.tables.axis_selection {
+        if let Some(selection) = self.tab().tables.axis_selection {
             self.open_table_axis_context_menu(position, selection, cx);
         }
     }
@@ -302,7 +302,7 @@ impl Editor {
         let Some(mut table) = table_block.read(cx).record.table.clone() else {
             return;
         };
-        let started_local_capture = if self.undo.pending_capture.is_none() {
+        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
             self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             true
         } else {
@@ -352,7 +352,7 @@ impl Editor {
         if next_row > table.rows.len() {
             return;
         }
-        let started_local_capture = if self.undo.pending_capture.is_none() {
+        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
             self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             true
         } else {
@@ -407,7 +407,7 @@ impl Editor {
         if next_column >= table.column_count() {
             return;
         }
-        let started_local_capture = if self.undo.pending_capture.is_none() {
+        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
             self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             true
         } else {
@@ -453,7 +453,7 @@ impl Editor {
         if row_index >= table.rows.len() {
             return;
         }
-        let started_local_capture = if self.undo.pending_capture.is_none() {
+        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
             self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             true
         } else {
@@ -515,7 +515,7 @@ impl Editor {
         if table.rows.is_empty() {
             return;
         }
-        let started_local_capture = if self.undo.pending_capture.is_none() {
+        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
             self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             true
         } else {
@@ -549,7 +549,7 @@ impl Editor {
         if table.column_count() <= 1 || column >= table.column_count() {
             return;
         }
-        let started_local_capture = if self.undo.pending_capture.is_none() {
+        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
             self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             true
         } else {
@@ -591,10 +591,10 @@ impl Editor {
         table_block: &Entity<Block>,
         cx: &mut Context<Self>,
     ) {
-        let Some(location) = self.document.find_block_location(table_block.entity_id()) else {
+        let Some(location) = self.doc().find_block_location(table_block.entity_id()) else {
             return;
         };
-        let started_local_capture = if self.undo.pending_capture.is_none() {
+        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
             self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             true
         } else {
@@ -603,14 +603,14 @@ impl Editor {
         // Insert the replacement paragraph after the table first, then remove the
         // table, so the document is never momentarily empty.
         let paragraph = Self::new_block(cx, BlockData::paragraph(String::new()));
-        self.document.insert_blocks_at(
+        self.doc_mut().insert_blocks_at(
             location.parent.clone(),
             location.index + 1,
             vec![paragraph.clone()],
             cx,
         );
         let table_id = table_block.entity_id();
-        self.document.with_structure_mutation(cx, |document, cx| {
+        self.doc_mut().with_structure_mutation(cx, |document, cx| {
             let _ = document.remove_block_by_id_raw(table_id, cx);
         });
         self.rebuild_table_runtimes(cx);
@@ -632,13 +632,13 @@ impl Editor {
     }
 
     pub(crate) fn clear_table_axis_preview(&mut self, cx: &mut Context<Self>) {
-        if self.tables.axis_preview.take().is_some() {
+        if self.tab_mut().tables.axis_preview.take().is_some() {
             self.sync_table_axis_visuals(cx);
         }
     }
 
     pub(crate) fn clear_table_axis_selection(&mut self, cx: &mut Context<Self>) {
-        if self.tables.axis_selection.take().is_some() {
+        if self.tab_mut().tables.axis_selection.take().is_some() {
             self.sync_table_axis_visuals(cx);
         }
     }
@@ -648,8 +648,8 @@ impl Editor {
         preview: Option<TableAxisSelection>,
         cx: &mut Context<Self>,
     ) {
-        if self.tables.axis_preview != preview {
-            self.tables.axis_preview = preview;
+        if self.tab().tables.axis_preview != preview {
+            self.tab_mut().tables.axis_preview = preview;
             self.sync_table_axis_visuals(cx);
         }
     }
@@ -659,8 +659,8 @@ impl Editor {
         selection: Option<TableAxisSelection>,
         cx: &mut Context<Self>,
     ) {
-        if self.tables.axis_selection != selection {
-            self.tables.axis_selection = selection;
+        if self.tab().tables.axis_selection != selection {
+            self.tab_mut().tables.axis_selection = selection;
             self.sync_table_axis_visuals(cx);
         }
     }
@@ -684,15 +684,15 @@ impl Editor {
     }
 
     pub(crate) fn normalize_table_axis_state(&mut self, cx: &mut Context<Self>) {
-        if let Some(selection) = self.tables.axis_selection
+        if let Some(selection) = self.tab().tables.axis_selection
             && !self.table_axis_selection_valid(selection, cx)
         {
-            self.tables.axis_selection = None;
+            self.tab_mut().tables.axis_selection = None;
         }
-        if let Some(preview) = self.tables.axis_preview
+        if let Some(preview) = self.tab().tables.axis_preview
             && !self.table_axis_selection_valid(preview, cx)
         {
-            self.tables.axis_preview = None;
+            self.tab_mut().tables.axis_preview = None;
         }
     }
 
@@ -700,7 +700,7 @@ impl Editor {
         self.normalize_table_axis_state(cx);
 
         let visible_tables = self
-            .document
+            .doc()
             .flatten_visible_blocks()
             .into_iter()
             .filter(|visible| visible.entity.read(cx).kind() == BlockKind::Table)
@@ -710,11 +710,11 @@ impl Editor {
         for table_block in &visible_tables {
             let block_id = table_block.entity_id();
             let preview_marker = self
-.tables.axis_preview
+.tab().tables.axis_preview
                 .filter(|selection| selection.table_block_id == block_id)
                 .map(Self::table_axis_marker);
             let selected_marker = self
-.tables.axis_selection
+.tab().tables.axis_selection
                 .filter(|selection| selection.table_block_id == block_id)
                 .map(Self::table_axis_marker);
 
@@ -728,10 +728,10 @@ impl Editor {
             };
 
             let selected = self
-.tables.axis_selection
+.tab().tables.axis_selection
                 .filter(|selection| selection.table_block_id == block_id);
             let preview = self
-.tables.axis_preview
+.tab().tables.axis_preview
                 .filter(|selection| selection.table_block_id == block_id);
 
             // `row` is the visual row index: `0` is the header and body rows
@@ -778,7 +778,7 @@ impl Editor {
         let Some(mut table) = table_block.read(cx).record.table.clone() else {
             return;
         };
-        let started_local_capture = if self.undo.pending_capture.is_none() {
+        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
             self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             true
         } else {
@@ -806,7 +806,7 @@ impl Editor {
         let Some(mut table) = table_block.read(cx).record.table.clone() else {
             return;
         };
-        let started_local_capture = if self.undo.pending_capture.is_none() {
+        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
             self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             true
         } else {
@@ -834,7 +834,7 @@ impl Editor {
         let Some(mut table) = table_block.read(cx).record.table.clone() else {
             return;
         };
-        let started_local_capture = if self.undo.pending_capture.is_none() {
+        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
             self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             true
         } else {
@@ -862,7 +862,7 @@ impl Editor {
         let Some(mut table) = table_block.read(cx).record.table.clone() else {
             return;
         };
-        let started_local_capture = if self.undo.pending_capture.is_none() {
+        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
             self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             true
         } else {
@@ -889,7 +889,7 @@ impl Editor {
         let Some(mut table) = table_block.read(cx).record.table.clone() else {
             return;
         };
-        let started_local_capture = if self.undo.pending_capture.is_none() {
+        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
             self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             true
         } else {

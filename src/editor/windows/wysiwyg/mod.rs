@@ -16,22 +16,22 @@ impl Editor {
     /// scroll state. Used after edits that can leave quote/container
     /// structures malformed in the rendered view.
     pub(crate) fn normalize_rendered_quote_structure(&mut self, cx: &mut Context<Self>) {
-        if self.mode != EditorMode::Wysiwyg {
+        if self.tab().mode != EditorMode::Wysiwyg {
             return;
         }
 
         let selection_snapshot = self.capture_source_selection_snapshot(cx);
-        let source = self.document.to_markdown(cx);
+        let source = self.doc().to_markdown(cx);
         let mut roots = Self::parse_document(cx, &source);
         if roots.is_empty() {
             roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
         }
-        self.document.replace_blocks(roots, cx);
+        self.doc_mut().replace_blocks(roots, cx);
         self.rebuild_table_runtimes(cx);
         self.rebuild_image_runtimes(cx);
         self.apply_selection_snapshot_in_current_mode(&selection_snapshot, cx);
-        self.focus.pending_scroll_active_block_into_view = true;
-        self.focus.pending_scroll_recheck_after_layout = true;
-        self.scroll.last_viewport_size = None;
+        self.tab_mut().focus.pending_scroll_active_block_into_view = true;
+        self.tab_mut().focus.pending_scroll_recheck_after_layout = true;
+        self.tab_mut().scroll.last_viewport_size = None;
     }
 }

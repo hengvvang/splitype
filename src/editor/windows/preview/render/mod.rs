@@ -47,7 +47,7 @@ impl Editor {
         // renderers. No GPUI view mounting, no event suppression needed: the
         // preview elements carry no interaction handlers at all.
         let block_elements: Vec<AnyElement> = self
-            .preview
+            .tab().preview
             .blocks
             .iter()
             .map(|entity| render_preview_block(entity.read(cx), 0, 0, theme, window, cx))

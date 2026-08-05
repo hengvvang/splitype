@@ -22,7 +22,7 @@ impl Editor {
 
 
     pub(crate) fn image_paste_root_dir(&self) -> anyhow::Result<PathBuf> {
-        if let Some(parent) = self.file.path.as_ref().and_then(|path| path.parent()) {
+        if let Some(parent) = self.tab().file.path.as_ref().and_then(|path| path.parent()) {
             return Ok(parent.to_path_buf());
         }
         std::env::current_dir().context("failed to resolve current working directory")
@@ -55,13 +55,13 @@ impl Editor {
             ImagePasteBehavior::CopyToAssetsFolder => Ok(root_dir.join("assets")),
             ImagePasteBehavior::CopyToNamedAssetsFolder => {
                 let base = self
-                    .file.path
+                    .tab().file.path
                     .as_ref()
                     .and_then(|path| path.file_stem())
                     .and_then(|stem| stem.to_str())
                     .filter(|stem| !stem.trim().is_empty())
                     .unwrap_or("untitle");
-                if self.file.path.is_some() {
+                if self.tab().file.path.is_some() {
                     return Ok(root_dir.join(format!("{base}.assets")));
                 }
 
@@ -291,7 +291,7 @@ impl Editor {
         trailing: &RichText,
         cx: &mut Context<Self>,
     ) {
-        let Some(location) = self.document.find_block_location(block.entity_id()) else {
+        let Some(location) = self.doc().find_block_location(block.entity_id()) else {
             return;
         };
         let leading_empty = leading.visible_len() == 0;
@@ -309,7 +309,7 @@ impl Editor {
             if !trailing_empty {
                 let trailing_block =
                     Self::new_block(cx, BlockData::new(BlockKind::Paragraph, trailing.clone()));
-                self.document.insert_blocks_at(
+                self.doc_mut().insert_blocks_at(
                     location.parent,
                     location.index + 1,
                     vec![trailing_block],
@@ -336,7 +336,7 @@ impl Editor {
                 BlockData::new(BlockKind::Paragraph, trailing.clone()),
             ));
         }
-        self.document
+        self.doc_mut()
             .insert_blocks_at(location.parent, location.index + 1, inserted, cx);
         self.focus_block(image_block.entity_id());
         self.rebuild_image_runtimes(cx);
@@ -373,7 +373,7 @@ impl Editor {
             crate::editor::actions::UndoCaptureKind::NonCoalescible,
             cx,
         );
-        let can_insert_image_block = self.mode == crate::editor::controller::EditorMode::Wysiwyg
+        let can_insert_image_block = self.tab().mode == crate::editor::controller::EditorMode::Wysiwyg
             && block.read(cx).kind() == BlockKind::Paragraph
             && self.table_cell_binding(block.entity_id()).is_none()
             && !block.read(cx).uses_raw_text_editing();

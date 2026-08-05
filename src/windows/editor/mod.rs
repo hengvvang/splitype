@@ -24,8 +24,7 @@ use gpui::*;
 
 use crate::editor::controller::*;
 use crate::infra::i18n::{I18nManager, I18nStrings};
-use crate::theme::{ThemeColors, ThemeManager};
-use crate::ui::components::empty_state::empty_state_container;
+use crate::theme::ThemeManager;
 use crate::windows::editor::menu_bar::*;
 use crate::windows::editor::titlebar::{custom_titlebar_height, render_custom_titlebar};
 
@@ -44,18 +43,6 @@ use crate::editor::windows::wysiwyg::render::layout::{
     RenderedRowSpacingInfo, callout_colors, callout_row_top_gap, editor_text_font,
     footnote_row_top_gap, rendered_row_top_gap,
 };
-pub fn render_empty_panel_prompt(colors: &ThemeColors, message: &str) -> AnyElement {
-    empty_state_container()
-        .p(px(16.0))
-        .bg(colors.editor_background)
-        .child(
-            div()
-                .text_size(px(13.0))
-                .text_color(colors.dialog_muted)
-                .child(message.to_string()),
-        )
-        .into_any()
-}
 
 // ── Export methods ────────────────────────────────────────────────────────
 
@@ -72,7 +59,11 @@ impl Editor {
     }
 
     pub(crate) fn install_close_guard(&mut self, cx: &mut Context<Self>, window: &mut Window) {
-        if self.file.close_guard_installed {
+        if self
+            .tabs
+            .get(self.active_tab)
+            .is_some_and(|tab| tab.file.close_guard_installed)
+        {
             return;
         }
 
@@ -90,11 +81,13 @@ impl Editor {
                 .update(cx, |this, cx| this.on_window_should_close(window, cx))
                 .unwrap_or(true)
         });
-        self.file.close_guard_installed = true;
+        if let Some(tab) = self.tabs.get_mut(self.active_tab) {
+            tab.file.close_guard_installed = true;
+        }
     }
 
     fn apply_pending_focus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(entity_id) = self.focus.pending.take()
+        if let Some(entity_id) = self.tab_mut().focus.pending.take()
             && let Some(block) = self.focusable_entity_by_id(entity_id)
         {
             block.read(cx).focus_handle.focus(window);
@@ -111,11 +104,11 @@ impl Editor {
             return false;
         };
 
-        let viewport = self.scroll.handle.bounds();
+        let viewport = self.tab().scroll.handle.bounds();
         let padding = px(20.0);
         let top_limit = viewport.top() + padding;
         let bottom_limit = viewport.bottom() - padding;
-        let mut offset = self.scroll.handle.offset();
+        let mut offset = self.tab().scroll.handle.offset();
         let mut changed = false;
 
         if active_bounds.top() < top_limit {
@@ -127,28 +120,28 @@ impl Editor {
         }
 
         if changed {
-            let max_offset_y = self.scroll.handle.max_offset().height.max(px(0.0));
+            let max_offset_y = self.tab().scroll.handle.max_offset().height.max(px(0.0));
             offset.y = offset.y.min(px(0.0)).max(-max_offset_y);
-            self.scroll.handle.set_offset(offset);
+            self.tab().scroll.handle.set_offset(offset);
         }
 
         true
     }
 
     fn apply_pending_scroll_into_view(&mut self, window: &Window, cx: &mut Context<Self>) {
-        if self.scroll.scrollbar_drag.is_some() {
+        if self.tab().scroll.scrollbar_drag.is_some() {
             return;
         }
 
-        if !self.focus.pending_scroll_active_block_into_view {
+        if !self.tab().focus.pending_scroll_active_block_into_view {
             return;
         }
 
         // scroll_to_item indexed children by position, which the spacers break;
         // the focused block is always mounted, so pixel math on its bounds works.
         let has_bounds = self.ensure_focused_caret_visible(window, cx);
-        if self.focus.pending_scroll_recheck_after_layout {
-            self.focus.pending_scroll_recheck_after_layout = false;
+        if self.tab().focus.pending_scroll_recheck_after_layout {
+            self.tab_mut().focus.pending_scroll_recheck_after_layout = false;
             self.schedule_scroll_recheck(cx);
             return;
         }
@@ -158,8 +151,8 @@ impl Editor {
             return;
         }
 
-        self.focus.pending_scroll_active_block_into_view = false;
-        self.scroll.scroll_recheck_task = None;
+        self.tab_mut().focus.pending_scroll_active_block_into_view = false;
+        self.tab_mut().scroll.scroll_recheck_task = None;
     }
 
     /// Requests a repaint one frame out so a still-pending scroll-into-view can
@@ -167,7 +160,7 @@ impl Editor {
     /// when called from within `render`, so without this the retry would wait
     /// for the next external notify (e.g. the cursor blink, ~0.5s later).
     fn schedule_scroll_recheck(&mut self, cx: &mut Context<Self>) {
-        self.scroll.scroll_recheck_task =
+        self.tab_mut().scroll.scroll_recheck_task =
             Some(cx.spawn(async move |this: WeakEntity<Self>, cx| {
                 cx.background_executor()
                     .timer(Duration::from_millis(16))
@@ -177,21 +170,21 @@ impl Editor {
     }
 
     fn sync_pending_save(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.file.pending_save {
-            self.file.pending_save = false;
+        if self.tab().file.pending_save {
+            self.tab_mut().file.pending_save = false;
             self.save_document(window, cx);
         }
     }
 
     fn sync_pending_save_as(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.file.pending_save_as {
-            self.file.pending_save_as = false;
+        if self.tab().file.pending_save_as {
+            self.tab_mut().file.pending_save_as = false;
             self.save_document_as(window, cx);
         }
     }
 
     fn sync_pending_open_link(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(link) = self.file.pending_open_link.take() else {
+        let Some(link) = self.tab_mut().file.pending_open_link.take() else {
             return;
         };
 
@@ -222,29 +215,33 @@ impl Editor {
     }
 
     fn sync_window_edited_state(&mut self, window: &mut Window) {
-        if self.file.pending_window_edited {
-            self.file.pending_window_edited = false;
+        if self.tab().file.pending_window_edited {
+            self.tab_mut().file.pending_window_edited = false;
             window.set_window_edited(true);
         }
     }
 
     fn sync_scroll_viewport(&mut self, viewport_size: Size<Pixels>, cx: &mut Context<Self>) {
-        match self.scroll.last_viewport_size {
+        match self.tab().scroll.last_viewport_size {
             Some(previous) if Self::viewport_size_changed(previous, viewport_size) => {
-                self.scroll.last_viewport_size = Some(viewport_size);
+                self.tab_mut().scroll.last_viewport_size = Some(viewport_size);
                 self.request_active_block_scroll_into_view(cx);
             }
             Some(_) => {}
             None => {
-                self.scroll.last_viewport_size = Some(viewport_size);
+                self.tab_mut().scroll.last_viewport_size = Some(viewport_size);
             }
         }
     }
 
     fn sync_window_title(&mut self, window: &mut Window, strings: &I18nStrings) {
-        if self.file.pending_window_title_refresh {
-            self.file.pending_window_title_refresh = false;
-            let title = Self::window_title(self.file.path.as_deref(), self.file.dirty, strings);
+        if self.tab().file.pending_window_title_refresh {
+            self.tab_mut().file.pending_window_title_refresh = false;
+            let title = Self::window_title(
+                self.tab().file.path.as_deref(),
+                self.tab().file.dirty,
+                strings,
+            );
             window.set_window_title(&title);
         }
     }
@@ -252,16 +249,23 @@ impl Editor {
 
 impl Render for Editor {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // Welcome state: no document tabs. Render only the chrome and the
+        // tiled panels (each panel shows the welcome prompt); every
+        // document-dependent sync below would panic on an empty tab list.
+        if !self.has_active_tab() {
+            return self.render_welcome_window(window, cx);
+        }
+
         self.install_close_guard(cx, window);
         self.apply_pending_focus(window, cx);
         self.apply_pending_scroll_into_view(window, cx);
-        self.undo.last_selection_snapshot = self.capture_source_selection_snapshot(cx);
+        self.tab_mut().undo.last_selection_snapshot = self.capture_source_selection_snapshot(cx);
         self.sync_pending_save(window, cx);
         self.sync_pending_save_as(window, cx);
         self.sync_pending_open_link(window, cx);
         self.sync_window_edited_state(window);
 
-        let viewport_bounds = self.scroll.handle.bounds();
+        let viewport_bounds = self.tab().scroll.handle.bounds();
         let viewport_size = viewport_bounds.size;
         self.sync_scroll_viewport(viewport_size, cx);
 
@@ -270,7 +274,7 @@ impl Render for Editor {
         self.sync_window_title(window, &strings);
 
         let d = &theme.dimensions;
-        let blocks = self.document.blocks().to_vec();
+        let blocks = self.doc().blocks().to_vec();
         let editor = cx.entity().downgrade();
         let has_menus = cx
             .get_menus()
@@ -280,7 +284,7 @@ impl Render for Editor {
         let _menu_bar_height =
             in_window_menu_bar_height_for_target_os(std::env::consts::OS, has_menus, d);
         let scroll_trigger_padding = (d.block_min_height * 0.75).max(16.0);
-        let max_scroll_y = f32::from(self.scroll.handle.max_offset().height.max(px(0.0)));
+        let max_scroll_y = f32::from(self.tab().scroll.handle.max_offset().height.max(px(0.0)));
         let viewport_height = f32::from(viewport_bounds.size.height.max(px(1.0)));
         // Extra room below the last block so the lowest line can be scrolled up
         // to the viewport center instead of being pinned to the bottom edge.
@@ -289,7 +293,8 @@ impl Render for Editor {
         let has_overflow = max_scroll_y > 0.5;
 
         let centered_width = Self::centered_column_width(viewport_width, &theme.dimensions);
-        let current_scroll_y = (-f32::from(self.scroll.handle.offset().y)).clamp(0.0, max_scroll_y);
+        let current_scroll_y =
+            (-f32::from(self.tab().scroll.handle.offset().y)).clamp(0.0, max_scroll_y);
         let scrollbar_geometry =
             Self::scrollbar_geometry(viewport_height, max_scroll_y, current_scroll_y);
         let track_height = scrollbar_geometry.track_height;
@@ -297,9 +302,9 @@ impl Render for Editor {
         let thumb_top = scrollbar_geometry.thumb_top;
 
         let show_custom_scrollbar = has_overflow
-            && (self.scroll.scrollbar_drag.is_some()
-                || self.scroll.scrollbar_hovered
-                || Instant::now() <= self.scroll.scrollbar_visible_until);
+            && (self.tab().scroll.scrollbar_drag.is_some()
+                || self.tab().scroll.scrollbar_hovered
+                || Instant::now() <= self.tab().scroll.scrollbar_visible_until);
 
         // Spacing metadata is read on demand instead of pre-collected into a
         // Vec<RenderedRowSpacingInfo> sized to all visible blocks. For long
@@ -348,7 +353,7 @@ impl Render for Editor {
                                 .flex_shrink_0()
                                 .mt(px(footnote_row_top_gap(previous_footnote_row, d.block_gap)))
                                 .child(entity.clone());
-                            let row = if self.mode == EditorMode::Wysiwyg {
+                            let row = if self.tab().mode == EditorMode::Wysiwyg {
                                 let row_editor = editor.clone();
                                 let entity_id = entity.entity_id();
                                 row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
@@ -393,7 +398,7 @@ impl Render for Editor {
                             d,
                         )))
                         .child(entity.clone());
-                    let row = if self.mode == EditorMode::Wysiwyg {
+                    let row = if self.tab().mode == EditorMode::Wysiwyg {
                         let row_editor = editor.clone();
                         let entity_id = entity.entity_id();
                         row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
@@ -449,7 +454,7 @@ impl Render for Editor {
                         .flex_shrink_0()
                         .mt(px(footnote_row_top_gap(previous_footnote_row, d.block_gap)))
                         .child(entity.clone());
-                    let row = if self.mode == EditorMode::Wysiwyg {
+                    let row = if self.tab().mode == EditorMode::Wysiwyg {
                         let row_editor = editor.clone();
                         let entity_id = entity.entity_id();
                         row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
@@ -489,7 +494,7 @@ impl Render for Editor {
                 .flex_shrink_0()
                 .mt(px(top_gap))
                 .child(entity.clone());
-            let row = if self.mode == EditorMode::Wysiwyg {
+            let row = if self.tab().mode == EditorMode::Wysiwyg {
                 let row_editor = editor.clone();
                 let entity_id = entity.entity_id();
                 row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
@@ -512,9 +517,9 @@ impl Render for Editor {
         let focus_row = self
             .focused_edit_target_entity_id(window, cx)
             .and_then(|id| {
-                self.document.visible_index_for_entity_id(id).or_else(|| {
+                self.doc().visible_index_for_entity_id(id).or_else(|| {
                     self.table_cell_binding(id).and_then(|binding| {
-                        self.document
+                        self.doc()
                             .visible_index_for_entity_id(binding.table_block.entity_id())
                     })
                 })
@@ -543,13 +548,13 @@ impl Render for Editor {
 
         // On a structural edit the row indices no longer match last frame, so the
         // cache refresh below is skipped; its block-keyed entries still hold.
-        let structural_change = blocks.len() != self.scroll.prev_visible_block_ids.len()
+        let structural_change = blocks.len() != self.tab().scroll.prev_visible_block_ids.len()
             || blocks
                 .iter()
-                .zip(&self.scroll.prev_visible_block_ids)
+                .zip(&self.tab().scroll.prev_visible_block_ids)
                 .any(|(visible, prev)| visible.entity.entity_id() != *prev);
         if structural_change {
-            self.scroll.prev_visible_block_ids =
+            self.tab_mut().scroll.prev_visible_block_ids =
                 blocks.iter().map(|v| v.entity.entity_id()).collect();
         }
 
@@ -557,13 +562,14 @@ impl Render for Editor {
         // adjacent painted-top differences are scroll-free heights. Caching those,
         // not raw positions, is what keeps the window stable while scrolling.
         if !structural_change {
-            if let Some((prev_start, prev_end)) = self.scroll.prev_render_window {
+            if let Some((prev_start, prev_end)) = self.tab().scroll.prev_render_window {
                 let prev_end = prev_end.min(row_first_ids.len());
                 for row in prev_start..prev_end.saturating_sub(1) {
                     if let (Some(top), Some(next_top)) = (row_tops[row], row_tops[row + 1]) {
                         let stride = next_top - top;
                         if stride > 0.0 && stride.is_finite() {
-                            self.scroll
+                            self.tab_mut()
+                                .scroll
                                 .row_stride_cache
                                 .insert(row_first_ids[row], stride);
                         }
@@ -578,7 +584,8 @@ impl Render for Editor {
         let strides: Vec<f32> = row_first_ids
             .iter()
             .map(|id| {
-                self.scroll
+                self.tab()
+                    .scroll
                     .row_stride_cache
                     .get(id)
                     .copied()
@@ -587,9 +594,10 @@ impl Render for Editor {
             .collect();
 
         // Bound the cache against block churn, only when it outgrows the live rows.
-        if self.scroll.row_stride_cache.len() > row_first_ids.len().saturating_mul(2) {
+        if self.tab().scroll.row_stride_cache.len() > row_first_ids.len().saturating_mul(2) {
             let live: std::collections::HashSet<EntityId> = row_first_ids.iter().copied().collect();
-            self.scroll
+            self.tab_mut()
+                .scroll
                 .row_stride_cache
                 .retain(|id, _| live.contains(id));
         }
@@ -601,7 +609,8 @@ impl Render for Editor {
             RENDER_OVERDRAW_PX,
             focus_row,
         );
-        self.scroll.prev_render_window = Some((render_window.run_start, render_window.run_end));
+        self.tab_mut().scroll.prev_render_window =
+            Some((render_window.run_start, render_window.run_end));
 
         // The first mounted row re-applies its `mt`, so drop it from the top
         // spacer to avoid shifting content down by a gap.
@@ -645,7 +654,7 @@ impl Render for Editor {
             .bg(theme.colors.editor_background)
             .overflow_y_scroll()
             .scrollbar_width(px(0.0))
-            .track_scroll(&self.scroll.handle)
+            .track_scroll(&self.tab().scroll.handle)
             .on_hover(cx.listener(Self::on_editor_hover))
             .capture_any_mouse_down(cx.listener(Self::on_editor_capture_mouse_down))
             .on_mouse_down(MouseButton::Left, cx.listener(Self::on_editor_mouse_down))
@@ -658,7 +667,7 @@ impl Render for Editor {
                 + scroll_trigger_padding
                 + scroll_beyond_bottom))
             .children(block_rows);
-        let scroll_content = if self.mode == EditorMode::Wysiwyg {
+        let scroll_content = if self.tab().mode == EditorMode::Wysiwyg {
             scroll_content.on_mouse_down(
                 MouseButton::Right,
                 cx.listener(Self::on_editor_context_menu_mouse_down),
@@ -804,7 +813,11 @@ impl Render for Editor {
             .as_ref()
             .map(|m| m.iter().map(|menu| menu.name.clone()).collect())
             .unwrap_or_default();
-        let window_title = Self::window_title(self.file.path.as_deref(), self.file.dirty, &strings);
+        let window_title = Self::window_title(
+            self.tab().file.path.as_deref(),
+            self.tab().file.dirty,
+            &strings,
+        );
         let inline_menu =
             self.render_inline_titlebar_menu(&theme, cx, menus.as_deref(), &menu_labels);
         let base = if let Some(titlebar) = render_custom_titlebar(
@@ -859,13 +872,104 @@ impl Render for Editor {
         };
         if let Some(kind) = self.chrome.info_dialog {
             base.child(self.render_info_dialog_overlay(&theme, kind, cx))
-        } else if self.file.show_drop_replace_dialog {
+        } else if self.tab().file.show_drop_replace_dialog {
             base.child(self.render_drop_replace_overlay(&theme, cx))
-        } else if self.file.show_unsaved_changes_dialog {
+        } else if self.tab().file.show_unsaved_changes_dialog {
             base.child(self.render_unsaved_changes_overlay(&theme, cx))
         } else {
             base
         }
+        .into_any_element()
+    }
+}
+
+impl Editor {
+    /// Renders the window chrome when no document tab exists (welcome state):
+    /// titlebar, menus, and the tiled panels. Every editor panel body shows
+    /// the welcome prompt via `render_edit_inner_node`; no document-dependent
+    /// bookkeeping runs.
+    pub(crate) fn render_welcome_window(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let theme = cx.global::<ThemeManager>().current_arc();
+        let strings = cx.global::<I18nManager>().strings_arc();
+        let d = &theme.dimensions;
+
+        let base = div()
+            .w_full()
+            .h_full()
+            .flex()
+            .flex_col()
+            .relative()
+            .bg(theme.colors.editor_background)
+            .font(editor_text_font())
+            .on_action(cx.listener(Self::on_quit_application))
+            .on_action(cx.listener(Self::on_close_window))
+            .on_action(cx.listener(Self::on_dismiss_transient_ui));
+
+        // Fetch menus + collect labels once for both renderers (see the
+        // full-document render path for why this is shared).
+        let menus = supports_in_window_menu()
+            .then(|| cx.get_menus())
+            .flatten()
+            .filter(|m| !m.is_empty());
+        let menu_labels: Vec<SharedString> = menus
+            .as_ref()
+            .map(|m| m.iter().map(|menu| menu.name.clone()).collect())
+            .unwrap_or_default();
+        let inline_menu =
+            self.render_inline_titlebar_menu(&theme, cx, menus.as_deref(), &menu_labels);
+        let base = if let Some(titlebar) = render_custom_titlebar(
+            "editor-titlebar",
+            SharedString::from("Velotype"),
+            inline_menu,
+            &theme,
+            window,
+            cx,
+            Self::on_titlebar_close,
+        ) {
+            base.child(titlebar)
+        } else {
+            base
+        };
+
+        // The panels consume `primary_content` only when a document exists;
+        // an empty tile here leaves every editor panel on the welcome prompt.
+        let empty_content = div()
+            .w_full()
+            .h_full()
+            .bg(theme.colors.editor_background)
+            .into_any_element();
+        let titlebar_height = custom_titlebar_height(window, d);
+        let main_content = div()
+            .w_full()
+            .flex_1()
+            .min_h(px(0.0))
+            .pt(px(titlebar_height))
+            .flex()
+            .min_w(px(0.0))
+            .child(self.render_tiled_layout(empty_content, &theme, &strings, window, cx));
+        let base = base.child(main_content);
+        let base = if let Some(menu_panel) = self.render_in_window_menu_panel(
+            &theme,
+            cx,
+            menus.as_deref(),
+            &menu_labels,
+            titlebar_height,
+            f32::from(window.viewport_size().height.max(px(1.0))),
+        ) {
+            base.child(menu_panel)
+        } else {
+            base
+        };
+        let base = if let Some(context_menu) = self.render_context_menu_overlay(&theme, cx) {
+            base.child(context_menu)
+        } else {
+            base
+        };
+        base.into_any_element()
     }
 }
 

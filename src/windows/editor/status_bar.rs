@@ -279,7 +279,7 @@ impl Editor {
 
         let mut right_items: Vec<AnyElement> = Vec::new();
 
-        if prefs.show_cursor_position && self.mode == EditorMode::SourceCode {
+        if prefs.show_cursor_position && self.tab().mode == EditorMode::SourceCode {
             right_items.push(render_cursor(
                 self.compute_source_cursor_position(cx),
                 theme,
@@ -359,10 +359,12 @@ impl Editor {
         let mut left_items: Vec<AnyElement> = Vec::new();
         let mut right_items: Vec<AnyElement> = Vec::new();
 
-        // Type button with dropdown for focused inner panel.
-        if let (Some(inner_id), Some(ftype)) = (focused_inner_id, focused_area_type) {
-            let editor = cx.entity().downgrade();
-            let toggle_editor = editor.clone();
+        // Type button with dropdown for focused inner panel. Hidden in the
+        // welcome state: with no document the edit-mode switch is meaningless.
+        if self.has_active_tab()
+            && let (Some(inner_id), Some(ftype)) = (focused_inner_id, focused_area_type)
+        {
+            let toggle_editor = cx.entity().downgrade();
             let type_button = small_pill_button(c, d)
                 .text_size(px(11.0))
                 .text_color(c.text_default)
@@ -376,6 +378,12 @@ impl Editor {
                     });
                 });
             left_items.push(type_button.into_any_element());
+        }
+
+        // Split / close buttons: available even in the welcome state so the
+        // panels can be split before any document is opened.
+        if let (Some(inner_id), Some(_)) = (focused_inner_id, focused_area_type) {
+            let editor = cx.entity().downgrade();
 
             // Split H button.
             let split_h_editor = editor.clone();
@@ -452,7 +460,7 @@ impl Editor {
             }
         }
 
-        if prefs.show_cursor_position {
+        if self.has_active_tab() && prefs.show_cursor_position {
             left_items.push(
                 div()
                     .text_size(px(11.0))
@@ -466,7 +474,7 @@ impl Editor {
             ));
         }
 
-        if prefs.show_word_count {
+        if self.has_active_tab() && prefs.show_word_count {
             let text = self.serialized_document_text(cx);
             let total_count = count_words(&text);
             let selection_count = self.selected_markdown_text(cx).as_deref().map(count_words);
@@ -478,7 +486,7 @@ impl Editor {
             ));
         }
 
-status_bar_container(c, 24.0, 10.0)
+        status_bar_container(c, 24.0, 10.0)
             .id(ElementId::Name(
                 format!("panel-status-bar-{:?}", area_type).into(),
             ))
@@ -509,7 +517,7 @@ status_bar_container(c, 24.0, 10.0)
 
         let snapshot = self.capture_source_selection_snapshot(cx);
         let cursor_offset = snapshot.range.end;
-        let text = self.document.to_raw_source(cx);
+        let text = self.doc().to_raw_source(cx);
         // Snap to valid UTF-8 char boundary to avoid panics on multi-byte chars.
         let clamped = cursor_offset.min(text.len());
         let safe = if text.is_char_boundary(clamped) {

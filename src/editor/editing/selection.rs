@@ -28,7 +28,7 @@ struct NormalizedCrossBlockSelection {
 impl Editor {
     fn clear_cross_block_selection_visuals(&mut self, cx: &mut Context<Self>) -> bool {
         let mut changed = false;
-        for visible in self.document.blocks().to_vec() {
+        for visible in self.doc().blocks().to_vec() {
             visible.entity.update(cx, |block, cx| {
                 if block.editor_selection_range.take().is_some() {
                     changed = true;
@@ -40,8 +40,8 @@ impl Editor {
     }
 
     pub(crate) fn clear_cross_block_selection(&mut self, cx: &mut Context<Self>) {
-        let had_selection = self.selection.cross_block.take().is_some();
-        self.selection.cross_block_drag = None;
+        let had_selection = self.tab_mut().selection.cross_block.take().is_some();
+        self.tab_mut().selection.cross_block_drag = None;
         let changed_visuals = self.clear_cross_block_selection_visuals(cx);
         let changed = had_selection || changed_visuals;
         if changed {
@@ -50,10 +50,10 @@ impl Editor {
     }
 
     fn begin_cross_block_drag_at_point(&mut self, position: Point<Pixels>, cx: &mut Context<Self>) {
-        let had_selection = self.selection.cross_block.take().is_some();
+        let had_selection = self.tab_mut().selection.cross_block.take().is_some();
         let changed_visuals = self.clear_cross_block_selection_visuals(cx);
         let changed = had_selection || changed_visuals;
-        self.selection.cross_block_drag = self
+        self.tab_mut().selection.cross_block_drag = self
             .cross_block_endpoint_for_point(position, cx)
             .map(|anchor| CrossBlockDrag { anchor });
         if changed {
@@ -72,12 +72,12 @@ impl Editor {
             return;
         }
 
-        if self.mode != EditorMode::Wysiwyg {
+        if self.tab().mode != EditorMode::Wysiwyg {
             cx.propagate();
             return;
         }
 
-        self.selection.select_all_cycle = None;
+        self.tab_mut().selection.select_all_cycle = None;
         self.begin_cross_block_drag_at_point(event.position, cx);
         cx.propagate();
     }
@@ -91,14 +91,14 @@ impl Editor {
         if !event.dragging() {
             return;
         }
-        let Some(drag) = self.selection.cross_block_drag else {
+        let Some(drag) = self.tab().selection.cross_block_drag else {
             return;
         };
         let Some(focus) = self.cross_block_endpoint_for_point(event.position, cx) else {
             return;
         };
 
-        if self.selection.cross_block.is_none() && drag.anchor.entity_id == focus.entity_id {
+        if self.tab().selection.cross_block.is_none() && drag.anchor.entity_id == focus.entity_id {
             return;
         }
 
@@ -107,9 +107,9 @@ impl Editor {
             focus,
         };
         if self.cross_block_selection_is_empty(selection) {
-            self.selection.cross_block = None;
+            self.tab_mut().selection.cross_block = None;
         } else {
-            self.selection.cross_block = Some(selection);
+            self.tab_mut().selection.cross_block = Some(selection);
         }
         self.sync_cross_block_selection_visuals(cx);
         cx.notify();
@@ -121,7 +121,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.selection.cross_block_drag = None;
+        self.tab_mut().selection.cross_block_drag = None;
         self.end_block_pointer_selection_sessions(cx);
     }
 
@@ -176,14 +176,14 @@ impl Editor {
     }
 
     fn rendered_document_is_fully_selected(&self, cx: &App) -> bool {
-        let visible = self.document.blocks().to_vec();
+        let visible = self.doc().blocks().to_vec();
         let Some(first) = visible.first() else {
             return false;
         };
         let Some(last) = visible.last() else {
             return false;
         };
-        let Some(selection) = self.selection.cross_block else {
+        let Some(selection) = self.tab().selection.cross_block else {
             return false;
         };
         let last_len = last.entity.read(cx).visible_len();
@@ -217,7 +217,7 @@ impl Editor {
             block.cursor_blink_epoch = std::time::Instant::now();
             cx.notify();
         });
-        self.focus.active_entity = Some(block.entity_id());
+        self.tab_mut().focus.active_entity = Some(block.entity_id());
         cx.notify();
     }
 
@@ -226,7 +226,7 @@ impl Editor {
             return;
         }
 
-        let visible = self.document.blocks().to_vec();
+        let visible = self.doc().blocks().to_vec();
         let Some(first) = visible.first() else {
             return;
         };
@@ -252,8 +252,8 @@ impl Editor {
             });
         }
 
-        self.selection.cross_block_drag = None;
-        self.selection.cross_block = Some(CrossBlockSelection {
+        self.tab_mut().selection.cross_block_drag = None;
+        self.tab_mut().selection.cross_block = Some(CrossBlockSelection {
             anchor: CrossBlockSelectionEndpoint {
                 entity_id: first_id,
                 offset: 0,
@@ -272,14 +272,14 @@ impl Editor {
         block: Entity<Block>,
         cx: &mut Context<Self>,
     ) {
-        if self.mode != EditorMode::Wysiwyg {
-            self.selection.select_all_cycle = None;
+        if self.tab().mode != EditorMode::Wysiwyg {
+            self.tab_mut().selection.select_all_cycle = None;
             return;
         }
 
         let now = std::time::Instant::now();
         let block_id = block.entity_id();
-        let count = match self.selection.select_all_cycle {
+        let count = match self.tab().selection.select_all_cycle {
             Some(cycle)
                 if cycle.entity_id == block_id
                     && now.duration_since(cycle.last_pressed_at)
@@ -291,7 +291,7 @@ impl Editor {
         }
         .min(3);
 
-        self.selection.select_all_cycle = Some(crate::editor::controller::RenderedSelectAllCycle {
+        self.tab_mut().selection.select_all_cycle = Some(crate::editor::controller::RenderedSelectAllCycle {
             entity_id: block_id,
             count,
             last_pressed_at: now,
@@ -333,17 +333,17 @@ impl Editor {
         let Some(end) = self.endpoint_for_source_offset(snapshot.range.end, &mappings, cx) else {
             return false;
         };
-        let Some(start_index) = self.document.visible_index_for_entity_id(start.entity_id) else {
+        let Some(start_index) = self.doc().visible_index_for_entity_id(start.entity_id) else {
             return false;
         };
-        let Some(end_index) = self.document.visible_index_for_entity_id(end.entity_id) else {
+        let Some(end_index) = self.doc().visible_index_for_entity_id(end.entity_id) else {
             return false;
         };
         if start_index == end_index {
             return false;
         }
 
-        self.selection.cross_block = Some(if snapshot.reversed {
+        self.tab_mut().selection.cross_block = Some(if snapshot.reversed {
             CrossBlockSelection {
                 anchor: end,
                 focus: start,
@@ -354,7 +354,7 @@ impl Editor {
                 focus: end,
             }
         });
-        self.selection.cross_block_drag = None;
+        self.tab_mut().selection.cross_block_drag = None;
         self.sync_cross_block_selection_visuals(cx);
         let focus = if snapshot.reversed { start } else { end };
         self.focus_block(focus.entity_id);
@@ -368,7 +368,7 @@ impl Editor {
         cx: &App,
     ) -> Option<CrossBlockSelectionEndpoint> {
         let mut previous: Option<(Entity<Block>, Bounds<Pixels>)> = None;
-        for visible in self.document.blocks() {
+        for visible in self.doc().blocks() {
             let entity = visible.entity.clone();
             let bounds = entity.read(cx).last_bounds;
             let Some(bounds) = bounds else {
@@ -408,13 +408,13 @@ impl Editor {
 
     fn cross_block_selection_is_empty(&self, selection: CrossBlockSelection) -> bool {
         let Some(anchor_index) = self
-            .document
+            .doc()
             .visible_index_for_entity_id(selection.anchor.entity_id)
         else {
             return true;
         };
         let Some(focus_index) = self
-            .document
+            .doc()
             .visible_index_for_entity_id(selection.focus.entity_id)
         else {
             return true;
@@ -423,13 +423,13 @@ impl Editor {
     }
 
     fn normalized_cross_block_selection(&self, cx: &App) -> Option<NormalizedCrossBlockSelection> {
-        let selection = self.selection.cross_block?;
+        let selection = self.tab().selection.cross_block?;
         let anchor = self.clamp_cross_block_endpoint(selection.anchor, cx)?;
         let focus = self.clamp_cross_block_endpoint(selection.focus, cx)?;
         let anchor_index = self
-            .document
+            .doc()
             .visible_index_for_entity_id(anchor.entity_id)?;
-        let focus_index = self.document.visible_index_for_entity_id(focus.entity_id)?;
+        let focus_index = self.doc().visible_index_for_entity_id(focus.entity_id)?;
         let reversed = focus_index < anchor_index
             || (focus_index == anchor_index && focus.offset < anchor.offset);
         let (start, end, start_index, end_index) = if reversed {
@@ -454,7 +454,7 @@ impl Editor {
         endpoint: CrossBlockSelectionEndpoint,
         cx: &App,
     ) -> Option<CrossBlockSelectionEndpoint> {
-        let entity = self.document.block_entity_by_id(endpoint.entity_id)?;
+        let entity = self.doc().block_entity_by_id(endpoint.entity_id)?;
         let len = entity.read(cx).visible_len();
         Some(CrossBlockSelectionEndpoint {
             entity_id: endpoint.entity_id,
@@ -464,7 +464,7 @@ impl Editor {
 
     fn sync_cross_block_selection_visuals(&mut self, cx: &mut Context<Self>) {
         let normalized = self.normalized_cross_block_selection(cx);
-        let blocks = self.document.blocks().to_vec();
+        let blocks = self.doc().blocks().to_vec();
         for (index, visible) in blocks.into_iter().enumerate() {
             let next_range = normalized.and_then(|selection| {
                 if index < selection.start_index || index > selection.end_index {
@@ -560,7 +560,7 @@ impl Editor {
             .into_iter()
             .map(|mapping| (mapping.entity.entity_id(), mapping))
             .collect();
-        let visible = self.document.blocks();
+        let visible = self.doc().blocks();
 
         // Resolve an endpoint to a source offset. Atomic blocks (tables, etc.)
         // carry no per-block text mapping, so endpoint_source_offset returns
@@ -597,7 +597,7 @@ impl Editor {
     }
 
     fn rebuild_after_cross_block_source_edit(&mut self, source: String, cx: &mut Context<Self>) {
-        match self.mode {
+        match self.tab().mode {
             EditorMode::Wysiwyg => {
                 let mut roots = Self::parse_document(cx, &source);
                 if roots.is_empty() {
@@ -606,7 +606,7 @@ impl Editor {
                         crate::model::block::BlockData::paragraph(String::new()),
                     ));
                 }
-                self.document.replace_blocks(roots, cx);
+                self.doc_mut().replace_blocks(roots, cx);
                 self.rebuild_table_runtimes(cx);
                 self.rebuild_image_runtimes(cx);
             }
@@ -616,8 +616,8 @@ impl Editor {
                     crate::model::block::BlockData::paragraph(source.clone()),
                 );
                 block.update(cx, |block, _cx| block.set_source_document_mode());
-                self.document.replace_blocks(vec![block], cx);
-                self.tables.cells.clear();
+                self.doc_mut().replace_blocks(vec![block], cx);
+                self.tab_mut().tables.cells.clear();
             }
         }
     }
@@ -665,8 +665,8 @@ impl Editor {
         let start = source_range.start.min(source.len());
         let end = source_range.end.min(source.len());
         source.replace_range(start..end, new_text);
-        self.selection.cross_block = None;
-        self.selection.cross_block_drag = None;
+        self.tab_mut().selection.cross_block = None;
+        self.tab_mut().selection.cross_block_drag = None;
 
         let inserted_start = start;
         let inserted_end = inserted_start + new_text.len();
@@ -704,7 +704,7 @@ impl Editor {
         let selection = self.normalized_cross_block_selection(cx)?;
         let source = self.current_document_source(cx);
         let mappings = self.source_mapping_by_entity_id(cx);
-        let visible = self.document.blocks();
+        let visible = self.doc().blocks();
 
         // Join blocks with the same spacing the document serializer uses
         // (collect_root_markdown_lines): a blank line between blocks, but tight
@@ -853,8 +853,8 @@ impl Editor {
         let start = source_range.start.min(source.len());
         let end = source_range.end.min(source.len());
         source.replace_range(start..end, "");
-        self.selection.cross_block = None;
-        self.selection.cross_block_drag = None;
+        self.tab_mut().selection.cross_block = None;
+        self.tab_mut().selection.cross_block_drag = None;
 
         self.rebuild_after_cross_block_source_edit(source, cx);
 
@@ -885,7 +885,7 @@ impl Editor {
         }
 
         // Fall back to a single block with a non-collapsed selection range.
-        for visible in self.document.blocks() {
+        for visible in self.doc().blocks() {
             let block = visible.entity.read(cx);
             if block.selected_range.is_empty() {
                 continue;
@@ -947,10 +947,10 @@ mod tests {
         end_offset: usize,
         cx: &mut Context<Editor>,
     ) {
-        let visible = editor.document.blocks().to_vec();
+        let visible = editor.doc().blocks().to_vec();
         let start = visible[start_index].entity.entity_id();
         let end = visible[end_index].entity.entity_id();
-        editor.selection.cross_block = Some(CrossBlockSelection {
+        editor.tab_mut().selection.cross_block = Some(CrossBlockSelection {
             anchor: CrossBlockSelectionEndpoint {
                 entity_id: start,
                 offset: start_offset,
@@ -964,7 +964,7 @@ mod tests {
     }
 
     fn assign_visible_block_bounds(editor: &mut Editor, cx: &mut Context<Editor>) {
-        for (index, visible) in editor.document.blocks().to_vec().into_iter().enumerate() {
+        for (index, visible) in editor.doc().blocks().to_vec().into_iter().enumerate() {
             visible.entity.update(cx, move |block, _cx| {
                 block.last_bounds = Some(Bounds::new(
                     point(px(0.0), px(index as f32 * 32.0)),
@@ -984,9 +984,9 @@ mod tests {
         editor.update(&mut cx, |editor, cx| {
             assign_visible_block_bounds(editor, cx);
             set_selection(editor, 0, 0, 2, 2, cx);
-            assert!(editor.selection.cross_block.is_some());
+            assert!(editor.tab().selection.cross_block.is_some());
             assert!(
-                editor.document.blocks().iter().any(|visible| visible
+                editor.doc().blocks().iter().any(|visible| visible
                     .entity
                     .read(cx)
                     .editor_selection_range
@@ -995,10 +995,10 @@ mod tests {
 
             editor.begin_cross_block_drag_at_point(point(px(8.0), px(4.0)), cx);
 
-            assert!(editor.selection.cross_block.is_none());
-            assert!(editor.selection.cross_block_drag.is_some());
+            assert!(editor.tab().selection.cross_block.is_none());
+            assert!(editor.tab().selection.cross_block_drag.is_some());
             assert!(
-                editor.document.blocks().iter().all(|visible| visible
+                editor.doc().blocks().iter().all(|visible| visible
                     .entity
                     .read(cx)
                     .editor_selection_range
@@ -1025,10 +1025,10 @@ mod tests {
                 cx
             ));
 
-            assert_eq!(editor.document.to_markdown(cx), "alXmma");
-            assert!(editor.selection.cross_block.is_none());
-            assert!(editor.selection.cross_block_drag.is_none());
-            let block = editor.document.blocks()[0].entity.read(cx);
+            assert_eq!(editor.doc().to_markdown(cx), "alXmma");
+            assert!(editor.tab().selection.cross_block.is_none());
+            assert!(editor.tab().selection.cross_block_drag.is_none());
+            let block = editor.doc().blocks()[0].entity.read(cx);
             assert_eq!(block.selected_range, 3..3);
             assert!(block.marked_range.is_none());
         });
@@ -1052,8 +1052,8 @@ mod tests {
                 cx
             ));
 
-            assert_eq!(editor.document.to_markdown(cx), "alnimma");
-            let block = editor.document.blocks()[0].entity.read(cx);
+            assert_eq!(editor.doc().to_markdown(cx), "alnimma");
+            let block = editor.doc().blocks()[0].entity.read(cx);
             assert_eq!(block.selected_range, 4..4);
             assert_eq!(block.marked_range, Some(2..4));
             assert!(block.editor_selection_range.is_none());
@@ -1074,7 +1074,7 @@ mod tests {
         });
 
         editor.update(&mut cx, |editor, cx| {
-            let visible = editor.document.blocks().to_vec();
+            let visible = editor.doc().blocks().to_vec();
             assert_eq!(visible.len(), 3);
             let end_len = visible[2].entity.read(cx).visible_len();
             set_selection(editor, 0, 0, 2, end_len, cx);
@@ -1121,7 +1121,7 @@ mod tests {
             Some("pha\n\nbeta\n\nga")
         );
         assert_eq!(
-            editor.read_with(cx, |editor, cx| editor.document.to_markdown(cx)),
+            editor.read_with(cx, |editor, cx| editor.doc().to_markdown(cx)),
             "almma"
         );
 
@@ -1129,7 +1129,7 @@ mod tests {
         redraw(cx);
 
         assert_eq!(
-            editor.read_with(cx, |editor, cx| editor.document.to_markdown(cx)),
+            editor.read_with(cx, |editor, cx| editor.doc().to_markdown(cx)),
             original
         );
         editor.read_with(cx, |editor, cx| {
@@ -1150,14 +1150,14 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, TABLE_DOC.to_string(), None));
 
         editor.update(&mut cx, |editor, cx| {
-            let visible = editor.document.blocks().to_vec();
+            let visible = editor.doc().blocks().to_vec();
             assert_eq!(visible.len(), 3);
             let end_len = visible[2].entity.read(cx).visible_len();
             // The table sits in the interior of the selection.
             set_selection(editor, 0, 0, 2, end_len, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
-            let text = editor.document.to_markdown(cx);
+            let text = editor.doc().to_markdown(cx);
             assert!(!text.contains('|'), "table should be gone: {text:?}");
             assert!(!text.contains("alpha"));
             assert!(!text.contains("gamma"));
@@ -1172,7 +1172,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, TABLE_DOC.to_string(), None));
 
         editor.update(&mut cx, |editor, cx| {
-            assert_eq!(editor.document.blocks().len(), 3);
+            assert_eq!(editor.doc().blocks().len(), 3);
             // Selection ends at the start of the table block: the previously
             // broken case where the trailing atomic block was left behind.
             set_selection(editor, 0, 0, 1, 0, cx);
@@ -1181,7 +1181,7 @@ mod tests {
             // The table is removed in full; only `gamma` survives (deleting from
             // the document start leaves the table's trailing blank line, which
             // reparses to leading empty paragraphs, harmless and trimmable).
-            let text = editor.document.to_markdown(cx);
+            let text = editor.doc().to_markdown(cx);
             assert!(
                 !text.contains('|'),
                 "trailing table should be gone: {text:?}"
@@ -1198,7 +1198,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, TABLE_DOC.to_string(), None));
 
         editor.update(&mut cx, |editor, cx| {
-            let visible = editor.document.blocks().to_vec();
+            let visible = editor.doc().blocks().to_vec();
             assert_eq!(visible.len(), 3);
             let alpha_len = visible[0].entity.read(cx).visible_len();
             // Drag from the end of the paragraph above onto the table: only the
@@ -1206,7 +1206,7 @@ mod tests {
             set_selection(editor, 0, alpha_len, 1, 0, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
-            assert_eq!(editor.document.to_markdown(cx), "alpha\n\ngamma");
+            assert_eq!(editor.doc().to_markdown(cx), "alpha\n\ngamma");
         });
         cx.quit();
     }
@@ -1221,7 +1221,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, TABLE_DOC.to_string(), None));
 
         editor.update(&mut cx, |editor, cx| {
-            let visible = editor.document.blocks().to_vec();
+            let visible = editor.doc().blocks().to_vec();
             assert_eq!(visible.len(), 3);
             let end_len = visible[2].entity.read(cx).visible_len();
             set_selection(editor, 0, 0, 2, end_len, cx);
@@ -1235,7 +1235,7 @@ mod tests {
 
             assert!(editor.delete_cross_block_selection(cx));
             assert!(
-                !editor.document.to_markdown(cx).contains('|'),
+                !editor.doc().to_markdown(cx).contains('|'),
                 "document should no longer contain the table"
             );
         });
@@ -1252,13 +1252,13 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, doc.to_string(), None));
 
         editor.update(&mut cx, |editor, cx| {
-            let visible = editor.document.blocks().to_vec();
+            let visible = editor.doc().blocks().to_vec();
             assert_eq!(visible.len(), 3);
             let end_len = visible[2].entity.read(cx).visible_len();
             set_selection(editor, 0, 0, 2, end_len, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
-            let text = editor.document.to_markdown(cx);
+            let text = editor.doc().to_markdown(cx);
             assert!(
                 !text.contains("code"),
                 "code block should be gone: {text:?}"
@@ -1280,19 +1280,19 @@ mod tests {
             // abort deletion because empty roots had no source span.
             let empty =
                 Editor::new_block(cx, crate::model::block::BlockData::paragraph(String::new()));
-            let index = editor.document.root_count();
+            let index = editor.doc().root_count();
             editor
-                .document
+                .doc()
                 .insert_blocks_at(None, index, vec![empty], cx);
 
-            let visible = editor.document.blocks().to_vec();
+            let visible = editor.doc().blocks().to_vec();
             assert_eq!(visible.len(), 3);
             let alpha_len = visible[0].entity.read(cx).visible_len();
             // From the end of `alpha` onto the trailing empty paragraph.
             set_selection(editor, 0, alpha_len, 2, 0, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
-            let text = editor.document.to_markdown(cx);
+            let text = editor.doc().to_markdown(cx);
             assert!(!text.contains('|'), "table should be gone: {text:?}");
             assert_eq!(text.trim(), "alpha");
         });
@@ -1312,15 +1312,15 @@ mod tests {
             // empty block above the table" case).
             let empty =
                 Editor::new_block(cx, crate::model::block::BlockData::paragraph(String::new()));
-            editor.document.insert_blocks_at(None, 0, vec![empty], cx);
+            editor.doc().insert_blocks_at(None, 0, vec![empty], cx);
 
-            let visible = editor.document.blocks().to_vec();
+            let visible = editor.doc().blocks().to_vec();
             assert_eq!(visible.len(), 3);
             // From the empty paragraph (index 0) to the start of `gamma`.
             set_selection(editor, 0, 0, 2, 0, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
-            let text = editor.document.to_markdown(cx);
+            let text = editor.doc().to_markdown(cx);
             assert!(!text.contains('|'), "table should be gone: {text:?}");
             assert_eq!(text.trim(), "gamma");
         });

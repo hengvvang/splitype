@@ -46,11 +46,19 @@ impl Editor {
         }
     }
     pub(crate) fn sync_workspace_models(&mut self, cx: &mut Context<Self>) {
+        // Welcome state (no tabs): both syncs read the active document, which
+        // does not exist yet — the explorer panel renders without them.
+        if !self.has_active_tab() {
+            return;
+        }
         self.sync_workspace_file_tree();
         self.sync_workspace_outline(cx);
     }
     pub(crate) fn workspace_root_for_current_file(&self) -> Option<PathBuf> {
-        self.file.path.as_ref()?.parent().map(Path::to_path_buf)
+        self.tabs
+            .get(self.active_tab)
+            .and_then(|tab| tab.file.path.as_ref())
+            .and_then(|path| path.parent().map(Path::to_path_buf))
     }
     pub(crate) fn prompt_open_workspace_folder(
         &mut self,
@@ -306,6 +314,7 @@ impl Editor {
                 self.panels.workspace.expanded.insert(tree.id.clone());
                 self.panels.workspace.file_tree = Some(tree);
                 self.panels.workspace.selected = self
+                    .tab()
                     .file
                     .path
                     .as_ref()

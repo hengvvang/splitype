@@ -12,23 +12,23 @@ use crate::app::windows::{
     open_editor_window, open_file_in_new_window, record_recent_file_and_refresh,
 };
 use crate::editor::controller::{Editor, InfoDialogKind};
-#[cfg(target_os = "macos")]
-use crate::platform::cli_tool::{install_cli_tool, is_cli_symlink_current_app, uninstall_cli_tool};
-#[cfg(not(target_os = "macos"))]
-use crate::platform::cli_tool::{install_cli_tool, uninstall_cli_tool};
-use crate::infra::config::recent::{read_recent_files, remove_recent_file};
-use crate::infra::config::settings::{
-    apply_configured_language, apply_configured_theme, import_language_config_and_select,
-    import_theme_config_and_select,
-};
 use crate::editor::render::export::ExportFormat;
-use crate::infra::i18n::I18nManager;
 use crate::editor::windows::actions::{
     AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
     InstallCliTool, NewWindow, NoRecentFiles, OpenFile, OpenRecentFile, OpenSettings,
     QuitApplication, SaveDocument, SaveDocumentAs, SelectLanguage, SelectTheme, ShowAbout,
     ToggleWorkspace, UninstallCliTool,
 };
+use crate::infra::config::recent::{read_recent_files, remove_recent_file};
+use crate::infra::config::settings::{
+    apply_configured_language, apply_configured_theme, import_language_config_and_select,
+    import_theme_config_and_select,
+};
+use crate::infra::i18n::I18nManager;
+#[cfg(target_os = "macos")]
+use crate::platform::cli_tool::{install_cli_tool, is_cli_symlink_current_app, uninstall_cli_tool};
+#[cfg(not(target_os = "macos"))]
+use crate::platform::cli_tool::{install_cli_tool, uninstall_cli_tool};
 use crate::theme::ThemeManager;
 use crate::windows::settings::open_settings_window;
 
@@ -115,14 +115,7 @@ fn open_recent_file_with_error_window(
         return;
     }
 
-    if let Err(err) = open_file_in_new_window(cx, &path) {
-        let title = cx
-            .global::<I18nManager>()
-            .strings()
-            .open_failed_title
-            .clone();
-        show_window_prompt(error_window, &title, &err.to_string(), cx);
-    }
+    open_file_in_editor_or_new_window(cx, &path);
 }
 
 fn is_editor_scoped_menu_action(action: &dyn Action) -> bool {
@@ -329,6 +322,23 @@ pub(crate) fn dispatch_menu_action_for_editor(
 
     window.activate_window();
     let current_window = Some(window.window_handle());
+
+    // Document-dependent actions are no-ops in the welcome state (no tabs);
+    // the UI hides them, but menu accelerators could still fire them.
+    if action.as_any().is::<SaveDocument>()
+        || action.as_any().is::<SaveDocumentAs>()
+        || action.as_any().is::<ExportHtml>()
+        || action.as_any().is::<ExportPdf>()
+        || action.as_any().is::<CheckForUpdates>()
+        || action.as_any().is::<ShowAbout>()
+    {
+        let no_tab = target
+            .update(cx, |editor, _cx| !editor.has_active_tab())
+            .unwrap_or(true);
+        if no_tab {
+            return;
+        }
+    }
 
     if action.as_any().is::<NewWindow>() {
         open_editor_window(cx, String::new(), None);
@@ -559,14 +569,7 @@ fn prompt_and_open_files_with_error_window(cx: &mut App, error_window: Option<An
         Ok(Ok(Some(paths))) => {
             let _ = cx.update(move |cx| {
                 for path in paths {
-                    if let Err(err) = open_file_in_new_window(cx, &path) {
-                        let title = cx
-                            .global::<I18nManager>()
-                            .strings()
-                            .open_failed_title
-                            .clone();
-                        show_window_prompt(error_window, &title, &err.to_string(), cx);
-                    }
+                    open_file_in_editor_or_new_window(cx, &path);
                 }
             });
         }
@@ -584,6 +587,27 @@ fn prompt_and_open_files_with_error_window(cx: &mut App, error_window: Option<An
         Ok(Ok(None)) | Err(_) => {}
     })
     .detach();
+}
+
+/// Opens `path` in the active editor's tab list when an editor window is
+/// focused; otherwise opens a brand-new editor window. Records the
+/// recent-file entry either way.
+fn open_file_in_editor_or_new_window(cx: &mut App, path: &Path) {
+    let opened_in_editor = with_active_editor(cx, |editor, window, cx| {
+        editor.open_path_in_tab(path, window, cx);
+    })
+    .is_some();
+    if !opened_in_editor {
+        if let Err(err) = open_file_in_new_window(cx, path) {
+            let title = cx
+                .global::<I18nManager>()
+                .strings()
+                .open_failed_title
+                .clone();
+            show_window_prompt(cx.active_window(), &title, &err.to_string(), cx);
+        }
+    }
+    record_recent_file_and_refresh(path, cx);
 }
 
 fn prompt_and_import_language_config(cx: &mut App) {
@@ -780,13 +804,13 @@ pub(crate) fn init(cx: &mut App) {
 #[cfg(test)]
 mod tests {
     use super::build_menus;
-    use crate::platform::cli_tool::applescript_string_literal;
-    use crate::infra::i18n::I18nManager;
     use crate::editor::windows::actions::{
         AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
-        NewWindow, NoRecentFiles, OpenFile, OpenSettings, OpenRecentFile, QuitApplication,
+        NewWindow, NoRecentFiles, OpenFile, OpenRecentFile, OpenSettings, QuitApplication,
         SaveDocument, SelectLanguage, SelectTheme, ShowAbout,
     };
+    use crate::infra::i18n::I18nManager;
+    use crate::platform::cli_tool::applescript_string_literal;
     use crate::theme::ThemeManager;
     use gpui::MenuItem;
     use std::path::PathBuf;

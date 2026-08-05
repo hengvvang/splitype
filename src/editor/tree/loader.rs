@@ -94,7 +94,7 @@ mod tests {
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -107,7 +107,7 @@ mod tests {
                 "first line\nsecond line"
             );
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "## Heading\n\nfirst line\nsecond line"
             );
         });
@@ -124,7 +124,7 @@ mod tests {
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert!(visible[0].entity.read(cx).kind().is_code_block());
             assert_eq!(
@@ -132,7 +132,7 @@ mod tests {
                 "let x = 1;\nprintln!(\"hi\");"
             );
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "```\nlet x = 1;\nprintln!(\"hi\");\n```"
             );
         });
@@ -146,7 +146,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, source.to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             let code_blocks: Vec<_> = visible
                 .iter()
                 .filter(|block| block.entity.read(cx).kind().is_code_block())
@@ -166,17 +166,17 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, "alpha  \nbeta".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).display_text(), "alpha  \nbeta");
-            assert_eq!(editor.document.to_markdown(cx), "alpha  \nbeta");
+            assert_eq!(editor.doc().to_markdown(cx), "alpha  \nbeta");
 
             editor.toggle_view_mode(cx);
             editor.toggle_view_mode(cx);
 
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible[0].entity.read(cx).display_text(), "alpha  \nbeta");
-            assert_eq!(editor.document.to_markdown(cx), "alpha  \nbeta");
+            assert_eq!(editor.doc().to_markdown(cx), "alpha  \nbeta");
         });
     }
 
@@ -186,19 +186,19 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, tibetan.to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).display_text(), tibetan);
             assert!(visible[0].entity.read(cx).display_text().contains("།། བདག"));
             assert!(visible[0].entity.read(cx).display_text().ends_with(' '));
-            assert_eq!(editor.document.to_markdown(cx), tibetan);
+            assert_eq!(editor.doc().to_markdown(cx), tibetan);
 
             editor.toggle_view_mode(cx);
             editor.toggle_view_mode(cx);
 
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible[0].entity.read(cx).display_text(), tibetan);
-            assert_eq!(editor.document.to_markdown(cx), tibetan);
+            assert_eq!(editor.doc().to_markdown(cx), tibetan);
         });
     }
 
@@ -208,10 +208,10 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, chinese.to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).display_text(), chinese);
-            assert_eq!(editor.document.to_markdown(cx), chinese);
+            assert_eq!(editor.doc().to_markdown(cx), chinese);
         });
     }
 
@@ -220,11 +220,11 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, "> alpha  \n> beta".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "alpha  \nbeta");
-            assert_eq!(editor.document.to_markdown(cx), "> alpha  \n> beta");
+            assert_eq!(editor.doc().to_markdown(cx), "> alpha  \n> beta");
         });
     }
 
@@ -233,14 +233,14 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, "- alpha  \n  beta".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
                 BlockKind::BulletListItem
             );
             assert_eq!(visible[0].entity.read(cx).display_text(), "alpha  \nbeta");
-            assert_eq!(editor.document.to_markdown(cx), "- alpha  \n  beta");
+            assert_eq!(editor.doc().to_markdown(cx), "- alpha  \n  beta");
         });
     }
 
@@ -255,7 +255,7 @@ mod tests {
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -286,7 +286,7 @@ mod tests {
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -301,14 +301,14 @@ mod tests {
                 "let x = 1;\nlet y = 2;"
             );
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "- item with code block\n  ```\n  let x = 1;\n  let y = 2;\n  ```"
             );
 
             editor.toggle_view_mode(cx);
             editor.toggle_view_mode(cx);
 
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[1].entity.read(cx).kind(),
@@ -332,7 +332,7 @@ mod tests {
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -360,7 +360,7 @@ mod tests {
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -376,14 +376,14 @@ mod tests {
                 "quoted text\n\nquoted paragraph two"
             );
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "1. item with nested quote\n  > quoted text\n  > \n  > quoted paragraph two"
             );
 
             editor.toggle_view_mode(cx);
             editor.toggle_view_mode(cx);
 
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -403,7 +403,7 @@ mod tests {
             .new(|cx| Editor::from_markdown(cx, "1. aa\n2. bb\n3. cc\n\n1. dd".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 5);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -421,7 +421,7 @@ mod tests {
             assert_eq!(visible[4].entity.read(cx).display_text(), "dd");
             assert_eq!(visible[4].entity.read(cx).list_ordinal, Some(1));
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "1. aa\n2. bb\n3. cc\n\n1. dd"
             );
         });
@@ -434,7 +434,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, "1) one\n2) two".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -448,7 +448,7 @@ mod tests {
             assert_eq!(visible[1].entity.read(cx).display_text(), "two");
             assert_eq!(visible[0].entity.read(cx).list_ordinal, Some(1));
             assert_eq!(visible[1].entity.read(cx).list_ordinal, Some(2));
-            assert_eq!(editor.document.to_markdown(cx), "1. one\n2. two");
+            assert_eq!(editor.doc().to_markdown(cx), "1. one\n2. two");
         });
     }
 
@@ -458,7 +458,7 @@ mod tests {
             cx.new(|cx| Editor::from_markdown(cx, "1) parent\n   1) child".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -471,7 +471,7 @@ mod tests {
             assert_eq!(visible[0].entity.read(cx).display_text(), "parent");
             assert_eq!(visible[1].entity.read(cx).display_text(), "child");
             assert_eq!(visible[1].entity.read(cx).render_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), "1. parent\n  1. child");
+            assert_eq!(editor.doc().to_markdown(cx), "1. parent\n  1. child");
         });
     }
 
@@ -482,7 +482,7 @@ mod tests {
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "level1");
@@ -494,7 +494,7 @@ mod tests {
             assert_eq!(visible[2].entity.read(cx).display_text(), "level3");
             assert_eq!(visible[2].entity.read(cx).quote_depth, 3);
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "> level1\n> > level2\n> > > level3"
             );
         });
@@ -506,7 +506,7 @@ mod tests {
             cx.new(|cx| Editor::from_markdown(cx, "> first\n\n> second".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "first");
@@ -514,7 +514,7 @@ mod tests {
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[1].entity.read(cx).display_text(), "second");
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), "> first\n\n> second");
+            assert_eq!(editor.doc().to_markdown(cx), "> first\n\n> second");
         });
     }
 
@@ -524,11 +524,11 @@ mod tests {
             cx.new(|cx| Editor::from_markdown(cx, "> first\n>\n> second".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "first\n\nsecond");
-            assert_eq!(editor.document.to_markdown(cx), "> first\n> \n> second");
+            assert_eq!(editor.doc().to_markdown(cx), "> first\n> \n> second");
         });
     }
 
@@ -543,7 +543,7 @@ mod tests {
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(
@@ -562,7 +562,7 @@ mod tests {
             );
             assert_eq!(visible[2].entity.read(cx).quote_depth, 1);
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "> Quote with list:\n> - item 1\n> - [ ] task item"
             );
         });
@@ -580,7 +580,7 @@ mod tests {
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(
@@ -600,7 +600,7 @@ mod tests {
                 "fn main() {\n    println!(\"hi\");\n}"
             );
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "> Quote with code block:\n> \n> ```\n> fn main() {\n>     println!(\"hi\");\n> }\n> ```"
             );
         });
@@ -612,13 +612,13 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -628,14 +628,14 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
                 BlockKind::BulletListItem
             );
             assert!(visible[0].entity.read(cx).children.is_empty());
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -645,7 +645,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -654,7 +654,7 @@ mod tests {
             assert_eq!(visible[0].entity.read(cx).display_text(), "item");
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).render_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -665,7 +665,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -674,7 +674,7 @@ mod tests {
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "child text");
             assert_eq!(visible[1].entity.read(cx).render_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), canonical_markdown);
+            assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
         });
     }
 
@@ -684,7 +684,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(
@@ -692,7 +692,7 @@ mod tests {
                 BlockKind::NumberedListItem
             );
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -703,7 +703,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
                 BlockKind::Callout(CalloutKind::Note)
@@ -718,7 +718,7 @@ mod tests {
             assert_eq!(visible[2].entity.read(cx).render_depth, 1);
             assert_eq!(visible[2].entity.read(cx).quote_depth, 1);
             assert_eq!(visible[2].entity.read(cx).callout_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), canonical_markdown);
+            assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
         });
     }
 
@@ -728,7 +728,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
                 BlockKind::Callout(CalloutKind::Note)
@@ -736,7 +736,7 @@ mod tests {
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(visible[1].entity.read(cx).callout_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -747,7 +747,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(
@@ -759,7 +759,7 @@ mod tests {
             assert_eq!(visible[2].entity.read(cx).display_text(), "child text");
             assert_eq!(visible[2].entity.read(cx).render_depth, 1);
             assert_eq!(visible[2].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), canonical_markdown);
+            assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
         });
     }
 
@@ -770,7 +770,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
                 BlockKind::Callout(CalloutKind::Note)
@@ -786,7 +786,7 @@ mod tests {
             assert_eq!(visible[2].entity.read(cx).render_depth, 1);
             assert_eq!(visible[2].entity.read(cx).quote_depth, 1);
             assert_eq!(visible[2].entity.read(cx).callout_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), canonical_markdown);
+            assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
         });
     }
 
@@ -796,10 +796,10 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -808,7 +808,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, "> [!NOTE]".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -817,7 +817,7 @@ mod tests {
             assert_eq!(visible[0].entity.read(cx).display_text(), "");
             assert!(visible[0].entity.read(cx).children.is_empty());
             assert_eq!(visible[0].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), "> [!NOTE]");
+            assert_eq!(editor.doc().to_markdown(cx), "> [!NOTE]");
         });
     }
 
@@ -827,7 +827,7 @@ mod tests {
             .new(|cx| Editor::from_markdown(cx, "> [!important] Optional title".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -835,7 +835,7 @@ mod tests {
             );
             assert_eq!(visible[0].entity.read(cx).display_text(), "Optional title");
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "> [!IMPORTANT] Optional title"
             );
         });
@@ -852,7 +852,7 @@ mod tests {
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -865,7 +865,7 @@ mod tests {
             assert_eq!(visible[2].entity.read(cx).display_text(), "nested");
             assert_eq!(visible[2].entity.read(cx).quote_depth, 2);
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "> [!WARNING] Custom title\n> body\n> > nested"
             );
         });
@@ -894,7 +894,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 4);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -925,7 +925,7 @@ mod tests {
                     .visible_quote_group_anchor
                     .is_none()
             );
-            assert_eq!(editor.document.to_markdown(cx), canonical_markdown);
+            assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
         });
     }
 
@@ -934,11 +934,11 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, "> [!UNKNOWN]".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "[!UNKNOWN]");
-            assert_eq!(editor.document.to_markdown(cx), "> [!UNKNOWN]");
+            assert_eq!(editor.doc().to_markdown(cx), "> [!UNKNOWN]");
         });
     }
 
@@ -948,7 +948,7 @@ mod tests {
             cx.new(|cx| Editor::from_markdown(cx, "> outer\n>\n>> inner".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "outer");
@@ -958,7 +958,7 @@ mod tests {
             assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[2].entity.read(cx).display_text(), "inner");
             assert_eq!(visible[2].entity.read(cx).quote_depth, 2);
-            assert_eq!(editor.document.to_markdown(cx), "> outer\n> \n> > inner");
+            assert_eq!(editor.doc().to_markdown(cx), "> outer\n> \n> > inner");
         });
     }
 
@@ -968,7 +968,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(
@@ -987,7 +987,7 @@ mod tests {
             assert_eq!(table.header.len(), 2);
             assert_eq!(table.rows.len(), 1);
             assert_eq!(table.rows[0].len(), 2);
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -999,7 +999,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(
@@ -1012,7 +1012,7 @@ mod tests {
                 "| A |\n| --- | --- |\n| 1 |"
             );
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -1025,7 +1025,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
                 BlockKind::Callout(CalloutKind::Important)
@@ -1084,7 +1084,7 @@ mod tests {
                     .count()
                     >= 2
             );
-            assert_eq!(editor.document.to_markdown(cx), canonical_markdown);
+            assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
         });
     }
 
@@ -1102,7 +1102,7 @@ mod tests {
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 4);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -1135,7 +1135,7 @@ mod tests {
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -1147,7 +1147,7 @@ mod tests {
                 BlockKind::TaskListItem { checked: true }
             );
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "- [ ] todo\n- [x] done\n- [x] shipped"
             );
         });
@@ -1159,7 +1159,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Table);
             let table = visible[0]
@@ -1172,7 +1172,7 @@ mod tests {
             assert_eq!(table.header.len(), 2);
             assert_eq!(table.rows.len(), 1);
             assert_eq!(table.rows[0].len(), 2);
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -1182,7 +1182,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
@@ -1191,7 +1191,7 @@ mod tests {
             assert_eq!(visible[1].entity.read(cx).display_text(), "| nope | --- |");
             assert_eq!(visible[2].entity.read(cx).display_text(), "| 1 | 2 |");
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "| A | B |\n\n| nope | --- |\n\n| 1 | 2 |"
             );
         });
@@ -1203,11 +1203,11 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MathBlock);
             assert_eq!(visible[0].entity.read(cx).display_text(), markdown);
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -1217,14 +1217,14 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::MathBlock);
             assert_eq!(visible[1].entity.read(cx).display_text(), "$$x^2$$");
             assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "before\n\n$$x^2$$\n\nafter"
             );
         });
@@ -1236,10 +1236,10 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::RawMarkdown);
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -1249,7 +1249,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::MermaidBlock);
@@ -1259,7 +1259,7 @@ mod tests {
             );
             assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "before\n\n```mermaid\nflowchart LR\nA --> B\n```\n\nafter"
             );
         });
@@ -1271,10 +1271,10 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MermaidBlock);
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -1284,7 +1284,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert!(matches!(
                 visible[0].entity.read(cx).kind(),
@@ -1303,7 +1303,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::HtmlBlock);
             assert_eq!(visible[0].entity.read(cx).display_text(), markdown);
@@ -1316,7 +1316,7 @@ mod tests {
                     .as_ref()
                     .is_some_and(|html| html.is_semantic())
             );
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -1326,12 +1326,12 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             let block = visible[0].entity.read(cx);
             assert_eq!(block.kind(), BlockKind::HtmlBlock);
             assert_eq!(block.display_text(), markdown);
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -1342,12 +1342,12 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             let block = visible[0].entity.read(cx);
             assert_eq!(block.kind(), BlockKind::HtmlBlock);
             assert_eq!(block.display_text(), markdown);
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -1362,7 +1362,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             for block in visible {
                 assert_eq!(block.entity.read(cx).kind(), BlockKind::BulletListItem);
@@ -1397,11 +1397,11 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::RawMarkdown);
             assert_eq!(visible[0].entity.read(cx).display_text(), markdown);
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -1413,7 +1413,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             let block = visible[0].entity.read(cx);
             assert_eq!(block.kind(), BlockKind::HtmlBlock);
@@ -1424,7 +1424,7 @@ mod tests {
                     .as_ref()
                     .is_some_and(|html| html.is_semantic())
             );
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -1434,11 +1434,11 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::HtmlComment);
             assert_eq!(visible[0].entity.read(cx).display_text(), markdown);
-            assert_eq!(editor.document.to_markdown(cx), markdown);
+            assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
     }
 
@@ -1450,7 +1450,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::HtmlComment);
@@ -1464,7 +1464,7 @@ mod tests {
             );
             assert_eq!(visible[2].entity.read(cx).display_text(), "after");
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "before\n\n<!--\na\n--> trailing\n\n# after"
             );
         });
@@ -1478,13 +1478,13 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::RawMarkdown);
             assert_eq!(visible[0].entity.read(cx).display_text(), "<!--\na");
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "paragraph");
-            assert_eq!(editor.document.to_markdown(cx), "<!--\na\n\nparagraph");
+            assert_eq!(editor.doc().to_markdown(cx), "<!--\na\n\nparagraph");
         });
     }
 
@@ -1493,7 +1493,7 @@ mod tests {
         let list_editor =
             cx.new(|cx| Editor::from_markdown(cx, "- item\n  <!--\n  list\n  -->".into(), None));
         list_editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -1503,7 +1503,7 @@ mod tests {
             assert_eq!(visible[1].entity.read(cx).display_text(), "<!--\nlist\n-->");
             assert_eq!(visible[1].entity.read(cx).render_depth, 1);
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "- item\n  <!--\n  list\n  -->"
             );
         });
@@ -1512,7 +1512,7 @@ mod tests {
             Editor::from_markdown(cx, "> quote\n>\n> <!--\n> quoted\n> -->".into(), None)
         });
         quote_editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::HtmlComment);
@@ -1522,7 +1522,7 @@ mod tests {
             );
             assert_eq!(visible[2].entity.read(cx).quote_depth, 1);
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "> quote\n> \n> <!--\n> quoted\n> -->"
             );
         });
@@ -1535,7 +1535,7 @@ mod tests {
             )
         });
         callout_editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -1548,7 +1548,7 @@ mod tests {
             );
             assert_eq!(visible[2].entity.read(cx).callout_depth, 1);
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "> [!NOTE] Title\n> \n> <!--\n> callout\n> -->"
             );
         });
@@ -1561,7 +1561,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 5);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -1588,7 +1588,7 @@ mod tests {
                 visible[4].entity.read(cx).display_text(),
                 "Second paragraph."
             );
-            assert_eq!(editor.document.to_markdown(cx), canonical_markdown);
+            assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
         });
     }
 
@@ -1599,7 +1599,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 4);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "outer");
@@ -1616,7 +1616,7 @@ mod tests {
             assert_eq!(visible[3].entity.read(cx).display_text(), "nested footnote");
             assert_eq!(visible[3].entity.read(cx).quote_depth, 1);
             assert!(visible[3].entity.read(cx).footnote_anchor.is_some());
-            assert_eq!(editor.document.to_markdown(cx), canonical_markdown);
+            assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
         });
     }
 
@@ -1628,7 +1628,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert!(visible.len() > 40);
 
             assert!(visible.iter().any(|block| {
@@ -1755,7 +1755,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, "- item\n\ntext".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -1775,16 +1775,16 @@ mod tests {
         editor.update(cx, |editor, cx| {
             editor.toggle_view_mode(cx);
             assert!(matches!(
-                editor.mode,
+                editor.tab().mode,
                 crate::editor::controller::EditorMode::SourceCode
             ));
             editor.toggle_view_mode(cx);
             assert!(matches!(
-                editor.mode,
+                editor.tab().mode,
                 crate::editor::controller::EditorMode::Wysiwyg
             ));
 
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -1801,7 +1801,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, "- item\n\n\ntext".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -1824,7 +1824,7 @@ mod tests {
             cx.new(|cx| Editor::from_markdown(cx, "- item\n\n    child text".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -1834,7 +1834,7 @@ mod tests {
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "child text");
             assert_eq!(visible[1].entity.read(cx).render_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), "- item\n\n  child text");
+            assert_eq!(editor.doc().to_markdown(cx), "- item\n\n  child text");
         });
     }
 
@@ -1850,11 +1850,11 @@ mod tests {
             )
         });
         reference_editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::RawMarkdown);
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "[id]: http://example.com/\n    \"Title\""
             );
         });
@@ -1862,13 +1862,13 @@ mod tests {
         let quote_editor =
             cx.new(|cx| Editor::from_markdown(cx, "> quoted\ncontinued".to_string(), None));
         quote_editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "quoted");
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "continued");
-            assert_eq!(editor.document.to_markdown(cx), "> quoted\n\ncontinued");
+            assert_eq!(editor.doc().to_markdown(cx), "> quoted\n\ncontinued");
         });
     }
 
@@ -1883,7 +1883,7 @@ mod tests {
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(
@@ -1908,7 +1908,7 @@ mod tests {
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "quoted");
@@ -1928,28 +1928,28 @@ mod tests {
             cx.new(|cx| Editor::from_markdown(cx, "alpha\n\n\nbeta\n\n".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 4);
             assert_eq!(visible[0].entity.read(cx).display_text(), "alpha");
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[2].entity.read(cx).display_text(), "beta");
             assert_eq!(visible[3].entity.read(cx).display_text(), "");
-            assert_eq!(editor.document.to_markdown(cx), "alpha\n\n\nbeta\n\n");
+            assert_eq!(editor.doc().to_markdown(cx), "alpha\n\n\nbeta\n\n");
         });
 
         editor.update(cx, |editor, cx| {
             editor.toggle_view_mode(cx);
             assert!(matches!(
-                editor.mode,
+                editor.tab().mode,
                 crate::editor::controller::EditorMode::SourceCode
             ));
             editor.toggle_view_mode(cx);
             assert!(matches!(
-                editor.mode,
+                editor.tab().mode,
                 crate::editor::controller::EditorMode::Wysiwyg
             ));
 
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 4);
             assert_eq!(visible[0].entity.read(cx).display_text(), "alpha");
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
@@ -1963,7 +1963,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, "`line 1\n\nline 2`".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             let block = visible[0].entity.read(cx);
             let text = "line 1\n\nline 2";
@@ -1975,7 +1975,7 @@ mod tests {
                     .iter()
                     .any(|span| { span.style.code && span.range == (0..text.len()) })
             );
-            assert_eq!(editor.document.to_markdown(cx), "`line 1\n\nline 2`");
+            assert_eq!(editor.doc().to_markdown(cx), "`line 1\n\nline 2`");
         });
     }
 
@@ -1984,7 +1984,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, "`line 1\n\nline 2".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[0].entity.read(cx).display_text(), "`line 1");
@@ -1998,12 +1998,12 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, "\n\nalpha".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(visible[0].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[2].entity.read(cx).display_text(), "alpha");
-            assert_eq!(editor.document.to_markdown(cx), "\n\nalpha");
+            assert_eq!(editor.doc().to_markdown(cx), "\n\nalpha");
         });
     }
 
@@ -2012,12 +2012,12 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, "alpha\n\n\n".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(visible[0].entity.read(cx).display_text(), "alpha");
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[2].entity.read(cx).display_text(), "");
-            assert_eq!(editor.document.to_markdown(cx), "alpha\n\n\n");
+            assert_eq!(editor.doc().to_markdown(cx), "alpha\n\n\n");
         });
     }
 
@@ -2026,10 +2026,10 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, "alpha\n".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).display_text(), "alpha");
-            assert_eq!(editor.document.to_markdown(cx), "alpha");
+            assert_eq!(editor.doc().to_markdown(cx), "alpha");
         });
     }
 
@@ -2038,11 +2038,11 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[0].entity.read(cx).display_text(), "");
-            assert_eq!(editor.document.to_markdown(cx), "");
+            assert_eq!(editor.doc().to_markdown(cx), "");
         });
     }
 }

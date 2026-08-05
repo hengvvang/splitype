@@ -12,10 +12,10 @@ use crate::editor::controller::*;
 
 impl Editor {
     pub(crate) fn current_edit_target_entity_id_from_state(&self, cx: &App) -> Option<EntityId> {
-        self.focus.active_entity
+        self.tab().focus.active_entity
             .filter(|entity_id| self.focusable_entity_by_id(*entity_id).is_some())
             .or_else(|| {
-                self.focus.pending
+                self.tab().focus.pending
                     .filter(|entity_id| self.focusable_entity_by_id(*entity_id).is_some())
             })
             .or_else(|| self.first_focusable_entity_id(cx))
@@ -39,14 +39,14 @@ impl Editor {
             });
         }
 
-        for visible in self.document.blocks().to_vec() {
+        for visible in self.doc().blocks().to_vec() {
             visible.entity.update(cx, |block, _cx| {
                 changed |= block.end_pointer_selection_session();
             });
         }
 
         let cells: Vec<Entity<Block>> = self
-            .tables.cells
+            .tab().tables.cells
             .values()
             .map(|binding| binding.cell.clone())
             .collect();
@@ -95,7 +95,7 @@ impl Editor {
     }
 
     pub(crate) fn image_base_dir(&self) -> Option<PathBuf> {
-        self.file.path
+        self.tab().file.path
             .as_ref()
             .and_then(|path| path.parent().map(Path::to_path_buf))
             .or_else(|| std::env::current_dir().ok())
@@ -108,9 +108,9 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let next_base_dir = base_dir.map(Path::to_path_buf);
-        let image_reference_definitions = self.references.image.clone();
-        let link_reference_definitions = self.references.link.clone();
-        let footnote_registry = self.references.footnotes.clone();
+        let image_reference_definitions = self.tab().references.image.clone();
+        let link_reference_definitions = self.tab().references.link.clone();
+        let footnote_registry = self.tab().references.footnotes.clone();
         block.update(cx, move |block, cx| {
             block.set_runtime_context(
                 next_base_dir.clone(),
@@ -126,7 +126,7 @@ impl Editor {
                 use std::sync::Arc;
 
         let mut definitions = HashMap::new();
-        let visible = self.document.blocks().to_vec();
+        let visible = self.doc().blocks().to_vec();
         for visible_block in &visible {
             let block = visible_block.entity.read(cx);
             if block.kind() != BlockKind::FootnoteDefinition {
@@ -134,7 +134,7 @@ impl Editor {
             }
 
             let allow_definition = self
-                .document
+                .doc()
                 .find_block_location(visible_block.entity.entity_id())
                 .is_some_and(|location| {
                     location.parent.is_none()
@@ -205,7 +205,7 @@ impl Editor {
             }
         }
 
-        self.references.footnotes = Arc::new(FootnoteMap {
+        self.tab_mut().references.footnotes = Arc::new(FootnoteMap {
             bindings,
             block_occurrences,
         });
@@ -215,11 +215,11 @@ impl Editor {
         use std::sync::Arc;
 
         let base_dir = self.image_base_dir();
-        let markdown = self.document.to_markdown(cx);
-        self.references.image = Arc::new(parse_image_reference_definitions(&markdown));
-        self.references.link = Arc::new(parse_link_reference_definitions(&markdown));
+        let markdown = self.doc().to_markdown(cx);
+        self.tab_mut().references.image = Arc::new(parse_image_reference_definitions(&markdown));
+        self.tab_mut().references.link = Arc::new(parse_link_reference_definitions(&markdown));
         self.rebuild_footnote_registry(cx);
-        let visible = self.document.blocks().to_vec();
+        let visible = self.doc().blocks().to_vec();
         for visible_block in visible {
             self.sync_runtime_context_for_block(&visible_block.entity, base_dir.as_deref(), cx);
             if visible_block.entity.read(cx).kind() != BlockKind::Table {
@@ -240,15 +240,15 @@ impl Editor {
     }
 
     pub(crate) fn focusable_entity_by_id(&self, entity_id: EntityId) -> Option<Entity<Block>> {
-        self.document.block_entity_by_id(entity_id).or_else(|| {
-            self.tables.cells
+        self.doc().block_entity_by_id(entity_id).or_else(|| {
+            self.tab().tables.cells
                 .get(&entity_id)
                 .map(|binding| binding.cell.clone())
         })
     }
 
     pub(crate) fn first_focusable_entity_id(&self, cx: &App) -> Option<EntityId> {
-        let first_root = self.document.first_root()?.clone();
+        let first_root = self.doc().first_root()?.clone();
         if first_root.read(cx).kind() == BlockKind::Table {
             return first_root
                 .read(cx)
@@ -266,10 +266,10 @@ impl Editor {
         window: &Window,
         cx: &App,
     ) -> Option<EntityId> {
-        self.document
+        self.doc()
             .focused_block_entity_id(window, cx)
             .or_else(|| {
-                self.tables.cells
+                self.tab().tables.cells
                     .values()
                     .find(|binding| binding.cell.read(cx).focus_handle.is_focused(window))
                     .map(|binding| binding.cell.entity_id())
@@ -282,11 +282,11 @@ impl Editor {
     }
 
     pub(crate) fn table_cell_binding(&self, entity_id: EntityId) -> Option<TableCellBinding> {
-        self.tables.cells.get(&entity_id).cloned()
+        self.tab().tables.cells.get(&entity_id).cloned()
     }
 
     pub(crate) fn table_block_by_id(&self, entity_id: EntityId, cx: &App) -> Option<Entity<Block>> {
-        self.document
+        self.doc()
             .block_entity_by_id(entity_id)
             .filter(|block| block.read(cx).kind() == BlockKind::Table)
     }

@@ -40,7 +40,16 @@ pub(crate) fn open_editor_window(
     let handle = cx
         .open_window(
             velotype_window_options(title, bounds),
-            move |_window, cx| cx.new(move |cx| Editor::from_markdown(cx, markdown, file_path)),
+            move |_window, cx| {
+                cx.new(move |cx| {
+                    // No content and no path → welcome state with zero tabs.
+                    if markdown.is_empty() && file_path.is_none() {
+                        Editor::empty(cx)
+                    } else {
+                        Editor::from_markdown(cx, markdown, file_path)
+                    }
+                })
+            },
         )
         .unwrap();
 

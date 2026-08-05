@@ -689,31 +689,31 @@ use crate::editor::controller::Editor;
             cx.new(|cx| Editor::from_markdown(cx, "- a\n  - b\n    - c\n- d".to_string(), None));
 
         editor.update(cx, |editor, _cx| {
-            let visible = editor.document.blocks().to_vec();
+            let visible = editor.doc().blocks().to_vec();
             let a = visible[0].entity.clone();
             let b = visible[1].entity.clone();
             let c = visible[2].entity.clone();
             let d = visible[3].entity.clone();
 
             assert_eq!(
-                editor.document.visible_index_for_entity_id(a.entity_id()),
+                editor.doc().visible_index_for_entity_id(a.entity_id()),
                 Some(0)
             );
             assert_eq!(
-                editor.document.visible_index_for_entity_id(b.entity_id()),
+                editor.doc().visible_index_for_entity_id(b.entity_id()),
                 Some(1)
             );
             assert_eq!(
-                editor.document.visible_index_for_entity_id(c.entity_id()),
+                editor.doc().visible_index_for_entity_id(c.entity_id()),
                 Some(2)
             );
             assert_eq!(
-                editor.document.visible_index_for_entity_id(d.entity_id()),
+                editor.doc().visible_index_for_entity_id(d.entity_id()),
                 Some(3)
             );
 
             let c_location = editor
-                .document
+                .doc()
                 .find_block_location(c.entity_id())
                 .expect("location");
             assert_eq!(
@@ -724,7 +724,7 @@ use crate::editor::controller::Editor;
 
             assert_eq!(
                 editor
-                    .document
+                    .doc()
                     .last_visible_descendant(a.entity_id())
                     .expect("descendant")
                     .entity_id(),
@@ -738,7 +738,7 @@ use crate::editor::controller::Editor;
         let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
 
         editor.update(cx, |editor, cx| {
-            let root = editor.document.first_root().expect("root").clone();
+            let root = editor.doc().first_root().expect("root").clone();
             let child = Editor::new_block(cx, BlockData::paragraph("child"));
 
             root.update(cx, {
@@ -748,11 +748,11 @@ use crate::editor::controller::Editor;
                 }
             });
 
-            editor.document.rebuild_metadata_and_snapshot(cx);
+            editor.doc().rebuild_metadata_and_snapshot(cx);
 
             assert!(root.read(cx).children.is_empty());
             let visible_ids = editor
-                .document
+                .doc()
                 .blocks()
                 .iter()
                 .map(|visible| visible.entity.entity_id())
@@ -760,7 +760,7 @@ use crate::editor::controller::Editor;
             assert_eq!(visible_ids, vec![root.entity_id(), child.entity_id()]);
 
             let location = editor
-                .document
+                .doc()
                 .find_block_location(child.entity_id())
                 .expect("child location");
             assert!(location.parent.is_none());
@@ -774,14 +774,14 @@ use crate::editor::controller::Editor;
             cx.new(|cx| Editor::from_markdown(cx, "```rust\nfn main() {}\n```".into(), None));
 
         editor.update(cx, |editor, cx| {
-            let block = editor.document.first_root().expect("code block").clone();
+            let block = editor.doc().first_root().expect("code block").clone();
             block.update(cx, |block, cx| {
                 let range = 0..block.code_language_text().len();
                 block.replace_code_language_text_in_range(range, "unknown-lang", None, false, cx);
             });
 
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "```unknown-lang\nfn main() {}\n```"
             );
         });
@@ -794,19 +794,19 @@ use crate::editor::controller::Editor;
         let editor = cx.new(|cx| Editor::from_markdown(cx, "```rust\nbody\n```".into(), None));
 
         let markdown = editor.update(cx, |editor, cx| {
-            let block = editor.document.first_root().expect("code block").clone();
+            let block = editor.doc().first_root().expect("code block").clone();
             block.update(cx, |block, cx| {
                 let range = 0..block.code_language_text().len();
                 block.replace_code_language_text_in_range(range, "we`rd", None, false, cx);
             });
-            editor.document.to_markdown(cx)
+            editor.doc().to_markdown(cx)
         });
 
         assert_eq!(markdown, "~~~we`rd\nbody\n~~~");
 
         let round_tripped = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
         round_tripped.update(cx, |editor, cx| {
-            let block = editor.document.first_root().expect("code block");
+            let block = editor.doc().first_root().expect("code block");
             assert_eq!(block.read(cx).code_language_text(), "we`rd");
             assert!(matches!(block.read(cx).kind(), BlockKind::CodeBlock { .. }));
         });
@@ -817,12 +817,12 @@ use crate::editor::controller::Editor;
         let editor = cx.new(|cx| Editor::from_markdown(cx, "- a\n- b\n- c".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks().to_vec();
+            let visible = editor.doc().blocks().to_vec();
             let a = visible[0].entity.clone();
             let b = visible[1].entity.clone();
             let c = visible[2].entity.clone();
 
-            editor.document.with_structure_mutation(cx, |document, cx| {
+            editor.doc().with_structure_mutation(cx, |document, cx| {
                 let moved = document
                     .remove_block_by_id_raw(c.entity_id(), cx)
                     .expect("remove c")
@@ -836,20 +836,20 @@ use crate::editor::controller::Editor;
             });
 
             assert_eq!(
-                editor.document.visible_index_for_entity_id(a.entity_id()),
+                editor.doc().visible_index_for_entity_id(a.entity_id()),
                 Some(0)
             );
             assert_eq!(
-                editor.document.visible_index_for_entity_id(c.entity_id()),
+                editor.doc().visible_index_for_entity_id(c.entity_id()),
                 Some(1)
             );
             assert_eq!(
-                editor.document.visible_index_for_entity_id(b.entity_id()),
+                editor.doc().visible_index_for_entity_id(b.entity_id()),
                 Some(2)
             );
 
             let c_location = editor
-                .document
+                .doc()
                 .find_block_location(c.entity_id())
                 .expect("c location");
             assert_eq!(
@@ -860,7 +860,7 @@ use crate::editor::controller::Editor;
 
             assert_eq!(
                 editor
-                    .document
+                    .doc()
                     .last_visible_descendant(a.entity_id())
                     .expect("descendant")
                     .entity_id(),

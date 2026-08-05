@@ -3,6 +3,7 @@
 //! These are pure state records; their rendering lives in `ui::window`.
 
 use std::path::PathBuf;
+use std::time::Instant;
 
 use gpui::{EntityId, Pixels, Point, Task};
 
@@ -82,4 +83,9 @@ pub struct WindowChrome {
     pub(crate) info_dialog: Option<InfoDialogKind>,
     /// True while an online update check is running in the background.
     pub(crate) update_check_in_progress: bool,
+    /// Timestamp of the last welcome-prompt click, used to detect a
+    /// double-click across repaints. GPUI rebuilds elements (and their
+    /// closures) every frame, so the timestamp must live in editor state
+    /// rather than in a click-handler closure.
+    pub(crate) welcome_last_click: Option<Instant>,
 }

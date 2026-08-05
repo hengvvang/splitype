@@ -21,9 +21,9 @@ pub(crate) use crate::editor::tree::document::Document;
 pub(crate) use crate::editor::tree::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
-pub(crate) use crate::editor::windows::{PreviewState, SourcePanelState};
 pub(crate) use crate::editor::windows::chrome::WindowChrome;
 pub(crate) use crate::editor::windows::layout::WindowPanels;
+pub(crate) use crate::editor::windows::{PreviewState, SourcePanelState};
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::model::inline::text::RichText;
 pub(crate) use crate::model::syntax::image::{
@@ -153,15 +153,14 @@ impl Default for ScrollState {
     }
 }
 
-/// Top-level controller that owns editor-wide state and delegates tree
-/// mutations to [`Document`].
+/// One document tab: the document and all of its document-level state.
 ///
-/// The editor subscribes to every [`BlockAction`](crate::editor::actions::BlockAction)
-/// emitted by child blocks. Structural changes are handled centrally so focus,
-/// scrolling, dirty tracking, and serialization stay synchronized.
-pub struct Editor {
+/// A tab whose `file.path` is `None` is an untitled temporary document.
+/// Switching tabs swaps the whole context, so undo history, scroll
+/// position, selection, and previews are preserved per file.
+pub(crate) struct DocumentTab {
     pub(crate) document: Document,
-    /// Which view the editor is currently presenting.
+    /// Which view this tab is currently presenting.
     pub(crate) mode: EditorMode,
     pub(crate) file: FileState,
     pub(crate) focus: FocusState,
@@ -172,6 +171,18 @@ pub struct Editor {
     pub(crate) preview: PreviewState,
     pub(crate) source_panel: SourcePanelState,
     pub(crate) scroll: ScrollState,
+}
+
+/// Top-level controller that owns editor-wide state and delegates tree
+/// mutations to [`Document`].
+///
+/// The editor subscribes to every [`BlockAction`](crate::editor::actions::BlockAction)
+/// emitted by child blocks. Structural changes are handled centrally so focus,
+/// scrolling, dirty tracking, and serialization stay synchronized. Documents
+/// live in [`DocumentTab`]s; the editor always holds at least one tab.
+pub struct Editor {
+    pub(crate) tabs: Vec<DocumentTab>,
+    pub(crate) active_tab: usize,
     pub(crate) chrome: WindowChrome,
     pub(crate) panels: WindowPanels,
 }
@@ -303,11 +314,52 @@ impl Editor {
     pub(crate) const HISTORY_COALESCE_WINDOW: Duration = Duration::from_millis(1_000);
     pub(crate) const RENDERED_SELECT_ALL_CYCLE_WINDOW: Duration = Duration::from_millis(750);
 
+    /// Creates an editor with no document tabs — the welcome state shown
+    /// before any file is opened or an Untitled tab is started.
+    pub fn empty(_cx: &mut Context<Self>) -> Self {
+        Self {
+            tabs: Vec::new(),
+            active_tab: 0,
+            chrome: WindowChrome::default(),
+            panels: WindowPanels::default(),
+        }
+    }
+
+    /// True when the editor has no document tabs (welcome state).
+    pub(crate) fn has_active_tab(&self) -> bool {
+        !self.tabs.is_empty()
+    }
+
     pub fn from_markdown(
         cx: &mut Context<Self>,
         markdown: String,
         file_path: Option<PathBuf>,
     ) -> Self {
+        let tab = Self::new_tab_from_markdown(cx, markdown, file_path);
+        let mut editor = Self {
+            tabs: vec![tab],
+            active_tab: 0,
+            chrome: WindowChrome::default(),
+            panels: WindowPanels::default(),
+        };
+        editor.rebuild_table_runtimes(cx);
+        editor.rebuild_image_runtimes(cx);
+        editor.refresh_preview_blocks(cx);
+        editor.tab_mut().focus.pending = editor.first_focusable_entity_id(cx);
+        editor.tab_mut().focus.active_entity = editor.tab().focus.pending;
+        editor.refresh_stable_document_snapshot(cx);
+        editor
+    }
+}
+
+impl Editor {
+    /// Builds a document tab from raw Markdown and an optional file path.
+    /// `file_path == None` produces an untitled temporary document.
+    pub(crate) fn new_tab_from_markdown(
+        cx: &mut Context<Self>,
+        markdown: String,
+        file_path: Option<PathBuf>,
+    ) -> DocumentTab {
         let normalized = markdown.replace("\r\n", "\n").replace('\r', "\n");
         let mut roots = Self::parse_document(cx, &normalized);
         if roots.is_empty() {
@@ -318,7 +370,7 @@ impl Editor {
         document.rebuild_metadata_and_snapshot(cx);
         let pending_focus = document.first_root().map(|block| block.entity_id());
 
-        let mut editor = Self {
+        DocumentTab {
             document,
             mode: EditorMode::Wysiwyg,
             file: FileState {
@@ -341,15 +393,128 @@ impl Editor {
             preview: PreviewState::default(),
             source_panel: SourcePanelState::default(),
             scroll: ScrollState::default(),
-            chrome: WindowChrome::default(),
-            panels: WindowPanels::default(),
+        }
+    }
+
+    /// Activates the tab at `index`, restoring its focus and window chrome.
+    /// The pending focus is consumed by the next render frame's
+    /// `apply_pending_focus`.
+    pub(crate) fn activate_tab(&mut self, index: usize, cx: &mut Context<Self>) {
+        if index >= self.tabs.len() {
+            return;
+        }
+        // Also reachable right after the first tab is pushed onto an empty
+        // editor (welcome state) — notify so the new document renders.
+        if index == self.active_tab {
+            cx.notify();
+            return;
+        }
+        self.active_tab = index;
+        let tab = self.tab_mut();
+        if tab.focus.pending.is_none() {
+            tab.focus.pending = tab.focus.active_entity;
+        }
+        tab.file.pending_window_title_refresh = true;
+        tab.file.pending_window_edited = true;
+        cx.notify();
+    }
+
+    /// Opens a file: activates its tab if already open, otherwise loads a
+    /// new tab from disk.
+    pub(crate) fn open_path_in_tab(
+        &mut self,
+        path: &std::path::Path,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(index) = self
+            .tabs
+            .iter()
+            .position(|t| t.file.path.as_deref() == Some(path))
+        {
+            self.activate_tab(index, cx);
+            return;
+        }
+
+        let bytes = match std::fs::read(path) {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                self.show_drop_open_failed_prompt(
+                    format!("failed to read '{}'", path.display()),
+                    window,
+                    cx,
+                );
+                return;
+            }
         };
-        editor.rebuild_table_runtimes(cx);
-        editor.rebuild_image_runtimes(cx);
-        editor.refresh_preview_blocks(cx);
-        editor.focus.pending = editor.first_focusable_entity_id(cx);
-        editor.focus.active_entity = editor.focus.pending;
-        editor.refresh_stable_document_snapshot(cx);
-        editor
+        let markdown = String::from_utf8_lossy(&bytes).to_string();
+        self.tabs.push(Self::new_tab_from_markdown(
+            cx,
+            markdown,
+            Some(path.to_path_buf()),
+        ));
+        self.activate_tab(self.tabs.len() - 1, cx);
+    }
+
+    /// Opens a fresh untitled tab (temporary document without a path).
+    pub(crate) fn new_untitled_tab(&mut self, cx: &mut Context<Self>) {
+        self.tabs
+            .push(Self::new_tab_from_markdown(cx, String::new(), None));
+        self.activate_tab(self.tabs.len() - 1, cx);
+    }
+
+    /// Enters temporary editing from the welcome prompt: opens a fresh
+    /// Untitled tab. Only reachable while the editor has no tabs.
+    pub(crate) fn begin_untitled_editing(&mut self, cx: &mut Context<Self>) {
+        self.new_untitled_tab(cx);
+    }
+
+    /// Closes the tab at `index`, activating a neighbor. Closing the last
+    /// tab leaves the editor back in the welcome state (no tabs).
+    pub(crate) fn close_tab(&mut self, index: usize, cx: &mut Context<Self>) {
+        if index >= self.tabs.len() {
+            return;
+        }
+        let was_active = index == self.active_tab;
+        self.tabs.remove(index);
+        if self.tabs.is_empty() {
+            self.active_tab = 0;
+            cx.notify();
+            return;
+        }
+        if was_active {
+            self.active_tab = index.min(self.tabs.len() - 1);
+            let tab = self.tab_mut();
+            if tab.focus.pending.is_none() {
+                tab.focus.pending = tab.focus.active_entity;
+            }
+            tab.file.pending_window_title_refresh = true;
+            tab.file.pending_window_edited = true;
+        } else if index < self.active_tab {
+            self.active_tab -= 1;
+        }
+        cx.notify();
+    }
+}
+
+impl Editor {
+    /// The active document tab.
+    pub(crate) fn tab(&self) -> &DocumentTab {
+        &self.tabs[self.active_tab]
+    }
+
+    /// The active document tab, mutably.
+    pub(crate) fn tab_mut(&mut self) -> &mut DocumentTab {
+        &mut self.tabs[self.active_tab]
+    }
+
+    /// The active tab's document.
+    pub(crate) fn doc(&self) -> &Document {
+        &self.tab().document
+    }
+
+    /// The active tab's document, mutably.
+    pub(crate) fn doc_mut(&mut self) -> &mut Document {
+        &mut self.tab_mut().document
     }
 }

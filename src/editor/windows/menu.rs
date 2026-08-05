@@ -55,7 +55,7 @@ impl Editor {
     }
 
     pub(crate) fn show_info_dialog(&mut self, kind: InfoDialogKind, cx: &mut Context<Self>) {
-        if self.file.show_unsaved_changes_dialog {
+        if self.tab().file.show_unsaved_changes_dialog {
             return;
         }
 
@@ -192,15 +192,15 @@ impl Editor {
     }
 
     pub(crate) fn request_save_document(&mut self, cx: &mut Context<Self>) {
-        if !self.file.pending_save {
-            self.file.pending_save = true;
+        if !self.tab().file.pending_save {
+            self.tab_mut().file.pending_save = true;
             cx.notify();
         }
     }
 
     pub(crate) fn request_save_document_as(&mut self, cx: &mut Context<Self>) {
-        if !self.file.pending_save_as {
-            self.file.pending_save_as = true;
+        if !self.tab().file.pending_save_as {
+            self.tab_mut().file.pending_save_as = true;
             cx.notify();
         }
     }
@@ -211,7 +211,7 @@ impl Editor {
         open_target: String,
         cx: &mut Context<Self>,
     ) {
-        self.file.pending_open_link = Some(PendingOpenLink {
+        self.tab_mut().file.pending_open_link = Some(PendingOpenLink {
             prompt_target,
             open_target,
         });

@@ -157,9 +157,9 @@ impl Editor {
     }
 
     pub(crate) fn request_active_block_scroll_into_view(&mut self, cx: &mut Context<Self>) {
-        self.focus.pending_scroll_recheck_after_layout = true;
-        if !self.focus.pending_scroll_active_block_into_view {
-            self.focus.pending_scroll_active_block_into_view = true;
+        self.tab_mut().focus.pending_scroll_recheck_after_layout = true;
+        if !self.tab().focus.pending_scroll_active_block_into_view {
+            self.tab_mut().focus.pending_scroll_active_block_into_view = true;
             cx.notify();
         }
     }

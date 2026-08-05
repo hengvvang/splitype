@@ -7,9 +7,9 @@ use crate::editor::controller::*;
 
 impl Editor {
     pub(crate) fn current_document_source(&self, cx: &App) -> String {
-        match self.mode {
-            EditorMode::Wysiwyg => self.document.to_markdown(cx),
-            EditorMode::SourceCode => self.document.to_raw_source(cx),
+        match self.tab().mode {
+            EditorMode::Wysiwyg => self.doc().to_markdown(cx),
+            EditorMode::SourceCode => self.doc().to_raw_source(cx),
         }
     }
 
@@ -685,7 +685,7 @@ impl Editor {
         let mut wrote_non_empty_root = false;
         let mut previous_was_list_item = false;
 
-        for block in self.document.root_blocks() {
+        for block in self.doc().root_blocks() {
             let (is_empty_root, current_is_list_item) = {
                 let block_ref = block.read(cx);
                 (

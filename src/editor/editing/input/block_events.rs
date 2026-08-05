@@ -57,11 +57,11 @@ impl Editor {
         }
 
         if Self::block_event_clears_cross_block_selection(event) {
-            self.selection.select_all_cycle = None;
+            self.tab_mut().selection.select_all_cycle = None;
             self.clear_cross_block_selection(cx);
         }
 
-        let visible_before = self.document.flatten_visible_blocks();
+        let visible_before = self.doc().flatten_visible_blocks();
         let current_visible_index = visible_before
             .iter()
             .position(|visible| visible.entity.entity_id() == block.entity_id())
@@ -112,7 +112,7 @@ impl Editor {
                 if self.try_form_or_extend_table_on_newline(&block, cx) {
                     return;
                 }
-                let Some(location) = self.document.find_block_location(block.entity_id()) else {
+                let Some(location) = self.doc().find_block_location(block.entity_id()) else {
                     return;
                 };
                 if !source_already_mutated {
@@ -126,10 +126,10 @@ impl Editor {
                     cx,
                     BlockData::new(current_kind.newline_sibling_kind(), trailing.clone()),
                 );
-                if self.mode == crate::editor::controller::EditorMode::SourceCode {
+                if self.tab().mode == crate::editor::controller::EditorMode::SourceCode {
                     new_block.update(cx, |block, _cx| block.set_source_document_mode());
                 }
-                self.document.insert_blocks_at(
+                self.doc_mut().insert_blocks_at(
                     location.parent,
                     location.index + 1,
                     vec![new_block.clone()],
@@ -145,7 +145,7 @@ impl Editor {
                 cx.notify();
             }
             BlockAction::RequestNewlineAbove => {
-                let Some(location) = self.document.find_block_location(block.entity_id()) else {
+                let Some(location) = self.doc().find_block_location(block.entity_id()) else {
                     return;
                 };
                 self.prepare_undo_capture(
@@ -156,10 +156,10 @@ impl Editor {
                     cx,
                     BlockData::new(BlockKind::Paragraph, RichText::plain(String::new())),
                 );
-                if self.mode == crate::editor::controller::EditorMode::SourceCode {
+                if self.tab().mode == crate::editor::controller::EditorMode::SourceCode {
                     new_block.update(cx, |block, _cx| block.set_source_document_mode());
                 }
-                self.document.insert_blocks_at(
+                self.doc_mut().insert_blocks_at(
                     location.parent,
                     location.index,
                     vec![new_block],
@@ -214,7 +214,7 @@ impl Editor {
                         new_quote.clone(),
                     ]
                 };
-                self.document
+                self.doc_mut()
                     .insert_blocks_at(parent, insert_index, blocks, cx);
                 self.focus_block(new_quote.entity_id());
                 self.normalize_rendered_quote_structure(cx);
@@ -242,7 +242,7 @@ impl Editor {
                         plain.clone(),
                     ]
                 };
-                self.document
+                self.doc_mut()
                     .insert_blocks_at(parent, insert_index, blocks, cx);
                 self.focus_block(plain.entity_id());
                 self.rebuild_image_runtimes(cx);
@@ -266,7 +266,7 @@ impl Editor {
                 let adopted_children = crate::editor::tree::document::Document::take_children(&block, cx);
                 let removed_entity_id = block.entity_id();
 
-                self.document.with_structure_mutation(cx, |document, cx| {
+                self.doc_mut().with_structure_mutation(cx, |document, cx| {
                     prev.update(cx, {
                         let content = content.clone();
                         let adopted_children = adopted_children.clone();
@@ -346,7 +346,7 @@ impl Editor {
                 let cursor = first_title.visible_len();
                 Self::set_block_title_and_kind(&block, current_kind, first_title, cursor, cx);
 
-                let Some(location) = self.document.find_block_location(block.entity_id()) else {
+                let Some(location) = self.doc().find_block_location(block.entity_id()) else {
                     return;
                 };
 
@@ -362,7 +362,7 @@ impl Editor {
                 if structural && trailing.visible_len() > 0 {
                     inserted_roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
                 }
-                self.document.insert_blocks_at(
+                self.doc_mut().insert_blocks_at(
                     location.parent,
                     location.index + 1,
                     inserted_roots.clone(),
@@ -374,11 +374,11 @@ impl Editor {
                 // no line below it; remember that so a trailing paragraph can be
                 // added once the paste (and any quote normalization) settles.
                 let inserted_at_doc_end = inserted_roots.last().is_some_and(|last| {
-                    self.document
+                    self.doc()
                         .find_block_location(last.entity_id())
                         .is_some_and(|location| {
                             location.parent.is_none()
-                                && location.index + 1 >= self.document.root_count()
+                                && location.index + 1 >= self.doc().root_count()
                         })
                 });
 
@@ -397,7 +397,7 @@ impl Editor {
                                     .or_else(|| runtime.header.last().cloned())
                             })
                     } else {
-                        self.document.last_visible_descendant(last_root.entity_id())
+                        self.doc().last_visible_descendant(last_root.entity_id())
                     };
                     let Some(focus_block) = focus_block else {
                         return;
@@ -426,7 +426,7 @@ impl Editor {
                 // no pre-cursor text to keep, so drop the now-empty paragraph
                 // rather than leaving a blank line above the pasted blocks.
                 if structural && leading_empty {
-                    self.document.with_structure_mutation(cx, |document, cx| {
+                    self.doc_mut().with_structure_mutation(cx, |document, cx| {
                         document.remove_block_by_id_raw(block.entity_id(), cx);
                     });
                 }
@@ -438,7 +438,7 @@ impl Editor {
                 // Quote normalization rebuilds roots from Markdown, so resolve the
                 // landing block from the live tree rather than the pasted handles.
                 if inserted_at_doc_end {
-                    if let Some(last_root) = self.document.root_blocks().last().cloned() {
+                    if let Some(last_root) = self.doc().root_blocks().last().cloned() {
                         self.ensure_trailing_paragraph_after_structural(&last_root, cx);
                     }
                 }
@@ -453,7 +453,7 @@ impl Editor {
                     return;
                 }
 
-                let Some(location) = self.document.find_block_location(block.entity_id()) else {
+                let Some(location) = self.doc().find_block_location(block.entity_id()) else {
                     return;
                 };
                 let current_kind = block.read(cx).kind();
@@ -473,7 +473,7 @@ impl Editor {
                     cx,
                 );
 
-                let moved = self.document.with_structure_mutation(cx, |document, cx| {
+                let moved = self.doc_mut().with_structure_mutation(cx, |document, cx| {
                     let moved = document.remove_block_by_id_raw(block.entity_id(), cx)?.0;
                     let child_index = target_parent.read(cx).children.len();
                     document.insert_blocks_at_raw(
@@ -495,7 +495,7 @@ impl Editor {
                 cx.notify();
             }
             BlockAction::RequestOutdent => {
-                let Some(location) = self.document.find_block_location(block.entity_id()) else {
+                let Some(location) = self.doc().find_block_location(block.entity_id()) else {
                     return;
                 };
                 self.prepare_undo_capture(
@@ -505,12 +505,12 @@ impl Editor {
 
                 if let Some(parent) = location.parent.clone() {
                     let Some(parent_location) =
-                        self.document.find_block_location(parent.entity_id())
+                        self.doc().find_block_location(parent.entity_id())
                     else {
                         return;
                     };
 
-                    let moved = self.document.with_structure_mutation(cx, |document, cx| {
+                    let moved = self.doc_mut().with_structure_mutation(cx, |document, cx| {
                         let moved = document.remove_block_by_id_raw(block.entity_id(), cx)?.0;
                         document.insert_blocks_at_raw(
                             parent_location.parent,
@@ -535,7 +535,7 @@ impl Editor {
                 cx.notify();
             }
             BlockAction::RequestDowngradeNestedListItemToChildParagraph => {
-                let Some(location) = self.document.find_block_location(block.entity_id()) else {
+                let Some(location) = self.doc().find_block_location(block.entity_id()) else {
                     return;
                 };
                 let Some(parent) = location.parent.clone() else {
@@ -550,7 +550,7 @@ impl Editor {
                     cx,
                 );
 
-                let downgraded = self.document.with_structure_mutation(cx, |document, cx| {
+                let downgraded = self.doc_mut().with_structure_mutation(cx, |document, cx| {
                     let (moved, removed_location) =
                         document.remove_block_by_id_raw(block.entity_id(), cx)?;
                     moved.update(cx, |block, cx| {
@@ -700,7 +700,7 @@ impl Editor {
                     // focus that, matching how a trailing table behaves.
                     if block.read(cx).kind().is_multiline_text_block() {
                         self.ensure_trailing_paragraph_after_structural(&block, cx);
-                        let visible = self.document.flatten_visible_blocks();
+                        let visible = self.doc().flatten_visible_blocks();
                         if let Some(landing) = visible
                             .iter()
                             .position(|v| v.entity.entity_id() == block.entity_id())
@@ -796,7 +796,7 @@ impl Editor {
                 };
 
                 let adopted_children = crate::editor::tree::document::Document::take_children(&block, cx);
-                let removed = self.document.with_structure_mutation(cx, |document, cx| {
+                let removed = self.doc_mut().with_structure_mutation(cx, |document, cx| {
                     let (_, location) = document.remove_block_by_id_raw(block.entity_id(), cx)?;
                     if !adopted_children.is_empty() {
                         document.insert_blocks_at_raw(
@@ -815,7 +815,7 @@ impl Editor {
 
                 if let Some(focus_id) = focus_candidate {
                     self.focus_block(focus_id);
-                } else if let Some(first_root) = self.document.first_root() {
+                } else if let Some(first_root) = self.doc().first_root() {
                     self.focus_block(first_root.entity_id());
                 }
 
@@ -831,7 +831,7 @@ impl Editor {
                 self.clear_table_axis_preview(cx);
                 self.clear_table_axis_selection(cx);
                 self.focus_block(block.entity_id());
-                for visible in self.document.flatten_visible_blocks() {
+                for visible in self.doc().flatten_visible_blocks() {
                     visible.entity.update(cx, |_, cx| cx.notify());
                 }
                 cx.notify();
@@ -857,18 +857,18 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         let editor = cx.new(|cx| Editor::from_markdown(cx, "> first".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let quote = editor.document.first_root().expect("root quote").clone();
+            let quote = editor.doc().first_root().expect("root quote").clone();
             editor.on_block_event(quote, &BlockAction::RequestQuoteBreak, cx);
 
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "first");
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), "> first\n\n> ");
-            assert_eq!(editor.focus.pending, Some(visible[1].entity.entity_id()));
+            assert_eq!(editor.doc().to_markdown(cx), "> first\n\n> ");
+            assert_eq!(editor.tab().focus.pending, Some(visible[1].entity.entity_id()));
         });
     }
 
@@ -880,7 +880,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         editor.update(cx, |editor, cx| {
             let paragraph = editor
-                .document
+                .doc()
                 .first_root()
                 .expect("root paragraph")
                 .clone();
@@ -894,12 +894,12 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[0].entity.read(cx).display_text(), "");
             assert_eq!(visible[0].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), "> ");
+            assert_eq!(editor.doc().to_markdown(cx), "> ");
         });
     }
 
@@ -912,12 +912,12 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         editor.update(cx, |editor, cx| {
             let paragraph = editor
-                .document
+                .doc()
                 .first_root()
                 .expect("reference paragraph")
                 .clone();
             let definition = editor
-                .document
+                .doc()
                 .blocks()
                 .iter()
                 .find(|visible| visible.entity.read(cx).kind() == BlockKind::FootnoteDefinition)
@@ -932,7 +932,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
                 },
                 cx,
             );
-            assert_eq!(editor.focus.pending, Some(definition.entity_id()));
+            assert_eq!(editor.tab().focus.pending, Some(definition.entity_id()));
             assert_eq!(definition.read(cx).selected_range, 0..0);
 
             let expected_backref_range = paragraph
@@ -946,7 +946,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
                 },
                 cx,
             );
-            assert_eq!(editor.focus.pending, Some(paragraph.entity_id()));
+            assert_eq!(editor.tab().focus.pending, Some(paragraph.entity_id()));
             assert_eq!(paragraph.read(cx).selected_range, expected_backref_range);
         });
     }
@@ -956,7 +956,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         let editor = cx.new(|cx| Editor::from_markdown(cx, "beforeafter".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let paragraph = editor.document.first_root().expect("paragraph").clone();
+            let paragraph = editor.doc().first_root().expect("paragraph").clone();
             editor.insert_image_block_after_paragraph(
                 &paragraph,
                 &RichText::plain("before"),
@@ -965,7 +965,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
                 cx,
             );
 
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(visible[0].entity.read(cx).display_text(), "before");
             assert_eq!(
@@ -983,7 +983,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             cx.new(|cx| Editor::from_markdown(cx, "```\nbeforeafter\n```".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let block = editor.document.first_root().expect("code block").clone();
+            let block = editor.doc().first_root().expect("code block").clone();
             editor.replace_current_block_selection_with_image_text(
                 &block,
                 &RichText::plain("before"),
@@ -992,7 +992,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
                 cx,
             );
 
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -1011,7 +1011,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         editor.update(cx, |editor, cx| {
             let paragraph = editor
-                .document
+                .doc()
                 .first_root()
                 .expect("root paragraph")
                 .clone();
@@ -1025,7 +1025,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -1034,8 +1034,8 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), "> [!NOTE]\n> ");
-            assert_eq!(editor.focus.pending, Some(visible[1].entity.entity_id()));
+            assert_eq!(editor.doc().to_markdown(cx), "> [!NOTE]\n> ");
+            assert_eq!(editor.tab().focus.pending, Some(visible[1].entity.entity_id()));
         });
     }
 
@@ -1048,9 +1048,9 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         let separator_id = editor.update(cx, |editor, cx| {
             let separator = Editor::new_block(cx, BlockData::paragraph(String::new()));
-            editor.document.insert_blocks_at(
+            editor.doc().insert_blocks_at(
                 None,
-                editor.document.root_count(),
+                editor.doc().root_count(),
                 vec![separator.clone()],
                 cx,
             );
@@ -1059,7 +1059,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         editor.update(cx, |editor, cx| {
             let separator = editor
-                .document
+                .doc()
                 .block_entity_by_id(separator_id)
                 .expect("separator paragraph");
             assert!(separator.read(cx).list_group_separator_candidate);
@@ -1073,7 +1073,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 5);
             assert_eq!(visible[0].entity.read(cx).list_ordinal, Some(1));
             assert_eq!(visible[1].entity.read(cx).list_ordinal, Some(2));
@@ -1088,7 +1088,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             assert_eq!(visible[4].entity.read(cx).display_text(), "");
             assert_eq!(visible[4].entity.read(cx).list_ordinal, Some(1));
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "1. aa\n2. bb\n3. cc\n\n1. "
             );
         });
@@ -1099,10 +1099,10 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         let editor = cx.new(|cx| Editor::from_markdown(cx, "- a\n- b".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let second = editor.document.blocks()[1].entity.clone();
+            let second = editor.doc().blocks()[1].entity.clone();
             editor.on_block_event(second, &BlockAction::RequestIndent, cx);
 
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -1113,7 +1113,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
                 BlockKind::BulletListItem
             );
             assert_eq!(visible[1].entity.read(cx).render_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), "- a\n  - b");
+            assert_eq!(editor.doc().to_markdown(cx), "- a\n  - b");
         });
     }
 
@@ -1123,13 +1123,13 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             cx.new(|cx| Editor::from_markdown(cx, "- item\n\n  child text".to_string(), None));
 
         let child_id = editor.update(cx, |editor, cx| {
-            let child = editor.document.blocks()[1].entity.clone();
+            let child = editor.doc().blocks()[1].entity.clone();
             editor.on_block_event(child.clone(), &BlockAction::RequestOutdent, cx);
             child.entity_id()
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -1140,7 +1140,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             assert_eq!(visible[1].entity.read(cx).display_text(), "child text");
             assert_eq!(visible[1].entity.read(cx).render_depth, 0);
             assert_eq!(visible[1].entity.entity_id(), child_id);
-            assert_eq!(editor.document.to_markdown(cx), "- item\n\nchild text");
+            assert_eq!(editor.doc().to_markdown(cx), "- item\n\nchild text");
         });
     }
 
@@ -1150,12 +1150,12 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         let editor = cx.new(|cx| Editor::from_markdown(cx, "- item\n\n  child".to_string(), None));
 
         let child_id = editor.update(cx, |editor, _cx| {
-            editor.document.blocks()[1].entity.entity_id()
+            editor.doc().blocks()[1].entity.entity_id()
         });
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let child = editor.document.blocks()[1].entity.clone();
+                let child = editor.doc().blocks()[1].entity.clone();
                 child.update(cx, |block, block_cx| {
                     block.prepare_undo_capture(
                         crate::editor::actions::UndoCaptureKind::NonCoalescible,
@@ -1175,7 +1175,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -1185,7 +1185,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.entity_id(), child_id);
             assert_eq!(visible[1].entity.read(cx).render_depth, 0);
-            assert_eq!(editor.document.to_markdown(cx), "- item\n\n");
+            assert_eq!(editor.doc().to_markdown(cx), "- item\n\n");
         });
     }
 
@@ -1195,12 +1195,12 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         let editor = cx.new(|cx| Editor::from_markdown(cx, "- item\n\n  child".to_string(), None));
 
         let child_id = editor.update(cx, |editor, _cx| {
-            editor.document.blocks()[1].entity.entity_id()
+            editor.doc().blocks()[1].entity.entity_id()
         });
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let child = editor.document.blocks()[1].entity.clone();
+                let child = editor.doc().blocks()[1].entity.clone();
                 child.update(cx, |block, block_cx| {
                     block.prepare_undo_capture(
                         crate::editor::actions::UndoCaptureKind::NonCoalescible,
@@ -1220,7 +1220,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -1233,7 +1233,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[2].entity.read(cx).display_text(), "");
             assert_eq!(visible[2].entity.read(cx).render_depth, 1);
-            assert_eq!(editor.document.to_markdown(cx), "- item\n  \n  ");
+            assert_eq!(editor.doc().to_markdown(cx), "- item\n  \n  ");
         });
     }
 
@@ -1244,7 +1244,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let block = editor.document.blocks()[0].entity.clone();
+                let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
                     block.move_to(block.visible_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
@@ -1253,12 +1253,12 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(visible[0].entity.read(cx).display_text(), "H2O");
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
-            assert_eq!(editor.document.to_markdown(cx), "H~2~O\n\n");
+            assert_eq!(editor.doc().to_markdown(cx), "H~2~O\n\n");
         });
     }
 
@@ -1269,7 +1269,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let block = editor.document.blocks()[0].entity.clone();
+                let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
                     block.move_to(block.visible_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
@@ -1278,14 +1278,14 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[0].entity.read(cx).display_text(), "$n^2$");
             assert!(!visible[0].entity.read(cx).uses_raw_text_editing());
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
-            assert_eq!(editor.document.to_markdown(cx), "$n^2$\n\n");
+            assert_eq!(editor.doc().to_markdown(cx), "$n^2$\n\n");
         });
     }
 
@@ -1297,7 +1297,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let block = editor.document.blocks()[0].entity.clone();
+                let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
                     // Type a closing fence on a fresh last line, then Enter.
                     let end = block.visible_len();
@@ -1309,7 +1309,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -1321,7 +1321,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "```rust\nlet x = 1;\n```\n\n"
             );
         });
@@ -1336,7 +1336,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let underline = editor.document.blocks()[1].entity.clone();
+                let underline = editor.doc().blocks()[1].entity.clone();
                 underline.update(cx, |block, block_cx| {
                     block.move_to(block.visible_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
@@ -1345,7 +1345,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
@@ -1354,13 +1354,13 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             assert_eq!(visible[0].entity.read(cx).display_text(), "Title");
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
-            assert_eq!(editor.document.to_markdown(cx), "# Title\n\n");
+            assert_eq!(editor.doc().to_markdown(cx), "# Title\n\n");
         });
 
         // Reversible: undo restores the two original paragraphs.
         editor.update(cx, |editor, cx| {
             editor.undo_document(cx);
-            assert_eq!(editor.document.to_markdown(cx), "Title\n\n=====");
+            assert_eq!(editor.doc().to_markdown(cx), "Title\n\n=====");
         });
     }
 
@@ -1375,7 +1375,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let underline = editor.document.blocks()[1].entity.clone();
+                let underline = editor.doc().blocks()[1].entity.clone();
                 underline.update(cx, |block, block_cx| {
                     let end = block.visible_len();
                     block.replace_text_in_visible_range(0..end, "-----", None, false, block_cx);
@@ -1386,13 +1386,13 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(
                 visible[0].entity.read(cx).kind(),
                 BlockKind::Heading { level: 2 }
             );
             assert_eq!(visible[0].entity.read(cx).display_text(), "Title");
-            assert_eq!(editor.document.to_markdown(cx), "## Title\n\n");
+            assert_eq!(editor.doc().to_markdown(cx), "## Title\n\n");
         });
     }
 
@@ -1403,7 +1403,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let block = editor.document.blocks()[0].entity.clone();
+                let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
                     block.replace_text_in_visible_range(0..0, "-----", None, false, block_cx);
                     block.move_to(block.visible_len(), block_cx);
@@ -1413,7 +1413,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::ThematicBreak);
         });
     }
@@ -1425,7 +1425,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let block = editor.document.blocks()[0].entity.clone();
+                let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
                     block.replace_text_in_visible_range(0..0, "=====", None, false, block_cx);
                     block.move_to(block.visible_len(), block_cx);
@@ -1435,7 +1435,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[0].entity.read(cx).display_text(), "=====");
         });
@@ -1450,7 +1450,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let delimiter = editor.document.root_blocks()[1].clone();
+                let delimiter = editor.doc().root_blocks()[1].clone();
                 delimiter.update(cx, |block, block_cx| {
                     block.move_to(block.visible_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
@@ -1459,7 +1459,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let roots = editor.document.root_blocks();
+            let roots = editor.doc().root_blocks();
             assert_eq!(roots.len(), 2);
             assert_eq!(roots[0].read(cx).kind(), BlockKind::Table);
             let table = roots[0].read(cx).record.table.clone().expect("table");
@@ -1468,7 +1468,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             assert!(table.rows.is_empty());
             assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "| Name | Score |\n| --- | --- |\n\n"
             );
         });
@@ -1477,7 +1477,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         editor.update(cx, |editor, cx| {
             editor.undo_document(cx);
             assert_eq!(
-                editor.document.to_markdown(cx),
+                editor.doc().to_markdown(cx),
                 "| Name | Score |\n\n| --- | --- |"
             );
         });
@@ -1493,7 +1493,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         // Form the table.
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let delimiter = editor.document.root_blocks()[1].clone();
+                let delimiter = editor.doc().root_blocks()[1].clone();
                 delimiter.update(cx, |block, block_cx| {
                     block.move_to(block.visible_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
@@ -1504,7 +1504,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         // Type a body row into the paragraph below the table and press Enter.
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let row = editor.document.root_blocks()[1].clone();
+                let row = editor.doc().root_blocks()[1].clone();
                 row.update(cx, |block, block_cx| {
                     block.replace_text_in_visible_range(
                         0..0,
@@ -1520,7 +1520,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let roots = editor.document.root_blocks();
+            let roots = editor.doc().root_blocks();
             assert_eq!(roots[0].read(cx).kind(), BlockKind::Table);
             let table = roots[0].read(cx).record.table.clone().expect("table");
             assert_eq!(table.rows.len(), 1);
@@ -1539,7 +1539,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let delimiter = editor.document.root_blocks()[1].clone();
+                let delimiter = editor.doc().root_blocks()[1].clone();
                 delimiter.update(cx, |block, block_cx| {
                     block.move_to(block.visible_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
@@ -1548,7 +1548,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let roots = editor.document.root_blocks();
+            let roots = editor.doc().root_blocks();
             assert_eq!(roots.len(), 2);
             assert_eq!(roots[0].read(cx).kind(), BlockKind::Table);
             let table = roots[0].read(cx).record.table.clone().expect("table");
@@ -1568,7 +1568,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let delimiter = editor.document.root_blocks()[1].clone();
+                let delimiter = editor.doc().root_blocks()[1].clone();
                 delimiter.update(cx, |block, block_cx| {
                     block.move_to(block.visible_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
@@ -1579,7 +1579,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         // A pipeless body row with the table's column count is absorbed.
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let row = editor.document.root_blocks()[1].clone();
+                let row = editor.doc().root_blocks()[1].clone();
                 row.update(cx, |block, block_cx| {
                     block.replace_text_in_visible_range(0..0, "Alice | 10", None, false, block_cx);
                     block.move_to(block.visible_len(), block_cx);
@@ -1589,7 +1589,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let roots = editor.document.root_blocks();
+            let roots = editor.doc().root_blocks();
             assert_eq!(roots[0].read(cx).kind(), BlockKind::Table);
             let table = roots[0].read(cx).record.table.clone().expect("table");
             assert_eq!(table.rows.len(), 1);
@@ -1607,7 +1607,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let delimiter = editor.document.root_blocks()[1].clone();
+                let delimiter = editor.doc().root_blocks()[1].clone();
                 delimiter.update(cx, |block, block_cx| {
                     block.move_to(block.visible_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
@@ -1619,7 +1619,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         // padded to the header width, matching how pasted ragged rows behave.
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let row = editor.document.root_blocks()[1].clone();
+                let row = editor.doc().root_blocks()[1].clone();
                 row.update(cx, |block, block_cx| {
                     block.replace_text_in_visible_range(0..0, "one | two", None, false, block_cx);
                     block.move_to(block.visible_len(), block_cx);
@@ -1629,7 +1629,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let table = editor.document.root_blocks()[0]
+            let table = editor.doc().root_blocks()[0]
                 .read(cx)
                 .record
                 .table
@@ -1650,7 +1650,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let block = editor.document.root_blocks()[0].clone();
+                let block = editor.doc().root_blocks()[0].clone();
                 block.update(cx, |block, block_cx| {
                     block.replace_text_in_visible_range(0..0, "| a | b |", None, false, block_cx);
                     block.move_to(block.visible_len(), block_cx);
@@ -1660,7 +1660,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let roots = editor.document.root_blocks();
+            let roots = editor.doc().root_blocks();
             assert_eq!(roots[0].read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(roots[0].read(cx).display_text(), "| a | b |");
         });
@@ -1673,7 +1673,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let block = editor.document.blocks()[0].entity.clone();
+                let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
                     block.on_exit_code_block(&ExitCodeBlock, window, block_cx);
                 });
@@ -1681,13 +1681,13 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MathBlock);
             assert_eq!(visible[0].entity.read(cx).display_text(), "$$n^2$$");
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
-            assert_eq!(editor.document.to_markdown(cx), "$$n^2$$\n\n");
+            assert_eq!(editor.doc().to_markdown(cx), "$$n^2$$\n\n");
         });
     }
 
@@ -1698,7 +1698,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let block = editor.document.blocks()[0].entity.clone();
+                let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
                     block.replace_text_in_visible_range(
                         0..block.visible_len(),
@@ -1714,14 +1714,14 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             let block = visible[0].entity.read(cx);
             assert_eq!(block.kind(), BlockKind::MathBlock);
             assert_eq!(block.display_text(), "$$\n\n$$");
             assert_eq!(block.selected_range, 3..3);
             assert!(block.uses_raw_text_editing());
-            assert_eq!(editor.document.to_markdown(cx), "$$\n\n$$");
+            assert_eq!(editor.doc().to_markdown(cx), "$$\n\n$$");
         });
     }
 
@@ -1732,7 +1732,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let block = editor.document.blocks()[0].entity.clone();
+                let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
                     // Home, type the fence in front of the formula, then Enter.
                     block.move_to(0, block_cx);
@@ -1744,14 +1744,14 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             let block = visible[0].entity.read(cx);
             assert_eq!(block.kind(), BlockKind::MathBlock);
             // The pre-existing text is kept as the formula body.
             assert_eq!(block.display_text(), "$$\nE = mc^2\n$$");
             assert_eq!(block.selected_range, "$$\n".len().."$$\n".len());
-            assert_eq!(editor.document.to_markdown(cx), "$$\nE = mc^2\n$$");
+            assert_eq!(editor.doc().to_markdown(cx), "$$\nE = mc^2\n$$");
         });
     }
 
@@ -1762,7 +1762,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let block = editor.document.blocks()[0].entity.clone();
+                let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
                     block.move_to(3, block_cx);
                     block.on_newline(&Newline, window, block_cx);
@@ -1771,11 +1771,11 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MathBlock);
             assert_eq!(visible[0].entity.read(cx).display_text(), "$$n\n^2$$");
-            assert_eq!(editor.document.to_markdown(cx), "$$n\n^2$$");
+            assert_eq!(editor.doc().to_markdown(cx), "$$n\n^2$$");
         });
     }
 
@@ -1788,7 +1788,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let block = editor.document.blocks()[0].entity.clone();
+                let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
                     block.replace_text_in_visible_range(
                         0..block.visible_len(),
@@ -1805,13 +1805,13 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.document.blocks();
+            let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MathBlock);
             assert_eq!(visible[0].entity.read(cx).display_text(), "$$\n\n$$");
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
-            assert_eq!(editor.document.to_markdown(cx), "$$\n\n$$\n\n");
+            assert_eq!(editor.doc().to_markdown(cx), "$$\n\n$$\n\n");
         });
     }
 
@@ -1857,13 +1857,13 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             let editor = cx.new(|cx| {
                 let mut editor = Editor::from_markdown(cx, String::new(), None);
                 let block = Editor::new_block(cx, record.clone());
-                editor.document.replace_blocks(vec![block], cx);
+                editor.doc().replace_blocks(vec![block], cx);
                 editor
             });
 
             cx.update(|window, cx| {
                 editor.update(cx, |editor, cx| {
-                    let block = editor.document.blocks()[0].entity.clone();
+                    let block = editor.doc().blocks()[0].entity.clone();
                     block.update(cx, |block, block_cx| {
                         block.on_exit_code_block(&ExitCodeBlock, window, block_cx);
                     });
@@ -1871,7 +1871,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
             });
 
             editor.update(cx, |editor, cx| {
-                let visible = editor.document.blocks();
+                let visible = editor.doc().blocks();
                 assert_eq!(visible.len(), 2);
                 assert_eq!(visible[0].entity.read(cx).kind(), kind);
                 assert_eq!(visible[0].entity.read(cx).display_text(), text);
@@ -1890,7 +1890,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         let mut next_cell_id = None;
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let table = editor.document.first_root().expect("table root").clone();
+                let table = editor.doc().first_root().expect("table root").clone();
                 let (cell, expected_next_cell_id) = {
                     let table = table.read(cx);
                     let runtime = table.table_runtime.as_ref().expect("table runtime");
@@ -1904,8 +1904,8 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, _cx| {
-            assert_eq!(editor.document.blocks().len(), 1);
-            assert_eq!(editor.focus.pending, next_cell_id);
+            assert_eq!(editor.doc().blocks().len(), 1);
+            assert_eq!(editor.tab().focus.pending, next_cell_id);
         });
     }
 
@@ -1917,7 +1917,7 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let callout = editor.document.first_root().expect("callout root").clone();
+                let callout = editor.doc().first_root().expect("callout root").clone();
                 let table = callout
                     .read(cx)
                     .children
@@ -1939,13 +1939,13 @@ use crate::model::block::{BlockData, BlockKind, CalloutKind};
         });
 
         editor.update(cx, |editor, cx| {
-            let callout = editor.document.first_root().expect("callout root").clone();
+            let callout = editor.doc().first_root().expect("callout root").clone();
             let children = callout.read(cx).children.clone();
             assert_eq!(children.len(), 2);
             assert_eq!(children[0].read(cx).kind(), BlockKind::Table);
             assert_eq!(children[1].read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(children[1].read(cx).display_text(), "");
-            assert_eq!(editor.focus.pending, Some(children[1].entity_id()));
+            assert_eq!(editor.tab().focus.pending, Some(children[1].entity_id()));
         });
     }
 }

@@ -16,11 +16,10 @@ use gpui::*;
 use crate::editor::controller::*;
 use crate::editor::windows::layout::{
     Axis, BorderMenuState, CornerDragAction, CornerDragModifier, CornerDragPreview, Direction,
-    EditTabState, EditorPanel, PaneKind, SplitTree, SplitterDragSession,
+    EditorPanel, PaneKind, SplitTree, SplitterDragSession,
 };
 use crate::infra::i18n::I18nStrings;
 use crate::theme::Theme;
-use crate::windows::editor::render_empty_panel_prompt;
 
 impl Editor {
     pub(crate) fn render_tiled_layout(
@@ -733,9 +732,14 @@ impl Editor {
             self.render_area_header(leaf_id, area_type, theme, leaf_count, is_maximized, cx);
 
         let body: AnyElement = match area_type {
-            PaneKind::Editor => {
-                self.render_tiled_edit_container_panel(leaf_id, primary_content, theme, strings, window, cx)
-            }
+            PaneKind::Editor => self.render_tiled_edit_container_panel(
+                leaf_id,
+                primary_content,
+                theme,
+                strings,
+                window,
+                cx,
+            ),
             PaneKind::Workspace => self.render_tiled_workspace_files_panel(theme, strings, cx),
             PaneKind::Settings => self.render_tiled_settings_panel(theme, strings, cx),
         };
@@ -945,37 +949,21 @@ impl Editor {
             actions = actions.child(max_button).child(close_button);
         }
 
-        // Build tab bar for Edit areas.
+        // Build tab bar for Edit areas from the editor's document tabs.
         let mut left_section = div().flex().items_center().gap(px(8.0)).child(type_button);
 
         if area_type == PaneKind::Editor {
-            let tabs = self
-                .panels
-                .layout
-                .edit_tabs
-                .entry(leaf_id)
-                .or_insert_with(EditTabState::new);
-
-            // Sync current file with tab list.
-            if let Some(ref path) = self.file.path {
-                if !tabs.open_paths.contains(path) {
-                    tabs.open_paths.push(path.clone());
-                    tabs.active_index = tabs.open_paths.len() - 1;
-                } else {
-                    // Update active index to match current file.
-                    if let Some(pos) = tabs.open_paths.iter().position(|p| p == path) {
-                        tabs.active_index = pos;
-                    }
-                }
-            }
+            let active_tab = self.active_tab;
 
             let mut tab_elements: Vec<AnyElement> = Vec::new();
-            for (_i, path) in tabs.open_paths.iter().enumerate() {
-                let file_name = path
-                    .file_name()
-                    .map(|n| n.to_string_lossy().to_string())
+            for (index, tab) in self.tabs.iter().enumerate() {
+                let file_name = tab
+                    .file
+                    .path
+                    .as_ref()
+                    .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
                     .unwrap_or_else(|| "Untitled".to_string());
-                let is_active = Some(path.as_path()) == tabs.active_path().map(|p| p.as_path());
+                let is_active = index == active_tab;
 
                 let tab_bg = if is_active {
                     c.dialog_surface
@@ -988,8 +976,6 @@ impl Editor {
                     c.dialog_muted
                 };
 
-                let switch_path = path.clone();
-                let close_path = path.clone();
                 let tab_editor = editor.clone();
                 let close_editor = editor.clone();
 
@@ -1004,18 +990,8 @@ impl Editor {
                                 .text_color(tab_text)
                                 .child(file_name.clone())
                                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                                    let p = switch_path.clone();
                                     let _ = tab_editor.update(cx, |ed, cx| {
-                                        if let Some(tabs) =
-                                            ed.panels.layout.edit_tabs.get_mut(&leaf_id)
-                                        {
-                                            if let Some(pos) =
-                                                tabs.open_paths.iter().position(|tp| tp == &p)
-                                            {
-                                                tabs.active_index = pos;
-                                            }
-                                        }
-                                        let _ = ed.replace_document_from_path(&p, cx);
+                                        ed.activate_tab(index, cx);
                                         cx.notify();
                                     });
                                 }),
@@ -1037,37 +1013,8 @@ impl Editor {
                                         .text_color(c.dialog_muted),
                                 )
                                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                                    let p = close_path.clone();
                                     let _ = close_editor.update(cx, |ed, cx| {
-                                        if let Some(tabs) =
-                                            ed.panels.layout.edit_tabs.get_mut(&leaf_id)
-                                        {
-                                            if tabs.open_paths.len() > 1 {
-                                                if let Some(pos) =
-                                                    tabs.open_paths.iter().position(|tp| tp == &p)
-                                                {
-                                                    let was_active = pos == tabs.active_index;
-                                                    tabs.open_paths.remove(pos);
-                                                    if was_active {
-                                                        if tabs.active_index
-                                                            >= tabs.open_paths.len()
-                                                        {
-                                                            tabs.active_index = tabs
-                                                                .open_paths
-                                                                .len()
-                                                                .saturating_sub(1);
-                                                        }
-                                                        if let Some(new_path) =
-                                                            tabs.active_path().cloned()
-                                                        {
-                                                            let _ = ed.replace_document_from_path(
-                                                                &new_path, cx,
-                                                            );
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
+                                        ed.close_tab(index, cx);
                                         cx.notify();
                                     });
                                 }),
@@ -1076,11 +1023,11 @@ impl Editor {
                 );
             }
 
-            // Add "+" button to open new file.
+            // "+" button opens a fresh untitled tab.
             let add_editor = editor.clone();
             tab_elements.push(
                 div()
-                    .size(px(22.0))
+                    .size(px(18.0))
                     .flex()
                     .items_center()
                     .justify_center()
@@ -1091,7 +1038,8 @@ impl Editor {
                     .text_color(c.dialog_muted)
                     .child("+")
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                        let _ = add_editor.update(cx, |_ed, cx| {
+                        let _ = add_editor.update(cx, |ed, cx| {
+                            ed.new_untitled_tab(cx);
                             cx.notify();
                         });
                     })
@@ -1356,6 +1304,61 @@ impl Editor {
 
         container.into_any_element()
     }
+    /// Welcome prompt shown when the workspace is empty: double-click to
+    /// start temporary editing in an Untitled tab, or open a file from the
+    /// menus. `inner_id` scopes the element id so multiple split panels can
+    /// each host their own prompt.
+    pub(crate) fn render_welcome_prompt(
+        &mut self,
+        inner_id: usize,
+        theme: &Theme,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        let editor = cx.entity().downgrade();
+
+        div()
+            .id(("welcome-prompt", inner_id))
+            .w_full()
+            .h_full()
+            .flex()
+            .flex_col()
+            .items_center()
+            .justify_center()
+            .gap(px(10.0))
+            .bg(c.editor_background)
+            .cursor_pointer()
+            // GPUI has no double-click event; track click timestamps in
+            // editor state (closure-local state is rebuilt every frame).
+            .on_click(move |_event, _window, cx| {
+                let now = std::time::Instant::now();
+                let _ = editor.update(cx, |ed, cx| {
+                    let is_double = ed.chrome.welcome_last_click.is_some_and(|previous| {
+                        now.duration_since(previous) < std::time::Duration::from_millis(500)
+                    });
+                    ed.chrome.welcome_last_click = Some(now);
+                    if is_double {
+                        ed.begin_untitled_editing(cx);
+                    }
+                });
+            })
+            .child(
+                div()
+                    .text_size(px(d.menu_text_size.max(13.0)))
+                    .text_color(c.text_default)
+                    .font_weight(FontWeight::MEDIUM)
+                    .child("Double-click to start editing"),
+            )
+            .child(
+                div()
+                    .text_size(px(11.0))
+                    .text_color(c.dialog_muted)
+                    .child("Or open a file from the explorer or menus"),
+            )
+            .into_any_element()
+    }
+
     pub(crate) fn render_edit_inner_node(
         &mut self,
         node: &crate::editor::windows::layout::SplitTree<
@@ -1380,52 +1383,44 @@ impl Editor {
                 let area_type = *area_type;
                 let inner_editor = cx.entity().downgrade();
 
-                let has_content = self.file.path.is_some() || self.file.dirty;
-                let workspace_open = self.panels.workspace.root.is_some();
-
-                let inner_body: AnyElement = match area_type {
-                    // Block — WYSIWYG block editor from document.blocks().
-                    EditorPanel::Wysiwyg => {
-                        if let Some(content) = primary_content.take() {
-                            content
-                        } else if has_content {
-                            self.render_tiled_preview_panel(primary_content, theme, strings, window, cx)
-                        } else if workspace_open {
-                            render_empty_panel_prompt(c, "Open a file")
-                        } else {
-                            render_empty_panel_prompt(c, "No content")
+                // Welcome state: no document tabs at all — guide the user
+                // instead of showing an empty buffer.
+                let inner_body: AnyElement = if self.tabs.is_empty() {
+                    self.render_welcome_prompt(inner_id, theme, cx)
+                } else {
+                    // A tab exists (opened file or fresh Untitled document),
+                    // so every panel renders its normal view — empty documents
+                    // simply produce empty views, never prompts.
+                    match area_type {
+                        // WYSIWYG — block editor from document.blocks().
+                        EditorPanel::Wysiwyg => {
+                            if let Some(content) = primary_content.take() {
+                                content
+                            } else {
+                                self.render_tiled_preview_panel(
+                                    primary_content,
+                                    theme,
+                                    strings,
+                                    window,
+                                    cx,
+                                )
+                            }
                         }
-                    }
-                    // Source — interactive source code editor.  Uses a cached
-                    // block in source-document mode.  Edits sync to the shared
-                    // document via the block's Changed event.
-                    EditorPanel::SourceCode => {
-                        if has_content {
+                        // Source — interactive source code editor. Uses a
+                        // cached block in source-document mode; edits sync to
+                        // the shared document via the block's Changed event.
+                        EditorPanel::SourceCode => {
                             self.refresh_source_panel_block(cx);
                             self.render_source_editor_panel(theme, cx)
-                        } else if workspace_open {
-                            render_empty_panel_prompt(c, "Open a file")
-                        } else {
-                            render_empty_panel_prompt(c, "No content")
                         }
-                    }
-                    EditorPanel::Preview => {
-                        if has_content {
-                            self.render_tiled_preview_panel(primary_content, theme, strings, window, cx)
-                        } else if workspace_open {
-                            render_empty_panel_prompt(c, "Open a file to preview")
-                        } else {
-                            render_empty_panel_prompt(c, "No preview content")
-                        }
-                    }
-                    EditorPanel::Outline => {
-                        if has_content {
-                            self.render_tiled_outline_panel(theme, strings, cx)
-                        } else if workspace_open {
-                            render_empty_panel_prompt(c, "Open a file to show outline")
-                        } else {
-                            render_empty_panel_prompt(c, "No outline content")
-                        }
+                        EditorPanel::Preview => self.render_tiled_preview_panel(
+                            primary_content,
+                            theme,
+                            strings,
+                            window,
+                            cx,
+                        ),
+                        EditorPanel::Outline => self.render_tiled_outline_panel(theme, strings, cx),
                     }
                 };
 

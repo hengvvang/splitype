@@ -13,7 +13,7 @@ use crate::model::syntax::table::TableCellPosition;
 
 impl Editor {
     pub(crate) fn on_page_up(&mut self, _: &PageUp, _window: &mut Window, cx: &mut Context<Self>) {
-        let page = self.scroll.handle.bounds().size.height;
+        let page = self.tab().scroll.handle.bounds().size.height;
         self.scroll_viewport_by(page, cx);
     }
 
@@ -23,7 +23,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let page = self.scroll.handle.bounds().size.height;
+        let page = self.tab().scroll.handle.bounds().size.height;
         self.scroll_viewport_by(-page, cx);
     }
 
@@ -42,7 +42,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let max_offset_y = self.scroll.handle.max_offset().height.max(px(0.0));
+        let max_offset_y = self.tab().scroll.handle.max_offset().height.max(px(0.0));
         self.set_vertical_scroll_offset(-max_offset_y, cx);
     }
 
@@ -50,21 +50,21 @@ impl Editor {
     /// toward the start of the document; a negative one moves toward the end.
     /// One page is the current viewport height, so the step tracks window size.
     pub(crate) fn scroll_viewport_by(&mut self, delta: Pixels, cx: &mut Context<Self>) {
-        let target = self.scroll.handle.offset().y + delta;
+        let target = self.tab().scroll.handle.offset().y + delta;
         self.set_vertical_scroll_offset(target, cx);
     }
 
     /// Applies an absolute vertical scroll offset, clamped to the scrollable
     /// range. Offsets run from 0 at the top to `-max_offset` at the bottom.
     pub(crate) fn set_vertical_scroll_offset(&mut self, target_y: Pixels, cx: &mut Context<Self>) {
-        let max_offset_y = self.scroll.handle.max_offset().height.max(px(0.0));
-        let mut offset = self.scroll.handle.offset();
+        let max_offset_y = self.tab().scroll.handle.max_offset().height.max(px(0.0));
+        let mut offset = self.tab().scroll.handle.offset();
         offset.y = target_y.min(px(0.0)).max(-max_offset_y);
-        self.scroll.handle.set_offset(offset);
+        self.tab().scroll.handle.set_offset(offset);
         // A direct viewport scroll should stick, so cancel any queued pass that
         // would otherwise re-center the active block on the next frame.
-        self.focus.pending_scroll_active_block_into_view = false;
-        self.focus.pending_scroll_recheck_after_layout = false;
+        self.tab_mut().focus.pending_scroll_active_block_into_view = false;
+        self.tab_mut().focus.pending_scroll_recheck_after_layout = false;
         self.bump_scrollbar_visibility(cx);
         cx.notify();
     }
@@ -133,7 +133,7 @@ impl Editor {
         to_block_start: bool,
         cx: &mut Context<Self>,
     ) {
-        let visible = self.document.flatten_visible_blocks();
+        let visible = self.doc().flatten_visible_blocks();
         let Some(index) = visible
             .iter()
             .position(|visible| visible.entity.entity_id() == table_block.entity_id())
@@ -244,7 +244,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         if Self::block_event_clears_cross_block_selection(event) {
-            self.selection.select_all_cycle = None;
+            self.tab_mut().selection.select_all_cycle = None;
             self.clear_cross_block_selection(cx);
         }
 
@@ -286,7 +286,7 @@ impl Editor {
             }
             BlockAction::RequestNewline { .. } => {
                 let Some(location) = self
-                    .document
+                    .doc()
                     .find_block_location(binding.table_block.entity_id())
                 else {
                     return;
@@ -299,7 +299,7 @@ impl Editor {
                     cx,
                 );
                 let new_block = Self::new_block(cx, BlockData::paragraph(String::new()));
-                self.document.insert_blocks_at(
+                self.doc_mut().insert_blocks_at(
                     location.parent,
                     location.index + 1,
                     vec![new_block.clone()],
@@ -357,7 +357,7 @@ impl Editor {
             if current.read(cx).kind().is_quote_container() {
                 return Some(current);
             }
-            let location = self.document.find_block_location(current.entity_id())?;
+            let location = self.doc().find_block_location(current.entity_id())?;
             current = location.parent?;
         }
     }
@@ -369,7 +369,7 @@ impl Editor {
     ) -> Option<Entity<crate::editor::tree::block::Block>> {
         let mut current = self.nearest_quote_ancestor(entity_id, cx)?;
         loop {
-            let Some(location) = self.document.find_block_location(current.entity_id()) else {
+            let Some(location) = self.doc().find_block_location(current.entity_id()) else {
                 break;
             };
             let Some(parent) = location.parent.clone() else {
@@ -389,7 +389,7 @@ impl Editor {
         cx: &App,
     ) -> Option<(Option<Entity<crate::editor::tree::block::Block>>, usize)> {
         let quote_block = self.nearest_quote_ancestor(entity_id, cx)?;
-        let location = self.document.find_block_location(quote_block.entity_id())?;
+        let location = self.doc().find_block_location(quote_block.entity_id())?;
         Some((location.parent.clone(), location.index + 1))
     }
 
@@ -400,7 +400,7 @@ impl Editor {
     ) -> Option<(Option<Entity<crate::editor::tree::block::Block>>, usize)> {
         let callout_root = self.topmost_quote_ancestor(entity_id, cx)?;
         let location = self
-            .document
+            .doc()
             .find_block_location(callout_root.entity_id())?;
         Some((location.parent.clone(), location.index + 1))
     }
@@ -419,7 +419,7 @@ impl Editor {
         }
 
         let body = Self::new_block(cx, BlockData::paragraph(String::new()));
-        self.document
+        self.doc_mut()
             .insert_blocks_at(Some(callout.clone()), 0, vec![body.clone()], cx);
         Some(body)
     }
@@ -429,7 +429,7 @@ impl Editor {
         block: &Entity<crate::editor::tree::block::Block>,
         cx: &mut Context<Self>,
     ) -> Option<EntityId> {
-        if self.mode != crate::editor::controller::EditorMode::Wysiwyg {
+        if self.tab().mode != crate::editor::controller::EditorMode::Wysiwyg {
             return None;
         }
 
@@ -467,7 +467,7 @@ impl Editor {
         block: &Entity<crate::editor::tree::block::Block>,
         cx: &mut Context<Self>,
     ) -> bool {
-        let Some(location) = self.document.find_block_location(block.entity_id()) else {
+        let Some(location) = self.doc().find_block_location(block.entity_id()) else {
             return false;
         };
         let Some(parent) = location.parent.clone() else {
@@ -493,7 +493,7 @@ impl Editor {
         }
 
         self.prepare_undo_capture(crate::editor::actions::UndoCaptureKind::NonCoalescible, cx);
-        self.document.with_structure_mutation(cx, |document, cx| {
+        self.doc_mut().with_structure_mutation(cx, |document, cx| {
             let _ = document.remove_block_by_id_raw(block.entity_id(), cx);
             parent.update(cx, |parent, cx| {
                 parent.record.kind = BlockKind::Blockquote;

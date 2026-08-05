@@ -11,7 +11,7 @@ use crate::model::syntax::table::*;
 
 impl Editor {
     pub(crate) fn jump_to_footnote_definition(&mut self, id: &str, cx: &mut Context<Self>) -> bool {
-        let Some(binding) = self.references.footnotes.binding(id) else {
+        let Some(binding) = self.tab().references.footnotes.binding(id) else {
             return false;
         };
         let Some(block) = self.focusable_entity_by_id(binding.definition_entity_id) else {
@@ -23,7 +23,7 @@ impl Editor {
 
 
     pub(crate) fn jump_to_footnote_backref(&mut self, id: &str, cx: &mut Context<Self>) -> bool {
-        let Some(binding) = self.references.footnotes.binding(id) else {
+        let Some(binding) = self.tab().references.footnotes.binding(id) else {
             return false;
         };
         let Some(first_reference) = binding.first_reference.as_ref() else {
@@ -46,12 +46,12 @@ impl Editor {
         entity_id: EntityId,
         cx: &mut Context<Self>,
     ) -> bool {
-        let Some(location) = self.document.find_block_location(entity_id) else {
+        let Some(location) = self.doc().find_block_location(entity_id) else {
             return false;
         };
 
         let separator = Self::new_block(cx, BlockData::paragraph(String::new()));
-        self.document
+        self.doc_mut()
             .insert_blocks_at(location.parent, location.index, vec![separator], cx);
         true
     }
@@ -112,14 +112,14 @@ impl Editor {
         if block.read(cx).kind() != BlockKind::Paragraph {
             return false;
         }
-        let Some(location) = self.document.find_block_location(block.entity_id()) else {
+        let Some(location) = self.doc().find_block_location(block.entity_id()) else {
             return false;
         };
 
         // Only root paragraphs auto-form headings; nested contexts (quotes,
         // lists) keep their existing newline behavior.
         let target = if location.parent.is_none() {
-            self.document
+            self.doc()
                 .previous_sibling(block.entity_id(), cx)
                 .filter(|prev| Self::is_setext_heading_target(prev, cx))
         } else {
@@ -153,11 +153,11 @@ impl Editor {
                 cursor,
                 cx,
             );
-            self.document.with_structure_mutation(cx, |document, cx| {
+            self.doc_mut().with_structure_mutation(cx, |document, cx| {
                 let _ = document.remove_block_by_id_raw(removed_id, cx);
             });
-            if let Some(heading_location) = self.document.find_block_location(prev.entity_id()) {
-                self.document.insert_blocks_at(
+            if let Some(heading_location) = self.doc().find_block_location(prev.entity_id()) {
+                self.doc_mut().insert_blocks_at(
                     heading_location.parent,
                     heading_location.index + 1,
                     vec![new_paragraph.clone()],
@@ -168,7 +168,7 @@ impl Editor {
         } else {
             block.update(cx, |block, _cx| block.make_separator());
             let new_paragraph = Self::new_block(cx, BlockData::paragraph(String::new()));
-            self.document.insert_blocks_at(
+            self.doc_mut().insert_blocks_at(
                 location.parent,
                 location.index + 1,
                 vec![new_paragraph.clone()],
@@ -199,13 +199,13 @@ impl Editor {
         if block.read(cx).kind() != BlockKind::Paragraph || !is_table_row_candidate(&text) {
             return false;
         }
-        let Some(location) = self.document.find_block_location(block.entity_id()) else {
+        let Some(location) = self.doc().find_block_location(block.entity_id()) else {
             return false;
         };
         if location.parent.is_some() {
             return false;
         }
-        let Some(prev) = self.document.previous_sibling(block.entity_id(), cx) else {
+        let Some(prev) = self.doc().previous_sibling(block.entity_id(), cx) else {
             return false;
         };
 
@@ -237,11 +237,11 @@ impl Editor {
         let removed_header = prev.entity_id();
         let table_block = Self::new_table_block(cx, table);
         let new_paragraph = Self::new_block(cx, BlockData::paragraph(String::new()));
-        self.document.with_structure_mutation(cx, |document, cx| {
+        self.doc_mut().with_structure_mutation(cx, |document, cx| {
             let _ = document.remove_block_by_id_raw(removed_delimiter, cx);
             let _ = document.remove_block_by_id_raw(removed_header, cx);
         });
-        self.document.insert_blocks_at(
+        self.doc_mut().insert_blocks_at(
             None,
             header_index,
             vec![table_block.clone(), new_paragraph.clone()],
@@ -283,12 +283,12 @@ impl Editor {
         });
 
         let removed_id = row_block.entity_id();
-        self.document.with_structure_mutation(cx, |document, cx| {
+        self.doc_mut().with_structure_mutation(cx, |document, cx| {
             let _ = document.remove_block_by_id_raw(removed_id, cx);
         });
         let new_paragraph = Self::new_block(cx, BlockData::paragraph(String::new()));
-        if let Some(table_location) = self.document.find_block_location(table_block.entity_id()) {
-            self.document.insert_blocks_at(
+        if let Some(table_location) = self.doc().find_block_location(table_block.entity_id()) {
+            self.doc_mut().insert_blocks_at(
                 table_location.parent,
                 table_location.index + 1,
                 vec![new_paragraph.clone()],
@@ -327,18 +327,18 @@ impl Editor {
         if !strands {
             return;
         }
-        let Some(location) = self.document.find_block_location(block.entity_id()) else {
+        let Some(location) = self.doc().find_block_location(block.entity_id()) else {
             return;
         };
         let sibling_count = match location.parent.as_ref() {
             Some(parent) => parent.read(cx).children.len(),
-            None => self.document.root_count(),
+            None => self.doc().root_count(),
         };
         if location.index + 1 < sibling_count {
             return;
         }
         let trailing = Self::new_block(cx, BlockData::paragraph(String::new()));
-        self.document
+        self.doc_mut()
             .insert_blocks_at(location.parent, location.index + 1, vec![trailing], cx);
     }
 

@@ -57,7 +57,7 @@ impl Editor {
 
     pub(crate) fn toggle_view_mode_from_ui(&mut self, cx: &mut Context<Self>) {
         self.end_block_pointer_selection_sessions(cx);
-        self.undo.last_selection_snapshot = self.capture_source_selection_snapshot(cx);
+        self.tab_mut().undo.last_selection_snapshot = self.capture_source_selection_snapshot(cx);
         self.toggle_view_mode(cx);
     }
 
@@ -151,7 +151,7 @@ impl Editor {
 
     #[allow(dead_code)]
     pub(crate) fn set_view_mode(&mut self, target_mode: EditorMode, cx: &mut Context<Self>) {
-        if self.mode != target_mode {
+        if self.tab().mode != target_mode {
             self.toggle_view_mode(cx);
         }
     }
@@ -160,37 +160,37 @@ impl Editor {
         self.end_block_pointer_selection_sessions(cx);
         let selection_snapshot = self.capture_source_selection_snapshot(cx);
         self.clear_cross_block_selection(cx);
-        self.selection.select_all_cycle = None;
-        match self.mode {
+        self.tab_mut().selection.select_all_cycle = None;
+        match self.tab().mode {
             EditorMode::Wysiwyg => {
-                let markdown = self.document.to_markdown(cx);
+                let markdown = self.doc().to_markdown(cx);
                 let block = Self::new_block(cx, BlockData::paragraph(markdown));
                 block.update(cx, |block, _cx| block.set_source_document_mode());
-                self.document.replace_blocks(vec![block], cx);
-                self.mode = EditorMode::SourceCode;
-                self.tables.cells.clear();
+                self.doc_mut().replace_blocks(vec![block], cx);
+                self.tab_mut().mode = EditorMode::SourceCode;
+                self.tab_mut().tables.cells.clear();
             }
             EditorMode::SourceCode => {
-                let source = self.document.to_raw_source(cx);
+                let source = self.doc().to_raw_source(cx);
                 let mut roots = Self::parse_document(cx, &source);
                 if roots.is_empty() {
                     roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
                 }
-                self.document.replace_blocks(roots, cx);
-                self.mode = EditorMode::Wysiwyg;
+                self.doc_mut().replace_blocks(roots, cx);
+                self.tab_mut().mode = EditorMode::Wysiwyg;
                 self.rebuild_table_runtimes(cx);
                 self.rebuild_image_runtimes(cx);
             }
         }
 
         self.apply_selection_snapshot_in_current_mode(&selection_snapshot, cx);
-        self.focus.pending_scroll_active_block_into_view = true;
-        self.focus.pending_scroll_recheck_after_layout = true;
-        self.scroll.last_viewport_size = None;
-        self.file.pending_window_title_refresh = true;
-        self.file.close_dialog_restore_focus = None;
-        self.tables.axis_preview = None;
-        self.tables.axis_selection = None;
+        self.tab_mut().focus.pending_scroll_active_block_into_view = true;
+        self.tab_mut().focus.pending_scroll_recheck_after_layout = true;
+        self.tab_mut().scroll.last_viewport_size = None;
+        self.tab_mut().file.pending_window_title_refresh = true;
+        self.tab_mut().file.close_dialog_restore_focus = None;
+        self.tab_mut().tables.axis_preview = None;
+        self.tab_mut().tables.axis_selection = None;
         self.dismiss_contextual_overlays(cx);
         self.sync_table_axis_visuals(cx);
         self.refresh_stable_document_snapshot(cx);
@@ -200,10 +200,10 @@ impl Editor {
     /// Marks the document dirty and schedules window-title and edited-state
     /// refresh for the next render frame.
     pub(crate) fn mark_dirty(&mut self, cx: &mut Context<Self>) {
-        if !self.file.dirty {
-            self.file.dirty = true;
-            self.file.pending_window_edited = true;
-            self.file.pending_window_title_refresh = true;
+        if !self.tab().file.dirty {
+            self.tab_mut().file.dirty = true;
+            self.tab_mut().file.pending_window_edited = true;
+            self.tab_mut().file.pending_window_title_refresh = true;
             cx.notify();
         }
     }
@@ -213,7 +213,7 @@ impl Editor {
 
 impl Editor {
     pub(crate) fn request_check_updates(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.file.show_unsaved_changes_dialog {
+        if self.tab().file.show_unsaved_changes_dialog {
             return;
         }
         if self.chrome.update_check_in_progress {
