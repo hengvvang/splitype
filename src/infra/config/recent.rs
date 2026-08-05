@@ -2,11 +2,12 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context as _, bail};
+use anyhow::{bail, Context as _};
 
 use super::dirs::SplitypeConfigDirs;
 
 pub(crate) const RECENT_FILES_LIMIT: usize = 20;
+pub(crate) const RECENT_FOLDERS_LIMIT: usize = 10;
 
 pub(crate) fn read_recent_files() -> anyhow::Result<Vec<PathBuf>> {
     read_recent_files_with_dirs(&SplitypeConfigDirs::from_system()?)
@@ -18,6 +19,14 @@ pub(crate) fn record_recent_file(path: &Path) -> anyhow::Result<Vec<PathBuf>> {
 
 pub(crate) fn remove_recent_file(path: &Path) -> anyhow::Result<Vec<PathBuf>> {
     remove_recent_file_with_dirs(path, &SplitypeConfigDirs::from_system()?)
+}
+
+pub(crate) fn read_recent_folders() -> anyhow::Result<Vec<PathBuf>> {
+    read_recent_folders_with_dirs(&SplitypeConfigDirs::from_system()?)
+}
+
+pub(crate) fn record_recent_folder(path: &Path) -> anyhow::Result<Vec<PathBuf>> {
+    record_recent_folder_with_dirs(path, &SplitypeConfigDirs::from_system()?)
 }
 
 pub(crate) fn read_recent_files_with_dirs(
@@ -65,25 +74,60 @@ pub(crate) fn remove_recent_file_with_dirs(
     Ok(paths)
 }
 
+pub(crate) fn read_recent_folders_with_dirs(
+    dirs: &SplitypeConfigDirs,
+) -> anyhow::Result<Vec<PathBuf>> {
+    let path = dirs.recent_folders_file();
+    let text = match std::fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(err) => {
+            return Err(err).with_context(|| format!("failed to read '{}'", path.display()));
+        }
+    };
+    Ok(normalize_recent_files(text.lines().map(PathBuf::from)))
+}
+
+pub(crate) fn record_recent_folder_with_dirs(
+    path: &Path,
+    dirs: &SplitypeConfigDirs,
+) -> anyhow::Result<Vec<PathBuf>> {
+    if path.to_string_lossy().trim().is_empty() {
+        bail!("recent folder path cannot be empty");
+    }
+    let mut paths = read_recent_folders_with_dirs(dirs)?;
+    let path = path.to_path_buf();
+    paths.retain(|existing| !same_recent_path(existing, &path));
+    paths.insert(0, path);
+    paths.truncate(RECENT_FOLDERS_LIMIT);
+    write_path_list(&paths, &dirs.recent_folders_file())?;
+    Ok(paths)
+}
+
 fn write_recent_files_with_dirs(
     paths: &[PathBuf],
     dirs: &SplitypeConfigDirs,
 ) -> anyhow::Result<()> {
-    let history_file = dirs.history_file();
+    write_path_list(paths, &dirs.history_file())
+}
+
+/// Shared persistence for a plain newline-separated path list (used by both
+/// the recent-files history and the recent-folders list).
+fn write_path_list(paths: &[PathBuf], target: &Path) -> anyhow::Result<()> {
     let normalized = normalize_recent_files(paths.iter().cloned());
     if normalized.is_empty() {
-        match std::fs::remove_file(&history_file) {
+        match std::fs::remove_file(target) {
             Ok(()) => {}
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
             Err(err) => {
                 return Err(err)
-                    .with_context(|| format!("failed to remove '{}'", history_file.display()));
+                    .with_context(|| format!("failed to remove '{}'", target.display()));
             }
         }
         return Ok(());
     }
 
-    if let Some(parent) = history_file.parent() {
+    if let Some(parent) = target.parent() {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("failed to create '{}'", parent.display()))?;
     }
@@ -92,8 +136,8 @@ fn write_recent_files_with_dirs(
         content.push_str(&path.to_string_lossy());
         content.push('\n');
     }
-    std::fs::write(&history_file, content)
-        .with_context(|| format!("failed to write '{}'", history_file.display()))
+    std::fs::write(target, content)
+        .with_context(|| format!("failed to write '{}'", target.display()))
 }
 
 fn normalize_recent_files(paths: impl IntoIterator<Item = PathBuf>) -> Vec<PathBuf> {
@@ -174,8 +218,8 @@ fn same_recent_path(left: &Path, right: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        RECENT_FILES_LIMIT, SplitypeConfigDirs, read_recent_files_with_dirs,
-        record_recent_file_with_dirs, remove_recent_file_with_dirs,
+        read_recent_files_with_dirs, record_recent_file_with_dirs, remove_recent_file_with_dirs,
+        SplitypeConfigDirs, RECENT_FILES_LIMIT,
     };
     use std::path::{Path, PathBuf};
 
@@ -264,11 +308,9 @@ mod tests {
             std::process::id()
         ));
 
-        assert!(
-            record_recent_file_with_dirs(&fixture_path, &dirs)
-                .unwrap()
-                .is_empty()
-        );
+        assert!(record_recent_file_with_dirs(&fixture_path, &dirs)
+            .unwrap()
+            .is_empty());
         assert!(!dirs.history_file().exists());
 
         let _ = std::fs::remove_dir_all(root);

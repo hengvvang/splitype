@@ -12,10 +12,11 @@ use crate::app::windows::{
     open_editor_window, open_file_in_new_window, record_recent_file_and_refresh,
 };
 use crate::editor::actions::{
-    AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
-    InstallCliTool, NewWindow, NoRecentFiles, OpenBugReport, OpenDiscussions, OpenFeatureRequest,
-    OpenFile, OpenRecentFile, OpenSettings, OpenSplitypeRepository, QuitApplication, SaveDocument,
-    SaveDocumentAs, SelectLanguage, SelectTheme, ShowAbout, ToggleExplorer, UninstallCliTool,
+    AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseExplorerFolder, CloseWindow,
+    ExportHtml, ExportPdf, InstallCliTool, NewWindow, NoRecentFiles, OpenBugReport,
+    OpenDiscussions, OpenFeatureRequest, OpenFile, OpenRecentFile, OpenSettings,
+    OpenSplitypeRepository, QuitApplication, SaveDocument, SaveDocumentAs, SelectLanguage,
+    SelectTheme, ShowAbout, ToggleExplorer, UninstallCliTool,
 };
 use crate::editor::controller::{Editor, InfoDialogKind};
 use crate::editor::render::export::ExportFormat;
@@ -133,6 +134,7 @@ fn is_editor_scoped_menu_action(action: &dyn Action) -> bool {
         || action.as_any().is::<InstallCliTool>()
         || action.as_any().is::<UninstallCliTool>()
         || action.as_any().is::<ToggleExplorer>()
+        || action.as_any().is::<CloseExplorerFolder>()
 }
 
 fn is_window_context_menu_action(action: &dyn Action) -> bool {
@@ -300,6 +302,10 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
         let _ = with_active_editor(cx, |editor, window, cx| {
             editor.toggle_explorer_drawer(window, cx);
         });
+    } else if action.as_any().is::<CloseExplorerFolder>() {
+        let _ = with_active_editor(cx, |editor, _window, cx| {
+            editor.close_explorer_folder(cx);
+        });
     } else if action.as_any().is::<QuitApplication>() {
         request_quit_application(cx);
     } else if action.as_any().is::<CloseWindow>() {
@@ -397,6 +403,10 @@ pub(crate) fn dispatch_menu_action_for_editor(
     } else if action.as_any().is::<ToggleExplorer>() {
         let _ = target.update(cx, |editor, cx| {
             editor.toggle_explorer_drawer(window, cx);
+        });
+    } else if action.as_any().is::<CloseExplorerFolder>() {
+        let _ = target.update(cx, |editor, cx| {
+            editor.close_explorer_folder(cx);
         });
     }
 }
@@ -525,6 +535,8 @@ fn build_menus(
                         MenuItem::action(strings.menu_export_pdf.clone(), ExportPdf),
                     ],
                 }),
+                MenuItem::separator(),
+                MenuItem::action(strings.menu_close_explorer_folder.clone(), CloseExplorerFolder),
             ],
         },
         Menu {
@@ -800,6 +812,9 @@ pub(crate) fn init(cx: &mut App) {
     });
     cx.on_action(|_: &ToggleExplorer, cx| {
         dispatch_menu_action(&ToggleExplorer, cx);
+    });
+    cx.on_action(|_: &CloseExplorerFolder, cx| {
+        dispatch_menu_action(&CloseExplorerFolder, cx);
     });
     cx.on_action(|_: &QuitApplication, cx| {
         dispatch_menu_action(&QuitApplication, cx);

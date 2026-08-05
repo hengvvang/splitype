@@ -8,8 +8,9 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use crate::editor::actions::ToggleExplorer;
+use crate::editor::actions::{CloseExplorerFolder, ToggleExplorer};
 use crate::editor::controller::Editor;
+use crate::infra::config::recent::{read_recent_files, read_recent_folders};
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::theme::Theme;
 use crate::ui::components::empty_state::empty_state_container;
@@ -36,6 +37,32 @@ impl Editor {
     ) {
         self.toggle_explorer_drawer(window, cx);
     }
+    pub(crate) fn on_close_explorer_folder_action(
+        &mut self,
+        _: &CloseExplorerFolder,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.close_explorer_folder(cx);
+    }
+    pub(crate) fn close_explorer_folder(&mut self, cx: &mut Context<Self>) {
+        self.panels.explorer.root = None;
+        self.panels.explorer.file_tree = None;
+        self.panels.explorer.file_error = None;
+        self.panels.explorer.outline_tree = Vec::new();
+        self.panels.explorer.outline_source = None;
+        self.panels.explorer.expanded.clear();
+        self.panels.explorer.selected = None;
+        cx.notify();
+    }
+    pub(crate) fn open_explorer_folder_path(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        self.panels.explorer.root = Some(path);
+        self.panels.explorer.is_open = true;
+        self.panels.explorer.file_tree = None;
+        self.panels.explorer.file_error = None;
+        self.sync_explorer_models(cx);
+        cx.notify();
+    }
     pub(crate) fn sync_explorer_after_document_path_change(&mut self, cx: &mut Context<Self>) {
         if self.panels.explorer.root.is_none() {
             self.panels.explorer.root = self.explorer_root_for_current_file();
@@ -48,13 +75,13 @@ impl Editor {
         }
     }
     pub(crate) fn sync_explorer_models(&mut self, cx: &mut Context<Self>) {
-        // Welcome state (no tabs): both syncs read the active document, which
-        // does not exist yet — the explorer panel renders without them.
-        if !self.has_active_tab() {
-            return;
-        }
+        // The file tree only needs a root directory, so it syncs even in
+        // the welcome state (no tabs). The outline reads the active
+        // document and only runs once a tab exists.
         self.sync_explorer_file_tree();
-        self.sync_explorer_outline(cx);
+        if self.has_active_tab() {
+            self.sync_explorer_outline(cx);
+        }
     }
     pub(crate) fn explorer_root_for_current_file(&self) -> Option<PathBuf> {
         self.tabs
@@ -87,19 +114,11 @@ impl Editor {
                 return;
             };
             eprintln!("[explorer] selected folder: {folder_path:?}");
+            if let Err(err) = crate::infra::config::recent::record_recent_folder(&folder_path) {
+                eprintln!("failed to update recent folder history: {err}");
+            }
             let _ = weak_editor.update(cx, |editor, cx| {
-                editor.panels.explorer.root = Some(folder_path);
-                editor.panels.explorer.is_open = true;
-                editor.panels.explorer.file_tree = None;
-                editor.panels.explorer.file_error = None;
-                editor.sync_explorer_models(cx);
-                if let Some(ref tree) = editor.panels.explorer.file_tree {
-                    eprintln!(
-                        "[explorer] file_tree: {} children: {}",
-                        tree.label,
-                        tree.children.len()
-                    );
-                }
+                editor.open_explorer_folder_path(folder_path, cx);
                 cx.notify();
             });
         })
@@ -315,10 +334,9 @@ impl Editor {
                 self.panels.explorer.expanded.insert(tree.id.clone());
                 self.panels.explorer.file_tree = Some(tree);
                 self.panels.explorer.selected = self
-                    .tab()
-                    .file
-                    .path
-                    .as_ref()
+                    .tabs
+                    .get(self.active_tab)
+                    .and_then(|tab| tab.file.path.as_ref())
                     .map(|path| ExplorerSelection::File(path.clone()));
             }
             Err(err) => {
@@ -344,27 +362,56 @@ impl Editor {
     pub(crate) fn render_explorer_files_tree(
         &self,
         theme: &Theme,
-        _strings: &I18nStrings,
+        strings: &I18nStrings,
         editor: &WeakEntity<Editor>,
     ) -> AnyElement {
+        // Recent files and folders give the empty state a quick-open entry
+        // point; stale history entries are filtered out so clicks never fail.
+        let recent_folders = read_recent_folders()
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|path| path.is_dir())
+            .take(5)
+            .collect::<Vec<_>>();
+        let recent_files = read_recent_files()
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|path| path.is_file())
+            .take(5)
+            .collect::<Vec<_>>();
+
         if self.panels.explorer.root.is_none() {
             return self.render_explorer_empty_state(
                 "Explorer is empty now",
-                "Open a folder as the explorer",
+                "",
                 theme,
+                strings,
+                &recent_folders,
+                &recent_files,
                 editor,
             );
         }
 
         if let Some(error) = self.panels.explorer.file_error.as_ref() {
-            return self.render_explorer_empty_state("Explorer is empty now", error, theme, editor);
+            return self.render_explorer_empty_state(
+                "Explorer is empty now",
+                error,
+                theme,
+                strings,
+                &recent_folders,
+                &recent_files,
+                editor,
+            );
         }
 
         let Some(root) = self.panels.explorer.file_tree.as_ref() else {
             return self.render_explorer_empty_state(
                 "Explorer is empty now",
-                "Open a folder as the explorer",
+                "",
                 theme,
+                strings,
+                &recent_folders,
+                &recent_files,
                 editor,
             );
         };
@@ -372,8 +419,11 @@ impl Editor {
         if root.children.is_empty() {
             return self.render_explorer_empty_state(
                 "Explorer is empty now",
-                "Open a folder as the explorer",
+                "",
                 theme,
+                strings,
+                &recent_folders,
+                &recent_files,
                 editor,
             );
         }
@@ -532,6 +582,9 @@ impl Editor {
         title: &str,
         message: &str,
         theme: &Theme,
+        strings: &I18nStrings,
+        recent_folders: &[PathBuf],
+        recent_files: &[PathBuf],
         editor: &WeakEntity<Editor>,
     ) -> AnyElement {
         let c = &theme.colors;
@@ -545,11 +598,9 @@ impl Editor {
             title
         };
 
-        let display_message = if message.is_empty() {
-            "Open a folder as the explorer"
-        } else {
-            message
-        };
+        // An empty message means the empty state has no hint line at all;
+        // non-empty messages (e.g. scan errors) are still rendered.
+        let has_message = !message.is_empty();
 
         empty_state_container()
             .gap(px(10.0))
@@ -562,19 +613,21 @@ impl Editor {
             )
             .child(
                 div()
-                    .text_size(px(15.0))
+                    .text_size(px(13.0))
                     .font_weight(FontWeight::BOLD)
                     .text_color(c.text_default)
                     .child(display_title.to_string()),
             )
-            .child(
+            .child(if has_message {
                 div()
                     .max_w(px(230.0))
                     .text_size(px(t.text_size * 0.78))
                     .line_height(px(t.text_size * t.text_line_height * 0.90))
                     .text_color(c.dialog_muted)
-                    .child(display_message.to_string()),
-            )
+                    .child(message.to_string())
+            } else {
+                div()
+            })
             .child(
                 div()
                     .id("explorer-empty-open-btn")
@@ -610,6 +663,110 @@ impl Editor {
                             ed.prompt_open_explorer_folder(window, cx);
                         });
                     }),
+            )
+            .child(
+                // Recent folders and files quick-open list under the button;
+                // hidden when both histories are empty or the state carries
+                // an error message.
+                if (recent_folders.is_empty() && recent_files.is_empty()) || has_message {
+                    div()
+                } else {
+                    div()
+                        .mt(px(16.0))
+                        .w_full()
+                        .flex()
+                        .flex_col()
+                        .items_start()
+                        .gap(px(2.0))
+                        .child(
+                            div()
+                                .ml(px(10.0))
+                                .text_size(px(13.0))
+                                .font_weight(FontWeight::MEDIUM)
+                                .text_color(c.dialog_muted)
+                                .child(strings.explorer_recent_title.clone()),
+                        )
+                        .children(recent_folders.iter().map(|path| {
+                            let folder_name = path
+                                .file_name()
+                                .map(|name| name.to_string_lossy().to_string())
+                                .unwrap_or_else(|| path.to_string_lossy().to_string());
+                            let ed = editor.clone();
+                            let path = path.clone();
+                            div()
+                                .id(ElementId::Name(
+                                    format!("explorer-recent-folder-{}", path.display()).into(),
+                                ))
+                                .cursor_pointer()
+                                .px(px(10.0))
+                                .py(px(2.0))
+                                .rounded(px(d.menu_item_radius))
+                                .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                .flex()
+                                .items_center()
+                                .gap(px(6.0))
+                                .child(
+                                    svg()
+                                        .path("icon/explorer/folder.svg")
+                                        .size(px(12.0))
+                                        .text_color(c.dialog_muted),
+                                )
+                                .child(
+                                    div()
+                                        .max_w(px(190.0))
+                                        .truncate()
+                                        .text_size(px(12.0))
+                                        .text_color(c.dialog_muted)
+                                        .hover(|this| this.text_color(c.text_default))
+                                        .child(folder_name),
+                                )
+                                .on_click(move |_, _window, cx| {
+                                    let _ = ed.update(cx, |editor, cx| {
+                                        editor.open_explorer_folder_path(path.clone(), cx);
+                                    });
+                                })
+                        }))
+                        .children(recent_files.iter().map(|path| {
+                            let file_name = path
+                                .file_name()
+                                .map(|name| name.to_string_lossy().to_string())
+                                .unwrap_or_else(|| path.to_string_lossy().to_string());
+                            let ed = editor.clone();
+                            let path = path.clone();
+                            div()
+                                .id(ElementId::Name(
+                                    format!("explorer-recent-{}", path.display()).into(),
+                                ))
+                                .cursor_pointer()
+                                .px(px(10.0))
+                                .py(px(2.0))
+                                .rounded(px(d.menu_item_radius))
+                                .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                .flex()
+                                .items_center()
+                                .gap(px(6.0))
+                                .child(
+                                    svg()
+                                        .path("icon/explorer/markdown.svg")
+                                        .size(px(12.0))
+                                        .text_color(c.dialog_muted),
+                                )
+                                .child(
+                                    div()
+                                        .max_w(px(190.0))
+                                        .truncate()
+                                        .text_size(px(12.0))
+                                        .text_color(c.dialog_muted)
+                                        .hover(|this| this.text_color(c.text_default))
+                                        .child(file_name),
+                                )
+                                .on_click(move |_, window, cx| {
+                                    let _ = ed.update(cx, |editor, cx| {
+                                        editor.open_explorer_file(path.clone(), window, cx);
+                                    });
+                                })
+                        }))
+                },
             )
             .into_any_element()
     }

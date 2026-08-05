@@ -43,6 +43,10 @@ impl SplitypeConfigDirs {
         self.root.join(".history")
     }
 
+    pub(crate) fn recent_folders_file(&self) -> PathBuf {
+        self.root.join(".recent-folders")
+    }
+
     pub(crate) fn app_config_file(&self) -> PathBuf {
         self.root.join("config.toml")
     }

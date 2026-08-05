@@ -16,26 +16,26 @@ use std::sync::Arc;
 pub(crate) use gpui::*;
 
 pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
+pub(crate) use crate::editor::panels::{PreviewState, SourcePanelState};
 pub(crate) use crate::editor::tree::block::Block;
 pub(crate) use crate::editor::tree::document::Document;
 pub(crate) use crate::editor::tree::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
-pub(crate) use crate::windows::editor::chrome::WindowChrome;
-pub(crate) use crate::editor::panels::{PreviewState, SourcePanelState};
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::model::inline::text::RichText;
 pub(crate) use crate::model::syntax::image::{
-    ImageReferenceDefinitions, parse_image_reference_definitions,
+    parse_image_reference_definitions, ImageReferenceDefinitions,
 };
 pub(crate) use crate::model::syntax::link::{
-    LinkReferenceDefinitions, parse_link_reference_definitions,
+    parse_link_reference_definitions, LinkReferenceDefinitions,
 };
 pub(crate) use crate::model::syntax::table::TableCellPosition;
 pub(crate) use crate::model::syntax::table::{
-    TableAxisHighlight, TableAxisKind, TableAxisMarker, TableColumnAlignment, TableData,
-    serialize_table_cell_markdown,
+    serialize_table_cell_markdown, TableAxisHighlight, TableAxisKind, TableAxisMarker,
+    TableColumnAlignment, TableData,
 };
+pub(crate) use crate::windows::editor::chrome::WindowChrome;
 pub(crate) use crate::windows::layout::WindowPanels;
 
 /// Link navigation request deferred until a `Window` is available.
@@ -454,6 +454,7 @@ impl Editor {
             Some(path.to_path_buf()),
         ));
         self.activate_tab(self.tabs.len() - 1, cx);
+        crate::app::menus::record_recent_file_from_editor(path, cx);
     }
 
     /// Opens a fresh untitled tab (temporary document without a path).

@@ -30,6 +30,7 @@ actions!(
         UninstallCliTool,
         ToggleViewMode,
         ToggleExplorer,
+        CloseExplorerFolder,
         OpenSplitypeRepository,
         OpenBugReport,
         OpenFeatureRequest,

@@ -72,9 +72,7 @@ pub struct I18nStrings {
     pub menu_language: String,
     /// Top-level Theme menu label.
     pub menu_theme: String,
-    /// Top-level ExplorerState menu label.
-    pub menu_explorer: String,
-    /// Top-level Help menu label.
+        /// Top-level Help menu label.
     pub menu_help: String,
     /// Language menu item for importing a custom language pack.
     pub menu_add_language_config: String,
@@ -106,9 +104,7 @@ pub struct I18nStrings {
     pub menu_check_updates: String,
     /// Help menu item for showing About information.
     pub menu_about: String,
-    /// About panel label for the version line.
-    pub about_version_label: String,
-    /// About panel label for the website link.
+        /// About panel label for the website link.
     pub about_website_label: String,
     /// About panel label for the wiki link.
     pub about_wiki_label: String,
@@ -128,8 +124,8 @@ pub struct I18nStrings {
     pub menu_feature_request: String,
     /// Help menu item for joining the GitHub discussions.
     pub menu_discussions: String,
-    /// ExplorerState menu item for opening or closing the explorer drawer.
-    pub menu_toggle_explorer: String,
+        /// Menu item for closing the folder shown in the explorer.
+    pub menu_close_explorer_folder: String,
     /// Native file-dialog prompt for opening Markdown files.
     pub open_markdown_files_prompt: String,
     /// Native file-dialog prompt for importing a language pack.
@@ -238,21 +234,11 @@ pub struct I18nStrings {
     pub settings_shortcut_dismiss_transient_ui: String,
     pub settings_shortcut_toggle_view_mode: String,
     pub settings_shortcut_toggle_explorer: String,
-    /// Explorer drawer Files tab.
-    pub explorer_tab_files: String,
-    /// Explorer drawer Outline tab.
-    pub explorer_tab_outline: String,
-    /// Title shown when no Markdown file path is available for explorer mode.
-    pub explorer_no_file_title: String,
-    /// Message shown when no Markdown file path is available for explorer mode.
-    pub explorer_no_file_message: String,
-    /// Message shown when a explorer directory has no visible Markdown files.
-    pub explorer_empty_files: String,
+                        /// Title of the recent-files list in the explorer empty state.
+    pub explorer_recent_title: String,
     /// Message shown when the current document has no headings.
     pub explorer_empty_outline: String,
-    /// Title shown when the explorer file tree cannot be scanned.
-    pub explorer_scan_failed_title: String,
-    /// Title of the link-opening confirmation prompt.
+        /// Title of the link-opening confirmation prompt.
     pub open_link_title: String,
     /// Confirm button for the link-opening prompt.
     pub open_link_open: String,
@@ -369,7 +355,6 @@ pub struct I18nStringsDe {
     menu_export: Option<String>,
     menu_language: Option<String>,
     menu_theme: Option<String>,
-    menu_explorer: Option<String>,
     menu_help: Option<String>,
     menu_add_language_config: Option<String>,
     menu_add_theme_config: Option<String>,
@@ -386,7 +371,6 @@ pub struct I18nStringsDe {
     menu_export_pdf: Option<String>,
     menu_check_updates: Option<String>,
     menu_about: Option<String>,
-    about_version_label: Option<String>,
     about_website_label: Option<String>,
     about_wiki_label: Option<String>,
     about_releases_label: Option<String>,
@@ -397,7 +381,7 @@ pub struct I18nStringsDe {
     menu_bug_report: Option<String>,
     menu_feature_request: Option<String>,
     menu_discussions: Option<String>,
-    menu_toggle_explorer: Option<String>,
+    menu_close_explorer_folder: Option<String>,
     open_markdown_files_prompt: Option<String>,
     add_language_config_prompt: Option<String>,
     add_theme_config_prompt: Option<String>,
@@ -483,13 +467,8 @@ pub struct I18nStringsDe {
     settings_shortcut_dismiss_transient_ui: Option<String>,
     settings_shortcut_toggle_view_mode: Option<String>,
     settings_shortcut_toggle_explorer: Option<String>,
-    explorer_tab_files: Option<String>,
-    explorer_tab_outline: Option<String>,
-    explorer_no_file_title: Option<String>,
-    explorer_no_file_message: Option<String>,
-    explorer_empty_files: Option<String>,
+    explorer_recent_title: Option<String>,
     explorer_empty_outline: Option<String>,
-    explorer_scan_failed_title: Option<String>,
     open_link_title: Option<String>,
     open_link_open: Option<String>,
     open_link_cancel: Option<String>,
@@ -565,7 +544,6 @@ pub(crate) const I18N_STRING_KEYS: &[&str] = &[
     "menu_export",
     "menu_language",
     "menu_theme",
-    "menu_explorer",
     "menu_help",
     "menu_add_language_config",
     "menu_add_theme_config",
@@ -582,7 +560,6 @@ pub(crate) const I18N_STRING_KEYS: &[&str] = &[
     "menu_export_pdf",
     "menu_check_updates",
     "menu_about",
-    "about_version_label",
     "about_website_label",
     "about_wiki_label",
     "about_releases_label",
@@ -593,7 +570,7 @@ pub(crate) const I18N_STRING_KEYS: &[&str] = &[
     "menu_bug_report",
     "menu_feature_request",
     "menu_discussions",
-    "menu_toggle_explorer",
+    "menu_close_explorer_folder",
     "open_markdown_files_prompt",
     "add_language_config_prompt",
     "add_theme_config_prompt",
@@ -679,13 +656,8 @@ pub(crate) const I18N_STRING_KEYS: &[&str] = &[
     "settings_shortcut_dismiss_transient_ui",
     "settings_shortcut_toggle_view_mode",
     "settings_shortcut_toggle_explorer",
-    "explorer_tab_files",
-    "explorer_tab_outline",
-    "explorer_no_file_title",
-    "explorer_no_file_message",
-    "explorer_empty_files",
+    "explorer_recent_title",
     "explorer_empty_outline",
-    "explorer_scan_failed_title",
     "open_link_title",
     "open_link_open",
     "open_link_cancel",
@@ -811,7 +783,6 @@ impl I18nStringsDe {
             menu_export: self.menu_export.unwrap_or(defaults.menu_export),
             menu_language: self.menu_language.unwrap_or(defaults.menu_language),
             menu_theme: self.menu_theme.unwrap_or(defaults.menu_theme),
-            menu_explorer: self.menu_explorer.unwrap_or(defaults.menu_explorer),
             menu_help: self.menu_help.unwrap_or(defaults.menu_help),
             menu_add_language_config: self
                 .menu_add_language_config
@@ -838,9 +809,6 @@ impl I18nStringsDe {
                 .menu_check_updates
                 .unwrap_or(defaults.menu_check_updates),
             menu_about: self.menu_about.unwrap_or(defaults.menu_about),
-            about_version_label: self
-                .about_version_label
-                .unwrap_or(defaults.about_version_label),
             about_website_label: self
                 .about_website_label
                 .unwrap_or(defaults.about_website_label),
@@ -861,9 +829,9 @@ impl I18nStringsDe {
                 .menu_feature_request
                 .unwrap_or(defaults.menu_feature_request),
             menu_discussions: self.menu_discussions.unwrap_or(defaults.menu_discussions),
-            menu_toggle_explorer: self
-                .menu_toggle_explorer
-                .unwrap_or(defaults.menu_toggle_explorer),
+            menu_close_explorer_folder: self
+                .menu_close_explorer_folder
+                .unwrap_or(defaults.menu_close_explorer_folder),
             open_markdown_files_prompt: self
                 .open_markdown_files_prompt
                 .unwrap_or(defaults.open_markdown_files_prompt),
@@ -1109,27 +1077,12 @@ impl I18nStringsDe {
             settings_shortcut_toggle_explorer: self
                 .settings_shortcut_toggle_explorer
                 .unwrap_or(defaults.settings_shortcut_toggle_explorer),
-            explorer_tab_files: self
-                .explorer_tab_files
-                .unwrap_or(defaults.explorer_tab_files),
-            explorer_tab_outline: self
-                .explorer_tab_outline
-                .unwrap_or(defaults.explorer_tab_outline),
-            explorer_no_file_title: self
-                .explorer_no_file_title
-                .unwrap_or(defaults.explorer_no_file_title),
-            explorer_no_file_message: self
-                .explorer_no_file_message
-                .unwrap_or(defaults.explorer_no_file_message),
-            explorer_empty_files: self
-                .explorer_empty_files
-                .unwrap_or(defaults.explorer_empty_files),
+            explorer_recent_title: self
+                .explorer_recent_title
+                .unwrap_or(defaults.explorer_recent_title),
             explorer_empty_outline: self
                 .explorer_empty_outline
                 .unwrap_or(defaults.explorer_empty_outline),
-            explorer_scan_failed_title: self
-                .explorer_scan_failed_title
-                .unwrap_or(defaults.explorer_scan_failed_title),
             open_link_title: self.open_link_title.unwrap_or(defaults.open_link_title),
             open_link_open: self.open_link_open.unwrap_or(defaults.open_link_open),
             open_link_cancel: self.open_link_cancel.unwrap_or(defaults.open_link_cancel),
@@ -1289,7 +1242,6 @@ impl I18nStrings {
             menu_export: "导出".into(),
             menu_language: "语言".into(),
             menu_theme: "主题".into(),
-            menu_explorer: "资源管理器".into(),
             menu_help: "帮助".into(),
             menu_add_language_config: "添加语言配置".into(),
             menu_add_theme_config: "添加主题配置".into(),
@@ -1306,7 +1258,6 @@ impl I18nStrings {
             menu_export_pdf: "PDF".into(),
             menu_check_updates: "检查更新".into(),
             menu_about: "关于 Splitype".into(),
-            about_version_label: "版本".into(),
             about_website_label: "网站".into(),
             about_wiki_label: "文档".into(),
             about_releases_label: "版本发布".into(),
@@ -1317,7 +1268,7 @@ impl I18nStrings {
             menu_bug_report: "报告 Bug...".into(),
             menu_feature_request: "请求功能...".into(),
             menu_discussions: "加入讨论".into(),
-            menu_toggle_explorer: "切换资源管理器".into(),
+            menu_close_explorer_folder: "关闭资源管理器文件夹".into(),
             open_markdown_files_prompt: "打开 Markdown 文件".into(),
             add_language_config_prompt: "选择语言配置文件".into(),
             add_theme_config_prompt: "选择主题配置文件".into(),
@@ -1397,14 +1348,8 @@ impl I18nStrings {
             settings_shortcut_dismiss_transient_ui: "关闭临时界面".into(),
             settings_shortcut_toggle_view_mode: "切换视图模式".into(),
             settings_shortcut_toggle_explorer: "切换资源管理器".into(),
-            explorer_tab_files: "文件".into(),
-            explorer_tab_outline: "大纲".into(),
-            explorer_no_file_title: "未打开 Markdown 文件".into(),
-            explorer_no_file_message: "打开或保存一个 .md 文件后，工作区会使用该文件所在目录。"
-                .into(),
-            explorer_empty_files: "没有可显示的 Markdown 文件".into(),
+            explorer_recent_title: "最近打开".into(),
             explorer_empty_outline: "当前文档没有标题".into(),
-            explorer_scan_failed_title: "无法读取工作区".into(),
             open_link_title: "打开链接？".into(),
             open_link_open: "打开".into(),
             open_link_cancel: "取消".into(),
@@ -1503,7 +1448,6 @@ impl I18nStrings {
             menu_export: "Export".into(),
             menu_language: "Language".into(),
             menu_theme: "Theme".into(),
-            menu_explorer: "Explorer".into(),
             menu_help: "Help".into(),
             menu_add_language_config: "Add Language Config".into(),
             menu_add_theme_config: "Add Theme Config".into(),
@@ -1520,7 +1464,6 @@ impl I18nStrings {
             menu_export_pdf: "PDF".into(),
             menu_check_updates: "Check for Updates".into(),
             menu_about: "About Splitype".into(),
-            about_version_label: "Version".into(),
             about_website_label: "Website".into(),
             about_wiki_label: "Wiki".into(),
             about_releases_label: "Releases".into(),
@@ -1531,7 +1474,7 @@ impl I18nStrings {
             menu_bug_report: "File Bug Report...".into(),
             menu_feature_request: "Request Feature...".into(),
             menu_discussions: "Join the Discussion".into(),
-            menu_toggle_explorer: "Toggle Explorer".into(),
+            menu_close_explorer_folder: "Close Explorer Folder".into(),
             open_markdown_files_prompt: "Open Markdown Files".into(),
             add_language_config_prompt: "Choose Language Config".into(),
             add_theme_config_prompt: "Choose Theme Config".into(),
@@ -1622,14 +1565,8 @@ impl I18nStrings {
             settings_shortcut_dismiss_transient_ui: "Dismiss Temporary UI".into(),
             settings_shortcut_toggle_view_mode: "Toggle View Mode".into(),
             settings_shortcut_toggle_explorer: "Toggle Explorer".into(),
-            explorer_tab_files: "Files".into(),
-            explorer_tab_outline: "Outline".into(),
-            explorer_no_file_title: "No Markdown File Open".into(),
-            explorer_no_file_message:
-                "Open or save a .md file to use its folder as the explorer.".into(),
-            explorer_empty_files: "No Markdown files to show".into(),
+            explorer_recent_title: "Recent".into(),
             explorer_empty_outline: "This document has no headings".into(),
-            explorer_scan_failed_title: "Unable to Read ExplorerState".into(),
             open_link_title: "Open link?".into(),
             open_link_open: "Open".into(),
             open_link_cancel: "Cancel".into(),
