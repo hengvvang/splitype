@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       release_title:
-        description: "Optional release title. Defaults to Velotype <release_tag>."
+        description: "Optional release title. Defaults to splitype <release_tag>."
         required: false
         type: string
       release_notes:
@@ -33,27 +33,27 @@ jobs:
         include:
           - name: Windows x86_64
             os: windows-2025
-            artifact: velotype-windows-x86_64
+            artifact: splitype-windows-x86_64
             archive_suffix: windows-x86_64.zip
           - name: Windows ARM64
             os: windows-11-arm
-            artifact: velotype-windows-aarch64
+            artifact: splitype-windows-aarch64
             archive_suffix: windows-aarch64.zip
           - name: Linux x86_64
             os: ubuntu-22.04
-            artifact: velotype-linux-x86_64
+            artifact: splitype-linux-x86_64
             archive_suffix: linux-x86_64.tar.gz
           - name: Linux ARM64
             os: ubuntu-22.04-arm
-            artifact: velotype-linux-aarch64
+            artifact: splitype-linux-aarch64
             archive_suffix: linux-aarch64.tar.gz
           - name: macOS x86_64
             os: macos-15-intel
-            artifact: velotype-macos-x86_64
+            artifact: splitype-macos-x86_64
             archive_suffix: macos-x86_64.zip
           - name: macOS aarch64
             os: macos-15
-            artifact: velotype-macos-aarch64
+            artifact: splitype-macos-aarch64
             archive_suffix: macos-aarch64.zip
 
     steps:
@@ -88,10 +88,10 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           New-Item -ItemType Directory -Force dist/package | Out-Null
-          Copy-Item target/release/velotype.exe dist/package/velotype.exe
+          Copy-Item target/release/splitype.exe dist/package/splitype.exe
           Copy-Item README.md dist/package/README.md
           Copy-Item LICENSE-APACHE dist/package/LICENSE-APACHE
-          $archive = "velotype-${env:RELEASE_TAG}-${{ matrix.archive_suffix }}"
+          $archive = "splitype-${env:RELEASE_TAG}-${{ matrix.archive_suffix }}"
           Compress-Archive -Path dist/package/* -DestinationPath "dist/$archive" -Force
 
       - name: Package Linux
@@ -103,12 +103,12 @@ jobs:
           mkdir -p dist/package/share/applications
           mkdir -p dist/package/share/icons/hicolor/256x256/apps
           mkdir -p dist/package/share/icons/hicolor/512x512/apps
-          cp target/release/velotype dist/package/velotype
+          cp target/release/splitype dist/package/splitype
           cp README.md LICENSE-APACHE dist/package/
-          cp resources/linux/com.manyougz.Velotype.desktop dist/package/share/applications/
-          cp resources/linux/icons/hicolor/256x256/apps/com.manyougz.Velotype.png dist/package/share/icons/hicolor/256x256/apps/
-          cp resources/linux/icons/hicolor/512x512/apps/com.manyougz.Velotype.png dist/package/share/icons/hicolor/512x512/apps/
-          archive="velotype-${RELEASE_TAG}-${{ matrix.archive_suffix }}"
+          cp resources/linux/com.hengvvang.splitype.desktop dist/package/share/applications/
+          cp resources/linux/icons/hicolor/256x256/apps/com.hengvvang.splitype.png dist/package/share/icons/hicolor/256x256/apps/
+          cp resources/linux/icons/hicolor/512x512/apps/com.hengvvang.splitype.png dist/package/share/icons/hicolor/512x512/apps/
+          archive="splitype-${RELEASE_TAG}-${{ matrix.archive_suffix }}"
           tar -C dist/package -czf "dist/$archive" .
 
       - name: Package macOS app bundle
@@ -117,14 +117,14 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          mkdir -p "dist/Velotype.app/Contents/MacOS"
-          mkdir -p "dist/Velotype.app/Contents/Resources"
-          cp target/release/velotype "dist/Velotype.app/Contents/MacOS/velotype"
-          cp resources/macos/Info.plist "dist/Velotype.app/Contents/Info.plist"
-          cp resources/macos/velotype.icns "dist/Velotype.app/Contents/Resources/velotype.icns"
-          chmod +x "dist/Velotype.app/Contents/MacOS/velotype"
-          archive="velotype-${RELEASE_TAG}-${{ matrix.archive_suffix }}"
-          ditto -c -k --sequesterRsrc --keepParent "dist/Velotype.app" "dist/$archive"
+          mkdir -p "dist/splitype.app/Contents/MacOS"
+          mkdir -p "dist/splitype.app/Contents/Resources"
+          cp target/release/splitype "dist/splitype.app/Contents/MacOS/splitype"
+          cp resources/macos/Info.plist "dist/splitype.app/Contents/Info.plist"
+          cp resources/macos/splitype.icns "dist/splitype.app/Contents/Resources/splitype.icns"
+          chmod +x "dist/splitype.app/Contents/MacOS/splitype"
+          archive="splitype-${RELEASE_TAG}-${{ matrix.archive_suffix }}"
+          ditto -c -k --sequesterRsrc --keepParent "dist/splitype.app" "dist/$archive"
 
       - name: Create macOS PKG installer
         if: runner.os == 'macOS' && matrix.name == 'macOS aarch64'
@@ -133,8 +133,8 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           VERSION="${RELEASE_TAG#v}"
-          APP_NAME="Velotype"
-          BUNDLE_ID="com.manyougz.Velotype"
+          APP_NAME="splitype"
+          BUNDLE_ID="com.hengvvang.splitype"
           COMPONENT_PKG="${APP_NAME}-component.pkg"
 
           mkdir -p dist/pkg/root/Applications
@@ -160,16 +160,16 @@ jobs:
             dist/pkg/${COMPONENT_PKG}
 
           cp resources/macos/pkg/Distribution.xml dist/pkg/
-          sed -i '' "s/__VELOTYPE_VERSION__/${VERSION}/g" dist/pkg/Distribution.xml
+          sed -i '' "s/__SPLITYPE_VERSION__/${VERSION}/g" dist/pkg/Distribution.xml
 
           productbuild --distribution dist/pkg/Distribution.xml \
             --package-path dist/pkg \
-            "dist/velotype-${RELEASE_TAG}-macos.pkg"
+            "dist/splitype-${RELEASE_TAG}-macos.pkg"
 
-          pkgutil --expand "dist/velotype-${RELEASE_TAG}-macos.pkg" "dist/pkg/expanded" || true
+          pkgutil --expand "dist/splitype-${RELEASE_TAG}-macos.pkg" "dist/pkg/expanded" || true
           if [ -f "dist/pkg/expanded/${COMPONENT_PKG}/PackageInfo" ]; then
             sed -i '' '/<relocate>/,/<\/relocate>/d' "dist/pkg/expanded/${COMPONENT_PKG}/PackageInfo"
-            pkgutil --flatten "dist/pkg/expanded" "dist/velotype-${RELEASE_TAG}-macos.pkg"
+            pkgutil --flatten "dist/pkg/expanded" "dist/splitype-${RELEASE_TAG}-macos.pkg"
             rm -rf "dist/pkg/expanded"
           fi
 
@@ -179,15 +179,15 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
-          path: dist/velotype-${{ inputs.release_tag }}-${{ matrix.archive_suffix }}
+          path: dist/splitype-${{ inputs.release_tag }}-${{ matrix.archive_suffix }}
           if-no-files-found: error
 
       - name: Upload macOS PKG artifact
         if: runner.os == 'macOS' && matrix.name == 'macOS aarch64'
         uses: actions/upload-artifact@v7
         with:
-          name: velotype-macos-pkg
-          path: dist/velotype-${{ inputs.release_tag }}-macos.pkg
+          name: splitype-macos-pkg
+          path: dist/splitype-${{ inputs.release_tag }}-macos.pkg
           if-no-files-found: error
 
   release:
@@ -227,7 +227,7 @@ jobs:
             echo "Tag $RELEASE_TAG already exists and points to the current commit."
           else
             if [[ -z "$RELEASE_TITLE" ]]; then
-              RELEASE_TITLE="Velotype $RELEASE_TAG"
+              RELEASE_TITLE="splitype $RELEASE_TAG"
             fi
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -251,7 +251,7 @@ jobs:
           set -euo pipefail
 
           if [[ -z "$RELEASE_TITLE" ]]; then
-            RELEASE_TITLE="Velotype $RELEASE_TAG"
+            RELEASE_TITLE="splitype $RELEASE_TAG"
           fi
 
           if [[ -n "$RELEASE_NOTES" ]]; then

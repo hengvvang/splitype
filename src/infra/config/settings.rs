@@ -7,14 +7,14 @@ use anyhow::Context as _;
 use gpui::*;
 use serde::{Deserialize, Serialize};
 
-use crate::infra::config::dirs::VelotypeConfigDirs;
+use crate::infra::config::dirs::SplitypeConfigDirs;
 use crate::infra::config::recent::read_recent_files;
 use crate::infra::i18n::manager::I18nManager;
 use crate::infra::i18n::packs::language_id_for_locale_settings;
 use crate::editor::keybindings::normalize_shortcut_config;
 use crate::theme::ThemeManager;
 
-pub(crate) const DEFAULT_THEME_ID: &str = "velotype";
+pub(crate) const DEFAULT_THEME_ID: &str = "splitype";
 const DEFAULT_LANGUAGE_ID: &str = "en-US";
 
 /// A user-configurable button shown in the status bar.
@@ -284,11 +284,11 @@ impl From<&AppSettings> for SettingsFile {
 }
 
 pub(crate) fn read_app_settings() -> anyhow::Result<AppSettings> {
-    read_app_settings_with_dirs(&VelotypeConfigDirs::from_system()?)
+    read_app_settings_with_dirs(&SplitypeConfigDirs::from_system()?)
 }
 
 pub(crate) fn read_app_settings_with_dirs(
-    dirs: &VelotypeConfigDirs,
+    dirs: &SplitypeConfigDirs,
 ) -> anyhow::Result<AppSettings> {
     let path = dirs.app_config_file();
     let text = match std::fs::read_to_string(&path) {
@@ -308,7 +308,7 @@ pub(crate) fn read_app_settings_with_dirs(
 }
 
 pub(crate) fn load_or_create_app_settings() -> anyhow::Result<AppSettings> {
-    let dirs = VelotypeConfigDirs::from_system()?;
+    let dirs = SplitypeConfigDirs::from_system()?;
     load_or_create_app_settings_with_dirs_and_locales(&dirs, sys_locale::get_locales())
 }
 
@@ -438,7 +438,7 @@ where
 }
 
 fn load_or_create_app_settings_with_dirs_and_locales<I, S>(
-    dirs: &VelotypeConfigDirs,
+    dirs: &SplitypeConfigDirs,
     locales: I,
 ) -> anyhow::Result<AppSettings>
 where
@@ -467,12 +467,12 @@ where
 }
 
 pub(crate) fn save_app_settings(settings: &AppSettings) -> anyhow::Result<()> {
-    save_app_settings_with_dirs(settings, &VelotypeConfigDirs::from_system()?)
+    save_app_settings_with_dirs(settings, &SplitypeConfigDirs::from_system()?)
 }
 
 pub(crate) fn save_app_settings_with_dirs(
     settings: &AppSettings,
-    dirs: &VelotypeConfigDirs,
+    dirs: &SplitypeConfigDirs,
 ) -> anyhow::Result<()> {
     let path = dirs.app_config_file();
     if let Some(parent) = path.parent() {
@@ -553,7 +553,7 @@ pub(crate) fn save_settings_from_window(
     keybindings: BTreeMap<String, Vec<String>>,
     status_bar: &StatusBarSettings,
 ) -> anyhow::Result<AppSettings> {
-    let dirs = VelotypeConfigDirs::from_system()?;
+    let dirs = SplitypeConfigDirs::from_system()?;
     save_settings_from_window_with_dirs(
         startup_open,
         default_theme_id,
@@ -570,7 +570,7 @@ fn save_settings_from_window_with_dirs(
     image_paste_behavior: ImagePasteBehavior,
     keybindings: BTreeMap<String, Vec<String>>,
     status_bar: &StatusBarSettings,
-    dirs: &VelotypeConfigDirs,
+    dirs: &SplitypeConfigDirs,
 ) -> anyhow::Result<AppSettings> {
     let mut settings =
         load_or_create_app_settings_with_dirs_and_locales(dirs, sys_locale::get_locales())?;

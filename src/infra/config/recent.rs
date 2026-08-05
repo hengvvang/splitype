@@ -4,24 +4,24 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context as _, bail};
 
-use super::dirs::VelotypeConfigDirs;
+use super::dirs::SplitypeConfigDirs;
 
 pub(crate) const RECENT_FILES_LIMIT: usize = 20;
 
 pub(crate) fn read_recent_files() -> anyhow::Result<Vec<PathBuf>> {
-    read_recent_files_with_dirs(&VelotypeConfigDirs::from_system()?)
+    read_recent_files_with_dirs(&SplitypeConfigDirs::from_system()?)
 }
 
 pub(crate) fn record_recent_file(path: &Path) -> anyhow::Result<Vec<PathBuf>> {
-    record_recent_file_with_dirs(path, &VelotypeConfigDirs::from_system()?)
+    record_recent_file_with_dirs(path, &SplitypeConfigDirs::from_system()?)
 }
 
 pub(crate) fn remove_recent_file(path: &Path) -> anyhow::Result<Vec<PathBuf>> {
-    remove_recent_file_with_dirs(path, &VelotypeConfigDirs::from_system()?)
+    remove_recent_file_with_dirs(path, &SplitypeConfigDirs::from_system()?)
 }
 
 pub(crate) fn read_recent_files_with_dirs(
-    dirs: &VelotypeConfigDirs,
+    dirs: &SplitypeConfigDirs,
 ) -> anyhow::Result<Vec<PathBuf>> {
     let path = dirs.history_file();
     let text = match std::fs::read_to_string(&path) {
@@ -37,7 +37,7 @@ pub(crate) fn read_recent_files_with_dirs(
 
 pub(crate) fn record_recent_file_with_dirs(
     path: &Path,
-    dirs: &VelotypeConfigDirs,
+    dirs: &SplitypeConfigDirs,
 ) -> anyhow::Result<Vec<PathBuf>> {
     if path.to_string_lossy().trim().is_empty() {
         bail!("recent file path cannot be empty");
@@ -57,7 +57,7 @@ pub(crate) fn record_recent_file_with_dirs(
 
 pub(crate) fn remove_recent_file_with_dirs(
     path: &Path,
-    dirs: &VelotypeConfigDirs,
+    dirs: &SplitypeConfigDirs,
 ) -> anyhow::Result<Vec<PathBuf>> {
     let mut paths = read_recent_files_with_dirs(dirs)?;
     paths.retain(|existing| !same_recent_path(existing, path));
@@ -67,7 +67,7 @@ pub(crate) fn remove_recent_file_with_dirs(
 
 fn write_recent_files_with_dirs(
     paths: &[PathBuf],
-    dirs: &VelotypeConfigDirs,
+    dirs: &SplitypeConfigDirs,
 ) -> anyhow::Result<()> {
     let history_file = dirs.history_file();
     let normalized = normalize_recent_files(paths.iter().cloned());
@@ -128,7 +128,7 @@ fn is_recordable_recent_file_path(path: &Path) -> bool {
         return false;
     }
 
-    !(is_inside_system_temp_dir(path) && has_velotype_temp_fixture_name(path))
+    !(is_inside_system_temp_dir(path) && has_splitype_temp_fixture_name(path))
 }
 
 fn is_inside_system_temp_dir(path: &Path) -> bool {
@@ -152,12 +152,12 @@ fn normalize_windows_path_text(path: &Path) -> String {
         .to_ascii_lowercase()
 }
 
-fn has_velotype_temp_fixture_name(path: &Path) -> bool {
+fn has_splitype_temp_fixture_name(path: &Path) -> bool {
     path.file_name()
         .and_then(|name| name.to_str())
         .map(|name| {
             let name = name.to_ascii_lowercase();
-            name.starts_with("velotype-drop-") || name.starts_with("velotypre-drop-")
+            name.starts_with("splitype-drop-")
         })
         .unwrap_or(false)
 }
@@ -174,15 +174,15 @@ fn same_recent_path(left: &Path, right: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        RECENT_FILES_LIMIT, VelotypeConfigDirs, read_recent_files_with_dirs,
+        RECENT_FILES_LIMIT, SplitypeConfigDirs, read_recent_files_with_dirs,
         record_recent_file_with_dirs, remove_recent_file_with_dirs,
     };
     use std::path::{Path, PathBuf};
 
     #[test]
     fn missing_recent_history_file_returns_empty_list() {
-        let root = std::env::temp_dir().join(format!("velotype-config-{}", uuid::Uuid::new_v4()));
-        let dirs = VelotypeConfigDirs::from_root(&root);
+        let root = std::env::temp_dir().join(format!("splitype-config-{}", uuid::Uuid::new_v4()));
+        let dirs = SplitypeConfigDirs::from_root(&root);
 
         assert!(read_recent_files_with_dirs(&dirs).unwrap().is_empty());
         assert!(!dirs.history_file().exists());
@@ -192,8 +192,8 @@ mod tests {
 
     #[test]
     fn empty_recent_history_write_does_not_create_file() {
-        let root = std::env::temp_dir().join(format!("velotype-config-{}", uuid::Uuid::new_v4()));
-        let dirs = VelotypeConfigDirs::from_root(&root);
+        let root = std::env::temp_dir().join(format!("splitype-config-{}", uuid::Uuid::new_v4()));
+        let dirs = SplitypeConfigDirs::from_root(&root);
 
         super::write_recent_files_with_dirs(&[], &dirs).unwrap();
 
@@ -204,8 +204,8 @@ mod tests {
 
     #[test]
     fn blank_recent_file_path_is_rejected() {
-        let root = std::env::temp_dir().join(format!("velotype-config-{}", uuid::Uuid::new_v4()));
-        let dirs = VelotypeConfigDirs::from_root(&root);
+        let root = std::env::temp_dir().join(format!("splitype-config-{}", uuid::Uuid::new_v4()));
+        let dirs = SplitypeConfigDirs::from_root(&root);
 
         assert!(record_recent_file_with_dirs(Path::new("   "), &dirs).is_err());
         assert!(!dirs.history_file().exists());
@@ -215,8 +215,8 @@ mod tests {
 
     #[test]
     fn recent_history_filters_empty_lines_and_deduplicates() {
-        let root = std::env::temp_dir().join(format!("velotype-config-{}", uuid::Uuid::new_v4()));
-        let dirs = VelotypeConfigDirs::from_root(&root);
+        let root = std::env::temp_dir().join(format!("splitype-config-{}", uuid::Uuid::new_v4()));
+        let dirs = SplitypeConfigDirs::from_root(&root);
         std::fs::create_dir_all(&root).unwrap();
         std::fs::write(
             dirs.history_file(),
@@ -234,11 +234,11 @@ mod tests {
     }
 
     #[test]
-    fn recent_history_filters_legacy_velotype_temp_fixture_paths() {
-        let root = std::env::temp_dir().join(format!("velotype-config-{}", uuid::Uuid::new_v4()));
-        let dirs = VelotypeConfigDirs::from_root(&root);
+    fn recent_history_filters_legacy_splitype_temp_fixture_paths() {
+        let root = std::env::temp_dir().join(format!("splitype-config-{}", uuid::Uuid::new_v4()));
+        let dirs = SplitypeConfigDirs::from_root(&root);
         let fixture_path = std::env::temp_dir().join(format!(
-            "velotype-drop-save-replace-{}-123.md",
+            "splitype-drop-save-replace-{}-123.md",
             std::process::id()
         ));
         let real_path = PathBuf::from("C:\\notes\\real.md");
@@ -256,11 +256,11 @@ mod tests {
     }
 
     #[test]
-    fn recording_velotype_temp_fixture_path_is_noop() {
-        let root = std::env::temp_dir().join(format!("velotype-config-{}", uuid::Uuid::new_v4()));
-        let dirs = VelotypeConfigDirs::from_root(&root);
+    fn recording_splitype_temp_fixture_path_is_noop() {
+        let root = std::env::temp_dir().join(format!("splitype-config-{}", uuid::Uuid::new_v4()));
+        let dirs = SplitypeConfigDirs::from_root(&root);
         let fixture_path = std::env::temp_dir().join(format!(
-            "velotype-drop-dirty-discard-{}-123.md",
+            "splitype-drop-dirty-discard-{}-123.md",
             std::process::id()
         ));
 
@@ -276,8 +276,8 @@ mod tests {
 
     #[test]
     fn ordinary_temp_markdown_file_can_still_be_recorded() {
-        let root = std::env::temp_dir().join(format!("velotype-config-{}", uuid::Uuid::new_v4()));
-        let dirs = VelotypeConfigDirs::from_root(&root);
+        let root = std::env::temp_dir().join(format!("splitype-config-{}", uuid::Uuid::new_v4()));
+        let dirs = SplitypeConfigDirs::from_root(&root);
         let path = std::env::temp_dir().join(format!("manual-note-{}.md", std::process::id()));
 
         let paths = record_recent_file_with_dirs(&path, &dirs).unwrap();
@@ -290,8 +290,8 @@ mod tests {
 
     #[test]
     fn recording_recent_file_moves_it_to_front_and_truncates() {
-        let root = std::env::temp_dir().join(format!("velotype-config-{}", uuid::Uuid::new_v4()));
-        let dirs = VelotypeConfigDirs::from_root(&root);
+        let root = std::env::temp_dir().join(format!("splitype-config-{}", uuid::Uuid::new_v4()));
+        let dirs = SplitypeConfigDirs::from_root(&root);
 
         for index in 0..(RECENT_FILES_LIMIT + 2) {
             record_recent_file_with_dirs(&PathBuf::from(format!("file-{index}.md")), &dirs)
@@ -315,8 +315,8 @@ mod tests {
 
     #[test]
     fn removing_recent_file_persists_history_without_it() {
-        let root = std::env::temp_dir().join(format!("velotype-config-{}", uuid::Uuid::new_v4()));
-        let dirs = VelotypeConfigDirs::from_root(&root);
+        let root = std::env::temp_dir().join(format!("splitype-config-{}", uuid::Uuid::new_v4()));
+        let dirs = SplitypeConfigDirs::from_root(&root);
         record_recent_file_with_dirs(&PathBuf::from("one.md"), &dirs).unwrap();
         record_recent_file_with_dirs(&PathBuf::from("two.md"), &dirs).unwrap();
 
@@ -333,8 +333,8 @@ mod tests {
 
     #[test]
     fn removing_last_recent_file_deletes_history_file() {
-        let root = std::env::temp_dir().join(format!("velotype-config-{}", uuid::Uuid::new_v4()));
-        let dirs = VelotypeConfigDirs::from_root(&root);
+        let root = std::env::temp_dir().join(format!("splitype-config-{}", uuid::Uuid::new_v4()));
+        let dirs = SplitypeConfigDirs::from_root(&root);
         let path = PathBuf::from("only.md");
         record_recent_file_with_dirs(&path, &dirs).unwrap();
         assert!(dirs.history_file().exists());

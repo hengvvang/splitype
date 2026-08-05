@@ -36,7 +36,7 @@ fn temp_markdown_path(test_name: &str) -> PathBuf {
         .expect("system clock before unix epoch")
         .as_nanos();
     std::env::temp_dir().join(format!(
-        "velotype-{test_name}-{}-{nanos}.md",
+        "splitype-{test_name}-{}-{nanos}.md",
         std::process::id()
     ))
 }
@@ -224,7 +224,7 @@ fn about_dialog_body_lines_include_repository_and_star_message() {
     let strings = I18nStrings::zh_cn();
     let lines = Editor::about_dialog_body_lines(&strings);
 
-    assert_eq!(lines[0], format!("Velotype {}", env!("CARGO_PKG_VERSION")));
+    assert_eq!(lines[0], format!("splitype {}", env!("CARGO_PKG_VERSION")));
     assert_eq!(
         lines[2],
         format!(

@@ -9,7 +9,7 @@ use gpui::{
     WindowBounds, WindowControlArea, WindowDecorations, WindowOptions, div, point, px, rgba, svg,
 };
 
-use crate::platform::app_identity::VELOTYPE_APP_ID;
+use crate::platform::app_identity::SPLITYPE_APP_ID;
 use crate::theme::{Theme, ThemeColors, ThemeDimensions};
 
 const TITLEBAR_MIN_HEIGHT: f32 = 32.0;
@@ -21,7 +21,7 @@ const TITLEBAR_MAXIMIZE_ICON: &str = "icon/titlebar/chrome-maximize.svg";
 const TITLEBAR_MINIMIZE_ICON: &str = "icon/titlebar/chrome-minimize.svg";
 const TITLEBAR_RESTORE_ICON: &str = "icon/titlebar/chrome-restore.svg";
 
-/// Selects whether Velotype or the platform should render window controls.
+/// Selects whether splitype or the platform should render window controls.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TitlebarControlMode {
     NativeTrafficLights,
@@ -61,13 +61,13 @@ pub fn window_decorations_for_target_os(target_os: &str) -> Option<WindowDecorat
     }
 }
 
-pub fn velotype_window_options_for_target_os(
+pub fn splitype_window_options_for_target_os(
     target_os: &str,
     title: SharedString,
     bounds: Bounds<Pixels>,
 ) -> WindowOptions {
     WindowOptions {
-        app_id: Some(VELOTYPE_APP_ID.to_string()),
+        app_id: Some(SPLITYPE_APP_ID.to_string()),
         window_bounds: Some(WindowBounds::Windowed(bounds)),
         titlebar: Some(titlebar_options_for_target_os(target_os, title)),
         window_background: WindowBackgroundAppearance::Opaque,
@@ -76,8 +76,8 @@ pub fn velotype_window_options_for_target_os(
     }
 }
 
-pub fn velotype_window_options(title: SharedString, bounds: Bounds<Pixels>) -> WindowOptions {
-    velotype_window_options_for_target_os(std::env::consts::OS, title, bounds)
+pub fn splitype_window_options(title: SharedString, bounds: Bounds<Pixels>) -> WindowOptions {
+    splitype_window_options_for_target_os(std::env::consts::OS, title, bounds)
 }
 
 pub fn custom_titlebar_layout_for_target_os(
@@ -345,9 +345,9 @@ mod tests {
 
     #[test]
     fn titlebar_options_enable_transparency_on_mac_and_windows() {
-        assert!(titlebar_options_for_target_os("windows", "Velotype".into()).appears_transparent);
-        assert!(titlebar_options_for_target_os("macos", "Velotype".into()).appears_transparent);
-        assert!(!titlebar_options_for_target_os("linux", "Velotype".into()).appears_transparent);
+        assert!(titlebar_options_for_target_os("windows", "splitype".into()).appears_transparent);
+        assert!(titlebar_options_for_target_os("macos", "splitype".into()).appears_transparent);
+        assert!(!titlebar_options_for_target_os("linux", "splitype".into()).appears_transparent);
     }
 
     #[test]

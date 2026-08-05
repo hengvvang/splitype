@@ -30,7 +30,7 @@ pub(crate) fn render_pdf(
 ) -> anyhow::Result<Vec<u8>> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
-        .thread_name("velotype-pdf-export")
+        .thread_name("splitype-pdf-export")
         .build()
         .context("failed to create PDF export runtime")?;
 
@@ -58,7 +58,7 @@ pub(crate) async fn render_pdf_async(
 }
 
 async fn render_pdf_from_html_file_async(html_path: PathBuf) -> anyhow::Result<Vec<u8>> {
-    let user_data_dir = unique_temp_path("velotype-chromium-profile");
+    let user_data_dir = unique_temp_path("splitype-chromium-profile");
     fs::create_dir_all(&user_data_dir)
         .with_context(|| format!("failed to create '{}'", user_data_dir.display()))?;
 
@@ -135,7 +135,7 @@ struct PdfTempFiles {
 
 impl PdfTempFiles {
     fn create(html: &str) -> anyhow::Result<Self> {
-        let html_path = unique_temp_path("velotype-export").with_extension("html");
+        let html_path = unique_temp_path("splitype-export").with_extension("html");
         fs::write(&html_path, html)
             .with_context(|| format!("failed to write temporary HTML '{}'", html_path.display()))?;
         Ok(Self { html_path })
@@ -190,11 +190,11 @@ mod tests {
 
     #[test]
     fn file_url_from_path_supports_local_paths() {
-        let path = std::env::temp_dir().join("velotype pdf test.html");
+        let path = std::env::temp_dir().join("splitype pdf test.html");
         let url = file_url_from_path(&path).expect("file url");
 
         assert_eq!(url.scheme(), "file");
-        assert!(url.as_str().contains("velotype%20pdf%20test.html"));
+        assert!(url.as_str().contains("splitype%20pdf%20test.html"));
     }
 
     #[test]

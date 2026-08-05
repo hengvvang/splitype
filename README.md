@@ -1,10 +1,10 @@
-# Velotype
+# splitype
 
 <div align="center">
 
-![Velotype banner](./assets/icon/velotype-banner.png)
+![splitype banner](./assets/icon/splitype-banner.png)
 
-**A Rust + GPUI native Markdown editor with WYSIWYG and source editing modes.**
+**A fast, native Markdown editor with WYSIWYG and source-code modes, built with Rust and GPUI.**
 
 [Editor Showcase](./assets/showcase/showcase.md)
 
@@ -13,140 +13,46 @@
 [![Rust](https://img.shields.io/badge/Rust-2024-f74c00?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![GPUI](https://img.shields.io/badge/GUI-GPUI%200.2-4b7bec)](https://gpui.rs/)
 [![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-2ea44f)](#quick-start)
-[![Portable](https://img.shields.io/badge/app-portable%20single%20binary-8b5cf6)](#features)
-[![Export](https://img.shields.io/badge/export-HTML%20%7C%20PDF-0ea5e9)](#features)
-[![Release](https://img.shields.io/badge/releases-GitHub-181717?logo=github)](https://github.com/manyougz/velotype/releases)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE-APACHE)
 
 </div>
 
-Velotype is a block-based Markdown editor built with Rust and [GPUI](https://gpui.rs/). It supports both WYSIWYG-style rendered editing and Markdown source-text editing.
-
-The project is still early, but the core direction is stable: native UI, instant rendered editing, source-text fallback, canonical Markdown serialization, and customization across color, typography, spacing, and layout tokens.
+splitype is a block-based Markdown editor: Markdown is parsed into an editable block tree and rendered natively with [GPUI](https://gpui.rs/) — no Electron, no WebView. Switch between rendered editing (WYSIWYG) and raw source code at any time, and split the editor into as many panes as you need.
 
 ## Features
 
-- **🧱 Block model:** Markdown structure is represented as editable blocks, keeping document structure clear, controllable, and extensible without a preview-pane synchronization loop.
-- **⚡ Native UI:** Desktop-native rendering based on GPUI, without depending on Electron, Tauri, or any WebView shell.
-- **✍️ Editing modes:** Velotype supports both WYSIWYG-style rendered editing and raw Markdown source editing for common authoring workflows.
-- **🚀 Performance and stability:** Rust drives parsing, state updates, and rendering; the parser follows a standard-oriented strategy and falls back to raw Markdown in unstable cases.
-- **🎨 Theme customization:** Themes can customize global colors, typography, spacing, menus, dialogs, editor layout tokens, and language packs.
-- **📦 Portable single file:** After compilation, Velotype exists as a single executable file. It requires no installation, stays natively portable, and targets Windows, Linux, and macOS.
-
-Velotype already supports exporting the current Markdown document to HTML and PDF. HTML export maps the active theme into CSS, while PDF export reuses the same themed HTML pipeline so visual output stays consistent.
-
-Velotype targets Windows, Linux, and macOS. The app is naturally suitable for distribution as a standalone binary; release builds can run directly without installation.
+- **🧱 Block model** — Markdown becomes structured, editable blocks; no preview-pane sync loop
+- **✍️ Two editing modes** — WYSIWYG rendered editing and raw Markdown source editing
+- **🪟 Split layout** — window-level panes (explorer / editor / settings) and editor-inner panels (outline / preview / source / wysiwyg) share one tiled split engine
+- **📤 Export** — HTML and PDF export with the active theme mapped into the output
+- **🎨 Theme & language packs** — partial-config JSONC files override colors, typography, layout tokens, or UI strings
+- **📦 Portable** — single native binary for Windows, Linux, and macOS
 
 ## Quick Start
 
-### 1. Download a release
+**Download a release** from the [Releases](https://github.com/hengvvang/splitype/releases) page — unzip and run. On macOS, either use the `.app` bundle or the `.pkg` installer (which also sets up the `splitype` CLI command).
 
-Download the build for your platform from the [Velotype Releases](https://github.com/manyougz/velotype/releases) page.
-
-#### Windows and Linux Users
-
-- Download the corresponding `.zip` or `.tar.gz` file
-- Unzip to get the executable
-- Run directly
-
-#### macOS Users
-
-Two installation options are available:
-
-**Option 1: Single .app package**
-- Download `velotype-*.zip` file
-- Unzip to get `Velotype.app`
-- Drag to `/Applications` or any location
-- Double-click to run
-
-**Option 2: PKG Installer(Recommended)**
-- Download `velotype-*.pkg` file
-- Double-click to run the installer
-- Automatically installs to `/Applications`
-- Automatically configures command-line tool `velotype`
-
-> **If using the PKG installer:** The CLI command is configured automatically during installation. The PKG installer manages the symlink automatically via its `postinstall` / `preuninstall` scripts. You can still manually trigger installation/uninstallation while in use. 
-> 
-> **If using the .app package:** Install or Uninstall the CLI command directly from the menu:
-> 1. Open Velotype.app
-> 2. Click the menu **Help → Install CLI Command**
-> 3. Enter administrator password
-> 4. Done!
->
-> Be careful, if you move or delete `Velotype.app`, the symlink will automatically become invalid. Running `velotype` will report "command not found".
-
-### 2. Build from source
-
-Prerequisites:
-
-- Git
-- A Rust toolchain with Rust 2024 edition support
-- Cargo
-- Platform-native build dependencies required by GPUI and the system toolchain
-
-Build Velotype locally:
+**Build from source:**
 
 ```bash
-git clone https://github.com/manyougz/velotype.git
-```
-
-```bash
+git clone https://github.com/hengvvang/splitype.git
+cd splitype
 cargo build --release
 ```
 
-If everything works, the build artifact will be stored under `target/release`. You can use the executable directly.
+## Customization
 
-## Roadmap
+splitype separates visual themes from UI language packs. A theme file can override global colors, fonts, spacing, menus, dialogs, code highlighting, and layout tokens; missing fields inherit from the built-in base theme (`splitype` or `splitype-light`). Language packs use the same partial-config strategy, falling back to English.
 
-Velotype already supports almost all basic Markdown syntax and most commonly used extended Markdown syntax, including headings, paragraphs, lists, task lists, quotes, callouts, tables, code blocks, inline formatting, links, reference-style links and images, footnotes, standalone images, comment blocks, and safe native HTML handling.
-
-Syntax support will continue to improve. Planned work includes:
-
-- [x] ~~Optimize the parsing and rendering capabilities for extremely large Markdown documents~~
-- [x] ~~Explorer Mode and Outline Parsing~~
-- [ ] Built-in image hosting
-- [ ] More complete IME behavior
-
-## Theme Customization & Translation
-
-Velotype separates visual themes and UI language packs for separate management. Theme files can override global colors, fonts, sizes, menus, dialogs, table controls, image placeholders, code highlighting colors, and layout-related tokens. Missing fields or empty values inherit the built-in base theme specified by the theme pack (`velotype` or `velotype-light`, following `base_theme_id`; when this field is empty or invalid, it falls back to the `velotype` theme values), so a custom theme file can be very small, while still being able to fully override the theme.
-
-Language packs use the same partial-configuration strategy. Missing strings fall back to English, and imported language packs are normalized before being written into the app configuration directory.
-
-Start with the example files:
+Start with the examples, then import them via **Theme → Add Theme Config** or **Language → Add Language Config**:
 
 - [Custom theme JSONC](assets/custom-theme.example.jsonc)
 - [Custom language JSONC](assets/custom-language.example.jsonc)
 
-In the app, use `Theme -> Add Theme Config` or `Language -> Add Language Config` to import a `.json` or `.jsonc` file. JSONC comments are accepted for writing and sharing examples; normalized configuration files saved by the app are strict JSON.
+## Acknowledgements
 
-> Thank you for helping translate Velotype or enrich the Velotype theme ecosystem. The project is evolving rapidly, so theme field changes may occur frequently.
-
-## Architecture
-
-| Layer | Responsibility |
-| --- | --- |
-| `editor` | Window-level editor state: view mode, save/close flow, undo, selection, source mapping, tree mutation, export, and file drop. |
-| `components::block` | Editable block runtime, GPUI input handling, block rendering, block events, image/table/code runtime state. |
-| `components::markdown` | Markdown data models and parse/serialize helpers for inline text, links, images, footnotes, tables, HTML, and code highlighting. |
-| `config` | Velotype behavior and theme configuration interfaces. |
-| `export` | HTML and PDF export pipelines. |
-| `theme` | Visual theme tokens, built-in theme defaults, imported custom themes, and the global theme manager. |
-| `i18n` | Built-in UI strings, imported language packs, system locale matching, and runtime language selection. |
-| `net` | HTTP client integration for remote image loading. |
-
-The editor uses a native block tree as its runtime model. During import, stable supported Markdown is converted into structured blocks; during save, the block tree is serialized back into canonical Markdown. For syntax that is not stable enough in the current runtime, Velotype preserves the original source and keeps it visible and editable.
-
-## Contributing
-
-This repository is still moving fast. When reporting parsing or rendering issues, please fill out the issue template so the problem can be reproduced and handled efficiently.
-
-For code changes, we recommend developing on the `dev` branch first and keeping patches small. Please extend the existing parser/runtime model instead of replacing the current implementation wholesale.
+Special thanks to the [velotype](https://github.com/hengvvang/velotype) project and its author for the original codebase that made this project possible.
 
 ## License
 
-Velotype is licensed under the [Apache License 2.0](LICENSE).
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/chart?repos=manyougz/velotype&type=date&legend=top-left)](https://api.star-history.com/chart?repos=manyougz/velotype&type=date&legend=top-left)
+splitype is licensed under the [Apache License 2.0](LICENSE-APACHE).

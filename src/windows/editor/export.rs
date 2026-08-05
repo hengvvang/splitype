@@ -131,7 +131,7 @@ impl Editor {
 
             let (sender, receiver) = oneshot::channel();
             let spawn_result = thread::Builder::new()
-                .name("velotype-export".to_string())
+                .name("splitype-export".to_string())
                 .spawn(move || {
                     let result = Self::write_export_bytes(
                         format,

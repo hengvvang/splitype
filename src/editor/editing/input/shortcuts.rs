@@ -7,7 +7,7 @@
 use gpui::*;
 
 actions!(
-    velotype,
+    splitype,
     [
         Newline,
         DeleteBack,

@@ -5,21 +5,21 @@ use std::path::PathBuf;
 use anyhow::Context as _;
 use directories::ProjectDirs;
 
-/// Cross-platform configuration directories owned by Velotype.
+/// Cross-platform configuration directories owned by splitype.
 #[derive(Debug, Clone)]
-pub(crate) struct VelotypeConfigDirs {
+pub(crate) struct SplitypeConfigDirs {
     root: PathBuf,
 }
 
-impl VelotypeConfigDirs {
+impl SplitypeConfigDirs {
     /// Resolves the platform-specific app config directory.
     ///
     /// GPUI does not currently expose an app config path, so user-imported
     /// language and theme packs are stored under the OS location returned by
     /// `directories::ProjectDirs`.
     pub(crate) fn from_system() -> anyhow::Result<Self> {
-        let dirs = ProjectDirs::from("com", "manyougz", "Velotype")
-            .context("failed to resolve the Velotype config directory")?;
+        let dirs = ProjectDirs::from("com", "hengvvang", "splitype")
+            .context("failed to resolve the splitype config directory")?;
         Ok(Self {
             root: dirs.config_dir().to_path_buf(),
         })

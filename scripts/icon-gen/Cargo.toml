@@ -1,0 +1,13 @@
+[package]
+name = "splitype-icon-gen"
+version = "0.1.0"
+edition = "2021"
+
+# Standalone crate: intentionally not part of the main workspace.
+[workspace]
+
+[dependencies]
+resvg = "0.45"
+tiny-skia = "0.11"
+ico = "0.4"
+icns = "0.3"

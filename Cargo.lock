@@ -5304,7 +5304,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -5797,6 +5797,57 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eda41003dc44290527a59b13432d4a0379379fa074b70174882adfbdfd917844"
 dependencies = [
  "bitflags 2.13.0",
+]
+
+[[package]]
+name = "splitype"
+version = "0.0.1"
+dependencies = [
+ "adot-tree-sitter-toml",
+ "anyhow",
+ "base64",
+ "chromiumoxide",
+ "criterion",
+ "cssparser",
+ "directories",
+ "embed-resource",
+ "futures",
+ "gpui",
+ "mermaid-rs-renderer",
+ "pulldown-cmark",
+ "ratex-layout",
+ "ratex-parser",
+ "ratex-svg",
+ "reqwest",
+ "schemars",
+ "semver",
+ "serde",
+ "serde_json",
+ "sys-locale",
+ "tokio",
+ "toml 1.1.2+spec-1.1.0",
+ "tree-sitter",
+ "tree-sitter-bash",
+ "tree-sitter-c",
+ "tree-sitter-c-sharp",
+ "tree-sitter-cpp",
+ "tree-sitter-css",
+ "tree-sitter-go",
+ "tree-sitter-highlight",
+ "tree-sitter-html",
+ "tree-sitter-java",
+ "tree-sitter-javascript",
+ "tree-sitter-json",
+ "tree-sitter-md",
+ "tree-sitter-php",
+ "tree-sitter-python",
+ "tree-sitter-ruby",
+ "tree-sitter-rust",
+ "tree-sitter-typescript",
+ "tree-sitter-yaml",
+ "unicode-segmentation",
+ "url",
+ "uuid",
 ]
 
 [[package]]
@@ -7025,57 +7076,6 @@ name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
-
-[[package]]
-name = "velotype"
-version = "0.7.0"
-dependencies = [
- "adot-tree-sitter-toml",
- "anyhow",
- "base64",
- "chromiumoxide",
- "criterion",
- "cssparser",
- "directories",
- "embed-resource",
- "futures",
- "gpui",
- "mermaid-rs-renderer",
- "pulldown-cmark",
- "ratex-layout",
- "ratex-parser",
- "ratex-svg",
- "reqwest",
- "schemars",
- "semver",
- "serde",
- "serde_json",
- "sys-locale",
- "tokio",
- "toml 1.1.2+spec-1.1.0",
- "tree-sitter",
- "tree-sitter-bash",
- "tree-sitter-c",
- "tree-sitter-c-sharp",
- "tree-sitter-cpp",
- "tree-sitter-css",
- "tree-sitter-go",
- "tree-sitter-highlight",
- "tree-sitter-html",
- "tree-sitter-java",
- "tree-sitter-javascript",
- "tree-sitter-json",
- "tree-sitter-md",
- "tree-sitter-php",
- "tree-sitter-python",
- "tree-sitter-ruby",
- "tree-sitter-rust",
- "tree-sitter-typescript",
- "tree-sitter-yaml",
- "unicode-segmentation",
- "url",
- "uuid",
-]
 
 [[package]]
 name = "version_check"

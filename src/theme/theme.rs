@@ -287,7 +287,7 @@ impl Theme {
     pub fn light_theme() -> Self {
         let base = Self::default_theme();
         Self {
-            name: BUILTIN_THEME_VELOTYPE_LIGHT_NAME.into(),
+            name: BUILTIN_THEME_SPLITYPE_LIGHT_NAME.into(),
             colors: ThemeColors {
                 editor_background: Hsla::from(rgba(0xf7f8fbff)),
                 source_mode_block_bg: Hsla::from(rgba(0xeef2f7ff)),
@@ -411,21 +411,21 @@ pub struct ThemeCatalogEntry {
     pub name: String,
 }
 
-pub(crate) const BUILTIN_THEME_VELOTYPE_ID: &str = "velotype";
-pub(crate) const BUILTIN_THEME_VELOTYPE_NAME: &str = "Dark";
-pub(crate) const BUILTIN_THEME_VELOTYPE_LIGHT_ID: &str = "velotype-light";
-pub(crate) const BUILTIN_THEME_VELOTYPE_LIGHT_NAME: &str = "Light";
+pub(crate) const BUILTIN_THEME_SPLITYPE_ID: &str = "splitype";
+pub(crate) const BUILTIN_THEME_SPLITYPE_NAME: &str = "Dark";
+pub(crate) const BUILTIN_THEME_SPLITYPE_LIGHT_ID: &str = "splitype-light";
+pub(crate) const BUILTIN_THEME_SPLITYPE_LIGHT_NAME: &str = "Light";
 pub(crate) const CUSTOM_THEME_ID: &str = "custom";
 
 pub(crate) fn builtin_theme_catalog() -> Vec<ThemeCatalogEntry> {
     vec![
         ThemeCatalogEntry {
-            id: BUILTIN_THEME_VELOTYPE_ID.into(),
-            name: BUILTIN_THEME_VELOTYPE_NAME.into(),
+            id: BUILTIN_THEME_SPLITYPE_ID.into(),
+            name: BUILTIN_THEME_SPLITYPE_NAME.into(),
         },
         ThemeCatalogEntry {
-            id: BUILTIN_THEME_VELOTYPE_LIGHT_ID.into(),
-            name: BUILTIN_THEME_VELOTYPE_LIGHT_NAME.into(),
+            id: BUILTIN_THEME_SPLITYPE_LIGHT_ID.into(),
+            name: BUILTIN_THEME_SPLITYPE_LIGHT_NAME.into(),
         },
     ]
 }
@@ -440,7 +440,7 @@ pub(crate) struct CustomThemeEntry {
 }
 
 pub(crate) fn custom_theme_from_value(value: Value) -> anyhow::Result<(CustomThemeEntry, Value)> {
-    custom_theme_from_value_with_default_base(value, BUILTIN_THEME_VELOTYPE_ID)
+    custom_theme_from_value_with_default_base(value, BUILTIN_THEME_SPLITYPE_ID)
 }
 
 pub(crate) fn custom_theme_from_value_with_default_base(
@@ -526,17 +526,17 @@ fn resolved_custom_theme_base_id<'a>(
             if is_builtin_theme_id(default_base_theme_id) {
                 default_base_theme_id
             } else {
-                BUILTIN_THEME_VELOTYPE_ID
+                BUILTIN_THEME_SPLITYPE_ID
             }
         })
 }
 
 fn is_builtin_theme_id(theme_id: &str) -> bool {
-    theme_id == BUILTIN_THEME_VELOTYPE_ID || theme_id == BUILTIN_THEME_VELOTYPE_LIGHT_ID
+    theme_id == BUILTIN_THEME_SPLITYPE_ID || theme_id == BUILTIN_THEME_SPLITYPE_LIGHT_ID
 }
 
 fn custom_theme_base_theme(theme_id: &str) -> Theme {
-    if theme_id == BUILTIN_THEME_VELOTYPE_LIGHT_ID {
+    if theme_id == BUILTIN_THEME_SPLITYPE_LIGHT_ID {
         Theme::light_theme()
     } else {
         Theme::default_theme()
@@ -827,7 +827,7 @@ mod tests {
         let dark = Theme::default_theme();
         let light = Theme::light_theme();
 
-        assert_eq!(light.name, "Velotype Light");
+        assert_eq!(light.name, "splitype Light");
         assert_eq!(light.colors.editor_background, rgba(0xf7f8fbff).into());
         assert_eq!(light.colors.text_default, rgba(0x1f2937ff).into());
         assert_eq!(light.colors.text_link, rgba(0x2563ebff).into());
@@ -879,7 +879,7 @@ mod tests {
         let value = serde_json::json!({
             "name": "Day Writer",
             "creator": "Ada",
-            "base_theme_id": "velotype-light",
+            "base_theme_id": "splitype-light",
             "theme": {
                 "dimensions": {
                     "menu_panel_radius": 12.0
@@ -894,7 +894,7 @@ mod tests {
             super::custom_theme_from_value(value).expect("theme should import");
         let light = Theme::light_theme();
 
-        assert_eq!(entry.base_theme_id, "velotype-light");
+        assert_eq!(entry.base_theme_id, "splitype-light");
         assert_eq!(
             entry.theme.colors.editor_background,
             light.colors.editor_background
@@ -906,7 +906,7 @@ mod tests {
             normalized
                 .get("base_theme_id")
                 .and_then(|value| value.as_str()),
-            Some("velotype-light")
+            Some("splitype-light")
         );
         assert!(
             normalized
@@ -933,7 +933,7 @@ mod tests {
         let (entry, normalized) =
             super::custom_theme_from_value(value).expect("invalid base should not fail import");
 
-        assert_eq!(entry.base_theme_id, "velotype");
+        assert_eq!(entry.base_theme_id, "splitype");
         assert_eq!(
             entry.theme.colors.editor_background,
             Theme::default_theme().colors.editor_background
@@ -942,7 +942,7 @@ mod tests {
             normalized
                 .get("base_theme_id")
                 .and_then(|value| value.as_str()),
-            Some("velotype")
+            Some("splitype")
         );
     }
 }

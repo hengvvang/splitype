@@ -1,6 +1,6 @@
 //! macOS CLI tool installation and uninstallation.
 //!
-//! Installs a `velotype` symlink into `/usr/local/bin` pointing at the
+//! Installs a `splitype` symlink into `/usr/local/bin` pointing at the
 //! running `.app` bundle via AppleScript with administrator privileges.
 //! Non-macOS targets provide stubs that report unavailability.
 
@@ -12,7 +12,7 @@ use crate::infra::i18n::I18nManager;
 /// one level of canonicalization) to the currently running executable.
 #[cfg(target_os = "macos")]
 fn is_cli_symlink_current_app() -> bool {
-    let link = std::path::Path::new("/usr/local/bin/velotype");
+    let link = std::path::Path::new("/usr/local/bin/splitype");
     let Ok(target) = std::fs::read_link(link) else {
         return false; // does not exist or not a symlink
     };
@@ -54,7 +54,7 @@ fn applescript_string_literal(value: &str) -> String {
 pub(crate) fn install_cli_tool(cx: &mut App) {
     use std::process::Command;
 
-    let bin_link = "/usr/local/bin/velotype";
+    let bin_link = "/usr/local/bin/splitype";
     let strings = cx.global::<I18nManager>().strings();
 
     let current_exe = match std::env::current_exe() {
@@ -92,12 +92,12 @@ do shell script "rm -f " & quoted form of linkPath & linefeed & "ln -s " & quote
             if output.status.success() {
                 let title = "CLI Command Installed";
                 let detail = format!(
-                    "Successfully installed! You can now use 'velotype' from the terminal:\n\n\
-                     \x1b[1mvelotype README.md\x1b[0m\n\
-                     \x1b[1mvelotype file1.md file2.md\x1b[0m\n\n\
+                    "Successfully installed! You can now use 'splitype' from the terminal:\n\n\
+                     \x1b[1msplitype README.md\x1b[0m\n\
+                     \x1b[1msplitype file1.md file2.md\x1b[0m\n\n\
                      Location: {bin_link}\n\n\
-                     Note: If you move or delete Velotype.app,\n\
-                     the 'velotype' command will stop working\n\
+                     Note: If you move or delete splitype.app,\n\
+                     the 'splitype' command will stop working\n\
                      automatically (no cleanup needed)."
                 );
                 if let Some(window) = cx.active_window() {
@@ -134,7 +134,7 @@ do shell script "rm -f " & quoted form of linkPath & linefeed & "ln -s " & quote
 pub(crate) fn uninstall_cli_tool(cx: &mut App) {
     use std::process::Command;
 
-    let bin_link = "/usr/local/bin/velotype";
+    let bin_link = "/usr/local/bin/splitype";
     let strings = cx.global::<I18nManager>().strings();
 
     if !is_cli_symlink_current_app() {

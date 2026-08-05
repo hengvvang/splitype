@@ -10,7 +10,7 @@ use super::packs::{
     custom_language_pack_from_value,
 };
 use super::strings::I18nStrings;
-use crate::infra::config::dirs::VelotypeConfigDirs;
+use crate::infra::config::dirs::SplitypeConfigDirs;
 use crate::infra::config::jsonc::{read_json_or_jsonc, sanitize_config_file_stem};
 
 pub struct I18nManager {
@@ -41,7 +41,7 @@ impl I18nManager {
     /// Installs a specific UI language into GPUI's global state.
     pub fn init_with_language_id(cx: &mut App, language_id: &str) {
         let mut manager = Self::new_with_language_id(BUILTIN_LANGUAGE_EN_US_ID);
-        if let Ok(dirs) = VelotypeConfigDirs::from_system()
+        if let Ok(dirs) = SplitypeConfigDirs::from_system()
             && let Err(err) = manager.load_custom_languages_from_dirs(&dirs)
         {
             eprintln!("failed to load custom languages: {err}");
@@ -111,14 +111,14 @@ impl I18nManager {
 
     /// Imports a user language pack, persists a normalized copy, and activates it.
     pub fn import_language_config(&mut self, path: impl AsRef<Path>) -> anyhow::Result<String> {
-        let dirs = VelotypeConfigDirs::from_system()?;
+        let dirs = SplitypeConfigDirs::from_system()?;
         self.import_language_config_with_dirs(path, &dirs)
     }
 
     fn import_language_config_with_dirs(
         &mut self,
         path: impl AsRef<Path>,
-        dirs: &VelotypeConfigDirs,
+        dirs: &SplitypeConfigDirs,
     ) -> anyhow::Result<String> {
         let raw = read_json_or_jsonc(path.as_ref())?;
         let (pack, normalized) = custom_language_pack_from_value(raw)?;
@@ -135,7 +135,7 @@ impl I18nManager {
         Ok(imported_id)
     }
 
-    fn load_custom_languages_from_dirs(&mut self, dirs: &VelotypeConfigDirs) -> anyhow::Result<()> {
+    fn load_custom_languages_from_dirs(&mut self, dirs: &SplitypeConfigDirs) -> anyhow::Result<()> {
         let languages_dir = dirs.languages_dir();
         if !languages_dir.exists() {
             return Ok(());
@@ -193,7 +193,7 @@ impl I18nManager {
 #[cfg(test)]
 mod tests {
     use super::{I18nLanguagePack, I18nManager, I18nStrings, language_id_for_locale_settings};
-    use crate::infra::config::dirs::VelotypeConfigDirs;
+    use crate::infra::config::dirs::SplitypeConfigDirs;
     use crate::theme::ThemeManager;
 
     #[test]
@@ -210,7 +210,7 @@ mod tests {
         assert_eq!(strings.image_loading_without_alt, "正在加载图片...");
         assert_eq!(
             strings.help_check_updates_message,
-            "正在检查 Velotype 的最新版本..."
+            "正在检查 Splitype 的最新版本..."
         );
         assert_eq!(strings.update_open_release, "前往下载");
         assert_eq!(strings.help_about_github_label, "GitHub");
@@ -262,10 +262,10 @@ mod tests {
         let mut theme_manager = ThemeManager::default();
         let mut i18n_manager = I18nManager::new_with_language_id("zh-CN");
 
-        assert!(theme_manager.set_theme_by_id("velotype"));
+        assert!(theme_manager.set_theme_by_id("splitype"));
         assert!(!i18n_manager.set_language_by_id("missing"));
 
-        assert_eq!(theme_manager.current_theme_id(), "velotype");
+        assert_eq!(theme_manager.current_theme_id(), "splitype");
         assert_eq!(i18n_manager.current_language_id(), "zh-CN");
         assert_eq!(i18n_manager.strings().menu_file, "文件");
     }
@@ -286,7 +286,7 @@ mod tests {
 
     #[test]
     fn imports_jsonc_language_pack_and_persists_normalized_json() {
-        let root = std::env::temp_dir().join(format!("velotype-i18n-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("splitype-i18n-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&root).expect("temp root should be created");
         let source = root.join("language.jsonc");
         std::fs::write(
@@ -304,7 +304,7 @@ mod tests {
         )
         .expect("language config should be written");
 
-        let dirs = VelotypeConfigDirs::from_root(&root);
+        let dirs = SplitypeConfigDirs::from_root(&root);
         let mut manager = I18nManager::default();
         let imported_id = manager
             .import_language_config_with_dirs(&source, &dirs)
@@ -332,7 +332,7 @@ mod tests {
 
     #[test]
     fn custom_language_cannot_override_builtin_language_id() {
-        let root = std::env::temp_dir().join(format!("velotype-i18n-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("splitype-i18n-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&root).expect("temp root should be created");
         let source = root.join("language.json");
         std::fs::write(
@@ -345,7 +345,7 @@ mod tests {
         )
         .expect("language config should be written");
 
-        let dirs = VelotypeConfigDirs::from_root(&root);
+        let dirs = SplitypeConfigDirs::from_root(&root);
         let mut manager = I18nManager::default();
         let err = manager
             .import_language_config_with_dirs(&source, &dirs)

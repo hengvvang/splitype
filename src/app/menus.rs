@@ -483,7 +483,7 @@ fn build_menus(
 
     vec![
         Menu {
-            name: "Velotype".into(),
+            name: "Splitype".into(),
             items: vec![
                 MenuItem::action(strings.menu_settings.clone(), OpenSettings),
                 MenuItem::separator(),
@@ -833,17 +833,17 @@ mod tests {
     fn applescript_string_literal_escapes_special_characters() {
         assert_eq!(
             applescript_string_literal(
-                r#"/Applications/Velotype "Test".app/Contents/MacOS/velotype"#
+                r#"/Applications/splitype "Test".app/Contents/MacOS/splitype"#
             ),
-            r#""/Applications/Velotype \"Test\".app/Contents/MacOS/velotype""#
+            r#""/Applications/splitype \"Test\".app/Contents/MacOS/splitype""#
         );
         assert_eq!(
-            applescript_string_literal(r#"/Applications/O'Brien\Velotype.app"#),
-            r#""/Applications/O'Brien\\Velotype.app""#
+            applescript_string_literal(r#"/Applications/O'Brien\splitype.app"#),
+            r#""/Applications/O'Brien\\splitype.app""#
         );
     }
 
-    // On macOS the menu bar is: [Velotype app menu, File, Export, Language, Theme, ExplorerState, Help]
+    // On macOS the menu bar is: [Splitype app menu, File, Export, Language, Theme, ExplorerState, Help]
     // On other platforms:       [File, Export, Language, Theme, ExplorerState, Help]
     #[cfg(target_os = "macos")]
     const EXPORT_IDX: usize = 2;
@@ -885,7 +885,7 @@ mod tests {
         assert_eq!(
             menu_names,
             vec![
-                "Velotype", "File", "Export", "Language", "Theme", "Explorer", "Help"
+                "Splitype", "File", "Export", "Language", "Theme", "Explorer", "Help"
             ]
         );
         #[cfg(not(target_os = "macos"))]
@@ -958,7 +958,7 @@ mod tests {
         assert_eq!(
             menu_names,
             vec![
-                "Velotype",
+                "Splitype",
                 "文件",
                 "导出",
                 "语言",
@@ -1089,7 +1089,7 @@ mod tests {
         assert!(super::is_window_context_menu_action(&QuitApplication));
         assert!(super::is_window_context_menu_action(&CloseWindow));
         assert!(!super::is_window_context_menu_action(&SelectTheme {
-            theme_id: "velotype".into(),
+            theme_id: "splitype".into(),
         }));
         assert!(!super::is_window_context_menu_action(&SelectLanguage {
             language_id: "en-US".into(),
@@ -1146,7 +1146,7 @@ mod tests {
     #[test]
     fn theme_menu_marks_selected_builtin_light_theme() {
         let mut theme_manager = ThemeManager::default();
-        assert!(theme_manager.set_theme_by_id("velotype-light"));
+        assert!(theme_manager.set_theme_by_id("splitype-light"));
         let i18n_manager = I18nManager::default();
         let menus = build_menus(&theme_manager, &i18n_manager, &[]);
         let theme_items = &menus[THEME_IDX].items;
@@ -1159,7 +1159,7 @@ mod tests {
                     .as_any()
                     .downcast_ref::<SelectTheme>()
                     .expect("light theme item should dispatch SelectTheme");
-                assert_eq!(action.theme_id, "velotype-light");
+                assert_eq!(action.theme_id, "splitype-light");
             }
             _ => panic!("expected light theme action item"),
         }

@@ -8,7 +8,7 @@ use gpui::*;
 use crate::app::menus::install_menus;
 use crate::editor::controller::Editor;
 use crate::infra::config::recent::record_recent_file;
-use crate::windows::editor::titlebar::velotype_window_options;
+use crate::windows::editor::titlebar::splitype_window_options;
 
 fn window_title(file_path: Option<&Path>) -> SharedString {
     if let Some(path) = file_path {
@@ -18,14 +18,14 @@ fn window_title(file_path: Option<&Path>) -> SharedString {
         // Display impl writes the borrowed bytes straight into the output
         // String, no intermediate allocation.
         format!(
-            "Velotype - {}",
+            "Splitype - {}",
             path.file_name()
                 .map(|name| name.to_string_lossy())
                 .unwrap_or_else(|| path.to_string_lossy())
         )
         .into()
     } else {
-        SharedString::new("Velotype")
+        SharedString::new("Splitype")
     }
 }
 
@@ -39,7 +39,7 @@ pub(crate) fn open_editor_window(
     let title = window_title(file_path.as_deref());
     let handle = cx
         .open_window(
-            velotype_window_options(title, bounds),
+            splitype_window_options(title, bounds),
             move |_window, cx| {
                 cx.new(move |cx| {
                     // No content and no path → welcome state with zero tabs.

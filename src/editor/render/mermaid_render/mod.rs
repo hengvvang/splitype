@@ -422,9 +422,9 @@ fn svg_root_attrs(root_tag: &str) -> Vec<SvgRootAttr> {
 }
 
 fn mermaid_cache_dir() -> anyhow::Result<PathBuf> {
-    let root = ProjectDirs::from("com", "manyougz", "Velotype")
+    let root = ProjectDirs::from("com", "hengvvang", "splitype")
         .map(|dirs| dirs.cache_dir().to_path_buf())
-        .unwrap_or_else(|| std::env::temp_dir().join("Velotype"));
+        .unwrap_or_else(|| std::env::temp_dir().join("splitype"));
     let dir = root.join("mermaid-svg");
     fs::create_dir_all(&dir)
         .with_context(|| format!("failed to create Mermaid SVG cache '{}'", dir.display()))?;

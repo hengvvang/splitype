@@ -1216,7 +1216,7 @@ impl I18nStrings {
                 "请拖入 Markdown 文件（.md 或 .markdown）以在当前窗口打开。".into(),
             info_dialog_ok: "确定".into(),
             help_check_updates_title: "检查更新".into(),
-            help_check_updates_message: "正在检查 Velotype 的最新版本...".into(),
+            help_check_updates_message: "正在检查 Splitype 的最新版本...".into(),
             update_available_title: "发现新版本".into(),
             update_available_message_template:
                 "当前版本：{current}\n最新版本：{latest}\n是否前往 GitHub Releases 下载？".into(),
@@ -1226,8 +1226,8 @@ impl I18nStrings {
             update_failed_message_template: "无法完成在线更新检查：{error}".into(),
             update_open_release: "前往下载".into(),
             update_later: "稍后".into(),
-            help_about_title: "关于 Velotype".into(),
-            help_about_message: "作者：manyougz".into(),
+            help_about_title: "关于 Splitype".into(),
+            help_about_message: "作者：hengvvang".into(),
             help_about_github_label: "GitHub".into(),
             help_about_star_message: "如果本项目对您有帮助，那不妨给本项目一颗 Star⭐，十分感谢！"
                 .into(),
@@ -1418,7 +1418,7 @@ impl I18nStrings {
                 "Drop a Markdown file (.md or .markdown) to open it in this window.".into(),
             info_dialog_ok: "OK".into(),
             help_check_updates_title: "Check for Updates".into(),
-            help_check_updates_message: "Checking the latest Velotype version...".into(),
+            help_check_updates_message: "Checking the latest Splitype version...".into(),
             update_available_title: "Update Available".into(),
             update_available_message_template:
                 "Current version: {current}\nLatest version: {latest}\nOpen GitHub Releases to download it?"
@@ -1431,8 +1431,8 @@ impl I18nStrings {
                 .into(),
             update_open_release: "Open Releases".into(),
             update_later: "Later".into(),
-            help_about_title: "About Velotype".into(),
-            help_about_message: "Author: manyougz".into(),
+            help_about_title: "About Splitype".into(),
+            help_about_message: "Author: hengvvang".into(),
             help_about_github_label: "GitHub".into(),
             help_about_star_message:
                 "If this project helps you, consider giving it a Star⭐. Thank you!".into(),

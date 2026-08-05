@@ -1789,7 +1789,7 @@ mod tests {
 
     fn temp_image_path(name: &str) -> std::path::PathBuf {
         let root = std::env::temp_dir().join(format!(
-            "velotype-paste-image-path-{}",
+            "splitype-paste-image-path-{}",
             uuid::Uuid::new_v4()
         ));
         fs::create_dir_all(&root).expect("temp image dir should exist");

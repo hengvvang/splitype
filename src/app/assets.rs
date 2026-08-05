@@ -4,9 +4,9 @@ use std::borrow::Cow;
 
 use gpui::*;
 
-pub(crate) struct VelotypeAssets;
+pub(crate) struct SplitypeAssets;
 
-impl AssetSource for VelotypeAssets {
+impl AssetSource for SplitypeAssets {
     fn load(&self, path: &str) -> gpui::Result<Option<Cow<'static, [u8]>>> {
         match path {
             "icon/explorer/folder.svg" => Ok(Some(Cow::Borrowed(include_bytes!(

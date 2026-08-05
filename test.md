@@ -321,13 +321,13 @@ end
 
 ```yaml
 service:
-  name: velotype
+  name: splitype
   enabled: true
 ```
 
 ```toml
 [package]
-name = "velotype"
+name = "splitype"
 edition = "2024"
 ```
 

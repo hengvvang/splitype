@@ -5,12 +5,12 @@ use std::sync::Arc;
 
 use gpui::{App, Global};
 
-use crate::infra::config::dirs::VelotypeConfigDirs;
+use crate::infra::config::dirs::SplitypeConfigDirs;
 use crate::infra::config::jsonc::{read_json_or_jsonc, sanitize_config_file_stem};
 
 use super::theme::{
-    BUILTIN_THEME_VELOTYPE_ID, BUILTIN_THEME_VELOTYPE_LIGHT_ID, BUILTIN_THEME_VELOTYPE_LIGHT_NAME,
-    BUILTIN_THEME_VELOTYPE_NAME, CUSTOM_THEME_ID, CustomThemeEntry, Theme, ThemeCatalogEntry,
+    BUILTIN_THEME_SPLITYPE_ID, BUILTIN_THEME_SPLITYPE_LIGHT_ID, BUILTIN_THEME_SPLITYPE_LIGHT_NAME,
+    BUILTIN_THEME_SPLITYPE_NAME, CUSTOM_THEME_ID, CustomThemeEntry, Theme, ThemeCatalogEntry,
     builtin_theme_catalog, custom_theme_from_value, custom_theme_from_value_with_default_base,
 };
 
@@ -31,7 +31,7 @@ impl Default for ThemeManager {
     fn default() -> Self {
         Self {
             current: Arc::new(Theme::default_theme()),
-            current_theme_id: BUILTIN_THEME_VELOTYPE_ID.into(),
+            current_theme_id: BUILTIN_THEME_SPLITYPE_ID.into(),
             custom_themes: Vec::new(),
             theme_catalog: builtin_theme_catalog(),
         }
@@ -44,14 +44,14 @@ impl ThemeManager {
     pub fn init(cx: &mut App) {
         let theme_id = crate::infra::config::settings::read_app_settings()
             .map(|preferences| preferences.default_theme_id)
-            .unwrap_or_else(|_| BUILTIN_THEME_VELOTYPE_ID.into());
+            .unwrap_or_else(|_| BUILTIN_THEME_SPLITYPE_ID.into());
         Self::init_with_theme_id(cx, &theme_id);
     }
 
     /// Installs a specific theme into GPUI's global state.
     pub fn init_with_theme_id(cx: &mut App, theme_id: &str) {
         let mut manager = Self::default();
-        if let Ok(dirs) = VelotypeConfigDirs::from_system()
+        if let Ok(dirs) = SplitypeConfigDirs::from_system()
             && let Err(err) = manager.load_custom_themes_from_dirs(&dirs)
         {
             eprintln!("failed to load custom themes: {err}");
@@ -107,20 +107,20 @@ impl ThemeManager {
     /// Restores the built-in default theme.
     pub fn reset(&mut self) {
         self.current = Arc::new(Theme::default_theme());
-        self.current_theme_id = BUILTIN_THEME_VELOTYPE_ID.into();
+        self.current_theme_id = BUILTIN_THEME_SPLITYPE_ID.into();
     }
 
     /// Activates a theme by identifier.
     pub fn set_theme_by_id(&mut self, theme_id: &str) -> bool {
         match theme_id {
-            id if id == BUILTIN_THEME_VELOTYPE_ID => {
+            id if id == BUILTIN_THEME_SPLITYPE_ID => {
                 self.current = Arc::new(Theme::default_theme());
-                self.current_theme_id = BUILTIN_THEME_VELOTYPE_ID.into();
+                self.current_theme_id = BUILTIN_THEME_SPLITYPE_ID.into();
                 true
             }
-            id if id == BUILTIN_THEME_VELOTYPE_LIGHT_ID => {
+            id if id == BUILTIN_THEME_SPLITYPE_LIGHT_ID => {
                 self.current = Arc::new(Theme::light_theme());
-                self.current_theme_id = BUILTIN_THEME_VELOTYPE_LIGHT_ID.into();
+                self.current_theme_id = BUILTIN_THEME_SPLITYPE_LIGHT_ID.into();
                 true
             }
             id => {
@@ -136,14 +136,14 @@ impl ThemeManager {
 
     /// Imports a user theme pack, persists a normalized copy, and activates it.
     pub fn import_theme_config(&mut self, path: impl AsRef<Path>) -> anyhow::Result<String> {
-        let dirs = VelotypeConfigDirs::from_system()?;
+        let dirs = SplitypeConfigDirs::from_system()?;
         self.import_theme_config_with_dirs(path, &dirs)
     }
 
     fn import_theme_config_with_dirs(
         &mut self,
         path: impl AsRef<Path>,
-        dirs: &VelotypeConfigDirs,
+        dirs: &SplitypeConfigDirs,
     ) -> anyhow::Result<String> {
         let raw = read_json_or_jsonc(path.as_ref())?;
         let default_base_theme_id = self.theme_import_base_theme_id();
@@ -166,7 +166,7 @@ impl ThemeManager {
         Ok(imported_id)
     }
 
-    fn load_custom_themes_from_dirs(&mut self, dirs: &VelotypeConfigDirs) -> anyhow::Result<()> {
+    fn load_custom_themes_from_dirs(&mut self, dirs: &SplitypeConfigDirs) -> anyhow::Result<()> {
         let themes_dir = dirs.themes_dir();
         if !themes_dir.exists() {
             return Ok(());
@@ -220,10 +220,10 @@ impl ThemeManager {
     }
 
     fn theme_id_for_loaded_theme(&self, theme: &Theme) -> String {
-        if theme.name == BUILTIN_THEME_VELOTYPE_NAME {
-            BUILTIN_THEME_VELOTYPE_ID.into()
-        } else if theme.name == BUILTIN_THEME_VELOTYPE_LIGHT_NAME {
-            BUILTIN_THEME_VELOTYPE_LIGHT_ID.into()
+        if theme.name == BUILTIN_THEME_SPLITYPE_NAME {
+            BUILTIN_THEME_SPLITYPE_ID.into()
+        } else if theme.name == BUILTIN_THEME_SPLITYPE_LIGHT_NAME {
+            BUILTIN_THEME_SPLITYPE_LIGHT_ID.into()
         } else {
             CUSTOM_THEME_ID.into()
         }
@@ -231,14 +231,14 @@ impl ThemeManager {
 
     fn theme_import_base_theme_id(&self) -> String {
         match self.current_theme_id.as_str() {
-            BUILTIN_THEME_VELOTYPE_LIGHT_ID => BUILTIN_THEME_VELOTYPE_LIGHT_ID.into(),
-            BUILTIN_THEME_VELOTYPE_ID => BUILTIN_THEME_VELOTYPE_ID.into(),
+            BUILTIN_THEME_SPLITYPE_LIGHT_ID => BUILTIN_THEME_SPLITYPE_LIGHT_ID.into(),
+            BUILTIN_THEME_SPLITYPE_ID => BUILTIN_THEME_SPLITYPE_ID.into(),
             id => self
                 .custom_themes
                 .iter()
                 .find(|entry| entry.id == id)
                 .map(|entry| entry.base_theme_id.clone())
-                .unwrap_or_else(|| BUILTIN_THEME_VELOTYPE_ID.into()),
+                .unwrap_or_else(|| BUILTIN_THEME_SPLITYPE_ID.into()),
         }
     }
 }
@@ -246,13 +246,13 @@ impl ThemeManager {
 #[cfg(test)]
 mod tests {
     use super::ThemeManager;
-    use crate::infra::config::dirs::VelotypeConfigDirs;
+    use crate::infra::config::dirs::SplitypeConfigDirs;
     use crate::theme::theme::Theme;
     use gpui::rgba;
 
     #[test]
     fn imports_partial_jsonc_theme_and_persists_normalized_json() {
-        let root = std::env::temp_dir().join(format!("velotype-theme-{}", uuid::Uuid::new_v4()));
+        let root = std::env::temp_dir().join(format!("splitype-theme-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&root).expect("temp root should be created");
         let source = root.join("theme.jsonc");
         std::fs::write(
@@ -275,7 +275,7 @@ mod tests {
         )
         .expect("theme config should be written");
 
-        let dirs = VelotypeConfigDirs::from_root(&root);
+        let dirs = SplitypeConfigDirs::from_root(&root);
         let mut manager = ThemeManager::default();
         let imported_id = manager
             .import_theme_config_with_dirs(&source, &dirs)
@@ -300,7 +300,7 @@ mod tests {
             .expect("normalized theme config should exist");
         assert!(normalized.contains("\"name\": \"Night Writer\""));
         assert!(normalized.contains("\"creator\": \"Ada\""));
-        assert!(normalized.contains("\"base_theme_id\": \"velotype\""));
+        assert!(normalized.contains("\"base_theme_id\": \"splitype\""));
         assert!(normalized.contains("\"block_gap\": 12.0"));
         assert!(!normalized.contains("menu_text_size"));
         assert!(!normalized.contains("empty_editing"));
@@ -312,7 +312,7 @@ mod tests {
     #[test]
     fn importing_without_base_uses_current_builtin_theme_as_base() {
         let root =
-            std::env::temp_dir().join(format!("velotype-light-theme-{}", uuid::Uuid::new_v4()));
+            std::env::temp_dir().join(format!("splitype-light-theme-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&root).expect("temp root should be created");
         let source = root.join("theme.jsonc");
         std::fs::write(
@@ -329,9 +329,9 @@ mod tests {
         )
         .expect("theme config should be written");
 
-        let dirs = VelotypeConfigDirs::from_root(&root);
+        let dirs = SplitypeConfigDirs::from_root(&root);
         let mut manager = ThemeManager::default();
-        assert!(manager.set_theme_by_id("velotype-light"));
+        assert!(manager.set_theme_by_id("splitype-light"));
         let imported_id = manager
             .import_theme_config_with_dirs(&source, &dirs)
             .expect("theme config should import");
@@ -345,7 +345,7 @@ mod tests {
 
         let normalized = std::fs::read_to_string(dirs.themes_dir().join("Light_Radius_Ada.json"))
             .expect("normalized theme config should exist");
-        assert!(normalized.contains("\"base_theme_id\": \"velotype-light\""));
+        assert!(normalized.contains("\"base_theme_id\": \"splitype-light\""));
 
         let mut reloaded = ThemeManager::default();
         reloaded
@@ -363,28 +363,28 @@ mod tests {
     #[test]
     fn theme_manager_switches_builtin_themes() {
         let mut manager = ThemeManager::default();
-        assert_eq!(manager.current_theme_id(), "velotype");
-        assert_eq!(manager.current().name, "Velotype");
+        assert_eq!(manager.current_theme_id(), "splitype");
+        assert_eq!(manager.current().name, "splitype");
         assert_eq!(
             manager
                 .available_themes()
                 .iter()
                 .map(|entry| entry.name.as_str())
                 .collect::<Vec<_>>(),
-            vec!["Velotype", "Velotype Light"]
+            vec!["splitype", "splitype Light"]
         );
 
-        assert!(manager.set_theme_by_id("velotype-light"));
-        assert_eq!(manager.current_theme_id(), "velotype-light");
-        assert_eq!(manager.current().name, "Velotype Light");
+        assert!(manager.set_theme_by_id("splitype-light"));
+        assert_eq!(manager.current_theme_id(), "splitype-light");
+        assert_eq!(manager.current().name, "splitype Light");
         assert_eq!(
             manager.current().colors.editor_background,
             rgba(0xf7f8fbff).into()
         );
 
-        assert!(manager.set_theme_by_id("velotype"));
-        assert_eq!(manager.current_theme_id(), "velotype");
-        assert_eq!(manager.current().name, "Velotype");
+        assert!(manager.set_theme_by_id("splitype"));
+        assert_eq!(manager.current_theme_id(), "splitype");
+        assert_eq!(manager.current().name, "splitype");
         assert!(!manager.set_theme_by_id("missing"));
     }
 }

@@ -27,7 +27,7 @@ use crate::infra::i18n::manager::I18nManager;
 use crate::theme::{ThemeCatalogEntry, ThemeManager};
 use crate::ui::components::switch::Switch;
 use crate::windows::editor::titlebar::{
-    custom_titlebar_height, render_custom_titlebar, velotype_window_options,
+    custom_titlebar_height, render_custom_titlebar, splitype_window_options,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -142,7 +142,7 @@ impl SettingsWindow {
             .iter()
             .find(|entry| entry.id == self.selected_theme_id)
             .map(|entry| entry.name.clone())
-            .unwrap_or_else(|| "Velotype".into())
+            .unwrap_or_else(|| "splitype".into())
     }
 
     fn has_unsaved_changes(&self) -> bool {
@@ -1162,7 +1162,7 @@ impl Render for SettingsWindow {
 
                 sec3_items.push(make_row(
                     "On Startup",
-                    "Choose default document state when launching Velotype editor",
+                    "Choose default document state when launching splitype editor",
                     startup_btn_wrap.into_any_element(),
                 ));
 
@@ -1334,7 +1334,7 @@ fn open_settings_window_with_state(
     let window_title = SharedString::from(title);
     let handle = cx
         .open_window(
-            velotype_window_options(window_title, bounds),
+            splitype_window_options(window_title, bounds),
             move |_window, cx| cx.new(move |cx| SettingsWindow::new(settings, theme_options, cx)),
         )
         .expect("settings window should open");
@@ -1375,6 +1375,6 @@ mod tests {
         let settings = AppSettings::default();
         assert_eq!(settings.startup_open, StartupOpenSetting::NewFile);
         assert_eq!(settings.default_language_id, "en-US");
-        assert_eq!(settings.default_theme_id, "velotype");
+        assert_eq!(settings.default_theme_id, "splitype");
     }
 }

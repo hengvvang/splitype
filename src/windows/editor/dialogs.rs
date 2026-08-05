@@ -310,7 +310,7 @@ impl Editor {
 
     pub(crate) fn about_dialog_body_lines(strings: &I18nStrings) -> Vec<String> {
         vec![
-            format!("Velotype {}", env!("CARGO_PKG_VERSION")),
+            format!("Splitype {}", env!("CARGO_PKG_VERSION")),
             strings.help_about_message.clone(),
             format!("{}: {}", strings.help_about_github_label, ABOUT_GITHUB_URL),
             strings.help_about_star_message.clone(),
@@ -357,7 +357,7 @@ impl Editor {
                 .flex()
                 .flex_col()
                 .gap(px(d.dialog_gap * 0.5))
-                .child(body_style(div()).child(format!("Velotype {}", env!("CARGO_PKG_VERSION"))))
+                .child(body_style(div()).child(format!("Splitype {}", env!("CARGO_PKG_VERSION"))))
                 .child(body_style(div()).child(strings.help_about_message.clone()))
                 .child(
                     body_style(div())

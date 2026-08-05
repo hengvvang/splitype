@@ -35,7 +35,7 @@ use crate::windows::editor::titlebar::{custom_titlebar_height, render_custom_tit
 /// Rows within this many pixels of the viewport stay mounted.
 pub const RENDER_OVERDRAW_PX: f32 = 800.0;
 
-pub(crate) const ABOUT_GITHUB_URL: &str = "https://github.com/manyougz/velotype";
+pub(crate) const ABOUT_GITHUB_URL: &str = "https://github.com/hengvvang/splitype";
 
 pub(crate) fn open_about_github_url(cx: &mut App) {
     cx.open_url(ABOUT_GITHUB_URL);
@@ -1110,7 +1110,7 @@ mod tests {
     #[test]
     fn import_menu_split_detects_theme_and_language_import_tails() {
         let theme_items = vec![
-            disabled_menu_action("Velotype"),
+            disabled_menu_action("splitype"),
             OwnedMenuItem::Separator,
             add_theme_menu_action(),
         ];
@@ -1125,7 +1125,7 @@ mod tests {
             disabled_menu_action("Save"),
         ];
         let malformed_import_items =
-            vec![disabled_menu_action("Velotype"), add_theme_menu_action()];
+            vec![disabled_menu_action("splitype"), add_theme_menu_action()];
 
         assert_eq!(import_menu_split_index(&theme_items), Some(1));
         assert_eq!(import_menu_split_index(&language_items), Some(1));

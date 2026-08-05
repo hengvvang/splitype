@@ -20,7 +20,7 @@ pub fn parse() -> Args {
     while i < args.len() {
         match args[i].as_str() {
             "--version" | "-v" => {
-                println!("velotype {}", env!("CARGO_PKG_VERSION"));
+                println!("splitype {}", env!("CARGO_PKG_VERSION"));
                 std::process::exit(0);
             }
             "--help" | "-h" => {
@@ -49,12 +49,12 @@ pub fn parse() -> Args {
 
 fn print_help() {
     println!(
-        "velotype {} - A block-based Markdown editor",
+        "splitype {} - A block-based Markdown editor",
         env!("CARGO_PKG_VERSION")
     );
     println!();
     println!("USAGE:");
-    println!("    velotype [OPTIONS] [FILES...]");
+    println!("    splitype [OPTIONS] [FILES...]");
     println!();
     println!("OPTIONS:");
     println!("    -v, --version    Print version information");

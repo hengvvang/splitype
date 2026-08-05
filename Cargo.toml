@@ -1,8 +1,8 @@
 [package]
-name = "velotype"
-version = "0.7.0"
+name = "splitype"
+version = "0.0.1"
 edition = "2024"
-repository = "https://github.com/manyougz/velotype"
+repository = "https://github.com/hengvvang/splitype"
 license = "Apache-2.0"
 
 [lints.clippy]
@@ -188,7 +188,7 @@ harness = false
 # without this, Criterion-specific CLI flags (`--save-baseline`, etc.) trip
 # the libtest stub before Criterion's `main` runs (rust-lang/rust#47241).
 [[bin]]
-name = "velotype"
+name = "splitype"
 path = "src/main.rs"
 bench = false
 
@@ -198,6 +198,12 @@ embed-resource = "3"
 [profile.bench]
 # Keep DWARF for samply / perf / cargo flamegraph; doesn't disable opts.
 debug = true
+
+[profile.test]
+# The test binary links hundreds of crates; full debuginfo overflows the
+# MSVC PDB limit (LNK1140) and makes rustc stack-overflow while compiling
+# the giant --test target on Windows. Strip it for tests only.
+debug = false
 
 [profile.release]
 codegen-units = 1

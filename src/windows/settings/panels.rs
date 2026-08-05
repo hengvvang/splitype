@@ -994,7 +994,7 @@ impl Editor {
 
                     sec3_items.push(make_row(
                         "On Startup",
-                        "Choose default document state when launching Velotype editor",
+                        "Choose default document state when launching splitype editor",
                         startup_btn_wrap.into_any_element(),
                         theme,
                         inner_border_color,

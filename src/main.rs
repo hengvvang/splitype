@@ -1,4 +1,4 @@
-//! Velotype - a block-based Markdown editor built with GPUI.
+//! splitype - a block-based Markdown editor built with GPUI.
 //!
 //! Reads file paths from command-line arguments and opens one GPUI window per
 //! file. With no arguments, a single empty window is created.
