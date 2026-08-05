@@ -815,21 +815,9 @@ impl Render for Editor {
             .as_ref()
             .map(|m| m.iter().map(|menu| menu.name.clone()).collect())
             .unwrap_or_default();
-        // The title text stays hidden until the app-menu button is clicked;
-        // the titlebar reads clean until the inline menu bar expands.
-        let window_title: SharedString =
-            if self.chrome.menu_bar_expanded || self.chrome.menu_bar_open.is_some() {
-                Self::window_title(
-                    self.tab().file.path.as_deref(),
-                    self.tab().file.dirty,
-                    &strings,
-                )
-                .into()
-            } else {
-                // Hidden until the app-menu button is clicked: the titlebar
-                // stays clean unless the inline menu bar is expanded.
-                SharedString::new("")
-            };
+        // The titlebar never shows a title text; the window title lives in the
+        // OS title bar / task bar via `sync_window_title`.
+        let window_title: SharedString = SharedString::new("");
         let inline_menu =
             self.render_inline_titlebar_menu(&theme, cx, menus.as_deref(), &menu_labels);
         let base = if let Some(titlebar) = render_custom_titlebar(
@@ -933,15 +921,9 @@ impl Editor {
             .unwrap_or_default();
         let inline_menu =
             self.render_inline_titlebar_menu(&theme, cx, menus.as_deref(), &menu_labels);
-        // Title text appears only while the app-menu button is expanded.
-        let title_visible = self.chrome.menu_bar_expanded || self.chrome.menu_bar_open.is_some();
         let base = if let Some(titlebar) = render_custom_titlebar(
             "editor-titlebar",
-            if title_visible {
-                SharedString::from("Velotype")
-            } else {
-                SharedString::new("")
-            },
+            SharedString::new(""),
             inline_menu,
             &theme,
             window,

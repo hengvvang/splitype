@@ -64,7 +64,12 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.tab().file.dirty {
+        // Welcome state (no tabs): nothing to save, close immediately.
+        let Some(tab) = self.tabs.get(self.active_tab) else {
+            window.remove_window();
+            return;
+        };
+        if tab.file.dirty {
             self.tab_mut().file.show_unsaved_changes_dialog = true;
             self.tab_mut().file.close_dialog_restore_focus = self.tab().focus.active_entity;
             cx.notify();
