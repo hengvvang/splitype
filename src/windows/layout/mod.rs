@@ -1099,8 +1099,6 @@ impl Editor {
             .items_center()
             .justify_between()
             .px(px(8.0))
-            .border_b(px(1.0))
-            .border_color(c.dialog_border)
             .child(left_section)
             .child(div().flex().items_center().gap(px(6.0)).child(actions))
             .into_any_element()

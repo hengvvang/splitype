@@ -10,11 +10,11 @@ use gpui::*;
 
 use crate::editor::EditorMode;
 use crate::editor::controller::Editor;
-use crate::windows::editor::chrome::StatusBarState;
 use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
 use crate::infra::i18n::I18nStrings;
 use crate::layout::{Axis, WindowAreaKind};
 use crate::theme::{Theme, ThemeColors, ThemeDimensions};
+use crate::windows::editor::chrome::StatusBarState;
 
 /// Render a cursor-position label (e.g. `12 : 47`).
 pub fn render_cursor((line, col): (usize, usize), theme: &Theme) -> AnyElement {
@@ -380,86 +380,6 @@ impl Editor {
             left_items.push(type_button.into_any_element());
         }
 
-        // Split / close buttons: available even in the welcome state so the
-        // panels can be split before any document is opened.
-        if let (Some(panel_id), Some(_)) = (focused_panel_id, focused_kind) {
-            let editor = cx.entity().downgrade();
-
-            // Split H button.
-            let split_h_editor = editor.clone();
-            left_items.push(
-                icon_chip_button(c, d)
-                    .child(
-                        svg()
-                            .path("icon/panel/split-h.svg")
-                            .size(px(12.0))
-                            .text_color(c.dialog_muted),
-                    )
-                    .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                        let _ = split_h_editor.update(cx, |ed, cx| {
-                            ed.panels.layout.split_editor_inner_panel(
-                                area_id,
-                                panel_id,
-                                Axis::Horizontal,
-                            );
-                            cx.notify();
-                        });
-                    })
-                    .into_any_element(),
-            );
-
-            // Split V button.
-            let split_v_editor = editor.clone();
-            left_items.push(
-                icon_chip_button(c, d)
-                    .child(
-                        svg()
-                            .path("icon/panel/split-v.svg")
-                            .size(px(12.0))
-                            .text_color(c.dialog_muted),
-                    )
-                    .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                        let _ = split_v_editor.update(cx, |ed, cx| {
-                            ed.panels.layout.split_editor_inner_panel(
-                                area_id,
-                                panel_id,
-                                Axis::Vertical,
-                            );
-                            cx.notify();
-                        });
-                    })
-                    .into_any_element(),
-            );
-
-            // Close button (only when multiple panels).
-            if inner_leaf_count > 1 {
-                let close_editor = editor.clone();
-                left_items.push(
-                    icon_chip_button(c, d)
-                        .child(
-                            svg()
-                                .path("icon/titlebar/chrome-close.svg")
-                                .size(px(12.0))
-                                .text_color(c.dialog_muted),
-                        )
-                        .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                            let _ = close_editor.update(cx, |ed, cx| {
-                                ed.panels
-                                    .layout
-                                    .close_editor_inner_panel(area_id, panel_id);
-                                if ed.panels.layout.focused_editor_inner_panel
-                                    == Some((area_id, panel_id))
-                                {
-                                    ed.panels.layout.focused_editor_inner_panel = None;
-                                }
-                                cx.notify();
-                            });
-                        })
-                        .into_any_element(),
-                );
-            }
-        }
-
         if self.has_active_tab() && prefs.show_cursor_position {
             left_items.push(
                 div()
@@ -484,6 +404,85 @@ impl Editor {
                 theme,
                 strings,
             ));
+        }
+
+        // Split / close buttons on the far right of the status bar. Available
+        // even in the welcome state so the panels can be split before any
+        // document is opened.
+        if let (Some(panel_id), Some(_)) = (focused_panel_id, focused_kind) {
+            let editor = cx.entity().downgrade();
+
+            // Split H button.
+            let split_h_editor = editor.clone();
+            right_items.push(
+                icon_chip_button(c, d)
+                    .child(
+                        svg()
+                            .path("icon/panel/split-h.svg")
+                            .size(px(12.0))
+                            .text_color(c.dialog_muted),
+                    )
+                    .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                        let _ = split_h_editor.update(cx, |ed, cx| {
+                            ed.panels.layout.split_editor_inner_panel(
+                                area_id,
+                                panel_id,
+                                Axis::Horizontal,
+                            );
+                            cx.notify();
+                        });
+                    })
+                    .into_any_element(),
+            );
+
+            // Split V button.
+            let split_v_editor = editor.clone();
+            right_items.push(
+                icon_chip_button(c, d)
+                    .child(
+                        svg()
+                            .path("icon/panel/split-v.svg")
+                            .size(px(12.0))
+                            .text_color(c.dialog_muted),
+                    )
+                    .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                        let _ = split_v_editor.update(cx, |ed, cx| {
+                            ed.panels.layout.split_editor_inner_panel(
+                                area_id,
+                                panel_id,
+                                Axis::Vertical,
+                            );
+                            cx.notify();
+                        });
+                    })
+                    .into_any_element(),
+            );
+
+            // Close button (only when multiple panels).
+            if inner_leaf_count > 1 {
+                let close_editor = editor.clone();
+                right_items.push(
+                    icon_chip_button(c, d)
+                        .child(
+                            svg()
+                                .path("icon/titlebar/chrome-close.svg")
+                                .size(px(12.0))
+                                .text_color(c.dialog_muted),
+                        )
+                        .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                            let _ = close_editor.update(cx, |ed, cx| {
+                                ed.panels.layout.close_editor_inner_panel(area_id, panel_id);
+                                if ed.panels.layout.focused_editor_inner_panel
+                                    == Some((area_id, panel_id))
+                                {
+                                    ed.panels.layout.focused_editor_inner_panel = None;
+                                }
+                                cx.notify();
+                            });
+                        })
+                        .into_any_element(),
+                );
+            }
         }
 
         status_bar_container(c, 24.0, 10.0)
