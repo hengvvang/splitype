@@ -18,31 +18,36 @@ use crate::infra::i18n::I18nStrings;
 use crate::theme::Theme;
 
 impl Editor {
+    /// Render one Editor area's inner panel layout. While building, the
+    /// routing hint (`current_tab_area`) points at this area so every panel
+    /// reads THIS editor's tab list.
     pub(crate) fn render_editor_inner_panel_container(
         &mut self,
         area_id: usize,
-        primary_content: &mut Option<AnyElement>,
         theme: &Theme,
         strings: &I18nStrings,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
+        self.tab_list_mut_for(area_id);
         let inner_tree = self
             .panels
             .layout
             .ensure_editor_inner_panel_tree(area_id)
             .clone();
 
+        let previous = self.current_tab_area;
+        self.current_tab_area = Some(area_id);
         let inner_rendered = self.render_editor_inner_panel_node(
             &inner_tree,
             area_id,
-            primary_content,
             theme,
             strings,
             window,
             cx,
         );
+        self.current_tab_area = previous;
 
         let dropdown = if let Some(loc) = self.panels.layout.open_editor_inner_panel_dropdown {
             if loc.area_id == area_id {
@@ -86,6 +91,7 @@ impl Editor {
     /// each host their own prompt.
     pub(crate) fn render_welcome_prompt(
         &mut self,
+        area_id: usize,
         panel_id: usize,
         theme: &Theme,
         cx: &mut Context<Self>,
@@ -95,7 +101,9 @@ impl Editor {
         let editor = cx.entity().downgrade();
 
         div()
-            .id(("welcome-prompt", panel_id))
+            .id(ElementId::Name(
+                format!("welcome-prompt-{area_id}-{panel_id}").into(),
+            ))
             .w_full()
             .h_full()
             .flex()
@@ -115,7 +123,12 @@ impl Editor {
                     });
                     ed.chrome.welcome_last_click = Some(now);
                     if is_double {
-                        ed.begin_untitled_editing(cx);
+                        // The clicked editor becomes the active editor and
+                        // its routing context is set for the tab creation.
+                        ed.panels.layout.activate_editor_area(area_id);
+                        ed.current_tab_area = Some(area_id);
+                        ed.new_untitled_tab(area_id, cx);
+                        ed.current_tab_area = None;
                     }
                 });
             })
@@ -139,7 +152,6 @@ impl Editor {
         &mut self,
         node: &crate::layout::SplitTree<crate::layout::EditorInnerPanelKind>,
         area_id: usize,
-        primary_content: &mut Option<AnyElement>,
         theme: &Theme,
         strings: &I18nStrings,
         window: &mut Window,
@@ -157,44 +169,44 @@ impl Editor {
                 let kind = *kind;
                 let inner_editor = cx.entity().downgrade();
 
-                // Welcome state: no document tabs at all — guide the user
-                // instead of showing an empty buffer.
-                let inner_body: AnyElement = if self.tabs.is_empty() {
-                    self.render_welcome_prompt(panel_id, theme, cx)
+                // Welcome state for THIS editor: no document tabs — guide
+                // the user instead of showing an empty buffer.
+                let inner_body: AnyElement = if !self.area_has_tabs(area_id) {
+                    self.render_welcome_prompt(area_id, panel_id, theme, cx)
                 } else {
                     // A tab exists (opened file or fresh Untitled document),
                     // so every panel renders its normal view — empty documents
                     // simply produce empty views, never prompts.
                     match kind {
-                        // WYSIWYG — block editor from document.blocks().
-                        EditorInnerPanelKind::Wysiwyg => {
-                            if let Some(content) = primary_content.take() {
-                                content
-                            } else {
-                                self.render_tiled_preview_panel(
-                                    primary_content,
-                                    theme,
-                                    strings,
-                                    window,
-                                    cx,
-                                )
-                            }
-                        }
+                        // WYSIWYG — this editor's own block editor view.
+                        EditorInnerPanelKind::Wysiwyg => self.render_document_view(
+                            area_id,
+                            panel_id,
+                            window,
+                            cx,
+                        ),
                         // Source — interactive source code editor. Uses a
                         // cached block in source-document mode; edits sync to
                         // the shared document via the block's Changed event.
                         EditorInnerPanelKind::SourceCode => {
                             self.refresh_source_panel_block(cx);
-                            self.render_source_editor_panel(theme, cx)
+                            self.render_source_editor_panel(area_id, panel_id, theme, cx)
                         }
                         EditorInnerPanelKind::Preview => self.render_tiled_preview_panel(
-                            primary_content,
+                            area_id,
+                            panel_id,
                             theme,
                             strings,
                             window,
                             cx,
                         ),
-                        EditorInnerPanelKind::Outline => self.render_tiled_outline_panel(theme, strings, cx),
+                        EditorInnerPanelKind::Outline => self.render_tiled_outline_panel(
+                            area_id,
+                            panel_id,
+                            theme,
+                            strings,
+                            cx,
+                        ),
                     }
                 };
 
@@ -244,6 +256,8 @@ impl Editor {
                 if self.panels.layout.focused_editor_inner_panel.is_none() {
                     self.panels.layout.focused_editor_inner_panel =
                         Some(InnerPanelLocation { area_id, panel_id });
+                    // The auto-focused editor becomes the active editor too.
+                    self.panels.layout.activate_editor_area(area_id);
                 }
 
                 let focus_editor = cx.entity().downgrade();
@@ -268,6 +282,8 @@ impl Editor {
                         let _ = focus_editor.update(cx, |ed, cx| {
                             ed.panels.layout.focused_editor_inner_panel =
                                 Some(InnerPanelLocation { area_id, panel_id });
+                            // Interacting with this editor activates it.
+                            ed.panels.layout.activate_editor_area(area_id);
                             cx.notify();
                         });
                     })
@@ -286,7 +302,6 @@ impl Editor {
                 let first_elem = self.render_editor_inner_panel_node(
                     first,
                     area_id,
-                    primary_content,
                     theme,
                     strings,
                     window,
@@ -295,7 +310,6 @@ impl Editor {
                 let second_elem = self.render_editor_inner_panel_node(
                     second,
                     area_id,
-                    primary_content,
                     theme,
                     strings,
                     window,

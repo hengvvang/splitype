@@ -84,8 +84,7 @@ impl Editor {
         }
     }
     pub(crate) fn explorer_root_for_current_file(&self) -> Option<PathBuf> {
-        self.tabs
-            .get(self.active_tab)
+        self.active_editor_tab()
             .and_then(|tab| tab.file.path.as_ref())
             .and_then(|path| path.parent().map(Path::to_path_buf))
     }
@@ -334,8 +333,7 @@ impl Editor {
                 self.panels.explorer.expanded.insert(tree.id.clone());
                 self.panels.explorer.file_tree = Some(tree);
                 self.panels.explorer.selected = self
-                    .tabs
-                    .get(self.active_tab)
+                    .active_editor_tab()
                     .and_then(|tab| tab.file.path.as_ref())
                     .map(|path| ExplorerSelection::File(path.clone()));
             }
@@ -357,10 +355,16 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.panels.explorer.selected = Some(ExplorerSelection::File(path.clone()));
-        self.request_dropped_markdown_replace(path, window, cx);
+        // Explorer interacts with the ACTIVE editor: the file opens in its
+        // tab bar. With no Editor area present the click is ignored.
+        if self.panels.layout.active_editor_area.is_none() {
+            return;
+        }
+        self.open_file_in_active_editor(&path, window, cx);
     }
     pub(crate) fn render_explorer_files_tree(
         &self,
+        area_id: usize,
         theme: &Theme,
         strings: &I18nStrings,
         editor: &WeakEntity<Editor>,
@@ -384,6 +388,7 @@ impl Editor {
             return self.render_explorer_empty_state(
                 "Explorer is empty now",
                 "",
+                area_id,
                 theme,
                 strings,
                 &recent_folders,
@@ -396,6 +401,7 @@ impl Editor {
             return self.render_explorer_empty_state(
                 "Explorer is empty now",
                 error,
+                area_id,
                 theme,
                 strings,
                 &recent_folders,
@@ -408,6 +414,7 @@ impl Editor {
             return self.render_explorer_empty_state(
                 "Explorer is empty now",
                 "",
+                area_id,
                 theme,
                 strings,
                 &recent_folders,
@@ -420,6 +427,7 @@ impl Editor {
             return self.render_explorer_empty_state(
                 "Explorer is empty now",
                 "",
+                area_id,
                 theme,
                 strings,
                 &recent_folders,
@@ -482,7 +490,7 @@ impl Editor {
                     .gap(px(2.0))
                     .child(
                         icon_chip_button(c, d)
-                            .id("ws-tb-open")
+                            .id(("ws-tb-open", area_id))
                             .child(
                                 svg()
                                     .path("icon/explorer/folder-open.svg")
@@ -497,7 +505,7 @@ impl Editor {
                     )
                     .child(
                         icon_chip_button(c, d)
-                            .id("ws-tb-newfile")
+                            .id(("ws-tb-newfile", area_id))
                             .child(
                                 svg()
                                     .path("icon/explorer/file-plus.svg")
@@ -512,7 +520,7 @@ impl Editor {
                     )
                     .child(
                         icon_chip_button(c, d)
-                            .id("ws-tb-newfolder")
+                            .id(("ws-tb-newfolder", area_id))
                             .child(
                                 svg()
                                     .path("icon/explorer/folder-plus.svg")
@@ -527,7 +535,7 @@ impl Editor {
                     )
                     .child(
                         icon_chip_button(c, d)
-                            .id("ws-tb-refresh")
+                            .id(("ws-tb-refresh", area_id))
                             .child(
                                 svg()
                                     .path("icon/explorer/refresh.svg")
@@ -542,7 +550,7 @@ impl Editor {
                     )
                     .child(
                         icon_chip_button(c, d)
-                            .id("ws-tb-collapse")
+                            .id(("ws-tb-collapse", area_id))
                             .child(
                                 svg()
                                     .path("icon/explorer/collapse-all.svg")
@@ -558,7 +566,7 @@ impl Editor {
             );
 
         let tree_nodes = div()
-            .id("explorer-tree-scroll-container")
+            .id(("explorer-tree-scroll-container", area_id))
             .w_full()
             .flex_1()
             .min_h(px(0.0))
@@ -566,7 +574,7 @@ impl Editor {
             .flex()
             .flex_col()
             .py(px(4.0))
-            .children(self.render_explorer_nodes(&root.children, 0, theme, editor));
+            .children(self.render_explorer_nodes(&root.children, 0, area_id, theme, editor));
 
         div()
             .w_full()
@@ -581,6 +589,7 @@ impl Editor {
         &self,
         title: &str,
         message: &str,
+        area_id: usize,
         theme: &Theme,
         strings: &I18nStrings,
         recent_folders: &[PathBuf],
@@ -630,7 +639,7 @@ impl Editor {
             })
             .child(
                 div()
-                    .id("explorer-empty-open-btn")
+                    .id(("explorer-empty-open-btn", area_id))
                     .cursor_pointer()
                     .mt(px(4.0))
                     .h(px(28.0))
@@ -695,7 +704,12 @@ impl Editor {
                             let path = path.clone();
                             div()
                                 .id(ElementId::Name(
-                                    format!("explorer-recent-folder-{}", path.display()).into(),
+                                    format!(
+                                        "explorer-recent-folder-{}-{}",
+                                        area_id,
+                                        path.display()
+                                    )
+                                    .into(),
                                 ))
                                 .cursor_pointer()
                                 .px(px(10.0))
@@ -735,7 +749,7 @@ impl Editor {
                             let path = path.clone();
                             div()
                                 .id(ElementId::Name(
-                                    format!("explorer-recent-{}", path.display()).into(),
+                                    format!("explorer-recent-{}-{}", area_id, path.display()).into(),
                                 ))
                                 .cursor_pointer()
                                 .px(px(10.0))
@@ -774,16 +788,18 @@ impl Editor {
         &self,
         nodes: &[ExplorerNode],
         depth: usize,
+        area_id: usize,
         theme: &Theme,
         editor: &WeakEntity<Editor>,
     ) -> Vec<AnyElement> {
         let mut elements = Vec::new();
         for node in nodes {
-            elements.push(self.render_explorer_node(node, depth, theme, editor));
+            elements.push(self.render_explorer_node(node, depth, area_id, theme, editor));
             if !node.children.is_empty() && self.panels.explorer.expanded.contains(&node.id) {
                 elements.extend(self.render_explorer_nodes(
                     &node.children,
                     depth + 1,
+                    area_id,
                     theme,
                     editor,
                 ));
@@ -795,6 +811,7 @@ impl Editor {
         &self,
         node: &ExplorerNode,
         depth: usize,
+        area_id: usize,
         theme: &Theme,
         editor: &WeakEntity<Editor>,
     ) -> AnyElement {
@@ -902,7 +919,9 @@ impl Editor {
         }
 
         div()
-            .id(("explorer-node", stable_node_hash(&node.id)))
+            .id(ElementId::Name(
+                format!("explorer-node-{area_id}-{}", stable_node_hash(&node.id)).into(),
+            ))
             .h(px(EXPLORER_NODE_HEIGHT))
             .w_full()
             .overflow_hidden()
@@ -972,12 +991,13 @@ impl Editor {
     }
     pub(crate) fn render_explorer_panel(
         &mut self,
+        area_id: usize,
         theme: &Theme,
         strings: &I18nStrings,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         self.sync_explorer_models(cx);
         let editor = cx.entity().downgrade();
-        self.render_explorer_files_tree(theme, strings, &editor)
+        self.render_explorer_files_tree(area_id, theme, strings, &editor)
     }
 }

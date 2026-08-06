@@ -72,6 +72,9 @@ impl Editor {
         if event.keystroke.key != "tab" {
             return;
         }
+        if !self.has_active_tab() {
+            return;
+        }
 
         let modifiers = event.keystroke.modifiers;
         if modifiers.control || modifiers.platform || modifiers.alt || modifiers.function {

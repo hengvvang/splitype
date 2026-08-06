@@ -64,18 +64,25 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        // Welcome state (no tabs): nothing to save, close immediately.
-        let Some(tab) = self.tabs.get(self.active_tab) else {
+        // No dirty document anywhere: nothing to save, close immediately.
+        // The first dirty tab across ALL editor areas drives the prompt.
+        let Some((area, index)) = self.first_dirty_tab() else {
             window.remove_window();
             return;
         };
-        if tab.file.dirty {
-            self.tab_mut().file.show_unsaved_changes_dialog = true;
-            self.tab_mut().file.close_dialog_restore_focus = self.tab().focus.active_entity;
-            cx.notify();
-        } else {
-            window.remove_window();
-        }
+        // Bring the owning editor to the front so the dialog (rendered from
+        // the active editor) reads the right tab state.
+        self.panels.layout.activate_editor_area(area);
+        let set = self
+            .panels
+            .layout
+            .editor_tab_lists
+            .get_mut(&area)
+            .expect("dirty tab area must have a tab set");
+        let tab = &mut set.tabs[index];
+        tab.file.show_unsaved_changes_dialog = true;
+        tab.file.close_dialog_restore_focus = tab.focus.active_entity;
+        cx.notify();
     }
 
     /// Called by the GPUI `Window::on_window_should_close` guard.
@@ -86,19 +93,23 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        // Welcome state (no tabs): nothing to save, close freely.
-        let Some(tab) = self.tabs.get(self.active_tab) else {
+        // No dirty document anywhere: safe to close. The first dirty tab
+        // across ALL editor areas drives the prompt.
+        let Some((area, index)) = self.first_dirty_tab() else {
             return true;
         };
-        if tab.file.dirty {
-            self.tab_mut().file.show_unsaved_changes_dialog = true;
-            self.tab_mut().file.close_dialog_restore_focus = self.tab().focus.active_entity;
-            cx.notify();
-            false
-        } else {
-            self.tab_mut().file.close_guard_installed = false;
-            true
-        }
+        self.panels.layout.activate_editor_area(area);
+        let set = self
+            .panels
+            .layout
+            .editor_tab_lists
+            .get_mut(&area)
+            .expect("dirty tab area must have a tab set");
+        let tab = &mut set.tabs[index];
+        tab.file.show_unsaved_changes_dialog = true;
+        tab.file.close_dialog_restore_focus = tab.focus.active_entity;
+        cx.notify();
+        false
     }
 
     /// Cancel the pending-close-after-save flag (called when save fails or is

@@ -19,8 +19,9 @@ use gpui::*;
 use crate::editor::controller::*;
 use crate::infra::i18n::I18nStrings;
 use crate::layout::{
-    Axis, BorderMenuState, CornerDragAction, CornerDragModifier, CornerDragPreview, Direction,
-    SplitTree, SplitterDragSession, WindowAreaKind, WindowLayout,
+    AreaSplitMode, Axis, BorderMenuState, CornerDragModifier, CornerDragPreview, Direction,
+    EditorInnerPanelDragAction, SplitTree, SplitterDragSession, WindowAreaDragAction,
+    WindowAreaKind, WindowLayout,
 };
 use crate::theme::Theme;
 use crate::windows::explorer::state::ExplorerState;
@@ -29,7 +30,6 @@ use crate::windows::settings::state::SettingsUiState;
 impl Editor {
     pub(crate) fn render_tiled_layout(
         &mut self,
-        content_area: AnyElement,
         theme: &Theme,
         strings: &I18nStrings,
         window: &mut Window,
@@ -37,14 +37,12 @@ impl Editor {
     ) -> AnyElement {
         let root = self.panels.layout.window_area_tree.clone();
         let leaf_count = root.count_leaves();
-        let mut primary_content = Some(content_area);
 
         let layout_tree = if let Some(maximized_id) = self.panels.layout.maximized_window_area {
             if let Some(kind) = root.find_leaf_kind(maximized_id) {
                 self.render_window_area_tile(
                     maximized_id,
                     kind,
-                    &mut primary_content,
                     theme,
                     strings,
                     leaf_count,
@@ -55,7 +53,6 @@ impl Editor {
             } else {
                 self.render_window_area_node(
                     &root,
-                    &mut primary_content,
                     theme,
                     strings,
                     leaf_count,
@@ -66,7 +63,6 @@ impl Editor {
         } else {
             self.render_window_area_node(
                 &root,
-                &mut primary_content,
                 theme,
                 strings,
                 leaf_count,
@@ -123,14 +119,17 @@ impl Editor {
                         // Modifier actions still execute immediately.
                         if let Some(action) = action {
                             match action {
-                                CornerDragAction::Swap { from, to } => {
+                                WindowAreaDragAction::Swap { from, to } => {
                                     ed.panels.layout.end_window_area_corner_drag();
                                     ed.panels.layout.swap_window_area_kinds(from, to);
                                 }
-                                CornerDragAction::Duplicate { .. } => {
+                                // Shift + Settings corner: open the floating
+                                // settings window (same as the app menu).
+                                WindowAreaDragAction::OpenSettings => {
                                     ed.panels.layout.end_window_area_corner_drag();
+                                    crate::windows::settings::open_settings_window(cx);
                                 }
-                                CornerDragAction::Cancel => {
+                                WindowAreaDragAction::Cancel => {
                                     ed.panels.layout.end_window_area_corner_drag();
                                 }
                                 _ => {} // Split/Join handled on mouse_up
@@ -216,16 +215,16 @@ impl Editor {
                             );
                             if let Some(action) = action {
                                 match action {
-                                    CornerDragAction::Swap { from, to } => {
+                                    EditorInnerPanelDragAction::Swap { from, to } => {
                                         ed.panels.layout.end_editor_inner_panel_corner_drag();
                                         ed.panels
                                             .layout
                                             .swap_editor_inner_panel_kinds(area_id, from, to);
                                     }
-                                    CornerDragAction::Duplicate { .. } => {
+                                    EditorInnerPanelDragAction::Duplicate { .. } => {
                                         ed.panels.layout.end_editor_inner_panel_corner_drag();
                                     }
-                                    CornerDragAction::Cancel => {
+                                    EditorInnerPanelDragAction::Cancel => {
                                         ed.panels.layout.end_editor_inner_panel_corner_drag();
                                     }
                                     _ => {}
@@ -247,19 +246,21 @@ impl Editor {
                     }
                     if ed.panels.layout.active_window_area_corner_drag.is_some() {
                         match ed.panels.layout.finish_window_area_corner_drag() {
-                            Some(CornerDragAction::Split {
-                                leaf_id,
+                            // Corner-drag split: same-kind area; Editor areas
+                            // seed the new area per `mode` (deep-copied tab
+                            // list + cloned inner layout, or a blank editor).
+                            Some(WindowAreaDragAction::Split {
+                                area_id,
                                 direction,
                                 ratio,
+                                mode,
                             }) => {
-                                ed.panels
-                                    .layout
-                                    .split_window_area_with_ratio(leaf_id, direction, ratio);
+                                ed.split_area(area_id, direction, ratio, mode, cx);
                             }
-                            Some(CornerDragAction::Join { from, into }) => {
-                                ed.panels.layout.join_window_area(into, from);
+                            Some(WindowAreaDragAction::Join { from_area, into_area }) => {
+                                ed.panels.layout.join_window_area(into_area, from_area);
                             }
-                            Some(CornerDragAction::Swap { from, to }) => {
+                            Some(WindowAreaDragAction::Swap { from, to }) => {
                                 ed.panels.layout.swap_window_area_kinds(from, to);
                             }
                             _ => {}
@@ -284,20 +285,26 @@ impl Editor {
                         match ed.panels.layout.finish_editor_inner_panel_corner_drag() {
                             Some((
                                 area_id,
-                                CornerDragAction::Split {
-                                    leaf_id,
+                                EditorInnerPanelDragAction::Split {
+                                    panel_id,
                                     direction,
                                     ratio,
                                 },
                             )) => {
                                 ed.panels.layout.split_editor_inner_panel_with_ratio(
-                                    area_id, leaf_id, direction, ratio,
+                                    area_id, panel_id, direction, ratio,
                                 );
                             }
-                            Some((area_id, CornerDragAction::Join { from, into })) => {
+                            Some((
+                                area_id,
+                                EditorInnerPanelDragAction::Join {
+                                    from_panel,
+                                    into_panel,
+                                },
+                            )) => {
                                 ed.panels
                                     .layout
-                                    .join_editor_inner_panel(area_id, into, from);
+                                    .join_editor_inner_panel(area_id, into_panel, from_panel);
                             }
                             _ => {}
                         }
@@ -318,7 +325,7 @@ impl Editor {
                     let leaf_rect = self
                         .panels
                         .layout
-                        .window_area_rect(drag.leaf_id, &leaf_rects);
+                        .window_area_rect(drag.target_id, &leaf_rects);
 
                     if let Some(leaf_rect) = leaf_rect {
                         // Horizontal split = left|right → draw a VERTICAL line
@@ -362,7 +369,7 @@ impl Editor {
                     }
                 }
                 CornerDragPreview::JoinPreview {
-                    target_leaf_id,
+                    target_id,
                     direction,
                 } => {
                     let viewport = window.viewport_size();
@@ -370,7 +377,7 @@ impl Editor {
                     let target_rect = self
                         .panels
                         .layout
-                        .window_area_rect(target_leaf_id, &leaf_rects);
+                        .window_area_rect(target_id, &leaf_rects);
 
                     if let Some(target_rect) = target_rect {
                         let arrow_symbol = match direction {
@@ -471,7 +478,7 @@ impl Editor {
                     }
                 }
                 CornerDragPreview::JoinPreview {
-                    target_leaf_id,
+                    target_id,
                     direction,
                 } => {
                     let viewport = window.viewport_size();
@@ -487,7 +494,7 @@ impl Editor {
                         if let Some(inner_rect) = self
                             .panels
                             .layout
-                            .window_area_rect(target_leaf_id, &inner_rects)
+                            .window_area_rect(target_id, &inner_rects)
                         {
                             let arrow_symbol = match direction {
                                 Direction::Up => "N",
@@ -546,7 +553,6 @@ impl Editor {
     pub(crate) fn render_window_area_node(
         &mut self,
         node: &crate::layout::SplitTree<crate::layout::WindowAreaKind>,
-        primary_content: &mut Option<AnyElement>,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -560,7 +566,6 @@ impl Editor {
             SplitTree::Leaf { id, kind } => self.render_window_area_tile(
                 *id,
                 *kind,
-                primary_content,
                 theme,
                 strings,
                 leaf_count,
@@ -581,7 +586,6 @@ impl Editor {
 
                 let first_elem = self.render_window_area_node(
                     first,
-                    primary_content,
                     theme,
                     strings,
                     leaf_count,
@@ -590,7 +594,6 @@ impl Editor {
                 );
                 let second_elem = self.render_window_area_node(
                     second,
-                    primary_content,
                     theme,
                     strings,
                     leaf_count,
@@ -747,7 +750,6 @@ impl Editor {
         &mut self,
         leaf_id: usize,
         kind: crate::layout::WindowAreaKind,
-        primary_content: &mut Option<AnyElement>,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -764,16 +766,11 @@ impl Editor {
             self.render_window_area_header(leaf_id, kind, theme, leaf_count, is_maximized, cx);
 
         let body: AnyElement = match kind {
-            WindowAreaKind::Editor => self.render_editor_inner_panel_container(
-                leaf_id,
-                primary_content,
-                theme,
-                strings,
-                window,
-                cx,
-            ),
-            WindowAreaKind::Explorer => self.render_explorer_panel(theme, strings, cx),
-            WindowAreaKind::Settings => self.render_tiled_settings_panel(theme, strings, cx),
+            WindowAreaKind::Editor => {
+                self.render_editor_inner_panel_container(leaf_id, theme, strings, window, cx)
+            }
+            WindowAreaKind::Explorer => self.render_explorer_panel(leaf_id, theme, strings, cx),
+            WindowAreaKind::Settings => self.render_tiled_settings_panel(leaf_id, theme, strings, cx),
         };
 
         let panel_status_bar = match kind {
@@ -791,6 +788,11 @@ impl Editor {
             .child(body);
 
         // Tile card with overflow hidden (no corner handles inside, to avoid clipping).
+        // Mouse interaction with any part of the tile marks it as the focused
+        // window area (visible via the focus border); Editor tiles additionally
+        // become the active editor.
+        let is_focused_area = self.panels.layout.focused_window_area == Some(leaf_id);
+        let tile_focus = cx.entity().downgrade();
         let mut tile_card = div()
             .id(("tiled-area-card", leaf_id))
             .w_full()
@@ -800,9 +802,26 @@ impl Editor {
             .relative()
             .rounded(px(radius))
             .bg(c.dialog_surface)
-            .border(px(d.dialog_border_width))
-            .border_color(c.dialog_border)
+            .border(px(if is_focused_area {
+                d.dialog_border_width.max(1.5)
+            } else {
+                d.dialog_border_width
+            }))
+            .border_color(if is_focused_area {
+                c.selection
+            } else {
+                c.dialog_border
+            })
             .shadow_lg()
+            .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                let _ = tile_focus.update(cx, |ed, cx| {
+                    ed.panels.layout.focused_window_area = Some(leaf_id);
+                    if kind == crate::layout::WindowAreaKind::Editor {
+                        ed.panels.layout.activate_editor_area(leaf_id);
+                    }
+                    cx.notify();
+                });
+            })
             .child(header)
             .child(body_container);
 
@@ -915,9 +934,8 @@ impl Editor {
             )
             .on_click(move |_event, _window, cx| {
                 let _ = split_h_editor.update(cx, |ed, cx| {
-                    ed.panels
-                        .layout
-                        .split_window_area(leaf_id, Axis::Horizontal);
+                    // Same-kind split; Editor areas deep-copy their tabs.
+                    ed.split_area(leaf_id, Axis::Horizontal, 0.5, AreaSplitMode::Copy, cx);
                     cx.notify();
                 });
             });
@@ -933,7 +951,8 @@ impl Editor {
             )
             .on_click(move |_event, _window, cx| {
                 let _ = split_v_editor.update(cx, |ed, cx| {
-                    ed.panels.layout.split_window_area(leaf_id, Axis::Vertical);
+                    // Same-kind split; Editor areas deep-copy their tabs.
+                    ed.split_area(leaf_id, Axis::Vertical, 0.5, AreaSplitMode::Copy, cx);
                     cx.notify();
                 });
             });
@@ -985,20 +1004,26 @@ impl Editor {
             actions = actions.child(max_button).child(close_button);
         }
 
-        // Build tab bar for Edit areas from the editor's document tabs.
+        // Build tab bar for Edit areas from THAT editor's own tab set.
         let mut left_section = div().flex().items_center().gap(px(8.0)).child(type_button);
 
         if kind == WindowAreaKind::Editor {
-            let active_tab = self.active_tab;
+            let list = self.tab_list_for(leaf_id);
+            let active_tab = list.active_tab;
+            let tab_names: Vec<String> = list
+                .tabs
+                .iter()
+                .map(|tab| {
+                    tab.file
+                        .path
+                        .as_ref()
+                        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
+                        .unwrap_or_else(|| "Untitled".to_string())
+                })
+                .collect();
 
             let mut tab_elements: Vec<AnyElement> = Vec::new();
-            for (index, tab) in self.tabs.iter().enumerate() {
-                let file_name = tab
-                    .file
-                    .path
-                    .as_ref()
-                    .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
-                    .unwrap_or_else(|| "Untitled".to_string());
+            for (index, file_name) in tab_names.iter().enumerate() {
                 let is_active = index == active_tab;
 
                 let tab_bg = if is_active {
@@ -1027,7 +1052,10 @@ impl Editor {
                                 .child(file_name.clone())
                                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                                     let _ = tab_editor.update(cx, |ed, cx| {
-                                        ed.activate_tab(index, cx);
+                                        ed.with_current_tab_area(leaf_id, |ed| {
+                                            ed.panels.layout.activate_editor_area(leaf_id);
+                                            ed.activate_tab(leaf_id, index, cx);
+                                        });
                                         cx.notify();
                                     });
                                 }),
@@ -1050,7 +1078,10 @@ impl Editor {
                                 )
                                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                                     let _ = close_editor.update(cx, |ed, cx| {
-                                        ed.close_tab(index, cx);
+                                        ed.with_current_tab_area(leaf_id, |ed| {
+                                            ed.panels.layout.activate_editor_area(leaf_id);
+                                            ed.close_tab(leaf_id, index, cx);
+                                        });
                                         cx.notify();
                                     });
                                 }),
@@ -1059,7 +1090,7 @@ impl Editor {
                 );
             }
 
-            // "+" button opens a fresh untitled tab.
+            // "+" button opens a fresh untitled tab in THIS editor.
             let add_editor = editor.clone();
             tab_elements.push(
                 div()
@@ -1075,7 +1106,10 @@ impl Editor {
                     .child("+")
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = add_editor.update(cx, |ed, cx| {
-                            ed.new_untitled_tab(cx);
+                            ed.with_current_tab_area(leaf_id, |ed| {
+                                ed.panels.layout.activate_editor_area(leaf_id);
+                                ed.new_untitled_tab(leaf_id, cx);
+                            });
                             cx.notify();
                         });
                     })
@@ -1213,9 +1247,13 @@ impl Editor {
                             .child("Split Horizontally")
                             .on_click(move |_event, _window, cx| {
                                 let _ = split_h_ed.update(cx, |ed, cx| {
-                                    ed.panels
-                                        .layout
-                                        .split_window_area(split_id, Axis::Horizontal);
+                                    ed.split_area(
+                                        split_id,
+                                        Axis::Horizontal,
+                                        0.5,
+                                        AreaSplitMode::Copy,
+                                        cx,
+                                    );
                                     cx.notify();
                                 });
                             }),
@@ -1228,7 +1266,13 @@ impl Editor {
                             .child("Split Vertically")
                             .on_click(move |_event, _window, cx| {
                                 let _ = split_v_ed.update(cx, |ed, cx| {
-                                    ed.panels.layout.split_window_area(split_id, Axis::Vertical);
+                                    ed.split_area(
+                                        split_id,
+                                        Axis::Vertical,
+                                        0.5,
+                                        AreaSplitMode::Copy,
+                                        cx,
+                                    );
                                     cx.notify();
                                 });
                             }),

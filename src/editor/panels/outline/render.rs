@@ -11,7 +11,9 @@ use crate::windows::explorer::state::ExplorerSelection;
 
 impl Editor {
     pub(crate) fn sync_explorer_outline(&mut self, cx: &mut Context<Self>) {
-        let source = self.serialized_document_text(cx);
+        let Some(source) = self.active_editor_serialized_text(cx) else {
+            return;
+        };
         if self.panels.explorer.outline_source.as_deref() == Some(source.as_str()) {
             return;
         }
@@ -27,6 +29,7 @@ impl Editor {
     }
     pub(crate) fn render_explorer_outline_tree(
         &self,
+        area_id: usize,
         theme: &Theme,
         strings: &I18nStrings,
         editor: &WeakEntity<Editor>,
@@ -42,6 +45,7 @@ impl Editor {
             .children(self.render_explorer_nodes(
                 &self.panels.explorer.outline_tree,
                 0,
+                area_id,
                 theme,
                 editor,
             ))
@@ -80,12 +84,14 @@ impl Editor {
     }
     pub(crate) fn render_tiled_outline_panel(
         &mut self,
+        area_id: usize,
+        _panel_id: usize,
         theme: &Theme,
         strings: &I18nStrings,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         self.sync_explorer_models(cx);
         let editor = cx.entity().downgrade();
-        self.render_explorer_outline_tree(theme, strings, &editor)
+        self.render_explorer_outline_tree(area_id, theme, strings, &editor)
     }
 }

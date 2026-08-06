@@ -19,6 +19,7 @@ use crate::windows::settings::state::SettingsTab;
 impl Editor {
     pub(crate) fn render_tiled_settings_panel(
         &mut self,
+        area_id: usize,
         theme: &Theme,
         _strings: &I18nStrings,
         cx: &mut Context<Self>,
@@ -38,8 +39,12 @@ impl Editor {
             let tab_item = *tab;
 
             left_nav_items.push(
-                nav_tab(("pref-tab", tab_idx), c, d)
-                    .id(("pref-tab", tab_idx))
+                nav_tab(
+                    ElementId::Name(format!("pref-tab-{area_id}-{tab_idx}").into()),
+                    c,
+                    d,
+                )
+                .id(ElementId::Name(format!("pref-tab-{area_id}-{tab_idx}").into()))
                     .cursor_pointer()
                     .flex()
                     .items_center()
@@ -136,7 +141,7 @@ impl Editor {
                 let td = &theme.dimensions;
 
                 let mut center_box = stepper_value()
-                    .id(ElementId::Name(format!("{}-center", id_dec).into()))
+                    .id(ElementId::Name(format!("{}-center-{}", id_dec, area_id).into()))
                     .bg(if is_editing {
                         tc.dialog_surface
                     } else {
@@ -171,7 +176,7 @@ impl Editor {
                 stepper_container(tc, td)
                     .child(
                         stepper_step_button(id_dec, tc)
-                            .id(id_dec)
+                            .id((id_dec, area_id))
                             .child("-")
                             .on_click(on_dec),
                     )
@@ -180,7 +185,7 @@ impl Editor {
                     .child(stepper_divider(tc))
                     .child(
                         stepper_step_button(id_inc, tc)
-                            .id(id_inc)
+                            .id((id_inc, area_id))
                             .child("+")
                             .on_click(on_inc),
                     )
@@ -198,7 +203,7 @@ impl Editor {
             let td = &theme.dimensions;
 
             let header = section_header()
-                .id(sec_id)
+                .id((sec_id, area_id))
                 .child(
                     svg()
                         .path(if is_expanded {
@@ -1135,7 +1140,7 @@ impl Editor {
         }
 
         let right_content = div()
-            .id("pref-right-content")
+            .id(("pref-right-content", area_id))
             .relative()
             .flex_1()
             .h_full()

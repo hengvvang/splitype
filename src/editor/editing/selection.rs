@@ -131,6 +131,10 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.has_active_tab() {
+            cx.propagate();
+            return;
+        }
         let Some(markdown) = self.cross_block_selected_markdown(cx) else {
             cx.propagate();
             return;
@@ -140,6 +144,10 @@ impl Editor {
     }
 
     pub(crate) fn on_cut_capture(&mut self, _: &Cut, _window: &mut Window, cx: &mut Context<Self>) {
+        if !self.has_active_tab() {
+            cx.propagate();
+            return;
+        }
         let Some(markdown) = self.cross_block_selected_markdown(cx) else {
             cx.propagate();
             return;
@@ -155,6 +163,10 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.has_active_tab() {
+            cx.propagate();
+            return;
+        }
         if !self.delete_cross_block_selection(cx) {
             cx.propagate();
             return;
@@ -168,6 +180,10 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.has_active_tab() {
+            cx.propagate();
+            return;
+        }
         if !self.delete_cross_block_selection(cx) {
             cx.propagate();
             return;

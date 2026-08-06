@@ -22,6 +22,8 @@ pub(crate) use crate::editor::tree::document::Document;
 pub(crate) use crate::editor::tree::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
+pub(crate) use crate::layout::state::{EditorTabList, ROOT_AREA_ID};
+pub(crate) use crate::layout::types::{AreaId, AreaSplitMode};
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::model::inline::text::RichText;
 pub(crate) use crate::model::syntax::image::{
@@ -179,10 +181,16 @@ pub(crate) struct DocumentTab {
 /// The editor subscribes to every [`BlockAction`](crate::editor::block_protocol::BlockAction)
 /// emitted by child blocks. Structural changes are handled centrally so focus,
 /// scrolling, dirty tracking, and serialization stay synchronized. Documents
-/// live in [`DocumentTab`]s; the editor always holds at least one tab.
+/// live in [`DocumentTab`]s, grouped per Editor area in the window layout:
+/// every Editor area owns an independent tab bar, and window-level operations
+/// (menus, chrome, explorer routing) target the ACTIVE editor — the last
+/// Editor area that received focus.
 pub struct Editor {
-    pub(crate) tabs: Vec<DocumentTab>,
-    pub(crate) active_tab: usize,
+    /// Transient routing hint: the Editor area whose tab list `tab()` /
+    /// `doc()` currently resolve to. Set by per-area render/event handlers
+    /// and cleared by window-level entry points, which then resolve to the
+    /// active editor.
+    pub(crate) current_tab_area: Option<AreaId>,
     pub(crate) chrome: WindowChrome,
     pub(crate) panels: WindowPanels,
 }
@@ -315,19 +323,30 @@ impl Editor {
     pub(crate) const RENDERED_SELECT_ALL_CYCLE_WINDOW: Duration = Duration::from_millis(750);
 
     /// Creates an editor with no document tabs — the welcome state shown
-    /// before any file is opened or an Untitled tab is started.
+    /// before any file is opened or an Untitled tab is started. The default
+    /// layout seeds one root Editor area with an empty tab bar.
     pub fn empty(_cx: &mut Context<Self>) -> Self {
         Self {
-            tabs: Vec::new(),
-            active_tab: 0,
+            current_tab_area: None,
             chrome: WindowChrome::default(),
             panels: WindowPanels::default(),
         }
+        .with_seeded_root_editor()
     }
 
-    /// True when the editor has no document tabs (welcome state).
+    /// Seed the root Editor area as the (empty) active editor.
+    fn with_seeded_root_editor(mut self) -> Self {
+        self.panels.layout.ensure_editor_tab_list(ROOT_AREA_ID);
+        self.panels.layout.activate_editor_area(ROOT_AREA_ID);
+        self
+    }
+
+    /// True when the active editor has at least one document tab.
     pub(crate) fn has_active_tab(&self) -> bool {
-        !self.tabs.is_empty()
+        self.panels
+            .layout
+            .active_editor_tab_list()
+            .is_some_and(|list| !list.tabs.is_empty())
     }
 
     pub fn from_markdown(
@@ -337,11 +356,18 @@ impl Editor {
     ) -> Self {
         let tab = Self::new_tab_from_markdown(cx, markdown, file_path);
         let mut editor = Self {
-            tabs: vec![tab],
-            active_tab: 0,
+            current_tab_area: None,
             chrome: WindowChrome::default(),
             panels: WindowPanels::default(),
         };
+        // Seed the root Editor area with the initial tab.
+        editor
+            .panels
+            .layout
+            .ensure_editor_tab_list(ROOT_AREA_ID)
+            .tabs
+            .push(tab);
+        editor.panels.layout.activate_editor_area(ROOT_AREA_ID);
         editor.rebuild_table_runtimes(cx);
         editor.rebuild_image_runtimes(cx);
         editor.refresh_preview_blocks(cx);
@@ -396,21 +422,21 @@ impl Editor {
         }
     }
 
-    /// Activates the tab at `index`, restoring its focus and window chrome.
-    /// The pending focus is consumed by the next render frame's
-    /// `apply_pending_focus`.
-    pub(crate) fn activate_tab(&mut self, index: usize, cx: &mut Context<Self>) {
-        if index >= self.tabs.len() {
+    /// Activates the tab at `index` in the given Editor area, restoring
+    /// its focus and window chrome.
+    pub(crate) fn activate_tab(&mut self, area_id: AreaId, index: usize, cx: &mut Context<Self>) {
+        let list = self.panels.layout.ensure_editor_tab_list(area_id);
+        if index >= list.tabs.len() {
             return;
         }
         // Also reachable right after the first tab is pushed onto an empty
         // editor (welcome state) — notify so the new document renders.
-        if index == self.active_tab {
+        if index == list.active_tab {
             cx.notify();
             return;
         }
-        self.active_tab = index;
-        let tab = self.tab_mut();
+        list.active_tab = index;
+        let tab = &mut list.tabs[index];
         if tab.focus.pending.is_none() {
             tab.focus.pending = tab.focus.active_entity;
         }
@@ -419,20 +445,26 @@ impl Editor {
         cx.notify();
     }
 
-    /// Opens a file: activates its tab if already open, otherwise loads a
-    /// new tab from disk.
-    pub(crate) fn open_path_in_tab(
+    /// Opens a file in the given Editor area: activates its tab if already
+    /// open, otherwise loads a new tab from disk.
+    pub(crate) fn open_file_in_area(
         &mut self,
+        area_id: AreaId,
         path: &std::path::Path,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let Some(index) = self
-            .tabs
-            .iter()
-            .position(|t| t.file.path.as_deref() == Some(path))
-        {
-            self.activate_tab(index, cx);
+        let already_open = self
+            .panels
+            .layout
+            .editor_tab_list(area_id)
+            .and_then(|list| {
+                list.tabs
+                    .iter()
+                    .position(|t| t.file.path.as_deref() == Some(path))
+            });
+        if let Some(index) = already_open {
+            self.activate_tab(area_id, index, cx);
             return;
         }
 
@@ -448,65 +480,125 @@ impl Editor {
             }
         };
         let markdown = String::from_utf8_lossy(&bytes).to_string();
-        self.tabs.push(Self::new_tab_from_markdown(
+        let list = self.panels.layout.ensure_editor_tab_list(area_id);
+        list.tabs.push(Self::new_tab_from_markdown(
             cx,
             markdown,
             Some(path.to_path_buf()),
         ));
-        self.activate_tab(self.tabs.len() - 1, cx);
+        let last = list.tabs.len() - 1;
+        self.activate_tab(area_id, last, cx);
         crate::app::menus::record_recent_file_from_editor(path, cx);
     }
 
-    /// Opens a fresh untitled tab (temporary document without a path).
-    pub(crate) fn new_untitled_tab(&mut self, cx: &mut Context<Self>) {
-        self.tabs
+    /// Opens a file in the ACTIVE editor's tab bar. Returns `false` when no
+    /// Editor area exists (the caller decides how to handle that case).
+    pub(crate) fn open_file_in_active_editor(
+        &mut self,
+        path: &std::path::Path,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        if let Some(area) = self.panels.layout.active_editor_area {
+            self.open_file_in_area(area, path, window, cx);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Opens a fresh untitled tab in the given Editor area.
+    pub(crate) fn new_untitled_tab(&mut self, area_id: AreaId, cx: &mut Context<Self>) {
+        let list = self.panels.layout.ensure_editor_tab_list(area_id);
+        list.tabs
             .push(Self::new_tab_from_markdown(cx, String::new(), None));
-        self.activate_tab(self.tabs.len() - 1, cx);
+        let last = list.tabs.len() - 1;
+        self.activate_tab(area_id, last, cx);
     }
 
-    /// Enters temporary editing from the welcome prompt: opens a fresh
-    /// Untitled tab. Only reachable while the editor has no tabs.
-    pub(crate) fn begin_untitled_editing(&mut self, cx: &mut Context<Self>) {
-        self.new_untitled_tab(cx);
-    }
-
-    /// Closes the tab at `index`, activating a neighbor. Closing the last
-    /// tab leaves the editor back in the welcome state (no tabs).
-    pub(crate) fn close_tab(&mut self, index: usize, cx: &mut Context<Self>) {
-        if index >= self.tabs.len() {
+    /// Closes the tab at `index` in the given Editor area, activating a
+    /// neighbor. Closing the last tab leaves the area back in the welcome
+    /// state (no tabs).
+    pub(crate) fn close_tab(&mut self, area_id: AreaId, index: usize, cx: &mut Context<Self>) {
+        let Some(list) = self.panels.layout.editor_tab_lists.get_mut(&area_id) else {
+            return;
+        };
+        if index >= list.tabs.len() {
             return;
         }
-        let was_active = index == self.active_tab;
-        self.tabs.remove(index);
-        if self.tabs.is_empty() {
-            self.active_tab = 0;
+        let was_active = index == list.active_tab;
+        list.tabs.remove(index);
+        if list.tabs.is_empty() {
+            list.active_tab = 0;
             cx.notify();
             return;
         }
         if was_active {
-            self.active_tab = index.min(self.tabs.len() - 1);
-            let tab = self.tab_mut();
+            list.active_tab = index.min(list.tabs.len() - 1);
+            let tab = &mut list.tabs[list.active_tab];
             if tab.focus.pending.is_none() {
                 tab.focus.pending = tab.focus.active_entity;
             }
             tab.file.pending_window_title_refresh = true;
             tab.file.pending_window_edited = true;
-        } else if index < self.active_tab {
-            self.active_tab -= 1;
+        } else if index < list.active_tab {
+            list.active_tab -= 1;
         }
         cx.notify();
     }
 }
 
 impl Editor {
-    /// The active document tab.
+    /// The Editor area that `tab()` / `doc()` currently resolve to: the
+    /// transient per-area render/event context if set, else the active
+    /// editor.
+    pub(crate) fn routed_tab_area(&self) -> Option<AreaId> {
+        self.current_tab_area.or(self.panels.layout.active_editor_area)
+    }
+
+    /// Run `f` with the routing hint set to `area_id`, restoring the
+    /// previous context afterwards. Per-area event handlers use this so
+    /// their `tab()`/`doc()` access hits the owning editor area regardless
+    /// of which editor is currently active.
+    pub(crate) fn with_current_tab_area<R>(
+        &mut self,
+        area_id: AreaId,
+        f: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let previous = self.current_tab_area;
+        self.current_tab_area = Some(area_id);
+        let result = f(self);
+        self.current_tab_area = previous;
+        result
+    }
+
+    /// The active document tab (of the routed editor area).
     pub(crate) fn tab(&self) -> &DocumentTab {
-        &self.tabs[self.active_tab]
+        let area = self
+            .routed_tab_area()
+            .expect("tab() requires an active editor area");
+        let list = self
+            .panels
+            .layout
+            .editor_tab_lists
+            .get(&area)
+            .expect("routed editor area has no tab list");
+        &list.tabs[list.active_tab]
     }
 
     /// The active document tab, mutably.
     pub(crate) fn tab_mut(&mut self) -> &mut DocumentTab {
-        &mut self.tabs[self.active_tab]
+        let area = self
+            .routed_tab_area()
+            .expect("tab_mut() requires an active editor area");
+        let list = self
+            .panels
+            .layout
+            .editor_tab_lists
+            .get_mut(&area)
+            .expect("routed editor area has no tab list");
+        let index = list.active_tab;
+        &mut list.tabs[index]
     }
 
     /// The active tab's document.
@@ -517,5 +609,161 @@ impl Editor {
     /// The active tab's document, mutably.
     pub(crate) fn doc_mut(&mut self) -> &mut Document {
         &mut self.tab_mut().document
+    }
+
+    // ------------------------------------------------------------------
+    // Per-area tab access (independent editors)
+    // ------------------------------------------------------------------
+
+    /// True when the given Editor area has at least one document tab.
+    pub(crate) fn area_has_tabs(&self, area_id: AreaId) -> bool {
+        self.panels
+            .layout
+            .editor_tab_list(area_id)
+            .is_some_and(|list| !list.tabs.is_empty())
+    }
+
+    /// The given Editor area's tab list. Panics if the area never got one
+    /// (rendering code must call `ensure_editor_tab_list` first).
+    pub(crate) fn tab_list_for(&self, area_id: AreaId) -> &EditorTabList {
+        self.panels
+            .layout
+            .editor_tab_lists
+            .get(&area_id)
+            .unwrap_or_else(|| panic!("no tab list for editor area {area_id}"))
+    }
+
+    /// The given Editor area's tab list, created on demand.
+    pub(crate) fn tab_list_mut_for(&mut self, area_id: AreaId) -> &mut EditorTabList {
+        self.panels.layout.ensure_editor_tab_list(area_id)
+    }
+
+    /// The given Editor area's active tab.
+    pub(crate) fn tab_for(&self, area_id: AreaId) -> &DocumentTab {
+        let list = self.tab_list_for(area_id);
+        &list.tabs[list.active_tab]
+    }
+
+    /// The given Editor area's active tab, mutably.
+    pub(crate) fn tab_mut_for(&mut self, area_id: AreaId) -> &mut DocumentTab {
+        let list = self.panels.layout.ensure_editor_tab_list(area_id);
+        let index = list.active_tab;
+        &mut list.tabs[index]
+    }
+
+    /// The active editor's tab, if an active editor with tabs exists.
+    pub(crate) fn active_editor_tab(&self) -> Option<&DocumentTab> {
+        let list = self.panels.layout.active_editor_tab_list()?;
+        list.tabs.get(list.active_tab)
+    }
+
+    /// The active editor's serialized document text, if any.
+    pub(crate) fn active_editor_serialized_text(&self, cx: &App) -> Option<String> {
+        let tab = self.active_editor_tab()?;
+        Some(if tab.mode == EditorMode::SourceCode {
+            tab.document.to_raw_source(cx)
+        } else {
+            tab.document.to_markdown(cx)
+        })
+    }
+
+    /// Serialize the given Editor area's active document.
+    pub(crate) fn serialized_document_text_for(&self, area_id: AreaId, cx: &App) -> String {
+        let tab = self.tab_for(area_id);
+        if tab.mode == EditorMode::SourceCode {
+            tab.document.to_raw_source(cx)
+        } else {
+            tab.document.to_markdown(cx)
+        }
+    }
+
+    /// Split `area_id` with a same-kind sibling and seed the new Editor
+    /// area per `mode`: [`AreaSplitMode::Copy`] deep-copies the source tab
+    /// list (and the layout clones the inner panel layout);
+    /// [`AreaSplitMode::Fresh`] leaves the new editor blank. Returns the
+    /// new area's id.
+    pub(crate) fn split_area(
+        &mut self,
+        area_id: AreaId,
+        direction: crate::layout::Axis,
+        ratio: f32,
+        mode: AreaSplitMode,
+        cx: &mut Context<Self>,
+    ) -> Option<AreaId> {
+        let new_id = self
+            .panels
+            .layout
+            .split_window_area(area_id, direction, ratio, mode)?;
+        if mode == AreaSplitMode::Copy {
+            self.copy_editor_tab_list(area_id, new_id, cx);
+        }
+        Some(new_id)
+    }
+
+    /// Deep-copy the source Editor area's tab list into `dst`: every tab is
+    /// re-materialized from its serialized document, so the two editors are
+    /// fully independent (separate undo, focus, scroll, and dirty state).
+    fn copy_editor_tab_list(
+        &mut self,
+        src: AreaId,
+        dst: AreaId,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(source) = self.panels.layout.editor_tab_lists.get(&src) else {
+            // Source never got a tab list (e.g. a non-Editor area): the
+            // copy is a blank editor.
+            self.panels.layout.ensure_editor_tab_list(dst);
+            return;
+        };
+        if source.tabs.is_empty() {
+            // Welcome-state editor: the copy is another welcome-state
+            // editor — there is nothing to rebuild for it.
+            self.panels.layout.ensure_editor_tab_list(dst);
+            return;
+        }
+        let mut copies: Vec<(String, Option<PathBuf>, EditorMode, bool)> = Vec::new();
+        for tab in &source.tabs {
+            let text = if tab.mode == EditorMode::SourceCode {
+                tab.document.to_raw_source(cx)
+            } else {
+                tab.document.to_markdown(cx)
+            };
+            copies.push((text, tab.file.path.clone(), tab.mode, tab.file.dirty));
+        }
+        let active = source.active_tab;
+        let mut list = EditorTabList {
+            tabs: Vec::with_capacity(copies.len()),
+            active_tab: 0,
+        };
+        for (text, path, mode, dirty) in copies {
+            let mut tab = Self::new_tab_from_markdown(cx, text, path);
+            tab.mode = mode;
+            tab.file.dirty = dirty;
+            list.tabs.push(tab);
+        }
+        list.active_tab = active.min(list.tabs.len().saturating_sub(1));
+        self.panels.layout.editor_tab_lists.insert(dst, list);
+
+        // Rebuild the copied area's runtime registries under its routing
+        // context, then restore the previous context.
+        let previous = self.current_tab_area;
+        self.current_tab_area = Some(dst);
+        self.rebuild_table_runtimes(cx);
+        self.rebuild_image_runtimes(cx);
+        self.refresh_preview_blocks(cx);
+        self.tab_mut().focus.pending = self.first_focusable_entity_id(cx);
+        self.current_tab_area = previous;
+    }
+
+    /// First dirty tab across ALL editor areas, if any.
+    pub(crate) fn first_dirty_tab(&self) -> Option<(AreaId, usize)> {
+        for (area, list) in &self.panels.layout.editor_tab_lists {
+            for (index, tab) in list.tabs.iter().enumerate() {
+                if tab.file.dirty {
+                    return Some((*area, index));
+                }
+            }
+        }
+        None
     }
 }

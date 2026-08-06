@@ -32,7 +32,8 @@ use crate::theme::Theme;
 impl Editor {
     pub(crate) fn render_tiled_preview_panel(
         &mut self,
-        _primary_content: &mut Option<AnyElement>,
+        area_id: usize,
+        panel_id: usize,
         theme: &Theme,
         _strings: &I18nStrings,
         window: &mut Window,
@@ -60,7 +61,9 @@ impl Editor {
             .bg(c.editor_background)
             .child(
                 div()
-                    .id("tiled-preview-scroll")
+                    .id(ElementId::Name(
+                        format!("tiled-preview-scroll-{area_id}-{panel_id}").into(),
+                    ))
                     .w_full()
                     .h_full()
                     .flex()

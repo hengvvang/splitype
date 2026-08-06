@@ -216,7 +216,7 @@ impl Editor {
         // Welcome state (no tabs): open the file in a fresh tab instead of
         // replacing the current document.
         if !self.has_active_tab() {
-            self.open_path_in_tab(&path, window, cx);
+            self.open_file_in_active_editor(&path, window, cx);
             return;
         }
 

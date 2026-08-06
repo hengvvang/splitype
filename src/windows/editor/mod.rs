@@ -82,8 +82,7 @@ impl Editor {
 
     pub(crate) fn install_close_guard(&mut self, cx: &mut Context<Self>, window: &mut Window) {
         if self
-            .tabs
-            .get(self.active_tab)
+            .active_editor_tab()
             .is_some_and(|tab| tab.file.close_guard_installed)
         {
             return;
@@ -103,8 +102,12 @@ impl Editor {
                 .update(cx, |this, cx| this.on_window_should_close(window, cx))
                 .unwrap_or(true)
         });
-        if let Some(tab) = self.tabs.get_mut(self.active_tab) {
-            tab.file.close_guard_installed = true;
+        if let Some(area) = self.panels.layout.active_editor_area {
+            if let Some(set) = self.panels.layout.editor_tab_lists.get_mut(&area) {
+                if let Some(tab) = set.tabs.get_mut(set.active_tab) {
+                    tab.file.close_guard_installed = true;
+                }
+            }
         }
     }
 
@@ -271,33 +274,31 @@ impl Editor {
 
 impl Render for Editor {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // Welcome state: no document tabs. Render only the chrome and the
-        // tiled panels (each panel shows the welcome prompt); every
-        // document-dependent sync below would panic on an empty tab list.
-        if !self.has_active_tab() {
-            return self.render_welcome_window(window, cx);
+        // Window-level rendering runs without a routing hint, so tab()/doc()
+        // resolve to the ACTIVE editor. Each Editor area renders its own
+        // document view via `render_document_view` under a per-area hint.
+        self.current_tab_area = None;
+
+        if self.has_active_tab() {
+            self.install_close_guard(cx, window);
+            self.apply_pending_focus(window, cx);
+            self.apply_pending_scroll_into_view(window, cx);
+            self.tab_mut().undo.last_selection_snapshot =
+                self.capture_source_selection_snapshot(cx);
+            self.sync_pending_save(window, cx);
+            self.sync_pending_save_as(window, cx);
+            self.sync_pending_open_link(window, cx);
+            self.sync_window_edited_state(window);
         }
-
-        self.install_close_guard(cx, window);
-        self.apply_pending_focus(window, cx);
-        self.apply_pending_scroll_into_view(window, cx);
-        self.tab_mut().undo.last_selection_snapshot = self.capture_source_selection_snapshot(cx);
-        self.sync_pending_save(window, cx);
-        self.sync_pending_save_as(window, cx);
-        self.sync_pending_open_link(window, cx);
-        self.sync_window_edited_state(window);
-
-        let viewport_bounds = self.tab().scroll.handle.bounds();
-        let viewport_size = viewport_bounds.size;
-        self.sync_scroll_viewport(viewport_size, cx);
 
         let theme = cx.global::<ThemeManager>().current_arc();
         let strings = cx.global::<I18nManager>().strings_arc();
-        self.sync_window_title(window, &strings);
+        if self.has_active_tab() {
+            self.sync_window_title(window, &strings);
+        }
 
         let d = &theme.dimensions;
-        let blocks = self.doc().blocks().to_vec();
-        let editor = cx.entity().downgrade();
+        let _editor = cx.entity().downgrade();
         let has_menus = cx
             .get_menus()
             .map(|menus| !menus.is_empty())
@@ -305,6 +306,159 @@ impl Render for Editor {
         let titlebar_height = custom_titlebar_height(window, d);
         let _menu_bar_height =
             in_window_menu_bar_height_for_target_os(std::env::consts::OS, has_menus, d);
+
+        // Repaint when the Cmd/Ctrl follow modifier toggles so a hovered link's
+        // hand cursor updates without moving the pointer. `ModifiersChanged` is
+        // dispatched along the focused element's path to the root, and this root
+        // is an ancestor of every block, so one listener here covers a link in any
+        // block while editing. Gated to the secondary modifier so Shift during
+        // selection does not repaint.
+        let follow_modifier_active = window.modifiers().secondary();
+
+        let base = div()
+            .w_full()
+            .h_full()
+            .flex()
+            .flex_col()
+            .relative()
+            .bg(theme.colors.editor_background)
+            .font(editor_text_font())
+            .on_modifiers_changed(move |event, window, _| {
+                if event.modifiers.secondary() != follow_modifier_active {
+                    window.refresh();
+                }
+            })
+            .capture_action(cx.listener(Self::on_copy_capture))
+            .capture_action(cx.listener(Self::on_cut_capture))
+            .capture_action(cx.listener(Self::on_delete_capture))
+            .capture_action(cx.listener(Self::on_delete_back_capture))
+            .capture_key_down(cx.listener(Self::on_editor_key_down_capture))
+            .on_action(cx.listener(Self::on_undo))
+            .on_action(cx.listener(Self::on_redo))
+            .on_action(cx.listener(Self::on_save_document))
+            .on_action(cx.listener(Self::on_save_document_as))
+            .on_action(cx.listener(Self::on_export_html))
+            .on_action(cx.listener(Self::on_export_pdf))
+            .on_action(cx.listener(Self::on_quit_application))
+            .on_action(cx.listener(Self::on_close_window))
+            .on_action(cx.listener(Self::on_toggle_view_mode_action))
+            .on_action(cx.listener(Self::on_toggle_explorer_action))
+            .on_action(cx.listener(Self::on_close_explorer_folder_action))
+            .on_action(cx.listener(Self::on_page_up))
+            .on_action(cx.listener(Self::on_page_down))
+            .on_action(cx.listener(Self::on_jump_to_top))
+            .on_action(cx.listener(Self::on_jump_to_bottom))
+            .on_action(cx.listener(Self::on_dismiss_transient_ui))
+            .on_action(cx.listener(Self::on_install_cli_tool))
+            .on_action(cx.listener(Self::on_uninstall_cli_tool));
+        // Fetch menus + collect labels once for both renderers; previously each
+        // of render_in_window_menu_bar / render_in_window_menu_panel called
+        // cx.get_menus() and walked menus.iter().map(|m| m.name.to_string())
+        // independently — two redundant Vec<OwnedMenu> + two redundant
+        // Vec<String>-of-N-allocations per frame.
+        let menus = supports_in_window_menu()
+            .then(|| cx.get_menus())
+            .flatten()
+            .filter(|m| !m.is_empty());
+        let menu_labels: Vec<SharedString> = menus
+            .as_ref()
+            .map(|m| m.iter().map(|menu| menu.name.clone()).collect())
+            .unwrap_or_default();
+        // The titlebar never shows a title text; the window title lives in the
+        // OS title bar / task bar via `sync_window_title`.
+        let window_title: SharedString = SharedString::new("");
+        let inline_menu =
+            self.render_inline_titlebar_menu(&theme, cx, menus.as_deref(), &menu_labels);
+        let base = if let Some(titlebar) = render_custom_titlebar(
+            "editor-titlebar",
+            window_title,
+            inline_menu,
+            &theme,
+            window,
+            cx,
+            Self::on_titlebar_close,
+        ) {
+            base.child(titlebar)
+        } else {
+            base
+        };
+        let main_content = div()
+            .w_full()
+            .flex_1()
+            .min_h(px(0.0))
+            .pt(px(titlebar_height))
+            .flex()
+            .min_w(px(0.0))
+            .child(self.render_tiled_layout(&theme, &strings, window, cx));
+        let base = base.child(main_content);
+        let base = if let Some(menu_panel) = self.render_in_window_menu_panel(
+            &theme,
+            cx,
+            menus.as_deref(),
+            &menu_labels,
+            titlebar_height,
+            f32::from(window.viewport_size().height.max(px(1.0))),
+        ) {
+            base.child(menu_panel)
+        } else {
+            base
+        };
+        let base = if let Some(context_menu) = self.render_context_menu_overlay(&theme, cx) {
+            base.child(context_menu)
+        } else {
+            base
+        };
+        let base = if let Some(table_dialog) = self.render_table_insert_dialog_overlay(&theme, cx) {
+            base.child(table_dialog)
+        } else {
+            base
+        };
+        // Dialog overlays read the ACTIVE editor's tab state.
+        self.current_tab_area = None;
+        if let Some(kind) = self.chrome.info_dialog {
+            base.child(self.render_info_dialog_overlay(&theme, kind, cx))
+        } else if self
+            .active_editor_tab()
+            .is_some_and(|tab| tab.file.show_drop_replace_dialog)
+        {
+            base.child(self.render_drop_replace_overlay(&theme, cx))
+        } else if self
+            .active_editor_tab()
+            .is_some_and(|tab| tab.file.show_unsaved_changes_dialog)
+        {
+            base.child(self.render_unsaved_changes_overlay(&theme, cx))
+        } else {
+            base
+        }
+        .into_any_element()
+    }
+}
+
+impl Editor {
+    /// Builds one Editor area's WYSIWYG document view: the scrollable block
+    /// editor. Runs under a per-area routing hint so every document-state
+    /// access hits THIS editor's tab set; the hint is restored afterwards so
+    /// window-level code still resolves to the active editor.
+    pub(crate) fn render_document_view(
+        &mut self,
+        area_id: usize,
+        panel_id: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let previous = self.current_tab_area;
+        self.current_tab_area = Some(area_id);
+
+        let viewport_bounds = self.tab().scroll.handle.bounds();
+        let viewport_size = viewport_bounds.size;
+        self.apply_pending_focus(window, cx);
+        self.apply_pending_scroll_into_view(window, cx);
+        self.sync_scroll_viewport(viewport_size, cx);
+
+        let theme = cx.global::<ThemeManager>().current_arc();
+        let d = &theme.dimensions;
+        let blocks = self.doc().blocks().to_vec();
+        let editor = cx.entity().downgrade();
         let scroll_trigger_padding = (d.block_min_height * 0.75).max(16.0);
         let max_scroll_y = f32::from(self.tab().scroll.handle.max_offset().height.max(px(0.0)));
         let viewport_height = f32::from(viewport_bounds.size.height.max(px(1.0)));
@@ -380,14 +534,18 @@ impl Render for Editor {
                                 let entity_id = entity.entity_id();
                                 row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
                                     let _ = row_editor.update(cx, |editor, cx| {
-                                        editor.on_block_context_menu_mouse_down(
-                                            entity_id, event, window, cx,
-                                        );
+                                        editor.with_current_tab_area(area_id, |editor| {
+                                            editor.panels.layout.activate_editor_area(area_id);
+                                            editor.on_block_context_menu_mouse_down(
+                                                entity_id, event, window, cx,
+                                            );
+                                        });
                                     });
                                 })
                             } else {
                                 row
                             };
+
                             footnote_children.push(row.into_any_element());
                             previous_footnote_row = Some(footnote_spacing);
                             footnote_end += 1;
@@ -425,8 +583,12 @@ impl Render for Editor {
                         let entity_id = entity.entity_id();
                         row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
                             let _ = row_editor.update(cx, |editor, cx| {
-                                editor
-                                    .on_block_context_menu_mouse_down(entity_id, event, window, cx);
+                                editor.with_current_tab_area(area_id, |editor| {
+                                    editor.panels.layout.activate_editor_area(area_id);
+                                    editor.on_block_context_menu_mouse_down(
+                                        entity_id, event, window, cx,
+                                    );
+                                });
                             });
                         })
                     } else {
@@ -481,8 +643,12 @@ impl Render for Editor {
                         let entity_id = entity.entity_id();
                         row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
                             let _ = row_editor.update(cx, |editor, cx| {
-                                editor
-                                    .on_block_context_menu_mouse_down(entity_id, event, window, cx);
+                                editor.with_current_tab_area(area_id, |editor| {
+                                    editor.panels.layout.activate_editor_area(area_id);
+                                    editor.on_block_context_menu_mouse_down(
+                                        entity_id, event, window, cx,
+                                    );
+                                });
                             });
                         })
                     } else {
@@ -521,7 +687,12 @@ impl Render for Editor {
                 let entity_id = entity.entity_id();
                 row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
                     let _ = row_editor.update(cx, |editor, cx| {
-                        editor.on_block_context_menu_mouse_down(entity_id, event, window, cx);
+                        editor.with_current_tab_area(area_id, |editor| {
+                            editor.panels.layout.activate_editor_area(area_id);
+                            editor.on_block_context_menu_mouse_down(
+                                entity_id, event, window, cx,
+                            );
+                        });
                     });
                 })
             } else {
@@ -667,7 +838,9 @@ impl Render for Editor {
         }
 
         let scroll_content = div()
-            .id("editor-scroll-inner")
+            .id(ElementId::Name(
+                format!("editor-scroll-inner-{area_id}-{panel_id}").into(),
+            ))
             .flex()
             .flex_col()
             .flex_grow()
@@ -677,13 +850,51 @@ impl Render for Editor {
             .overflow_y_scroll()
             .scrollbar_width(px(0.0))
             .track_scroll(&self.tab().scroll.handle)
-            .on_hover(cx.listener(Self::on_editor_hover))
-            .capture_any_mouse_down(cx.listener(Self::on_editor_capture_mouse_down))
-            .on_mouse_down(MouseButton::Left, cx.listener(Self::on_editor_mouse_down))
-            .on_mouse_move(cx.listener(Self::on_editor_mouse_move))
-            .on_mouse_up(MouseButton::Left, cx.listener(Self::on_editor_mouse_up))
-            .on_mouse_up_out(MouseButton::Left, cx.listener(Self::on_editor_mouse_up))
-            .on_scroll_wheel(cx.listener(Self::on_editor_scroll_wheel))
+            .can_drop(|dragged, _window, _cx| dragged.is::<ExternalPaths>())
+            .on_drop::<ExternalPaths>(cx.listener(move |this, paths, window, cx| {
+                // Dropping into this editor activates it and routes the
+                // replace flow to ITS tab set.
+                this.with_current_tab_area(area_id, |this| {
+                    this.panels.layout.activate_editor_area(area_id);
+                    this.on_external_paths_drop(paths, window, cx);
+                });
+            }))
+            .on_hover(cx.listener(move |this, hovered, window, cx| {
+                this.with_current_tab_area(area_id, |this| {
+                    this.on_editor_hover(hovered, window, cx);
+                });
+            }))
+            .capture_any_mouse_down(cx.listener(move |this, event, window, cx| {
+                this.with_current_tab_area(area_id, |this| {
+                    this.on_editor_capture_mouse_down(event, window, cx);
+                });
+            }))
+            .on_mouse_down(MouseButton::Left, cx.listener(move |this, event, window, cx| {
+                this.with_current_tab_area(area_id, |this| {
+                    this.panels.layout.activate_editor_area(area_id);
+                    this.on_editor_mouse_down(event, window, cx);
+                });
+            }))
+            .on_mouse_move(cx.listener(move |this, event, window, cx| {
+                this.with_current_tab_area(area_id, |this| {
+                    this.on_editor_mouse_move(event, window, cx);
+                });
+            }))
+            .on_mouse_up(MouseButton::Left, cx.listener(move |this, event, window, cx| {
+                this.with_current_tab_area(area_id, |this| {
+                    this.on_editor_mouse_up(event, window, cx);
+                });
+            }))
+            .on_mouse_up_out(MouseButton::Left, cx.listener(move |this, event, window, cx| {
+                this.with_current_tab_area(area_id, |this| {
+                    this.on_editor_mouse_up(event, window, cx);
+                });
+            }))
+            .on_scroll_wheel(cx.listener(move |this, event, window, cx| {
+                this.with_current_tab_area(area_id, |this| {
+                    this.on_editor_scroll_wheel(event, window, cx);
+                });
+            }))
             .p(px(d.editor_padding))
             .pb(px(d.editor_padding
                 + scroll_trigger_padding
@@ -692,14 +903,19 @@ impl Render for Editor {
         let scroll_content = if self.tab().mode == EditorMode::Wysiwyg {
             scroll_content.on_mouse_down(
                 MouseButton::Right,
-                cx.listener(Self::on_editor_context_menu_mouse_down),
+                cx.listener(move |this, event, window, cx| {
+                    this.with_current_tab_area(area_id, |this| {
+                        this.panels.layout.activate_editor_area(area_id);
+                        this.on_editor_context_menu_mouse_down(event, window, cx);
+                    });
+                }),
             )
         } else {
             scroll_content
         };
 
         let content_area = div()
-            .id("editor-scroll")
+            .id(ElementId::Name(format!("editor-scroll-{area_id}-{panel_id}").into()))
             .w_full()
             .h_full()
             .flex_1()
@@ -713,7 +929,9 @@ impl Render for Editor {
             let track_origin_y = f32::from(viewport_bounds.origin.y);
             content_area.child(
                 div()
-                    .id("editor-scrollbar-thumb")
+                    .id(ElementId::Name(
+                        format!("editor-scrollbar-thumb-{area_id}-{panel_id}").into(),
+                    ))
                     .absolute()
                     .occlude()
                     .top(px(thumb_top))
@@ -723,19 +941,26 @@ impl Render for Editor {
                     .rounded(px(999.0))
                     .bg(theme.colors.scrollbar_thumb)
                     .cursor_pointer()
-                    .on_hover(cx.listener(Self::on_editor_hover))
+                    .on_hover(cx.listener(move |this, hovered, window, cx| {
+                        this.with_current_tab_area(area_id, |this| {
+                            this.on_editor_hover(hovered, window, cx);
+                        });
+                    }))
                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                         let pointer_offset_y =
                             f32::from(event.position.y) - track_origin_y - thumb_top;
                         let _ = scrollbar_editor.update(cx, |editor, cx| {
                             cx.stop_propagation();
-                            editor.start_scrollbar_drag(
-                                pointer_offset_y,
-                                track_height,
-                                thumb_height,
-                                max_scroll_y,
-                                cx,
-                            );
+                            editor.with_current_tab_area(area_id, |editor| {
+                                editor.panels.layout.activate_editor_area(area_id);
+                                editor.start_scrollbar_drag(
+                                    pointer_offset_y,
+                                    track_height,
+                                    thumb_height,
+                                    max_scroll_y,
+                                    cx,
+                                );
+                            });
                         });
                     })
                     .child(
@@ -749,7 +974,9 @@ impl Render for Editor {
                                             return;
                                         }
                                         let _ = editor.update(cx, |editor, cx| {
-                                            editor.end_scrollbar_drag(cx);
+                                            editor.with_current_tab_area(area_id, |editor| {
+                                                editor.end_scrollbar_drag(cx);
+                                            });
                                         });
                                     }
                                 });
@@ -764,7 +991,11 @@ impl Render for Editor {
                                         let pointer_y_in_track =
                                             f32::from(event.position.y) - track_origin_y;
                                         let _ = editor.update(cx, |editor, cx| {
-                                            editor.update_scrollbar_drag(pointer_y_in_track, cx);
+                                            editor.with_current_tab_area(area_id, |editor| {
+                                                editor.update_scrollbar_drag(
+                                                    pointer_y_in_track, cx,
+                                                );
+                                            });
                                         });
                                     }
                                 });
@@ -777,225 +1008,11 @@ impl Render for Editor {
             content_area
         };
 
-        // Repaint when the Cmd/Ctrl follow modifier toggles so a hovered link's
-        // hand cursor updates without moving the pointer. `ModifiersChanged` is
-        // dispatched along the focused element's path to the root, and this root
-        // is an ancestor of every block, so one listener here covers a link in any
-        // block while editing. Gated to the secondary modifier so Shift during
-        // selection does not repaint.
-        let follow_modifier_active = window.modifiers().secondary();
-
-        let base = div()
-            .w_full()
-            .h_full()
-            .flex()
-            .flex_col()
-            .relative()
-            .bg(theme.colors.editor_background)
-            .font(editor_text_font())
-            .on_modifiers_changed(move |event, window, _| {
-                if event.modifiers.secondary() != follow_modifier_active {
-                    window.refresh();
-                }
-            })
-            .capture_action(cx.listener(Self::on_copy_capture))
-            .capture_action(cx.listener(Self::on_cut_capture))
-            .capture_action(cx.listener(Self::on_delete_capture))
-            .capture_action(cx.listener(Self::on_delete_back_capture))
-            .capture_key_down(cx.listener(Self::on_editor_key_down_capture))
-            .can_drop(|dragged, _window, _cx| dragged.is::<ExternalPaths>())
-            .on_drop::<ExternalPaths>(cx.listener(Self::on_external_paths_drop))
-            .on_action(cx.listener(Self::on_undo))
-            .on_action(cx.listener(Self::on_redo))
-            .on_action(cx.listener(Self::on_save_document))
-            .on_action(cx.listener(Self::on_save_document_as))
-            .on_action(cx.listener(Self::on_export_html))
-            .on_action(cx.listener(Self::on_export_pdf))
-            .on_action(cx.listener(Self::on_quit_application))
-            .on_action(cx.listener(Self::on_close_window))
-            .on_action(cx.listener(Self::on_toggle_view_mode_action))
-            .on_action(cx.listener(Self::on_toggle_explorer_action))
-            .on_action(cx.listener(Self::on_close_explorer_folder_action))
-            .on_action(cx.listener(Self::on_page_up))
-            .on_action(cx.listener(Self::on_page_down))
-            .on_action(cx.listener(Self::on_jump_to_top))
-            .on_action(cx.listener(Self::on_jump_to_bottom))
-            .on_action(cx.listener(Self::on_dismiss_transient_ui))
-            .on_action(cx.listener(Self::on_install_cli_tool))
-            .on_action(cx.listener(Self::on_uninstall_cli_tool));
-        // Fetch menus + collect labels once for both renderers; previously each
-        // of render_in_window_menu_bar / render_in_window_menu_panel called
-        // cx.get_menus() and walked menus.iter().map(|m| m.name.to_string())
-        // independently — two redundant Vec<OwnedMenu> + two redundant
-        // Vec<String>-of-N-allocations per frame.
-        let menus = supports_in_window_menu()
-            .then(|| cx.get_menus())
-            .flatten()
-            .filter(|m| !m.is_empty());
-        let menu_labels: Vec<SharedString> = menus
-            .as_ref()
-            .map(|m| m.iter().map(|menu| menu.name.clone()).collect())
-            .unwrap_or_default();
-        // The titlebar never shows a title text; the window title lives in the
-        // OS title bar / task bar via `sync_window_title`.
-        let window_title: SharedString = SharedString::new("");
-        let inline_menu =
-            self.render_inline_titlebar_menu(&theme, cx, menus.as_deref(), &menu_labels);
-        let base = if let Some(titlebar) = render_custom_titlebar(
-            "editor-titlebar",
-            window_title,
-            inline_menu,
-            &theme,
-            window,
-            cx,
-            Self::on_titlebar_close,
-        ) {
-            base.child(titlebar)
-        } else {
-            base
-        };
-        let main_content = div()
-            .w_full()
-            .flex_1()
-            .min_h(px(0.0))
-            .pt(px(titlebar_height))
-            .flex()
-            .min_w(px(0.0))
-            .child(self.render_tiled_layout(
-                content_area.into_any_element(),
-                &theme,
-                &strings,
-                window,
-                cx,
-            ));
-        let base = base.child(main_content);
-        let base = if let Some(menu_panel) = self.render_in_window_menu_panel(
-            &theme,
-            cx,
-            menus.as_deref(),
-            &menu_labels,
-            titlebar_height,
-            f32::from(window.viewport_size().height.max(px(1.0))),
-        ) {
-            base.child(menu_panel)
-        } else {
-            base
-        };
-        let base = if let Some(context_menu) = self.render_context_menu_overlay(&theme, cx) {
-            base.child(context_menu)
-        } else {
-            base
-        };
-        let base = if let Some(table_dialog) = self.render_table_insert_dialog_overlay(&theme, cx) {
-            base.child(table_dialog)
-        } else {
-            base
-        };
-        if let Some(kind) = self.chrome.info_dialog {
-            base.child(self.render_info_dialog_overlay(&theme, kind, cx))
-        } else if self.tab().file.show_drop_replace_dialog {
-            base.child(self.render_drop_replace_overlay(&theme, cx))
-        } else if self.tab().file.show_unsaved_changes_dialog {
-            base.child(self.render_unsaved_changes_overlay(&theme, cx))
-        } else {
-            base
-        }
-        .into_any_element()
-    }
-}
-
-impl Editor {
-    /// Renders the window chrome when no document tab exists (welcome state):
-    /// titlebar, menus, and the tiled panels. Every editor panel body shows
-    /// the welcome prompt via `render_editor_inner_panel_node`; no document-dependent
-    /// bookkeeping runs.
-    pub(crate) fn render_welcome_window(
-        &mut self,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
-        let theme = cx.global::<ThemeManager>().current_arc();
-        let strings = cx.global::<I18nManager>().strings_arc();
-        let d = &theme.dimensions;
-
-        let base = div()
-            .w_full()
-            .h_full()
-            .flex()
-            .flex_col()
-            .relative()
-            .bg(theme.colors.editor_background)
-            .font(editor_text_font())
-            .on_action(cx.listener(Self::on_quit_application))
-            .on_action(cx.listener(Self::on_close_window))
-            .on_action(cx.listener(Self::on_dismiss_transient_ui));
-
-        // Fetch menus + collect labels once for both renderers (see the
-        // full-document render path for why this is shared).
-        let menus = supports_in_window_menu()
-            .then(|| cx.get_menus())
-            .flatten()
-            .filter(|m| !m.is_empty());
-        let menu_labels: Vec<SharedString> = menus
-            .as_ref()
-            .map(|m| m.iter().map(|menu| menu.name.clone()).collect())
-            .unwrap_or_default();
-        let inline_menu =
-            self.render_inline_titlebar_menu(&theme, cx, menus.as_deref(), &menu_labels);
-        let base = if let Some(titlebar) = render_custom_titlebar(
-            "editor-titlebar",
-            SharedString::new(""),
-            inline_menu,
-            &theme,
-            window,
-            cx,
-            Self::on_titlebar_close,
-        ) {
-            base.child(titlebar)
-        } else {
-            base
-        };
-
-        // The panels consume `primary_content` only when a document exists;
-        // an empty tile here leaves every editor panel on the welcome prompt.
-        let empty_content = div()
-            .w_full()
-            .h_full()
-            .bg(theme.colors.editor_background)
-            .into_any_element();
-        let titlebar_height = custom_titlebar_height(window, d);
-        let main_content = div()
-            .w_full()
-            .flex_1()
-            .min_h(px(0.0))
-            .pt(px(titlebar_height))
-            .flex()
-            .min_w(px(0.0))
-            .child(self.render_tiled_layout(empty_content, &theme, &strings, window, cx));
-        let base = base.child(main_content);
-        let base = if let Some(menu_panel) = self.render_in_window_menu_panel(
-            &theme,
-            cx,
-            menus.as_deref(),
-            &menu_labels,
-            titlebar_height,
-            f32::from(window.viewport_size().height.max(px(1.0))),
-        ) {
-            base.child(menu_panel)
-        } else {
-            base
-        };
-        let base = if let Some(context_menu) = self.render_context_menu_overlay(&theme, cx) {
-            base.child(context_menu)
-        } else {
-            base
-        };
-        if let Some(kind) = self.chrome.info_dialog {
-            base.child(self.render_info_dialog_overlay(&theme, kind, cx))
-        } else {
-            base
-        }
-        .into_any_element()
+        // Restore the routing hint before returning so window-level code
+        // (overlays, menu actions, explorer sync) resolves to the active
+        // editor again.
+        self.current_tab_area = previous;
+        content_area.into_any_element()
     }
 }
 

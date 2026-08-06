@@ -617,9 +617,9 @@ fn prompt_and_open_files_with_error_window(cx: &mut App, error_window: Option<An
 /// recent-file entry either way.
 fn open_file_in_editor_or_new_window(cx: &mut App, path: &Path) {
     let opened_in_editor = with_active_editor(cx, |editor, window, cx| {
-        editor.open_path_in_tab(path, window, cx);
+        editor.open_file_in_active_editor(path, window, cx)
     })
-    .is_some();
+    .is_some_and(|opened| opened);
     if !opened_in_editor {
         if let Err(err) = open_file_in_new_window(cx, path) {
             let title = cx

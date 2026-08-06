@@ -211,6 +211,7 @@ impl<T: Copy + PartialEq> SplitTree<T> {
     }
 
     /// Split a leaf at 50% ratio with the given `next_type` for the new side.
+    #[allow(dead_code)] // used by tests
     pub fn split_leaf(
         &mut self,
         target_id: usize,
@@ -336,6 +337,36 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                 } else {
                     first.set_split_ratio(split_id, new_ratio)
                         || second.set_split_ratio(split_id, new_ratio)
+                }
+            }
+        }
+    }
+
+    /// Deep-clone this subtree, assigning fresh node ids from a shared id
+    /// pool (`next_node_id`). Used when an Editor area is split: the new
+    /// area's inner panel tree is an independent copy of the source area's.
+    pub fn clone_with_new_ids(&self, next_id: &mut usize) -> SplitTree<T> {
+        match self {
+            Self::Leaf { kind, .. } => {
+                let id = *next_id;
+                *next_id += 1;
+                Self::Leaf { id, kind: *kind }
+            }
+            Self::Split {
+                direction,
+                ratio,
+                first,
+                second,
+                ..
+            } => {
+                let id = *next_id;
+                *next_id += 1;
+                Self::Split {
+                    id,
+                    direction: *direction,
+                    ratio: *ratio,
+                    first: Box::new(first.clone_with_new_ids(next_id)),
+                    second: Box::new(second.clone_with_new_ids(next_id)),
                 }
             }
         }

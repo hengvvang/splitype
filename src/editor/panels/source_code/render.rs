@@ -8,6 +8,8 @@ use crate::theme::Theme;
 impl Editor {
     pub(crate) fn render_source_editor_panel(
         &mut self,
+        area_id: usize,
+        panel_id: usize,
         theme: &Theme,
         _cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -25,14 +27,18 @@ impl Editor {
         };
 
         div()
-            .id("tiled-source-editor")
+            .id(ElementId::Name(
+                format!("tiled-source-editor-{area_id}-{panel_id}").into(),
+            ))
             .w_full()
             .h_full()
             .relative()
             .bg(c.editor_background)
             .child(
                 div()
-                    .id("tiled-source-scroll")
+                    .id(ElementId::Name(
+                        format!("tiled-source-scroll-{area_id}-{panel_id}").into(),
+                    ))
                     .w_full()
                     .h_full()
                     .flex()

@@ -340,6 +340,12 @@ impl Editor {
         let d = &theme.dimensions;
         let prefs = self.status_bar_settings(cx);
 
+        // The status bar renders after the area container restored the
+        // routing hint; set it for this area so tab()/doc() reads below hit
+        // THIS editor's document.
+        let previous = self.current_tab_area;
+        self.current_tab_area = Some(area_id);
+
         let inner_leaf_count = self
             .panels
             .layout
@@ -361,7 +367,7 @@ impl Editor {
 
         // Type button with dropdown for focused inner panel. Hidden in the
         // welcome state: with no document the edit-mode switch is meaningless.
-        if self.has_active_tab()
+        if self.area_has_tabs(area_id)
             && let (Some(panel_id), Some(ftype)) = (focused_panel_id, focused_kind)
         {
             let toggle_editor = cx.entity().downgrade();
@@ -380,7 +386,7 @@ impl Editor {
             left_items.push(type_button.into_any_element());
         }
 
-        if self.has_active_tab() && prefs.show_cursor_position {
+        if self.area_has_tabs(area_id) && prefs.show_cursor_position {
             left_items.push(
                 div()
                     .text_size(px(11.0))
@@ -394,8 +400,8 @@ impl Editor {
             ));
         }
 
-        if self.has_active_tab() && prefs.show_word_count {
-            let text = self.serialized_document_text(cx);
+        if self.area_has_tabs(area_id) && prefs.show_word_count {
+            let text = self.serialized_document_text_for(area_id, cx);
             let total_count = count_words(&text);
             let selection_count = self.selected_markdown_text(cx).as_deref().map(count_words);
             right_items.push(render_word_count(
@@ -485,9 +491,9 @@ impl Editor {
             }
         }
 
-        status_bar_container(c, 24.0, 10.0)
+        let bar = status_bar_container(c, 24.0, 10.0)
             .id(ElementId::Name(
-                format!("panel-status-bar-{:?}", kind).into(),
+                format!("panel-status-bar-{}-{:?}", area_id, kind).into(),
             ))
             .child(
                 div()
@@ -503,7 +509,9 @@ impl Editor {
                     .gap(px(8.0))
                     .children(right_items),
             )
-            .into_any_element()
+            .into_any_element();
+        self.current_tab_area = previous;
+        bar
     }
 
     pub(crate) fn status_bar_settings(&self, cx: &App) -> StatusBarSettings {

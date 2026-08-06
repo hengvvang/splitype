@@ -97,6 +97,9 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.has_active_tab() {
+            return;
+        }
         let markdown = self.serialized_document_text(cx);
         let theme = cx.global::<ThemeManager>().current().clone();
         let title = self.export_title();

@@ -13,6 +13,9 @@ use crate::model::syntax::table::TableCellPosition;
 
 impl Editor {
     pub(crate) fn on_page_up(&mut self, _: &PageUp, _window: &mut Window, cx: &mut Context<Self>) {
+        if !self.has_active_tab() {
+            return;
+        }
         let page = self.tab().scroll.handle.bounds().size.height;
         self.scroll_viewport_by(page, cx);
     }
@@ -23,6 +26,9 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.has_active_tab() {
+            return;
+        }
         let page = self.tab().scroll.handle.bounds().size.height;
         self.scroll_viewport_by(-page, cx);
     }
@@ -33,6 +39,9 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.has_active_tab() {
+            return;
+        }
         self.set_vertical_scroll_offset(px(0.0), cx);
     }
 
@@ -42,6 +51,9 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.has_active_tab() {
+            return;
+        }
         let max_offset_y = self.tab().scroll.handle.max_offset().height.max(px(0.0));
         self.set_vertical_scroll_offset(-max_offset_y, cx);
     }

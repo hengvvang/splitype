@@ -94,3 +94,14 @@ pub struct InnerPanelLocation {
     pub area_id: AreaId,
     pub panel_id: PanelId,
 }
+
+/// How the new sibling area of a split is seeded.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AreaSplitMode {
+    /// The sibling inherits the source area's kind; Editor areas clone
+    /// their inner panel layout (and the host deep-copies the tab list).
+    Copy,
+    /// The sibling is a blank initial-state area of the same kind: the
+    /// default inner panel layout and an empty tab list.
+    Fresh,
+}

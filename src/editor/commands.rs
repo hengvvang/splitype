@@ -52,6 +52,9 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.has_active_tab() {
+            return;
+        }
         self.toggle_view_mode_from_ui(cx);
     }
 
@@ -62,10 +65,16 @@ impl Editor {
     }
 
     pub(crate) fn on_undo(&mut self, _: &Undo, _window: &mut Window, cx: &mut Context<Self>) {
+        if !self.has_active_tab() {
+            return;
+        }
         self.undo_document(cx);
     }
 
     pub(crate) fn on_redo(&mut self, _: &Redo, _window: &mut Window, cx: &mut Context<Self>) {
+        if !self.has_active_tab() {
+            return;
+        }
         self.redo_document(cx);
     }
 
@@ -75,6 +84,9 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.has_active_tab() {
+            return;
+        }
         self.request_save_document(cx);
     }
 
@@ -84,6 +96,9 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.has_active_tab() {
+            return;
+        }
         self.request_save_document_as(cx);
     }
 
@@ -93,6 +108,9 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.has_active_tab() {
+            return;
+        }
         self.export_document_via_prompt(
             crate::editor::render::export::ExportFormat::Html,
             window,
@@ -106,6 +124,9 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if !self.has_active_tab() {
+            return;
+        }
         self.export_document_via_prompt(
             crate::editor::render::export::ExportFormat::Pdf,
             window,
@@ -214,8 +235,7 @@ impl Editor {
 impl Editor {
     pub(crate) fn request_check_updates(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self
-            .tabs
-            .get(self.active_tab)
+            .active_editor_tab()
             .is_some_and(|tab| tab.file.show_unsaved_changes_dialog)
         {
             return;
