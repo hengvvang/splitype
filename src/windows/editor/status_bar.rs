@@ -12,7 +12,7 @@ use crate::editor::EditorMode;
 use crate::editor::controller::Editor;
 use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
 use crate::infra::i18n::I18nStrings;
-use crate::layout::{Axis, EditorAreaMode, InnerPanelLocation, WindowAreaKind};
+use crate::layout::{Axis, InnerPanelLocation, WindowAreaKind};
 use crate::theme::{Theme, ThemeColors, ThemeDimensions};
 use crate::windows::editor::chrome::StatusBarState;
 
@@ -373,13 +373,9 @@ impl Editor {
         // editing state it displays the focused panel kind and opens the
         // panel-type dropdown.
         if let (Some(panel_id), Some(ftype)) = (focused_panel_id, focused_kind) {
-            let editing = self.area_mode(area_id) == EditorAreaMode::Editing;
+            let editing = self.area_mode(area_id).is_editing();
             let toggle_editor = cx.entity().downgrade();
-            let label = if editing {
-                ftype.name().to_string()
-            } else {
-                "Welcome".to_string()
-            };
+            let label = ftype.name().to_string();
             let mut mode_pill = small_pill_button(c, d)
                 .text_size(px(11.0))
                 .text_color(if editing {

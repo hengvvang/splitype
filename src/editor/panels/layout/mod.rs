@@ -5,8 +5,8 @@
 //! the window-level area layout rendering lives in `crate::windows::layout`.
 
 use crate::layout::{
-    Axis, BorderMenuState, CornerDragModifier, EditorAreaMode, EditorInnerPanelKind,
-    InnerPanelLocation, SplitTree, SplitterDragSession,
+    Axis, BorderMenuState, CornerDragModifier, EditingPanelKind, EditorInnerPanelKind,
+    InnerPanelLocation, SplitTree, SplitterDragSession, WelcomePanelKind,
 };
 use crate::ui::components::popover::menu_panel;
 use crate::ui::components::splitter::{splitter_bar_h, splitter_bar_v};
@@ -58,7 +58,9 @@ impl Editor {
                     .ensure_editor_session(area_id)
                     .inner_panel_tree
                     .find_leaf_kind(loc.panel_id)
-                    .unwrap_or(crate::layout::EditorInnerPanelKind::SourceCode);
+                    .unwrap_or(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(
+                        None,
+                    )));
                 Some(self.render_editor_inner_panel_dropdown_menu(
                     area_id,
                     loc.panel_id,
@@ -171,16 +173,15 @@ impl Editor {
                 let kind = *kind;
                 let inner_editor = cx.entity().downgrade();
 
-                // Two outer editor states, switched by `area_mode`: welcome
-                // (no tabs — guidance instead of an empty buffer) vs editing
-                // (tabs exist — the panel renders its normal view).
-                let inner_body: AnyElement = match self.area_mode(area_id) {
-                    EditorAreaMode::Welcome => {
+                // The panel kind carries the mode: welcome panels render
+                // the guidance prompt, editing panels render their view.
+                let inner_body: AnyElement = match kind {
+                    EditorInnerPanelKind::Welcome(_) => {
                         self.render_welcome_prompt(area_id, panel_id, theme, cx)
                     }
-                    EditorAreaMode::Editing => match kind {
+                    EditorInnerPanelKind::Editing(kind) => match kind {
                         // WYSIWYG — this editor's own block editor view.
-                        EditorInnerPanelKind::Wysiwyg => self.render_document_view(
+                        EditingPanelKind::Wysiwyg => self.render_document_view(
                             area_id,
                             panel_id,
                             window,
@@ -189,11 +190,11 @@ impl Editor {
                         // Source — interactive source code editor. Uses a
                         // cached block in source-document mode; edits sync to
                         // the shared document via the block's Changed event.
-                        EditorInnerPanelKind::SourceCode => {
+                        EditingPanelKind::SourceCode => {
                             self.refresh_source_panel_block(cx);
                             self.render_source_editor_panel(area_id, panel_id, theme, cx)
                         }
-                        EditorInnerPanelKind::Preview => self.render_tiled_preview_panel(
+                        EditingPanelKind::Preview => self.render_tiled_preview_panel(
                             area_id,
                             panel_id,
                             theme,
@@ -201,7 +202,7 @@ impl Editor {
                             window,
                             cx,
                         ),
-                        EditorInnerPanelKind::Outline => self.render_tiled_outline_panel(
+                        EditingPanelKind::Outline => self.render_tiled_outline_panel(
                             area_id,
                             panel_id,
                             theme,
@@ -475,7 +476,7 @@ impl Editor {
         let t = &theme.typography;
         let editor = cx.entity().downgrade();
 
-        let available_types = EditorInnerPanelKind::all();
+        let available_types = EditingPanelKind::all();
 
         menu_panel(c, d)
             .id(("inner-area-dropdown-overlay", panel_id))
@@ -489,7 +490,7 @@ impl Editor {
             .w(px(d.menu_panel_width))
             .children(available_types.iter().enumerate().map(|(idx, kind)| {
                 let kind = *kind;
-                let is_current = kind == current_kind;
+                let is_current = kind == current_kind.editing_kind();
                 let option_editor = editor.clone();
                 div()
                     .id(("inner-area-type-opt", idx))

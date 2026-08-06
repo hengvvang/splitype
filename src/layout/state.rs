@@ -18,8 +18,8 @@ use crate::layout::sessions::{
 };
 use crate::layout::tree::{AreaRect, Axis, Direction, SplitTree};
 use crate::layout::types::{
-    AreaId, AreaSplitMode, EditorAreaMode, EditorInnerPanelKind, InnerPanelLocation, PanelId,
-    SplitId, WindowAreaKind,
+    AreaId, AreaSplitMode, EditingPanelKind, EditorAreaMode, EditorInnerPanelKind,
+    InnerPanelLocation, PanelId, SplitId, WelcomePanelKind, WindowAreaKind,
 };
 
 /// The document tabs owned by one Editor area.
@@ -212,7 +212,7 @@ impl WindowLayout {
     }
 
     /// Get or create the editor session for an area. New sessions start
-    /// with no tabs and the default single `SourceCode` panel.
+    /// with no tabs and a single default `Welcome` panel.
     pub fn ensure_editor_session(&mut self, area_id: AreaId) -> &mut EditorSession {
         let next_node_id = &mut self.next_node_id;
         self.editor_sessions.entry(area_id).or_insert_with(|| {
@@ -222,7 +222,7 @@ impl WindowLayout {
                 tab_list: EditorTabList::empty(),
                 inner_panel_tree: SplitTree::Leaf {
                     id: panel_id,
-                    kind: EditorInnerPanelKind::SourceCode,
+                    kind: EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
                 },
             }
         })
@@ -261,6 +261,55 @@ impl WindowLayout {
     /// explorer file opens never land in a background (retained) session.
     pub fn is_foreground_editor(&self, area_id: AreaId) -> bool {
         self.window_area_tree.find_leaf_kind(area_id) == Some(WindowAreaKind::Editor)
+    }
+
+    /// Welcome → Editing: every welcome panel migrates to the editing
+    /// panel it remembers (or `SourceCode` if it never edited before).
+    /// The split structure is preserved. Idempotent.
+    pub fn enter_editing(&mut self, area_id: AreaId) {
+        if let Some(session) = self.editor_sessions.get_mut(&area_id) {
+            let mut rects = Vec::new();
+            session
+                .inner_panel_tree
+                .collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
+            let ids: Vec<usize> = rects.iter().map(|rect| rect.id).collect();
+            for id in ids {
+                let Some(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(previous))) =
+                    session.inner_panel_tree.find_leaf_kind(id)
+                else {
+                    continue;
+                };
+                session.inner_panel_tree.set_leaf_kind(
+                    id,
+                    EditorInnerPanelKind::Editing(previous.unwrap_or(EditingPanelKind::SourceCode)),
+                );
+            }
+        }
+    }
+
+    /// Editing → Welcome: every panel becomes a welcome panel that
+    /// remembers its editing panel type, so entering editing again
+    /// restores the previous layout. The split structure is preserved.
+    /// Idempotent.
+    pub fn exit_editing(&mut self, area_id: AreaId) {
+        if let Some(session) = self.editor_sessions.get_mut(&area_id) {
+            let mut rects = Vec::new();
+            session
+                .inner_panel_tree
+                .collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
+            let ids: Vec<usize> = rects.iter().map(|rect| rect.id).collect();
+            for id in ids {
+                let Some(EditorInnerPanelKind::Editing(panel)) =
+                    session.inner_panel_tree.find_leaf_kind(id)
+                else {
+                    continue;
+                };
+                session.inner_panel_tree.set_leaf_kind(
+                    id,
+                    EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(Some(panel))),
+                );
+            }
+        }
     }
 
     /// Recompute the active editor after the layout changed: the most
@@ -303,7 +352,7 @@ impl WindowLayout {
         let root = &mut self.ensure_editor_session(area_id).inner_panel_tree;
         let kind = root
             .find_leaf_kind(panel_id)
-            .unwrap_or(EditorInnerPanelKind::SourceCode);
+            .unwrap_or(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)));
         root.split_leaf_with_ratio(panel_id, new_id, direction, 0.5, kind);
     }
 
@@ -329,10 +378,10 @@ impl WindowLayout {
         &mut self,
         area_id: AreaId,
         panel_id: PanelId,
-        kind: EditorInnerPanelKind,
+        kind: EditingPanelKind,
     ) {
         let root = &mut self.ensure_editor_session(area_id).inner_panel_tree;
-        root.set_leaf_kind(panel_id, kind);
+        root.set_leaf_kind(panel_id, EditorInnerPanelKind::Editing(kind));
         self.open_editor_inner_panel_dropdown = None;
     }
 
@@ -352,7 +401,7 @@ impl WindowLayout {
             let root = &mut session.inner_panel_tree;
             let kind = root
                 .find_leaf_kind(panel_id)
-                .unwrap_or(EditorInnerPanelKind::SourceCode);
+                .unwrap_or(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)));
             root.split_leaf_with_ratio(panel_id, new_id, direction, ratio, kind);
         }
     }
@@ -1146,7 +1195,13 @@ mod tests {
         layout
             .ensure_editor_session(1)
             .inner_panel_tree
-            .split_leaf_with_ratio(2, 20, Axis::Horizontal, 0.5, EditorInnerPanelKind::Wysiwyg);
+            .split_leaf_with_ratio(
+                2,
+                20,
+                Axis::Horizontal,
+                0.5,
+                EditorInnerPanelKind::Editing(EditingPanelKind::Wysiwyg),
+            );
         layout.activate_editor_area(1);
 
         let new_id = layout
@@ -1176,7 +1231,13 @@ mod tests {
         layout
             .ensure_editor_session(1)
             .inner_panel_tree
-            .split_leaf_with_ratio(2, 20, Axis::Horizontal, 0.5, EditorInnerPanelKind::Wysiwyg);
+            .split_leaf_with_ratio(
+                2,
+                20,
+                Axis::Horizontal,
+                0.5,
+                EditorInnerPanelKind::Editing(EditingPanelKind::Wysiwyg),
+            );
         layout.activate_editor_area(1);
 
         let new_id = layout
@@ -1187,13 +1248,56 @@ mod tests {
             Some(WindowAreaKind::Editor)
         );
         // A fresh editor starts as a blank session: no cloned inner
-        // layout, no tabs.
+        // layout, no tabs. The single panel is the initial welcome panel.
         let session = layout.editor_sessions.get(&new_id).unwrap();
         assert_eq!(session.tab_list.tabs.len(), 0);
         assert_eq!(session.inner_panel_tree.count_leaves(), 1);
         assert_eq!(
             session.inner_panel_tree.find_leaf_kind(new_id + 1),
-            Some(EditorInnerPanelKind::SourceCode)
+            Some(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(
+                None
+            )))
+        );
+    }
+
+    #[test]
+    fn test_editing_mode_transitions_restore_panel_kinds() {
+        let mut layout = WindowLayout::default();
+        // Enter editing: the initial welcome panel becomes SourceCode.
+        layout.ensure_editor_session(1);
+        layout.enter_editing(1);
+        // Split and customize the panel kinds (status-bar path).
+        layout.split_editor_inner_panel(1, 2, Axis::Horizontal);
+        layout.change_editor_inner_panel_kind(1, 2, EditingPanelKind::Preview);
+        layout.change_editor_inner_panel_kind(1, 3, EditingPanelKind::Wysiwyg);
+        // Exit editing: every panel becomes a welcome panel that
+        // remembers its previous editing kind; structure is preserved.
+        layout.exit_editing(1);
+        let inner = &layout.editor_sessions.get(&1).unwrap().inner_panel_tree;
+        assert_eq!(inner.count_leaves(), 2);
+        assert_eq!(
+            inner.find_leaf_kind(2),
+            Some(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(
+                Some(EditingPanelKind::Preview)
+            )))
+        );
+        assert_eq!(
+            inner.find_leaf_kind(3),
+            Some(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(
+                Some(EditingPanelKind::Wysiwyg)
+            )))
+        );
+        // Enter editing again: the previous kinds are restored.
+        layout.enter_editing(1);
+        let inner = &layout.editor_sessions.get(&1).unwrap().inner_panel_tree;
+        assert_eq!(inner.count_leaves(), 2);
+        assert_eq!(
+            inner.find_leaf_kind(2),
+            Some(EditorInnerPanelKind::Editing(EditingPanelKind::Preview))
+        );
+        assert_eq!(
+            inner.find_leaf_kind(3),
+            Some(EditorInnerPanelKind::Editing(EditingPanelKind::Wysiwyg))
         );
     }
 
@@ -1294,13 +1398,15 @@ mod tests {
     }
 
     #[test]
-    fn test_inner_layout_defaults_to_source() {
+    fn test_inner_layout_defaults_to_welcome() {
         let mut layout = WindowLayout::default();
         let inner = &layout.ensure_editor_session(1).inner_panel_tree;
         assert_eq!(inner.count_leaves(), 1);
         assert_eq!(
             inner.find_leaf_kind(2),
-            Some(EditorInnerPanelKind::SourceCode)
+            Some(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(
+                None
+            )))
         );
     }
 
@@ -1309,21 +1415,27 @@ mod tests {
         let mut layout = WindowLayout::default();
         // Set up inner: Wysiwyg panel (id 2, first allocated panel id).
         let _ = layout.ensure_editor_session(1);
-        layout.change_editor_inner_panel_kind(1, 2, EditorInnerPanelKind::Wysiwyg);
+        layout.change_editor_inner_panel_kind(1, 2, EditingPanelKind::Wysiwyg);
         // Split it via the status-bar path; the new panel inherits Wysiwyg.
         layout.split_editor_inner_panel(1, 2, Axis::Horizontal);
         let inner = &layout.editor_sessions.get(&1).unwrap().inner_panel_tree;
         assert_eq!(inner.count_leaves(), 2);
-        assert_eq!(inner.find_leaf_kind(2), Some(EditorInnerPanelKind::Wysiwyg));
+        assert_eq!(
+            inner.find_leaf_kind(2),
+            Some(EditorInnerPanelKind::Editing(EditingPanelKind::Wysiwyg))
+        );
         // The new leaf (id 3) is also Wysiwyg.
-        assert_eq!(inner.find_leaf_kind(3), Some(EditorInnerPanelKind::Wysiwyg));
+        assert_eq!(
+            inner.find_leaf_kind(3),
+            Some(EditorInnerPanelKind::Editing(EditingPanelKind::Wysiwyg))
+        );
     }
 
     #[test]
     fn test_corner_drag_split_inherits_dragged_kind() {
         let mut layout = WindowLayout::default();
         let _ = layout.ensure_editor_session(1);
-        layout.change_editor_inner_panel_kind(1, 2, EditorInnerPanelKind::Preview);
+        layout.change_editor_inner_panel_kind(1, 2, EditingPanelKind::Preview);
         // Corner-drag split; the new panel inherits Preview.
         layout.split_editor_inner_panel_with_ratio(1, 2, Axis::Vertical, 0.4);
         let inner = &layout.editor_sessions.get(&1).unwrap().inner_panel_tree;

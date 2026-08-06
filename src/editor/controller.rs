@@ -360,7 +360,8 @@ impl Editor {
             chrome: WindowChrome::default(),
             panels: WindowPanels::default(),
         };
-        // Seed the root Editor area with the initial tab.
+        // Seed the root Editor area with the initial tab, migrating the
+        // default welcome panel into its editing panel.
         editor
             .panels
             .layout
@@ -368,6 +369,7 @@ impl Editor {
             .tab_list
             .tabs
             .push(tab);
+        editor.panels.layout.enter_editing(ROOT_AREA_ID);
         editor.panels.layout.activate_editor_area(ROOT_AREA_ID);
         editor.rebuild_table_runtimes(cx);
         editor.rebuild_image_runtimes(cx);
@@ -484,12 +486,17 @@ impl Editor {
         };
         let markdown = String::from_utf8_lossy(&bytes).to_string();
         let list = &mut self.panels.layout.ensure_editor_session(area_id).tab_list;
+        let was_welcome = list.tabs.is_empty();
         list.tabs.push(Self::new_tab_from_markdown(
             cx,
             markdown,
             Some(path.to_path_buf()),
         ));
         let last = list.tabs.len() - 1;
+        if was_welcome {
+            // First tab: migrate the welcome panels into editing panels.
+            self.panels.layout.enter_editing(area_id);
+        }
         self.activate_tab(area_id, last, cx);
         crate::app::menus::record_recent_file_from_editor(path, cx);
     }
@@ -513,9 +520,14 @@ impl Editor {
     /// Opens a fresh untitled tab in the given Editor area.
     pub(crate) fn new_untitled_tab(&mut self, area_id: AreaId, cx: &mut Context<Self>) {
         let list = &mut self.panels.layout.ensure_editor_session(area_id).tab_list;
+        let was_welcome = list.tabs.is_empty();
         list.tabs
             .push(Self::new_tab_from_markdown(cx, String::new(), None));
         let last = list.tabs.len() - 1;
+        if was_welcome {
+            // First tab: migrate the welcome panels into editing panels.
+            self.panels.layout.enter_editing(area_id);
+        }
         self.activate_tab(area_id, last, cx);
     }
 
@@ -534,6 +546,9 @@ impl Editor {
         list.tabs.remove(index);
         if list.tabs.is_empty() {
             list.active_tab = 0;
+            // Last tab: migrate the editing panels back into welcome
+            // panels (they remember their kind for the next entry).
+            self.panels.layout.exit_editing(area_id);
             cx.notify();
             return;
         }

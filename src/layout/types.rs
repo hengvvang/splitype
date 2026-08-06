@@ -49,13 +49,16 @@ pub enum EditorAreaMode {
     Editing,
 }
 
-/// Sub-panel types available inside a `WindowAreaKind::Editor` container.
-///
-/// Each Editor area hosts one active file. The file is sent as a single input
-/// source to each sub-panel channel (Source / Wysiwyg / Preview / Outline),
-/// which process it independently and render in their own tile.
+impl EditorAreaMode {
+    /// True when the area's session holds tabs.
+    pub fn is_editing(self) -> bool {
+        matches!(self, Self::Editing)
+    }
+}
+
+/// Editing 模式下的面板类型：Editor 有标签时，一个面板渲染的视图。
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EditorInnerPanelKind {
+pub enum EditingPanelKind {
     /// Raw Markdown source code editor.
     SourceCode,
     /// Visual block editor (WYSIWYG rendered view).
@@ -66,7 +69,7 @@ pub enum EditorInnerPanelKind {
     Outline,
 }
 
-impl EditorInnerPanelKind {
+impl EditingPanelKind {
     pub fn name(&self) -> &'static str {
         match self {
             Self::SourceCode => "Source Code",
@@ -76,14 +79,55 @@ impl EditorInnerPanelKind {
         }
     }
 
-    /// All inner Editor sub-panel types.
-    pub fn all() -> &'static [EditorInnerPanelKind] {
+    /// All editing-mode panel types (status-bar dropdown options).
+    pub fn all() -> &'static [EditingPanelKind] {
         &[
             Self::Wysiwyg,
             Self::Preview,
             Self::SourceCode,
             Self::Outline,
         ]
+    }
+}
+
+/// Welcome 模式下的面板类型。目前唯一的欢迎面板携带它退出编辑前的
+/// 编辑面板类型（`None` = 从未编辑过），重新进入编辑时按它恢复；
+/// 将来 welcome 模式可扩展更多面板（如"最近文件"）。
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WelcomePanelKind {
+    Welcome(Option<EditingPanelKind>),
+}
+
+/// Sub-panel types available inside a `WindowAreaKind::Editor` container:
+/// the outer variant is the mode, the inner variant is the panel type
+/// within that mode. The tree always tells the truth — a welcome-mode
+/// area holds `Welcome` panels, an editing-mode area holds `Editing`
+/// panels — so rendering matches on the panel kind directly.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EditorInnerPanelKind {
+    /// Welcome 模式统一面板：渲染欢迎提示（双击开始编辑）。
+    Welcome(WelcomePanelKind),
+    /// Editing 模式面板：渲染对应的编辑视图。
+    Editing(EditingPanelKind),
+}
+
+impl EditorInnerPanelKind {
+    /// The editing panel this panel becomes when the area enters editing:
+    /// restores the remembered type, defaulting to `SourceCode` for a
+    /// welcome panel that was never edited before.
+    pub fn editing_kind(self) -> EditingPanelKind {
+        match self {
+            Self::Welcome(WelcomePanelKind::Welcome(Some(kind))) => kind,
+            Self::Welcome(WelcomePanelKind::Welcome(None)) => EditingPanelKind::SourceCode,
+            Self::Editing(kind) => kind,
+        }
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Welcome(_) => "Welcome",
+            Self::Editing(kind) => kind.name(),
+        }
     }
 }
 
