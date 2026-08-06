@@ -284,18 +284,17 @@ impl WindowLayout {
             })
     }
 
+    /// Splits an inner panel via the status-bar buttons. The new panel
+    /// inherits the target panel's kind so the split keeps the same view
+    /// style; falls back to `SourceCode` if the target is unknown.
     pub fn split_editor_inner_panel(&mut self, area_id: usize, target_id: usize, direction: Axis) {
         let new_id = self.next_leaf_id;
         self.next_leaf_id += 1;
         let root = self.ensure_editor_inner_panel_layout(area_id);
-        // Inner splits always create a Source panel on the new side.
-        root.split_leaf_with_ratio(
-            target_id,
-            new_id,
-            direction,
-            0.5,
-            EditorInnerPanelKind::SourceCode,
-        );
+        let kind = root
+            .find_leaf_kind(target_id)
+            .unwrap_or(EditorInnerPanelKind::SourceCode);
+        root.split_leaf_with_ratio(target_id, new_id, direction, 0.5, kind);
     }
 
     pub fn close_editor_inner_panel(&mut self, area_id: usize, panel_id: usize) {
@@ -326,7 +325,9 @@ impl WindowLayout {
         self.active_editor_inner_panel_dropdown = None;
     }
 
-    /// Inner split created via corner drag.  The new panel is always `Source`.
+    /// Inner split created via corner drag. The new panel inherits the
+    /// dragged panel's kind so both sides keep the same view style; falls
+    /// back to `SourceCode` if the target is unknown.
     pub fn split_editor_inner_panel_with_ratio(
         &mut self,
         area_id: usize,
@@ -337,13 +338,10 @@ impl WindowLayout {
         let new_id = self.next_leaf_id;
         self.next_leaf_id += 1;
         if let Some(root) = self.editor_inner_panel_layouts.get_mut(&area_id) {
-            root.split_leaf_with_ratio(
-                target_leaf_id,
-                new_id,
-                direction,
-                ratio,
-                EditorInnerPanelKind::SourceCode,
-            );
+            let kind = root
+                .find_leaf_kind(target_leaf_id)
+                .unwrap_or(EditorInnerPanelKind::SourceCode);
+            root.split_leaf_with_ratio(target_leaf_id, new_id, direction, ratio, kind);
         }
     }
 
@@ -1076,14 +1074,29 @@ mod tests {
     }
 
     #[test]
-    fn test_inner_split_creates_source() {
+    fn test_inner_split_inherits_target_kind() {
         let mut layout = WindowLayout::default();
-        // Set up inner: Source panel.
+        // Set up inner: Wysiwyg panel (id 1).
         let _ = layout.ensure_editor_inner_panel_layout(1);
-        // Split it. The new panel should be Source.
-        layout.split_editor_inner_panel(1, 1, Axis::Horizontal); // panel_id 1
-        // Now we have 2 inner leaves.
+        layout.change_editor_inner_panel_kind(1, 1, EditorInnerPanelKind::Wysiwyg);
+        // Split it via the status-bar path; the new panel inherits Wysiwyg.
+        layout.split_editor_inner_panel(1, 1, Axis::Horizontal);
         let inner = layout.editor_inner_panel_layouts.get(&1).unwrap();
         assert_eq!(inner.count_leaves(), 2);
+        assert_eq!(inner.find_leaf_kind(1), Some(EditorInnerPanelKind::Wysiwyg));
+        // The new leaf (id 2) is also Wysiwyg.
+        assert_eq!(inner.find_leaf_kind(2), Some(EditorInnerPanelKind::Wysiwyg));
+    }
+
+    #[test]
+    fn test_corner_drag_split_inherits_dragged_kind() {
+        let mut layout = WindowLayout::default();
+        let _ = layout.ensure_editor_inner_panel_layout(1);
+        layout.change_editor_inner_panel_kind(1, 1, EditorInnerPanelKind::Preview);
+        // Corner-drag split; the new panel inherits Preview.
+        layout.split_editor_inner_panel_with_ratio(1, 1, Axis::Vertical, 0.4);
+        let inner = layout.editor_inner_panel_layouts.get(&1).unwrap();
+        assert_eq!(inner.count_leaves(), 2);
+        assert_eq!(inner.find_leaf_kind(2), Some(EditorInnerPanelKind::Preview));
     }
 }
