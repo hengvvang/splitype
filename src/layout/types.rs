@@ -35,6 +35,20 @@ impl WindowAreaKind {
     }
 }
 
+/// The two outer states an Editor area can be in.
+///
+/// Derived from whether the area's tab list is empty; switching happens
+/// automatically when the first tab is created or the last one is closed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EditorAreaMode {
+    /// No document tabs: the area shows the welcome prompt (double-click to
+    /// start editing) instead of any panel.
+    Welcome,
+    /// At least one document tab: the area renders its inner panel layout
+    /// (Wysiwyg / Source Code / Preview / Outline).
+    Editing,
+}
+
 /// Sub-panel types available inside a `WindowAreaKind::Editor` container.
 ///
 /// Each Editor area hosts one active file. The file is sent as a single input

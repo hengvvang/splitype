@@ -5,8 +5,8 @@
 //! the window-level area layout rendering lives in `crate::windows::layout`.
 
 use crate::layout::{
-    Axis, BorderMenuState, CornerDragModifier, EditorInnerPanelKind, InnerPanelLocation, SplitTree,
-    SplitterDragSession,
+    Axis, BorderMenuState, CornerDragModifier, EditorAreaMode, EditorInnerPanelKind,
+    InnerPanelLocation, SplitTree, SplitterDragSession,
 };
 use crate::ui::components::popover::menu_panel;
 use crate::ui::components::splitter::{splitter_bar_h, splitter_bar_v};
@@ -169,15 +169,14 @@ impl Editor {
                 let kind = *kind;
                 let inner_editor = cx.entity().downgrade();
 
-                // Welcome state for THIS editor: no document tabs — guide
-                // the user instead of showing an empty buffer.
-                let inner_body: AnyElement = if !self.area_has_tabs(area_id) {
-                    self.render_welcome_prompt(area_id, panel_id, theme, cx)
-                } else {
-                    // A tab exists (opened file or fresh Untitled document),
-                    // so every panel renders its normal view — empty documents
-                    // simply produce empty views, never prompts.
-                    match kind {
+                // Two outer editor states, switched by `area_mode`: welcome
+                // (no tabs — guidance instead of an empty buffer) vs editing
+                // (tabs exist — the panel renders its normal view).
+                let inner_body: AnyElement = match self.area_mode(area_id) {
+                    EditorAreaMode::Welcome => {
+                        self.render_welcome_prompt(area_id, panel_id, theme, cx)
+                    }
+                    EditorAreaMode::Editing => match kind {
                         // WYSIWYG — this editor's own block editor view.
                         EditorInnerPanelKind::Wysiwyg => self.render_document_view(
                             area_id,
@@ -207,7 +206,7 @@ impl Editor {
                             strings,
                             cx,
                         ),
-                    }
+                    },
                 };
 
                 let make_inner_corner = |id_str: &'static str, top: bool, left: bool| {

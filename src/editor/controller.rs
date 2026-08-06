@@ -23,7 +23,7 @@ pub(crate) use crate::editor::tree::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
 pub(crate) use crate::layout::state::{EditorTabList, ROOT_AREA_ID};
-pub(crate) use crate::layout::types::{AreaId, AreaSplitMode};
+pub(crate) use crate::layout::types::{AreaId, AreaSplitMode, EditorAreaMode};
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::model::inline::text::RichText;
 pub(crate) use crate::model::syntax::image::{
@@ -621,6 +621,17 @@ impl Editor {
             .layout
             .editor_tab_list(area_id)
             .is_some_and(|list| !list.tabs.is_empty())
+    }
+
+    /// The outer state of the given Editor area: welcome (no tabs) or
+    /// editing (at least one tab). The single source of truth for how an
+    /// area's body and status bar render.
+    pub(crate) fn area_mode(&self, area_id: AreaId) -> EditorAreaMode {
+        if self.area_has_tabs(area_id) {
+            EditorAreaMode::Editing
+        } else {
+            EditorAreaMode::Welcome
+        }
     }
 
     /// The given Editor area's tab list. Panics if the area never got one

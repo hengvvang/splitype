@@ -12,7 +12,7 @@ use crate::editor::EditorMode;
 use crate::editor::controller::Editor;
 use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
 use crate::infra::i18n::I18nStrings;
-use crate::layout::{Axis, InnerPanelLocation, WindowAreaKind};
+use crate::layout::{Axis, EditorAreaMode, InnerPanelLocation, WindowAreaKind};
 use crate::theme::{Theme, ThemeColors, ThemeDimensions};
 use crate::windows::editor::chrome::StatusBarState;
 
@@ -365,17 +365,30 @@ impl Editor {
         let mut left_items: Vec<AnyElement> = Vec::new();
         let mut right_items: Vec<AnyElement> = Vec::new();
 
-        // Type button with dropdown for focused inner panel. Hidden in the
-        // welcome state: with no document the edit-mode switch is meaningless.
-        if self.area_has_tabs(area_id)
-            && let (Some(panel_id), Some(ftype)) = (focused_panel_id, focused_kind)
-        {
+        // Mode pill on the left, always shown so the status bar stays
+        // consistent across the two editor states. In the welcome state it
+        // displays the outer mode itself ("Welcome") and is disabled; in the
+        // editing state it displays the focused panel kind and opens the
+        // panel-type dropdown.
+        if let (Some(panel_id), Some(ftype)) = (focused_panel_id, focused_kind) {
+            let editing = self.area_mode(area_id) == EditorAreaMode::Editing;
             let toggle_editor = cx.entity().downgrade();
-            let type_button = small_pill_button(c, d)
+            let label = if editing {
+                ftype.name().to_string()
+            } else {
+                "Welcome".to_string()
+            };
+            let mut mode_pill = small_pill_button(c, d)
                 .text_size(px(11.0))
-                .text_color(c.text_default)
-                .child(ftype.name().to_string())
-                .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                .text_color(if editing {
+                    c.text_default
+                } else {
+                    c.dialog_muted
+                })
+                .opacity(if editing { 1.0 } else { 0.6 })
+                .child(label);
+            if editing {
+                mode_pill = mode_pill.on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                     let _ = toggle_editor.update(cx, |ed, cx| {
                         ed.panels
                             .layout
@@ -383,7 +396,8 @@ impl Editor {
                         cx.notify();
                     });
                 });
-            left_items.push(type_button.into_any_element());
+            }
+            left_items.push(mode_pill.into_any_element());
         }
 
         if self.area_has_tabs(area_id) && prefs.show_cursor_position {
