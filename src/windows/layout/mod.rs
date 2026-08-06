@@ -1008,7 +1008,11 @@ impl Editor {
         let mut left_section = div().flex().items_center().gap(px(8.0)).child(type_button);
 
         if kind == WindowAreaKind::Editor {
-            let list = self.tab_list_for(leaf_id);
+            // Ensure the session exists: an Editor area may have had its
+            // (empty) session dropped while switched to another kind and
+            // switched back, or may be brand new — rendering must never
+            // panic on a missing session.
+            let list = self.tab_list_mut_for(leaf_id);
             let active_tab = list.active_tab;
             let tab_names: Vec<String> = list
                 .tabs

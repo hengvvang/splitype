@@ -888,7 +888,7 @@ impl Block {
             .border_1()
             .border_color(c.table_border)
             .bg(gpui::transparent_black())
-            .text_size(px(12.5))
+            .text_size(px(11.5))
             .text_color(c.code_language_input_text)
             .child(
                 div()
@@ -912,7 +912,7 @@ impl Block {
                     .child(
                         svg()
                             .path("icon/panel/select-chevron.svg")
-                            .size(px(9.0))
+                            .size(px(12.0))
                             .text_color(c.dialog_muted),
                     ),
             )
@@ -930,7 +930,7 @@ impl Block {
                 .child(
                     svg()
                         .path("icon/panel/line-numbers.svg")
-                        .size(px(10.0))
+                        .size(px(13.0))
                         .text_color(if self.show_code_line_numbers {
                             c.code_language_input_text
                         } else {
@@ -951,9 +951,9 @@ impl Block {
                 .child(
                     div()
                         .absolute()
-                        .left(px(7.5))
-                        .top(px(6.5))
-                        .size(px(7.0))
+                        .left(px(6.75))
+                        .top(px(5.75))
+                        .size(px(8.5))
                         .rounded(px(1.5))
                         .border(px(1.0))
                         .border_color(c.code_language_input_placeholder),
@@ -961,9 +961,9 @@ impl Block {
                 .child(
                     div()
                         .absolute()
-                        .left(px(9.5))
-                        .top(px(8.5))
-                        .size(px(7.0))
+                        .left(px(8.75))
+                        .top(px(7.75))
+                        .size(px(8.5))
                         .rounded(px(1.5))
                         .border(px(1.0))
                         .border_color(c.code_language_input_text)
@@ -1051,7 +1051,7 @@ impl Block {
                     .bg(c.dialog_secondary_button_bg)
                     .flex()
                     .items_center()
-                    .text_size(px(12.5))
+                    .text_size(px(11.5))
                     .cursor(CursorStyle::IBeam)
                     .child(CodeLanguageInputElement::new(
                         cx.entity(),
@@ -1100,7 +1100,7 @@ impl Block {
                         })
                         .child(
                             div()
-                                .text_size(px(13.0))
+                                .text_size(px(12.0))
                                 .font_weight(if is_selected {
                                     FontWeight::MEDIUM
                                 } else {
@@ -2288,7 +2288,7 @@ impl Render for Block {
                 .child(
                     svg()
                         .path("icon/table/handle-row-solid.svg")
-                        .size(px(9.0))
+                        .size(px(12.0))
                         .text_color(if is_menu_open {
                             c.table_append_button_text
                         } else {
