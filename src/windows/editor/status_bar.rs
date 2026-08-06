@@ -12,7 +12,7 @@ use crate::editor::EditorMode;
 use crate::editor::controller::Editor;
 use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
 use crate::infra::i18n::I18nStrings;
-use crate::layout::{Axis, WindowAreaKind};
+use crate::layout::{Axis, InnerPanelLocation, WindowAreaKind};
 use crate::theme::{Theme, ThemeColors, ThemeDimensions};
 use crate::windows::editor::chrome::StatusBarState;
 
@@ -343,17 +343,17 @@ impl Editor {
         let inner_leaf_count = self
             .panels
             .layout
-            .ensure_editor_inner_panel_layout(area_id)
+            .ensure_editor_inner_panel_tree(area_id)
             .count_leaves();
 
         let focused = self.panels.layout.focused_editor_inner_panel;
         let focused_panel_id =
-            focused.and_then(|(cid, iid)| if cid == area_id { Some(iid) } else { None });
-        let focused_kind = focused_panel_id.and_then(|iid| {
+            focused.and_then(|loc| if loc.area_id == area_id { Some(loc.panel_id) } else { None });
+        let focused_kind = focused_panel_id.and_then(|panel_id| {
             self.panels
                 .layout
-                .ensure_editor_inner_panel_layout(area_id)
-                .find_leaf_kind(iid)
+                .ensure_editor_inner_panel_tree(area_id)
+                .find_leaf_kind(panel_id)
         });
 
         let mut left_items: Vec<AnyElement> = Vec::new();
@@ -473,7 +473,7 @@ impl Editor {
                             let _ = close_editor.update(cx, |ed, cx| {
                                 ed.panels.layout.close_editor_inner_panel(area_id, panel_id);
                                 if ed.panels.layout.focused_editor_inner_panel
-                                    == Some((area_id, panel_id))
+                                    == Some(InnerPanelLocation { area_id, panel_id })
                                 {
                                     ed.panels.layout.focused_editor_inner_panel = None;
                                 }

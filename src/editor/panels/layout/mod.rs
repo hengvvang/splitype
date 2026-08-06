@@ -5,7 +5,8 @@
 //! the window-level area layout rendering lives in `crate::windows::layout`.
 
 use crate::layout::{
-    Axis, BorderMenuState, CornerDragModifier, EditorInnerPanelKind, SplitTree, SplitterDragSession,
+    Axis, BorderMenuState, CornerDragModifier, EditorInnerPanelKind, InnerPanelLocation, SplitTree,
+    SplitterDragSession,
 };
 use crate::ui::components::popover::menu_panel;
 use crate::ui::components::splitter::{splitter_bar_h, splitter_bar_v};
@@ -30,7 +31,7 @@ impl Editor {
         let inner_tree = self
             .panels
             .layout
-            .ensure_editor_inner_panel_layout(area_id)
+            .ensure_editor_inner_panel_tree(area_id)
             .clone();
 
         let inner_rendered = self.render_editor_inner_panel_node(
@@ -43,17 +44,17 @@ impl Editor {
             cx,
         );
 
-        let dropdown = if let Some((_area_id, panel_id)) = self.panels.layout.active_editor_inner_panel_dropdown {
-            if _area_id == area_id {
+        let dropdown = if let Some(loc) = self.panels.layout.open_editor_inner_panel_dropdown {
+            if loc.area_id == area_id {
                 let current_type = self
                     .panels
                     .layout
-                    .ensure_editor_inner_panel_layout(area_id)
-                    .find_leaf_kind(panel_id)
+                    .ensure_editor_inner_panel_tree(area_id)
+                    .find_leaf_kind(loc.panel_id)
                     .unwrap_or(crate::layout::EditorInnerPanelKind::SourceCode);
                 Some(self.render_editor_inner_panel_dropdown_menu(
                     area_id,
-                    panel_id,
+                    loc.panel_id,
                     current_type,
                     theme,
                     cx,
@@ -241,7 +242,8 @@ impl Editor {
 
                 // Auto-focus first inner panel if none is focused.
                 if self.panels.layout.focused_editor_inner_panel.is_none() {
-                    self.panels.layout.focused_editor_inner_panel = Some((area_id, panel_id));
+                    self.panels.layout.focused_editor_inner_panel =
+                        Some(InnerPanelLocation { area_id, panel_id });
                 }
 
                 let focus_editor = cx.entity().downgrade();
@@ -264,7 +266,8 @@ impl Editor {
                     .child(make_inner_corner("edit-sub-br", false, false))
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = focus_editor.update(cx, |ed, cx| {
-                            ed.panels.layout.focused_editor_inner_panel = Some((area_id, panel_id));
+                            ed.panels.layout.focused_editor_inner_panel =
+                                Some(InnerPanelLocation { area_id, panel_id });
                             cx.notify();
                         });
                     })

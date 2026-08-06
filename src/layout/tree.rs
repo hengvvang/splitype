@@ -320,7 +320,6 @@ impl<T: Copy + PartialEq> SplitTree<T> {
         }
     }
 
-    #[allow(dead_code)]
     pub fn set_split_ratio(&mut self, split_id: usize, new_ratio: f32) -> bool {
         match self {
             Self::Leaf { .. } => false,

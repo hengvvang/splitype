@@ -1,9 +1,13 @@
 //! Layout area type tags — the labels a `SplitTree` leaf carries.
 //!
 //! The engine itself is generic over the leaf type; these two enums are the
-//! concrete labels used by the hosts: `WindowAreaKind` for the window-level area
-//! layout, `EditorInnerPanelKind` for the editor's inner panel layout. The hosts
-//! match on them when rendering.
+//! concrete labels used by the hosts: `WindowAreaKind` for the window-level
+//! area layout, `EditorInnerPanelKind` for the editor's inner panel layout.
+//! The hosts match on them when rendering.
+//!
+//! The id types (`AreaId` / `PanelId` / `SplitId`) and [`InnerPanelLocation`]
+//! give the layout engine's `usize` ids a name, so a signature reads as
+//! "split which panel inside which area" without digging into callers.
 
 /// Top-level area types in the tiled split layout.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -12,7 +16,7 @@ pub enum WindowAreaKind {
     Explorer,
     /// Application settings panel.
     Settings,
-    /// Editor container – hosts sub-panels (Source, Block, Preview, Outline).
+    /// Editor container – hosts sub-panels (Source, Wysiwyg, Preview, Outline).
     Editor,
 }
 
@@ -22,15 +26,6 @@ impl WindowAreaKind {
             Self::Explorer => "Explorer",
             Self::Settings => "Settings",
             Self::Editor => "Editor",
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn description(&self) -> &'static str {
-        match self {
-            Self::Explorer => "Explorer file directory tree",
-            Self::Settings => "Application settings & document info",
-            Self::Editor => "Editor container with sub-panels",
         }
     }
 
@@ -67,17 +62,7 @@ impl EditorInnerPanelKind {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn description(&self) -> &'static str {
-        match self {
-            Self::SourceCode => "Raw Markdown source code editor",
-            Self::Wysiwyg => "Visual block editor (Rendered)",
-            Self::Preview => "Read-only rendered Markdown preview",
-            Self::Outline => "Document section headings outline",
-        }
-    }
-
-    /// All inner Edit sub-panel types.
+    /// All inner Editor sub-panel types.
     pub fn all() -> &'static [EditorInnerPanelKind] {
         &[
             Self::Wysiwyg,
@@ -86,4 +71,26 @@ impl EditorInnerPanelKind {
             Self::Outline,
         ]
     }
+}
+
+/// Id of a top-level area in the outer layout tree (`window_area_tree`).
+///
+/// Also used as the key into `WindowLayout::editor_inner_panel_trees`: each
+/// Editor area owns its own inner panel tree.
+pub type AreaId = usize;
+
+/// Id of a sub-panel inside an Editor area's inner panel tree.
+pub type PanelId = usize;
+
+/// Id of a split node in either layout tree.
+///
+/// Split nodes share the same id pool as leaves (a split's id equals its
+/// second child leaf's id).
+pub type SplitId = usize;
+
+/// Locates an editor inner panel: which outer area, and which panel in it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct InnerPanelLocation {
+    pub area_id: AreaId,
+    pub panel_id: PanelId,
 }

@@ -35,7 +35,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let root = self.panels.layout.root.clone();
+        let root = self.panels.layout.window_area_tree.clone();
         let leaf_count = root.count_leaves();
         let mut primary_content = Some(content_area);
 
@@ -870,7 +870,7 @@ impl Editor {
             .child(tile_card)
             .child(corner_handles);
 
-        let dropdown_open = self.panels.layout.active_window_area_dropdown == Some(leaf_id);
+        let dropdown_open = self.panels.layout.open_window_area_dropdown == Some(leaf_id);
         if dropdown_open {
             let menu = self.render_window_area_dropdown_menu(leaf_id, kind, theme, cx);
             wrapped = wrapped.child(menu);

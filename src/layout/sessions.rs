@@ -90,7 +90,9 @@ pub enum CornerDragAction {
 pub const MODIFIER_THRESHOLD_PX: f32 = 4.0;
 
 /// Return the leaf id that contains `pos`, given pixel-space rects.
-pub fn area_id_at_point(rects: &[AreaRect], pos: Point<Pixels>) -> Option<usize> {
+/// Generic over layout level: the id is an `AreaId` when called with outer
+/// rects and a `PanelId` when called with inner rects.
+pub fn leaf_id_at_point(rects: &[AreaRect], pos: Point<Pixels>) -> Option<usize> {
     let px = f32::from(pos.x);
     let py = f32::from(pos.y);
     for rect in rects {
