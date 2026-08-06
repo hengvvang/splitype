@@ -1440,6 +1440,9 @@ mod tests {
         layout.split_editor_inner_panel_with_ratio(1, 2, Axis::Vertical, 0.4);
         let inner = &layout.editor_sessions.get(&1).unwrap().inner_panel_tree;
         assert_eq!(inner.count_leaves(), 2);
-        assert_eq!(inner.find_leaf_kind(3), Some(EditorInnerPanelKind::Preview));
+        assert_eq!(
+            inner.find_leaf_kind(3),
+            Some(EditorInnerPanelKind::Editing(EditingPanelKind::Preview))
+        );
     }
 }

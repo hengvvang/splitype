@@ -1,5 +1,6 @@
-//! Editor inner panel layout — rendering for the `EditorInnerPanelKind` split tree
-//! (Wysiwyg / Source Code / Preview / Outline) inside each Edit area.
+//! Editor inner panel layout — rendering for the `EditorInnerPanelKind`
+//! split tree (welcome panel + Wysiwyg / Source Code / Preview / Outline
+//! editing panels) inside each Edit area.
 //!
 //! The layout engine (tree, sessions, operations) lives in `crate::layout`;
 //! the window-level area layout rendering lives in `crate::windows::layout`.

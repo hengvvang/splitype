@@ -1,5 +1,6 @@
-//! Editor inner panels — the four `EditorInnerPanelKind` views (WYSIWYG,
-//! source code, preview, outline) and the inner panel layout rendering.
+//! Editor inner panels — the `EditorInnerPanelKind` views (the welcome
+//! panel plus the four editing panels WYSIWYG / source code / preview /
+//! outline) and the inner panel layout rendering.
 
 pub(crate) mod layout;
 pub(crate) mod outline;
