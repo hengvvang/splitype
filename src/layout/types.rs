@@ -89,8 +89,8 @@ impl EditorInnerPanelKind {
 
 /// Id of a top-level area in the outer layout tree (`window_area_tree`).
 ///
-/// Also used as the key into `WindowLayout::editor_inner_panel_trees`: each
-/// Editor area owns its own inner panel tree.
+/// Also used as the key into `WindowLayout::editor_sessions`: each Editor
+/// area owns its own editor session (tab list + inner panel tree).
 pub type AreaId = usize;
 
 /// Id of a sub-panel inside an Editor area's inner panel tree.

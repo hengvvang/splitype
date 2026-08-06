@@ -349,7 +349,8 @@ impl Editor {
         let inner_leaf_count = self
             .panels
             .layout
-            .ensure_editor_inner_panel_tree(area_id)
+            .ensure_editor_session(area_id)
+            .inner_panel_tree
             .count_leaves();
 
         let focused = self.panels.layout.focused_editor_inner_panel;
@@ -358,7 +359,8 @@ impl Editor {
         let focused_kind = focused_panel_id.and_then(|panel_id| {
             self.panels
                 .layout
-                .ensure_editor_inner_panel_tree(area_id)
+                .ensure_editor_session(area_id)
+                .inner_panel_tree
                 .find_leaf_kind(panel_id)
         });
 

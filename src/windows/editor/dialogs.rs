@@ -13,6 +13,7 @@ use gpui::*;
 
 use crate::editor::controller::{Editor, InfoDialogKind};
 use crate::infra::i18n::{I18nManager, I18nStrings};
+use crate::layout::WindowAreaKind;
 use crate::theme::Theme;
 use crate::windows::editor::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
 
@@ -71,14 +72,23 @@ impl Editor {
             return;
         };
         // Bring the owning editor to the front so the dialog (rendered from
-        // the active editor) reads the right tab state.
+        // the active editor) reads the right tab state. The dirty area may
+        // have been switched away (background editing): bring it back to
+        // the foreground first, so the active-editor invariant (active is
+        // always a foreground Editor) holds.
+        if !self.panels.layout.is_foreground_editor(area) {
+            self.panels
+                .layout
+                .change_window_area_kind(area, WindowAreaKind::Editor);
+        }
         self.panels.layout.activate_editor_area(area);
         let set = self
             .panels
             .layout
-            .editor_tab_lists
+            .editor_sessions
             .get_mut(&area)
-            .expect("dirty tab area must have a tab set");
+            .map(|session| &mut session.tab_list)
+            .expect("dirty tab area must have a tab list");
         let tab = &mut set.tabs[index];
         tab.file.show_unsaved_changes_dialog = true;
         tab.file.close_dialog_restore_focus = tab.focus.active_entity;
@@ -98,13 +108,21 @@ impl Editor {
         let Some((area, index)) = self.first_dirty_tab() else {
             return true;
         };
+        // The dirty area may be in the background (switched away): bring it
+        // back to the foreground so the active-editor invariant holds.
+        if !self.panels.layout.is_foreground_editor(area) {
+            self.panels
+                .layout
+                .change_window_area_kind(area, WindowAreaKind::Editor);
+        }
         self.panels.layout.activate_editor_area(area);
         let set = self
             .panels
             .layout
-            .editor_tab_lists
+            .editor_sessions
             .get_mut(&area)
-            .expect("dirty tab area must have a tab set");
+            .map(|session| &mut session.tab_list)
+            .expect("dirty tab area must have a tab list");
         let tab = &mut set.tabs[index];
         tab.file.show_unsaved_changes_dialog = true;
         tab.file.close_dialog_restore_focus = tab.focus.active_entity;

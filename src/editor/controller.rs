@@ -336,7 +336,7 @@ impl Editor {
 
     /// Seed the root Editor area as the (empty) active editor.
     fn with_seeded_root_editor(mut self) -> Self {
-        self.panels.layout.ensure_editor_tab_list(ROOT_AREA_ID);
+        self.panels.layout.ensure_editor_session(ROOT_AREA_ID);
         self.panels.layout.activate_editor_area(ROOT_AREA_ID);
         self
     }
@@ -345,8 +345,8 @@ impl Editor {
     pub(crate) fn has_active_tab(&self) -> bool {
         self.panels
             .layout
-            .active_editor_tab_list()
-            .is_some_and(|list| !list.tabs.is_empty())
+            .active_editor_session()
+            .is_some_and(|session| !session.tab_list.tabs.is_empty())
     }
 
     pub fn from_markdown(
@@ -364,7 +364,8 @@ impl Editor {
         editor
             .panels
             .layout
-            .ensure_editor_tab_list(ROOT_AREA_ID)
+            .ensure_editor_session(ROOT_AREA_ID)
+            .tab_list
             .tabs
             .push(tab);
         editor.panels.layout.activate_editor_area(ROOT_AREA_ID);
@@ -425,7 +426,7 @@ impl Editor {
     /// Activates the tab at `index` in the given Editor area, restoring
     /// its focus and window chrome.
     pub(crate) fn activate_tab(&mut self, area_id: AreaId, index: usize, cx: &mut Context<Self>) {
-        let list = self.panels.layout.ensure_editor_tab_list(area_id);
+        let list = &mut self.panels.layout.ensure_editor_session(area_id).tab_list;
         if index >= list.tabs.len() {
             return;
         }
@@ -457,9 +458,11 @@ impl Editor {
         let already_open = self
             .panels
             .layout
-            .editor_tab_list(area_id)
-            .and_then(|list| {
-                list.tabs
+            .editor_session(area_id)
+            .and_then(|session| {
+                session
+                    .tab_list
+                    .tabs
                     .iter()
                     .position(|t| t.file.path.as_deref() == Some(path))
             });
@@ -480,7 +483,7 @@ impl Editor {
             }
         };
         let markdown = String::from_utf8_lossy(&bytes).to_string();
-        let list = self.panels.layout.ensure_editor_tab_list(area_id);
+        let list = &mut self.panels.layout.ensure_editor_session(area_id).tab_list;
         list.tabs.push(Self::new_tab_from_markdown(
             cx,
             markdown,
@@ -509,7 +512,7 @@ impl Editor {
 
     /// Opens a fresh untitled tab in the given Editor area.
     pub(crate) fn new_untitled_tab(&mut self, area_id: AreaId, cx: &mut Context<Self>) {
-        let list = self.panels.layout.ensure_editor_tab_list(area_id);
+        let list = &mut self.panels.layout.ensure_editor_session(area_id).tab_list;
         list.tabs
             .push(Self::new_tab_from_markdown(cx, String::new(), None));
         let last = list.tabs.len() - 1;
@@ -520,9 +523,10 @@ impl Editor {
     /// neighbor. Closing the last tab leaves the area back in the welcome
     /// state (no tabs).
     pub(crate) fn close_tab(&mut self, area_id: AreaId, index: usize, cx: &mut Context<Self>) {
-        let Some(list) = self.panels.layout.editor_tab_lists.get_mut(&area_id) else {
+        let Some(session) = self.panels.layout.editor_sessions.get_mut(&area_id) else {
             return;
         };
+        let list = &mut session.tab_list;
         if index >= list.tabs.len() {
             return;
         }
@@ -577,12 +581,12 @@ impl Editor {
         let area = self
             .routed_tab_area()
             .expect("tab() requires an active editor area");
-        let list = self
+        let list = &self
             .panels
             .layout
-            .editor_tab_lists
-            .get(&area)
-            .expect("routed editor area has no tab list");
+            .editor_session(area)
+            .expect("routed editor area has no editor session")
+            .tab_list;
         &list.tabs[list.active_tab]
     }
 
@@ -591,12 +595,11 @@ impl Editor {
         let area = self
             .routed_tab_area()
             .expect("tab_mut() requires an active editor area");
-        let list = self
+        let list = &mut self
             .panels
             .layout
-            .editor_tab_lists
-            .get_mut(&area)
-            .expect("routed editor area has no tab list");
+            .ensure_editor_session(area)
+            .tab_list;
         let index = list.active_tab;
         &mut list.tabs[index]
     }
@@ -619,34 +622,31 @@ impl Editor {
     pub(crate) fn area_has_tabs(&self, area_id: AreaId) -> bool {
         self.panels
             .layout
-            .editor_tab_list(area_id)
-            .is_some_and(|list| !list.tabs.is_empty())
+            .editor_session(area_id)
+            .is_some_and(|session| !session.tab_list.tabs.is_empty())
     }
 
-    /// The outer state of the given Editor area: welcome (no tabs) or
-    /// editing (at least one tab). The single source of truth for how an
-    /// area's body and status bar render.
+    /// The given Editor area's working mode: welcome (no tabs) or editing
+    /// (at least one tab). The single source of truth for how an area's
+    /// body and status bar render.
     pub(crate) fn area_mode(&self, area_id: AreaId) -> EditorAreaMode {
-        if self.area_has_tabs(area_id) {
-            EditorAreaMode::Editing
-        } else {
-            EditorAreaMode::Welcome
-        }
+        self.panels.layout.editor_area_mode(area_id)
     }
 
-    /// The given Editor area's tab list. Panics if the area never got one
-    /// (rendering code must call `ensure_editor_tab_list` first).
+    /// The given Editor area's tab list. Panics if the area has no editor
+    /// session (rendering code must call `tab_list_mut_for` first).
     pub(crate) fn tab_list_for(&self, area_id: AreaId) -> &EditorTabList {
-        self.panels
+        &self
+            .panels
             .layout
-            .editor_tab_lists
-            .get(&area_id)
-            .unwrap_or_else(|| panic!("no tab list for editor area {area_id}"))
+            .editor_session(area_id)
+            .unwrap_or_else(|| panic!("no editor session for area {area_id}"))
+            .tab_list
     }
 
     /// The given Editor area's tab list, created on demand.
     pub(crate) fn tab_list_mut_for(&mut self, area_id: AreaId) -> &mut EditorTabList {
-        self.panels.layout.ensure_editor_tab_list(area_id)
+        &mut self.panels.layout.ensure_editor_session(area_id).tab_list
     }
 
     /// The given Editor area's active tab.
@@ -657,15 +657,15 @@ impl Editor {
 
     /// The given Editor area's active tab, mutably.
     pub(crate) fn tab_mut_for(&mut self, area_id: AreaId) -> &mut DocumentTab {
-        let list = self.panels.layout.ensure_editor_tab_list(area_id);
+        let list = &mut self.panels.layout.ensure_editor_session(area_id).tab_list;
         let index = list.active_tab;
         &mut list.tabs[index]
     }
 
     /// The active editor's tab, if an active editor with tabs exists.
     pub(crate) fn active_editor_tab(&self) -> Option<&DocumentTab> {
-        let list = self.panels.layout.active_editor_tab_list()?;
-        list.tabs.get(list.active_tab)
+        let session = self.panels.layout.active_editor_session()?;
+        session.tab_list.tabs.get(session.tab_list.active_tab)
     }
 
     /// The active editor's serialized document text, if any.
@@ -720,16 +720,21 @@ impl Editor {
         dst: AreaId,
         cx: &mut Context<Self>,
     ) {
-        let Some(source) = self.panels.layout.editor_tab_lists.get(&src) else {
-            // Source never got a tab list (e.g. a non-Editor area): the
+        let Some(source) = self
+            .panels
+            .layout
+            .editor_session(src)
+            .map(|session| &session.tab_list)
+        else {
+            // Source never got a session (e.g. a non-Editor area): the
             // copy is a blank editor.
-            self.panels.layout.ensure_editor_tab_list(dst);
+            self.panels.layout.ensure_editor_session(dst);
             return;
         };
         if source.tabs.is_empty() {
             // Welcome-state editor: the copy is another welcome-state
             // editor — there is nothing to rebuild for it.
-            self.panels.layout.ensure_editor_tab_list(dst);
+            self.panels.layout.ensure_editor_session(dst);
             return;
         }
         let mut copies: Vec<(String, Option<PathBuf>, EditorMode, bool)> = Vec::new();
@@ -753,7 +758,8 @@ impl Editor {
             list.tabs.push(tab);
         }
         list.active_tab = active.min(list.tabs.len().saturating_sub(1));
-        self.panels.layout.editor_tab_lists.insert(dst, list);
+        let dst_list = &mut self.panels.layout.ensure_editor_session(dst).tab_list;
+        *dst_list = list;
 
         // Rebuild the copied area's runtime registries under its routing
         // context, then restore the previous context.
@@ -768,8 +774,8 @@ impl Editor {
 
     /// First dirty tab across ALL editor areas, if any.
     pub(crate) fn first_dirty_tab(&self) -> Option<(AreaId, usize)> {
-        for (area, list) in &self.panels.layout.editor_tab_lists {
-            for (index, tab) in list.tabs.iter().enumerate() {
+        for (area, session) in &self.panels.layout.editor_sessions {
+            for (index, tab) in session.tab_list.tabs.iter().enumerate() {
                 if tab.file.dirty {
                     return Some((*area, index));
                 }

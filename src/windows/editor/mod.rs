@@ -103,8 +103,8 @@ impl Editor {
                 .unwrap_or(true)
         });
         if let Some(area) = self.panels.layout.active_editor_area {
-            if let Some(set) = self.panels.layout.editor_tab_lists.get_mut(&area) {
-                if let Some(tab) = set.tabs.get_mut(set.active_tab) {
+            if let Some(session) = self.panels.layout.editor_sessions.get_mut(&area) {
+                if let Some(tab) = session.tab_list.tabs.get_mut(session.tab_list.active_tab) {
                     tab.file.close_guard_installed = true;
                 }
             }

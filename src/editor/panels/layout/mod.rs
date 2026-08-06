@@ -34,7 +34,8 @@ impl Editor {
         let inner_tree = self
             .panels
             .layout
-            .ensure_editor_inner_panel_tree(area_id)
+            .ensure_editor_session(area_id)
+            .inner_panel_tree
             .clone();
 
         let previous = self.current_tab_area;
@@ -54,7 +55,8 @@ impl Editor {
                 let current_type = self
                     .panels
                     .layout
-                    .ensure_editor_inner_panel_tree(area_id)
+                    .ensure_editor_session(area_id)
+                    .inner_panel_tree
                     .find_leaf_kind(loc.panel_id)
                     .unwrap_or(crate::layout::EditorInnerPanelKind::SourceCode);
                 Some(self.render_editor_inner_panel_dropdown_menu(

@@ -1,9 +1,10 @@
 //! [`WindowLayout`] — the complete tiled layout state and operations.
 //!
 //! The outer tree (`window_area_tree`) uses [`WindowAreaKind`] for top-level
-//! areas. Inner trees (`editor_inner_panel_trees`) use [`EditorInnerPanelKind`]
-//! for sub-panels inside Edit areas. All split / join / swap / drag
-//! operations live here; rendering lives in the hosts.
+//! areas. Per-area sessions (`editor_sessions`) bundle each area's inner
+//! panel tree (`[`EditorInnerPanelKind`] sub-panels) with its document tab
+//! list. All split / join / swap / drag operations live here; rendering
+//! lives in the hosts.
 
 use std::collections::HashMap;
 
@@ -17,8 +18,8 @@ use crate::layout::sessions::{
 };
 use crate::layout::tree::{AreaRect, Axis, Direction, SplitTree};
 use crate::layout::types::{
-    AreaId, AreaSplitMode, EditorInnerPanelKind, InnerPanelLocation, PanelId, SplitId,
-    WindowAreaKind,
+    AreaId, AreaSplitMode, EditorAreaMode, EditorInnerPanelKind, InnerPanelLocation, PanelId,
+    SplitId, WindowAreaKind,
 };
 
 /// The document tabs owned by one Editor area.
@@ -40,12 +41,27 @@ impl EditorTabList {
     }
 }
 
+/// The complete per-area editor state: the document tabs plus the inner
+/// panel split tree.
+///
+/// Aggregating both under one key guarantees they can never drift apart —
+/// an area always has exactly one tab list and one panel layout. Sessions
+/// are created lazily and survive a switch away from Editor (background
+/// editing) so the tabs are restored when the area becomes Editor again.
+/// A retained session is a pure cache: it never participates in explorer
+/// or activation logic until its area is back in the foreground.
+pub struct EditorSession {
+    pub tab_list: EditorTabList,
+    pub inner_panel_tree: SplitTree<EditorInnerPanelKind>,
+}
+
 /// Full state for the tiled area layout manager.
 pub struct WindowLayout {
     /// Outer tiled layout tree.
     pub window_area_tree: SplitTree<WindowAreaKind>,
-    /// Per-Editor inner panel split trees, keyed by outer area id.
-    pub editor_inner_panel_trees: HashMap<AreaId, SplitTree<EditorInnerPanelKind>>,
+    /// Per-Editor-area sessions (tab list + inner panel layout), keyed by
+    /// outer area id. Retained for areas that left Editor with tabs.
+    pub editor_sessions: HashMap<AreaId, EditorSession>,
     /// Global node id pool (leaves and split nodes share it).
     pub next_node_id: usize,
     pub open_window_area_dropdown: Option<AreaId>,
@@ -59,8 +75,6 @@ pub struct WindowLayout {
     pub active_editor_inner_panel_border_menu: Option<BorderMenuState>,
     /// Currently focused inner panel — the status-bar action target.
     pub focused_editor_inner_panel: Option<InnerPanelLocation>,
-    /// Per-Editor-area tab lists (independent tab bars).
-    pub editor_tab_lists: HashMap<AreaId, EditorTabList>,
     /// The active editor area: the last Editor area that received focus.
     /// Explorer interactions target its tab list. `None` when no Editor
     /// area exists.
@@ -82,7 +96,7 @@ impl Default for WindowLayout {
                 id: ROOT_AREA_ID,
                 kind: WindowAreaKind::Editor,
             },
-            editor_inner_panel_trees: HashMap::new(),
+            editor_sessions: HashMap::new(),
             next_node_id: 2,
             open_window_area_dropdown: None,
             open_editor_inner_panel_dropdown: None,
@@ -94,7 +108,6 @@ impl Default for WindowLayout {
             active_editor_inner_panel_corner_drag: None,
             active_editor_inner_panel_border_menu: None,
             focused_editor_inner_panel: None,
-            editor_tab_lists: HashMap::new(),
             active_editor_area: None,
             editor_activation_history: Vec::new(),
             focused_window_area: None,
@@ -130,14 +143,25 @@ impl WindowLayout {
         self.window_area_tree
             .split_leaf_with_ratio(area_id, new_id, direction, ratio, kind);
         if kind == WindowAreaKind::Editor && mode == AreaSplitMode::Copy {
-            // Clone the source area's inner panel layout (fresh ids).
-            if let Some(source_tree) = self.editor_inner_panel_trees.get(&area_id) {
-                let cloned = source_tree.clone_with_new_ids(&mut self.next_node_id);
-                self.editor_inner_panel_trees.insert(new_id, cloned);
+            // Clone the source area's session: the inner panel layout gets
+            // fresh ids, and an empty tab list the host fills by
+            // deep-copying the documents.
+            if let Some(source) = self.editor_sessions.get(&area_id) {
+                let inner_panel_tree =
+                    source.inner_panel_tree.clone_with_new_ids(&mut self.next_node_id);
+                self.editor_sessions.insert(
+                    new_id,
+                    EditorSession {
+                        tab_list: EditorTabList::empty(),
+                        inner_panel_tree,
+                    },
+                );
+            } else {
+                self.ensure_editor_session(new_id);
             }
         } else if kind == WindowAreaKind::Editor && mode == AreaSplitMode::Fresh {
-            // A fresh editor starts with an empty tab list.
-            self.ensure_editor_tab_list(new_id);
+            // A fresh editor starts as a blank session.
+            self.ensure_editor_session(new_id);
         }
         self.open_window_area_dropdown = None;
         self.active_window_area_border_menu = None;
@@ -147,9 +171,9 @@ impl WindowLayout {
     pub fn close_window_area(&mut self, area_id: AreaId) {
         if self.window_area_tree.count_leaves() > 1 {
             self.window_area_tree.remove_leaf(area_id);
-            // Clean up inner trees and tab lists for the removed Editor area.
-            self.editor_inner_panel_trees.remove(&area_id);
-            self.editor_tab_lists.remove(&area_id);
+            // Clean up the editor session of the removed area.
+            self.editor_sessions.remove(&area_id);
+            self.clear_inner_panel_focus(area_id);
             if self.maximized_window_area == Some(area_id) {
                 self.maximized_window_area = None;
             }
@@ -171,35 +195,88 @@ impl WindowLayout {
         self.active_editor_area = Some(area_id);
     }
 
-    /// Get or create the tab list for an Editor area.
-    pub fn ensure_editor_tab_list(&mut self, area_id: AreaId) -> &mut EditorTabList {
-        self.editor_tab_lists
-            .entry(area_id)
-            .or_insert_with(EditorTabList::empty)
+    /// Drop inner-panel focus and dropdown state that points into `area_id`.
+    fn clear_inner_panel_focus(&mut self, area_id: AreaId) {
+        if self
+            .focused_editor_inner_panel
+            .is_some_and(|loc| loc.area_id == area_id)
+        {
+            self.focused_editor_inner_panel = None;
+        }
+        if self
+            .open_editor_inner_panel_dropdown
+            .is_some_and(|loc| loc.area_id == area_id)
+        {
+            self.open_editor_inner_panel_dropdown = None;
+        }
     }
 
-    pub fn editor_tab_list(&self, area_id: AreaId) -> Option<&EditorTabList> {
-        self.editor_tab_lists.get(&area_id)
+    /// Get or create the editor session for an area. New sessions start
+    /// with no tabs and the default single `SourceCode` panel.
+    pub fn ensure_editor_session(&mut self, area_id: AreaId) -> &mut EditorSession {
+        let next_node_id = &mut self.next_node_id;
+        self.editor_sessions.entry(area_id).or_insert_with(|| {
+            let panel_id = *next_node_id;
+            *next_node_id += 1;
+            EditorSession {
+                tab_list: EditorTabList::empty(),
+                inner_panel_tree: SplitTree::Leaf {
+                    id: panel_id,
+                    kind: EditorInnerPanelKind::SourceCode,
+                },
+            }
+        })
     }
 
-    /// The active editor area's tab list, if an active editor exists.
-    pub fn active_editor_tab_list(&self) -> Option<&EditorTabList> {
+    /// The editor session for `area_id`, if one exists.
+    pub fn editor_session(&self, area_id: AreaId) -> Option<&EditorSession> {
+        self.editor_sessions.get(&area_id)
+    }
+
+    /// The active editor area's session, if an active editor exists.
+    pub fn active_editor_session(&self) -> Option<&EditorSession> {
         self.active_editor_area
-            .and_then(|area| self.editor_tab_lists.get(&area))
+            .and_then(|area| self.editor_sessions.get(&area))
+    }
+
+    /// The editor area's working mode, derived from whether its session
+    /// holds tabs. Renderers and editor-internal operations always run on
+    /// a foreground area and only consult this dimension.
+    pub fn editor_area_mode(&self, area_id: AreaId) -> EditorAreaMode {
+        let has_tabs = self
+            .editor_sessions
+            .get(&area_id)
+            .is_some_and(|session| !session.tab_list.tabs.is_empty());
+        if has_tabs {
+            EditorAreaMode::Editing
+        } else {
+            EditorAreaMode::Welcome
+        }
+    }
+
+    /// Whether the area's current kind is Editor (a foreground editor).
+    ///
+    /// The foreground/background dimension exists for exactly one reason:
+    /// the active-editor rule — only foreground editors can be active, so
+    /// explorer file opens never land in a background (retained) session.
+    pub fn is_foreground_editor(&self, area_id: AreaId) -> bool {
+        self.window_area_tree.find_leaf_kind(area_id) == Some(WindowAreaKind::Editor)
     }
 
     /// Recompute the active editor after the layout changed: the most
     /// recently focused Editor area still present, or `None`.
     fn recompute_active_editor(&mut self) {
         if let Some(active) = self.active_editor_area {
-            if self.window_area_tree.find_leaf_kind(active) == Some(WindowAreaKind::Editor) {
+            if self.is_foreground_editor(active) {
                 return;
             }
         }
-        self.active_editor_area =
-            self.editor_activation_history.iter().rev().copied().find(|id| {
-                self.window_area_tree.find_leaf_kind(*id) == Some(WindowAreaKind::Editor)
-            });
+        self.active_editor_area = self
+            .editor_activation_history
+            .iter()
+            .rev()
+            .copied()
+            .find(|id| self.is_foreground_editor(*id));
     }
 
     /// Drop an area from activation tracking and recompute the active editor.
@@ -212,25 +289,6 @@ impl WindowLayout {
     // Inner Edit sub-panel layout
     // ------------------------------------------------------------------
 
-    /// Get or create the inner panel tree for an Edit area.
-    /// New Edit areas default to a single `EditorInnerPanelKind::SourceCode` panel.
-    pub fn ensure_editor_inner_panel_tree(
-        &mut self,
-        area_id: AreaId,
-    ) -> &mut SplitTree<EditorInnerPanelKind> {
-        let next_node_id = &mut self.next_node_id;
-        self.editor_inner_panel_trees
-            .entry(area_id)
-            .or_insert_with(|| {
-                let panel_id = *next_node_id;
-                *next_node_id += 1;
-                SplitTree::Leaf {
-                    id: panel_id,
-                    kind: EditorInnerPanelKind::SourceCode,
-                }
-            })
-    }
-
     /// Splits an inner panel via the status-bar buttons. The new panel
     /// inherits the target panel's kind so the split keeps the same view
     /// style; falls back to `SourceCode` if the target is unknown.
@@ -242,7 +300,7 @@ impl WindowLayout {
     ) {
         let new_id = self.next_node_id;
         self.next_node_id += 1;
-        let root = self.ensure_editor_inner_panel_tree(area_id);
+        let root = &mut self.ensure_editor_session(area_id).inner_panel_tree;
         let kind = root
             .find_leaf_kind(panel_id)
             .unwrap_or(EditorInnerPanelKind::SourceCode);
@@ -250,9 +308,9 @@ impl WindowLayout {
     }
 
     pub fn close_editor_inner_panel(&mut self, area_id: AreaId, panel_id: PanelId) {
-        if let Some(root) = self.editor_inner_panel_trees.get_mut(&area_id) {
-            if root.count_leaves() > 1 {
-                root.remove_leaf(panel_id);
+        if let Some(session) = self.editor_sessions.get_mut(&area_id) {
+            if session.inner_panel_tree.count_leaves() > 1 {
+                session.inner_panel_tree.remove_leaf(panel_id);
             }
         }
     }
@@ -273,7 +331,7 @@ impl WindowLayout {
         panel_id: PanelId,
         kind: EditorInnerPanelKind,
     ) {
-        let root = self.ensure_editor_inner_panel_tree(area_id);
+        let root = &mut self.ensure_editor_session(area_id).inner_panel_tree;
         root.set_leaf_kind(panel_id, kind);
         self.open_editor_inner_panel_dropdown = None;
     }
@@ -290,7 +348,8 @@ impl WindowLayout {
     ) {
         let new_id = self.next_node_id;
         self.next_node_id += 1;
-        if let Some(root) = self.editor_inner_panel_trees.get_mut(&area_id) {
+        if let Some(session) = self.editor_sessions.get_mut(&area_id) {
+            let root = &mut session.inner_panel_tree;
             let kind = root
                 .find_leaf_kind(panel_id)
                 .unwrap_or(EditorInnerPanelKind::SourceCode);
@@ -308,7 +367,8 @@ impl WindowLayout {
         if into == removed {
             return false;
         }
-        if let Some(root) = self.editor_inner_panel_trees.get_mut(&area_id) {
+        if let Some(session) = self.editor_sessions.get_mut(&area_id) {
+            let root = &mut session.inner_panel_tree;
             if root.count_leaves() <= 1 {
                 return false;
             }
@@ -320,7 +380,8 @@ impl WindowLayout {
 
     /// Swap area types between two inner panels.
     pub fn swap_editor_inner_panel_kinds(&mut self, area_id: AreaId, a: PanelId, b: PanelId) {
-        if let Some(root) = self.editor_inner_panel_trees.get_mut(&area_id) {
+        if let Some(session) = self.editor_sessions.get_mut(&area_id) {
+            let root = &mut session.inner_panel_tree;
             let type_a = root.find_leaf_kind(a);
             let type_b = root.find_leaf_kind(b);
             if let (Some(ta), Some(tb)) = (type_a, type_b) {
@@ -344,8 +405,10 @@ impl WindowLayout {
                 let delta = current_pointer_pos - session.start_pointer_pos;
                 let ratio_delta = delta / session.total_span;
                 let new_ratio = session.start_ratio + ratio_delta;
-                if let Some(root) = self.editor_inner_panel_trees.get_mut(&area_id) {
-                    root.set_split_ratio(session.split_id, new_ratio);
+                if let Some(editor_session) = self.editor_sessions.get_mut(&area_id) {
+                    editor_session
+                        .inner_panel_tree
+                        .set_split_ratio(session.split_id, new_ratio);
                 }
             }
         }
@@ -538,9 +601,11 @@ impl WindowLayout {
         let h = f32::from(container_size.height);
         let mut rects = Vec::new();
         if w > 0.0 && h > 0.0 {
-            if let Some(root) = self.editor_inner_panel_trees.get(&area_id) {
+            if let Some(session) = self.editor_sessions.get(&area_id) {
                 let mut norm = Vec::new();
-                root.collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut norm);
+                session
+                    .inner_panel_tree
+                    .collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut norm);
                 for rect in norm {
                     rects.push(AreaRect {
                         id: rect.id,
@@ -565,8 +630,11 @@ impl WindowLayout {
         let w = f32::from(container_size.width);
         let h = f32::from(container_size.height);
         if w > 0.0 && h > 0.0 {
-            if let Some(root) = self.editor_inner_panel_trees.get(&area_id) {
-                if let Some((dir, span_norm)) = root.find_split_span(split_id, 0.0, 0.0, 1.0, 1.0) {
+            if let Some(session) = self.editor_sessions.get(&area_id) {
+                if let Some((dir, span_norm)) = session
+                    .inner_panel_tree
+                    .find_split_span(split_id, 0.0, 0.0, 1.0, 1.0)
+                {
                     let pixel_span = match dir {
                         Axis::Horizontal => span_norm * w,
                         Axis::Vertical => span_norm * h,
@@ -586,14 +654,23 @@ impl WindowLayout {
         let previous = self.window_area_tree.find_leaf_kind(area_id);
         self.window_area_tree.set_leaf_kind(area_id, kind);
         if previous == Some(WindowAreaKind::Editor) && kind != WindowAreaKind::Editor {
-            // Leaving Editor: drop the area's document state.
-            self.editor_inner_panel_trees.remove(&area_id);
-            self.editor_tab_lists.remove(&area_id);
+            // Leaving Editor: keep the session while it still holds tabs
+            // (background editing — switching back restores it) and drop
+            // it once empty.
+            let has_tabs = self
+                .editor_sessions
+                .get(&area_id)
+                .is_some_and(|session| !session.tab_list.tabs.is_empty());
+            if !has_tabs {
+                self.editor_sessions.remove(&area_id);
+            }
+            self.clear_inner_panel_focus(area_id);
             self.retire_editor_area(area_id);
         } else if kind == WindowAreaKind::Editor && previous != Some(WindowAreaKind::Editor) {
-            // Entering Editor: an empty tab list, and the area becomes the
-            // active editor (the type switch is an explicit interaction).
-            self.ensure_editor_tab_list(area_id);
+            // Entering Editor: an existing background session (tabs) is
+            // restored; a fresh area stays blank until its first use.
+            // Either way the switch is an explicit interaction, so the
+            // area becomes the active editor.
             self.activate_editor_area(area_id);
         }
         self.open_window_area_dropdown = None;
@@ -615,9 +692,9 @@ impl WindowLayout {
         }
         let ok = self.window_area_tree.join_leaf(into, removed);
         if ok {
-            // Clean up inner trees and tab lists for the removed Editor area.
-            self.editor_inner_panel_trees.remove(&removed);
-            self.editor_tab_lists.remove(&removed);
+            // Clean up the editor session of the removed area.
+            self.editor_sessions.remove(&removed);
+            self.clear_inner_panel_focus(removed);
             if self.maximized_window_area == Some(removed) {
                 self.maximized_window_area = None;
             }
@@ -632,27 +709,31 @@ impl WindowLayout {
     // Swap two area types
     // ------------------------------------------------------------------
 
-    /// Swap the area type of area `a` and area `b`. Per-area Editor state
-    /// (inner trees, tab lists) moves along with the Editor kind.
+    /// Swap the area kind of area `a` and area `b`. Editor sessions move
+    /// along with the Editor kind so the new Editor area inherits the
+    /// swapped-in tabs and panel layout.
     pub fn swap_window_area_kinds(&mut self, a: AreaId, b: AreaId) {
         let type_a = self.window_area_tree.find_leaf_kind(a);
         let type_b = self.window_area_tree.find_leaf_kind(b);
         if let (Some(ta), Some(tb)) = (type_a, type_b) {
             self.window_area_tree.set_leaf_kind(a, tb);
             self.window_area_tree.set_leaf_kind(b, ta);
-            if let (Some(tree_a), Some(tree_b)) = (
-                self.editor_inner_panel_trees.remove(&a),
-                self.editor_inner_panel_trees.remove(&b),
-            ) {
-                self.editor_inner_panel_trees.insert(a, tree_b);
-                self.editor_inner_panel_trees.insert(b, tree_a);
-            }
-            if let (Some(tabs_a), Some(tabs_b)) = (
-                self.editor_tab_lists.remove(&a),
-                self.editor_tab_lists.remove(&b),
-            ) {
-                self.editor_tab_lists.insert(a, tabs_b);
-                self.editor_tab_lists.insert(b, tabs_a);
+            let session_a = self.editor_sessions.remove(&a);
+            let session_b = self.editor_sessions.remove(&b);
+            match (session_a, session_b) {
+                (Some(sa), Some(sb)) => {
+                    self.editor_sessions.insert(a, sb);
+                    self.editor_sessions.insert(b, sa);
+                }
+                (Some(sa), None) => {
+                    // Only `a` had editor state: it follows the Editor
+                    // kind over to `b`.
+                    self.editor_sessions.insert(b, sa);
+                }
+                (None, Some(sb)) => {
+                    self.editor_sessions.insert(a, sb);
+                }
+                (None, None) => {}
             }
             self.recompute_active_editor();
         }
@@ -1062,9 +1143,10 @@ mod tests {
     fn test_editor_split_clones_inner_layout_and_tab_list() {
         let mut layout = WindowLayout::default();
         // Source Editor area (id 1) with a two-panel inner layout.
-        let inner = layout.ensure_editor_inner_panel_tree(1);
-        inner.split_leaf_with_ratio(2, 20, Axis::Horizontal, 0.5, EditorInnerPanelKind::Wysiwyg);
-        layout.editor_tab_lists.insert(1, EditorTabList::empty());
+        layout
+            .ensure_editor_session(1)
+            .inner_panel_tree
+            .split_leaf_with_ratio(2, 20, Axis::Horizontal, 0.5, EditorInnerPanelKind::Wysiwyg);
         layout.activate_editor_area(1);
 
         let new_id = layout
@@ -1076,22 +1158,25 @@ mod tests {
         );
         // Inner layout cloned with fresh ids (the cloned tree must not
         // equal the source tree, whose ids it shares the pool with).
-        let cloned = layout.editor_inner_panel_trees.get(&new_id).unwrap();
-        assert_eq!(cloned.count_leaves(), 2);
-        assert_ne!(cloned, layout.editor_inner_panel_trees.get(&1).unwrap());
+        let cloned = layout.editor_sessions.get(&new_id).unwrap();
+        assert_eq!(cloned.inner_panel_tree.count_leaves(), 2);
+        assert_ne!(
+            cloned.inner_panel_tree,
+            layout.editor_sessions.get(&1).unwrap().inner_panel_tree
+        );
 
-        // The new area's tab list is created by the host (deep-copying the
-        // documents needs a Context); the layout only guarantees the new
-        // area id so the host can seed it.
-        assert!(layout.editor_tab_lists.get(&new_id).is_none());
+        // The new session's tab list is seeded by the host (deep-copying
+        // the documents needs a Context); the layout reserves the entry.
+        assert_eq!(cloned.tab_list.tabs.len(), 0);
     }
 
     #[test]
     fn test_fresh_editor_split_gets_empty_tab_list() {
         let mut layout = WindowLayout::default();
-        let inner = layout.ensure_editor_inner_panel_tree(1);
-        inner.split_leaf_with_ratio(2, 20, Axis::Horizontal, 0.5, EditorInnerPanelKind::Wysiwyg);
-        layout.editor_tab_lists.insert(1, EditorTabList::empty());
+        layout
+            .ensure_editor_session(1)
+            .inner_panel_tree
+            .split_leaf_with_ratio(2, 20, Axis::Horizontal, 0.5, EditorInnerPanelKind::Wysiwyg);
         layout.activate_editor_area(1);
 
         let new_id = layout
@@ -1101,10 +1186,15 @@ mod tests {
             layout.window_area_tree.find_leaf_kind(new_id),
             Some(WindowAreaKind::Editor)
         );
-        // No cloned inner layout.
-        assert!(layout.editor_inner_panel_trees.get(&new_id).is_none());
-        // Empty tab list.
-        assert_eq!(layout.editor_tab_list(new_id).unwrap().tabs.len(), 0);
+        // A fresh editor starts as a blank session: no cloned inner
+        // layout, no tabs.
+        let session = layout.editor_sessions.get(&new_id).unwrap();
+        assert_eq!(session.tab_list.tabs.len(), 0);
+        assert_eq!(session.inner_panel_tree.count_leaves(), 1);
+        assert_eq!(
+            session.inner_panel_tree.find_leaf_kind(new_id + 1),
+            Some(EditorInnerPanelKind::SourceCode)
+        );
     }
 
     #[test]
@@ -1130,6 +1220,30 @@ mod tests {
         layout.close_window_area(a);
         layout.close_window_area(1);
         assert_eq!(layout.active_editor_area, None);
+    }
+
+    #[test]
+    fn test_area_mode_transitions() {
+        let mut layout = WindowLayout::default();
+        // A default root editor that never opened a document: welcome.
+        assert_eq!(layout.editor_area_mode(1), EditorAreaMode::Welcome);
+        // Fresh-split editors are welcome too.
+        let fresh = layout
+            .split_window_area(1, Axis::Horizontal, 0.5, AreaSplitMode::Fresh)
+            .unwrap();
+        assert_eq!(layout.editor_area_mode(fresh), EditorAreaMode::Welcome);
+        // Switching a welcome editor to another kind drops its empty
+        // session: the area has no editor state left.
+        layout.change_window_area_kind(fresh, WindowAreaKind::Explorer);
+        assert_eq!(layout.editor_area_mode(fresh), EditorAreaMode::Welcome);
+        assert!(layout.editor_sessions.get(&fresh).is_none());
+        assert!(!layout.is_foreground_editor(fresh));
+        // Switching back to Editor: still welcome (the session is
+        // re-created lazily on first use), and foreground again.
+        layout.change_window_area_kind(fresh, WindowAreaKind::Editor);
+        assert_eq!(layout.editor_area_mode(fresh), EditorAreaMode::Welcome);
+        assert!(layout.is_foreground_editor(fresh));
+        assert_eq!(layout.active_editor_area, Some(fresh));
     }
 
     #[test]
@@ -1182,7 +1296,7 @@ mod tests {
     #[test]
     fn test_inner_layout_defaults_to_source() {
         let mut layout = WindowLayout::default();
-        let inner = layout.ensure_editor_inner_panel_tree(1);
+        let inner = &layout.ensure_editor_session(1).inner_panel_tree;
         assert_eq!(inner.count_leaves(), 1);
         assert_eq!(
             inner.find_leaf_kind(2),
@@ -1194,11 +1308,11 @@ mod tests {
     fn test_inner_split_inherits_target_kind() {
         let mut layout = WindowLayout::default();
         // Set up inner: Wysiwyg panel (id 2, first allocated panel id).
-        let _ = layout.ensure_editor_inner_panel_tree(1);
+        let _ = layout.ensure_editor_session(1);
         layout.change_editor_inner_panel_kind(1, 2, EditorInnerPanelKind::Wysiwyg);
         // Split it via the status-bar path; the new panel inherits Wysiwyg.
         layout.split_editor_inner_panel(1, 2, Axis::Horizontal);
-        let inner = layout.editor_inner_panel_trees.get(&1).unwrap();
+        let inner = &layout.editor_sessions.get(&1).unwrap().inner_panel_tree;
         assert_eq!(inner.count_leaves(), 2);
         assert_eq!(inner.find_leaf_kind(2), Some(EditorInnerPanelKind::Wysiwyg));
         // The new leaf (id 3) is also Wysiwyg.
@@ -1208,11 +1322,11 @@ mod tests {
     #[test]
     fn test_corner_drag_split_inherits_dragged_kind() {
         let mut layout = WindowLayout::default();
-        let _ = layout.ensure_editor_inner_panel_tree(1);
+        let _ = layout.ensure_editor_session(1);
         layout.change_editor_inner_panel_kind(1, 2, EditorInnerPanelKind::Preview);
         // Corner-drag split; the new panel inherits Preview.
         layout.split_editor_inner_panel_with_ratio(1, 2, Axis::Vertical, 0.4);
-        let inner = layout.editor_inner_panel_trees.get(&1).unwrap();
+        let inner = &layout.editor_sessions.get(&1).unwrap().inner_panel_tree;
         assert_eq!(inner.count_leaves(), 2);
         assert_eq!(inner.find_leaf_kind(3), Some(EditorInnerPanelKind::Preview));
     }
