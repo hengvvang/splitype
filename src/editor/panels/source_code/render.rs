@@ -16,11 +16,15 @@ impl Editor {
         let c = &theme.colors;
         let d = &theme.dimensions;
 
-        let content: AnyElement = if let Some(ref block) = self.tab().source_panel.block {
+        let content: AnyElement = if let Some(block) = self
+            .source_panel_runtimes
+            .get(&panel_id)
+            .and_then(|runtime| runtime.block.clone())
+        {
             div()
                 .w_full()
                 .flex_shrink_0()
-                .child(block.clone())
+                .child(block)
                 .into_any_element()
         } else {
             div().into_any_element()

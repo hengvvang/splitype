@@ -133,6 +133,17 @@ impl<T: Copy + PartialEq> SplitTree<T> {
         }
     }
 
+    /// Collect all leaf ids in tree order.
+    pub fn leaf_ids(&self, out: &mut Vec<usize>) {
+        match self {
+            Self::Leaf { id, .. } => out.push(*id),
+            Self::Split { first, second, .. } => {
+                first.leaf_ids(out);
+                second.leaf_ids(out);
+            }
+        }
+    }
+
     /// Collect all leaf rectangles as [`AreaRect`]s. Coordinates are in
     /// layout-space (normalized 0..1).
     pub fn collect_leaf_rects(&self, x: f32, y: f32, w: f32, h: f32, out: &mut Vec<AreaRect>) {

@@ -39,8 +39,49 @@ impl Editor {
             .inner_panel_tree
             .clone();
 
+        // Drop runtimes of panels that were closed or joined.
+        self.source_panel_runtimes
+            .retain(|panel_id, _| inner_tree.contains_leaf(*panel_id));
+
         let previous = self.current_tab_area;
         self.current_tab_area = Some(area_id);
+
+        // Derive the focused panel from the keyboard focus when nothing is
+        // focused yet — clicking inside a block or Tab navigation never
+        // reaches the panel div. Explicit clicks take precedence. Only runs
+        // for editing areas: a welcome area has no tabs, hence no edit
+        // targets to derive from.
+        if self.panels.layout.focused_editor_inner_panel.is_none()
+            && self.area_mode(area_id).is_editing()
+            && let Some(target_id) = self.focused_edit_target_entity_id(window, cx)
+        {
+            if let Some((panel_id, _)) = self.source_panel_runtimes.iter().find(|(_, runtime)| {
+                runtime.area_id == area_id
+                    && runtime
+                        .block
+                        .as_ref()
+                        .is_some_and(|block| block.entity_id() == target_id)
+            }) {
+                // Keyboard focus sits in a source panel's own block.
+                if inner_tree.contains_leaf(*panel_id) {
+                    self.panels.layout.focused_editor_inner_panel =
+                        Some(InnerPanelLocation { area_id, panel_id: *panel_id });
+                }
+            } else if self.doc().block_entity_by_id(target_id).is_some() {
+                // Keyboard focus sits in the shared document: point at the
+                // area's first Wysiwyg panel.
+                let mut ids = Vec::new();
+                inner_tree.leaf_ids(&mut ids);
+                if let Some(panel_id) = ids.into_iter().find(|id| {
+                    inner_tree.find_leaf_kind(*id)
+                        == Some(EditorInnerPanelKind::Editing(EditingPanelKind::Wysiwyg))
+                }) {
+                    self.panels.layout.focused_editor_inner_panel =
+                        Some(InnerPanelLocation { area_id, panel_id });
+                }
+            }
+        }
+
         let inner_rendered = self.render_editor_inner_panel_node(
             &inner_tree,
             area_id,
@@ -120,7 +161,7 @@ impl Editor {
             .cursor_pointer()
             // GPUI has no double-click event; track click timestamps in
             // editor state (closure-local state is rebuilt every frame).
-            .on_click(move |_event, _window, cx| {
+            .on_click(move |_event, window, cx| {
                 let now = std::time::Instant::now();
                 let _ = editor.update(cx, |ed, cx| {
                     let is_double = ed.chrome.welcome_last_click.is_some_and(|previous| {
@@ -134,6 +175,9 @@ impl Editor {
                         ed.current_tab_area = Some(area_id);
                         ed.new_untitled_tab(area_id, cx);
                         ed.current_tab_area = None;
+                        // Focus the new source panel so typing works
+                        // immediately after entering editing.
+                        ed.focus_editor_inner_panel(area_id, panel_id, window, cx);
                     }
                 });
             })
@@ -192,7 +236,7 @@ impl Editor {
                         // cached block in source-document mode; edits sync to
                         // the shared document via the block's Changed event.
                         EditingPanelKind::SourceCode => {
-                            self.refresh_source_panel_block(cx);
+                            self.refresh_source_panel_block(area_id, panel_id, cx);
                             self.render_source_editor_panel(area_id, panel_id, theme, cx)
                         }
                         EditingPanelKind::Preview => self.render_tiled_preview_panel(
@@ -281,12 +325,12 @@ impl Editor {
                     .child(make_inner_corner("edit-sub-tr", true, false))
                     .child(make_inner_corner("edit-sub-bl", false, true))
                     .child(make_inner_corner("edit-sub-br", false, false))
-                    .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                    .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
                         let _ = focus_editor.update(cx, |ed, cx| {
-                            ed.panels.layout.focused_editor_inner_panel =
-                                Some(InnerPanelLocation { area_id, panel_id });
-                            // Interacting with this editor activates it.
-                            ed.panels.layout.activate_editor_area(area_id);
+                            // Select this panel and move the keyboard edit
+                            // focus to its editing target (source block or
+                            // the shared document block).
+                            ed.focus_editor_inner_panel(area_id, panel_id, window, cx);
                             cx.notify();
                         });
                     })

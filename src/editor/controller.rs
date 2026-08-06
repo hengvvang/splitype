@@ -16,14 +16,17 @@ use std::sync::Arc;
 pub(crate) use gpui::*;
 
 pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
-pub(crate) use crate::editor::panels::{PreviewState, SourcePanelState};
+pub(crate) use crate::editor::panels::{PreviewState, SourcePanelRuntime};
 pub(crate) use crate::editor::tree::block::Block;
 pub(crate) use crate::editor::tree::document::Document;
 pub(crate) use crate::editor::tree::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
 pub(crate) use crate::layout::state::{EditorTabList, ROOT_AREA_ID};
-pub(crate) use crate::layout::types::{AreaId, AreaSplitMode, EditorAreaMode};
+pub(crate) use crate::layout::types::{
+    AreaId, AreaSplitMode, EditingPanelKind, EditorAreaMode, EditorInnerPanelKind, InnerPanelLocation,
+    PanelId,
+};
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::model::inline::text::RichText;
 pub(crate) use crate::model::syntax::image::{
@@ -171,7 +174,6 @@ pub(crate) struct DocumentTab {
     pub(crate) references: ReferenceRegistries,
     pub(crate) tables: TableRuntimes,
     pub(crate) preview: PreviewState,
-    pub(crate) source_panel: SourcePanelState,
     pub(crate) scroll: ScrollState,
 }
 
@@ -193,6 +195,10 @@ pub struct Editor {
     pub(crate) current_tab_area: Option<AreaId>,
     pub(crate) chrome: WindowChrome,
     pub(crate) panels: WindowPanels,
+    /// Per-SourceCode-panel editing runtimes (keyed by the globally unique
+    /// panel id). Each source panel owns its own block entity so multiple
+    /// source panels edit independently; see `SourcePanelRuntime`.
+    pub(crate) source_panel_runtimes: HashMap<PanelId, SourcePanelRuntime>,
 }
 
 /// Runtime binding between a table block and one cell editor.
@@ -330,6 +336,7 @@ impl Editor {
             current_tab_area: None,
             chrome: WindowChrome::default(),
             panels: WindowPanels::default(),
+            source_panel_runtimes: HashMap::new(),
         }
         .with_seeded_root_editor()
     }
@@ -359,6 +366,7 @@ impl Editor {
             current_tab_area: None,
             chrome: WindowChrome::default(),
             panels: WindowPanels::default(),
+            source_panel_runtimes: HashMap::new(),
         };
         // Seed the root Editor area with the initial tab, migrating the
         // default welcome panel into its editing panel.
@@ -420,7 +428,6 @@ impl Editor {
             references: ReferenceRegistries::default(),
             tables: TableRuntimes::default(),
             preview: PreviewState::default(),
-            source_panel: SourcePanelState::default(),
             scroll: ScrollState::default(),
         }
     }
@@ -589,6 +596,60 @@ impl Editor {
         let result = f(self);
         self.current_tab_area = previous;
         result
+    }
+
+    /// Select the inner panel at `(area_id, panel_id)` as the focused
+    /// panel AND transfer the keyboard edit focus to that panel's editing
+    /// target: a source panel focuses its own block, a Wysiwyg panel
+    /// resumes editing the shared document at the last position. Preview /
+    /// Outline / Welcome panels only update the status-bar focus.
+    pub(crate) fn focus_editor_inner_panel(
+        &mut self,
+        area_id: AreaId,
+        panel_id: PanelId,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.panels.layout.focused_editor_inner_panel =
+            Some(InnerPanelLocation { area_id, panel_id });
+        self.panels.layout.activate_editor_area(area_id);
+        self.with_current_tab_area(area_id, |editor| {
+            let kind = editor
+                .panels
+                .layout
+                .editor_session(area_id)
+                .and_then(|session| session.inner_panel_tree.find_leaf_kind(panel_id));
+            match kind {
+                // The source panel's own block becomes the edit target.
+                Some(EditorInnerPanelKind::Editing(EditingPanelKind::SourceCode)) => {
+                    editor.refresh_source_panel_block(area_id, panel_id, cx);
+                    if let Some(block) = editor
+                        .source_panel_runtimes
+                        .get(&panel_id)
+                        .and_then(|runtime| runtime.block.clone())
+                    {
+                        block.read(cx).focus_handle.focus(window);
+                    }
+                }
+                // Resume editing the shared document at the last position
+                // (falling back to the first block when it was rebuilt).
+                Some(EditorInnerPanelKind::Editing(EditingPanelKind::Wysiwyg)) => {
+                    let target = editor
+                        .tab()
+                        .focus
+                        .active_entity
+                        .filter(|id| editor.focusable_entity_by_id(*id).is_some())
+                        .or_else(|| editor.first_focusable_entity_id(cx));
+                    if let Some(id) = target {
+                        if let Some(block) = editor.focusable_entity_by_id(id) {
+                            block.read(cx).focus_handle.focus(window);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        });
+        cx.notify();
     }
 
     /// The active document tab (of the routed editor area).
