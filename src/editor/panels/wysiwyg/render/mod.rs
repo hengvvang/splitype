@@ -1086,7 +1086,7 @@ impl Block {
                         .flex_shrink_0()
                         .justify_between()
                         .bg(if is_selected {
-                            c.dialog_secondary_button_bg
+                            c.panel_row_selected
                         } else {
                             c.dialog_surface
                         })

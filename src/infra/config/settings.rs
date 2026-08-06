@@ -72,6 +72,110 @@ impl StartupOpenSetting {
     }
 }
 
+/// Explorer tree sorting mode (mirrors Zed's `ProjectPanelSortMode`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ExplorerSortMode {
+    DirectoriesFirst,
+    FilesFirst,
+    Mixed,
+}
+
+impl ExplorerSortMode {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::DirectoriesFirst => "directories_first",
+            Self::FilesFirst => "files_first",
+            Self::Mixed => "mixed",
+        }
+    }
+
+    fn from_str(value: &str) -> Self {
+        match value {
+            "files_first" => Self::FilesFirst,
+            "mixed" => Self::Mixed,
+            _ => Self::DirectoriesFirst,
+        }
+    }
+}
+
+/// Explorer tree sort order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ExplorerSortOrder {
+    Ascending,
+    Descending,
+}
+
+impl ExplorerSortOrder {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Ascending => "ascending",
+            Self::Descending => "descending",
+        }
+    }
+
+    fn from_str(value: &str) -> Self {
+        match value {
+            "descending" => Self::Descending,
+            _ => Self::Ascending,
+        }
+    }
+}
+
+/// Explorer sidebar settings persisted in `config.toml`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ExplorerSettings {
+    pub hide_hidden: bool,
+    pub sort_mode: ExplorerSortMode,
+    pub sort_order: ExplorerSortOrder,
+}
+
+impl Default for ExplorerSettings {
+    fn default() -> Self {
+        Self {
+            hide_hidden: false,
+            sort_mode: ExplorerSortMode::DirectoriesFirst,
+            sort_order: ExplorerSortOrder::Ascending,
+        }
+    }
+}
+
+/// Runtime mirror of [`ExplorerSettings`] so the scan path reads them
+/// without touching disk; toggles persist back to the settings file.
+pub struct ExplorerSettingsStore {
+    pub settings: ExplorerSettings,
+}
+
+impl Global for ExplorerSettingsStore {}
+
+impl ExplorerSettingsStore {
+    pub fn init(cx: &mut App) {
+        let settings = read_app_settings()
+            .ok()
+            .map(|settings| settings.explorer)
+            .unwrap_or_default();
+        cx.set_global(Self { settings });
+    }
+
+    pub fn settings(cx: &App) -> ExplorerSettings {
+        cx.try_global::<Self>()
+            .map(|store| store.settings)
+            .unwrap_or_default()
+    }
+
+    pub fn set(cx: &mut App, settings: ExplorerSettings) {
+        cx.set_global(Self { settings });
+        match read_app_settings() {
+            Ok(mut app_settings) => {
+                app_settings.explorer = settings;
+                if let Err(err) = save_app_settings(&app_settings) {
+                    eprintln!("failed to save explorer settings: {err}");
+                }
+            }
+            Err(err) => eprintln!("failed to read explorer settings: {err}"),
+        }
+    }
+}
+
 /// Where pasted clipboard images should be stored before inserting Markdown.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ImagePasteBehavior {
@@ -111,6 +215,7 @@ pub(crate) struct AppSettings {
     pub(crate) image_paste_behavior: ImagePasteBehavior,
     pub(crate) keybindings: BTreeMap<String, Vec<String>>,
     pub(crate) status_bar: StatusBarSettings,
+    pub(crate) explorer: ExplorerSettings,
 }
 
 impl Default for AppSettings {
@@ -123,6 +228,7 @@ impl Default for AppSettings {
             image_paste_behavior: ImagePasteBehavior::None,
             keybindings: BTreeMap::new(),
             status_bar: StatusBarSettings::default(),
+            explorer: ExplorerSettings::default(),
         }
     }
 }
@@ -214,6 +320,7 @@ struct SettingsFile {
     editor: EditorSettingsFile,
     status_bar: StatusBarSettingsFile,
     keybindings: BTreeMap<String, Vec<String>>,
+    explorer: ExplorerSettingsFile,
 }
 
 #[derive(Serialize)]
@@ -248,6 +355,13 @@ struct StatusBarSettingsFile {
     custom_buttons: Vec<StatusBarButton>,
 }
 
+#[derive(Serialize)]
+struct ExplorerSettingsFile {
+    hide_hidden: bool,
+    sort_mode: String,
+    sort_order: String,
+}
+
 impl From<&StatusBarSettings> for StatusBarSettingsFile {
     fn from(value: &StatusBarSettings) -> Self {
         Self {
@@ -279,6 +393,11 @@ impl From<&AppSettings> for SettingsFile {
             },
             status_bar: StatusBarSettingsFile::from(&value.status_bar),
             keybindings: normalize_shortcut_config(&value.keybindings),
+            explorer: ExplorerSettingsFile {
+                hide_hidden: value.explorer.hide_hidden,
+                sort_mode: value.explorer.sort_mode.as_str().into(),
+                sort_order: value.explorer.sort_order.as_str().into(),
+            },
         }
     }
 }
@@ -418,6 +537,26 @@ fn app_settings_from_toml_value(value: &toml::Value, fallback_language_id: &str)
         })
         .unwrap_or_default();
 
+    let explorer = value
+        .get("explorer")
+        .map(|explorer| ExplorerSettings {
+            hide_hidden: explorer
+                .get("hide_hidden")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false),
+            sort_mode: explorer
+                .get("sort_mode")
+                .and_then(|v| v.as_str())
+                .map(ExplorerSortMode::from_str)
+                .unwrap_or(ExplorerSortMode::DirectoriesFirst),
+            sort_order: explorer
+                .get("sort_order")
+                .and_then(|v| v.as_str())
+                .map(ExplorerSortOrder::from_str)
+                .unwrap_or(ExplorerSortOrder::Ascending),
+        })
+        .unwrap_or_default();
+
     AppSettings {
         startup_open,
         default_language_id,
@@ -426,6 +565,7 @@ fn app_settings_from_toml_value(value: &toml::Value, fallback_language_id: &str)
         image_paste_behavior,
         keybindings,
         status_bar,
+        explorer,
     }
 }
 
@@ -589,4 +729,3 @@ fn update_app_settings(update: impl FnOnce(&mut AppSettings)) -> anyhow::Result<
     save_app_settings(&settings)?;
     Ok(settings)
 }
-

@@ -49,7 +49,7 @@ impl Editor {
                     .flex()
                     .items_center()
                     .bg(if is_active {
-                        c.dialog_secondary_button_hover
+                        c.panel_row_selected
                     } else {
                         c.dialog_surface
                     })
@@ -337,7 +337,7 @@ impl Editor {
                                     c,
                                 )
                                 .bg(if is_selected {
-                                    c.dialog_secondary_button_hover
+                                    c.panel_row_selected
                                 } else {
                                     c.dialog_surface
                                 })
@@ -433,7 +433,7 @@ impl Editor {
                                     c,
                                 )
                                 .bg(if is_selected {
-                                    c.dialog_secondary_button_hover
+                                    c.panel_row_selected
                                 } else {
                                     c.dialog_surface
                                 })
@@ -848,7 +848,7 @@ impl Editor {
                                     c,
                                 )
                                 .bg(if is_selected {
-                                    c.dialog_secondary_button_hover
+                                    c.panel_row_selected
                                 } else {
                                     c.dialog_surface
                                 })
@@ -966,7 +966,7 @@ impl Editor {
                                     c,
                                 )
                                 .bg(if is_selected {
-                                    c.dialog_secondary_button_hover
+                                    c.panel_row_selected
                                 } else {
                                     c.dialog_surface
                                 })

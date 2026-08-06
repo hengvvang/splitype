@@ -33,6 +33,9 @@ impl AssetSource for SplitypeAssets {
             "icon/explorer/refresh.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icon/explorer/refresh.svg"
             )))),
+            "icon/explorer/eye.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icon/explorer/eye.svg"
+            )))),
             "icon/titlebar/chrome-close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icon/titlebar/chrome-close.svg"
             )))),

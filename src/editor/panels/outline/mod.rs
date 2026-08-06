@@ -15,8 +15,8 @@ pub(crate) fn prune_outline_state(explorer: &mut ExplorerState, outline: &[Explo
     let mut current_ids = HashSet::new();
     collect_node_ids(outline, &mut current_ids);
     explorer
-        .expanded
-        .retain(|id| !is_outline_node_id(id) || current_ids.contains(id));
+        .expanded_outline
+        .retain(|id| current_ids.contains(id));
 
     if matches!(
         &explorer.selected,
@@ -32,11 +32,6 @@ pub(crate) fn collect_node_ids(nodes: &[ExplorerNode], ids: &mut HashSet<String>
         ids.insert(node.id.clone());
         collect_node_ids(&node.children, ids);
     }
-}
-
-/// Returns `true` when `id` is an outline-node id (starts with "outline:").
-pub(crate) fn is_outline_node_id(id: &str) -> bool {
-    id.starts_with("outline:")
 }
 
 /// Parse a Markdown document into an outline tree (headings only).

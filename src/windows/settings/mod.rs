@@ -278,7 +278,7 @@ impl Render for SettingsWindow {
         let nav_item = |id: &'static str, label: &'static str, is_selected: bool| -> AnyElement {
             nav_tab(id, c, d)
                 .bg(if is_selected {
-                    c.dialog_secondary_button_hover
+                    c.panel_row_selected
                 } else {
                     c.dialog_surface
                 })
@@ -595,7 +595,7 @@ impl Render for SettingsWindow {
                                 c,
                             )
                             .bg(if is_selected {
-                                c.dialog_secondary_button_hover
+                                c.panel_row_selected
                             } else {
                                 c.dialog_surface
                             })
@@ -688,7 +688,7 @@ impl Render for SettingsWindow {
                                 c,
                             )
                             .bg(if is_selected {
-                                c.dialog_secondary_button_hover
+                                c.panel_row_selected
                             } else {
                                 c.dialog_surface
                             })
@@ -1030,7 +1030,7 @@ impl Render for SettingsWindow {
                                 c,
                             )
                             .bg(if is_selected {
-                                c.dialog_secondary_button_hover
+                                c.panel_row_selected
                             } else {
                                 c.dialog_surface
                             })
@@ -1129,7 +1129,7 @@ impl Render for SettingsWindow {
                                 c,
                             )
                             .bg(if is_selected {
-                                c.dialog_secondary_button_hover
+                                c.panel_row_selected
                             } else {
                                 c.dialog_surface
                             })

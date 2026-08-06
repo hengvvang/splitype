@@ -26,7 +26,7 @@ pub fn menu_item_row(c: &ThemeColors, d: &ThemeDimensions) -> Div {
 pub fn menu_item(id: impl Into<ElementId>, c: &ThemeColors, d: &ThemeDimensions) -> Stateful<Div> {
     menu_item_row(c, d)
         .id(id)
-        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+        .hover(|this| this.bg(c.panel_row_hover))
         .active(|this| this.opacity(0.92))
         .cursor_pointer()
 }

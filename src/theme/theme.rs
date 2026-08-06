@@ -136,6 +136,10 @@ impl Theme {
                 status_bar_text: Hsla::from(rgba(0xd4d4d8cc)),
                 status_bar_text_dim: Hsla::from(rgba(0x71717aff)),
                 status_bar_button_hover: Hsla::from(rgba(0x3f3f46ff)),
+                // Translucent white row highlight (dark theme).
+                panel_row_hover: Hsla::from(rgba(0xffffff14)),
+                // Light blue selection (dark theme).
+                panel_row_selected: Hsla::from(rgba(0x3b82f63d)),
             },
             dimensions: ThemeDimensions {
                 editor_padding: 24.0,
@@ -380,6 +384,10 @@ impl Theme {
                 status_bar_text: Hsla::from(rgba(0x334155ff)),
                 status_bar_text_dim: Hsla::from(rgba(0x64748bff)),
                 status_bar_button_hover: Hsla::from(rgba(0xcbd5e1ff)),
+                // Light-grey row highlight, clearly visible on white (light theme).
+                panel_row_hover: Hsla::from(rgba(0xf2f2f2ff)),
+                // Bright, saturated light-blue selection (light theme).
+                panel_row_selected: Hsla::from(rgba(0x60a5fa33)),
             },
             dimensions: base.dimensions,
             typography: base.typography,

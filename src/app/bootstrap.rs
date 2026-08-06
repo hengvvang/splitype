@@ -21,7 +21,7 @@ use crate::app::windows::open_file_in_new_window;
 #[cfg(target_os = "macos")]
 use crate::platform::file_url::parse_file_url;
 use crate::infra::config::settings::{
-    EditorSettings, StartupOpenSetting, first_existing_recent_markdown_file,
+    EditorSettings, ExplorerSettingsStore, StartupOpenSetting, first_existing_recent_markdown_file,
     load_or_create_app_settings,
 };
 use crate::infra::i18n::I18nManager;
@@ -109,6 +109,7 @@ pub fn run(args: Args) {
         I18nManager::init_with_language_id(cx, &settings.default_language_id);
         ThemeManager::init_with_theme_id(cx, &settings.default_theme_id);
         EditorSettings::init(cx, settings.show_table_headers);
+        ExplorerSettingsStore::init(cx);
         install_http_client(cx);
         init_editor(cx, &settings.keybindings);
         init_app_menu(cx);

@@ -188,6 +188,10 @@ pub struct ThemeColors {
     pub status_bar_text_dim: Hsla,
     /// Hover background for clickable status bar items.
     pub status_bar_button_hover: Hsla,
+    /// Explorer panel row hover background (translucent highlight).
+    pub panel_row_hover: Hsla,
+    /// Explorer panel row selection background (light blue).
+    pub panel_row_selected: Hsla,
 }
 
 /// Deserialization adapter for `ThemeColors` with backward-compatible defaults.
@@ -285,6 +289,8 @@ struct ThemeColorsDe {
     status_bar_text: Option<Hsla>,
     status_bar_text_dim: Option<Hsla>,
     status_bar_button_hover: Option<Hsla>,
+    panel_row_hover: Option<Hsla>,
+    panel_row_selected: Option<Hsla>,
 }
 
 impl<'de> Deserialize<'de> for ThemeColors {
@@ -504,6 +510,12 @@ impl<'de> Deserialize<'de> for ThemeColors {
             status_bar_button_hover: raw
                 .status_bar_button_hover
                 .unwrap_or_else(|| Hsla::from(rgba(0x3f3f46ff))),
+            panel_row_hover: raw
+                .panel_row_hover
+                .unwrap_or_else(|| Hsla::from(rgba(0xffffff14))),
+            panel_row_selected: raw
+                .panel_row_selected
+                .unwrap_or_else(|| Hsla::from(rgba(0x3b82f63d))),
         })
     }
 }

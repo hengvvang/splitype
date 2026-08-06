@@ -238,6 +238,38 @@ pub struct I18nStrings {
     pub explorer_recent_title: String,
     /// Message shown when the current document has no headings.
     pub explorer_empty_outline: String,
+    /// Explorer context menu: create a new file in the current directory.
+    pub explorer_new_file: String,
+    /// Explorer context menu: create a new folder in the current directory.
+    pub explorer_new_folder: String,
+    /// Explorer context menu: reveal the entry in the OS file manager.
+    pub explorer_reveal_in_file_manager: String,
+    /// Explorer context menu: open the entry with the default OS application.
+    pub explorer_open_in_default_app: String,
+    /// Explorer context menu: cut the selected entries.
+    pub explorer_cut: String,
+    /// Explorer context menu: copy the selected entries.
+    pub explorer_copy: String,
+    /// Explorer context menu: duplicate the selected entries.
+    pub explorer_duplicate: String,
+    /// Explorer context menu: paste the clipboard into the target.
+    pub explorer_paste: String,
+    /// Explorer context menu: undo the last file operation.
+    pub explorer_undo: String,
+    /// Explorer context menu: redo the last undone file operation.
+    pub explorer_redo: String,
+    /// Explorer context menu: copy the absolute path of the entry.
+    pub explorer_copy_path: String,
+    /// Explorer context menu: copy the path relative to the explorer root.
+    pub explorer_copy_relative_path: String,
+    /// Explorer context menu: rename the entry.
+    pub explorer_rename: String,
+    /// Explorer context menu: permanently delete the entry.
+    pub explorer_delete: String,
+    /// Explorer context menu: expand a directory and all of its children.
+    pub explorer_expand_all: String,
+    /// Explorer context menu: collapse a directory and all of its children.
+    pub explorer_collapse_all: String,
         /// Title of the link-opening confirmation prompt.
     pub open_link_title: String,
     /// Confirm button for the link-opening prompt.
@@ -469,6 +501,22 @@ pub struct I18nStringsDe {
     settings_shortcut_toggle_explorer: Option<String>,
     explorer_recent_title: Option<String>,
     explorer_empty_outline: Option<String>,
+    explorer_new_file: Option<String>,
+    explorer_new_folder: Option<String>,
+    explorer_reveal_in_file_manager: Option<String>,
+    explorer_open_in_default_app: Option<String>,
+    explorer_cut: Option<String>,
+    explorer_copy: Option<String>,
+    explorer_duplicate: Option<String>,
+    explorer_paste: Option<String>,
+    explorer_undo: Option<String>,
+    explorer_redo: Option<String>,
+    explorer_copy_path: Option<String>,
+    explorer_copy_relative_path: Option<String>,
+    explorer_rename: Option<String>,
+    explorer_delete: Option<String>,
+    explorer_expand_all: Option<String>,
+    explorer_collapse_all: Option<String>,
     open_link_title: Option<String>,
     open_link_open: Option<String>,
     open_link_cancel: Option<String>,
@@ -658,6 +706,22 @@ pub(crate) const I18N_STRING_KEYS: &[&str] = &[
     "settings_shortcut_toggle_explorer",
     "explorer_recent_title",
     "explorer_empty_outline",
+    "explorer_new_file",
+    "explorer_new_folder",
+    "explorer_reveal_in_file_manager",
+    "explorer_open_in_default_app",
+    "explorer_cut",
+    "explorer_copy",
+    "explorer_duplicate",
+    "explorer_paste",
+    "explorer_undo",
+    "explorer_redo",
+    "explorer_copy_path",
+    "explorer_copy_relative_path",
+    "explorer_rename",
+    "explorer_delete",
+    "explorer_expand_all",
+    "explorer_collapse_all",
     "open_link_title",
     "open_link_open",
     "open_link_cancel",
@@ -1083,6 +1147,40 @@ impl I18nStringsDe {
             explorer_empty_outline: self
                 .explorer_empty_outline
                 .unwrap_or(defaults.explorer_empty_outline),
+            explorer_new_file: self
+                .explorer_new_file
+                .unwrap_or(defaults.explorer_new_file),
+            explorer_new_folder: self
+                .explorer_new_folder
+                .unwrap_or(defaults.explorer_new_folder),
+            explorer_reveal_in_file_manager: self
+                .explorer_reveal_in_file_manager
+                .unwrap_or(defaults.explorer_reveal_in_file_manager),
+            explorer_open_in_default_app: self
+                .explorer_open_in_default_app
+                .unwrap_or(defaults.explorer_open_in_default_app),
+            explorer_cut: self.explorer_cut.unwrap_or(defaults.explorer_cut),
+            explorer_copy: self.explorer_copy.unwrap_or(defaults.explorer_copy),
+            explorer_duplicate: self
+                .explorer_duplicate
+                .unwrap_or(defaults.explorer_duplicate),
+            explorer_paste: self.explorer_paste.unwrap_or(defaults.explorer_paste),
+            explorer_undo: self.explorer_undo.unwrap_or(defaults.explorer_undo),
+            explorer_redo: self.explorer_redo.unwrap_or(defaults.explorer_redo),
+            explorer_copy_path: self
+                .explorer_copy_path
+                .unwrap_or(defaults.explorer_copy_path),
+            explorer_copy_relative_path: self
+                .explorer_copy_relative_path
+                .unwrap_or(defaults.explorer_copy_relative_path),
+            explorer_rename: self.explorer_rename.unwrap_or(defaults.explorer_rename),
+            explorer_delete: self.explorer_delete.unwrap_or(defaults.explorer_delete),
+            explorer_expand_all: self
+                .explorer_expand_all
+                .unwrap_or(defaults.explorer_expand_all),
+            explorer_collapse_all: self
+                .explorer_collapse_all
+                .unwrap_or(defaults.explorer_collapse_all),
             open_link_title: self.open_link_title.unwrap_or(defaults.open_link_title),
             open_link_open: self.open_link_open.unwrap_or(defaults.open_link_open),
             open_link_cancel: self.open_link_cancel.unwrap_or(defaults.open_link_cancel),
@@ -1350,6 +1448,22 @@ impl I18nStrings {
             settings_shortcut_toggle_explorer: "切换资源管理器".into(),
             explorer_recent_title: "最近打开".into(),
             explorer_empty_outline: "当前文档没有标题".into(),
+            explorer_new_file: "新建文件".into(),
+            explorer_new_folder: "新建文件夹".into(),
+            explorer_reveal_in_file_manager: "在文件管理器中显示".into(),
+            explorer_open_in_default_app: "用默认应用打开".into(),
+            explorer_cut: "剪切".into(),
+            explorer_copy: "复制".into(),
+            explorer_duplicate: "复制副本".into(),
+            explorer_paste: "粘贴".into(),
+            explorer_undo: "撤销".into(),
+            explorer_redo: "重做".into(),
+            explorer_copy_path: "复制路径".into(),
+            explorer_copy_relative_path: "复制相对路径".into(),
+            explorer_rename: "重命名".into(),
+            explorer_delete: "删除".into(),
+            explorer_expand_all: "全部展开".into(),
+            explorer_collapse_all: "全部折叠".into(),
             open_link_title: "打开链接？".into(),
             open_link_open: "打开".into(),
             open_link_cancel: "取消".into(),
@@ -1567,6 +1681,22 @@ impl I18nStrings {
             settings_shortcut_toggle_explorer: "Toggle Explorer".into(),
             explorer_recent_title: "Recent".into(),
             explorer_empty_outline: "This document has no headings".into(),
+            explorer_new_file: "New File".into(),
+            explorer_new_folder: "New Folder".into(),
+            explorer_reveal_in_file_manager: "Reveal in File Manager".into(),
+            explorer_open_in_default_app: "Open in Default App".into(),
+            explorer_cut: "Cut".into(),
+            explorer_copy: "Copy".into(),
+            explorer_duplicate: "Duplicate".into(),
+            explorer_paste: "Paste".into(),
+            explorer_undo: "Undo".into(),
+            explorer_redo: "Redo".into(),
+            explorer_copy_path: "Copy Path".into(),
+            explorer_copy_relative_path: "Copy Relative Path".into(),
+            explorer_rename: "Rename".into(),
+            explorer_delete: "Delete".into(),
+            explorer_expand_all: "Expand All".into(),
+            explorer_collapse_all: "Collapse All".into(),
             open_link_title: "Open link?".into(),
             open_link_open: "Open".into(),
             open_link_cancel: "Cancel".into(),

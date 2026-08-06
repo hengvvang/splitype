@@ -61,5 +61,5 @@ pub fn select_option(id: impl Into<ElementId>, c: &ThemeColors) -> Stateful<Div>
         .px(px(10.0))
         .py(px(6.0))
         .rounded(px(4.0))
-        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+        .hover(|this| this.bg(c.panel_row_hover))
 }

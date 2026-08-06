@@ -16,6 +16,5 @@ pub fn nav_tab(id: impl Into<ElementId>, c: &ThemeColors, d: &ThemeDimensions) -
         .flex()
         .items_center()
         .cursor_pointer()
-        .hover(|this| this.bg(c.dialog_secondary_button_hover))
-        .active(|this| this.opacity(0.92))
+        .hover(|this| this.bg(c.panel_row_hover))
 }

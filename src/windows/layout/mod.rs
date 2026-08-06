@@ -1166,7 +1166,7 @@ impl Editor {
                     .w_full()
                     .justify_between()
                     .bg(if is_current {
-                        c.dialog_secondary_button_hover
+                        c.panel_row_selected
                     } else {
                         c.dialog_surface
                     })

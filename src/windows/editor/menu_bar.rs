@@ -490,7 +490,7 @@ impl Editor {
                 if is_disabled {
                     base.into_any_element()
                 } else {
-                    base.hover(|this| this.bg(c.dialog_secondary_button_hover))
+                    base.hover(|this| this.bg(c.panel_row_hover))
                         .active(|this| this.opacity(0.92))
                         .cursor_pointer()
                         .on_click(move |_, window, cx| {
@@ -513,7 +513,7 @@ impl Editor {
                     .flex_shrink_0()
                     .justify_between()
                     .bg(if is_open {
-                        c.dialog_secondary_button_hover
+                        c.panel_row_selected
                     } else {
                         c.dialog_surface
                     })
@@ -675,7 +675,7 @@ impl Editor {
                                         .when(is_theme_or_lang, |this| this.justify_between())
                                         .rounded(px(d.menu_item_radius))
                                         .bg(if is_selected {
-                                            c.dialog_secondary_button_hover
+                                            c.panel_row_selected
                                         } else {
                                             c.dialog_surface
                                         })
@@ -704,7 +704,7 @@ impl Editor {
                                     if is_disabled {
                                         base.into_any_element()
                                     } else {
-                                        base.hover(|this| this.bg(c.dialog_secondary_button_hover))
+                                        base.hover(|this| this.bg(c.panel_row_hover))
                                             .active(|this| this.opacity(0.92))
                                             .cursor_pointer()
                                             .on_click(move |_, window, cx| {
