@@ -9,4 +9,4 @@ pub(crate) mod source_code;
 pub(crate) mod wysiwyg;
 
 pub(crate) use preview::PreviewState;
-pub(crate) use source_code::SourcePanelRuntime;
+pub(crate) use source_code::SourceCodePanelRuntime;

@@ -16,7 +16,7 @@ use std::sync::Arc;
 pub(crate) use gpui::*;
 
 pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
-pub(crate) use crate::editor::panels::{PreviewState, SourcePanelRuntime};
+pub(crate) use crate::editor::panels::{PreviewState, SourceCodePanelRuntime};
 pub(crate) use crate::editor::tree::block::Block;
 pub(crate) use crate::editor::tree::document::Document;
 pub(crate) use crate::editor::tree::footnotes::{
@@ -197,8 +197,8 @@ pub struct Editor {
     pub(crate) panels: WindowPanels,
     /// Per-SourceCode-panel editing runtimes (keyed by the globally unique
     /// panel id). Each source panel owns its own block entity so multiple
-    /// source panels edit independently; see `SourcePanelRuntime`.
-    pub(crate) source_panel_runtimes: HashMap<PanelId, SourcePanelRuntime>,
+    /// source panels edit independently; see `SourceCodePanelRuntime`.
+    pub(crate) source_code_panel_runtimes: HashMap<PanelId, SourceCodePanelRuntime>,
 }
 
 /// Runtime binding between a table block and one cell editor.
@@ -336,7 +336,7 @@ impl Editor {
             current_tab_area: None,
             chrome: WindowChrome::default(),
             panels: WindowPanels::default(),
-            source_panel_runtimes: HashMap::new(),
+            source_code_panel_runtimes: HashMap::new(),
         }
         .with_seeded_root_editor()
     }
@@ -366,7 +366,7 @@ impl Editor {
             current_tab_area: None,
             chrome: WindowChrome::default(),
             panels: WindowPanels::default(),
-            source_panel_runtimes: HashMap::new(),
+            source_code_panel_runtimes: HashMap::new(),
         };
         // Seed the root Editor area with the initial tab, migrating the
         // default welcome panel into its editing panel.
@@ -603,6 +603,13 @@ impl Editor {
     /// target: a source panel focuses its own block, a Wysiwyg panel
     /// resumes editing the shared document at the last position. Preview /
     /// Outline / Welcome panels only update the status-bar focus.
+    ///
+    /// Two focus systems stay in sync here: `focused_editor_inner_panel`
+    /// (status-bar target, set explicitly) and the gpui keyboard focus
+    /// (input routing, moved to the panel's edit target). The keyboard
+    /// focus is the single source of truth for *who edits*; the custom
+    /// focus is its projection plus the explicit selection for panels
+    /// without an edit target (Preview / Outline / Welcome).
     pub(crate) fn focus_editor_inner_panel(
         &mut self,
         area_id: AreaId,
@@ -622,9 +629,9 @@ impl Editor {
             match kind {
                 // The source panel's own block becomes the edit target.
                 Some(EditorInnerPanelKind::Editing(EditingPanelKind::SourceCode)) => {
-                    editor.refresh_source_panel_block(area_id, panel_id, cx);
+                    editor.sync_source_code_panel(area_id, panel_id, cx);
                     if let Some(block) = editor
-                        .source_panel_runtimes
+                        .source_code_panel_runtimes
                         .get(&panel_id)
                         .and_then(|runtime| runtime.block.clone())
                     {

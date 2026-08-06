@@ -6,7 +6,7 @@ use crate::editor::controller::*;
 use crate::theme::Theme;
 
 impl Editor {
-    pub(crate) fn render_source_editor_panel(
+    pub(crate) fn render_source_code_panel(
         &mut self,
         area_id: usize,
         panel_id: usize,
@@ -17,7 +17,7 @@ impl Editor {
         let d = &theme.dimensions;
 
         let content: AnyElement = if let Some(block) = self
-            .source_panel_runtimes
+            .source_code_panel_runtimes
             .get(&panel_id)
             .and_then(|runtime| runtime.block.clone())
         {

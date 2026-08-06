@@ -14,13 +14,16 @@ use crate::model::block::BlockData;
 ///
 /// Every `Editing(SourceCode)` panel owns its own runtime (its own block
 /// entity, cursor, and subscription) so multiple source panels edit
-/// independently; the document content itself stays shared. `area_id`
-/// routes the block's `Changed` events back to the owning editor area.
+/// independently; the document content itself stays shared. The owning
+/// area is captured by the subscription closure, so it is not stored here.
 #[derive(Default)]
-pub(crate) struct SourcePanelRuntime {
+pub(crate) struct SourceCodePanelRuntime {
+    /// The panel's own raw-source block entity.
     pub(crate) block: Option<Entity<Block>>,
-    pub(crate) doc_hash: u64,
-    pub(crate) area_id: AreaId,
+    /// Fingerprint of the document at the last sync: when the document is
+    /// changed externally (e.g. by a Wysiwyg panel), the block is rebuilt
+    /// from it. The block itself keeps the user's raw bytes in between.
+    pub(crate) synced_doc_hash: u64,
 }
 
 impl Editor {
@@ -31,7 +34,7 @@ impl Editor {
     ///
     /// The block is created as a standalone entity with a minimal
     /// subscription that only syncs Changed events back to the document.
-    pub(crate) fn refresh_source_panel_block(
+    pub(crate) fn sync_source_code_panel(
         &mut self,
         area_id: AreaId,
         panel_id: usize,
@@ -41,14 +44,13 @@ impl Editor {
         let doc_hash = Self::hash_str(&doc_text);
 
         let runtime = self
-            .source_panel_runtimes
+            .source_code_panel_runtimes
             .entry(panel_id)
-            .or_insert_with(|| SourcePanelRuntime {
+            .or_insert_with(|| SourceCodePanelRuntime {
                 block: None,
-                doc_hash: 0,
-                area_id,
+                synced_doc_hash: 0,
             });
-        if runtime.block.is_none() || doc_hash != runtime.doc_hash {
+        if runtime.block.is_none() || doc_hash != runtime.synced_doc_hash {
             runtime.block = None;
             let block = Self::new_standalone_block(cx, BlockData::paragraph(doc_text));
             block.update(cx, |block, _cx| block.set_source_document_mode());
@@ -58,20 +60,20 @@ impl Editor {
                 &block,
                 move |this, block, event, cx| {
                     this.with_current_tab_area(area, |editor| {
-                        editor.on_source_panel_changed(panel, block, event, cx);
+                        editor.on_source_code_panel_changed(panel, block, event, cx);
                     });
                 },
             )
             .detach();
             runtime.block = Some(block);
-            runtime.doc_hash = doc_hash;
+            runtime.synced_doc_hash = doc_hash;
         }
     }
 
     /// Minimal event handler for a Source panel block. Only syncs text
     /// changes back to the shared document — no structural event
     /// processing. Routed to the owning area by the subscription closure.
-    pub(crate) fn on_source_panel_changed(
+    pub(crate) fn on_source_code_panel_changed(
         &mut self,
         panel_id: usize,
         block: Entity<Block>,
@@ -100,8 +102,8 @@ impl Editor {
         // block and drop the user's trailing newline. The block keeps the
         // user's bytes; the document is the parsed form.
         let synced_hash = Self::hash_str(&self.doc().to_markdown(cx));
-        if let Some(runtime) = self.source_panel_runtimes.get_mut(&panel_id) {
-            runtime.doc_hash = synced_hash;
+        if let Some(runtime) = self.source_code_panel_runtimes.get_mut(&panel_id) {
+            runtime.synced_doc_hash = synced_hash;
         }
         self.mark_dirty(cx);
     }

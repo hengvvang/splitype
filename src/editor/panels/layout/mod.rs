@@ -22,6 +22,11 @@ impl Editor {
     /// Render one Editor area's inner panel layout. While building, the
     /// routing hint (`current_tab_area`) points at this area so every panel
     /// reads THIS editor's tab list.
+    ///
+    /// Side effects before rendering the tree:
+    /// - drop runtimes of panels that were closed or joined;
+    /// - derive `focused_editor_inner_panel` from the keyboard focus when
+    ///   nothing was explicitly selected (projection fallback).
     pub(crate) fn render_editor_inner_panel_container(
         &mut self,
         area_id: usize,
@@ -40,7 +45,7 @@ impl Editor {
             .clone();
 
         // Drop runtimes of panels that were closed or joined.
-        self.source_panel_runtimes
+        self.source_code_panel_runtimes
             .retain(|panel_id, _| inner_tree.contains_leaf(*panel_id));
 
         let previous = self.current_tab_area;
@@ -55,13 +60,16 @@ impl Editor {
             && self.area_mode(area_id).is_editing()
             && let Some(target_id) = self.focused_edit_target_entity_id(window, cx)
         {
-            if let Some((panel_id, _)) = self.source_panel_runtimes.iter().find(|(_, runtime)| {
-                runtime.area_id == area_id
-                    && runtime
+            if let Some((panel_id, _)) = self
+                .source_code_panel_runtimes
+                .iter()
+                .find(|(_, runtime)| {
+                    runtime
                         .block
                         .as_ref()
                         .is_some_and(|block| block.entity_id() == target_id)
-            }) {
+                })
+            {
                 // Keyboard focus sits in a source panel's own block.
                 if inner_tree.contains_leaf(*panel_id) {
                     self.panels.layout.focused_editor_inner_panel =
@@ -236,8 +244,8 @@ impl Editor {
                         // cached block in source-document mode; edits sync to
                         // the shared document via the block's Changed event.
                         EditingPanelKind::SourceCode => {
-                            self.refresh_source_panel_block(area_id, panel_id, cx);
-                            self.render_source_editor_panel(area_id, panel_id, theme, cx)
+                            self.sync_source_code_panel(area_id, panel_id, cx);
+                            self.render_source_code_panel(area_id, panel_id, theme, cx)
                         }
                         EditingPanelKind::Preview => self.render_tiled_preview_panel(
                             area_id,
