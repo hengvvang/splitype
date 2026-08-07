@@ -17,9 +17,10 @@ use crate::editor::controller::Editor;
 use crate::editor::editing::input::shortcuts::{Copy, Cut, DismissTransientUi, Paste};
 use crate::theme::ThemeManager;
 use crate::windows::explorer::state::{
-    EXPLORER_NODE_HEIGHT, ExplorerChange, ExplorerEditState,
+    EXPLORER_NODE_HEIGHT, ExplorerEditState,
     ExplorerFilenameEditor, ExplorerRow, ExplorerValidation,
 };
+use crate::windows::explorer::undo::ExplorerChange;
 
 // ── UTF-8 / UTF-16 offset conversion ────────────────────────────────────
 

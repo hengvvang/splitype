@@ -19,10 +19,11 @@ use std::hash::{Hash, Hasher};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 
-use gpui::{Bounds, Entity, FocusHandle, Pixels, Task, UniformListScrollHandle};
+use gpui::{AnyWindowHandle, Bounds, Entity, FocusHandle, Pixels, Task, UniformListScrollHandle};
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 
+use super::undo::ExplorerUndoHistory;
 use super::worktree::{Worktree, WorktreeSnapshot};
 
 pub use super::worktree::WorktreeEvent;
@@ -175,46 +176,6 @@ pub enum ExplorerRow {
     Edit { root: usize },
 }
 
-/// One reversible file-tree operation recorded in the undo history.
-///
-/// Mirrors Zed's `Change`/`Operation` pair with a simpler scheme: the
-/// history stores the forward operation; undoing executes its inverse and
-/// pushes the same record onto the redo stack (so redo simply re-executes
-/// it). Only reversible operations are recorded — permanent deletes are not.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ExplorerChange {
-    Created(PathBuf),
-    Renamed { from: PathBuf, to: PathBuf },
-    Moved { from: PathBuf, to: PathBuf },
-    Copied { source: PathBuf, dest: PathBuf },
-}
-
-/// Undo/redo stacks for explorer file operations.
-#[derive(Clone, Debug, Default)]
-pub struct ExplorerUndoHistory {
-    pub undo_stack: Vec<ExplorerChange>,
-    pub redo_stack: Vec<ExplorerChange>,
-}
-
-impl ExplorerUndoHistory {
-    pub fn record(&mut self, change: ExplorerChange) {
-        self.undo_stack.push(change);
-        // A fresh edit invalidates any forward history.
-        self.redo_stack.clear();
-        if self.undo_stack.len() > 100 {
-            self.undo_stack.remove(0);
-        }
-    }
-
-    pub fn can_undo(&self) -> bool {
-        !self.undo_stack.is_empty()
-    }
-
-    pub fn can_redo(&self) -> bool {
-        !self.redo_stack.is_empty()
-    }
-}
-
 /// In-panel clipboard for cut/copy/paste of file-tree entries (mirrors
 /// Zed's `ClipboardEntry`). The system clipboard additionally receives the
 /// absolute paths as text for use outside the app.
@@ -223,20 +184,60 @@ pub enum ExplorerClipboard {
     Copied(Vec<ExplorerSelection>),
     Cut(Vec<ExplorerSelection>),
 }
-    /// Payload for dragging file-tree entries within the panel (Zed's
-/// `DraggedSelection`).
+    /// Payload for dragging file-tree entries within the panel (mirrors
+    /// Zed's `DraggedSelection`). The first selection is the row where the
+    /// drag started (`active_selection`); the rest are the marked entries it
+    /// carries along.
 #[derive(Clone, Debug)]
 pub struct DraggedExplorerSelection {
     pub selections: Vec<ExplorerSelection>,
 }
 
-/// The current drag-and-drop target of the panel.
+impl DraggedExplorerSelection {
+    /// The entry the drag started on (mirrors Zed's `active_selection`).
+    pub fn active(&self) -> Option<&ExplorerSelection> {
+        self.selections.first()
+    }
+}
+
+/// The current drag-and-drop target of the panel (mirrors Zed's `DragTarget`).
+///
+/// `entry_id` is the entry under the pointer (the drop and hover-expand
+/// target); `highlight_entry_id` is the entry whose highlight should extend
+/// to all of its descendants. A directory highlights itself, a file
+/// highlights its parent directory — mirroring Zed's
+/// `highlight_entry_for_external_drag`/`highlight_entry_for_selection_drag`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DragExplorerTarget {
-    /// Highlight this entry (and its descendants).
-    Entry(ExplorerEntryId),
+    /// The entry under the pointer plus the entry to highlight (a directory
+    /// highlights itself, a file highlights its parent directory — and the
+    /// highlight extends to all descendants, mirroring Zed).
+    Entry {
+        entry_id: ExplorerEntryId,
+        highlight_entry_id: ExplorerEntryId,
+    },
     /// Dropping on the empty area targets the explorer root.
     Background,
+}
+
+impl DragExplorerTarget {
+    /// The entry currently under the pointer, if any.
+    pub fn entry_id(&self) -> Option<ExplorerEntryId> {
+        match self {
+            Self::Entry { entry_id, .. } => Some(*entry_id),
+            Self::Background => None,
+        }
+    }
+
+    /// The entry whose highlight should be shown, if any.
+    pub fn highlight_entry_id(&self) -> Option<ExplorerEntryId> {
+        match self {
+            Self::Entry {
+                highlight_entry_id, ..
+            } => Some(*highlight_entry_id),
+            Self::Background => None,
+        }
+    }
 }
 
 impl ExplorerClipboard {
@@ -291,8 +292,21 @@ pub struct ExplorerState {
     pub drag_target: Option<DragExplorerTarget>,
     /// Delayed task that expands a hovered directory during a drag.
     pub hover_expand_task: Option<Task<()>>,
+    /// Continuous scroll task while a drag hovers the list edges (Zed's
+    /// `hover_scroll_task`).
+    pub hover_scroll_task: Option<Task<()>>,
+    /// Bumped whenever a drag move replaces the scroll task or a drop
+    /// clears it — stale tasks detect the mismatch and stop themselves.
+    pub hover_scroll_generation: u64,
+    /// Last drag-move position — drags only refresh the cursor style and
+    /// scroll when the pointer actually moved.
+    pub previous_drag_position: Option<gpui::Point<Pixels>>,
     /// Path (and worktree index) to select once the next scan completes.
     pub pending_select: Option<(usize, PathBuf)>,
+    /// Copy-collision rename to start once the next scan makes the entry
+    /// visible (the inline rename editor needs the scanned tree to resolve
+    /// the entry).
+    pub pending_rename: Option<(AnyWindowHandle, PathBuf)>,
     /// Active inline create/rename state.
     pub edit: Option<ExplorerEditState>,
     /// Scroll handle bound to the virtualized file-tree list.
@@ -320,7 +334,11 @@ impl Default for ExplorerState {
             undo_history: ExplorerUndoHistory::default(),
             drag_target: None,
             hover_expand_task: None,
+            hover_scroll_task: None,
+            hover_scroll_generation: 0,
+            previous_drag_position: None,
             pending_select: None,
+            pending_rename: None,
             edit: None,
             scroll_handle: UniformListScrollHandle::new(),
             rendered_rows: 0,

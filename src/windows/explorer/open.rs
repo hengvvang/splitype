@@ -1,0 +1,84 @@
+//! Opening files from the explorer: single click, double click (focus the
+//! editor), and Ctrl/Cmd+double-click (open in a freshly split area).
+
+use std::path::PathBuf;
+
+use gpui::*;
+
+use crate::editor::controller::Editor;
+use crate::windows::explorer::state::*;
+
+impl Editor {
+    pub(crate) fn open_explorer_file(
+        &mut self,
+        path: PathBuf,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        // Key the selection by the entry's stable id when the tree knows it;
+        // fall back to the path-derived id (harmless: no row will highlight).
+        let (root, id) = self
+            .explorer_id_for_path(&path)
+            .unwrap_or_else(|| (0, ExplorerEntryId::for_path(&path)));
+        self.panels.explorer.selected = Some(ExplorerSelection::File { root, entry: id });
+        // Reveal: expand ancestor directories and center the row.
+        self.expand_to_path(&path);
+        self.rebuild_explorer_entries();
+        self.autoscroll_explorer_selection();
+        // Explorer interacts with the ACTIVE editor: the file opens in its
+        // tab bar. With no Editor area present the click is ignored.
+        if self.panels.layout.active_editor_area.is_none() {
+            return;
+        }
+        self.open_file_in_active_editor(&path, window, cx);
+    }
+
+    /// Open a file from a row click: single click keeps panel focus, double
+    /// click also moves keyboard focus into the editor (mirrors Zed).
+    pub(crate) fn open_explorer_file_click(
+        &mut self,
+        path: PathBuf,
+        focus_editor: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.open_explorer_file(path, window, cx);
+        if focus_editor {
+            if let Some(area) = self.panels.layout.active_editor_area {
+                if let Some(panel_id) = self
+                    .panels
+                    .layout
+                    .focused_editor_inner_panel
+                    .filter(|loc| loc.area_id == area)
+                    .map(|loc| loc.panel_id)
+                {
+                    self.focus_editor_inner_panel(area, panel_id, window, cx);
+                }
+            }
+        }
+    }
+
+    /// Ctrl/Cmd+double-click: open the file in a freshly split editor area
+    /// (mirrors Zed's split-on-open).
+    pub(crate) fn split_explorer_file(
+        &mut self,
+        path: PathBuf,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(area_id) = self.panels.layout.active_editor_area else {
+            return;
+        };
+        let Some(new_id) = self.panels.layout.split_window_area(
+            area_id,
+            crate::layout::Axis::Horizontal,
+            0.5,
+            crate::layout::AreaSplitMode::Fresh,
+        ) else {
+            return;
+        };
+        self.panels.layout.activate_editor_area(new_id);
+        self.open_file_in_area(new_id, &path, window, cx);
+        cx.notify();
+    }
+}
