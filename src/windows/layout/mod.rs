@@ -15,6 +15,7 @@ use crate::ui::components::menu_item::menu_item;
 use crate::ui::components::popover::menu_panel;
 
 use gpui::*;
+use gpui::prelude::FluentBuilder;
 
 use crate::editor::controller::*;
 use crate::infra::i18n::I18nStrings;
@@ -911,11 +912,24 @@ impl Editor {
         let editor = cx.entity().downgrade();
 
         let type_editor = editor.clone();
+        // The active editor (the target for explorer file opens) shows a
+        // link icon after its name; other kinds and inactive editors stay
+        // plain text.
+        let is_active_editor = kind == crate::layout::WindowAreaKind::Editor
+            && self.panels.layout.active_editor_area == Some(leaf_id);
         let type_button = small_pill_button(c, d)
             .id(("area-header-type", leaf_id))
             .text_size(px(12.0))
             .text_color(c.text_default)
             .child(kind.name().to_string())
+            .when(is_active_editor, |this| {
+                this.child(
+                    svg()
+                        .path("icon/panel/link.svg")
+                        .size(px(12.0))
+                        .text_color(Hsla::from(rgba(0x60a5faff))),
+                )
+            })
             .on_click(move |_event, _window, cx| {
                 let _ = type_editor.update(cx, |ed, cx| {
                     ed.panels.layout.toggle_window_area_dropdown(leaf_id);
@@ -1031,7 +1045,7 @@ impl Editor {
                 let is_active = index == active_tab;
 
                 let tab_bg = if is_active {
-                    c.dialog_surface
+                    c.panel_row_selected
                 } else {
                     hsla(0.0, 0.0, 0.0, 0.0)
                 };

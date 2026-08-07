@@ -66,6 +66,9 @@ impl AssetSource for SplitypeAssets {
             "icon/panel/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icon/panel/check.svg"
             )))),
+            "icon/panel/link.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icon/panel/link.svg"
+            )))),
             "icon/task_check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icon/task_check.svg"
             )))),
