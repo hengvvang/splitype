@@ -74,14 +74,54 @@ impl Editor {
     }
 
     pub(crate) fn toggle_explorer_node(&mut self, id: ExplorerEntryId, cx: &mut Context<Self>) {
+        let trees_len = self.panels.explorer.trees_cache.len();
+        let in_tree = self
+            .panels
+            .explorer
+            .trees_cache
+            .iter()
+            .any(|tree| explorer_tree_contains_id(tree, id));
+        eprintln!(
+            "[explorer] toggle node {} trees={} in_tree={}",
+            id.0, trees_len, in_tree
+        );
         let Some(root) = self.root_for_explorer_entry(id) else {
+            eprintln!("[explorer] toggle node {}: no root found", id.0);
             return;
         };
         let set = self.panels.explorer.expanded.entry(root).or_default();
-        if !set.remove(&id) {
+        let will_expand = !set.remove(&id);
+        eprintln!(
+            "[explorer] toggle node {} root={} -> {}",
+            id.0,
+            root,
+            if will_expand { "expand" } else { "collapse" }
+        );
+        if will_expand {
             set.insert(id);
+            // Diagnostic: what does the scanned tree actually hold under
+            // this directory? (children=0 means the scan or tree build
+            // lost the directory's contents.)
+            if let Some(tree) = self.panels.explorer.trees_cache.get(root)
+                && let Some(node) = find_explorer_node_by_id(tree, id)
+            {
+                let labels: Vec<String> =
+                    node.children.iter().map(|child| child.label.clone()).collect();
+                eprintln!(
+                    "[explorer] expand node {}: path={} children={} {:?}",
+                    id.0,
+                    node.path.display(),
+                    node.children.len(),
+                    labels
+                );
+            }
         }
         self.rebuild_explorer_entries();
+        eprintln!(
+            "[explorer] toggle node {}: rows now {}",
+            id.0,
+            self.panels.explorer.entries.len()
+        );
         cx.notify();
     }
     pub(crate) fn toggle_outline_node(&mut self, id: &str, cx: &mut Context<Self>) {
@@ -174,6 +214,11 @@ impl Editor {
             .iter()
             .map(|worktree| {
                 let snapshot = worktree.read(cx).snapshot();
+                eprintln!(
+                    "[explorer] scan snapshot: root={} entries={}",
+                    worktree.read(cx).root().display(),
+                    snapshot.entries_by_path.len()
+                );
                 build_tree_from_snapshot(&snapshot).unwrap_or_else(|| {
                     let root = worktree.read(cx).root();
                     ExplorerFileNode {

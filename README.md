@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![splitype banner](./assets/icon/splitype-banner.png)
+![splitype banner](./assets/identity/banner.png)
 
 **A fast, native Markdown editor with WYSIWYG and source-code modes, built with Rust and GPUI.**
 
@@ -46,8 +46,8 @@ splitype separates visual themes from UI language packs. A theme file can overri
 
 Start with the examples, then import them via **Theme → Add Theme Config** or **Language → Add Language Config**:
 
-- [Custom theme JSONC](assets/custom-theme.example.jsonc)
-- [Custom language JSONC](assets/custom-language.example.jsonc)
+- [Custom theme JSONC](assets/examples/custom-theme.example.jsonc)
+- [Custom language JSONC](assets/examples/custom-language.example.jsonc)
 
 ## Acknowledgements
 

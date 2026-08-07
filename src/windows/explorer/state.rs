@@ -30,9 +30,9 @@ pub use super::worktree::WorktreeEvent;
 
 // ── Icons & constants ───────────────────────────────────────────────────
 
-pub const FOLDER_ICON: &str = "icon/explorer/folder.svg";
-pub const MARKDOWN_ICON: &str = "icon/explorer/markdown.svg";
-pub const FILE_ICON: &str = "icon/explorer/file.svg";
+pub const FOLDER_ICON: &str = "icons/explorer/worktree/folder.svg";
+pub const MARKDOWN_ICON: &str = "icons/explorer/worktree/markdown.svg";
+pub const FILE_ICON: &str = "icons/explorer/worktree/file.svg";
 pub const EXPLORER_NODE_HEIGHT: f32 = 28.0;
 pub const EXPLORER_NODE_INDENT: f32 = 14.0;
 

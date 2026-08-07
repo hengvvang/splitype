@@ -4,8 +4,9 @@
 //! scroll state, and focus deferral. The runtime block tree itself lives in
 //! [`Document`], which centralizes structural mutations and cached visible
 //! order metadata. State is grouped into cohesive sub-records (`file`,
-//! `focus`, `undo`, `scroll`, `tables`, `preview`, `references`) plus the
-//! chrome and panel state defined in `super::chrome` / `super::panels`.
+//! `focus`, `undo`, `scroll`, `tables`, `preview`, `references`, `menu_bar`,
+//! `bottombar_state`, overlays) plus the panel state defined in
+//! `super::panels`.
 
 pub(crate) use std::time::{Duration, Instant};
 
@@ -40,8 +41,11 @@ pub(crate) use crate::model::syntax::table::{
     serialize_table_cell_markdown, TableAxisHighlight, TableAxisKind, TableAxisMarker,
     TableColumnAlignment, TableData,
 };
-pub(crate) use crate::windows::editor::chrome::WindowChrome;
+pub(crate) use crate::windows::editor::bottombar::BottombarState;
+pub(crate) use crate::windows::editor::context_menu::ContextMenuState;
+pub(crate) use crate::windows::editor::dialogs::TableInsertDialogState;
 pub(crate) use crate::windows::layout::WindowPanels;
+pub(crate) use crate::windows::titlebar::app_menu::state::MenuBarState;
 
 /// Link navigation request deferred until a `Window` is available.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -193,7 +197,24 @@ pub struct Editor {
     /// and cleared by window-level entry points, which then resolve to the
     /// active editor.
     pub(crate) current_tab_area: Option<AreaId>,
-    pub(crate) chrome: WindowChrome,
+    /// Hover state for the editor window's bottom bar.
+    pub(crate) bottombar_state: BottombarState,
+    /// Open/hover state for the in-window titlebar menu bar.
+    pub(crate) menu_bar: MenuBarState,
+    /// Rendered-mode context menu currently open in the editor.
+    pub(crate) context_menu: Option<ContextMenuState>,
+    pub(crate) context_menu_submenu_close_task: Option<Task<()>>,
+    /// Table insertion dialog opened from the context menu.
+    pub(crate) table_insert_dialog: Option<TableInsertDialogState>,
+    /// Informational dialog shown from the Help menu.
+    pub(crate) info_dialog: Option<InfoDialogKind>,
+    /// True while an online update check is running in the background.
+    pub(crate) update_check_in_progress: bool,
+    /// Timestamp of the last welcome-prompt click, used to detect a
+    /// double-click across repaints. GPUI rebuilds elements (and their
+    /// closures) every frame, so the timestamp must live in editor state
+    /// rather than in a click-handler closure.
+    pub(crate) welcome_last_click: Option<Instant>,
     pub(crate) panels: WindowPanels,
     /// Per-SourceCode-panel editing runtimes (keyed by the globally unique
     /// panel id). Each source panel owns its own block entity so multiple
@@ -334,7 +355,14 @@ impl Editor {
     pub fn empty(_cx: &mut Context<Self>) -> Self {
         Self {
             current_tab_area: None,
-            chrome: WindowChrome::default(),
+            bottombar_state: BottombarState::default(),
+            menu_bar: MenuBarState::default(),
+            context_menu: None,
+            context_menu_submenu_close_task: None,
+            table_insert_dialog: None,
+            info_dialog: None,
+            update_check_in_progress: false,
+            welcome_last_click: None,
             panels: WindowPanels::default(),
             source_code_panel_runtimes: HashMap::new(),
         }
@@ -364,7 +392,14 @@ impl Editor {
         let tab = Self::new_tab_from_markdown(cx, markdown, file_path);
         let mut editor = Self {
             current_tab_area: None,
-            chrome: WindowChrome::default(),
+            bottombar_state: BottombarState::default(),
+            menu_bar: MenuBarState::default(),
+            context_menu: None,
+            context_menu_submenu_close_task: None,
+            table_insert_dialog: None,
+            info_dialog: None,
+            update_check_in_progress: false,
+            welcome_last_click: None,
             panels: WindowPanels::default(),
             source_code_panel_runtimes: HashMap::new(),
         };
@@ -602,10 +637,10 @@ impl Editor {
     /// panel AND transfer the keyboard edit focus to that panel's editing
     /// target: a source panel focuses its own block, a Wysiwyg panel
     /// resumes editing the shared document at the last position. Preview /
-    /// Outline / Welcome panels only update the status-bar focus.
+    /// Outline / Welcome panels only update the bottombar focus.
     ///
     /// Two focus systems stay in sync here: `focused_editor_inner_panel`
-    /// (status-bar target, set explicitly) and the gpui keyboard focus
+    /// (bottombar target, set explicitly) and the gpui keyboard focus
     /// (input routing, moved to the panel's edit target). The keyboard
     /// focus is the single source of truth for *who edits*; the custom
     /// focus is its projection plus the explicit selection for panels

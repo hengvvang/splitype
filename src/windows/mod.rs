@@ -8,3 +8,4 @@ pub(crate) mod editor;
 pub(crate) mod explorer;
 pub(crate) mod layout;
 pub(crate) mod settings;
+pub(crate) mod titlebar;

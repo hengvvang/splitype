@@ -9,113 +9,237 @@ pub(crate) struct SplitypeAssets;
 impl AssetSource for SplitypeAssets {
     fn load(&self, path: &str) -> gpui::Result<Option<Cow<'static, [u8]>>> {
         match path {
-            "icon/explorer/folder.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/explorer/folder.svg"
+            // ── Explorer: worktree (file tree content) ────────────────────
+            "icons/explorer/worktree/folder.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/folder.svg"
             )))),
-            "icon/explorer/markdown.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/explorer/markdown.svg"
+            "icons/explorer/worktree/folder-open.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/folder-open.svg"
             )))),
-            "icon/explorer/file.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/explorer/file.svg"
+            "icons/explorer/worktree/file.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/file.svg"
             )))),
-            "icon/explorer/folder-open.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/explorer/folder-open.svg"
+            "icons/explorer/worktree/file-plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/file-plus.svg"
             )))),
-            "icon/explorer/file-plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/explorer/file-plus.svg"
+            "icons/explorer/worktree/markdown.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/markdown.svg"
             )))),
-            "icon/explorer/folder-plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/explorer/folder-plus.svg"
+            "icons/explorer/worktree/chevron-down.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/chevron-down.svg"
             )))),
-            "icon/explorer/collapse-all.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/explorer/collapse-all.svg"
+            "icons/explorer/worktree/chevron-right.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/chevron-right.svg"
             )))),
-            "icon/explorer/refresh.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/explorer/refresh.svg"
+            "icons/explorer/worktree/eye.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/eye.svg"
             )))),
-            "icon/explorer/eye.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/explorer/eye.svg"
+            "icons/explorer/worktree/eye-off.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/eye-off.svg"
             )))),
-            "icon/titlebar/chrome-close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/titlebar/chrome-close.svg"
+            "icons/explorer/worktree/refresh.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/refresh.svg"
             )))),
-            "icon/titlebar/chrome-minimize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/titlebar/chrome-minimize.svg"
+            "icons/explorer/worktree/collapse-all.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/collapse-all.svg"
             )))),
-            "icon/titlebar/chrome-maximize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/titlebar/chrome-maximize.svg"
+
+            // ── Explorer: title bar (window area header) ──────────────────
+            "icons/explorer/topbar/link.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/topbar/link.svg"
             )))),
-            "icon/titlebar/chrome-restore.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/titlebar/chrome-restore.svg"
+            "icons/explorer/topbar/split-h.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/topbar/split-h.svg"
             )))),
-            "icon/panel/split-h.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/panel/split-h.svg"
+            "icons/explorer/topbar/split-v.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/topbar/split-v.svg"
             )))),
-            "icon/panel/split-v.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/panel/split-v.svg"
+            "icons/explorer/topbar/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/topbar/check.svg"
             )))),
-            "icon/panel/chevron-right.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/panel/chevron-right.svg"
+            "icons/explorer/topbar/close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/topbar/close.svg"
             )))),
-            "icon/panel/chevron-down.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/panel/chevron-down.svg"
+            "icons/explorer/topbar/maximize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/topbar/maximize.svg"
             )))),
-            "icon/panel/select-chevron.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/panel/select-chevron.svg"
+            "icons/explorer/topbar/restore.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/topbar/restore.svg"
             )))),
-            "icon/panel/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/panel/check.svg"
+
+            // ── Explorer: status bar ──────────────────────────────────────
+            "icons/explorer/bottombar/folder-plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/bottombar/folder-plus.svg"
             )))),
-            "icon/panel/link.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/panel/link.svg"
+
+            // ── Titlebar: app menu buttons ────────────────────────────────
+            "icons/topbar/app_menu/sun.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/topbar/app_menu/sun.svg"
             )))),
-            "icon/task_check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/task_check.svg"
+            "icons/topbar/app_menu/moon.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/topbar/app_menu/moon.svg"
             )))),
-            "icon/panel/sun.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/panel/sun.svg"
+            "icons/topbar/app_menu/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/topbar/app_menu/check.svg"
             )))),
-            "icon/panel/moon.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/panel/moon.svg"
+            "icons/topbar/app_menu/chevron-right.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/topbar/app_menu/chevron-right.svg"
             )))),
-            "icon/panel/line-numbers.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/panel/line-numbers.svg"
+
+            // ── Titlebar: window controls ─────────────────────────────────
+            "icons/topbar/chrome/close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/topbar/chrome/close.svg"
             )))),
-            "icon/table/plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/table/plus.svg"
+            "icons/topbar/chrome/minimize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/topbar/chrome/minimize.svg"
             )))),
-            "icon/table/handle-row.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/table/handle-row.svg"
+            "icons/topbar/chrome/maximize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/topbar/chrome/maximize.svg"
             )))),
-            "icon/table/handle-row-hollow.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/table/handle-row-hollow.svg"
+            "icons/topbar/chrome/restore.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/topbar/chrome/restore.svg"
             )))),
-            "icon/table/handle-row-solid.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/table/handle-row-solid.svg"
+
+            // ── Settings ──────────────────────────────────────────────────
+            "icons/settings/select-chevron.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/settings/select-chevron.svg"
             )))),
-            "icon/table/handle-column.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/table/handle-column.svg"
+            "icons/settings/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/settings/check.svg"
             )))),
-            "icon/callout/note.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/callout/note.svg"
+            "icons/settings/chevron-down.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/settings/chevron-down.svg"
             )))),
-            "icon/callout/tip.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/callout/tip.svg"
+            "icons/settings/chevron-right.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/settings/chevron-right.svg"
             )))),
-            "icon/callout/important.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/callout/important.svg"
+            "icons/settings/sun.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/settings/sun.svg"
             )))),
-            "icon/callout/warning.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/callout/warning.svg"
+            "icons/settings/moon.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/settings/moon.svg"
             )))),
-            "icon/callout/caution.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/callout/caution.svg"
+
+            // ── Settings: title bar (window area header) ──────────────────
+            "icons/settings/topbar/link.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/settings/topbar/link.svg"
             )))),
-            "icon/splitype-logo.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/logo.svg"
+            "icons/settings/topbar/split-h.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/settings/topbar/split-h.svg"
             )))),
-            "icon/splitype-logo.png" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icon/splitype-icon.png"
+            "icons/settings/topbar/split-v.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/settings/topbar/split-v.svg"
+            )))),
+            "icons/settings/topbar/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/settings/topbar/check.svg"
+            )))),
+            "icons/settings/topbar/close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/settings/topbar/close.svg"
+            )))),
+            "icons/settings/topbar/maximize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/settings/topbar/maximize.svg"
+            )))),
+            "icons/settings/topbar/restore.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/settings/topbar/restore.svg"
+            )))),
+
+            // ── Editor: window area header ────────────────────────────────
+            "icons/editor/topbar/link.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/topbar/link.svg"
+            )))),
+            "icons/editor/topbar/split-h.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/topbar/split-h.svg"
+            )))),
+            "icons/editor/topbar/split-v.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/topbar/split-v.svg"
+            )))),
+            "icons/editor/topbar/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/topbar/check.svg"
+            )))),
+            "icons/editor/topbar/close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/topbar/close.svg"
+            )))),
+            "icons/editor/topbar/maximize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/topbar/maximize.svg"
+            )))),
+            "icons/editor/topbar/restore.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/topbar/restore.svg"
+            )))),
+
+            // ── Editor: panel status bar ──────────────────────────────────
+            "icons/editor/bottombar/split-h.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/bottombar/split-h.svg"
+            )))),
+            "icons/editor/bottombar/split-v.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/bottombar/split-v.svg"
+            )))),
+            "icons/editor/bottombar/close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/bottombar/close.svg"
+            )))),
+            "icons/editor/bottombar/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/bottombar/check.svg"
+            )))),
+
+            // ── Editor: WYSIWYG panel ─────────────────────────────────────
+            "icons/editor/wysiwyg/task-check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/wysiwyg/task-check.svg"
+            )))),
+            "icons/editor/wysiwyg/table/plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/wysiwyg/table/plus.svg"
+            )))),
+            "icons/editor/wysiwyg/table/handle-row.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/wysiwyg/table/handle-row.svg"
+            )))),
+            "icons/editor/wysiwyg/table/handle-row-hollow.svg" => Ok(Some(Cow::Borrowed(
+                include_bytes!("../../assets/icons/editor/wysiwyg/table/handle-row-hollow.svg")
+            ))),
+            "icons/editor/wysiwyg/table/handle-row-solid.svg" => Ok(Some(Cow::Borrowed(
+                include_bytes!("../../assets/icons/editor/wysiwyg/table/handle-row-solid.svg")
+            ))),
+            "icons/editor/wysiwyg/table/handle-column.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/wysiwyg/table/handle-column.svg"
+            )))),
+            "icons/editor/wysiwyg/callout/note.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/wysiwyg/callout/note.svg"
+            )))),
+            "icons/editor/wysiwyg/callout/tip.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/wysiwyg/callout/tip.svg"
+            )))),
+            "icons/editor/wysiwyg/callout/important.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/wysiwyg/callout/important.svg"
+            )))),
+            "icons/editor/wysiwyg/callout/warning.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/wysiwyg/callout/warning.svg"
+            )))),
+            "icons/editor/wysiwyg/callout/caution.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/wysiwyg/callout/caution.svg"
+            )))),
+            "icons/editor/wysiwyg/codeblock/line-numbers.svg" => Ok(Some(Cow::Borrowed(
+                include_bytes!("../../assets/icons/editor/wysiwyg/codeblock/line-numbers.svg")
+            ))),
+            "icons/editor/wysiwyg/codeblock/select-check.svg" => Ok(Some(Cow::Borrowed(
+                include_bytes!("../../assets/icons/editor/wysiwyg/codeblock/select-check.svg")
+            ))),
+            "icons/editor/wysiwyg/codeblock/select-chevron.svg" => Ok(Some(Cow::Borrowed(
+                include_bytes!("../../assets/icons/editor/wysiwyg/codeblock/select-chevron.svg")
+            ))),
+
+            // ── Editor: preview panel ─────────────────────────────────────
+            "icons/editor/preview/task-check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/preview/task-check.svg"
+            )))),
+
+            // ── Editor: outline panel ─────────────────────────────────────
+            "icons/editor/outline/markdown.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/outline/markdown.svg"
+            )))),
+
+            // ── Identity ──────────────────────────────────────────────────
+            "identity/logo.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/identity/logo.svg"
+            )))),
+            "identity/logo.png" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/identity/logo.png"
             )))),
             _ => Ok(None),
         }

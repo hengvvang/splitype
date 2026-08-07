@@ -128,8 +128,8 @@ impl Editor {
         cx.notify();
     }
 
-    /// Remove the worktree at `index` (mirrors Zed's `remove_worktree`).
-    #[allow(dead_code)] // wired to a future "Remove from Project" menu item
+    /// Remove the worktree at `index` (mirrors Zed's `remove_worktree`);
+    /// wired to the root row's "Remove from Explorer" context menu item.
     pub(crate) fn remove_explorer_worktree(&mut self, index: usize, cx: &mut Context<Self>) {
         {
             let explorer = &mut self.panels.explorer;
@@ -223,6 +223,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.refresh_explorer_trees(cx);
+        self.debug_print_explorer_tree();
         self.select_active_file_in_tree(true);
         self.rebuild_explorer_entries();
         self.autoscroll_explorer_selection();
@@ -242,6 +243,35 @@ impl Editor {
             }
         }
         cx.notify();
+    }
+
+    /// Diagnostic: print the full scanned tree (label, kind, child count)
+    /// after every rescan, so a missing subtree can be traced to the scan
+    /// or the tree build in one glance.
+    fn debug_print_explorer_tree(&self) {
+        fn print_node(node: &crate::windows::explorer::state::ExplorerFileNode, depth: usize) {
+            let suffix = if node.kind == crate::windows::explorer::state::ExplorerEntryKind::Directory
+            {
+                "/"
+            } else {
+                ""
+            };
+            eprintln!(
+                "{} {}{} children={}",
+                "  ".repeat(depth),
+                node.label,
+                suffix,
+                node.children.len()
+            );
+            for child in &node.children {
+                print_node(child, depth + 1);
+            }
+        }
+        eprintln!("[explorer] === tree after scan ===");
+        for tree in &self.panels.explorer.trees_cache {
+            print_node(tree, 0);
+        }
+        eprintln!("[explorer] === end tree ===");
     }
 
     pub(crate) fn open_explorer_folder_path(&mut self, path: PathBuf, cx: &mut Context<Self>) {
@@ -336,7 +366,6 @@ impl Editor {
     }
 
     /// Toggle dotfile visibility. Persists to settings and rescans.
-    #[allow(dead_code)] // settings-backed capability, no toolbar button
     pub(crate) fn toggle_explorer_hidden(&mut self, cx: &mut Context<Self>) {
         let mut settings = ExplorerSettingsStore::settings(cx);
         settings.hide_hidden = !settings.hide_hidden;
@@ -350,6 +379,45 @@ impl Editor {
         }
         self.sync_explorer_models(cx);
         cx.notify();
+    }
+
+    /// Replace the worktree at `index` with a folder picked by the user
+    /// (the root row's folder button): the old root is removed and the new
+    /// one is added in its place.
+    pub(crate) fn replace_explorer_worktree(
+        &mut self,
+        index: usize,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let prompt = cx.prompt_for_paths(PathPromptOptions {
+            files: false,
+            directories: true,
+            multiple: false,
+            prompt: None,
+        });
+        let weak_editor = cx.entity().downgrade();
+        cx.spawn(async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
+            let paths = match prompt.await {
+                Ok(Ok(Some(paths))) => paths,
+                Ok(Ok(None)) | Err(_) => return,
+                Ok(Err(err)) => {
+                    eprintln!("[explorer] dialog error: {err}");
+                    return;
+                }
+            };
+            let Some(folder_path) = paths.into_iter().next() else {
+                return;
+            };
+            let _ = weak_editor.update(cx, |editor, cx| {
+                if index < editor.panels.explorer.worktrees.len() {
+                    editor.remove_explorer_worktree(index, cx);
+                }
+                editor.add_explorer_worktree(folder_path, cx);
+                cx.notify();
+            });
+        })
+        .detach();
     }
 
     #[allow(dead_code)]

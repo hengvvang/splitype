@@ -1,25 +1,26 @@
 //! Custom titlebar with document name and window controls.
 //!
-//! Platform-native titlebar chrome.
+//! Platform-native titlebar chrome. The title bar is composed of two parts:
+//! [`chrome`] (window control buttons) and [`app_menu`] (the in-titlebar
+//! menu bar: rendering in `app_menu::mod`, state in `app_menu::state`).
+
+pub(crate) mod app_menu;
+pub(crate) mod chrome;
+
+use chrome::*;
 
 use gpui::prelude::*;
 use gpui::{
-    AnyElement, Bounds, ClickEvent, Context, Decorations, Div, ElementId, Hsla, MouseButton,
-    Pixels, SharedString, Stateful, TitlebarOptions, Window, WindowBackgroundAppearance,
-    WindowBounds, WindowControlArea, WindowDecorations, WindowOptions, div, point, px, rgba, svg,
+    AnyElement, Bounds, ClickEvent, Context, Decorations, Hsla, MouseButton, Pixels, SharedString,
+    TitlebarOptions, Window, WindowBackgroundAppearance, WindowBounds, WindowControlArea,
+    WindowDecorations, WindowOptions, div, point, px,
 };
 
 use crate::platform::app_identity::SPLITYPE_APP_ID;
-use crate::theme::{Theme, ThemeColors, ThemeDimensions};
+use crate::theme::{Theme, ThemeDimensions};
 
 const TITLEBAR_MIN_HEIGHT: f32 = 32.0;
-const TITLEBAR_BUTTON_WIDTH: f32 = 46.0;
-const TITLEBAR_ICON_SIZE: f32 = 12.0;
 const MAC_TRAFFIC_LIGHT_RESERVED_WIDTH: f32 = 84.0;
-const TITLEBAR_CLOSE_ICON: &str = "icon/titlebar/chrome-close.svg";
-const TITLEBAR_MAXIMIZE_ICON: &str = "icon/titlebar/chrome-maximize.svg";
-const TITLEBAR_MINIMIZE_ICON: &str = "icon/titlebar/chrome-minimize.svg";
-const TITLEBAR_RESTORE_ICON: &str = "icon/titlebar/chrome-restore.svg";
 
 /// Selects whether splitype or the platform should render window controls.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -144,44 +145,7 @@ pub fn custom_titlebar_background(theme: &Theme) -> Hsla {
     theme.colors.dialog_surface
 }
 
-pub fn custom_titlebar_icon_color(theme: &Theme) -> Hsla {
-    if custom_titlebar_background(theme).l < 0.5 {
-        Hsla::from(rgba(0xf4f4f5ff))
-    } else {
-        Hsla::from(rgba(0x18181bff))
-    }
-}
-
-pub fn titlebar_maximize_icon(is_maximized: bool, is_fullscreen: bool) -> &'static str {
-    if is_maximized || is_fullscreen {
-        TITLEBAR_RESTORE_ICON
-    } else {
-        TITLEBAR_MAXIMIZE_ICON
-    }
-}
-
 /// Window control button (minimize / maximize / close).
-fn titlebar_control_button(
-    id: impl Into<ElementId>,
-    c: &ThemeColors,
-    area: WindowControlArea,
-) -> Stateful<Div> {
-    let hover_bg = if area == WindowControlArea::Close {
-        c.dialog_danger_button_bg
-    } else {
-        c.dialog_secondary_button_hover
-    };
-    div()
-        .id(id)
-        .w(px(TITLEBAR_BUTTON_WIDTH))
-        .h_full()
-        .flex()
-        .items_center()
-        .justify_center()
-        .window_control_area(area)
-        .hover(move |this| this.bg(hover_bg))
-        .cursor_pointer()
-}
 pub fn render_custom_titlebar<T: 'static>(
     id: &'static str,
     title: SharedString,
@@ -204,7 +168,6 @@ pub fn render_custom_titlebar<T: 'static>(
         titlebar_drag_strategy_for_target_os(std::env::consts::OS, window.window_decorations());
     let c = &theme.colors;
     let t = &theme.typography;
-    let controls = window.window_controls();
     let icon_color = custom_titlebar_icon_color(theme);
     let entity = cx.entity().downgrade();
 
@@ -270,63 +233,7 @@ pub fn render_custom_titlebar<T: 'static>(
                 .child(div().w(px(MAC_TRAFFIC_LIGHT_RESERVED_WIDTH)).h_full())
         }
         TitlebarControlMode::AppControls => {
-            let close_entity = entity.clone();
-            let mut controls_row = div().h_full().flex().items_center().flex_shrink_0();
-
-            if controls.minimize {
-                controls_row = controls_row.child(
-                    titlebar_control_button("window-titlebar-minimize", c, WindowControlArea::Min)
-                        .child(
-                            svg()
-                                .path(TITLEBAR_MINIMIZE_ICON)
-                                .size(px(TITLEBAR_ICON_SIZE))
-                                .text_color(icon_color),
-                        )
-                        .on_click(|event, window, _cx| {
-                            if event.standard_click() {
-                                window.minimize_window();
-                            }
-                        }),
-                );
-            }
-
-            if controls.maximize {
-                controls_row = controls_row.child(
-                    titlebar_control_button("window-titlebar-maximize", c, WindowControlArea::Max)
-                        .child(
-                            svg()
-                                .path(titlebar_maximize_icon(
-                                    window.is_maximized(),
-                                    window.is_fullscreen(),
-                                ))
-                                .size(px(TITLEBAR_ICON_SIZE))
-                                .text_color(icon_color),
-                        )
-                        .on_click(|event, window, _cx| {
-                            if event.standard_click() {
-                                window.zoom_window();
-                            }
-                        }),
-                );
-            }
-
-            controls_row = controls_row.child(
-                titlebar_control_button("window-titlebar-close", c, WindowControlArea::Close)
-                    .child(
-                        svg()
-                            .path(TITLEBAR_CLOSE_ICON)
-                            .size(px(TITLEBAR_ICON_SIZE))
-                            .text_color(icon_color),
-                    )
-                    .on_click(move |event, window, app| {
-                        if event.standard_click() {
-                            let _ = close_entity.update(app, |view, cx| {
-                                on_close(view, event, window, cx);
-                            });
-                        }
-                    }),
-            );
-
+            let controls_row = render_window_control_buttons(window, c, icon_color, entity, on_close);
             if let Some(left) = left_content {
                 root.child(left).child(drag_title).child(controls_row)
             } else {

@@ -272,6 +272,10 @@ pub struct I18nStrings {
     pub explorer_expand_all: String,
     /// Explorer context menu: collapse a directory and all of its children.
     pub explorer_collapse_all: String,
+    /// Explorer context menu (worktree root): add another folder to the explorer.
+    pub explorer_add_folder: String,
+    /// Explorer context menu (worktree root): remove this folder from the explorer.
+    pub explorer_remove_folder: String,
         /// Title of the link-opening confirmation prompt.
     pub open_link_title: String,
     /// Confirm button for the link-opening prompt.
@@ -520,6 +524,8 @@ pub struct I18nStringsDe {
     explorer_delete: Option<String>,
     explorer_expand_all: Option<String>,
     explorer_collapse_all: Option<String>,
+    explorer_add_folder: Option<String>,
+    explorer_remove_folder: Option<String>,
     open_link_title: Option<String>,
     open_link_open: Option<String>,
     open_link_cancel: Option<String>,
@@ -726,6 +732,8 @@ pub(crate) const I18N_STRING_KEYS: &[&str] = &[
     "explorer_delete",
     "explorer_expand_all",
     "explorer_collapse_all",
+    "explorer_add_folder",
+    "explorer_remove_folder",
     "open_link_title",
     "open_link_open",
     "open_link_cancel",
@@ -1188,6 +1196,12 @@ impl I18nStringsDe {
             explorer_collapse_all: self
                 .explorer_collapse_all
                 .unwrap_or(defaults.explorer_collapse_all),
+            explorer_add_folder: self
+                .explorer_add_folder
+                .unwrap_or(defaults.explorer_add_folder),
+            explorer_remove_folder: self
+                .explorer_remove_folder
+                .unwrap_or(defaults.explorer_remove_folder),
             open_link_title: self.open_link_title.unwrap_or(defaults.open_link_title),
             open_link_open: self.open_link_open.unwrap_or(defaults.open_link_open),
             open_link_cancel: self.open_link_cancel.unwrap_or(defaults.open_link_cancel),
@@ -1472,6 +1486,8 @@ impl I18nStrings {
             explorer_delete: "删除".into(),
             explorer_expand_all: "全部展开".into(),
             explorer_collapse_all: "全部折叠".into(),
+            explorer_add_folder: "添加文件夹到资源管理器".into(),
+            explorer_remove_folder: "从资源管理器移除".into(),
             open_link_title: "打开链接？".into(),
             open_link_open: "打开".into(),
             open_link_cancel: "取消".into(),
@@ -1706,6 +1722,8 @@ impl I18nStrings {
             explorer_delete: "Delete".into(),
             explorer_expand_all: "Expand All".into(),
             explorer_collapse_all: "Collapse All".into(),
+            explorer_add_folder: "Add Folder to Explorer…".into(),
+            explorer_remove_folder: "Remove from Explorer".into(),
             open_link_title: "Open link?".into(),
             open_link_open: "Open".into(),
             open_link_cancel: "Cancel".into(),

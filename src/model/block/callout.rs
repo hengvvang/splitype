@@ -37,11 +37,11 @@ impl CalloutKind {
     #[allow(dead_code)]
     pub fn icon_path(self) -> &'static str {
         match self {
-            Self::Note => "icon/callout/note.svg",
-            Self::Tip => "icon/callout/tip.svg",
-            Self::Important => "icon/callout/important.svg",
-            Self::Warning => "icon/callout/warning.svg",
-            Self::Caution => "icon/callout/caution.svg",
+            Self::Note => "icons/editor/wysiwyg/callout/note.svg",
+            Self::Tip => "icons/editor/wysiwyg/callout/tip.svg",
+            Self::Important => "icons/editor/wysiwyg/callout/important.svg",
+            Self::Warning => "icons/editor/wysiwyg/callout/warning.svg",
+            Self::Caution => "icons/editor/wysiwyg/callout/caution.svg",
         }
     }
 

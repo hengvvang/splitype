@@ -1,8 +1,10 @@
 //! Settings — the standalone settings window and the in-editor settings
 //! panel.
 
+pub(crate) mod bottombar;
 pub(crate) mod panels;
 pub(crate) mod state;
+pub(crate) mod topbar;
 
 use crate::ui::components::section::{section_card, section_header, settings_row};
 use crate::ui::components::stepper::{
@@ -26,7 +28,7 @@ use crate::infra::config::settings::{
 use crate::infra::i18n::manager::I18nManager;
 use crate::theme::{ThemeCatalogEntry, ThemeManager};
 use crate::ui::components::switch::Switch;
-use crate::windows::editor::titlebar::{
+use crate::windows::titlebar::{
     custom_titlebar_height, render_custom_titlebar, splitype_window_options,
 };
 
@@ -472,9 +474,9 @@ impl Render for SettingsWindow {
                 .child(
                     svg()
                         .path(if expanded {
-                            "icon/panel/chevron-down.svg"
+                            "icons/settings/chevron-down.svg"
                         } else {
-                            "icon/panel/chevron-right.svg"
+                            "icons/settings/chevron-right.svg"
                         })
                         .size(px(14.0))
                         .text_color(c.text_default),
@@ -527,9 +529,9 @@ impl Render for SettingsWindow {
                 let selected_theme_label = self.selected_theme_name();
                 let theme_btn_ed = cx.entity().downgrade();
                 let theme_icon_path = if selected_theme_label == "Light" {
-                    "icon/panel/sun.svg"
+                    "icons/settings/sun.svg"
                 } else {
-                    "icon/panel/moon.svg"
+                    "icons/settings/moon.svg"
                 };
 
                 let mut theme_btn_wrap = div().relative().child(
@@ -560,7 +562,7 @@ impl Render for SettingsWindow {
                         .child(
                             div().flex_shrink_0().pl(px(4.0)).child(
                                 svg()
-                                    .path("icon/panel/select-chevron.svg")
+                                    .path("icons/settings/select-chevron.svg")
                                     .size(px(14.0))
                                     .text_color(c.dialog_muted),
                             ),
@@ -584,9 +586,9 @@ impl Render for SettingsWindow {
                         let is_selected = t_id == self.selected_theme_id;
                         let item_ed = cx.entity().downgrade();
                         let item_icon = if display_label == "Light" {
-                            "icon/panel/sun.svg"
+                            "icons/settings/sun.svg"
                         } else {
-                            "icon/panel/moon.svg"
+                            "icons/settings/moon.svg"
                         };
 
                         menu_items.push(
@@ -616,7 +618,7 @@ impl Render for SettingsWindow {
                             )
                             .child(if is_selected {
                                 svg()
-                                    .path("icon/panel/check.svg")
+                                    .path("icons/settings/check.svg")
                                     .size(px(13.0))
                                     .text_color(c.dialog_primary_button_bg)
                                     .into_any_element()
@@ -659,7 +661,7 @@ impl Render for SettingsWindow {
                         .child(
                             div().flex_shrink_0().pl(px(4.0)).child(
                                 svg()
-                                    .path("icon/panel/select-chevron.svg")
+                                    .path("icons/settings/select-chevron.svg")
                                     .size(px(14.0))
                                     .text_color(c.dialog_muted),
                             ),
@@ -697,7 +699,7 @@ impl Render for SettingsWindow {
                             .child(label)
                             .child(if is_selected {
                                 svg()
-                                    .path("icon/panel/check.svg")
+                                    .path("icons/settings/check.svg")
                                     .size(px(13.0))
                                     .text_color(c.dialog_primary_button_bg)
                                     .into_any_element()
@@ -988,7 +990,7 @@ impl Render for SettingsWindow {
                         .child(
                             div().flex_shrink_0().pl(px(4.0)).child(
                                 svg()
-                                    .path("icon/panel/select-chevron.svg")
+                                    .path("icons/settings/select-chevron.svg")
                                     .size(px(14.0))
                                     .text_color(c.dialog_muted),
                             ),
@@ -1039,7 +1041,7 @@ impl Render for SettingsWindow {
                             .child(label)
                             .child(if is_selected {
                                 svg()
-                                    .path("icon/panel/check.svg")
+                                    .path("icons/settings/check.svg")
                                     .size(px(13.0))
                                     .text_color(c.dialog_primary_button_bg)
                                     .into_any_element()
@@ -1097,7 +1099,7 @@ impl Render for SettingsWindow {
                         .child(
                             div().flex_shrink_0().pl(px(4.0)).child(
                                 svg()
-                                    .path("icon/panel/select-chevron.svg")
+                                    .path("icons/settings/select-chevron.svg")
                                     .size(px(14.0))
                                     .text_color(c.dialog_muted),
                             ),
@@ -1138,7 +1140,7 @@ impl Render for SettingsWindow {
                             .child(label)
                             .child(if is_selected {
                                 svg()
-                                    .path("icon/panel/check.svg")
+                                    .path("icons/settings/check.svg")
                                     .size(px(13.0))
                                     .text_color(c.dialog_primary_button_bg)
                                     .into_any_element()

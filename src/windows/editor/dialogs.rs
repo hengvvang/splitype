@@ -16,6 +16,14 @@ use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::layout::WindowAreaKind;
 use crate::theme::Theme;
 use crate::windows::editor::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
+use crate::windows::editor::context_menu::TableInsertTarget;
+
+/// State for the table insertion dialog opened from the context menu.
+pub(crate) struct TableInsertDialogState {
+    pub target: TableInsertTarget,
+    pub body_rows: usize,
+    pub columns: usize,
+}
 
 impl Editor {
     /// Dismiss the unsaved-changes dialog without closing the window.
@@ -428,7 +436,7 @@ impl Editor {
                                 // source renders as a monochrome mask and
                                 // loses the line art.
                                 div().child(
-                                    img("icon/splitype-logo.png")
+                                    img("identity/logo.png")
                                         .w(px(56.0))
                                         .h(px(64.0))
                                         .object_fit(ObjectFit::Contain),

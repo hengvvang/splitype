@@ -209,6 +209,7 @@ impl Editor {
                 }),
             )
             .child(list)
+            .child(self.render_explorer_bottombar(area_id, theme, cx))
             .into_any_element()
     }
 
@@ -299,9 +300,9 @@ impl Editor {
                 .child(
                     svg()
                         .path(if is_expanded {
-                            "icon/panel/chevron-down.svg"
+                            "icons/explorer/worktree/chevron-down.svg"
                         } else {
-                            "icon/panel/chevron-right.svg"
+                            "icons/explorer/worktree/chevron-right.svg"
                         })
                         .size(px(12.0))
                         .text_color(c.dialog_muted),
@@ -317,10 +318,14 @@ impl Editor {
         let ed_open = editor.clone();
         let ed_refresh = editor.clone();
         let ed_collapse = editor.clone();
+        let ed_hidden = editor.clone();
+        let root_index = entry.root;
+        let hide_hidden =
+            crate::infra::config::settings::ExplorerSettingsStore::settings(cx).hide_hidden;
 
         // Title buttons: visible only while the root row is expanded. The
-        // set matches the panel toolbar minus new file / new folder, which
-        // live on the row context menu (Zed layout).
+        // set mirrors the panel toolbar: replace folder, toggle hidden
+        // files, refresh, collapse all.
         let buttons = if is_expanded {
             div()
                 .flex()
@@ -328,16 +333,40 @@ impl Editor {
                 .gap(px(2.0))
                 .child(
                     icon_chip_button(c, &theme.dimensions)
-                        .id(("ws-tb-open", area_id))
+                        .id(("ws-tb-replace", area_id))
                         .child(
                             svg()
-                                .path("icon/explorer/folder-open.svg")
-                                .size(px(13.0))
+                                .path("icons/explorer/worktree/folder-open.svg")
+                                .size(px(15.0))
                                 .text_color(c.text_default),
                         )
                         .on_click(move |_ev, window, cx| {
                             let _ = ed_open.update(cx, |ed, cx| {
-                                ed.prompt_open_explorer_folder(window, cx);
+                                ed.replace_explorer_worktree(root_index, window, cx);
+                            });
+                            cx.stop_propagation();
+                        }),
+                )
+                .child(
+                    icon_chip_button(c, &theme.dimensions)
+                        .id(("ws-tb-hidden", area_id))
+                        .child(
+                            svg()
+                                .path(if hide_hidden {
+                                    "icons/explorer/worktree/eye-off.svg"
+                                } else {
+                                    "icons/explorer/worktree/eye.svg"
+                                })
+                                .size(px(15.0))
+                                .text_color(if hide_hidden {
+                                    c.text_default
+                                } else {
+                                    c.dialog_muted
+                                }),
+                        )
+                        .on_click(move |_ev, _window, cx| {
+                            let _ = ed_hidden.update(cx, |ed, cx| {
+                                ed.toggle_explorer_hidden(cx);
                             });
                             cx.stop_propagation();
                         }),
@@ -347,8 +376,8 @@ impl Editor {
                         .id(("ws-tb-refresh", area_id))
                         .child(
                             svg()
-                                .path("icon/explorer/refresh.svg")
-                                .size(px(13.0))
+                                .path("icons/explorer/worktree/refresh.svg")
+                                .size(px(15.0))
                                 .text_color(c.text_default),
                         )
                         .on_click(move |_ev, _window, cx| {
@@ -363,8 +392,8 @@ impl Editor {
                         .id(("ws-tb-collapse", area_id))
                         .child(
                             svg()
-                                .path("icon/explorer/collapse-all.svg")
-                                .size(px(13.0))
+                                .path("icons/explorer/worktree/collapse-all.svg")
+                                .size(px(15.0))
                                 .text_color(c.text_default),
                         )
                         .on_click(move |_ev, _window, cx| {
@@ -380,7 +409,9 @@ impl Editor {
         };
 
         div()
-            .id(ElementId::Name(format!("explorer-root-row-{area_id}").into()))
+            .id(ElementId::Name(
+                format!("explorer-root-row-{area_id}-{}", entry.root).into(),
+            ))
             .h(px(EXPLORER_NODE_HEIGHT))
             .w_full()
             .overflow_hidden()
@@ -401,7 +432,7 @@ impl Editor {
             .child(arrow_el)
             .child(
                 svg()
-                    .path(FOLDER_ICON)
+                    .path("icons/explorer/worktree/folder.svg")
                     .size(px(17.0))
                     .flex_shrink_0()
                     .text_color(c.text_default),
@@ -495,6 +526,7 @@ impl Editor {
             .on_drag(drag_payload, move |payload, click_offset, _window, cx| {
                 let label = drag_label.clone();
                 let count = payload.selections.len();
+                eprintln!("[explorer-drag] drag started: {count} item(s), label '{label}'");
                 cx.new(|_| DraggedExplorerEntryView {
                     label,
                     count,
@@ -534,6 +566,9 @@ impl Editor {
         let click_editor = editor.clone();
         let click_kind = entry.kind;
         let click_path = entry.path.clone();
+        let click_depth = entry.depth;
+        let click_has_children = entry.has_children;
+        let click_root = entry.root;
         let right_click_editor = editor.clone();
         let right_click_path = entry.path.clone();
         let right_click_is_dir = entry.kind == ExplorerEntryKind::Directory;
@@ -594,9 +629,9 @@ impl Editor {
                 .child(
                     svg()
                         .path(if entry.is_expanded {
-                            "icon/panel/chevron-down.svg"
+                            "icons/explorer/worktree/chevron-down.svg"
                         } else {
-                            "icon/panel/chevron-right.svg"
+                            "icons/explorer/worktree/chevron-right.svg"
                         })
                         .size(px(12.0))
                         .text_color(c.dialog_muted),
@@ -621,6 +656,12 @@ impl Editor {
             .gap(px(6.0))
             .pl(px(6.0 + entry.depth as f32 * EXPLORER_NODE_INDENT))
             .pr(px(8.0))
+            .on_mouse_down(MouseButton::Left, move |event, _window, _cx| {
+                eprintln!(
+                    "[explorer] row mouse_down id={} at {:?}",
+                    drag_entry_id.0, event.position
+                );
+            })
             .bg(if is_drag_target {
                 c.callout_tip_bg
             } else if is_marked {
@@ -682,6 +723,15 @@ impl Editor {
                 let shift = event.modifiers().shift;
                 let alt = event.modifiers().alt;
                 let secondary = event.modifiers().secondary();
+                eprintln!(
+                    "[explorer] entry click id={} kind={:?} count={} depth={} children={} root={}",
+                    id.0,
+                    kind,
+                    click_count,
+                    click_depth,
+                    click_has_children,
+                    click_root
+                );
                 let _ = click_editor.update(cx, |editor, cx| {
                     if shift {
                         editor.select_explorer_range(id, cx);
@@ -699,6 +749,13 @@ impl Editor {
                     editor.panels.explorer.marked.clear();
                     match kind {
                         ExplorerEntryKind::Directory => {
+                            // Select the directory so a click always gives
+                            // feedback, even when it is empty and there is
+                            // nothing to expand.
+                            editor.panels.explorer.selected = Some(ExplorerSelection::File {
+                                root: click_root,
+                                entry: id,
+                            });
                             if alt {
                                 editor.toggle_explorer_subtree(id, cx);
                             } else {
@@ -740,6 +797,7 @@ impl Editor {
             .on_drag(drag_payload, move |payload, click_offset, _window, cx| {
                 let label = drag_label.clone();
                 let count = payload.selections.len();
+                eprintln!("[explorer-drag] drag started (root row): {count} item(s), label '{label}'");
                 cx.new(|_| DraggedExplorerEntryView {
                     label,
                     count,
@@ -896,7 +954,7 @@ impl Editor {
             ))
             .child(
                 svg()
-                    .path("icon/explorer/folder-open.svg")
+                    .path("icons/explorer/worktree/folder-open.svg")
                     .size(px(36.0))
                     .text_color(c.dialog_muted),
             )
@@ -936,7 +994,7 @@ impl Editor {
                     .active(|this| this.opacity(0.92))
                     .child(
                         svg()
-                            .path("icon/explorer/folder-open.svg")
+                            .path("icons/explorer/worktree/folder-open.svg")
                             .size(px(14.0))
                             .text_color(c.dialog_secondary_button_text),
                     )
@@ -1001,7 +1059,7 @@ impl Editor {
                                 .gap(px(6.0))
                                 .child(
                                     svg()
-                                        .path("icon/explorer/folder.svg")
+                                        .path("icons/explorer/worktree/folder.svg")
                                         .size(px(12.0))
                                         .text_color(c.dialog_muted),
                                 )
@@ -1041,7 +1099,7 @@ impl Editor {
                                 .gap(px(6.0))
                                 .child(
                                     svg()
-                                        .path("icon/explorer/markdown.svg")
+                                        .path("icons/explorer/worktree/markdown.svg")
                                         .size(px(12.0))
                                         .text_color(c.dialog_muted),
                                 )
@@ -1158,9 +1216,9 @@ impl Editor {
                 .child(
                     svg()
                         .path(if is_expanded {
-                            "icon/panel/chevron-down.svg"
+                            "icons/explorer/worktree/chevron-down.svg"
                         } else {
-                            "icon/panel/chevron-right.svg"
+                            "icons/explorer/worktree/chevron-right.svg"
                         })
                         .size(px(12.0))
                         .text_color(c.dialog_muted),
@@ -1216,7 +1274,7 @@ impl Editor {
             })
             .into_any_element()
     }
-    pub(crate) fn render_explorer_panel(
+    pub(crate) fn render_explorer_midcontainer(
         &mut self,
         area_id: usize,
         theme: &Theme,

@@ -2,7 +2,8 @@
 //! switching, and dirty tracking.
 //!
 //! Action handlers wired in the window chrome (`src/windows/`) delegate to
-//! these methods. File prompts and menu state live in `super::menu`.
+//! these methods. File prompts and menu state live in
+//! `crate::windows::titlebar::app_menu::state`.
 
 use std::path::Path;
 
@@ -240,12 +241,12 @@ impl Editor {
         {
             return;
         }
-        if self.chrome.update_check_in_progress {
+        if self.update_check_in_progress {
             self.show_info_dialog(InfoDialogKind::CheckForUpdates, cx);
             return;
         }
 
-        self.chrome.update_check_in_progress = true;
+        self.update_check_in_progress = true;
         self.show_info_dialog(InfoDialogKind::CheckForUpdates, cx);
 
         let weak_editor = cx.entity().downgrade();
@@ -268,7 +269,7 @@ impl Editor {
                 .await;
 
             let _ = weak_editor.update(cx, |editor, cx| {
-                editor.chrome.update_check_in_progress = false;
+                editor.update_check_in_progress = false;
                 editor.hide_info_dialog(cx);
             });
 

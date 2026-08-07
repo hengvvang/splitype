@@ -21,7 +21,8 @@ use crate::model::syntax::image::{
 };
 use crate::model::syntax::table::TableColumnAlignment;
 use crate::theme::{Theme, ThemeManager};
-use crate::windows::editor::chrome::{TableInsertDialogState, TableInsertTarget};
+use crate::windows::editor::context_menu::TableInsertTarget;
+use crate::windows::editor::dialogs::TableInsertDialogState;
 fn init_editor_test_app(cx: &mut TestAppContext) {
     cx.update(|cx| {
         I18nManager::init(cx);
@@ -898,14 +899,14 @@ async fn dismissing_menu_bar_from_body_clears_open_state(cx: &mut TestAppContext
         editor.open_menu_bar(0, cx);
         editor.set_menu_bar_hovered(true, cx);
         editor.set_menu_panel_hovered(true, cx);
-        assert_eq!(editor.chrome.menu_bar_open, Some(0));
+        assert_eq!(editor.menu_bar_open, Some(0));
 
         editor.dismiss_menu_bar_from_body(cx);
-        assert_eq!(editor.chrome.menu_bar_open, None);
-        assert!(!editor.chrome.menu_bar_hovered);
-        assert!(!editor.chrome.menu_panel_hovered);
-        assert!(!editor.chrome.menu_submenu_panel_hovered);
-        assert!(editor.chrome.menu_close_task.is_none());
+        assert_eq!(editor.menu_bar_open, None);
+        assert!(!editor.menu_bar_hovered);
+        assert!(!editor.menu_panel_hovered);
+        assert!(!editor.menu_submenu_panel_hovered);
+        assert!(editor.menu_close_task.is_none());
     });
 }
 
@@ -920,13 +921,13 @@ async fn submenu_panel_hover_keeps_in_window_menu_open(cx: &mut TestAppContext) 
         editor.set_menu_panel_hovered(false, cx);
         editor.set_menu_bar_hovered(false, cx);
 
-        assert_eq!(editor.chrome.menu_bar_open, Some(0));
-        assert_eq!(editor.chrome.menu_submenu_open, Some(2));
-        assert!(editor.chrome.menu_submenu_panel_hovered);
-        assert!(editor.chrome.menu_close_task.is_none());
+        assert_eq!(editor.menu_bar_open, Some(0));
+        assert_eq!(editor.menu_submenu_open, Some(2));
+        assert!(editor.menu_submenu_panel_hovered);
+        assert!(editor.menu_close_task.is_none());
 
         editor.set_menu_submenu_panel_hovered(false, cx);
-        assert!(editor.chrome.menu_close_task.is_some());
+        assert!(editor.menu_close_task.is_some());
 
         editor.close_menu_bar(cx);
     });
@@ -950,18 +951,18 @@ async fn submenu_survives_bridge_to_panel_hover_handoff(cx: &mut TestAppContext)
         editor.set_menu_panel_hovered(false, cx);
         editor.set_menu_bar_hovered(false, cx);
         editor.set_menu_submenu_bridge_hovered(true, cx);
-        assert!(editor.chrome.menu_close_task.is_none());
+        assert!(editor.menu_close_task.is_none());
 
         // Handoff into the submenu panel. The bridge reporting `false` after
         // the panel is already hovered must not schedule a close.
         editor.set_menu_submenu_panel_hovered(true, cx);
         editor.set_menu_submenu_bridge_hovered(false, cx);
 
-        assert_eq!(editor.chrome.menu_bar_open, Some(0));
-        assert_eq!(editor.chrome.menu_submenu_open, Some(3));
-        assert!(editor.chrome.menu_submenu_panel_hovered);
+        assert_eq!(editor.menu_bar_open, Some(0));
+        assert_eq!(editor.menu_submenu_open, Some(3));
+        assert!(editor.menu_submenu_panel_hovered);
         assert!(
-            editor.chrome.menu_close_task.is_none(),
+            editor.menu_close_task.is_none(),
             "menu must stay open across the bridge-to-panel handoff"
         );
 
@@ -3137,7 +3138,7 @@ async fn inserting_table_at_document_end_adds_trailing_paragraph(cx: &mut TestAp
 
     cx.update(|window, cx| {
         editor.update(cx, |editor, cx| {
-            editor.chrome.table_insert_dialog = Some(TableInsertDialogState {
+            editor.table_insert_dialog = Some(TableInsertDialogState {
                 target: TableInsertTarget::Append,
                 body_rows: 2,
                 columns: 2,

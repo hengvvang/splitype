@@ -2,7 +2,7 @@
 
 <div align="center">
 
-![splitype banner](../assets/icon/splitype-banner.png)
+![splitype banner](../assets/identity/banner.png)
 
 **一款基于 Rust 与 GPUI 构建的快速原生 Markdown 编辑器，支持所见即所得与源码双模式。**
 
@@ -46,8 +46,8 @@ splitype 将视觉主题与界面语言包分开管理。主题文件可以覆�
 
 从示例文件开始，然后在应用内通过 **主题 → 添加主题配置** 或 **语言 → 添加语言配置** 导入：
 
-- [自定义主题 JSONC](../assets/custom-theme.example.jsonc)
-- [自定义语言 JSONC](../assets/custom-language.example.jsonc)
+- [自定义主题 JSONC](../assets/examples/custom-theme.example.jsonc)
+- [自定义语言 JSONC](../assets/examples/custom-language.example.jsonc)
 
 ## 特别鸣谢
 

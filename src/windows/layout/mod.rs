@@ -8,14 +8,12 @@
 
 use crate::ui::components::popover::overlay;
 
-use crate::ui::components::button::{icon_chip_button, small_pill_button};
 use crate::ui::components::splitter::{splitter_bar_h, splitter_bar_v};
 
 use crate::ui::components::menu_item::menu_item;
 use crate::ui::components::popover::menu_panel;
 
 use gpui::*;
-use gpui::prelude::FluentBuilder;
 
 use crate::editor::controller::*;
 use crate::infra::i18n::I18nStrings;
@@ -28,6 +26,23 @@ use crate::theme::Theme;
 use crate::windows::explorer::state::ExplorerState;
 use crate::windows::settings::state::SettingsUiState;
 
+/// Icon path for a window-area top-bar button, per area kind.
+///
+/// Every `WindowAreaKind` owns its own copies of the top-bar icons
+/// (decoupling — see `assets/icons/README.md`), so a button's asset
+/// path depends on the kind of the area it renders in.
+///
+/// NOTE: the on-disk icon directories are still named `titlebar/` /
+/// `statusbar/`; they move to `topbar/` / `bottombar/` in the asset
+/// rename pass that follows this refactor.
+pub(crate) fn area_topbar_icon(kind: WindowAreaKind, name: &str) -> SharedString {
+    let dir = match kind {
+        WindowAreaKind::Explorer => "explorer",
+        WindowAreaKind::Editor => "editor",
+        WindowAreaKind::Settings => "settings",
+    };
+    format!("icons/{dir}/topbar/{name}.svg").into()
+}
 impl Editor {
     pub(crate) fn render_tiled_layout(
         &mut self,
@@ -763,30 +778,40 @@ impl Editor {
         let gap = d.area_tile_gap;
         let radius = d.area_tile_radius;
 
-        let header =
-            self.render_window_area_header(leaf_id, kind, theme, leaf_count, is_maximized, cx);
-
-        let body: AnyElement = match kind {
+        let topbar = match kind {
             WindowAreaKind::Editor => {
-                self.render_editor_inner_panel_container(leaf_id, theme, strings, window, cx)
+                self.render_editor_topbar(leaf_id, kind, theme, leaf_count, is_maximized, cx)
             }
-            WindowAreaKind::Explorer => self.render_explorer_panel(leaf_id, theme, strings, cx),
-            WindowAreaKind::Settings => self.render_tiled_settings_panel(leaf_id, theme, strings, cx),
+            WindowAreaKind::Explorer => {
+                self.render_explorer_topbar(leaf_id, kind, theme, leaf_count, is_maximized, cx)
+            }
+            WindowAreaKind::Settings => {
+                self.render_settings_topbar(leaf_id, kind, theme, leaf_count, is_maximized, cx)
+            }
         };
 
-        let panel_status_bar = match kind {
+        let midcontainer: AnyElement = match kind {
             WindowAreaKind::Editor => {
-                Some(self.render_editor_inner_panel_status_bar(leaf_id, kind, theme, strings, cx))
+                self.render_editor_midcontainer(leaf_id, theme, strings, window, cx)
             }
-            _ => None,
+            WindowAreaKind::Explorer => {
+                self.render_explorer_midcontainer(leaf_id, theme, strings, cx)
+            }
+            WindowAreaKind::Settings => self.render_settings_midcontainer(leaf_id, theme, strings, cx),
         };
 
-        let body_container = div()
+        let bottombar = match kind {
+            WindowAreaKind::Editor => Some(self.render_editor_bottombar(leaf_id, theme, strings, cx)),
+            WindowAreaKind::Explorer => Some(self.render_explorer_bottombar(leaf_id, theme, cx)),
+            WindowAreaKind::Settings => Some(self.render_settings_bottombar(leaf_id, theme, cx)),
+        };
+
+        let midcontainer_container = div()
             .w_full()
             .flex_1()
             .min_h(px(0.0))
             .relative()
-            .child(body);
+            .child(midcontainer);
 
         // Tile card with overflow hidden (no corner handles inside, to avoid clipping).
         // Mouse interaction with any part of the tile marks it as the focused
@@ -823,11 +848,11 @@ impl Editor {
                     cx.notify();
                 });
             })
-            .child(header)
-            .child(body_container);
+            .child(topbar)
+            .child(midcontainer_container);
 
-        if let Some(sb) = panel_status_bar {
-            tile_card = tile_card.child(sb);
+        if let Some(bb) = bottombar {
+            tile_card = tile_card.child(bb);
         }
 
         // Corner drag handles positioned at the four outer corners of the tile card.
@@ -892,270 +917,14 @@ impl Editor {
 
         let dropdown_open = self.panels.layout.open_window_area_dropdown == Some(leaf_id);
         if dropdown_open {
-            let menu = self.render_window_area_dropdown_menu(leaf_id, kind, theme, cx);
+            let menu = self.render_area_type_dropdown_menu(leaf_id, kind, theme, cx);
             wrapped = wrapped.child(menu);
         }
 
         wrapped.into_any_element()
     }
-    pub(crate) fn render_window_area_header(
-        &mut self,
-        leaf_id: usize,
-        kind: crate::layout::WindowAreaKind,
-        theme: &Theme,
-        leaf_count: usize,
-        is_maximized: bool,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
-        let c = &theme.colors;
-        let d = &theme.dimensions;
-        let editor = cx.entity().downgrade();
 
-        let type_editor = editor.clone();
-        // The active editor (the target for explorer file opens) shows a
-        // link icon after its name; other kinds and inactive editors stay
-        // plain text.
-        let is_active_editor = kind == crate::layout::WindowAreaKind::Editor
-            && self.panels.layout.active_editor_area == Some(leaf_id);
-        let type_button = small_pill_button(c, d)
-            .id(("area-header-type", leaf_id))
-            .text_size(px(12.0))
-            .text_color(c.text_default)
-            .child(kind.name().to_string())
-            .when(is_active_editor, |this| {
-                this.child(
-                    svg()
-                        .path("icon/panel/link.svg")
-                        .size(px(12.0))
-                        .text_color(Hsla::from(rgba(0x60a5faff))),
-                )
-            })
-            .on_click(move |_event, _window, cx| {
-                let _ = type_editor.update(cx, |ed, cx| {
-                    ed.panels.layout.toggle_window_area_dropdown(leaf_id);
-                    cx.notify();
-                });
-            });
-
-        let split_h_editor = editor.clone();
-        let split_h_button = icon_chip_button(c, d)
-            .id(("area-btn-split-h", leaf_id))
-            .child(
-                svg()
-                    .path("icon/panel/split-h.svg")
-                    .size(px(14.0))
-                    .text_color(c.dialog_muted),
-            )
-            .on_click(move |_event, _window, cx| {
-                let _ = split_h_editor.update(cx, |ed, cx| {
-                    // Same-kind split; Editor areas deep-copy their tabs.
-                    ed.split_area(leaf_id, Axis::Horizontal, 0.5, AreaSplitMode::Copy, cx);
-                    cx.notify();
-                });
-            });
-
-        let split_v_editor = editor.clone();
-        let split_v_button = icon_chip_button(c, d)
-            .id(("area-btn-split-v", leaf_id))
-            .child(
-                svg()
-                    .path("icon/panel/split-v.svg")
-                    .size(px(14.0))
-                    .text_color(c.dialog_muted),
-            )
-            .on_click(move |_event, _window, cx| {
-                let _ = split_v_editor.update(cx, |ed, cx| {
-                    // Same-kind split; Editor areas deep-copy their tabs.
-                    ed.split_area(leaf_id, Axis::Vertical, 0.5, AreaSplitMode::Copy, cx);
-                    cx.notify();
-                });
-            });
-
-        let mut actions = div()
-            .flex()
-            .items_center()
-            .gap(px(4.0))
-            .child(split_h_button)
-            .child(split_v_button);
-
-        if leaf_count > 1 {
-            let max_editor = editor.clone();
-            let max_button = icon_chip_button(c, d)
-                .id(("area-btn-max", leaf_id))
-                .child(
-                    svg()
-                        .path(if is_maximized {
-                            "icon/titlebar/chrome-restore.svg"
-                        } else {
-                            "icon/titlebar/chrome-maximize.svg"
-                        })
-                        .size(px(14.0))
-                        .text_color(c.dialog_muted),
-                )
-                .on_click(move |_event, _window, cx| {
-                    let _ = max_editor.update(cx, |ed, cx| {
-                        ed.panels.layout.toggle_window_area_maximize(leaf_id);
-                        cx.notify();
-                    });
-                });
-
-            let close_editor = editor.clone();
-            let close_button = icon_chip_button(c, d)
-                .id(("area-btn-close", leaf_id))
-                .child(
-                    svg()
-                        .path("icon/titlebar/chrome-close.svg")
-                        .size(px(14.0))
-                        .text_color(c.dialog_muted),
-                )
-                .on_click(move |_event, _window, cx| {
-                    let _ = close_editor.update(cx, |ed, cx| {
-                        ed.panels.layout.close_window_area(leaf_id);
-                        cx.notify();
-                    });
-                });
-
-            actions = actions.child(max_button).child(close_button);
-        }
-
-        // Build tab bar for Edit areas from THAT editor's own tab set.
-        let mut left_section = div().flex().items_center().gap(px(8.0)).child(type_button);
-
-        if kind == WindowAreaKind::Editor {
-            // Ensure the session exists: an Editor area may have had its
-            // (empty) session dropped while switched to another kind and
-            // switched back, or may be brand new — rendering must never
-            // panic on a missing session.
-            let list = self.tab_list_mut_for(leaf_id);
-            let active_tab = list.active_tab;
-            let tab_names: Vec<String> = list
-                .tabs
-                .iter()
-                .map(|tab| {
-                    tab.file
-                        .path
-                        .as_ref()
-                        .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
-                        .unwrap_or_else(|| "Untitled".to_string())
-                })
-                .collect();
-
-            let mut tab_elements: Vec<AnyElement> = Vec::new();
-            for (index, file_name) in tab_names.iter().enumerate() {
-                let is_active = index == active_tab;
-
-                let tab_bg = if is_active {
-                    c.panel_row_selected
-                } else {
-                    hsla(0.0, 0.0, 0.0, 0.0)
-                };
-                let tab_text = if is_active {
-                    c.text_default
-                } else {
-                    c.dialog_muted
-                };
-
-                let tab_editor = editor.clone();
-                let close_editor = editor.clone();
-
-                tab_elements.push(
-                    small_pill_button(c, d)
-                        .px(px(6.0))
-                        .bg(tab_bg)
-                        .text_size(px(11.0))
-                        .child(
-                            // Switch area: clicking the file name switches to this tab.
-                            div()
-                                .text_color(tab_text)
-                                .child(file_name.clone())
-                                .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                                    let _ = tab_editor.update(cx, |ed, cx| {
-                                        ed.with_current_tab_area(leaf_id, |ed| {
-                                            ed.panels.layout.activate_editor_area(leaf_id);
-                                            ed.activate_tab(leaf_id, index, cx);
-                                        });
-                                        cx.notify();
-                                    });
-                                }),
-                        )
-                        .child(
-                            // Close button: separate click area.
-                            div()
-                                .size(px(12.0))
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .rounded(px(2.0))
-                                .hover(|this| this.bg(c.dialog_secondary_button_bg.opacity(0.6)))
-                                .cursor_pointer()
-                                .child(
-                                    svg()
-                                        .path("icon/titlebar/chrome-close.svg")
-                                        .size(px(8.0))
-                                        .text_color(c.dialog_muted),
-                                )
-                                .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                                    let _ = close_editor.update(cx, |ed, cx| {
-                                        ed.with_current_tab_area(leaf_id, |ed| {
-                                            ed.panels.layout.activate_editor_area(leaf_id);
-                                            ed.close_tab(leaf_id, index, cx);
-                                        });
-                                        cx.notify();
-                                    });
-                                }),
-                        )
-                        .into_any_element(),
-                );
-            }
-
-            // "+" button opens a fresh untitled tab in THIS editor.
-            let add_editor = editor.clone();
-            tab_elements.push(
-                div()
-                    .size(px(18.0))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .rounded(px(d.menu_item_radius))
-                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                    .cursor_pointer()
-                    .text_size(px(14.0))
-                    .text_color(c.dialog_muted)
-                    .child("+")
-                    .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                        let _ = add_editor.update(cx, |ed, cx| {
-                            ed.with_current_tab_area(leaf_id, |ed| {
-                                ed.panels.layout.activate_editor_area(leaf_id);
-                                ed.new_untitled_tab(leaf_id, cx);
-                            });
-                            cx.notify();
-                        });
-                    })
-                    .into_any_element(),
-            );
-
-            left_section = left_section.child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(2.0))
-                    .children(tab_elements),
-            );
-        }
-
-        div()
-            .id(("area-header", leaf_id))
-            .h(px(28.0))
-            .w_full()
-            .flex()
-            .items_center()
-            .justify_between()
-            .px(px(8.0))
-            .child(left_section)
-            .child(div().flex().items_center().gap(px(6.0)).child(actions))
-            .into_any_element()
-    }
-    pub(crate) fn render_window_area_dropdown_menu(
+    pub(crate) fn render_area_type_dropdown_menu(
         &mut self,
         leaf_id: usize,
         current_type: crate::layout::WindowAreaKind,
@@ -1194,7 +963,7 @@ impl Editor {
                     .child(kind.name())
                     .child(if is_current {
                         svg()
-                            .path("icon/panel/check.svg")
+                            .path(area_topbar_icon(current_type, "check"))
                             .size(px(13.0))
                             .text_color(c.dialog_primary_button_bg)
                             .into_any_element()

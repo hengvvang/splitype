@@ -1,8 +1,10 @@
 //! Standalone helpers for the in-window menu bar and its panels.
 //!
 //! These pure functions compute layout, estimate label widths, and render
-//! shared chrome.  Editor-level state machines that track open / hover
-//! indices stay in [`crate::editor::render`].
+//! shared chrome. The menu-bar state machine that tracks open / hover
+//! indices stays in [`state`].
+
+pub(crate) mod state;
 
 use crate::ui::components::menu_item::menu_item_row;
 
@@ -300,7 +302,7 @@ impl Editor {
         let t = &theme.typography;
         let editor = cx.entity().downgrade();
 
-        let is_expanded = self.chrome.menu_bar_expanded || self.chrome.menu_bar_open.is_some();
+        let is_expanded = self.menu_bar.expanded || self.menu_bar.open.is_some();
 
         let mut row = div()
             .id("titlebar-menu-inline")
@@ -359,7 +361,7 @@ impl Editor {
 
             for (index, label) in menu_labels.iter().enumerate() {
                 let label = label.clone();
-                let is_open = self.chrome.menu_bar_open == Some(index);
+                let is_open = self.menu_bar.open == Some(index);
                 let button_editor = editor.clone();
                 let click_editor = editor.clone();
                 let button_width = button_widths[index];
@@ -427,9 +429,9 @@ impl Editor {
                     let current_theme_id = cx.global::<ThemeManager>().current_theme_id();
                     is_selected = act.theme_id == current_theme_id;
                     let item_icon = if name == "Light" {
-                        "icon/panel/sun.svg"
+                        "icons/topbar/app_menu/sun.svg"
                     } else {
-                        "icon/panel/moon.svg"
+                        "icons/topbar/app_menu/moon.svg"
                     };
                     left_elem = Some(
                         div()
@@ -472,7 +474,7 @@ impl Editor {
                     .when(is_theme_or_lang, |this| {
                         this.child(if is_selected {
                             svg()
-                                .path("icon/panel/check.svg")
+                                .path("icons/topbar/app_menu/check.svg")
                                 .size(px(13.0))
                                 .text_color(c.dialog_primary_button_bg)
                                 .into_any_element()
@@ -506,7 +508,7 @@ impl Editor {
                 }
             }
             OwnedMenuItem::Submenu(submenu) => {
-                let is_open = self.chrome.menu_submenu_open == Some(item_index);
+                let is_open = self.menu_bar.submenu_open == Some(item_index);
                 let hover_editor = editor.clone();
                 menu_item(("app-menu-submenu", item_index), c, d)
                     .w_full()
@@ -523,7 +525,7 @@ impl Editor {
                     .child(submenu.name.to_string())
                     .child(
                         svg()
-                            .path("icon/panel/chevron-right.svg")
+                            .path("icons/topbar/app_menu/chevron-right.svg")
                             .size(px(14.0))
                             .text_color(c.dialog_secondary_button_text),
                     )
@@ -558,7 +560,7 @@ impl Editor {
         top_offset: f32,
         viewport_height: f32,
     ) -> Option<AnyElement> {
-        let open_index = self.chrome.menu_bar_open?;
+        let open_index = self.menu_bar.open?;
         let menus = menus?;
         let menu = menus.get(open_index)?.clone();
         let menu_items = menu.items.clone();
@@ -569,7 +571,7 @@ impl Editor {
         let menu_item_labels = owned_menu_item_labels(&menu_items);
         let menu_panel_width = menu_panel_width_for_labels(&menu_item_labels, d);
         let submenu_bridge =
-            self.chrome.menu_submenu_open.and_then(|submenu_index| {
+            self.menu_bar.submenu_open.and_then(|submenu_index| {
                 match menu_items.get(submenu_index)? {
                     OwnedMenuItem::Submenu(submenu) => {
                         let submenu_labels = owned_menu_item_labels(&submenu.items);
@@ -599,7 +601,7 @@ impl Editor {
                 }
             });
         let submenu_panel =
-            self.chrome.menu_submenu_open.and_then(|submenu_index| {
+            self.menu_bar.submenu_open.and_then(|submenu_index| {
                 match menu_items.get(submenu_index)? {
                     OwnedMenuItem::Submenu(submenu) => {
                         let submenu_labels = owned_menu_item_labels(&submenu.items);
@@ -635,9 +637,9 @@ impl Editor {
                                             cx.global::<ThemeManager>().current_theme_id();
                                         is_selected = act.theme_id == current_theme_id;
                                         let item_icon = if name == "Light" {
-                                            "icon/panel/sun.svg"
+                                            "icons/topbar/app_menu/sun.svg"
                                         } else {
-                                            "icon/panel/moon.svg"
+                                            "icons/topbar/app_menu/moon.svg"
                                         };
                                         left_elem = Some(
                                             div()
@@ -692,7 +694,7 @@ impl Editor {
                                         .when(is_theme_or_lang, |this| {
                                             this.child(if is_selected {
                                                 svg()
-                                                    .path("icon/panel/check.svg")
+                                                    .path("icons/topbar/app_menu/check.svg")
                                                     .size(px(13.0))
                                                     .text_color(c.dialog_primary_button_bg)
                                                     .into_any_element()
@@ -736,7 +738,7 @@ impl Editor {
                                     .child(submenu.name.to_string())
                                     .child(
                                         svg()
-                                            .path("icon/panel/chevron-right.svg")
+                                            .path("icons/topbar/app_menu/chevron-right.svg")
                                             .size(px(14.0))
                                             .text_color(c.dialog_muted),
                                     )

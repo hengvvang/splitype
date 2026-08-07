@@ -68,6 +68,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
+        eprintln!("[explorer-drag] panel drag_move @ {:?}", event.event.position);
         if let Some(previous_position) = self.panels.explorer.previous_drag_position {
             // Modifiers are not refreshed when the cursor does not move, so
             // only re-check the style on actual movement.
@@ -276,6 +277,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        eprintln!("[explorer-drag] row drag_move @ {:?} entry={}", event.event.position, entry_id.0);
         let is_current_target = self
             .panels
             .explorer
@@ -292,6 +294,7 @@ impl Editor {
         if is_current_target {
             return; // same target: keep the highlight and the pending expand
         }
+        eprintln!("[explorer-drag] setting drag target to entry {}", entry_id.0);
         // Keep the multi-select state in sync with what is being dragged
         // (mirrors Zed: single item drags collapse the marks to themselves).
         if let Some(drag) = drag {
@@ -415,6 +418,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        eprintln!("[explorer-drag] drop internal onto entry {}", entry_id.0);
         self.clear_explorer_drag(cx);
         // Root rows reorder worktrees (Zed's `move_worktree_root`); resolve
         // each root's current index by id because earlier moves shift the
@@ -516,6 +520,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        eprintln!("[explorer-drag] drop external onto entry {}: {paths:?}", entry_id.0);
         self.clear_explorer_drag(cx);
         let Some(target_dir) = self.explorer_drop_target_dir(entry_id) else {
             return;

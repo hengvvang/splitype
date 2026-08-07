@@ -11,14 +11,11 @@
 //! 6. **Chrome** — titlebar, tiled sidebar, menu panel, context menu,
 //!    table-insert dialog, info/drop/unsaved overlays.
 
-pub(crate) mod chrome;
 pub(crate) mod context_menu;
 pub(crate) mod dialogs;
 pub(crate) mod export;
-pub(crate) mod menu;
-pub(crate) mod menu_bar;
-pub(crate) mod status_bar;
-pub(crate) mod titlebar;
+pub(crate) mod bottombar;
+pub(crate) mod topbar;
 
 use std::time::{Duration, Instant};
 
@@ -27,8 +24,8 @@ use gpui::*;
 use crate::editor::controller::*;
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::theme::ThemeManager;
-use crate::windows::editor::menu_bar::*;
-use crate::windows::editor::titlebar::{custom_titlebar_height, render_custom_titlebar};
+use crate::windows::titlebar::app_menu::*;
+use crate::windows::titlebar::{custom_titlebar_height, render_custom_titlebar};
 
 // ── Constants ────────────────────────────────────────────────────────────
 
@@ -415,7 +412,7 @@ impl Render for Editor {
         };
         // Dialog overlays read the ACTIVE editor's tab state.
         self.current_tab_area = None;
-        if let Some(kind) = self.chrome.info_dialog {
+        if let Some(kind) = self.info_dialog {
             base.child(self.render_info_dialog_overlay(&theme, kind, cx))
         } else if self
             .active_editor_tab()
@@ -1020,7 +1017,7 @@ impl Editor {
 mod tests {
     use crate::editor::actions::{AddLanguageConfig, AddThemeConfig, NoRecentFiles};
     use crate::theme::Theme;
-    use crate::windows::editor::menu_bar::{
+    use crate::windows::titlebar::app_menu::{
         import_menu_split_index, in_window_menu_bar_height_for_target_os, menu_bar_button_width,
         menu_items_visual_height_with_gaps, menu_panel_left, menu_panel_width_for_labels,
         owned_menu_item_labels, scrollable_import_menu_scroll_height, submenu_bridge_geometry,

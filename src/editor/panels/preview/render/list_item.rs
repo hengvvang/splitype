@@ -178,7 +178,7 @@ pub(crate) fn render_preview_task_list_item(
                         .children(if checked {
                             Some(
                                 svg()
-                                    .path("icon/task_check.svg")
+                                    .path("icons/editor/preview/task-check.svg")
                                     .size(px(d.task_checkbox_check_size))
                                     .text_color(c.task_checkbox_check),
                             )

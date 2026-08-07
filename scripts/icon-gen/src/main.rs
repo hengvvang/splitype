@@ -61,8 +61,9 @@ fn write_icns(sizes: &[(u32, Vec<u8>)], path: &Path) {
 
 fn main() {
     let root = root_dir();
-    let svg = fs::read_to_string(root.join("assets/icon/logo.svg")).expect("read logo.svg");
-    let icon_dir = root.join("assets/icon");
+    let svg = fs::read_to_string(root.join("assets/identity/logo.svg")).expect("read logo.svg");
+    let identity_dir = root.join("assets/identity");
+    let windows_dir = root.join("resources/windows");
     let macos_dir = root.join("resources/macos");
     let linux_dir = root.join("resources/linux/icons/hicolor");
 
@@ -71,9 +72,9 @@ fn main() {
     for size in [16u32, 32, 48, 64, 128, 256, 512, 1024] {
         let pixmap = render_logo(&svg, size, size, 0.88);
         let path = if size == 1024 {
-            icon_dir.join("splitype-icon.png")
+            identity_dir.join("logo.png")
         } else {
-            icon_dir.join(format!("splitype-icon-{size}.png"))
+            identity_dir.join(format!("logo-{size}.png"))
         };
         pixmap.save_png(&path).expect("save png");
         pngs.push((size, pixmap.data().to_vec()));
@@ -94,9 +95,9 @@ fn main() {
     // --- Banner (README hero image) ---------------------------------------
     let banner = render_logo(&svg, 1450, 357, 0.84);
     banner
-        .save_png(&icon_dir.join("splitype-banner.png"))
+        .save_png(&identity_dir.join("banner.png"))
         .expect("save png");
-    println!("wrote {}", icon_dir.join("splitype-banner.png").display());
+    println!("wrote {}", identity_dir.join("banner.png").display());
 
     // --- Windows .ico ------------------------------------------------------
     let ico_entries: Vec<(u32, Vec<u8>)> = pngs
@@ -104,8 +105,8 @@ fn main() {
         .filter(|(s, _)| matches!(s, 16 | 32 | 48 | 64 | 128 | 256))
         .cloned()
         .collect();
-    write_ico(&ico_entries, &icon_dir.join("splitype.ico"));
-    println!("wrote {}", icon_dir.join("splitype.ico").display());
+    write_ico(&ico_entries, &windows_dir.join("splitype.ico"));
+    println!("wrote {}", windows_dir.join("splitype.ico").display());
 
     // --- macOS .icns -------------------------------------------------------
     let icns_sizes: Vec<(u32, Vec<u8>)> = pngs

@@ -181,13 +181,13 @@ pub struct ThemeColors {
     /// Danger button text colour.
     pub dialog_danger_button_text: Hsla,
     /// Background of the editor status bar.
-    pub status_bar_background: Hsla,
+    pub bottombar_background: Hsla,
     /// Primary text colour in the status bar.
-    pub status_bar_text: Hsla,
+    pub bottombar_text: Hsla,
     /// Dimmed/secondary text colour in the status bar.
-    pub status_bar_text_dim: Hsla,
+    pub bottombar_text_dim: Hsla,
     /// Hover background for clickable status bar items.
-    pub status_bar_button_hover: Hsla,
+    pub bottombar_button_hover: Hsla,
     /// Explorer panel row hover background (translucent highlight).
     pub panel_row_hover: Hsla,
     /// Explorer panel row selection background (light blue).
@@ -285,10 +285,10 @@ struct ThemeColorsDe {
     dialog_danger_button_bg: Hsla,
     dialog_danger_button_hover: Hsla,
     dialog_danger_button_text: Hsla,
-    status_bar_background: Option<Hsla>,
-    status_bar_text: Option<Hsla>,
-    status_bar_text_dim: Option<Hsla>,
-    status_bar_button_hover: Option<Hsla>,
+    bottombar_background: Option<Hsla>,
+    bottombar_text: Option<Hsla>,
+    bottombar_text_dim: Option<Hsla>,
+    bottombar_button_hover: Option<Hsla>,
     panel_row_hover: Option<Hsla>,
     panel_row_selected: Option<Hsla>,
 }
@@ -498,17 +498,17 @@ impl<'de> Deserialize<'de> for ThemeColors {
             dialog_danger_button_bg: raw.dialog_danger_button_bg,
             dialog_danger_button_hover: raw.dialog_danger_button_hover,
             dialog_danger_button_text: raw.dialog_danger_button_text,
-            status_bar_background: raw
-                .status_bar_background
+            bottombar_background: raw
+                .bottombar_background
                 .unwrap_or_else(|| Hsla::from(rgba(0x1c1c1fff))),
-            status_bar_text: raw
-                .status_bar_text
+            bottombar_text: raw
+                .bottombar_text
                 .unwrap_or_else(|| Hsla::from(rgba(0xd4d4d8cc))),
-            status_bar_text_dim: raw
-                .status_bar_text_dim
+            bottombar_text_dim: raw
+                .bottombar_text_dim
                 .unwrap_or_else(|| Hsla::from(rgba(0x71717aff))),
-            status_bar_button_hover: raw
-                .status_bar_button_hover
+            bottombar_button_hover: raw
+                .bottombar_button_hover
                 .unwrap_or_else(|| Hsla::from(rgba(0x3f3f46ff))),
             panel_row_hover: raw
                 .panel_row_hover

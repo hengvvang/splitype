@@ -31,6 +31,7 @@
 //! string-keyed expansion set; its parsing lives in
 //! `crate::editor::panels::outline`.
 
+pub(crate) mod bottombar;
 pub(crate) mod drag_and_drop;
 pub(crate) mod file_ops;
 pub(crate) mod filename_editor;
@@ -39,7 +40,11 @@ pub(crate) mod panel;
 pub(crate) mod render;
 pub(crate) mod selection;
 pub(crate) mod state;
+pub(crate) mod topbar;
 pub(crate) mod tree;
 pub(crate) mod undo;
 pub(crate) mod utils;
 pub(crate) mod worktree;
+
+#[cfg(test)]
+mod interaction_probe;

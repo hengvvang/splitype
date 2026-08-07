@@ -217,14 +217,16 @@ pub struct ThemeDimensions {
     pub table_insert_stepper_value_padding_x: f32,
     /// Corner radius of table-insert stepper controls.
     pub table_insert_stepper_radius: f32,
+    /// Height of the area top bar.
+    pub topbar_height: f32,
     /// Height of the status bar.
-    pub status_bar_height: f32,
+    pub bottombar_height: f32,
     /// Horizontal padding inside the status bar.
-    pub status_bar_padding_x: f32,
+    pub bottombar_padding_x: f32,
     /// Gap between items in the status bar.
-    pub status_bar_item_gap: f32,
+    pub bottombar_item_gap: f32,
     /// Font size for status bar text.
-    pub status_bar_text_size: f32,
+    pub bottombar_text_size: f32,
     pub area_tile_gap: f32,
     pub area_tile_radius: f32,
 }
@@ -338,10 +340,11 @@ struct ThemeDimensionsDe {
     table_insert_stepper_value_min_width: Option<f32>,
     table_insert_stepper_value_padding_x: Option<f32>,
     table_insert_stepper_radius: Option<f32>,
-    status_bar_height: Option<f32>,
-    status_bar_padding_x: Option<f32>,
-    status_bar_item_gap: Option<f32>,
-    status_bar_text_size: Option<f32>,
+    topbar_height: Option<f32>,
+    bottombar_height: Option<f32>,
+    bottombar_padding_x: Option<f32>,
+    bottombar_item_gap: Option<f32>,
+    bottombar_text_size: Option<f32>,
     area_tile_gap: Option<f32>,
     area_tile_radius: Option<f32>,
 }
@@ -463,10 +466,11 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
                 .table_insert_stepper_value_padding_x
                 .unwrap_or(10.0),
             table_insert_stepper_radius: raw.table_insert_stepper_radius.unwrap_or(8.0),
-            status_bar_height: raw.status_bar_height.unwrap_or(28.0),
-            status_bar_padding_x: raw.status_bar_padding_x.unwrap_or(12.0),
-            status_bar_item_gap: raw.status_bar_item_gap.unwrap_or(12.0),
-            status_bar_text_size: raw.status_bar_text_size.unwrap_or(11.0),
+            topbar_height: raw.topbar_height.unwrap_or(28.0),
+            bottombar_height: raw.bottombar_height.unwrap_or(28.0),
+            bottombar_padding_x: raw.bottombar_padding_x.unwrap_or(12.0),
+            bottombar_item_gap: raw.bottombar_item_gap.unwrap_or(12.0),
+            bottombar_text_size: raw.bottombar_text_size.unwrap_or(11.0),
             area_tile_gap: raw.area_tile_gap.unwrap_or(6.0),
             area_tile_radius: raw.area_tile_radius.unwrap_or(3.0),
         })

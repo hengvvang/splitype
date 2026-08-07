@@ -27,7 +27,7 @@ impl Editor {
     /// - drop runtimes of panels that were closed or joined;
     /// - derive `focused_editor_inner_panel` from the keyboard focus when
     ///   nothing was explicitly selected (projection fallback).
-    pub(crate) fn render_editor_inner_panel_container(
+    pub(crate) fn render_editor_midcontainer(
         &mut self,
         area_id: usize,
         theme: &Theme,
@@ -172,10 +172,10 @@ impl Editor {
             .on_click(move |_event, window, cx| {
                 let now = std::time::Instant::now();
                 let _ = editor.update(cx, |ed, cx| {
-                    let is_double = ed.chrome.welcome_last_click.is_some_and(|previous| {
+                    let is_double = ed.welcome_last_click.is_some_and(|previous| {
                         now.duration_since(previous) < std::time::Duration::from_millis(500)
                     });
-                    ed.chrome.welcome_last_click = Some(now);
+                    ed.welcome_last_click = Some(now);
                     if is_double {
                         // The clicked editor becomes the active editor and
                         // its routing context is set for the tab creation.
@@ -567,7 +567,7 @@ impl Editor {
                     .child(div().child(kind.name()))
                     .child(if is_current {
                         svg()
-                            .path("icon/panel/check.svg")
+                            .path("icons/editor/bottombar/check.svg")
                             .size(px(13.0))
                             .text_color(c.dialog_primary_button_bg)
                             .into_any_element()

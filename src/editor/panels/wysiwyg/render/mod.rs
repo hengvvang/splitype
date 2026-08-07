@@ -911,7 +911,7 @@ impl Block {
                     .child(language_label)
                     .child(
                         svg()
-                            .path("icon/panel/select-chevron.svg")
+                            .path("icons/editor/wysiwyg/codeblock/select-chevron.svg")
                             .size(px(12.0))
                             .text_color(c.dialog_muted),
                     ),
@@ -929,7 +929,7 @@ impl Block {
                 )
                 .child(
                     svg()
-                        .path("icon/panel/line-numbers.svg")
+                        .path("icons/editor/wysiwyg/codeblock/line-numbers.svg")
                         .size(px(13.0))
                         .text_color(if self.show_code_line_numbers {
                             c.code_language_input_text
@@ -1116,7 +1116,7 @@ impl Block {
                         .children(if is_selected {
                             Some(
                                 svg()
-                                    .path("icon/panel/select-check.svg")
+                                    .path("icons/editor/wysiwyg/codeblock/select-check.svg")
                                     .size(px(14.0))
                                     .text_color(c.text_default),
                             )
@@ -2287,7 +2287,7 @@ impl Render for Block {
                 })
                 .child(
                     svg()
-                        .path("icon/table/handle-row-solid.svg")
+                        .path("icons/editor/wysiwyg/table/handle-row-solid.svg")
                         .size(px(12.0))
                         .text_color(if is_menu_open {
                             c.table_append_button_text

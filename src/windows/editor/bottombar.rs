@@ -1,7 +1,7 @@
 //! Bottom status bar helpers: cursor position, word count, custom
-//! buttons, and status-bar rendering.
+//! buttons, and bottombar rendering.
 
-use crate::ui::components::status_bar::status_bar_container;
+use crate::ui::components::bottombar::bottombar_container;
 
 use crate::ui::components::button::{icon_chip_button, small_pill_button};
 
@@ -12,9 +12,16 @@ use crate::editor::EditorMode;
 use crate::editor::controller::Editor;
 use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
 use crate::infra::i18n::I18nStrings;
-use crate::layout::{Axis, InnerPanelLocation, WindowAreaKind};
+use crate::layout::{Axis, InnerPanelLocation};
 use crate::theme::{Theme, ThemeColors, ThemeDimensions};
-use crate::windows::editor::chrome::StatusBarState;
+
+/// Mutable hover state tracked across frames for bottombar widgets.
+#[derive(Default)]
+pub(crate) struct BottombarState {
+    pub sidebar_hovered: bool,
+    pub mode_hovered: bool,
+    pub custom_button_hovered: Option<String>,
+}
 
 /// Render a cursor-position label (e.g. `12 : 47`).
 pub fn render_cursor((line, col): (usize, usize), theme: &Theme) -> AnyElement {
@@ -24,8 +31,8 @@ pub fn render_cursor((line, col): (usize, usize), theme: &Theme) -> AnyElement {
     let label = format!("{} : {}", &line.to_string(), &col.to_string());
 
     div()
-        .text_size(px(d.status_bar_text_size))
-        .text_color(c.status_bar_text)
+        .text_size(px(d.bottombar_text_size))
+        .text_color(c.bottombar_text)
         .child(label)
         .into_any_element()
 }
@@ -50,34 +57,34 @@ pub fn render_word_count(
     };
 
     div()
-        .text_size(px(d.status_bar_text_size))
-        .text_color(c.status_bar_text_dim)
+        .text_size(px(d.bottombar_text_size))
+        .text_color(c.bottombar_text_dim)
         .child(label)
         .into_any_element()
 }
 
-/// Render a user-defined status-bar button with hover tracking.
+/// Render a user-defined bottombar button with hover tracking.
 #[allow(dead_code)]
 
 /// Status bar button — transparent with a state-driven hover background.
-fn status_bar_button(
+fn bottombar_button(
     id: impl Into<ElementId>,
     c: &ThemeColors,
     d: &ThemeDimensions,
 ) -> Stateful<Div> {
     div()
         .id(id)
-        .h(px(d.status_bar_height - 4.0))
+        .h(px(d.bottombar_height - 4.0))
         .px(px(6.0))
         .flex()
         .items_center()
         .rounded(px(4.0))
         .cursor_pointer()
-        .text_size(px(d.status_bar_text_size))
-        .text_color(c.status_bar_text)
+        .text_size(px(d.bottombar_text_size))
+        .text_color(c.bottombar_text)
 }
 pub fn render_custom_button(
-    state: &mut StatusBarState,
+    state: &mut BottombarState,
     button: &StatusBarButton,
     theme: &Theme,
     cx: &mut Context<Editor>,
@@ -88,19 +95,19 @@ pub fn render_custom_button(
     let id = button.id.clone();
     let hovered = state.custom_button_hovered.as_deref() == Some(&button.id);
 
-    status_bar_button(
-        ElementId::Name(format!("status-bar-custom-button-{}", button.id).into()),
+    bottombar_button(
+        ElementId::Name(format!("bottombar-custom-button-{}", button.id).into()),
         c,
         d,
     )
     .bg(if hovered {
-        c.status_bar_button_hover
+        c.bottombar_button_hover
     } else {
         hsla(0., 0., 0., 0.)
     })
     .cursor_pointer()
-    .text_size(px(d.status_bar_text_size))
-    .text_color(c.status_bar_text)
+    .text_size(px(d.bottombar_text_size))
+    .text_color(c.bottombar_text)
     .child(button.label.clone())
     .on_hover(cx.listener(
         move |editor: &mut Editor,
@@ -108,9 +115,9 @@ pub fn render_custom_button(
               _window: &mut Window,
               cx: &mut Context<Editor>| {
             if *hovered {
-                editor.chrome.status_bar.custom_button_hovered = Some(id.clone());
-            } else if editor.chrome.status_bar.custom_button_hovered.as_deref() == Some(&id) {
-                editor.chrome.status_bar.custom_button_hovered = None;
+                editor.bottombar_state.custom_button_hovered = Some(id.clone());
+            } else if editor.bottombar_state.custom_button_hovered.as_deref() == Some(&id) {
+                editor.bottombar_state.custom_button_hovered = None;
             }
             cx.notify();
         },
@@ -120,7 +127,7 @@ pub fn render_custom_button(
 
 #[allow(dead_code)]
 pub fn render_sidebar_toggle(
-    state: &mut StatusBarState,
+    state: &mut BottombarState,
     _is_open: bool,
     theme: &Theme,
     strings: &I18nStrings,
@@ -129,22 +136,22 @@ pub fn render_sidebar_toggle(
     let c = &theme.colors;
     let d = &theme.dimensions;
 
-    status_bar_button("status-bar-sidebar-toggle", c, d)
+    bottombar_button("bottombar-sidebar-toggle", c, d)
         .bg(if state.sidebar_hovered {
-            c.status_bar_button_hover
+            c.bottombar_button_hover
         } else {
             hsla(0., 0., 0., 0.)
         })
         .cursor_pointer()
-        .text_size(px(d.status_bar_text_size))
-        .text_color(c.status_bar_text)
+        .text_size(px(d.bottombar_text_size))
+        .text_color(c.bottombar_text)
         .child(strings.status_bar_files.clone())
         .on_hover(cx.listener(
             |editor: &mut Editor,
              hovered: &bool,
              _window: &mut Window,
              cx: &mut Context<Editor>| {
-                editor.chrome.status_bar.sidebar_hovered = *hovered;
+                editor.bottombar_state.sidebar_hovered = *hovered;
                 cx.notify();
             },
         ))
@@ -161,7 +168,7 @@ pub fn render_sidebar_toggle(
 
 #[allow(dead_code)]
 pub fn render_mode_switch(
-    state: &mut StatusBarState,
+    state: &mut BottombarState,
     view_mode: EditorMode,
     theme: &Theme,
     strings: &I18nStrings,
@@ -175,22 +182,22 @@ pub fn render_mode_switch(
         EditorMode::Wysiwyg => strings.status_bar_mode_source.clone(),
     };
 
-    status_bar_button("status-bar-mode-switch", c, d)
+    bottombar_button("bottombar-mode-switch", c, d)
         .bg(if state.mode_hovered {
-            c.status_bar_button_hover
+            c.bottombar_button_hover
         } else {
             hsla(0., 0., 0., 0.)
         })
         .cursor_pointer()
-        .text_size(px(d.status_bar_text_size))
-        .text_color(c.status_bar_text)
+        .text_size(px(d.bottombar_text_size))
+        .text_color(c.bottombar_text)
         .child(label)
         .on_hover(cx.listener(
             |editor: &mut Editor,
              hovered: &bool,
              _window: &mut Window,
              cx: &mut Context<Editor>| {
-                editor.chrome.status_bar.mode_hovered = *hovered;
+                editor.bottombar_state.mode_hovered = *hovered;
                 cx.notify();
             },
         ))
@@ -260,14 +267,14 @@ fn is_cjk_char(ch: char) -> bool {
 
 impl Editor {
     #[allow(dead_code)]
-    pub(crate) fn render_status_bar(
+    pub(crate) fn render_bottombar(
         &mut self,
         theme: &Theme,
         strings: &I18nStrings,
         _window: &Window,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
-        let prefs = self.status_bar_settings(cx);
+        let prefs = self.bottombar_settings(cx);
         if !prefs.enabled {
             return None;
         }
@@ -300,27 +307,27 @@ impl Editor {
 
         for button in &prefs.custom_buttons {
             right_items.push(render_custom_button(
-                &mut self.chrome.status_bar,
+                &mut self.bottombar_state,
                 button,
                 theme,
                 cx,
             ));
         }
 
-        let bar = status_bar_container(c, d.status_bar_height, d.status_bar_padding_x)
-            .id("status-bar")
+        let bar = bottombar_container(c, d.bottombar_height, d.bottombar_padding_x)
+            .id("bottombar")
             .child(
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(d.status_bar_item_gap))
+                    .gap(px(d.bottombar_item_gap))
                     .children(left_items),
             )
             .child(
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(d.status_bar_item_gap))
+                    .gap(px(d.bottombar_item_gap))
                     .children(right_items),
             )
             .into_any_element();
@@ -328,17 +335,18 @@ impl Editor {
         Some(bar)
     }
 
-    pub(crate) fn render_editor_inner_panel_status_bar(
+    /// Bottom bar of an Editor area: inner-panel switch, split/close
+    /// controls, cursor position and word count.
+    pub(crate) fn render_editor_bottombar(
         &mut self,
         area_id: usize,
-        kind: WindowAreaKind,
         theme: &Theme,
         strings: &I18nStrings,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let prefs = self.status_bar_settings(cx);
+        let prefs = self.bottombar_settings(cx);
 
         // The status bar renders after the area container restored the
         // routing hint; set it for this area so tab()/doc() reads below hit
@@ -402,7 +410,7 @@ impl Editor {
             left_items.push(
                 div()
                     .text_size(px(11.0))
-                    .text_color(c.status_bar_text_dim)
+                    .text_color(c.bottombar_text_dim)
                     .child("\u{2502}")
                     .into_any_element(),
             );
@@ -436,7 +444,7 @@ impl Editor {
                 icon_chip_button(c, d)
                     .child(
                         svg()
-                            .path("icon/panel/split-h.svg")
+                            .path("icons/editor/bottombar/split-h.svg")
                             .size(px(12.0))
                             .text_color(c.dialog_muted),
                     )
@@ -459,7 +467,7 @@ impl Editor {
                 icon_chip_button(c, d)
                     .child(
                         svg()
-                            .path("icon/panel/split-v.svg")
+                            .path("icons/editor/bottombar/split-v.svg")
                             .size(px(12.0))
                             .text_color(c.dialog_muted),
                     )
@@ -483,7 +491,7 @@ impl Editor {
                     icon_chip_button(c, d)
                         .child(
                             svg()
-                                .path("icon/titlebar/chrome-close.svg")
+                                .path("icons/editor/bottombar/close.svg")
                                 .size(px(12.0))
                                 .text_color(c.dialog_muted),
                         )
@@ -503,10 +511,8 @@ impl Editor {
             }
         }
 
-        let bar = status_bar_container(c, 24.0, 10.0)
-            .id(ElementId::Name(
-                format!("panel-status-bar-{}-{:?}", area_id, kind).into(),
-            ))
+        let bar = bottombar_container(c, d.bottombar_height, d.bottombar_padding_x)
+            .id(ElementId::Name(format!("panel-bottombar-{area_id}").into()))
             .child(
                 div()
                     .flex()
@@ -526,7 +532,7 @@ impl Editor {
         bar
     }
 
-    pub(crate) fn status_bar_settings(&self, cx: &App) -> StatusBarSettings {
+    pub(crate) fn bottombar_settings(&self, cx: &App) -> StatusBarSettings {
         EditorSettings::status_bar_settings(cx)
     }
 

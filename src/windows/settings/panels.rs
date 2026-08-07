@@ -17,7 +17,7 @@ use crate::ui::components::switch::Switch;
 use crate::windows::settings::state::SettingsTab;
 
 impl Editor {
-    pub(crate) fn render_tiled_settings_panel(
+    pub(crate) fn render_settings_midcontainer(
         &mut self,
         area_id: usize,
         theme: &Theme,
@@ -207,9 +207,9 @@ impl Editor {
                 .child(
                     svg()
                         .path(if is_expanded {
-                            "icon/panel/chevron-down.svg"
+                            "icons/settings/chevron-down.svg"
                         } else {
-                            "icon/panel/chevron-right.svg"
+                            "icons/settings/chevron-right.svg"
                         })
                         .size(px(14.0))
                         .text_color(tc.text_default),
@@ -262,9 +262,9 @@ impl Editor {
 
                 if is_sec1_expanded {
                     let theme_icon_path = if current_theme_name == "Light" {
-                        "icon/panel/sun.svg"
+                        "icons/settings/sun.svg"
                     } else {
-                        "icon/panel/moon.svg"
+                        "icons/settings/moon.svg"
                     };
 
                     let mut theme_btn_wrap = div().relative().child(
@@ -295,7 +295,7 @@ impl Editor {
                             .child(
                                 div().flex_shrink_0().pl(px(4.0)).child(
                                     svg()
-                                        .path("icon/panel/select-chevron.svg")
+                                        .path("icons/settings/select-chevron.svg")
                                         .size(px(14.0))
                                         .text_color(c.dialog_muted),
                                 ),
@@ -326,9 +326,9 @@ impl Editor {
                             let is_selected = display_label == current_theme_name;
                             let item_ed = theme_ed.clone();
                             let item_icon = if display_label == "Light" {
-                                "icon/panel/sun.svg"
+                                "icons/settings/sun.svg"
                             } else {
-                                "icon/panel/moon.svg"
+                                "icons/settings/moon.svg"
                             };
 
                             menu_items.push(
@@ -358,7 +358,7 @@ impl Editor {
                                 )
                                 .child(if is_selected {
                                     svg()
-                                        .path("icon/panel/check.svg")
+                                        .path("icons/settings/check.svg")
                                         .size(px(13.0))
                                         .text_color(c.dialog_primary_button_bg)
                                         .into_any_element()
@@ -398,7 +398,7 @@ impl Editor {
                             .child(
                                 div().flex_shrink_0().pl(px(4.0)).child(
                                     svg()
-                                        .path("icon/panel/select-chevron.svg")
+                                        .path("icons/settings/select-chevron.svg")
                                         .size(px(14.0))
                                         .text_color(c.dialog_muted),
                                 ),
@@ -442,7 +442,7 @@ impl Editor {
                                 .child(label)
                                 .child(if is_selected {
                                     svg()
-                                        .path("icon/panel/check.svg")
+                                        .path("icons/settings/check.svg")
                                         .size(px(13.0))
                                         .text_color(c.dialog_primary_button_bg)
                                         .into_any_element()
@@ -813,7 +813,7 @@ impl Editor {
                             .child(
                                 div().flex_shrink_0().pl(px(4.0)).child(
                                     svg()
-                                        .path("icon/panel/select-chevron.svg")
+                                        .path("icons/settings/select-chevron.svg")
                                         .size(px(14.0))
                                         .text_color(c.dialog_muted),
                                 ),
@@ -857,7 +857,7 @@ impl Editor {
                                 .child(label)
                                 .child(if is_selected {
                                     svg()
-                                        .path("icon/panel/check.svg")
+                                        .path("icons/settings/check.svg")
                                         .size(px(13.0))
                                         .text_color(c.dialog_primary_button_bg)
                                         .into_any_element()
@@ -931,7 +931,7 @@ impl Editor {
                             .child(
                                 div().flex_shrink_0().pl(px(4.0)).child(
                                     svg()
-                                        .path("icon/panel/select-chevron.svg")
+                                        .path("icons/settings/select-chevron.svg")
                                         .size(px(14.0))
                                         .text_color(c.dialog_muted),
                                 ),
@@ -975,7 +975,7 @@ impl Editor {
                                 .child(label)
                                 .child(if is_selected {
                                     svg()
-                                        .path("icon/panel/check.svg")
+                                        .path("icons/settings/check.svg")
                                         .size(px(13.0))
                                         .text_color(c.dialog_primary_button_bg)
                                         .into_any_element()

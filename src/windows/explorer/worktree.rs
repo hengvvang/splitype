@@ -215,6 +215,7 @@ impl Worktree {
                 eprintln!("[explorer] failed to watch '{}': {err}", root.display());
                 return;
             }
+            eprintln!("[explorer] fs watcher started for '{}'", root.display());
             while rx.next().await.is_some() {
                 let _ = weak.update(cx, |this, cx| this.on_fs_event(cx));
             }
