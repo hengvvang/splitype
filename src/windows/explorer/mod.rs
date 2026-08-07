@@ -18,15 +18,14 @@
 
 pub(crate) mod filename_editor;
 pub(crate) mod state;
+pub(crate) mod worktree;
 
 use crate::ui::components::button::icon_chip_button;
 
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 
-use futures::StreamExt;
 use gpui::*;
-use notify::Watcher as _;
 
 use crate::editor::actions::{CloseExplorerFolder, ToggleExplorer};
 use crate::editor::controller::Editor;
@@ -55,6 +54,24 @@ actions!(
         ScrollDown,
     ]
 );
+
+/// Re-key a selection after a worktree removal: selections inside the
+/// removed worktree fall back to `fallback`; selections in later worktrees
+/// shift down by one index.
+#[allow(dead_code)] // used by `remove_explorer_worktree` (menu item TBD)
+fn remap_explorer_selection(
+    sel: ExplorerSelection,
+    removed: usize,
+    fallback: ExplorerSelection,
+) -> ExplorerSelection {
+    match sel {
+        ExplorerSelection::File { root, entry: _ } if root == removed => fallback,
+        ExplorerSelection::File { root, entry } if root > removed => {
+            ExplorerSelection::File { root: root - 1, entry }
+        }
+        other => other,
+    }
+}
 
 impl Editor {
     pub(crate) fn toggle_explorer_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -87,44 +104,126 @@ impl Editor {
     }
     pub(crate) fn close_explorer_folder(&mut self, cx: &mut Context<Self>) {
         let explorer = &mut self.panels.explorer;
-        explorer.root = None;
-        explorer.scanned_root = None;
-        explorer.watched_root = None;
-        explorer.file_tree = None;
+        explorer.worktrees.clear();
+        explorer.expanded.clear();
         explorer.file_error = None;
         explorer.outline_tree = Vec::new();
         explorer.outline_source = None;
-        explorer.expanded.clear();
         explorer.expanded_outline.clear();
         explorer.entries.clear();
         explorer.selected = None;
         explorer.marked.clear();
         explorer.pending_select = None;
         explorer.edit = None;
-        explorer.scan_task = None;
-        explorer.fs_watch_task = None;
-        explorer.fs_refresh_task = None;
         cx.notify();
     }
-    pub(crate) fn open_explorer_folder_path(&mut self, path: PathBuf, cx: &mut Context<Self>) {
-        self.panels.explorer.root = Some(path.clone());
-        self.panels.explorer.is_open = true;
-        // Cancel any in-flight scan of the previous root.
-        self.panels.explorer.scan_task = None;
-        self.panels.explorer.file_tree = None;
-        self.panels.explorer.file_error = None;
-        self.panels.explorer.expanded.clear();
+
+    /// Add a project root as a new worktree (mirrors Zed's
+    /// `WorktreeStore::create_worktree`). The root row starts expanded.
+    pub(crate) fn add_explorer_worktree(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        let explorer = &mut self.panels.explorer;
+        if explorer
+            .worktrees
+            .iter()
+            .any(|worktree| worktree.read(cx).root() == path.as_path())
+        {
+            return; // already added
+        }
+        explorer.is_open = true;
+        let index = explorer.worktrees.len();
+        let hide_hidden =
+            crate::infra::config::settings::ExplorerSettingsStore::settings(cx).hide_hidden;
+        let worktree = crate::windows::explorer::worktree::Worktree::new(
+            path.clone(),
+            explorer.next_entry_id.clone(),
+            hide_hidden,
+            cx,
+        );
         // The root row starts expanded (VSCode-style title row visible).
-        self.panels.explorer
+        let root_id = worktree.read(cx).root_id();
+        explorer
             .expanded
-            .insert(ExplorerEntryId::for_path(&path));
-        self.panels.explorer.entries.clear();
-        self.sync_explorer_models(cx);
+            .entry(index)
+            .or_default()
+            .insert(ExplorerEntryId(root_id));
+        cx.subscribe(&worktree, Self::on_explorer_worktree_event).detach();
+        explorer.worktrees.push(worktree);
+        explorer.file_error = None;
+        self.refresh_explorer_trees(cx);
+        self.rebuild_explorer_entries();
         cx.notify();
+    }
+
+    /// Remove the worktree at `index` (mirrors Zed's `remove_worktree`).
+    #[allow(dead_code)] // wired to a future "Remove from Project" menu item
+    pub(crate) fn remove_explorer_worktree(&mut self, index: usize, cx: &mut Context<Self>) {
+        {
+            let explorer = &mut self.panels.explorer;
+            if index >= explorer.worktrees.len() {
+                return;
+            }
+            explorer.worktrees.remove(index);
+        }
+        // Keep the tree cache indexed identically to `worktrees` before
+        // remapping selection keys below.
+        self.refresh_explorer_trees(cx);
+        let explorer = &mut self.panels.explorer;
+        // Shift the expansion map and selection keys after removal.
+        let mut reindexed = std::collections::HashMap::new();
+        for (old_index, set) in explorer.expanded.drain() {
+            if old_index == index {
+                continue;
+            }
+            let new_index = if old_index > index { old_index - 1 } else { old_index };
+            reindexed.insert(new_index, set);
+        }
+        explorer.expanded = reindexed;
+        // Resolve the fallback selection before touching any field so the
+        // remap closure never aliases `explorer` (a worktree removal leaves
+        // the last remaining worktree's root selected).
+        let fallback = ExplorerSelection::File {
+            root: explorer.worktrees.len().saturating_sub(1),
+            entry: explorer
+                .trees_cache
+                .last()
+                .map(|tree| tree.id)
+                .unwrap_or(ExplorerEntryId(0)),
+        };
+        explorer.selected = explorer.selected.take().map(|sel| {
+            remap_explorer_selection(sel, index, fallback.clone())
+        });
+        for sel in explorer.marked.iter_mut() {
+            *sel = remap_explorer_selection(sel.clone(), index, fallback.clone());
+        }
+        explorer.edit = None;
+        explorer.pending_select = None;
+        self.rebuild_explorer_entries();
+        cx.notify();
+    }
+
+    /// Handle a worktree scan event: refresh the tree cache and rebuild the
+    /// visible list (Zed's `WorktreeUpdatedEntries` handler).
+    pub(crate) fn on_explorer_worktree_event(
+        &mut self,
+        _worktree: Entity<crate::windows::explorer::worktree::Worktree>,
+        _event: &WorktreeEvent,
+        cx: &mut Context<Self>,
+    ) {
+        self.refresh_explorer_trees(cx);
+        self.select_active_file_in_tree(true);
+        self.rebuild_explorer_entries();
+        self.autoscroll_explorer_selection();
+        cx.notify();
+    }
+
+    pub(crate) fn open_explorer_folder_path(&mut self, path: PathBuf, cx: &mut Context<Self>) {
+        self.add_explorer_worktree(path, cx);
     }
     pub(crate) fn sync_explorer_after_document_path_change(&mut self, cx: &mut Context<Self>) {
-        if self.panels.explorer.root.is_none() {
-            self.panels.explorer.root = self.explorer_root_for_current_file();
+        if self.panels.explorer.worktrees.is_empty() {
+            if let Some(path) = self.explorer_root_for_current_file() {
+                self.add_explorer_worktree(path, cx);
+            }
         }
         self.panels.explorer.outline_source = None;
         if self.panels.explorer.is_open {
@@ -181,17 +280,29 @@ impl Editor {
         .detach();
     }
     pub(crate) fn collapse_all_explorer_nodes(&mut self, cx: &mut Context<Self>) {
-        self.panels.explorer.expanded.clear();
-        // Keep the root row expanded (mirrors Zed's collapse-all, which
-        // retains the worktree root) so the title-row buttons stay visible.
-        if let Some(tree) = &self.panels.explorer.file_tree {
-            self.panels.explorer.expanded.insert(tree.id);
+        let explorer = &mut self.panels.explorer;
+        explorer.expanded.clear();
+        // Keep every worktree root row expanded (mirrors Zed's collapse-all,
+        // which retains worktree roots) so the title-row buttons stay
+        // visible.
+        for (index, tree) in explorer.trees_cache.iter().enumerate() {
+            explorer.expanded.entry(index).or_default().insert(tree.id);
         }
         self.rebuild_explorer_entries();
         cx.notify();
     }
+    /// Request a full background rescan of every worktree (panel-driven
+    /// disk operations call this; the worktree entities coalesce rescans
+    /// while one is in flight).
+    fn rescan_explorer_worktrees(&mut self, cx: &mut Context<Self>) {
+        let worktrees = self.panels.explorer.worktrees.clone();
+        for worktree in worktrees {
+            worktree.update(cx, |worktree, cx| worktree.rescan(cx));
+        }
+    }
+
     pub(crate) fn refresh_explorer_tree(&mut self, cx: &mut Context<Self>) {
-        self.panels.explorer.needs_rescan = true;
+        self.rescan_explorer_worktrees(cx);
         self.sync_explorer_models(cx);
         cx.notify();
     }
@@ -202,7 +313,14 @@ impl Editor {
         let mut settings = crate::infra::config::settings::ExplorerSettingsStore::settings(cx);
         settings.hide_hidden = !settings.hide_hidden;
         crate::infra::config::settings::ExplorerSettingsStore::set(cx, settings);
-        self.panels.explorer.needs_rescan = true;
+        let hide_hidden =
+            crate::infra::config::settings::ExplorerSettingsStore::settings(cx).hide_hidden;
+        let worktrees = self.panels.explorer.worktrees.clone();
+        for worktree in worktrees {
+            worktree.update(cx, |worktree, cx| {
+                worktree.set_hide_hidden(hide_hidden, cx);
+            });
+        }
         self.sync_explorer_models(cx);
         cx.notify();
     }
@@ -268,7 +386,7 @@ impl Editor {
                     eprintln!("failed to delete item: {err}");
                 } else {
                     let _ = weak_editor.update(cx, |editor, cx| {
-                        editor.panels.explorer.needs_rescan = true;
+                        editor.rescan_explorer_worktrees(cx);
                         editor.sync_explorer_models(cx);
                         cx.notify();
                     });
@@ -309,14 +427,14 @@ impl Editor {
     }
 
     /// Copy the path of `path` relative to the explorer root (falls back to
-    /// the absolute path when it is outside the root).
+    /// the absolute path when it is outside every root).
     pub(crate) fn copy_explorer_relative_path(&self, path: &Path, cx: &mut Context<Self>) {
         let relative = self
             .panels
             .explorer
-            .root
-            .as_deref()
-            .and_then(|root| path.strip_prefix(root).ok())
+            .trees_cache
+            .iter()
+            .find_map(|tree| path.strip_prefix(&tree.path).ok())
             .map(|path| path.to_string_lossy().into_owned())
             .unwrap_or_else(|| path.to_string_lossy().into_owned());
         cx.write_to_clipboard(ClipboardItem::new_string(relative));
@@ -349,7 +467,10 @@ impl Editor {
         id: ExplorerEntryId,
         cx: &mut Context<Self>,
     ) {
-        let Some(tree) = self.panels.explorer.file_tree.clone() else {
+        let Some(root) = self.root_for_explorer_entry(id) else {
+            return;
+        };
+        let Some(tree) = self.panels.explorer.trees_cache.get(root).cloned() else {
             return;
         };
         let Some(node) = find_explorer_node_by_id(&tree, id) else {
@@ -357,7 +478,7 @@ impl Editor {
         };
         let mut ids = std::collections::BTreeSet::new();
         collect_descendant_dir_ids(node, &mut ids);
-        self.panels.explorer.expanded.extend(ids);
+        self.panels.explorer.expanded.entry(root).or_default().extend(ids);
         self.rebuild_explorer_entries();
         cx.notify();
     }
@@ -368,7 +489,10 @@ impl Editor {
         id: ExplorerEntryId,
         cx: &mut Context<Self>,
     ) {
-        let Some(tree) = self.panels.explorer.file_tree.clone() else {
+        let Some(root) = self.root_for_explorer_entry(id) else {
+            return;
+        };
+        let Some(tree) = self.panels.explorer.trees_cache.get(root).cloned() else {
             return;
         };
         let Some(node) = find_explorer_node_by_id(&tree, id) else {
@@ -376,35 +500,111 @@ impl Editor {
         };
         let mut ids = std::collections::BTreeSet::new();
         collect_descendant_dir_ids(node, &mut ids);
-        self.panels.explorer.expanded.retain(|id| !ids.contains(id));
+        self.panels
+            .explorer
+            .expanded
+            .entry(root)
+            .or_default()
+            .retain(|expanded_id| !ids.contains(expanded_id));
         self.rebuild_explorer_entries();
         cx.notify();
     }
 
-    /// Expand every directory in the tree.
+    /// Expand every directory in every worktree.
     pub(crate) fn expand_all_explorer_nodes(&mut self, cx: &mut Context<Self>) {
-        let Some(tree) = self.panels.explorer.file_tree.clone() else {
-            return;
-        };
-        let mut ids = std::collections::BTreeSet::new();
-        collect_descendant_dir_ids(&tree, &mut ids);
-        self.panels.explorer.expanded.extend(ids);
+        let trees = self.panels.explorer.trees_cache.clone();
+        for (root, tree) in trees.iter().enumerate() {
+            let mut ids = std::collections::BTreeSet::new();
+            collect_descendant_dir_ids(tree, &mut ids);
+            self.panels.explorer.expanded.entry(root).or_default().extend(ids);
+        }
         self.rebuild_explorer_entries();
         cx.notify();
     }
 
     // ── Multi-select, clipboard operations, and deletion (mirrors Zed) ──
 
+    /// Worktree index whose cached tree contains `id`. Ids are globally
+    /// unique across worktrees, so this is unambiguous.
+    fn root_for_explorer_entry(&self, id: ExplorerEntryId) -> Option<usize> {
+        self.panels
+            .explorer
+            .trees_cache
+            .iter()
+            .position(|tree| explorer_tree_contains_id(tree, id))
+    }
+
+    /// Locate `path` in the cached trees; returns the worktree index and the
+    /// entry's stable id.
+    pub(crate) fn explorer_id_for_path(&self, path: &Path) -> Option<(usize, ExplorerEntryId)> {
+        self.panels
+            .explorer
+            .trees_cache
+            .iter()
+            .enumerate()
+            .find_map(|(root, tree)| {
+                find_explorer_node(tree, path).map(|node| (root, node.id))
+            })
+    }
+
+    /// Worktree index whose root contains `path` (for pending selections and
+    /// expansion targeting).
+    fn root_for_explorer_path(&self, path: &Path) -> Option<usize> {
+        self.panels
+            .explorer
+            .trees_cache
+            .iter()
+            .position(|tree| path.starts_with(&tree.path))
+    }
+
+    /// Path of the last worktree root (the default target for background
+    /// drops and pastes without a selection).
+    fn last_explorer_root_path(&self) -> Option<PathBuf> {
+        self.panels
+            .explorer
+            .trees_cache
+            .last()
+            .map(|tree| tree.path.clone())
+    }
+
+    /// Last worktree root as `(index, path, root entry id)` — for background
+    /// right-click / double-click targeting the root row.
+    fn last_explorer_root(&self) -> Option<(usize, PathBuf, ExplorerEntryId)> {
+        let index = self.panels.explorer.trees_cache.len().checked_sub(1)?;
+        let tree = self.panels.explorer.trees_cache.get(index)?;
+        Some((index, tree.path.clone(), tree.id))
+    }
+
+    /// Look up the visible row for a file selection (root + entry id).
+    fn explorer_entry_for_selection(
+        &self,
+        sel: &ExplorerSelection,
+    ) -> Option<&VisibleExplorerEntry> {
+        match sel {
+            ExplorerSelection::File { entry, .. } => self.explorer_entry_by_id(*entry),
+            _ => None,
+        }
+    }
+
     /// Resolve the entries an operation applies to (Zed's `effective_entries`):
     /// the selection when nothing is marked, otherwise the marked set. The
-    /// worktree root is excluded so destructive operations (delete / cut /
-    /// move / copy) can never target the root row.
-    pub(crate) fn effective_explorer_entries(&self) -> Vec<ExplorerEntryId> {
-        let root_id = self.panels.explorer.file_tree.as_ref().map(|tree| tree.id);
-        let filter = |id: &ExplorerEntryId| Some(*id) != root_id;
+    /// worktree roots are excluded so destructive operations (delete / cut /
+    /// move / copy) can never target a root row.
+    pub(crate) fn effective_explorer_entries(&self) -> Vec<ExplorerSelection> {
+        let root_ids: std::collections::HashSet<ExplorerEntryId> = self
+            .panels
+            .explorer
+            .trees_cache
+            .iter()
+            .map(|tree| tree.id)
+            .collect();
+        let filter = |sel: &ExplorerSelection| match sel {
+            ExplorerSelection::File { entry, .. } => !root_ids.contains(entry),
+            _ => false,
+        };
         if self.panels.explorer.marked.is_empty() {
-            return match self.panels.explorer.selected {
-                Some(ExplorerSelection::File(id)) if filter(&id) => vec![id],
+            return match &self.panels.explorer.selected {
+                Some(sel) if filter(sel) => vec![sel.clone()],
                 _ => Vec::new(),
             };
         }
@@ -412,10 +612,8 @@ impl Editor {
             .explorer
             .marked
             .iter()
-            .filter_map(|selection| match selection {
-                ExplorerSelection::File(id) if filter(id) => Some(*id),
-                _ => None,
-            })
+            .filter(|sel| filter(sel))
+            .cloned()
             .collect()
     }
 
@@ -442,7 +640,7 @@ impl Editor {
     /// Range-select from the current selection to `target_id` (Shift+click).
     pub(crate) fn select_explorer_range(&mut self, target_id: ExplorerEntryId, cx: &mut Context<Self>) {
         let anchor = match &self.panels.explorer.selected {
-            Some(ExplorerSelection::File(id)) => *id,
+            Some(ExplorerSelection::File { entry, .. }) => *entry,
             _ => target_id,
         };
         let rows = &self.panels.explorer.entries;
@@ -456,12 +654,23 @@ impl Editor {
             return;
         };
         self.panels.explorer.marked.clear();
+        let mut target_root = None;
         for row in &rows[anchor_index.min(target_index)..=anchor_index.max(target_index)] {
             if let ExplorerRow::Entry(entry) = row {
-                self.panels.explorer.marked.push(ExplorerSelection::File(entry.id));
+                let selection = ExplorerSelection::File {
+                    root: entry.root,
+                    entry: entry.id,
+                };
+                if entry.id == target_id {
+                    target_root = Some(entry.root);
+                }
+                self.panels.explorer.marked.push(selection);
             }
         }
-        self.panels.explorer.selected = Some(ExplorerSelection::File(target_id));
+        self.panels.explorer.selected = Some(ExplorerSelection::File {
+            root: target_root.unwrap_or(0),
+            entry: target_id,
+        });
         self.autoscroll_explorer_selection();
         cx.notify();
     }
@@ -471,10 +680,15 @@ impl Editor {
     /// the previous one, else the parent directory.
     fn next_explorer_selection_after_deletion(
         &self,
-        deleted_ids: &[ExplorerEntryId],
+        deleted_selections: &[ExplorerSelection],
     ) -> Option<ExplorerSelection> {
-        let deleted: std::collections::HashSet<ExplorerEntryId> =
-            deleted_ids.iter().copied().collect();
+        let deleted: std::collections::HashSet<ExplorerEntryId> = deleted_selections
+            .iter()
+            .filter_map(|sel| match sel {
+                ExplorerSelection::File { entry, .. } => Some(*entry),
+                _ => None,
+            })
+            .collect();
         let rows = &self.panels.explorer.entries;
         let last_deleted = rows.iter().rposition(|row| {
             matches!(row, ExplorerRow::Entry(entry) if deleted.contains(&entry.id))
@@ -482,23 +696,32 @@ impl Editor {
         for row in &rows[last_deleted + 1..] {
             if let ExplorerRow::Entry(entry) = row {
                 if !deleted.contains(&entry.id) {
-                    return Some(ExplorerSelection::File(entry.id));
+                    return Some(ExplorerSelection::File {
+                        root: entry.root,
+                        entry: entry.id,
+                    });
                 }
             }
         }
         for row in rows[..last_deleted].iter().rev() {
             if let ExplorerRow::Entry(entry) = row {
                 if !deleted.contains(&entry.id) {
-                    return Some(ExplorerSelection::File(entry.id));
+                    return Some(ExplorerSelection::File {
+                        root: entry.root,
+                        entry: entry.id,
+                    });
                 }
             }
         }
         if let ExplorerRow::Entry(last) = &rows[last_deleted]
-            && let Some(tree) = self.panels.explorer.file_tree.as_ref()
+            && let Some(tree) = self.panels.explorer.trees_cache.get(last.root)
             && let Some(parent) = last.path.parent()
             && let Some(parent_node) = find_explorer_node(tree, parent)
         {
-            return Some(ExplorerSelection::File(parent_node.id));
+            return Some(ExplorerSelection::File {
+                root: last.root,
+                entry: parent_node.id,
+            });
         }
         None
     }
@@ -511,13 +734,13 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let ids = self.effective_explorer_entries();
-        if ids.is_empty() {
+        let selections = self.effective_explorer_entries();
+        if selections.is_empty() {
             return;
         }
-        let names: Vec<String> = ids
+        let names: Vec<String> = selections
             .iter()
-            .filter_map(|id| self.explorer_entry_by_id(*id).map(|entry| entry.label.clone()))
+            .filter_map(|sel| self.explorer_entry_for_selection(sel).map(|entry| entry.label.clone()))
             .collect();
         let summary = if names.len() == 1 {
             names[0].clone()
@@ -539,8 +762,11 @@ impl Editor {
             }
             let paths: Vec<PathBuf> = weak_editor
                 .update(cx, |editor, _cx| {
-                    ids.iter()
-                        .filter_map(|id| editor.explorer_entry_by_id(*id).map(|entry| entry.path.clone()))
+                    selections
+                        .iter()
+                        .filter_map(|sel| {
+                            editor.explorer_entry_for_selection(sel).map(|entry| entry.path.clone())
+                        })
                         .collect()
                 })
                 .unwrap_or_default();
@@ -560,8 +786,47 @@ impl Editor {
                 .await;
             let _ = weak_editor.update(cx, |editor, cx| {
                 editor.panels.explorer.marked.clear();
-                editor.panels.explorer.needs_rescan = true;
-                if let Some(next) = editor.next_explorer_selection_after_deletion(&ids) {
+                editor.rescan_explorer_worktrees(cx);
+                if let Some(next) = editor.next_explorer_selection_after_deletion(&selections) {
+                    editor.panels.explorer.selected = Some(next);
+                }
+                editor.sync_explorer_models(cx);
+                editor.autoscroll_explorer_selection();
+                cx.notify();
+            });
+        });
+    }
+
+    /// Move the effective selection to the OS trash (recoverable, no
+    /// confirmation — mirrors Zed's Trash menu item).
+    pub(crate) fn trash_explorer_selections(
+        &mut self,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let selections = self.effective_explorer_entries();
+        if selections.is_empty() {
+            return;
+        }
+        let paths: Vec<PathBuf> = selections
+            .iter()
+            .filter_map(|sel| self.explorer_entry_for_selection(sel).map(|entry| entry.path.clone()))
+            .collect();
+        let weak_editor = cx.entity().downgrade();
+        let _ = cx.spawn(async move |_this, cx| {
+            cx.background_executor()
+                .spawn(async move {
+                    for path in &paths {
+                        if let Err(err) = trash::delete(path) {
+                            eprintln!("failed to trash '{}': {err}", path.display());
+                        }
+                    }
+                })
+                .await;
+            let _ = weak_editor.update(cx, |editor, cx| {
+                editor.panels.explorer.marked.clear();
+                editor.rescan_explorer_worktrees(cx);
+                if let Some(next) = editor.next_explorer_selection_after_deletion(&selections) {
                     editor.panels.explorer.selected = Some(next);
                 }
                 editor.sync_explorer_models(cx);
@@ -574,39 +839,37 @@ impl Editor {
     /// Copy the effective selection: absolute paths go to the system
     /// clipboard, entry ids are remembered for in-panel paste.
     pub(crate) fn explorer_copy(&mut self, cx: &mut Context<Self>) {
-        let ids = self.effective_explorer_entries();
-        if ids.is_empty() {
+        let selections = self.effective_explorer_entries();
+        if selections.is_empty() {
             return;
         }
-        let paths: Vec<String> = ids
+        let paths: Vec<String> = selections
             .iter()
-            .filter_map(|id| {
-                self.explorer_entry_by_id(*id)
+            .filter_map(|sel| {
+                self.explorer_entry_for_selection(sel)
                     .map(|entry| entry.path.to_string_lossy().into_owned())
             })
             .collect();
         cx.write_to_clipboard(ClipboardItem::new_string(paths.join("\n")));
-        self.panels.explorer.clipboard =
-            Some(ExplorerClipboard::Copied(ids.into_iter().map(ExplorerSelection::File).collect()));
+        self.panels.explorer.clipboard = Some(ExplorerClipboard::Copied(selections));
         cx.notify();
     }
 
     /// Cut the effective selection (same dual-clipboard behavior as copy).
     pub(crate) fn explorer_cut(&mut self, cx: &mut Context<Self>) {
-        let ids = self.effective_explorer_entries();
-        if ids.is_empty() {
+        let selections = self.effective_explorer_entries();
+        if selections.is_empty() {
             return;
         }
-        let paths: Vec<String> = ids
+        let paths: Vec<String> = selections
             .iter()
-            .filter_map(|id| {
-                self.explorer_entry_by_id(*id)
+            .filter_map(|sel| {
+                self.explorer_entry_for_selection(sel)
                     .map(|entry| entry.path.to_string_lossy().into_owned())
             })
             .collect();
         cx.write_to_clipboard(ClipboardItem::new_string(paths.join("\n")));
-        self.panels.explorer.clipboard =
-            Some(ExplorerClipboard::Cut(ids.into_iter().map(ExplorerSelection::File).collect()));
+        self.panels.explorer.clipboard = Some(ExplorerClipboard::Cut(selections));
         cx.notify();
     }
 
@@ -617,18 +880,18 @@ impl Editor {
     }
 
     /// Target directory for a paste: the selected directory, the parent of a
-    /// selected file, or the explorer root.
+    /// selected file, or the last worktree root.
     fn explorer_paste_target_dir(&self) -> Option<PathBuf> {
         match &self.panels.explorer.selected {
-            Some(ExplorerSelection::File(id)) => {
-                let entry = self.explorer_entry_by_id(*id)?;
+            Some(ExplorerSelection::File { entry, .. }) => {
+                let entry = self.explorer_entry_by_id(*entry)?;
                 if entry.kind == ExplorerEntryKind::Directory {
                     Some(entry.path.clone())
                 } else {
                     entry.path.parent().map(Path::to_path_buf)
                 }
             }
-            _ => self.panels.explorer.root.clone(),
+            _ => self.last_explorer_root_path(),
         }
     }
 
@@ -646,11 +909,8 @@ impl Editor {
         let items: Vec<PathBuf> = clipboard
             .items()
             .iter()
-            .filter_map(|selection| match selection {
-                ExplorerSelection::File(id) => {
-                    self.explorer_entry_by_id(*id).map(|entry| entry.path.clone())
-                }
-                _ => None,
+            .filter_map(|selection| {
+                self.explorer_entry_for_selection(selection).map(|entry| entry.path.clone())
             })
             .collect();
         if items.is_empty() {
@@ -671,7 +931,7 @@ impl Editor {
                         editor.panels.explorer.clipboard.take().map(ExplorerClipboard::into_copied);
                 }
                 editor.panels.explorer.marked.clear();
-                editor.panels.explorer.needs_rescan = true;
+                editor.rescan_explorer_worktrees(cx);
                 for change in &result {
                     editor.record_explorer_change(change.clone());
                 }
@@ -681,7 +941,8 @@ impl Editor {
                     .flatten()
                     .map(Path::to_path_buf)
                 {
-                    editor.panels.explorer.pending_select = Some(path.clone());
+                    let root = editor.root_for_explorer_path(&path).unwrap_or(0);
+                    editor.panels.explorer.pending_select = Some((root, path.clone()));
                     let weak_editor_for_open = weak_editor.clone();
                     let _ = cx.update_window(window_handle, move |_, _window, cx| {
                         let _ = weak_editor_for_open.update(cx, |editor, _cx| {
@@ -717,7 +978,7 @@ impl Editor {
                 .await;
             let _ = weak_editor.update(cx, |editor, cx| {
                 editor.panels.explorer.undo_history.redo_stack.push(change);
-                editor.panels.explorer.needs_rescan = true;
+                editor.rescan_explorer_worktrees(cx);
                 editor.sync_explorer_models(cx);
                 cx.notify();
             });
@@ -737,7 +998,7 @@ impl Editor {
                 .await;
             let _ = weak_editor.update(cx, |editor, cx| {
                 editor.panels.explorer.undo_history.undo_stack.push(change);
-                editor.panels.explorer.needs_rescan = true;
+                editor.rescan_explorer_worktrees(cx);
                 editor.sync_explorer_models(cx);
                 cx.notify();
             });
@@ -796,10 +1057,46 @@ impl Editor {
         cx.notify();
     }
 
-    /// Set the drag target for the empty area (targets the explorer root).
-    pub(crate) fn explorer_drag_hover_background(&mut self, cx: &mut Context<Self>) {
+    /// Set the drag target for the empty area (targets the explorer root)
+    /// and auto-scroll when the pointer nears the list edges (mirrors
+    /// Zed's hover-scroll while dragging).
+    pub(crate) fn explorer_drag_hover_background<T: 'static>(
+        &mut self,
+        event: &gpui::DragMoveEvent<T>,
+        cx: &mut Context<Self>,
+    ) {
         self.panels.explorer.drag_target = Some(DragExplorerTarget::Background);
+        self.explorer_drag_auto_scroll(event.event.position, event.bounds, cx);
         cx.notify();
+    }
+
+    /// Drag near the top/bottom edge scrolls the tree by one row per frame.
+    fn explorer_drag_auto_scroll(
+        &mut self,
+        position: gpui::Point<Pixels>,
+        bounds: gpui::Bounds<Pixels>,
+        _cx: &mut Context<Self>,
+    ) {
+        let top_index = self
+            .panels
+            .explorer
+            .scroll_handle
+            .0
+            .borrow()
+            .base_handle
+            .top_item();
+        let visible = self.panels.explorer.rendered_rows.max(1);
+        if position.y < bounds.top() + px(16.0) && top_index > 0 {
+            self.panels.explorer.scroll_handle.scroll_to_item(
+                top_index.saturating_sub(1),
+                ScrollStrategy::Top,
+            );
+        } else if position.y > bounds.bottom() - px(16.0) {
+            self.panels
+                .explorer
+                .scroll_handle
+                .scroll_to_item(top_index + visible, ScrollStrategy::Bottom);
+        }
     }
 
     /// Clear all drag state (mouse leave / drop).
@@ -835,9 +1132,10 @@ impl Editor {
                 for change in &changes {
                     editor.record_explorer_change(change.clone());
                 }
-                editor.panels.explorer.needs_rescan = true;
+                editor.rescan_explorer_worktrees(cx);
                 if let Some(last) = changes.last().and_then(explorer_change_destination) {
-                    editor.panels.explorer.pending_select = Some(last.to_path_buf());
+                    let root = editor.root_for_explorer_path(last).unwrap_or(0);
+                    editor.panels.explorer.pending_select = Some((root, last.to_path_buf()));
                 }
                 editor.sync_explorer_models(cx);
                 cx.notify();
@@ -860,11 +1158,8 @@ impl Editor {
         let paths: Vec<PathBuf> = payload
             .selections
             .iter()
-            .filter_map(|selection| match selection {
-                ExplorerSelection::File(id) => {
-                    self.explorer_entry_by_id(*id).map(|entry| entry.path.clone())
-                }
-                _ => None,
+            .filter_map(|selection| {
+                self.explorer_entry_for_selection(selection).map(|entry| entry.path.clone())
             })
             .collect();
         if paths.is_empty() {
@@ -888,38 +1183,36 @@ impl Editor {
         self.perform_entry_ops(paths.to_vec(), target_dir, false, window, cx);
     }
 
-    /// Drop external files onto the panel background (targets the root).
+    /// Drop external files onto the panel background (targets the last
+    /// worktree root).
     pub(crate) fn on_explorer_drop_external_to_root(
         &mut self,
         paths: &[PathBuf],
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(root) = self.panels.explorer.root.clone() else {
+        let Some(root) = self.last_explorer_root_path() else {
             return;
         };
         self.perform_entry_ops(paths.to_vec(), root, false, window, cx);
     }
 
     /// Drop internal dragged entries onto the panel background (targets the
-    /// root).
+    /// last worktree root).
     pub(crate) fn on_explorer_drop_internal_to_root(
         &mut self,
         payload: &DraggedExplorerSelection,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(root) = self.panels.explorer.root.clone() else {
+        let Some(root) = self.last_explorer_root_path() else {
             return;
         };
         let paths: Vec<PathBuf> = payload
             .selections
             .iter()
-            .filter_map(|selection| match selection {
-                ExplorerSelection::File(id) => {
-                    self.explorer_entry_by_id(*id).map(|entry| entry.path.clone())
-                }
-                _ => None,
+            .filter_map(|selection| {
+                self.explorer_entry_for_selection(selection).map(|entry| entry.path.clone())
             })
             .collect();
         if paths.is_empty() {
@@ -929,171 +1222,69 @@ impl Editor {
         self.perform_entry_ops(paths, root, !is_copy, window, cx);
     }
 
-    // ── Tree state: background scan, flat list, selection ───────────────
+    // ── Tree state: worktrees, flat list, selection ─────────────────────
 
-    /// Synchronize the file tree with disk. When the root is unchanged and
-    /// the cached scan is still valid, only the flat visible list is
-    /// rebuilt; otherwise a **background scan** is started and the result is
-    /// swapped in when it completes.
+    /// Synchronize the explorer with the worktrees. Worktrees scan
+    /// themselves in the background (see `worktree::Worktree`) and emit
+    /// `UpdatedEntries`; this function only fills the gap when no worktree
+    /// exists yet (e.g. deriving one from the active document).
     pub(crate) fn sync_explorer_file_tree(&mut self, cx: &mut Context<Self>) {
-        if self.panels.explorer.root.is_none() {
-            self.panels.explorer.root = self.explorer_root_for_current_file();
-        }
-
-        let Some(root) = self.panels.explorer.root.clone() else {
+        if self.panels.explorer.worktrees.is_empty() {
+            if let Some(path) = self.explorer_root_for_current_file() {
+                self.add_explorer_worktree(path, cx);
+                return;
+            }
             self.panels.explorer.selected = None;
             self.panels.explorer.entries.clear();
             return;
-        };
-
-        if root.as_os_str().is_empty() {
-            self.panels.explorer.file_error = Some("Invalid explorer path: empty path".to_string());
-            self.panels.explorer.selected = None;
-            return;
         }
-
-        // Keep a recursive filesystem watcher on the root so external
-        // changes (and our own saves) refresh the tree automatically.
-        self.start_explorer_fs_watch(root.clone(), cx);
-
-        // Same root, cached tree still valid: just re-derive the flat list
-        // (also follows the active document's selection).
-        if self.panels.explorer.file_tree.is_some()
-            && self.panels.explorer.scanned_root.as_deref() == Some(root.as_path())
-            && !self.panels.explorer.needs_rescan
-        {
-            self.select_active_file_in_tree(false);
-            self.rebuild_explorer_entries();
-            return;
-        }
-
-        self.panels.explorer.needs_rescan = false;
-        // A new root (first scan or a changed directory) starts expanded so
-        // the root row and its title buttons are visible; rescans of the
-        // same root preserve the user's fold state.
-        if self.panels.explorer.scanned_root.as_deref() != Some(root.as_path()) {
-            self.panels.explorer.expanded.insert(ExplorerEntryId::for_path(&root));
-        }
-        self.panels.explorer.scanned_root = Some(root.clone());
-        self.panels.explorer.file_error = None;
-
-        // A scan for this exact root is already in flight: don't cancel it
-        // by spawning a replacement (the render path calls this every
-        // frame, which would otherwise starve the scan forever).
-        if self.panels.explorer.scan_task.is_some() {
-            return;
-        }
-
-        let options = explorer_scan_options_from_settings(
-            &crate::infra::config::settings::ExplorerSettingsStore::settings(cx),
-        );
-        let weak_editor = cx.entity().downgrade();
-        let task = cx.spawn(async move |_this, cx: &mut AsyncApp| {
-            let result = cx
-                .background_executor()
-                .spawn(async move { scan_explorer_dir(&root, &options) })
-                .await;
-            let _ = weak_editor.update(cx, |editor, cx| {
-                // The scan finished: free the slot so the next sync can
-                // start a fresh scan (e.g. for a changed root).
-                editor.panels.explorer.scan_task = None;
-                match result {
-                    Ok(tree) => {
-                        let mut dir_ids = std::collections::HashSet::new();
-                        collect_directory_ids(&tree, &mut dir_ids);
-                        editor.panels.explorer.expanded.retain(|id| dir_ids.contains(id));
-                        editor.panels.explorer.file_tree = Some(tree);
-                        editor.panels.explorer.file_error = None;
-                        editor.select_active_file_in_tree(true);
-                        editor.rebuild_explorer_entries();
-                        editor.autoscroll_explorer_selection();
-                    }
-                    Err(err) => {
-                        editor.panels.explorer.file_tree = None;
-                        editor.panels.explorer.entries.clear();
-                        editor.panels.explorer.file_error = Some(err.to_string());
-                    }
-                }
-                cx.notify();
-            });
-        });
-        self.panels.explorer.scan_task = Some(task);
+        self.select_active_file_in_tree(false);
+        self.rebuild_explorer_entries();
     }
 
-    /// Start (or restart) a recursive filesystem watcher on `root`. Watch
-    /// events are debounced into a single background rescan by
-    /// [`Self::on_explorer_fs_event`]. The watcher lives inside a spawned
-    /// task; dropping the task stops the watcher.
-    fn start_explorer_fs_watch(&mut self, root: PathBuf, cx: &mut Context<Self>) {
-        if self.panels.explorer.watched_root.as_deref() == Some(root.as_path()) {
-            return;
-        }
-        self.panels.explorer.watched_root = Some(root.clone());
-        self.panels.explorer.fs_watch_task = None; // drops the old watcher
-        let weak_editor = cx.entity().downgrade();
-        let task = cx.spawn(async move |_this, cx: &mut AsyncApp| {
-            let (tx, mut rx) = futures::channel::mpsc::unbounded::<notify::Event>();
-            let mut watcher = match notify::recommended_watcher(
-                move |res: notify::Result<notify::Event>| {
-                    if let Ok(event) = res {
-                        let _ = tx.unbounded_send(event);
-                    }
-                },
-            ) {
-                Ok(watcher) => watcher,
-                Err(err) => {
-                    eprintln!("[explorer] failed to start fs watcher: {err}");
-                    return;
-                }
-            };
-            if let Err(err) = watcher.watch(&root, notify::RecursiveMode::Recursive) {
-                eprintln!("[explorer] failed to watch '{}': {err}", root.display());
-                return;
-            }
-            while rx.next().await.is_some() {
-                let _ = weak_editor.update(cx, |editor, cx| {
-                    editor.on_explorer_fs_event(cx);
-                });
-            }
-        });
-        self.panels.explorer.fs_watch_task = Some(task);
-    }
-
-    /// Debounce filesystem events into a single background rescan.
-    fn on_explorer_fs_event(&mut self, cx: &mut Context<Self>) {
-        if self.panels.explorer.fs_refresh_task.is_some() {
-            return;
-        }
-        let weak_editor = cx.entity().downgrade();
-        let task = cx.spawn(async move |_this, cx: &mut AsyncApp| {
-            cx.background_executor()
-                .timer(std::time::Duration::from_millis(250))
-                .await;
-            let _ = weak_editor.update(cx, |editor, cx| {
-                if editor.panels.explorer.is_open && editor.panels.explorer.root.is_some() {
-                    editor.panels.explorer.needs_rescan = true;
-                    editor.sync_explorer_models(cx);
-                }
-                cx.notify();
-            });
-        });
-        self.panels.explorer.fs_refresh_task = Some(task);
-    }
-
-    /// Re-derive the flat visible row list from the cached tree, splicing in
-    /// the inline edit row when an edit is active.
+    /// Re-derive the flat visible row list: concatenate each worktree's
+    /// cached tree segment, and splice in the inline edit row when an edit
+    /// is active.
     pub(crate) fn rebuild_explorer_entries(&mut self) {
         let explorer = &mut self.panels.explorer;
-        let entries = explorer
-            .file_tree
-            .as_ref()
-            .map(|tree| {
-                let expanded = explorer.expanded.clone();
-                let edit = explorer.edit.as_ref();
-                build_explorer_rows(tree, &expanded, edit)
+        let trees: Vec<(usize, &ExplorerFileNode)> = explorer
+            .trees_cache
+            .iter()
+            .enumerate()
+            .collect();
+        let expanded = explorer.expanded.clone();
+        let edit = explorer.edit.as_ref();
+        explorer.entries = build_explorer_rows(&trees, &expanded, edit);
+    }
+
+    /// Rebuild the per-worktree tree cache from each worktree's snapshot.
+    /// Call whenever a worktree scan completes or a worktree is added.
+    ///
+    /// The cache stays indexed identically to `worktrees`: a worktree whose
+    /// initial scan is still in flight yields a placeholder root row, so
+    /// expansion sets and selections keyed by index never drift.
+    fn refresh_explorer_trees(&mut self, cx: &mut Context<Self>) {
+        let explorer = &mut self.panels.explorer;
+        explorer.trees_cache = explorer
+            .worktrees
+            .iter()
+            .map(|worktree| {
+                let snapshot = worktree.read(cx).snapshot();
+                build_tree_from_snapshot(&snapshot).unwrap_or_else(|| {
+                    let root = worktree.read(cx).root();
+                    ExplorerFileNode {
+                        id: ExplorerEntryId(worktree.read(cx).root_id()),
+                        path: root.to_path_buf(),
+                        label: root
+                            .file_name()
+                            .map(|name| name.to_string_lossy().into_owned())
+                            .unwrap_or_else(|| root.to_string_lossy().into_owned()),
+                        kind: ExplorerEntryKind::Directory,
+                        children: Vec::new(),
+                    }
+                })
             })
-            .unwrap_or_default();
-        explorer.entries = entries;
+            .collect();
     }
 
     /// Follow the active document (or a pending inline-create target) in the
@@ -1112,13 +1303,19 @@ impl Editor {
             self.panels.explorer.pending_select = None;
             return;
         }
-        let Some(tree) = self.panels.explorer.file_tree.clone() else {
+        let trees = self.panels.explorer.trees_cache.clone();
+        if trees.is_empty() {
             return;
-        };
+        }
         let pending = self.panels.explorer.pending_select.take();
-        if let Some(path) = pending {
-            if let Some(node) = find_explorer_node(&tree, &path) {
-                self.panels.explorer.selected = Some(ExplorerSelection::File(node.id));
+        if let Some((root, path)) = pending {
+            if let Some(tree) = trees.get(root)
+                && let Some(node) = find_explorer_node(tree, &path)
+            {
+                self.panels.explorer.selected = Some(ExplorerSelection::File {
+                    root,
+                    entry: node.id,
+                });
                 if reveal {
                     self.expand_to_path(&path);
                 }
@@ -1126,16 +1323,16 @@ impl Editor {
             return;
         }
         // Keep an existing file selection when the entry is still visible.
-        if let Some(ExplorerSelection::File(id)) = self.panels.explorer.selected {
-            if explorer_tree_contains_id(&tree, id) {
+        if let Some(ExplorerSelection::File { entry, .. }) = self.panels.explorer.selected {
+            if trees.iter().any(|tree| explorer_tree_contains_id(tree, entry)) {
                 return;
             }
         }
         let Some(path) = self.active_editor_tab().and_then(|tab| tab.file.path.clone()) else {
             return;
         };
-        if let Some(node) = find_explorer_node(&tree, &path) {
-            self.panels.explorer.selected = Some(ExplorerSelection::File(node.id));
+        if let Some((root, id)) = self.explorer_id_for_path(&path) {
+            self.panels.explorer.selected = Some(ExplorerSelection::File { root, entry: id });
         }
     }
 
@@ -1143,17 +1340,18 @@ impl Editor {
     /// (mirrors Zed's `expand_to_selection`). The root row itself is always
     /// expanded so the target can become visible.
     pub(crate) fn expand_to_path(&mut self, path: &Path) {
-        let Some(root) = self.panels.explorer.root.clone() else {
-            return;
+        let Some((root, _)) = self.explorer_id_for_path(path) else {
+            return; // not in any worktree — nothing to reveal
         };
-        let Some(tree) = self.panels.explorer.file_tree.clone() else {
+        let Some(tree) = self.panels.explorer.trees_cache.get(root).cloned() else {
             return;
         };
         // The root row must be expanded for anything below it to show.
-        self.panels.explorer.expanded.insert(tree.id);
+        let set = self.panels.explorer.expanded.entry(root).or_default();
+        set.insert(tree.id);
         let mut ancestors = Vec::new();
         for ancestor in path.ancestors() {
-            if ancestor == root.as_path() {
+            if ancestor == tree.path.as_path() {
                 break;
             }
             ancestors.push(ancestor.to_path_buf());
@@ -1162,7 +1360,7 @@ impl Editor {
         for ancestor in ancestors {
             if let Some(node) = find_explorer_node(&tree, &ancestor) {
                 if node.kind == ExplorerEntryKind::Directory {
-                    self.panels.explorer.expanded.insert(node.id);
+                    set.insert(node.id);
                 }
             }
         }
@@ -1170,7 +1368,7 @@ impl Editor {
 
     /// Center the selected file row in the virtualized list.
     pub(crate) fn autoscroll_explorer_selection(&self) {
-        let Some(ExplorerSelection::File(id)) = self.panels.explorer.selected else {
+        let Some(ExplorerSelection::File { entry, .. }) = self.panels.explorer.selected else {
             return;
         };
         let Some(index) = self
@@ -1178,7 +1376,7 @@ impl Editor {
             .explorer
             .entries
             .iter()
-            .position(|row| matches!(row, ExplorerRow::Entry(entry) if entry.id == id))
+            .position(|row| matches!(row, ExplorerRow::Entry(entry_row) if entry_row.id == entry))
         else {
             return;
         };
@@ -1193,12 +1391,12 @@ impl Editor {
     /// Row index of the currently selected file entry, if visible.
     fn explorer_selected_row_index(&self) -> Option<usize> {
         match &self.panels.explorer.selected {
-            Some(ExplorerSelection::File(id)) => self
+            Some(ExplorerSelection::File { entry, .. }) => self
                 .panels
                 .explorer
                 .entries
                 .iter()
-                .position(|row| matches!(row, ExplorerRow::Entry(entry) if entry.id == *id)),
+                .position(|row| matches!(row, ExplorerRow::Entry(row_entry) if row_entry.id == *entry)),
             _ => None,
         }
     }
@@ -1214,7 +1412,10 @@ impl Editor {
         let Some(ExplorerRow::Entry(entry)) = self.panels.explorer.entries.get(index) else {
             return;
         };
-        let selection = ExplorerSelection::File(entry.id);
+        let selection = ExplorerSelection::File {
+            root: entry.root,
+            entry: entry.id,
+        };
         if extend && !self.panels.explorer.marked.contains(&selection) {
             self.panels.explorer.marked.push(selection.clone());
         }
@@ -1387,8 +1588,12 @@ impl Editor {
     }
 
     pub(crate) fn toggle_explorer_node(&mut self, id: ExplorerEntryId, cx: &mut Context<Self>) {
-        if !self.panels.explorer.expanded.remove(&id) {
-            self.panels.explorer.expanded.insert(id);
+        let Some(root) = self.root_for_explorer_entry(id) else {
+            return;
+        };
+        let set = self.panels.explorer.expanded.entry(root).or_default();
+        if !set.remove(&id) {
+            set.insert(id);
         }
         self.rebuild_explorer_entries();
         cx.notify();
@@ -1407,15 +1612,10 @@ impl Editor {
     ) {
         // Key the selection by the entry's stable id when the tree knows it;
         // fall back to the path-derived id (harmless: no row will highlight).
-        let id = self
-            .panels
-            .explorer
-            .file_tree
-            .as_ref()
-            .and_then(|tree| find_explorer_node(tree, &path))
-            .map(|node| node.id)
-            .unwrap_or_else(|| ExplorerEntryId::for_path(&path));
-        self.panels.explorer.selected = Some(ExplorerSelection::File(id));
+        let (root, id) = self
+            .explorer_id_for_path(&path)
+            .unwrap_or_else(|| (0, ExplorerEntryId::for_path(&path)));
+        self.panels.explorer.selected = Some(ExplorerSelection::File { root, entry: id });
         // Reveal: expand ancestor directories and center the row.
         self.expand_to_path(&path);
         self.rebuild_explorer_entries();
@@ -1426,6 +1626,91 @@ impl Editor {
             return;
         }
         self.open_file_in_active_editor(&path, window, cx);
+    }
+
+    /// Open a file from a row click: single click keeps panel focus, double
+    /// click also moves keyboard focus into the editor (mirrors Zed).
+    pub(crate) fn open_explorer_file_click(
+        &mut self,
+        path: PathBuf,
+        focus_editor: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.open_explorer_file(path, window, cx);
+        if focus_editor {
+            if let Some(area) = self.panels.layout.active_editor_area {
+                if let Some(panel_id) = self
+                    .panels
+                    .layout
+                    .focused_editor_inner_panel
+                    .filter(|loc| loc.area_id == area)
+                    .map(|loc| loc.panel_id)
+                {
+                    self.focus_editor_inner_panel(area, panel_id, window, cx);
+                }
+            }
+        }
+    }
+
+    /// Ctrl/Cmd+double-click: open the file in a freshly split editor area
+    /// (mirrors Zed's split-on-open).
+    pub(crate) fn split_explorer_file(
+        &mut self,
+        path: PathBuf,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(area_id) = self.panels.layout.active_editor_area else {
+            return;
+        };
+        let Some(new_id) = self.panels.layout.split_window_area(
+            area_id,
+            crate::layout::Axis::Horizontal,
+            0.5,
+            crate::layout::AreaSplitMode::Fresh,
+        ) else {
+            return;
+        };
+        self.panels.layout.activate_editor_area(new_id);
+        self.open_file_in_area(new_id, &path, window, cx);
+        cx.notify();
+    }
+
+    /// Alt+click on a directory: recursively expand or collapse the whole
+    /// subtree (mirrors Zed's `toggle_expand_all`).
+    pub(crate) fn toggle_explorer_subtree(
+        &mut self,
+        id: ExplorerEntryId,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(root) = self.root_for_explorer_entry(id) else {
+            return;
+        };
+        let Some(tree) = self.panels.explorer.trees_cache.get(root).cloned() else {
+            return;
+        };
+        let Some(node) = crate::windows::explorer::state::find_explorer_node_by_id(&tree, id)
+        else {
+            return;
+        };
+        if node.kind != ExplorerEntryKind::Directory {
+            return;
+        }
+        let mut dir_ids = std::collections::BTreeSet::new();
+        crate::windows::explorer::state::collect_descendant_dir_ids(node, &mut dir_ids);
+        let set = self.panels.explorer.expanded.entry(root).or_default();
+        if set.contains(&id) {
+            // Collapse: remove the entry and every descendant directory.
+            for dir_id in dir_ids {
+                set.remove(&dir_id);
+            }
+        } else {
+            // Expand: insert the entry and every descendant directory.
+            set.extend(dir_ids);
+        }
+        self.rebuild_explorer_entries();
+        cx.notify();
     }
 
     // ── Render ──────────────────────────────────────────────────────────
@@ -1452,7 +1737,7 @@ impl Editor {
             .take(5)
             .collect::<Vec<_>>();
 
-        if self.panels.explorer.root.is_none() {
+        if self.panels.explorer.worktrees.is_empty() {
             return self.render_explorer_empty_state(
                 "Explorer is empty now",
                 "",
@@ -1478,7 +1763,7 @@ impl Editor {
             );
         }
 
-        if self.panels.explorer.file_tree.is_none() {
+        if self.panels.explorer.trees_cache.is_empty() {
             return self.render_explorer_empty_state(
                 "Explorer is empty now",
                 "",
@@ -1553,9 +1838,44 @@ impl Editor {
             .on_action(cx.listener(Self::on_explorer_scroll_cursor_center))
             .on_action(cx.listener(Self::on_explorer_scroll_cursor_top))
             .on_action(cx.listener(Self::on_explorer_scroll_cursor_bottom))
+            // Background click clears the selection; double-click creates a
+            // new file at the root (mirrors Zed). Rows stop propagation, so
+            // this only fires on the empty area.
+            .on_click(cx.listener(
+                |editor, event: &gpui::ClickEvent, window, cx| {
+                    if event.click_count() > 1 {
+                        if let Some(root) = editor.last_explorer_root_path() {
+                            editor.begin_explorer_create(root, false, window, cx);
+                        }
+                    } else {
+                        editor.panels.explorer.selected = None;
+                        editor.panels.explorer.marked.clear();
+                        cx.notify();
+                    }
+                },
+            ))
+            // Right-click on blank space targets the explorer root
+            // (mirrors Zed: right-clicking below the last entry is
+            // equivalent to right-clicking the root directory).
+            .on_mouse_down(
+                MouseButton::Right,
+                cx.listener(|editor, event: &gpui::MouseDownEvent, _window, cx| {
+                    // Right-clicking below the last entry targets the last
+                    // worktree root (mirrors Zed: background right-click is
+                    // equivalent to right-clicking the root directory).
+                    if let Some((root, path, root_id)) = editor.last_explorer_root() {
+                        editor.panels.explorer.selected = Some(ExplorerSelection::File {
+                            root,
+                            entry: root_id,
+                        });
+                        editor.open_explorer_file_context_menu(event.position, path, true, cx);
+                        cx.notify();
+                    }
+                }),
+            )
             // Dropping on the background targets the explorer root.
-            .on_drag_move::<ExternalPaths>(cx.listener(|editor, _paths, _window, cx| {
-                editor.explorer_drag_hover_background(cx);
+            .on_drag_move::<ExternalPaths>(cx.listener(|editor, event, _window, cx| {
+                editor.explorer_drag_hover_background(event, cx);
             }))
             .on_drop::<ExternalPaths>(cx.listener::<ExternalPaths>(
                 |editor, paths, window, cx| {
@@ -1563,8 +1883,8 @@ impl Editor {
                 },
             ))
             .on_drag_move::<DraggedExplorerSelection>(
-                cx.listener(|editor, _payload, _window, cx| {
-                    editor.explorer_drag_hover_background(cx);
+                cx.listener(|editor, event, _window, cx| {
+                    editor.explorer_drag_hover_background(event, cx);
                 }),
             )
             .on_drop::<DraggedExplorerSelection>(
@@ -1593,7 +1913,7 @@ impl Editor {
             ExplorerRow::Entry(entry) => {
                 self.render_explorer_entry_row(entry, area_id, theme, editor, cx)
             }
-            ExplorerRow::Edit => self.render_explorer_edit_row(area_id, theme, editor, cx),
+            ExplorerRow::Edit { .. } => self.render_explorer_edit_row(area_id, theme, editor, cx),
         }
     }
 
@@ -1613,7 +1933,7 @@ impl Editor {
         let t = &theme.typography;
         let selected = matches!(
             &self.panels.explorer.selected,
-            Some(ExplorerSelection::File(id)) if *id == entry.id
+            Some(ExplorerSelection::File { entry: entry_id, .. }) if *entry_id == entry.id
         );
         let is_drag_target = matches!(
             &self.panels.explorer.drag_target,
@@ -1626,7 +1946,10 @@ impl Editor {
         let right_click_path = entry.path.clone();
         let arrow_node_id = entry.id;
         let arrow_editor = editor.clone();
-        let mark_selection = ExplorerSelection::File(entry.id);
+        let mark_selection = ExplorerSelection::File {
+            root: entry.root,
+            entry: entry.id,
+        };
         let drag_entry_id = entry.id;
 
         let mut arrow_el = div()
@@ -1774,8 +2097,13 @@ impl Editor {
                     let selection = right_click_selection.clone();
                     let _ = right_click_editor.update(cx, |editor, cx| {
                         // Right-click selects the row (indicator feedback,
-                        // mirroring Zed's `deploy_context_menu`).
-                        editor.panels.explorer.selected = Some(selection);
+                        // mirroring Zed's `deploy_context_menu`); marked
+                        // entries are cleared when the target is not one of
+                        // them, so menu actions never surprise multi-selects.
+                        editor.panels.explorer.selected = Some(selection.clone());
+                        if !editor.panels.explorer.marked.contains(&selection) {
+                            editor.panels.explorer.marked.clear();
+                        }
                         editor.open_explorer_file_context_menu(event.position, path, true, cx);
                         cx.notify();
                     });
@@ -1787,18 +2115,26 @@ impl Editor {
                 let selection = mark_selection.clone();
                 let shift = event.modifiers().shift;
                 let alt = event.modifiers().alt;
+                let secondary = event.modifiers().secondary();
                 let _ = click_editor.update(cx, |editor, cx| {
                     if shift {
                         editor.select_explorer_range(id, cx);
                         return;
                     }
-                    if alt {
+                    if secondary {
                         editor.toggle_explorer_mark(selection, cx);
                         return;
                     }
                     editor.panels.explorer.marked.clear();
-                    editor.toggle_explorer_node(id, cx);
+                    if alt {
+                        editor.toggle_explorer_subtree(id, cx);
+                    } else {
+                        editor.toggle_explorer_node(id, cx);
+                    }
                 });
+                // Rows must not let clicks bubble to the panel background
+                // (background click clears the selection).
+                cx.stop_propagation();
             })
             // Drag & drop support (identical to directory rows).
             .on_drag_move::<ExternalPaths>(cx.listener(move |editor, _paths, window, cx| {
@@ -1833,13 +2169,16 @@ impl Editor {
         let t = &theme.typography;
         let selected = matches!(
             &self.panels.explorer.selected,
-            Some(ExplorerSelection::File(id)) if *id == entry.id
+            Some(ExplorerSelection::File { entry: entry_id, .. }) if *entry_id == entry.id
         );
         let is_marked = self
             .panels
             .explorer
             .marked
-            .contains(&ExplorerSelection::File(entry.id));
+            .contains(&ExplorerSelection::File {
+                root: entry.root,
+                entry: entry.id,
+            });
         let is_drag_target = matches!(
             &self.panels.explorer.drag_target,
             Some(DragExplorerTarget::Entry(id)) if *id == entry.id
@@ -1853,21 +2192,17 @@ impl Editor {
         let right_click_is_dir = entry.kind == ExplorerEntryKind::Directory;
         let arrow_node_id = entry.id;
         let arrow_editor = editor.clone();
-        let mark_selection = ExplorerSelection::File(entry.id);
-        // Drag payload: the effective selection (marks + this row).
-        let drag_ids = {
-            let mut ids = self.effective_explorer_entries();
-            if !ids.contains(&entry.id) {
-                ids.push(entry.id);
-            }
-            ids
+        let mark_selection = ExplorerSelection::File {
+            root: entry.root,
+            entry: entry.id,
         };
+        // Drag payload: the effective selection (marks + this row).
+        let mut drag_selections = self.effective_explorer_entries();
+        if !drag_selections.contains(&mark_selection) {
+            drag_selections.push(mark_selection.clone());
+        }
         let drag_payload = DraggedExplorerSelection {
-            selections: drag_ids
-                .iter()
-                .copied()
-                .map(ExplorerSelection::File)
-                .collect(),
+            selections: drag_selections,
         };
         let drag_label = entry.label.clone();
         let drag_entry_id = entry.id;
@@ -1975,8 +2310,13 @@ impl Editor {
                     let selection = right_click_selection.clone();
                     let _ = right_click_editor.update(cx, |editor, cx| {
                         // Right-click selects the row (indicator feedback,
-                        // mirroring Zed's `deploy_context_menu`).
-                        editor.panels.explorer.selected = Some(selection);
+                        // mirroring Zed's `deploy_context_menu`); marked
+                        // entries are cleared when the target is not one of
+                        // them, so menu actions never surprise multi-selects.
+                        editor.panels.explorer.selected = Some(selection.clone());
+                        if !editor.panels.explorer.marked.contains(&selection) {
+                            editor.panels.explorer.marked.clear();
+                        }
                         editor.open_explorer_file_context_menu(event.position, path, is_dir, cx);
                         cx.notify();
                     });
@@ -1988,27 +2328,41 @@ impl Editor {
                 let kind = click_kind;
                 let path = click_path.clone();
                 let selection = mark_selection.clone();
+                let click_count = event.click_count();
                 let shift = event.modifiers().shift;
                 let alt = event.modifiers().alt;
+                let secondary = event.modifiers().secondary();
                 let _ = click_editor.update(cx, |editor, cx| {
                     if shift {
                         editor.select_explorer_range(id, cx);
                         return;
                     }
-                    if alt {
-                        editor.toggle_explorer_mark(selection, cx);
+                    if secondary {
+                        if click_count > 1 {
+                            // Ctrl/Cmd+double-click: open in a split area.
+                            editor.split_explorer_file(path, window, cx);
+                        } else {
+                            editor.toggle_explorer_mark(selection, cx);
+                        }
                         return;
                     }
                     editor.panels.explorer.marked.clear();
                     match kind {
                         ExplorerEntryKind::Directory => {
-                            editor.toggle_explorer_node(id, cx);
+                            if alt {
+                                editor.toggle_explorer_subtree(id, cx);
+                            } else {
+                                editor.toggle_explorer_node(id, cx);
+                            }
                         }
                         ExplorerEntryKind::MarkdownFile | ExplorerEntryKind::File => {
-                            editor.open_explorer_file(path, window, cx);
+                            editor.open_explorer_file_click(path, click_count > 1, window, cx);
                         }
                     }
                 });
+                // Rows must not let clicks bubble to the panel background
+                // (background click clears the selection).
+                cx.stop_propagation();
             })
             // Drag & drop: external files are copied; internal entries are
             // moved by default and copied with the secondary modifier.
@@ -2085,6 +2439,9 @@ impl Editor {
             .pl(px(6.0 + depth as f32 * EXPLORER_NODE_INDENT))
             .pr(px(8.0))
             .bg(c.dialog_secondary_button_hover)
+            // Clicks inside the edit row must not reach the panel
+            // background (double-click there would create a new file).
+            .on_click(|_ev, _window, cx| cx.stop_propagation())
             // Arrow placeholder keeps the row aligned with siblings.
             .child(
                 div()
@@ -2113,6 +2470,12 @@ impl Editor {
                     .flex()
                     .items_center()
                     .on_key_down(cx.listener(Self::on_explorer_filename_key_down))
+                    // The global keymap binds escape to `DismissTransientUi`;
+                    // GPUI dispatches matched actions BEFORE raw key
+                    // listeners, so Esc must be handled as an action here
+                    // (the focused node runs first) — `on_key_down` would
+                    // never see it.
+                    .on_action(cx.listener(Self::on_explorer_escape))
                     .on_action(cx.listener(Self::on_explorer_filename_copy))
                     .on_action(cx.listener(Self::on_explorer_filename_cut))
                     .on_action(cx.listener(Self::on_explorer_filename_paste))
@@ -2496,25 +2859,6 @@ impl Editor {
 }
 
 // ── Free helpers for background file operations ─────────────────────────
-
-/// Map the persisted explorer settings onto the scanner options.
-fn explorer_scan_options_from_settings(
-    settings: &crate::infra::config::settings::ExplorerSettings,
-) -> ExplorerScanOptions {
-    use crate::infra::config::settings::{ExplorerSortMode as Mode, ExplorerSortOrder as Order};
-    ExplorerScanOptions {
-        hide_hidden: settings.hide_hidden,
-        sort_mode: match settings.sort_mode {
-            Mode::DirectoriesFirst => ExplorerSortMode::DirectoriesFirst,
-            Mode::FilesFirst => ExplorerSortMode::FilesFirst,
-            Mode::Mixed => ExplorerSortMode::Mixed,
-        },
-        sort_order: match settings.sort_order {
-            Order::Ascending => ExplorerSortOrder::Ascending,
-            Order::Descending => ExplorerSortOrder::Descending,
-        },
-    }
-}
 
 /// Recursively copy a directory tree (`fs::copy` is file-only).
 fn copy_dir_all(source: &Path, destination: &Path) -> std::io::Result<()> {

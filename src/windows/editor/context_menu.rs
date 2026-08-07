@@ -19,7 +19,7 @@ use crate::windows::editor::chrome::{ContextMenuState, TableInsertDialogState, T
 use crate::infra::i18n::I18nManager;
 use crate::model::syntax::table::{TableAxisKind, TableColumnAlignment, TableData};
 use crate::theme::Theme;
-use crate::windows::explorer::state::find_explorer_node;
+
 impl Editor {
     pub(crate) fn root_ancestor_entity_id(&self, entity_id: EntityId) -> EntityId {
         let mut current = entity_id;
@@ -1137,17 +1137,16 @@ impl Editor {
                 let path = path.clone();
                 let is_dir = *is_dir;
                 let strings = cx.global::<I18nManager>().strings().clone();
-                let is_root = self.panels.explorer.root.as_deref() == Some(path.as_path());
+                let is_root = self
+                    .panels
+                    .explorer
+                    .trees_cache
+                    .iter()
+                    .any(|tree| tree.path == path);
                 let can_undo = self.panels.explorer.undo_history.can_undo();
                 let can_redo = self.panels.explorer.undo_history.can_redo();
                 let has_pasteable = self.panels.explorer.clipboard.is_some();
-                let entry_id = self
-                    .panels
-                    .explorer
-                    .file_tree
-                    .as_ref()
-                    .and_then(|tree| find_explorer_node(tree, &path))
-                    .map(|node| node.id);
+                let entry_id = self.explorer_id_for_path(&path);
 
                 // Build a menu row: label only (no icons, no keybindings —
                 // matching Zed's context menu), optionally disabled, with a
@@ -1377,6 +1376,17 @@ impl Editor {
                         }),
                     ));
                     items.push(make_item(
+                        "ws-ctx-trash",
+                        strings.explorer_trash.clone(),
+                        c.text_default,
+                        true,
+                        cx.entity().downgrade(),
+                        Box::new(|ed, window, cx| {
+                            ed.dismiss_contextual_overlays(cx);
+                            ed.trash_explorer_selections(window, cx);
+                        }),
+                    ));
+                    items.push(make_item(
                         "ws-ctx-delete",
                         strings.explorer_delete.clone(),
                         c.dialog_danger_button_bg,
@@ -1403,7 +1413,7 @@ impl Editor {
                         Box::new(move |ed, _window, cx| {
                             ed.dismiss_contextual_overlays(cx);
                             match entry_id {
-                                Some(id) if !is_root => {
+                                Some((_, id)) if !is_root => {
                                     ed.expand_all_explorer_for_entry(id, cx);
                                 }
                                 _ => ed.expand_all_explorer_nodes(cx),
@@ -1420,7 +1430,7 @@ impl Editor {
                         Box::new(move |ed, _window, cx| {
                             ed.dismiss_contextual_overlays(cx);
                             match entry_id {
-                                Some(id) if !is_root => {
+                                Some((_, id)) if !is_root => {
                                     ed.collapse_all_explorer_for_entry(id, cx);
                                 }
                                 _ => ed.collapse_all_explorer_nodes(cx),

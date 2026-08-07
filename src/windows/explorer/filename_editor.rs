@@ -14,10 +14,10 @@ use std::path::PathBuf;
 use gpui::*;
 
 use crate::editor::controller::Editor;
-use crate::editor::editing::input::shortcuts::{Copy, Cut, Paste};
+use crate::editor::editing::input::shortcuts::{Copy, Cut, DismissTransientUi, Paste};
 use crate::theme::ThemeManager;
 use crate::windows::explorer::state::{
-    EXPLORER_NODE_HEIGHT, ExplorerChange, ExplorerEditState, ExplorerEntryId,
+    EXPLORER_NODE_HEIGHT, ExplorerChange, ExplorerEditState,
     ExplorerFilenameEditor, ExplorerRow, ExplorerValidation,
 };
 
@@ -236,7 +236,7 @@ impl Editor {
         _cx: &App,
     ) -> Option<ExplorerValidation> {
         let edit = self.panels.explorer.edit.as_ref()?;
-        let Some(tree) = self.panels.explorer.file_tree.as_ref() else {
+        let Some(tree) = self.panels.explorer.trees_cache.get(edit.root) else {
             return None;
         };
         // New entry: check the target path. Rename: check except itself.
@@ -275,29 +275,33 @@ impl Editor {
         self.expand_to_path(&parent);
         self.rebuild_explorer_entries();
 
-        let parent_id = self
-            .panels
-            .explorer
-            .file_tree
-            .as_ref()
-            .and_then(|tree| {
-                crate::windows::explorer::state::find_explorer_node(tree, &parent)
-                    .map(|node| node.id)
-            });
-        let depth = self
-            .panels
-            .explorer
-            .entries
-            .iter()
-            .find(|row| matches!(row, ExplorerRow::Entry(entry) if entry.id == parent_id.unwrap_or(ExplorerEntryId(0))))
-            .map(|row| match row {
-                ExplorerRow::Entry(entry) => entry.depth + 1,
-                ExplorerRow::Edit => 0,
-            })
-            .unwrap_or(0);
+        // Locate the parent in its worktree; when the path is not part of
+        // any cached tree yet, fall back to the last worktree (root-level
+        // create — the edit row is inserted after that root row).
+        let (root, parent_id) = self
+            .explorer_id_for_path(&parent)
+            .map(|(root, id)| (root, Some(id)))
+            .unwrap_or_else(|| (self.panels.explorer.worktrees.len().saturating_sub(1), None));
+        // Row depth of the edit row: one below its parent row (a root-level
+        // create is a sibling of the root's children, depth 1).
+        let depth = match parent_id {
+            Some(parent_id) => self
+                .panels
+                .explorer
+                .entries
+                .iter()
+                .find(|row| matches!(row, ExplorerRow::Entry(entry) if entry.id == parent_id))
+                .map(|row| match row {
+                    ExplorerRow::Entry(entry) => entry.depth + 1,
+                    ExplorerRow::Edit { .. } => 0,
+                })
+                .unwrap_or(1),
+            None => 1,
+        };
 
         self.begin_explorer_edit_inner(
             ExplorerEditState {
+                root,
                 parent_id,
                 target_id: None,
                 is_dir,
@@ -321,10 +325,19 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.panels.explorer.root.as_deref() == Some(target_path.as_path()) {
-            return;
+        if self
+            .panels
+            .explorer
+            .trees_cache
+            .iter()
+            .any(|tree| tree.path == target_path)
+        {
+            return; // worktree roots cannot be renamed (mirrors Zed)
         }
-        let Some(tree) = self.panels.explorer.file_tree.clone() else {
+        let Some((root, node_id)) = self.explorer_id_for_path(&target_path) else {
+            return;
+        };
+        let Some(tree) = self.panels.explorer.trees_cache.get(root).cloned() else {
             return;
         };
         let Some(node) = crate::windows::explorer::state::find_explorer_node(&tree, &target_path)
@@ -336,10 +349,10 @@ impl Editor {
             .explorer
             .entries
             .iter()
-            .find(|row| matches!(row, ExplorerRow::Entry(entry) if entry.id == node.id))
+            .find(|row| matches!(row, ExplorerRow::Entry(entry) if entry.id == node_id))
             .map(|row| match row {
                 ExplorerRow::Entry(entry) => entry.depth,
-                ExplorerRow::Edit => 0,
+                ExplorerRow::Edit { .. } => 0,
             })
             .unwrap_or(0);
 
@@ -361,6 +374,7 @@ impl Editor {
 
         self.begin_explorer_edit_inner(
             ExplorerEditState {
+                root,
                 parent_id: None,
                 target_id: Some(node.id),
                 is_dir: node.kind == crate::windows::explorer::state::ExplorerEntryKind::Directory,
@@ -389,11 +403,18 @@ impl Editor {
         self.rebuild_explorer_entries();
         self.autoscroll_explorer_edit(window, cx);
 
-        // Blur auto-confirms (mirrors Zed: `EditorEvent::Blurred` → confirm,
-        // discard on validation failure).
+        // Blur auto-commits when possible and discards otherwise, mirroring
+        // Zed: `EditorEvent::Blurred` → confirm; an empty, duplicate, or
+        // unchanged name drops the edit. Window deactivation never commits
+        // nor cancels.
         cx.on_blur(&focus_handle, window, |editor, window, cx| {
-            if editor.panels.explorer.edit.is_some() {
-                editor.confirm_explorer_edit(window, cx);
+            if !window.is_window_active() {
+                return;
+            }
+            if editor.panels.explorer.edit.is_some()
+                && !editor.confirm_explorer_edit(window, cx)
+            {
+                editor.discard_explorer_edit(cx);
             }
         })
         .detach();
@@ -424,7 +445,7 @@ impl Editor {
                     .explorer
                     .entries
                     .iter()
-                    .position(|row| matches!(row, ExplorerRow::Edit))
+                    .position(|row| matches!(row, ExplorerRow::Edit { .. }))
             })
             .flatten()
     }
@@ -432,26 +453,36 @@ impl Editor {
     /// Commit the inline create/rename: writes to disk on a background
     /// thread, then refreshes the tree and selects the new entry. On failure
     /// the edit stays open with the error surfaced.
-    pub(crate) fn confirm_explorer_edit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+    ///
+    /// Returns `true` when a commit is in progress (or was already), `false`
+    /// when nothing was submitted (empty name, duplicate, or missing edit) —
+    /// callers decide whether to keep the edit open (Enter) or discard it
+    /// (blur, mirroring Zed).
+    pub(crate) fn confirm_explorer_edit(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
         let Some(edit) = self.panels.explorer.edit.as_ref() else {
-            return;
+            return false;
         };
         if edit.processing {
-            return;
+            return true;
         }
         let filename = edit.filename.text.trim().to_string();
         if filename.is_empty() {
-            return;
+            return false;
         }
         // Re-check duplicate names at commit time.
         if self.explorer_duplicate_name_error(&filename, cx).is_some() {
             self.populate_explorer_validation(cx);
             cx.notify();
-            return;
+            return false;
         }
 
         let is_create = edit.target_id.is_none();
         let is_dir = edit.is_dir;
+        let root = edit.root;
         let old_path = edit.path.clone();
         let new_path = if is_create {
             edit.path.join(&filename)
@@ -501,8 +532,8 @@ impl Editor {
                             }
                         };
                         editor.record_explorer_change(change);
-                        editor.panels.explorer.pending_select = Some(new_path_for_update.clone());
-                        editor.panels.explorer.needs_rescan = true;
+                        editor.panels.explorer.pending_select = Some((root, new_path_for_update.clone()));
+                        editor.rescan_explorer_worktrees(cx);
                         editor.sync_explorer_models(cx);
                         if is_create && !is_dir {
                             // Opening the freshly created file mirrors the
@@ -529,6 +560,7 @@ impl Editor {
             });
         })
         .detach();
+        true
     }
 
     /// Cancel the inline edit, restoring the previous selection.
@@ -539,6 +571,22 @@ impl Editor {
         self.panels.explorer.selected = edit.previously_selected;
         self.rebuild_explorer_entries();
         cx.notify();
+    }
+
+    /// Esc during an inline edit cancels it. The global keymap binds escape
+    /// to `DismissTransientUi`, which GPUI dispatches as an action before
+    /// raw key listeners; being the focused node, the input box handles it
+    /// first and stops propagation so nothing else reacts.
+    pub(crate) fn on_explorer_escape(
+        &mut self,
+        _: &DismissTransientUi,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.panels.explorer.edit.is_some() {
+            self.discard_explorer_edit(cx);
+            cx.stop_propagation();
+        }
     }
 
     /// Keyboard handling for the inline filename input.
@@ -587,12 +635,11 @@ impl Editor {
             "home" => edit.filename.move_home(keystroke.modifiers.shift),
             "end" => edit.filename.move_end(keystroke.modifiers.shift),
             _ => {
-                // Printable characters arrive via `key_char` (IME-aware);
-                // named keys were handled above.
-                let Some(key_char) = keystroke.key_char.as_deref() else {
-                    return;
-                };
-                edit.filename.insert_at_selection(key_char);
+                // Printable characters arrive through the window input
+                // handler (`WM_CHAR` / IME composition), never through
+                // `key_char`: inserting here as well would duplicate every
+                // character (the platform delivers both paths per key).
+                return;
             }
         }
         self.populate_explorer_validation(cx);

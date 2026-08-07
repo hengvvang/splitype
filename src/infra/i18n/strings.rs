@@ -246,6 +246,8 @@ pub struct I18nStrings {
     pub explorer_reveal_in_file_manager: String,
     /// Explorer context menu: open the entry with the default OS application.
     pub explorer_open_in_default_app: String,
+    /// Explorer context menu: move the entry to the OS trash.
+    pub explorer_trash: String,
     /// Explorer context menu: cut the selected entries.
     pub explorer_cut: String,
     /// Explorer context menu: copy the selected entries.
@@ -505,6 +507,7 @@ pub struct I18nStringsDe {
     explorer_new_folder: Option<String>,
     explorer_reveal_in_file_manager: Option<String>,
     explorer_open_in_default_app: Option<String>,
+    explorer_trash: Option<String>,
     explorer_cut: Option<String>,
     explorer_copy: Option<String>,
     explorer_duplicate: Option<String>,
@@ -710,6 +713,7 @@ pub(crate) const I18N_STRING_KEYS: &[&str] = &[
     "explorer_new_folder",
     "explorer_reveal_in_file_manager",
     "explorer_open_in_default_app",
+    "explorer_trash",
     "explorer_cut",
     "explorer_copy",
     "explorer_duplicate",
@@ -1159,6 +1163,9 @@ impl I18nStringsDe {
             explorer_open_in_default_app: self
                 .explorer_open_in_default_app
                 .unwrap_or(defaults.explorer_open_in_default_app),
+            explorer_trash: self
+                .explorer_trash
+                .unwrap_or(defaults.explorer_trash),
             explorer_cut: self.explorer_cut.unwrap_or(defaults.explorer_cut),
             explorer_copy: self.explorer_copy.unwrap_or(defaults.explorer_copy),
             explorer_duplicate: self
@@ -1452,6 +1459,7 @@ impl I18nStrings {
             explorer_new_folder: "新建文件夹".into(),
             explorer_reveal_in_file_manager: "在文件管理器中显示".into(),
             explorer_open_in_default_app: "用默认应用打开".into(),
+            explorer_trash: "移到回收站".into(),
             explorer_cut: "剪切".into(),
             explorer_copy: "复制".into(),
             explorer_duplicate: "复制副本".into(),
@@ -1685,6 +1693,7 @@ impl I18nStrings {
             explorer_new_folder: "New Folder".into(),
             explorer_reveal_in_file_manager: "Reveal in File Manager".into(),
             explorer_open_in_default_app: "Open in Default App".into(),
+            explorer_trash: "Trash".into(),
             explorer_cut: "Cut".into(),
             explorer_copy: "Copy".into(),
             explorer_duplicate: "Duplicate".into(),

@@ -14,14 +14,18 @@
 //! Outline parsing lives in `crate::editor::panels::outline`; rendering and
 //! editor interactions stay in `super::mod`.
 
-use std::collections::{BTreeSet, HashSet};
-use std::fs;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
-use gpui::{Bounds, FocusHandle, Pixels, Task, UniformListScrollHandle};
+use gpui::{Bounds, Entity, FocusHandle, Pixels, Task, UniformListScrollHandle};
+use std::sync::atomic::AtomicU64;
+use std::sync::Arc;
+
+use super::worktree::{Worktree, WorktreeSnapshot};
+
+pub use super::worktree::WorktreeEvent;
 
 // ── Icons & constants ───────────────────────────────────────────────────
 
@@ -33,11 +37,10 @@ pub const EXPLORER_NODE_INDENT: f32 = 14.0;
 
 // ── Stable entry ids ────────────────────────────────────────────────────
 
-/// Stable id for a file-tree entry, derived from the entry's absolute path.
-///
-/// Re-scanning the same directory yields the same ids, so expansion and
-/// selection state survives refreshes. Collisions are astronomically
-/// unlikely (64-bit hash of the path).
+/// Stable id for a file-tree entry, allocated from a shared counter (Zed's
+/// `ProjectEntryId`): ids never change across renames or moves, so expansion
+/// and selection state survives them. The counter is shared by all
+/// worktrees, making ids globally unique.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct ExplorerEntryId(pub u64);
 
@@ -75,6 +78,8 @@ pub struct ExplorerFileNode {
 /// scanned tree plus the expansion set (mirrors Zed's `visible_entries`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct VisibleExplorerEntry {
+    /// Index of the worktree this entry belongs to.
+    pub root: usize,
     pub id: ExplorerEntryId,
     pub parent_id: Option<ExplorerEntryId>,
     pub path: PathBuf,
@@ -103,9 +108,15 @@ pub enum ExplorerNodeKind {
 }
 
 /// Which item is currently selected in the explorer sidebar.
+///
+/// Files are keyed by the Zed-style double key `(root, entry)`: the
+/// worktree index plus the worktree-allocated stable entry id.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ExplorerSelection {
-    File(ExplorerEntryId),
+    File {
+        root: usize,
+        entry: ExplorerEntryId,
+    },
     Outline(String),
 }
 
@@ -136,6 +147,8 @@ pub struct ExplorerFilenameEditor {
 /// directory `parent_id`; `Some(id)` means the entry `id` is being renamed.
 #[derive(Clone, Debug)]
 pub struct ExplorerEditState {
+    /// Index of the worktree the edit happens in.
+    pub root: usize,
     /// Parent directory id for a new entry; `None` for a root-level create.
     pub parent_id: Option<ExplorerEntryId>,
     /// `None` = creating a new entry, `Some` = renaming this entry.
@@ -155,11 +168,11 @@ pub struct ExplorerEditState {
 }
 
 /// One row of the virtualized file-tree list: either a visible entry or the
-/// inline edit row.
+/// inline edit row. `root` is the worktree index the row belongs to.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ExplorerRow {
     Entry(VisibleExplorerEntry),
-    Edit,
+    Edit { root: usize },
 }
 
 /// One reversible file-tree operation recorded in the undo history.
@@ -249,23 +262,24 @@ impl ExplorerClipboard {
 /// Top-level explorer sidebar state.
 pub struct ExplorerState {
     pub is_open: bool,
-    pub root: Option<PathBuf>,
-    /// The root that the current `file_tree` was scanned from.
-    pub scanned_root: Option<PathBuf>,
-    /// Full scanned tree (background-thread product).
-    pub file_tree: Option<ExplorerFileNode>,
+    /// Worktree entities in display order (mirrors Zed's `visible_worktrees`).
+    pub worktrees: Vec<Entity<Worktree>>,
+    /// Shared stable-id allocator across all worktrees (Zed's `WorktreeStore`).
+    pub next_entry_id: Arc<AtomicU64>,
+    /// Expanded directory ids per worktree index (Zed's `expanded_dir_ids`).
+    pub expanded: HashMap<usize, BTreeSet<ExplorerEntryId>>,
+    /// Rebuilt tree per worktree, refreshed whenever a worktree scan
+    /// completes (the panel's working copy of each snapshot).
+    pub trees_cache: Vec<ExplorerFileNode>,
     pub file_error: Option<String>,
     pub outline_tree: Vec<ExplorerNode>,
     pub outline_source: Option<String>,
-    /// Expanded directory ids, kept sorted for binary search (mirrors Zed's
-    /// `expanded_dir_ids`).
-    pub expanded: BTreeSet<ExplorerEntryId>,
     /// Expanded outline node ids (kept separate: outline ids are strings).
     pub expanded_outline: HashSet<String>,
     /// Flat visible rows — the virtualized list's data source (includes the
     /// inline edit row while an edit is active).
     pub entries: Vec<ExplorerRow>,
-    /// Selection, keyed by stable id.
+    /// Selection, keyed by the double key `(root, entry)`.
     pub selected: Option<ExplorerSelection>,
     /// Multi-select marks (Zed's `marked_entries`).
     pub marked: Vec<ExplorerSelection>,
@@ -277,38 +291,27 @@ pub struct ExplorerState {
     pub drag_target: Option<DragExplorerTarget>,
     /// Delayed task that expands a hovered directory during a drag.
     pub hover_expand_task: Option<Task<()>>,
-    /// Set when the on-disk tree may have changed and must be re-scanned.
-    pub needs_rescan: bool,
-    /// Path to select once the next scan completes (used by inline create).
-    pub pending_select: Option<PathBuf>,
+    /// Path (and worktree index) to select once the next scan completes.
+    pub pending_select: Option<(usize, PathBuf)>,
     /// Active inline create/rename state.
     pub edit: Option<ExplorerEditState>,
     /// Scroll handle bound to the virtualized file-tree list.
     pub scroll_handle: UniformListScrollHandle,
     /// Number of rows rendered in the last frame (used for page scrolling).
     pub rendered_rows: usize,
-    /// Handle of the in-flight background scan; replacing it cancels the
-    /// previous scan.
-    pub scan_task: Option<Task<()>>,
-    /// Root currently watched for filesystem changes.
-    pub watched_root: Option<PathBuf>,
-    /// The filesystem watcher task (alive while the explorer has a root).
-    pub fs_watch_task: Option<Task<()>>,
-    /// Debounced refresh task triggered by filesystem events.
-    pub fs_refresh_task: Option<Task<()>>,
 }
 
 impl Default for ExplorerState {
     fn default() -> Self {
         Self {
             is_open: false,
-            root: None,
-            scanned_root: None,
-            file_tree: None,
+            worktrees: Vec::new(),
+            next_entry_id: Arc::new(AtomicU64::new(1)),
+            expanded: HashMap::new(),
+            trees_cache: Vec::new(),
             file_error: None,
             outline_tree: Vec::new(),
             outline_source: None,
-            expanded: BTreeSet::new(),
             expanded_outline: HashSet::new(),
             entries: Vec::new(),
             selected: None,
@@ -317,155 +320,15 @@ impl Default for ExplorerState {
             undo_history: ExplorerUndoHistory::default(),
             drag_target: None,
             hover_expand_task: None,
-            needs_rescan: false,
             pending_select: None,
             edit: None,
             scroll_handle: UniformListScrollHandle::new(),
             rendered_rows: 0,
-            scan_task: None,
-            watched_root: None,
-            fs_watch_task: None,
-            fs_refresh_task: None,
         }
     }
 }
 
 // ── Filesystem helpers ──────────────────────────────────────────────────
-
-/// Returns `true` when `path` has a `.md` extension (case-insensitive).
-pub fn is_markdown_file(path: &Path) -> bool {
-    path.extension()
-        .is_some_and(|extension| extension.to_string_lossy().eq_ignore_ascii_case("md"))
-}
-
-/// Returns `true` for directory names that the explorer scanner skips.
-pub fn is_ignored_explorer_entry(name: &str) -> bool {
-    name == "node_modules"
-        || name == "target"
-        || name == "dist"
-        || name == "build"
-        || name == ".git"
-}
-
-/// Explorer tree sort mode used by the scanner.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ExplorerSortMode {
-    DirectoriesFirst,
-    FilesFirst,
-    Mixed,
-}
-
-/// Explorer tree sort order used by the scanner.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ExplorerSortOrder {
-    Ascending,
-    Descending,
-}
-
-/// Scan options derived from the persisted explorer settings.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ExplorerScanOptions {
-    pub hide_hidden: bool,
-    pub sort_mode: ExplorerSortMode,
-    pub sort_order: ExplorerSortOrder,
-}
-
-impl Default for ExplorerScanOptions {
-    fn default() -> Self {
-        Self {
-            hide_hidden: false,
-            sort_mode: ExplorerSortMode::DirectoriesFirst,
-            sort_order: ExplorerSortOrder::Ascending,
-        }
-    }
-}
-
-/// Recursively scan a directory into an [`ExplorerFileNode`] tree.
-///
-/// Directories sort before files (unless `sort_mode` says otherwise); within
-/// each group entries are sorted case-insensitively by label. Designed to
-/// run on a background thread: it performs blocking filesystem I/O.
-pub fn scan_explorer_dir(
-    path: &Path,
-    options: &ExplorerScanOptions,
-) -> Result<ExplorerFileNode> {
-    let mut children = Vec::new();
-    let read_dir = fs::read_dir(path)
-        .map_err(|err| anyhow::anyhow!("failed to read '{}': {err}", path.display()))?;
-
-    for entry in read_dir {
-        let Ok(entry) = entry else {
-            continue;
-        };
-        let entry_path = entry.path();
-        let name = entry.file_name().to_string_lossy().into_owned();
-
-        if is_ignored_explorer_entry(&name) {
-            continue;
-        }
-        if options.hide_hidden && name.starts_with('.') {
-            continue;
-        }
-
-        if entry_path.is_dir() {
-            let dir_children = scan_explorer_dir(&entry_path, options)
-                .map(|node| node.children)
-                .unwrap_or_default();
-            children.push(ExplorerFileNode {
-                id: ExplorerEntryId::for_path(&entry_path),
-                path: entry_path,
-                label: name,
-                kind: ExplorerEntryKind::Directory,
-                children: dir_children,
-            });
-        } else if entry_path.is_file() {
-            let kind = if is_markdown_file(&entry_path) {
-                ExplorerEntryKind::MarkdownFile
-            } else {
-                ExplorerEntryKind::File
-            };
-            children.push(ExplorerFileNode {
-                id: ExplorerEntryId::for_path(&entry_path),
-                path: entry_path,
-                label: name,
-                kind,
-                children: Vec::new(),
-            });
-        }
-    }
-
-    children.sort_by(|left, right| {
-        let left_dir = left.kind == ExplorerEntryKind::Directory;
-        let right_dir = right.kind == ExplorerEntryKind::Directory;
-        let dir_cmp = match options.sort_mode {
-            ExplorerSortMode::DirectoriesFirst => right_dir.cmp(&left_dir),
-            ExplorerSortMode::FilesFirst => left_dir.cmp(&right_dir),
-            ExplorerSortMode::Mixed => std::cmp::Ordering::Equal,
-        };
-        let name_cmp = left.label.to_lowercase().cmp(&right.label.to_lowercase());
-        let cmp = dir_cmp.then(name_cmp);
-        if options.sort_order == ExplorerSortOrder::Descending {
-            cmp.reverse()
-        } else {
-            cmp
-        }
-    });
-
-    Ok(ExplorerFileNode {
-        id: ExplorerEntryId::for_path(path),
-        path: path.to_path_buf(),
-        label: file_label(path),
-        kind: ExplorerEntryKind::Directory,
-        children,
-    })
-}
-
-/// Human-readable label for a path (its final component).
-pub fn file_label(path: &Path) -> String {
-    path.file_name()
-        .map(|name| name.to_string_lossy().into_owned())
-        .unwrap_or_else(|| path.to_string_lossy().into_owned())
-}
 
 /// Stable numeric hash of an id, for use as a DOM element id suffix.
 pub fn stable_node_hash(id: &str) -> u64 {
@@ -476,17 +339,76 @@ pub fn stable_node_hash(id: &str) -> u64 {
 
 // ── Flat visible list derivation ────────────────────────────────────────
 
-/// Flatten the scanned tree into the visible row list. The root itself is
-/// the first row (depth 0, foldable — mirroring Zed's default `hide_root:
+/// Rebuild the tree model for one worktree from its flat snapshot. The
+/// snapshot's `entries_by_path` is ordered, so a single pass with a depth
+/// stack recovers the parent/child structure in O(n). Children are sorted
+/// directories-first, then case-insensitively by label (the explorer's
+/// default ordering).
+pub fn build_tree_from_snapshot(snapshot: &WorktreeSnapshot) -> Option<ExplorerFileNode> {
+    let root_entry = snapshot.entries_by_path.values().next()?;
+    let mut arena = vec![make_tree_node(root_entry)];
+    let mut stack: Vec<usize> = vec![0]; // arena index of the last node at each depth
+    for entry in snapshot.entries_by_path.values().skip(1) {
+        let rel = entry.path.strip_prefix(&arena[0].path).ok()?;
+        let depth = rel.components().count();
+        while stack.len() > depth {
+            stack.pop();
+        }
+        let parent = *stack.last()?;
+        let idx = arena.len();
+        let node = make_tree_node(entry);
+        arena[parent].children.push(node.clone());
+        arena.push(node);
+        stack.push(idx);
+    }
+    for node in &mut arena {
+        node.children.sort_by(|left, right| {
+            let left_dir = left.kind == ExplorerEntryKind::Directory;
+            let right_dir = right.kind == ExplorerEntryKind::Directory;
+            right_dir
+                .cmp(&left_dir)
+                .then_with(|| left.label.to_lowercase().cmp(&right.label.to_lowercase()))
+        });
+    }
+    arena.into_iter().next()
+}
+
+fn make_tree_node(entry: &super::worktree::WorktreeEntry) -> ExplorerFileNode {
+    ExplorerFileNode {
+        id: ExplorerEntryId(entry.id),
+        path: entry.path.clone(),
+        label: entry
+            .path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| entry.path.to_string_lossy().into_owned()),
+        kind: match entry.kind {
+            super::worktree::WorktreeEntryKind::Directory => ExplorerEntryKind::Directory,
+            super::worktree::WorktreeEntryKind::File => {
+                if entry.path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("md")) {
+                    ExplorerEntryKind::MarkdownFile
+                } else {
+                    ExplorerEntryKind::File
+                }
+            }
+        },
+        children: Vec::new(),
+    }
+}
+
+/// Flatten one worktree's tree into the visible row list. The root itself
+/// is the first row (depth 0, foldable — mirroring Zed's default `hide_root:
 /// false` rendering); its children are visible only while the root is
 /// expanded. A directory's children are included only when its id is in
 /// `expanded` (traversal pruning, mirroring Zed's `advance_to_sibling`).
 pub fn flatten_file_tree(
+    root_index: usize,
     root: &ExplorerFileNode,
     expanded: &BTreeSet<ExplorerEntryId>,
 ) -> Vec<VisibleExplorerEntry> {
     let mut out = Vec::new();
     out.push(VisibleExplorerEntry {
+        root: root_index,
         id: root.id,
         parent_id: None,
         path: root.path.clone(),
@@ -497,57 +419,69 @@ pub fn flatten_file_tree(
         has_children: !root.children.is_empty(),
     });
     if out[0].is_expanded {
-        flatten_children(&root.children, Some(root.id), 1, expanded, &mut out);
+        flatten_children(root_index, &root.children, Some(root.id), 1, expanded, &mut out);
     }
     out
 }
 
-/// Derive the flat row list from the scanned tree plus expansion set, then
-/// splice the inline edit row into its position (create: after its parent
-/// row, or at index 0 for a root-level parent; rename: replacing the target
-/// row).
+/// Derive the flat row list from every worktree's tree plus the per-worktree
+/// expansion sets, then splice the inline edit row into its position
+/// (create: after its parent row; rename: replacing the target row).
+/// Worktree segments are concatenated in order (Zed's
+/// `VisibleEntriesForWorktree`).
 pub fn build_explorer_rows(
-    root: &ExplorerFileNode,
-    expanded: &BTreeSet<ExplorerEntryId>,
+    trees: &[(usize, &ExplorerFileNode)],
+    expanded: &HashMap<usize, BTreeSet<ExplorerEntryId>>,
     edit: Option<&ExplorerEditState>,
 ) -> Vec<ExplorerRow> {
-    let flat = flatten_file_tree(root, expanded);
-    let mut rows = Vec::with_capacity(flat.len() + 1);
-    match edit {
-        Some(edit_state) if edit_state.target_id.is_none() => {
-            // New entry: insert the edit row right after its parent row.
-            let parent_index = flat
-                .iter()
-                .position(|entry| Some(entry.id) == edit_state.parent_id);
-            let mut inserted = false;
-            for (index, entry) in flat.into_iter().enumerate() {
-                if Some(index) == parent_index {
-                    rows.push(ExplorerRow::Edit);
-                    inserted = true;
+    let mut rows = Vec::new();
+    for (root_index, tree) in trees {
+        let expanded_set = expanded.get(root_index).cloned().unwrap_or_default();
+        let flat = flatten_file_tree(*root_index, tree, &expanded_set);
+        let mut segment = Vec::with_capacity(flat.len() + 1);
+        match edit {
+            Some(edit_state)
+                if edit_state.target_id.is_none() && edit_state.root == *root_index =>
+            {
+                // New entry: insert the edit row right AFTER its parent row
+                // (the first child position). Inserting before the parent
+                // would place the edit row above the root when the parent is
+                // the root.
+                let parent_index = flat
+                    .iter()
+                    .position(|entry| Some(entry.id) == edit_state.parent_id);
+                let mut inserted = false;
+                for (index, entry) in flat.into_iter().enumerate() {
+                    segment.push(ExplorerRow::Entry(entry));
+                    if Some(index) == parent_index {
+                        segment.push(ExplorerRow::Edit { root: *root_index });
+                        inserted = true;
+                    }
                 }
-                rows.push(ExplorerRow::Entry(entry));
-            }
-            if !inserted {
-                // Fallback: never in front of the root row (index 0).
-                rows.insert(1, ExplorerRow::Edit);
-            }
-        }
-        Some(edit_state) => {
-            // Rename: replace the target row.
-            for entry in flat {
-                if Some(entry.id) == edit_state.target_id {
-                    rows.push(ExplorerRow::Edit);
-                } else {
-                    rows.push(ExplorerRow::Entry(entry));
+                if !inserted {
+                    // Fallback: never in front of the root row (index 0).
+                    segment.insert(1, ExplorerRow::Edit { root: *root_index });
                 }
             }
+            Some(edit_state) if edit_state.root == *root_index => {
+                // Rename: replace the target row.
+                for entry in flat {
+                    if Some(entry.id) == edit_state.target_id {
+                        segment.push(ExplorerRow::Edit { root: *root_index });
+                    } else {
+                        segment.push(ExplorerRow::Entry(entry));
+                    }
+                }
+            }
+            _ => segment.extend(flat.into_iter().map(ExplorerRow::Entry)),
         }
-        None => rows = flat.into_iter().map(ExplorerRow::Entry).collect(),
+        rows.extend(segment);
     }
     rows
 }
 
 fn flatten_children(
+    root_index: usize,
     nodes: &[ExplorerFileNode],
     parent_id: Option<ExplorerEntryId>,
     depth: usize,
@@ -557,6 +491,7 @@ fn flatten_children(
     for node in nodes {
         let is_expanded = expanded.contains(&node.id);
         out.push(VisibleExplorerEntry {
+            root: root_index,
             id: node.id,
             parent_id,
             path: node.path.clone(),
@@ -567,7 +502,7 @@ fn flatten_children(
             has_children: !node.children.is_empty(),
         });
         if is_expanded && !node.children.is_empty() {
-            flatten_children(&node.children, Some(node.id), depth + 1, expanded, out);
+            flatten_children(root_index, &node.children, Some(node.id), depth + 1, expanded, out);
         }
     }
 }
@@ -622,16 +557,5 @@ pub fn collect_descendant_dir_ids(
         if child.kind == ExplorerEntryKind::Directory {
             collect_descendant_dir_ids(child, out);
         }
-    }
-}
-
-/// Collect every directory id in the tree (used to prune stale expansion ids
-/// after a rescan).
-pub fn collect_directory_ids(node: &ExplorerFileNode, out: &mut HashSet<ExplorerEntryId>) {
-    if node.kind == ExplorerEntryKind::Directory {
-        out.insert(node.id);
-    }
-    for child in &node.children {
-        collect_directory_ids(child, out);
     }
 }
