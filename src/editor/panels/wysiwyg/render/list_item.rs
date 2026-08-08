@@ -3,10 +3,10 @@
 
 use gpui::*;
 
-use crate::editor::tree::block::Block;
 use crate::editor::panels::wysiwyg::render::{
     effective_list_item_image_width, numbered_list_marker, render_custom_bullet_marker,
 };
+use crate::editor::tree::block::Block;
 use crate::theme::Theme;
 
 /// Render an unordered (bulleted) list item.
@@ -133,21 +133,6 @@ pub(crate) fn render_task_list_item(
                 .child(
                     div()
                         .size(px(d.task_checkbox_size))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .rounded(px(d.task_checkbox_radius))
-                        .border(px(d.task_checkbox_border_width))
-                        .border_color(if checked {
-                            c.task_checkbox_checked_bg
-                        } else {
-                            c.task_checkbox_border
-                        })
-                        .bg(if checked {
-                            c.task_checkbox_checked_bg
-                        } else {
-                            c.task_checkbox_bg
-                        })
                         .cursor_pointer()
                         .on_mouse_down(
                             MouseButton::Left,
@@ -157,16 +142,20 @@ pub(crate) fn render_task_list_item(
                             MouseButton::Left,
                             cx.listener(Block::on_task_checkbox_mouse_up),
                         )
-                        .children(if checked {
-                            Some(
-                                svg()
-                                    .path("icons/editor/wysiwyg/task-check.svg")
-                                    .size(px(d.task_checkbox_check_size))
-                                    .text_color(c.task_checkbox_check),
-                            )
-                        } else {
-                            None
-                        }),
+                        .child(
+                            svg()
+                                .path(if checked {
+                                    "icons/editor/wysiwyg/checkbox-checked.svg"
+                                } else {
+                                    "icons/editor/wysiwyg/checkbox.svg"
+                                })
+                                .size(px(d.task_checkbox_size))
+                                .text_color(if checked {
+                                    c.task_checkbox_checked_bg
+                                } else {
+                                    c.task_checkbox_border
+                                }),
+                        ),
                 ),
             if showing_rendered_image {
                 let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));

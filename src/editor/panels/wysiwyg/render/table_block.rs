@@ -429,7 +429,7 @@ pub(crate) fn render_table(
                     .block_mouse_except_scroll()
                     .on_hover(cx.listener(Block::on_table_append_column_button_hover))
                     .on_click(cx.listener(Block::on_append_table_column))
-                    .child(svg().path("icons/editor/wysiwyg/table/plus.svg").size(px(10.0)).text_color(
+                    .child(svg().path("icons/editor/wysiwyg/table/plus.svg").size(px(12.0)).text_color(
                         if column_button_hovered {
                             c.table_append_button_text
                         } else {
@@ -478,7 +478,7 @@ pub(crate) fn render_table(
                     .block_mouse_except_scroll()
                     .on_hover(cx.listener(Block::on_table_append_row_button_hover))
                     .on_click(cx.listener(Block::on_append_table_row))
-                    .child(svg().path("icons/editor/wysiwyg/table/plus.svg").size(px(10.0)).text_color(
+                    .child(svg().path("icons/editor/wysiwyg/table/plus.svg").size(px(12.0)).text_color(
                         if row_button_hovered {
                             c.table_append_button_text
                         } else {
@@ -518,7 +518,7 @@ pub(crate) fn render_table(
             .child(
                 svg()
                     .path("icons/editor/wysiwyg/table/plus.svg")
-                    .size(px(10.0))
+                    .size(px(12.0))
                     .text_color(c.table_border),
             );
 

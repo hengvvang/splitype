@@ -93,28 +93,26 @@ impl Editor {
         let list = uniform_list(
             ("explorer-tree", area_id),
             entries_len,
-            cx.processor(
-                move |this: &mut Editor, range: Range<usize>, _window, cx| {
-                    this.panels.explorer.rendered_rows = range.len();
-                    // The drag highlight extends to a directory and all of
-                    // its descendants; resolve it once per frame.
-                    let drag_highlight = this.explorer_drag_highlight_path();
-                    let mut items = Vec::with_capacity(range.len());
-                    for index in range {
-                        if let Some(row) = this.panels.explorer.entries.get(index) {
-                            items.push(this.render_explorer_row(
-                                row,
-                                area_id,
-                                drag_highlight.as_deref(),
-                                &row_theme,
-                                &row_editor,
-                                cx,
-                            ));
-                        }
+            cx.processor(move |this: &mut Editor, range: Range<usize>, _window, cx| {
+                this.panels.explorer.rendered_rows = range.len();
+                // The drag highlight extends to a directory and all of
+                // its descendants; resolve it once per frame.
+                let drag_highlight = this.explorer_drag_highlight_path();
+                let mut items = Vec::with_capacity(range.len());
+                for index in range {
+                    if let Some(row) = this.panels.explorer.entries.get(index) {
+                        items.push(this.render_explorer_row(
+                            row,
+                            area_id,
+                            drag_highlight.as_deref(),
+                            &row_theme,
+                            &row_editor,
+                            cx,
+                        ));
                     }
-                    items
-                },
-            ),
+                }
+                items
+            }),
         )
         .track_scroll(scroll_handle)
         .flex_1()
@@ -128,14 +126,16 @@ impl Editor {
             .h_full()
             .flex()
             .flex_col()
-            .bg(if matches!(
-                &self.panels.explorer.drag_target,
-                Some(DragExplorerTarget::Background)
-            ) {
-                c.dialog_secondary_button_hover
-            } else {
-                hsla(0.0, 0.0, 0.0, 0.0)
-            })
+            .bg(
+                if matches!(
+                    &self.panels.explorer.drag_target,
+                    Some(DragExplorerTarget::Background)
+                ) {
+                    c.dialog_secondary_button_hover
+                } else {
+                    hsla(0.0, 0.0, 0.0, 0.0)
+                },
+            )
             .on_action(cx.listener(Self::on_explorer_select_previous))
             .on_action(cx.listener(Self::on_explorer_select_next))
             .on_action(cx.listener(Self::on_explorer_select_parent))
@@ -156,19 +156,17 @@ impl Editor {
             // Background click clears the selection; double-click creates a
             // new file at the root (mirrors Zed). Rows stop propagation, so
             // this only fires on the empty area.
-            .on_click(cx.listener(
-                |editor, event: &gpui::ClickEvent, window, cx| {
-                    if event.click_count() > 1 {
-                        if let Some(root) = editor.last_explorer_root_path() {
-                            editor.begin_explorer_create(root, false, window, cx);
-                        }
-                    } else {
-                        editor.panels.explorer.selected = None;
-                        editor.panels.explorer.marked.clear();
-                        cx.notify();
+            .on_click(cx.listener(|editor, event: &gpui::ClickEvent, window, cx| {
+                if event.click_count() > 1 {
+                    if let Some(root) = editor.last_explorer_root_path() {
+                        editor.begin_explorer_create(root, false, window, cx);
                     }
-                },
-            ))
+                } else {
+                    editor.panels.explorer.selected = None;
+                    editor.panels.explorer.marked.clear();
+                    cx.notify();
+                }
+            }))
             // Right-click on blank space targets the explorer root
             // (mirrors Zed: right-clicking below the last entry is
             // equivalent to right-clicking the root directory).
@@ -193,23 +191,16 @@ impl Editor {
             .on_drag_move::<ExternalPaths>(cx.listener(|editor, event, window, cx| {
                 editor.explorer_drag_hover_background_external(event, window, cx);
             }))
-            .on_drop::<ExternalPaths>(cx.listener::<ExternalPaths>(
-                |editor, paths, window, cx| {
-                    editor.on_explorer_drop_external_to_root(paths.paths(), window, cx);
-                },
-            ))
-            .on_drag_move::<DraggedExplorerSelection>(
-                cx.listener(|editor, event, window, cx| {
-                    editor.explorer_drag_hover_background_internal(event, window, cx);
-                }),
-            )
-            .on_drop::<DraggedExplorerSelection>(
-                cx.listener(|editor, payload, window, cx| {
-                    editor.on_explorer_drop_internal_to_root(payload, window, cx);
-                }),
-            )
+            .on_drop::<ExternalPaths>(cx.listener::<ExternalPaths>(|editor, paths, window, cx| {
+                editor.on_explorer_drop_external_to_root(paths.paths(), window, cx);
+            }))
+            .on_drag_move::<DraggedExplorerSelection>(cx.listener(|editor, event, window, cx| {
+                editor.explorer_drag_hover_background_internal(event, window, cx);
+            }))
+            .on_drop::<DraggedExplorerSelection>(cx.listener(|editor, payload, window, cx| {
+                editor.on_explorer_drop_internal_to_root(payload, window, cx);
+            }))
             .child(list)
-            .child(self.render_explorer_bottombar(area_id, theme, cx))
             .into_any_element()
     }
 
@@ -304,7 +295,7 @@ impl Editor {
                         } else {
                             "icons/explorer/worktree/chevron-right.svg"
                         })
-                        .size(px(12.0))
+                        .size(px(14.0))
                         .text_color(c.dialog_muted),
                 )
                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
@@ -336,8 +327,8 @@ impl Editor {
                         .id(("ws-tb-replace", area_id))
                         .child(
                             svg()
-                                .path("icons/explorer/worktree/folder-open.svg")
-                                .size(px(15.0))
+                                .path("icons/explorer/worktree/replace-folder.svg")
+                                .size(px(17.0))
                                 .text_color(c.text_default),
                         )
                         .on_click(move |_ev, window, cx| {
@@ -353,11 +344,11 @@ impl Editor {
                         .child(
                             svg()
                                 .path(if hide_hidden {
-                                    "icons/explorer/worktree/eye-off.svg"
+                                    "icons/explorer/worktree/hide.svg"
                                 } else {
-                                    "icons/explorer/worktree/eye.svg"
+                                    "icons/explorer/worktree/view.svg"
                                 })
-                                .size(px(15.0))
+                                .size(px(17.0))
                                 .text_color(if hide_hidden {
                                     c.text_default
                                 } else {
@@ -376,8 +367,8 @@ impl Editor {
                         .id(("ws-tb-refresh", area_id))
                         .child(
                             svg()
-                                .path("icons/explorer/worktree/refresh.svg")
-                                .size(px(15.0))
+                                .path("icons/explorer/worktree/sync.svg")
+                                .size(px(17.0))
                                 .text_color(c.text_default),
                         )
                         .on_click(move |_ev, _window, cx| {
@@ -393,7 +384,7 @@ impl Editor {
                         .child(
                             svg()
                                 .path("icons/explorer/worktree/collapse-all.svg")
-                                .size(px(15.0))
+                                .size(px(17.0))
                                 .text_color(c.text_default),
                         )
                         .on_click(move |_ev, _window, cx| {
@@ -433,7 +424,7 @@ impl Editor {
             .child(
                 svg()
                     .path("icons/explorer/worktree/folder.svg")
-                    .size(px(17.0))
+                    .size(px(19.0))
                     .flex_shrink_0()
                     .text_color(c.text_default),
             )
@@ -514,11 +505,11 @@ impl Editor {
                     cx.stop_propagation();
                 },
             ))
-            .on_drag_move::<DraggedExplorerSelection>(
-                cx.listener(move |editor, event, window, cx| {
+            .on_drag_move::<DraggedExplorerSelection>(cx.listener(
+                move |editor, event, window, cx| {
                     editor.explorer_drag_hover_entry_internal(event, drag_entry_id, window, cx);
-                }),
-            )
+                },
+            ))
             .on_drop::<DraggedExplorerSelection>(cx.listener(move |editor, payload, window, cx| {
                 editor.on_explorer_drop_internal(payload, drag_entry_id, window, cx);
                 cx.stop_propagation();
@@ -633,7 +624,7 @@ impl Editor {
                         } else {
                             "icons/explorer/worktree/chevron-right.svg"
                         })
-                        .size(px(12.0))
+                        .size(px(14.0))
                         .text_color(c.dialog_muted),
                 )
                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
@@ -677,7 +668,7 @@ impl Editor {
             .children(icon.map(|(path, color)| {
                 svg()
                     .path(path)
-                    .size(px(17.0))
+                    .size(px(19.0))
                     .flex_shrink_0()
                     .text_color(color)
                     .into_any_element()
@@ -725,12 +716,7 @@ impl Editor {
                 let secondary = event.modifiers().secondary();
                 eprintln!(
                     "[explorer] entry click id={} kind={:?} count={} depth={} children={} root={}",
-                    id.0,
-                    kind,
-                    click_count,
-                    click_depth,
-                    click_has_children,
-                    click_root
+                    id.0, kind, click_count, click_depth, click_has_children, click_root
                 );
                 let _ = click_editor.update(cx, |editor, cx| {
                     if shift {
@@ -785,11 +771,11 @@ impl Editor {
                     cx.stop_propagation();
                 },
             ))
-            .on_drag_move::<DraggedExplorerSelection>(
-                cx.listener(move |editor, event, window, cx| {
+            .on_drag_move::<DraggedExplorerSelection>(cx.listener(
+                move |editor, event, window, cx| {
                     editor.explorer_drag_hover_entry_internal(event, drag_entry_id, window, cx);
-                }),
-            )
+                },
+            ))
             .on_drop::<DraggedExplorerSelection>(cx.listener(move |editor, payload, window, cx| {
                 editor.on_explorer_drop_internal(payload, drag_entry_id, window, cx);
                 cx.stop_propagation();
@@ -797,7 +783,9 @@ impl Editor {
             .on_drag(drag_payload, move |payload, click_offset, _window, cx| {
                 let label = drag_label.clone();
                 let count = payload.selections.len();
-                eprintln!("[explorer-drag] drag started (root row): {count} item(s), label '{label}'");
+                eprintln!(
+                    "[explorer-drag] drag started (root row): {count} item(s), label '{label}'"
+                );
                 cx.new(|_| DraggedExplorerEntryView {
                     label,
                     count,
@@ -833,10 +821,7 @@ impl Editor {
         };
 
         let validation_label = match validation {
-            Some(ExplorerValidation::Warning(message)) => Some((
-                message,
-                c.callout_warning_border,
-            )),
+            Some(ExplorerValidation::Warning(message)) => Some((message, c.callout_warning_border)),
             Some(ExplorerValidation::Error(message)) => Some((message, c.callout_caution_border)),
             None => None,
         };
@@ -864,12 +849,12 @@ impl Editor {
                     .flex()
                     .items_center()
                     .justify_center()
-                    .child(svg().size(px(12.0))),
+                    .child(svg().size(px(14.0))),
             )
             .child(
                 svg()
                     .path(icon.0)
-                    .size(px(17.0))
+                    .size(px(19.0))
                     .flex_shrink_0()
                     .text_color(icon.1),
             )
@@ -941,21 +926,19 @@ impl Editor {
             // Dropping folders onto the empty state opens them as worktrees
             // (mirrors Zed's empty-state drop-to-open).
             .drag_over::<ExternalPaths>(move |this, _, _, _| this.bg(drop_target_bg))
-            .on_drop::<ExternalPaths>(cx.listener::<ExternalPaths>(
-                |editor, paths, window, cx| {
-                    for path in paths.paths() {
-                        if path.is_dir() {
-                            editor.open_explorer_folder_path(path.clone(), cx);
-                        } else {
-                            editor.open_explorer_file(path.clone(), window, cx);
-                        }
+            .on_drop::<ExternalPaths>(cx.listener::<ExternalPaths>(|editor, paths, window, cx| {
+                for path in paths.paths() {
+                    if path.is_dir() {
+                        editor.open_explorer_folder_path(path.clone(), cx);
+                    } else {
+                        editor.open_explorer_file(path.clone(), window, cx);
                     }
-                },
-            ))
+                }
+            }))
             .child(
                 svg()
                     .path("icons/explorer/worktree/folder-open.svg")
-                    .size(px(36.0))
+                    .size(px(40.0))
                     .text_color(c.dialog_muted),
             )
             .child(
@@ -995,7 +978,7 @@ impl Editor {
                     .child(
                         svg()
                             .path("icons/explorer/worktree/folder-open.svg")
-                            .size(px(14.0))
+                            .size(px(16.0))
                             .text_color(c.dialog_secondary_button_text),
                     )
                     .child(
@@ -1060,7 +1043,7 @@ impl Editor {
                                 .child(
                                     svg()
                                         .path("icons/explorer/worktree/folder.svg")
-                                        .size(px(12.0))
+                                        .size(px(14.0))
                                         .text_color(c.dialog_muted),
                                 )
                                 .child(
@@ -1087,7 +1070,8 @@ impl Editor {
                             let path = path.clone();
                             div()
                                 .id(ElementId::Name(
-                                    format!("explorer-recent-{}-{}", area_id, path.display()).into(),
+                                    format!("explorer-recent-{}-{}", area_id, path.display())
+                                        .into(),
                                 ))
                                 .cursor_pointer()
                                 .px(px(10.0))
@@ -1100,7 +1084,7 @@ impl Editor {
                                 .child(
                                     svg()
                                         .path("icons/explorer/worktree/markdown.svg")
-                                        .size(px(12.0))
+                                        .size(px(14.0))
                                         .text_color(c.dialog_muted),
                                 )
                                 .child(
@@ -1136,8 +1120,7 @@ impl Editor {
         let mut elements = Vec::new();
         for node in nodes {
             elements.push(self.render_explorer_node(node, depth, area_id, theme, editor));
-            if !node.children.is_empty()
-                && self.panels.explorer.expanded_outline.contains(&node.id)
+            if !node.children.is_empty() && self.panels.explorer.expanded_outline.contains(&node.id)
             {
                 elements.extend(self.render_explorer_nodes(
                     &node.children,
@@ -1220,7 +1203,7 @@ impl Editor {
                         } else {
                             "icons/explorer/worktree/chevron-right.svg"
                         })
-                        .size(px(12.0))
+                        .size(px(14.0))
                         .text_color(c.dialog_muted),
                 )
                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {

@@ -19,9 +19,6 @@ impl AssetSource for SplitypeAssets {
             "icons/explorer/worktree/file.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/explorer/worktree/file.svg"
             )))),
-            "icons/explorer/worktree/file-plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/explorer/worktree/file-plus.svg"
-            )))),
             "icons/explorer/worktree/markdown.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/explorer/worktree/markdown.svg"
             )))),
@@ -31,15 +28,18 @@ impl AssetSource for SplitypeAssets {
             "icons/explorer/worktree/chevron-right.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/explorer/worktree/chevron-right.svg"
             )))),
-            "icons/explorer/worktree/eye.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/explorer/worktree/eye.svg"
+            "icons/explorer/worktree/view.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/view.svg"
             )))),
-            "icons/explorer/worktree/eye-off.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/explorer/worktree/eye-off.svg"
+            "icons/explorer/worktree/hide.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/hide.svg"
             )))),
-            "icons/explorer/worktree/refresh.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/explorer/worktree/refresh.svg"
+            "icons/explorer/worktree/sync.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/sync.svg"
             )))),
+            "icons/explorer/worktree/replace-folder.svg" => Ok(Some(Cow::Borrowed(
+                include_bytes!("../../assets/icons/explorer/worktree/replace-folder.svg"),
+            ))),
             "icons/explorer/worktree/collapse-all.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/explorer/worktree/collapse-all.svg"
             )))),
@@ -53,9 +53,6 @@ impl AssetSource for SplitypeAssets {
             )))),
             "icons/explorer/topbar/split-v.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/explorer/topbar/split-v.svg"
-            )))),
-            "icons/explorer/topbar/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/explorer/topbar/check.svg"
             )))),
             "icons/explorer/topbar/close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/explorer/topbar/close.svg"
@@ -73,14 +70,17 @@ impl AssetSource for SplitypeAssets {
             )))),
 
             // ── Titlebar: app menu buttons ────────────────────────────────
+            "icons/topbar/app_menu/app-menu.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/topbar/app_menu/app-menu.svg"
+            )))),
             "icons/topbar/app_menu/sun.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/topbar/app_menu/sun.svg"
             )))),
             "icons/topbar/app_menu/moon.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/topbar/app_menu/moon.svg"
             )))),
-            "icons/topbar/app_menu/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/topbar/app_menu/check.svg"
+            "icons/topbar/app_menu/checkmark.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/topbar/app_menu/checkmark.svg"
             )))),
             "icons/topbar/app_menu/chevron-right.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/topbar/app_menu/chevron-right.svg"
@@ -104,8 +104,8 @@ impl AssetSource for SplitypeAssets {
             "icons/settings/select-chevron.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/settings/select-chevron.svg"
             )))),
-            "icons/settings/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/settings/check.svg"
+            "icons/settings/checkmark.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/settings/checkmark.svg"
             )))),
             "icons/settings/chevron-down.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/settings/chevron-down.svg"
@@ -115,6 +115,12 @@ impl AssetSource for SplitypeAssets {
             )))),
             "icons/settings/sun.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/settings/sun.svg"
+            )))),
+            "icons/settings/plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/settings/plus.svg"
+            )))),
+            "icons/settings/minus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/settings/minus.svg"
             )))),
             "icons/settings/moon.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/settings/moon.svg"
@@ -130,9 +136,6 @@ impl AssetSource for SplitypeAssets {
             "icons/settings/topbar/split-v.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/settings/topbar/split-v.svg"
             )))),
-            "icons/settings/topbar/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/settings/topbar/check.svg"
-            )))),
             "icons/settings/topbar/close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/settings/topbar/close.svg"
             )))),
@@ -144,6 +147,12 @@ impl AssetSource for SplitypeAssets {
             )))),
 
             // ── Editor: window area header ────────────────────────────────
+            "icons/editor/topbar/add.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/topbar/add.svg"
+            )))),
+            "icons/editor/topbar/active.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/topbar/active.svg"
+            )))),
             "icons/editor/topbar/link.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/topbar/link.svg"
             )))),
@@ -152,9 +161,6 @@ impl AssetSource for SplitypeAssets {
             )))),
             "icons/editor/topbar/split-v.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/topbar/split-v.svg"
-            )))),
-            "icons/editor/topbar/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/editor/topbar/check.svg"
             )))),
             "icons/editor/topbar/close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/topbar/close.svg"
@@ -176,38 +182,37 @@ impl AssetSource for SplitypeAssets {
             "icons/editor/bottombar/close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/bottombar/close.svg"
             )))),
-            "icons/editor/bottombar/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/editor/bottombar/check.svg"
+            "icons/editor/bottombar/checkmark.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/bottombar/checkmark.svg"
+            )))),
+
+            // ── Editor: context menu ──────────────────────────────────────
+            "icons/editor/context_menu/chevron-right.svg" => Ok(Some(Cow::Borrowed(
+                include_bytes!("../../assets/icons/editor/context_menu/chevron-right.svg"),
+            ))),
+            "icons/editor/context_menu/plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/context_menu/plus.svg"
+            )))),
+            "icons/editor/context_menu/minus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/context_menu/minus.svg"
             )))),
 
             // ── Editor: WYSIWYG panel ─────────────────────────────────────
-            "icons/editor/wysiwyg/task-check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/editor/wysiwyg/task-check.svg"
+            "icons/editor/wysiwyg/checkbox.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/wysiwyg/checkbox.svg"
+            )))),
+            "icons/editor/wysiwyg/checkbox-checked.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/wysiwyg/checkbox-checked.svg"
             )))),
             "icons/editor/wysiwyg/table/plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/wysiwyg/table/plus.svg"
             )))),
-            "icons/editor/wysiwyg/table/handle-row.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/editor/wysiwyg/table/handle-row.svg"
-            )))),
-            "icons/editor/wysiwyg/table/handle-row-hollow.svg" => Ok(Some(Cow::Borrowed(
-                include_bytes!("../../assets/icons/editor/wysiwyg/table/handle-row-hollow.svg")
-            ))),
-            "icons/editor/wysiwyg/table/handle-row-solid.svg" => Ok(Some(Cow::Borrowed(
-                include_bytes!("../../assets/icons/editor/wysiwyg/table/handle-row-solid.svg")
-            ))),
-            "icons/editor/wysiwyg/table/handle-column.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/editor/wysiwyg/table/handle-column.svg"
-            )))),
-            "icons/editor/wysiwyg/callout/note.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/editor/wysiwyg/callout/note.svg"
-            )))),
             "icons/editor/wysiwyg/callout/tip.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/wysiwyg/callout/tip.svg"
             )))),
-            "icons/editor/wysiwyg/callout/important.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/editor/wysiwyg/callout/important.svg"
-            )))),
+            "icons/editor/wysiwyg/callout/important.svg" => Ok(Some(Cow::Borrowed(
+                include_bytes!("../../assets/icons/editor/wysiwyg/callout/important.svg"),
+            ))),
             "icons/editor/wysiwyg/callout/warning.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/wysiwyg/callout/warning.svg"
             )))),
@@ -215,18 +220,24 @@ impl AssetSource for SplitypeAssets {
                 "../../assets/icons/editor/wysiwyg/callout/caution.svg"
             )))),
             "icons/editor/wysiwyg/codeblock/line-numbers.svg" => Ok(Some(Cow::Borrowed(
-                include_bytes!("../../assets/icons/editor/wysiwyg/codeblock/line-numbers.svg")
+                include_bytes!("../../assets/icons/editor/wysiwyg/codeblock/line-numbers.svg"),
             ))),
-            "icons/editor/wysiwyg/codeblock/select-check.svg" => Ok(Some(Cow::Borrowed(
-                include_bytes!("../../assets/icons/editor/wysiwyg/codeblock/select-check.svg")
+            "icons/editor/wysiwyg/codeblock/copy.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/wysiwyg/codeblock/copy.svg"
+            )))),
+            "icons/editor/wysiwyg/codeblock/select-checkmark.svg" => Ok(Some(Cow::Borrowed(
+                include_bytes!("../../assets/icons/editor/wysiwyg/codeblock/select-checkmark.svg"),
             ))),
             "icons/editor/wysiwyg/codeblock/select-chevron.svg" => Ok(Some(Cow::Borrowed(
-                include_bytes!("../../assets/icons/editor/wysiwyg/codeblock/select-chevron.svg")
+                include_bytes!("../../assets/icons/editor/wysiwyg/codeblock/select-chevron.svg"),
             ))),
 
             // ── Editor: preview panel ─────────────────────────────────────
-            "icons/editor/preview/task-check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/editor/preview/task-check.svg"
+            "icons/editor/preview/checkbox.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/preview/checkbox.svg"
+            )))),
+            "icons/editor/preview/checkbox-checked.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/preview/checkbox-checked.svg"
             )))),
 
             // ── Editor: outline panel ─────────────────────────────────────

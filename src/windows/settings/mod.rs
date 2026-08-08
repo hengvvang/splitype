@@ -18,9 +18,7 @@ use std::collections::BTreeMap;
 
 use gpui::*;
 
-use crate::editor::keybindings::{
-    ShortcutCommand, install_keybindings, normalize_shortcut_config,
-};
+use crate::editor::keybindings::{ShortcutCommand, install_keybindings, normalize_shortcut_config};
 use crate::infra::config::settings::{
     AppSettings, DEFAULT_THEME_ID, EditorSettings, ImagePasteBehavior, StartupOpenSetting,
     StatusBarSettings, apply_configured_language, read_app_settings, save_settings_from_window,
@@ -443,7 +441,12 @@ impl Render for SettingsWindow {
                     .child(
                         stepper_step_button(id_dec, c)
                             .id(id_dec)
-                            .child("-")
+                            .child(
+                                svg()
+                                    .path("icons/settings/minus.svg")
+                                    .size(px(12.0))
+                                    .text_color(c.dialog_secondary_button_text),
+                            )
                             .on_click(on_dec),
                     )
                     .child(stepper_divider(c))
@@ -452,7 +455,12 @@ impl Render for SettingsWindow {
                     .child(
                         stepper_step_button(id_inc, c)
                             .id(id_inc)
-                            .child("+")
+                            .child(
+                                svg()
+                                    .path("icons/settings/plus.svg")
+                                    .size(px(12.0))
+                                    .text_color(c.dialog_secondary_button_text),
+                            )
                             .on_click(on_inc),
                     )
                     .into_any_element()
@@ -478,7 +486,7 @@ impl Render for SettingsWindow {
                         } else {
                             "icons/settings/chevron-right.svg"
                         })
-                        .size(px(14.0))
+                        .size(px(16.0))
                         .text_color(c.text_default),
                 )
                 .child(
@@ -548,7 +556,7 @@ impl Render for SettingsWindow {
                                 .child(
                                     svg()
                                         .path(theme_icon_path)
-                                        .size(px(13.0))
+                                        .size(px(15.0))
                                         .text_color(c.text_default),
                                 )
                                 .child(
@@ -563,7 +571,7 @@ impl Render for SettingsWindow {
                             div().flex_shrink_0().pl(px(4.0)).child(
                                 svg()
                                     .path("icons/settings/select-chevron.svg")
-                                    .size(px(14.0))
+                                    .size(px(16.0))
                                     .text_color(c.dialog_muted),
                             ),
                         )
@@ -611,15 +619,15 @@ impl Render for SettingsWindow {
                                     .child(
                                         svg()
                                             .path(item_icon)
-                                            .size(px(13.0))
+                                            .size(px(15.0))
                                             .text_color(c.text_default),
                                     )
                                     .child(display_label),
                             )
                             .child(if is_selected {
                                 svg()
-                                    .path("icons/settings/check.svg")
-                                    .size(px(13.0))
+                                    .path("icons/settings/checkmark.svg")
+                                    .size(px(15.0))
                                     .text_color(c.dialog_primary_button_bg)
                                     .into_any_element()
                             } else {
@@ -662,7 +670,7 @@ impl Render for SettingsWindow {
                             div().flex_shrink_0().pl(px(4.0)).child(
                                 svg()
                                     .path("icons/settings/select-chevron.svg")
-                                    .size(px(14.0))
+                                    .size(px(16.0))
                                     .text_color(c.dialog_muted),
                             ),
                         )
@@ -699,8 +707,8 @@ impl Render for SettingsWindow {
                             .child(label)
                             .child(if is_selected {
                                 svg()
-                                    .path("icons/settings/check.svg")
-                                    .size(px(13.0))
+                                    .path("icons/settings/checkmark.svg")
+                                    .size(px(15.0))
                                     .text_color(c.dialog_primary_button_bg)
                                     .into_any_element()
                             } else {
@@ -991,7 +999,7 @@ impl Render for SettingsWindow {
                             div().flex_shrink_0().pl(px(4.0)).child(
                                 svg()
                                     .path("icons/settings/select-chevron.svg")
-                                    .size(px(14.0))
+                                    .size(px(16.0))
                                     .text_color(c.dialog_muted),
                             ),
                         )
@@ -1041,8 +1049,8 @@ impl Render for SettingsWindow {
                             .child(label)
                             .child(if is_selected {
                                 svg()
-                                    .path("icons/settings/check.svg")
-                                    .size(px(13.0))
+                                    .path("icons/settings/checkmark.svg")
+                                    .size(px(15.0))
                                     .text_color(c.dialog_primary_button_bg)
                                     .into_any_element()
                             } else {
@@ -1100,7 +1108,7 @@ impl Render for SettingsWindow {
                             div().flex_shrink_0().pl(px(4.0)).child(
                                 svg()
                                     .path("icons/settings/select-chevron.svg")
-                                    .size(px(14.0))
+                                    .size(px(16.0))
                                     .text_color(c.dialog_muted),
                             ),
                         )
@@ -1140,8 +1148,8 @@ impl Render for SettingsWindow {
                             .child(label)
                             .child(if is_selected {
                                 svg()
-                                    .path("icons/settings/check.svg")
-                                    .size(px(13.0))
+                                    .path("icons/settings/checkmark.svg")
+                                    .size(px(15.0))
                                     .text_color(c.dialog_primary_button_bg)
                                     .into_any_element()
                             } else {

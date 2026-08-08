@@ -36,7 +36,7 @@ impl crate::editor::controller::Editor {
                             .child(
                                 svg()
                                     .path("icons/explorer/bottombar/folder-plus.svg")
-                                    .size(px(14.0))
+                                    .size(px(16.0))
                                     .text_color(c.text_default),
                             )
                             .on_click(move |_ev, window, cx| {

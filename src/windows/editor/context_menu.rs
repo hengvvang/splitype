@@ -147,10 +147,7 @@ impl Editor {
     }
 
     pub(crate) fn schedule_context_menu_submenu_close(&mut self, cx: &mut Context<Self>) {
-        if !matches!(
-            self.context_menu,
-            Some(ContextMenuState::Insert { .. })
-        ) {
+        if !matches!(self.context_menu, Some(ContextMenuState::Insert { .. })) {
             return;
         }
 
@@ -898,7 +895,12 @@ impl Editor {
                                     .font_weight(t.dialog_body_weight.to_font_weight())
                                     .text_color(c.dialog_secondary_button_text)
                                     .child(s.context_menu_insert.clone())
-                                    .child("›")
+                                    .child(
+                                        svg()
+                                            .path("icons/editor/context_menu/chevron-right.svg")
+                                            .size(px(14.0))
+                                            .text_color(c.dialog_secondary_button_text),
+                                    )
                                     .on_hover(cx.listener(Self::on_context_menu_insert_hover)),
                             ),
                     );
@@ -1591,7 +1593,12 @@ impl Editor {
                                     .cursor_pointer()
                                     .text_color(c.dialog_secondary_button_text)
                                     .on_click(cx.listener(on_dec))
-                                    .child("-"),
+                                    .child(
+                                        svg()
+                                            .path("icons/editor/context_menu/minus.svg")
+                                            .size(px(12.0))
+                                            .text_color(c.dialog_secondary_button_text),
+                                    ),
                             )
                             .child(
                                 div()
@@ -1624,7 +1631,12 @@ impl Editor {
                                     .cursor_pointer()
                                     .text_color(c.dialog_secondary_button_text)
                                     .on_click(cx.listener(on_inc))
-                                    .child("+"),
+                                    .child(
+                                        svg()
+                                            .path("icons/editor/context_menu/plus.svg")
+                                            .size(px(12.0))
+                                            .text_color(c.dialog_secondary_button_text),
+                                    ),
                             ),
                     )
             };
@@ -1747,8 +1759,7 @@ mod tests {
             );
 
             editor.set_context_menu_hover_state(true, false, cx);
-            let Some(ContextMenuState::Insert { submenu_open, .. }) =
-                editor.context_menu.as_ref()
+            let Some(ContextMenuState::Insert { submenu_open, .. }) = editor.context_menu.as_ref()
             else {
                 panic!("expected insert context menu");
             };
@@ -1756,8 +1767,7 @@ mod tests {
             assert!(editor.context_menu_submenu_close_task.is_none());
 
             editor.set_context_menu_hover_state(false, false, cx);
-            let Some(ContextMenuState::Insert { submenu_open, .. }) =
-                editor.context_menu.as_ref()
+            let Some(ContextMenuState::Insert { submenu_open, .. }) = editor.context_menu.as_ref()
             else {
                 panic!("expected insert context menu");
             };
@@ -1765,8 +1775,7 @@ mod tests {
             assert!(editor.context_menu_submenu_close_task.is_some());
 
             editor.set_context_menu_hover_state(true, true, cx);
-            let Some(ContextMenuState::Insert { submenu_open, .. }) =
-                editor.context_menu.as_ref()
+            let Some(ContextMenuState::Insert { submenu_open, .. }) = editor.context_menu.as_ref()
             else {
                 panic!("expected insert context menu");
             };

@@ -1,10 +1,10 @@
 //! Top bar of an Editor area: the area type selector, split/close controls
 //! and the Editor-specific tab bar.
 
-use gpui::*;
 use gpui::prelude::FluentBuilder;
+use gpui::*;
 
-use crate::layout::{WindowAreaKind, AreaSplitMode, Axis};
+use crate::layout::{AreaSplitMode, Axis, WindowAreaKind};
 use crate::theme::Theme;
 use crate::ui::components::button::{icon_chip_button, small_pill_button};
 use crate::ui::components::topbar::topbar_container;
@@ -40,9 +40,9 @@ impl crate::editor::controller::Editor {
             .when(is_active_editor, |this| {
                 this.child(
                     svg()
-                        .path(area_topbar_icon(kind, "link"))
-                        .size(px(12.0))
-                        .text_color(Hsla::from(rgba(0x60a5faff))),
+                        .path(area_topbar_icon(kind, "active"))
+                        .size(px(d.topbar_height * 0.5))
+                        .text_color(c.app_menu_active),
                 )
             })
             .on_click(move |_event, _window, cx| {
@@ -58,7 +58,7 @@ impl crate::editor::controller::Editor {
             .child(
                 svg()
                     .path(area_topbar_icon(kind, "split-h"))
-                    .size(px(14.0))
+                    .size(px(d.topbar_height * 0.5 + 2.0))
                     .text_color(c.dialog_muted),
             )
             .on_click(move |_event, _window, cx| {
@@ -75,7 +75,7 @@ impl crate::editor::controller::Editor {
             .child(
                 svg()
                     .path(area_topbar_icon(kind, "split-v"))
-                    .size(px(14.0))
+                    .size(px(d.topbar_height * 0.5 + 2.0))
                     .text_color(c.dialog_muted),
             )
             .on_click(move |_event, _window, cx| {
@@ -104,7 +104,7 @@ impl crate::editor::controller::Editor {
                         } else {
                             area_topbar_icon(kind, "maximize")
                         })
-                        .size(px(14.0))
+                        .size(px(d.topbar_height * 0.5 - 2.0))
                         .text_color(c.dialog_muted),
                 )
                 .on_click(move |_event, _window, cx| {
@@ -120,7 +120,7 @@ impl crate::editor::controller::Editor {
                 .child(
                     svg()
                         .path(area_topbar_icon(kind, "close"))
-                        .size(px(14.0))
+                        .size(px(d.topbar_height * 0.5 - 2.0))
                         .text_color(c.dialog_muted),
                 )
                 .on_click(move |_event, _window, cx| {
@@ -223,7 +223,7 @@ impl crate::editor::controller::Editor {
                 );
             }
 
-            // "+" button opens a fresh untitled tab in THIS editor.
+            // Add button opens a fresh untitled tab in THIS editor.
             let add_editor = editor.clone();
             tab_elements.push(
                 div()
@@ -234,9 +234,13 @@ impl crate::editor::controller::Editor {
                     .rounded(px(d.menu_item_radius))
                     .hover(|this| this.bg(c.dialog_secondary_button_hover))
                     .cursor_pointer()
-                    .text_size(px(14.0))
                     .text_color(c.dialog_muted)
-                    .child("+")
+                    .child(
+                        svg()
+                            .path("icons/editor/topbar/add.svg")
+                            .size(px(14.0))
+                            .text_color(c.dialog_muted),
+                    )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = add_editor.update(cx, |ed, cx| {
                             ed.with_current_tab_area(leaf_id, |ed| {

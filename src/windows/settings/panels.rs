@@ -44,37 +44,39 @@ impl Editor {
                     c,
                     d,
                 )
-                .id(ElementId::Name(format!("pref-tab-{area_id}-{tab_idx}").into()))
-                    .cursor_pointer()
-                    .flex()
-                    .items_center()
-                    .bg(if is_active {
-                        c.panel_row_selected
-                    } else {
-                        c.dialog_surface
-                    })
-                    .child(
-                        div()
-                            .text_size(px(13.0))
-                            .font_weight(if is_active {
-                                gpui::FontWeight::BOLD
-                            } else {
-                                gpui::FontWeight::NORMAL
-                            })
-                            .text_color(if is_active {
-                                c.text_default
-                            } else {
-                                c.dialog_muted
-                            })
-                            .child(tab.name()),
-                    )
-                    .on_click(move |_event, _window, cx| {
-                        let _ = editor.update(cx, |ed, cx| {
-                            ed.panels.settings.tab = tab_item;
-                            cx.notify();
-                        });
-                    })
-                    .into_any_element(),
+                .id(ElementId::Name(
+                    format!("pref-tab-{area_id}-{tab_idx}").into(),
+                ))
+                .cursor_pointer()
+                .flex()
+                .items_center()
+                .bg(if is_active {
+                    c.panel_row_selected
+                } else {
+                    c.dialog_surface
+                })
+                .child(
+                    div()
+                        .text_size(px(13.0))
+                        .font_weight(if is_active {
+                            gpui::FontWeight::BOLD
+                        } else {
+                            gpui::FontWeight::NORMAL
+                        })
+                        .text_color(if is_active {
+                            c.text_default
+                        } else {
+                            c.dialog_muted
+                        })
+                        .child(tab.name()),
+                )
+                .on_click(move |_event, _window, cx| {
+                    let _ = editor.update(cx, |ed, cx| {
+                        ed.panels.settings.tab = tab_item;
+                        cx.notify();
+                    });
+                })
+                .into_any_element(),
             );
         }
 
@@ -141,7 +143,9 @@ impl Editor {
                 let td = &theme.dimensions;
 
                 let mut center_box = stepper_value()
-                    .id(ElementId::Name(format!("{}-center-{}", id_dec, area_id).into()))
+                    .id(ElementId::Name(
+                        format!("{}-center-{}", id_dec, area_id).into(),
+                    ))
                     .bg(if is_editing {
                         tc.dialog_surface
                     } else {
@@ -177,7 +181,12 @@ impl Editor {
                     .child(
                         stepper_step_button(id_dec, tc)
                             .id((id_dec, area_id))
-                            .child("-")
+                            .child(
+                                svg()
+                                    .path("icons/settings/minus.svg")
+                                    .size(px(12.0))
+                                    .text_color(tc.dialog_secondary_button_text),
+                            )
                             .on_click(on_dec),
                     )
                     .child(stepper_divider(tc))
@@ -186,7 +195,12 @@ impl Editor {
                     .child(
                         stepper_step_button(id_inc, tc)
                             .id((id_inc, area_id))
-                            .child("+")
+                            .child(
+                                svg()
+                                    .path("icons/settings/plus.svg")
+                                    .size(px(12.0))
+                                    .text_color(tc.dialog_secondary_button_text),
+                            )
                             .on_click(on_inc),
                     )
                     .into_any_element()
@@ -211,7 +225,7 @@ impl Editor {
                         } else {
                             "icons/settings/chevron-right.svg"
                         })
-                        .size(px(14.0))
+                        .size(px(16.0))
                         .text_color(tc.text_default),
                 )
                 .child(
@@ -281,7 +295,7 @@ impl Editor {
                                     .child(
                                         svg()
                                             .path(theme_icon_path)
-                                            .size(px(13.0))
+                                            .size(px(15.0))
                                             .text_color(c.text_default),
                                     )
                                     .child(
@@ -296,7 +310,7 @@ impl Editor {
                                 div().flex_shrink_0().pl(px(4.0)).child(
                                     svg()
                                         .path("icons/settings/select-chevron.svg")
-                                        .size(px(14.0))
+                                        .size(px(16.0))
                                         .text_color(c.dialog_muted),
                                 ),
                             )
@@ -351,15 +365,15 @@ impl Editor {
                                         .child(
                                             svg()
                                                 .path(item_icon)
-                                                .size(px(13.0))
+                                                .size(px(15.0))
                                                 .text_color(c.text_default),
                                         )
                                         .child(display_label),
                                 )
                                 .child(if is_selected {
                                     svg()
-                                        .path("icons/settings/check.svg")
-                                        .size(px(13.0))
+                                        .path("icons/settings/checkmark.svg")
+                                        .size(px(15.0))
                                         .text_color(c.dialog_primary_button_bg)
                                         .into_any_element()
                                 } else {
@@ -399,7 +413,7 @@ impl Editor {
                                 div().flex_shrink_0().pl(px(4.0)).child(
                                     svg()
                                         .path("icons/settings/select-chevron.svg")
-                                        .size(px(14.0))
+                                        .size(px(16.0))
                                         .text_color(c.dialog_muted),
                                 ),
                             )
@@ -442,8 +456,8 @@ impl Editor {
                                 .child(label)
                                 .child(if is_selected {
                                     svg()
-                                        .path("icons/settings/check.svg")
-                                        .size(px(13.0))
+                                        .path("icons/settings/checkmark.svg")
+                                        .size(px(15.0))
                                         .text_color(c.dialog_primary_button_bg)
                                         .into_any_element()
                                 } else {
@@ -814,7 +828,7 @@ impl Editor {
                                 div().flex_shrink_0().pl(px(4.0)).child(
                                     svg()
                                         .path("icons/settings/select-chevron.svg")
-                                        .size(px(14.0))
+                                        .size(px(16.0))
                                         .text_color(c.dialog_muted),
                                 ),
                             )
@@ -857,8 +871,8 @@ impl Editor {
                                 .child(label)
                                 .child(if is_selected {
                                     svg()
-                                        .path("icons/settings/check.svg")
-                                        .size(px(13.0))
+                                        .path("icons/settings/checkmark.svg")
+                                        .size(px(15.0))
                                         .text_color(c.dialog_primary_button_bg)
                                         .into_any_element()
                                 } else {
@@ -932,7 +946,7 @@ impl Editor {
                                 div().flex_shrink_0().pl(px(4.0)).child(
                                     svg()
                                         .path("icons/settings/select-chevron.svg")
-                                        .size(px(14.0))
+                                        .size(px(16.0))
                                         .text_color(c.dialog_muted),
                                 ),
                             )
@@ -975,8 +989,8 @@ impl Editor {
                                 .child(label)
                                 .child(if is_selected {
                                     svg()
-                                        .path("icons/settings/check.svg")
-                                        .size(px(13.0))
+                                        .path("icons/settings/checkmark.svg")
+                                        .size(px(15.0))
                                         .text_color(c.dialog_primary_button_bg)
                                         .into_any_element()
                                 } else {

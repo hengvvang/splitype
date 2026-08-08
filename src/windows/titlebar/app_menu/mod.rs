@@ -313,36 +313,27 @@ impl Editor {
             .px(px(6.0));
 
         let app_button_editor = editor.clone();
+        // Sized to hug the 14px glyph (compact hit target) rather than the
+        // 46px-wide window-control buttons; the glyph itself stays the
+        // unmodified Segoe GlobalNavButton SVG.
         let app_button = div()
             .id("titlebar-app-icon-button")
-            .size(px(22.0))
-            .mr(px(2.0))
+            .w(px(34.0))
+            .h_full()
             .flex()
             .items_center()
             .justify_center()
-            .rounded_full()
-            .bg(if is_expanded {
-                c.dialog_secondary_button_hover
-            } else {
-                hsla(0.0, 0.0, 0.0, 0.0)
-            })
             .hover(|this| this.bg(c.dialog_secondary_button_hover))
             .active(|this| this.opacity(0.88))
             .cursor_pointer()
             .child(
-                div()
-                    .size(px(10.0))
-                    .rounded_full()
-                    .border(px(1.5))
-                    .border_color(if is_expanded {
-                        c.dialog_title
+                svg()
+                    .path("icons/topbar/app_menu/app-menu.svg")
+                    .size(px(14.0))
+                    .text_color(if is_expanded {
+                        c.app_menu_active
                     } else {
                         c.dialog_secondary_button_text
-                    })
-                    .bg(if is_expanded {
-                        c.dialog_title
-                    } else {
-                        hsla(0.0, 0.0, 0.0, 0.0)
                     }),
             )
             .on_click(move |_, _window, cx| {
@@ -441,7 +432,7 @@ impl Editor {
                             .child(
                                 svg()
                                     .path(item_icon)
-                                    .size(px(13.0))
+                                    .size(px(15.0))
                                     .text_color(c.text_default),
                             )
                             .child(name.clone())
@@ -474,8 +465,8 @@ impl Editor {
                     .when(is_theme_or_lang, |this| {
                         this.child(if is_selected {
                             svg()
-                                .path("icons/topbar/app_menu/check.svg")
-                                .size(px(13.0))
+                                .path("icons/topbar/app_menu/checkmark.svg")
+                                .size(px(15.0))
                                 .text_color(c.dialog_primary_button_bg)
                                 .into_any_element()
                         } else {
@@ -526,7 +517,7 @@ impl Editor {
                     .child(
                         svg()
                             .path("icons/topbar/app_menu/chevron-right.svg")
-                            .size(px(14.0))
+                            .size(px(15.0))
                             .text_color(c.dialog_secondary_button_text),
                     )
                     .on_hover(move |hovered, _window, cx| {
@@ -570,35 +561,35 @@ impl Editor {
         let editor = cx.entity().downgrade();
         let menu_item_labels = owned_menu_item_labels(&menu_items);
         let menu_panel_width = menu_panel_width_for_labels(&menu_item_labels, d);
-        let submenu_bridge =
-            self.menu_bar.submenu_open.and_then(|submenu_index| {
-                match menu_items.get(submenu_index)? {
-                    OwnedMenuItem::Submenu(submenu) => {
-                        let submenu_labels = owned_menu_item_labels(&submenu.items);
-                        let geometry = submenu_bridge_geometry(
-                            open_index,
-                            menu_labels,
-                            &menu_items,
-                            submenu_index,
-                            &submenu_labels,
-                            d,
-                        )?;
-                        Some(
-                            div()
-                                .id(("app-submenu-bridge", open_index * 1000 + submenu_index))
-                                .absolute()
-                                .occlude()
-                                .top(px(top_offset + geometry.top))
-                                .left(px(geometry.left))
-                                .w(px(geometry.width))
-                                .h(px(geometry.height))
-                                .bg(hsla(0.0, 0.0, 0.0, 0.0))
-                                .on_hover(cx.listener(Self::on_menu_submenu_bridge_hover))
-                                .into_any_element(),
-                        )
-                    }
-                    _ => None,
+        let submenu_bridge = self
+            .menu_bar
+            .submenu_open
+            .and_then(|submenu_index| match menu_items.get(submenu_index)? {
+                OwnedMenuItem::Submenu(submenu) => {
+                    let submenu_labels = owned_menu_item_labels(&submenu.items);
+                    let geometry = submenu_bridge_geometry(
+                        open_index,
+                        menu_labels,
+                        &menu_items,
+                        submenu_index,
+                        &submenu_labels,
+                        d,
+                    )?;
+                    Some(
+                        div()
+                            .id(("app-submenu-bridge", open_index * 1000 + submenu_index))
+                            .absolute()
+                            .occlude()
+                            .top(px(top_offset + geometry.top))
+                            .left(px(geometry.left))
+                            .w(px(geometry.width))
+                            .h(px(geometry.height))
+                            .bg(hsla(0.0, 0.0, 0.0, 0.0))
+                            .on_hover(cx.listener(Self::on_menu_submenu_bridge_hover))
+                            .into_any_element(),
+                    )
                 }
+                _ => None,
             });
         let submenu_panel =
             self.menu_bar.submenu_open.and_then(|submenu_index| {
@@ -649,7 +640,7 @@ impl Editor {
                                                 .child(
                                                     svg()
                                                         .path(item_icon)
-                                                        .size(px(13.0))
+                                                        .size(px(15.0))
                                                         .text_color(c.text_default),
                                                 )
                                                 .child(name.clone())
@@ -694,8 +685,8 @@ impl Editor {
                                         .when(is_theme_or_lang, |this| {
                                             this.child(if is_selected {
                                                 svg()
-                                                    .path("icons/topbar/app_menu/check.svg")
-                                                    .size(px(13.0))
+                                                    .path("icons/topbar/app_menu/checkmark.svg")
+                                                    .size(px(15.0))
                                                     .text_color(c.dialog_primary_button_bg)
                                                     .into_any_element()
                                             } else {
@@ -739,7 +730,7 @@ impl Editor {
                                     .child(
                                         svg()
                                             .path("icons/topbar/app_menu/chevron-right.svg")
-                                            .size(px(14.0))
+                                            .size(px(16.0))
                                             .text_color(c.dialog_muted),
                                     )
                                     .into_any_element(),

@@ -174,6 +174,8 @@ pub struct ThemeColors {
     pub dialog_secondary_button_hover: Hsla,
     /// Secondary button text colour.
     pub dialog_secondary_button_text: Hsla,
+    /// App-menu button icon colour while the menu bar is expanded.
+    pub app_menu_active: Hsla,
     /// Danger (discard-and-close) button background.
     pub dialog_danger_button_bg: Hsla,
     /// Danger button hover background.
@@ -282,6 +284,7 @@ struct ThemeColorsDe {
     dialog_secondary_button_bg: Hsla,
     dialog_secondary_button_hover: Hsla,
     dialog_secondary_button_text: Hsla,
+    app_menu_active: Option<Hsla>,
     dialog_danger_button_bg: Hsla,
     dialog_danger_button_hover: Hsla,
     dialog_danger_button_text: Hsla,
@@ -495,6 +498,9 @@ impl<'de> Deserialize<'de> for ThemeColors {
             dialog_secondary_button_bg: raw.dialog_secondary_button_bg,
             dialog_secondary_button_hover: raw.dialog_secondary_button_hover,
             dialog_secondary_button_text: raw.dialog_secondary_button_text,
+            app_menu_active: raw
+                .app_menu_active
+                .unwrap_or_else(|| Hsla::from(rgba(0x2383e2ff))),
             dialog_danger_button_bg: raw.dialog_danger_button_bg,
             dialog_danger_button_hover: raw.dialog_danger_button_hover,
             dialog_danger_button_text: raw.dialog_danger_button_text,

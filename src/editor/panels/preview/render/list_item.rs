@@ -4,8 +4,8 @@
 
 use gpui::*;
 
-use crate::editor::tree::block::Block;
 use crate::editor::panels::preview::render::inline;
+use crate::editor::tree::block::Block;
 use crate::theme::Theme;
 
 /// Bullet marker shapes by nesting depth (solid disc, hollow disc, square).
@@ -158,32 +158,17 @@ pub(crate) fn render_preview_task_list_item(
                 .flex()
                 .items_center()
                 .child(
-                    div()
+                    svg()
+                        .path(if checked {
+                            "icons/editor/preview/checkbox-checked.svg"
+                        } else {
+                            "icons/editor/preview/checkbox.svg"
+                        })
                         .size(px(d.task_checkbox_size))
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .rounded(px(d.task_checkbox_radius))
-                        .border(px(d.task_checkbox_border_width))
-                        .border_color(if checked {
+                        .text_color(if checked {
                             c.task_checkbox_checked_bg
                         } else {
                             c.task_checkbox_border
-                        })
-                        .bg(if checked {
-                            c.task_checkbox_checked_bg
-                        } else {
-                            c.task_checkbox_bg
-                        })
-                        .children(if checked {
-                            Some(
-                                svg()
-                                    .path("icons/editor/preview/task-check.svg")
-                                    .size(px(d.task_checkbox_check_size))
-                                    .text_color(c.task_checkbox_check),
-                            )
-                        } else {
-                            None
                         }),
                 ),
             div()

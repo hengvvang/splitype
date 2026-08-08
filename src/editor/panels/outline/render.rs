@@ -69,7 +69,7 @@ impl Editor {
             .child(
                 svg()
                     .path("icons/editor/outline/markdown.svg")
-                    .size(px(36.0))
+                    .size(px(40.0))
                     .text_color(c.dialog_muted),
             )
             .child(

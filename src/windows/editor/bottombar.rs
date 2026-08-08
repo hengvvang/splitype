@@ -445,7 +445,7 @@ impl Editor {
                     .child(
                         svg()
                             .path("icons/editor/bottombar/split-h.svg")
-                            .size(px(12.0))
+                            .size(px(14.0))
                             .text_color(c.dialog_muted),
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
@@ -468,7 +468,7 @@ impl Editor {
                     .child(
                         svg()
                             .path("icons/editor/bottombar/split-v.svg")
-                            .size(px(12.0))
+                            .size(px(14.0))
                             .text_color(c.dialog_muted),
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
@@ -492,7 +492,7 @@ impl Editor {
                         .child(
                             svg()
                                 .path("icons/editor/bottombar/close.svg")
-                                .size(px(12.0))
+                                .size(px(14.0))
                                 .text_color(c.dialog_muted),
                         )
                         .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {

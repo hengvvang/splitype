@@ -43,7 +43,7 @@ impl crate::editor::controller::Editor {
             .child(
                 svg()
                     .path(area_topbar_icon(kind, "split-h"))
-                    .size(px(14.0))
+                    .size(px(d.topbar_height * 0.5 + 2.0))
                     .text_color(c.dialog_muted),
             )
             .on_click(move |_event, _window, cx| {
@@ -60,7 +60,7 @@ impl crate::editor::controller::Editor {
             .child(
                 svg()
                     .path(area_topbar_icon(kind, "split-v"))
-                    .size(px(14.0))
+                    .size(px(d.topbar_height * 0.5 + 2.0))
                     .text_color(c.dialog_muted),
             )
             .on_click(move |_event, _window, cx| {
@@ -89,7 +89,7 @@ impl crate::editor::controller::Editor {
                         } else {
                             area_topbar_icon(kind, "maximize")
                         })
-                        .size(px(14.0))
+                        .size(px(d.topbar_height * 0.5 - 2.0))
                         .text_color(c.dialog_muted),
                 )
                 .on_click(move |_event, _window, cx| {
@@ -105,7 +105,7 @@ impl crate::editor::controller::Editor {
                 .child(
                     svg()
                         .path(area_topbar_icon(kind, "close"))
-                        .size(px(14.0))
+                        .size(px(d.topbar_height * 0.5 - 2.0))
                         .text_color(c.dialog_muted),
                 )
                 .on_click(move |_event, _window, cx| {
@@ -120,13 +120,7 @@ impl crate::editor::controller::Editor {
 
         topbar_container(c, d.topbar_height, 8.0)
             .id(("area-topbar", leaf_id))
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(8.0))
-                    .child(type_button),
-            )
+            .child(div().flex().items_center().gap(px(8.0)).child(type_button))
             .child(div().flex().items_center().gap(px(6.0)).child(actions))
             .into_any_element()
     }

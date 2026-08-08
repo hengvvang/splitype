@@ -33,14 +33,6 @@ const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
 
 use crate::editor::block_protocol::BlockAction;
 use crate::editor::controller::Editor;
-use crate::editor::render::code_highlight::options::{
-    code_language_display_name, code_language_options_matching,
-};
-use crate::editor::render::latex_render::{
-    display_math_font_size, inline_math_font_size, render_display_math_svg, render_inline_math_svg,
-};
-use crate::editor::render::mermaid_render::render_mermaid_svg_for_display;
-use crate::editor::tree::block::{Block, ImageHandle};
 use crate::editor::panels::wysiwyg::render::inline::text_element::{
     BlockTextElement, CodeLanguageInputElement,
 };
@@ -59,6 +51,14 @@ use crate::editor::panels::wysiwyg::render::{
     table_block::render_table,
     thematic_break::{render_thematic_break_focused, render_thematic_break_unfocused},
 };
+use crate::editor::render::code_highlight::options::{
+    code_language_display_name, code_language_options_matching,
+};
+use crate::editor::render::latex_render::{
+    display_math_font_size, inline_math_font_size, render_display_math_svg, render_inline_math_svg,
+};
+use crate::editor::render::mermaid_render::render_mermaid_svg_for_display;
+use crate::editor::tree::block::{Block, ImageHandle};
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::model::block::BlockKind;
 use crate::model::inline::style::InlineScript;
@@ -912,7 +912,7 @@ impl Block {
                     .child(
                         svg()
                             .path("icons/editor/wysiwyg/codeblock/select-chevron.svg")
-                            .size(px(12.0))
+                            .size(px(14.0))
                             .text_color(c.dialog_muted),
                     ),
             )
@@ -930,7 +930,7 @@ impl Block {
                 .child(
                     svg()
                         .path("icons/editor/wysiwyg/codeblock/line-numbers.svg")
-                        .size(px(13.0))
+                        .size(px(14.0))
                         .text_color(if self.show_code_line_numbers {
                             c.code_language_input_text
                         } else {
@@ -949,25 +949,10 @@ impl Block {
                     cx.listener(Self::on_code_copy_button_mouse_down),
                 )
                 .child(
-                    div()
-                        .absolute()
-                        .left(px(6.75))
-                        .top(px(5.75))
-                        .size(px(8.5))
-                        .rounded(px(1.5))
-                        .border(px(1.0))
-                        .border_color(c.code_language_input_placeholder),
-                )
-                .child(
-                    div()
-                        .absolute()
-                        .left(px(8.75))
-                        .top(px(7.75))
-                        .size(px(8.5))
-                        .rounded(px(1.5))
-                        .border(px(1.0))
-                        .border_color(c.code_language_input_text)
-                        .bg(gpui::transparent_black()),
+                    svg()
+                        .path("icons/editor/wysiwyg/codeblock/copy.svg")
+                        .size(px(14.0))
+                        .text_color(c.code_language_input_text),
                 ),
             )
             .into_any_element()
@@ -1116,7 +1101,7 @@ impl Block {
                         .children(if is_selected {
                             Some(
                                 svg()
-                                    .path("icons/editor/wysiwyg/codeblock/select-check.svg")
+                                    .path("icons/editor/wysiwyg/codeblock/select-checkmark.svg")
                                     .size(px(14.0))
                                     .text_color(c.text_default),
                             )
@@ -2286,10 +2271,11 @@ impl Render for Block {
                     }
                 })
                 .child(
-                    svg()
-                        .path("icons/editor/wysiwyg/table/handle-row-solid.svg")
-                        .size(px(12.0))
-                        .text_color(if is_menu_open {
+                    div()
+                        .w(px(3.5))
+                        .h(px(12.0))
+                        .rounded(px(1.5))
+                        .bg(if is_menu_open {
                             c.table_append_button_text
                         } else {
                             c.table_handle_icon

@@ -567,8 +567,8 @@ impl Editor {
                     .child(div().child(kind.name()))
                     .child(if is_current {
                         svg()
-                            .path("icons/editor/bottombar/check.svg")
-                            .size(px(13.0))
+                            .path("icons/editor/bottombar/checkmark.svg")
+                            .size(px(14.0))
                             .text_color(c.dialog_primary_button_bg)
                             .into_any_element()
                     } else {
