@@ -44,9 +44,9 @@ impl AssetSource for SplitypeAssets {
                 "../../assets/icons/explorer/worktree/collapse-all.svg"
             )))),
 
-            // ── Explorer: title bar (window area header) ──────────────────
-            "icons/explorer/topbar/link.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/explorer/topbar/link.svg"
+            // ── Explorer: area top bar (window area header) ──────────────
+            "icons/explorer/topbar/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/topbar/check.svg"
             )))),
             "icons/explorer/topbar/split-h.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/explorer/topbar/split-h.svg"
@@ -70,34 +70,34 @@ impl AssetSource for SplitypeAssets {
             )))),
 
             // ── Titlebar: app menu buttons ────────────────────────────────
-            "icons/topbar/app_menu/app-menu.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/topbar/app_menu/app-menu.svg"
+            "icons/titlebar/app_menu/app-menu.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/titlebar/app_menu/app-menu.svg"
             )))),
-            "icons/topbar/app_menu/sun.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/topbar/app_menu/sun.svg"
+            "icons/titlebar/app_menu/sun.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/titlebar/app_menu/sun.svg"
             )))),
-            "icons/topbar/app_menu/moon.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/topbar/app_menu/moon.svg"
+            "icons/titlebar/app_menu/moon.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/titlebar/app_menu/moon.svg"
             )))),
-            "icons/topbar/app_menu/checkmark.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/topbar/app_menu/checkmark.svg"
+            "icons/titlebar/app_menu/checkmark.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/titlebar/app_menu/checkmark.svg"
             )))),
-            "icons/topbar/app_menu/chevron-right.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/topbar/app_menu/chevron-right.svg"
+            "icons/titlebar/app_menu/chevron-right.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/titlebar/app_menu/chevron-right.svg"
             )))),
 
             // ── Titlebar: window controls ─────────────────────────────────
-            "icons/topbar/chrome/close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/topbar/chrome/close.svg"
+            "icons/titlebar/chrome/close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/titlebar/chrome/close.svg"
             )))),
-            "icons/topbar/chrome/minimize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/topbar/chrome/minimize.svg"
+            "icons/titlebar/chrome/minimize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/titlebar/chrome/minimize.svg"
             )))),
-            "icons/topbar/chrome/maximize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/topbar/chrome/maximize.svg"
+            "icons/titlebar/chrome/maximize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/titlebar/chrome/maximize.svg"
             )))),
-            "icons/topbar/chrome/restore.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/topbar/chrome/restore.svg"
+            "icons/titlebar/chrome/restore.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/titlebar/chrome/restore.svg"
             )))),
 
             // ── Settings ──────────────────────────────────────────────────
@@ -126,9 +126,9 @@ impl AssetSource for SplitypeAssets {
                 "../../assets/icons/settings/moon.svg"
             )))),
 
-            // ── Settings: title bar (window area header) ──────────────────
-            "icons/settings/topbar/link.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/settings/topbar/link.svg"
+            // ── Settings: area top bar (window area header) ──────────────
+            "icons/settings/topbar/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/settings/topbar/check.svg"
             )))),
             "icons/settings/topbar/split-h.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/settings/topbar/split-h.svg"
@@ -153,8 +153,8 @@ impl AssetSource for SplitypeAssets {
             "icons/editor/topbar/active.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/topbar/active.svg"
             )))),
-            "icons/editor/topbar/link.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/editor/topbar/link.svg"
+            "icons/editor/topbar/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/topbar/check.svg"
             )))),
             "icons/editor/topbar/split-h.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/topbar/split-h.svg"
@@ -209,6 +209,9 @@ impl AssetSource for SplitypeAssets {
             )))),
             "icons/editor/wysiwyg/callout/tip.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/wysiwyg/callout/tip.svg"
+            )))),
+            "icons/editor/wysiwyg/callout/note.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/wysiwyg/callout/note.svg"
             )))),
             "icons/editor/wysiwyg/callout/important.svg" => Ok(Some(Cow::Borrowed(
                 include_bytes!("../../assets/icons/editor/wysiwyg/callout/important.svg"),

@@ -328,7 +328,7 @@ impl Editor {
             .cursor_pointer()
             .child(
                 svg()
-                    .path("icons/topbar/app_menu/app-menu.svg")
+                    .path("icons/titlebar/app_menu/app-menu.svg")
                     .size(px(14.0))
                     .text_color(if is_expanded {
                         c.app_menu_active
@@ -420,9 +420,9 @@ impl Editor {
                     let current_theme_id = cx.global::<ThemeManager>().current_theme_id();
                     is_selected = act.theme_id == current_theme_id;
                     let item_icon = if name == "Light" {
-                        "icons/topbar/app_menu/sun.svg"
+                        "icons/titlebar/app_menu/sun.svg"
                     } else {
-                        "icons/topbar/app_menu/moon.svg"
+                        "icons/titlebar/app_menu/moon.svg"
                     };
                     left_elem = Some(
                         div()
@@ -465,7 +465,7 @@ impl Editor {
                     .when(is_theme_or_lang, |this| {
                         this.child(if is_selected {
                             svg()
-                                .path("icons/topbar/app_menu/checkmark.svg")
+                                .path("icons/titlebar/app_menu/checkmark.svg")
                                 .size(px(15.0))
                                 .text_color(c.dialog_primary_button_bg)
                                 .into_any_element()
@@ -516,7 +516,7 @@ impl Editor {
                     .child(submenu.name.to_string())
                     .child(
                         svg()
-                            .path("icons/topbar/app_menu/chevron-right.svg")
+                            .path("icons/titlebar/app_menu/chevron-right.svg")
                             .size(px(15.0))
                             .text_color(c.dialog_secondary_button_text),
                     )
@@ -628,9 +628,9 @@ impl Editor {
                                             cx.global::<ThemeManager>().current_theme_id();
                                         is_selected = act.theme_id == current_theme_id;
                                         let item_icon = if name == "Light" {
-                                            "icons/topbar/app_menu/sun.svg"
+                                            "icons/titlebar/app_menu/sun.svg"
                                         } else {
-                                            "icons/topbar/app_menu/moon.svg"
+                                            "icons/titlebar/app_menu/moon.svg"
                                         };
                                         left_elem = Some(
                                             div()
@@ -685,7 +685,7 @@ impl Editor {
                                         .when(is_theme_or_lang, |this| {
                                             this.child(if is_selected {
                                                 svg()
-                                                    .path("icons/topbar/app_menu/checkmark.svg")
+                                                    .path("icons/titlebar/app_menu/checkmark.svg")
                                                     .size(px(15.0))
                                                     .text_color(c.dialog_primary_button_bg)
                                                     .into_any_element()
@@ -729,7 +729,7 @@ impl Editor {
                                     .child(submenu.name.to_string())
                                     .child(
                                         svg()
-                                            .path("icons/topbar/app_menu/chevron-right.svg")
+                                            .path("icons/titlebar/app_menu/chevron-right.svg")
                                             .size(px(16.0))
                                             .text_color(c.dialog_muted),
                                     )
