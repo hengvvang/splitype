@@ -843,10 +843,10 @@ pub(crate) fn init(cx: &mut App) {
 mod tests {
     use super::build_menus;
     use crate::editor::actions::{
-        AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseWindow, ExportHtml, ExportPdf,
+        AddLanguageConfig, AddThemeConfig, CloseWindow, ExportHtml, ExportPdf,
         NewWindow, NoRecentFiles, OpenBugReport, OpenDiscussions, OpenFeatureRequest, OpenFile,
         OpenRecentFile, OpenSettings, OpenSplitypeRepository, QuitApplication, SaveDocument,
-        SelectLanguage, SelectTheme, ShowAbout,
+        SelectLanguage, SelectTheme,
     };
     use crate::infra::i18n::I18nManager;
     use crate::platform::cli_tool::applescript_string_literal;

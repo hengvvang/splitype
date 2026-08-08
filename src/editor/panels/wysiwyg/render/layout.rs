@@ -159,19 +159,20 @@ mod tests {
         RenderedRowSpacingInfo, callout_row_top_gap, editor_text_font, rendered_row_top_gap,
         tibetan_font_fallbacks_for_target_os,
     };
+    use crate::model::block::BlockId;
     use crate::theme::Theme;
-    use gpui::*;
+    use uuid::Uuid;
 
     #[test]
     fn contiguous_quote_rows_collapse_inter_row_gap() {
         let group = Uuid::new_v4();
         let gap = rendered_row_top_gap(
             Some(RenderedRowSpacingInfo {
-                quote_group_anchor: Some(group),
+                quote_group_anchor: Some(BlockId(group)),
                 ..RenderedRowSpacingInfo::default()
             }),
             RenderedRowSpacingInfo {
-                quote_group_anchor: Some(group),
+                quote_group_anchor: Some(BlockId(group)),
                 ..RenderedRowSpacingInfo::default()
             },
             4.0,
@@ -217,11 +218,11 @@ mod tests {
         let group = Uuid::new_v4();
         let gap = rendered_row_top_gap(
             Some(RenderedRowSpacingInfo {
-                quote_group_anchor: Some(group),
+                quote_group_anchor: Some(BlockId(group)),
                 ..RenderedRowSpacingInfo::default()
             }),
             RenderedRowSpacingInfo {
-                quote_group_anchor: Some(group),
+                quote_group_anchor: Some(BlockId(group)),
                 ..RenderedRowSpacingInfo::default()
             },
             4.0,
@@ -233,11 +234,11 @@ mod tests {
     fn distinct_quote_groups_keep_default_gap() {
         let gap = rendered_row_top_gap(
             Some(RenderedRowSpacingInfo {
-                quote_group_anchor: Some(Uuid::new_v4()),
+                quote_group_anchor: Some(BlockId(Uuid::new_v4())),
                 ..RenderedRowSpacingInfo::default()
             }),
             RenderedRowSpacingInfo {
-                quote_group_anchor: Some(Uuid::new_v4()),
+                quote_group_anchor: Some(BlockId(Uuid::new_v4())),
                 ..RenderedRowSpacingInfo::default()
             },
             4.0,
@@ -253,7 +254,7 @@ mod tests {
                 ..RenderedRowSpacingInfo::default()
             }),
             RenderedRowSpacingInfo {
-                quote_group_anchor: Some(Uuid::new_v4()),
+                quote_group_anchor: Some(BlockId(Uuid::new_v4())),
                 ..RenderedRowSpacingInfo::default()
             },
             4.0,
@@ -296,11 +297,11 @@ mod tests {
         let gap = callout_row_top_gap(
             Some(RenderedRowSpacingInfo {
                 is_callout_header: false,
-                visible_quote_group_anchor: Some(group),
+                visible_quote_group_anchor: Some(BlockId(group)),
                 ..RenderedRowSpacingInfo::default()
             }),
             RenderedRowSpacingInfo {
-                visible_quote_group_anchor: Some(group),
+                visible_quote_group_anchor: Some(BlockId(group)),
                 ..RenderedRowSpacingInfo::default()
             },
             dimensions,

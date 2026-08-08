@@ -318,10 +318,26 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                     // the remaining child (with target removed) stays in place so the
                     // split direction and ratio are preserved.
                     if target_in_first {
+                        if let Self::Leaf { id, .. } = **first {
+                            if id == target_id {
+                                // The whole first child is the target leaf: the split
+                                // collapses into the second child (which holds `into`).
+                                *self = (**second).clone();
+                                return true;
+                            }
+                        }
                         if !first.remove_leaf(target_id) {
                             return false;
                         }
                     } else {
+                        if let Self::Leaf { id, .. } = **second {
+                            if id == target_id {
+                                // The whole second child is the target leaf: the split
+                                // collapses into the first child (which holds `into`).
+                                *self = (**first).clone();
+                                return true;
+                            }
+                        }
                         if !second.remove_leaf(target_id) {
                             return false;
                         }

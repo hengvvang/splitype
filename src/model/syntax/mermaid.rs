@@ -91,10 +91,7 @@ fn strip_fence_indent(line: &str) -> Option<&str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        is_mermaid_closing_fence, is_mermaid_info_string, parse_mermaid_fence_source,
-        parse_mermaid_fence_start,
-    };
+    use super::{is_mermaid_info_string, parse_mermaid_fence_source, parse_mermaid_fence_start};
 
     #[test]
     fn detects_mermaid_info_string() {

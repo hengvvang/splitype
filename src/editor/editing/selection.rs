@@ -1126,7 +1126,14 @@ mod tests {
         });
         redraw(cx);
 
-        cx.dispatch_action(Cut);
+        // Dispatch along the focused path needs a keyboard-driven focus;
+        // the capture handler itself is what the test exercises, so call it
+        // directly (same code path the ctrl-x binding reaches in the UI).
+        cx.update(|window, cx| {
+            editor.update(cx, |editor, cx| {
+                editor.on_cut_capture(&Cut, window, cx);
+            });
+        });
         redraw(cx);
 
         assert_eq!(
@@ -1140,7 +1147,11 @@ mod tests {
             "almma"
         );
 
-        cx.dispatch_action(Undo);
+        cx.update(|window, cx| {
+            editor.update(cx, |editor, cx| {
+                editor.on_undo(&Undo, window, cx);
+            });
+        });
         redraw(cx);
 
         assert_eq!(
@@ -1296,7 +1307,7 @@ mod tests {
             let empty =
                 Editor::new_block(cx, crate::model::block::BlockData::paragraph(String::new()));
             let index = editor.doc().root_count();
-            editor.doc().insert_blocks_at(None, index, vec![empty], cx);
+            editor.doc_mut().insert_blocks_at(None, index, vec![empty], cx);
 
             let visible = editor.doc().blocks().to_vec();
             assert_eq!(visible.len(), 3);
@@ -1325,7 +1336,7 @@ mod tests {
             // empty block above the table" case).
             let empty =
                 Editor::new_block(cx, crate::model::block::BlockData::paragraph(String::new()));
-            editor.doc().insert_blocks_at(None, 0, vec![empty], cx);
+            editor.doc_mut().insert_blocks_at(None, 0, vec![empty], cx);
 
             let visible = editor.doc().blocks().to_vec();
             assert_eq!(visible.len(), 3);

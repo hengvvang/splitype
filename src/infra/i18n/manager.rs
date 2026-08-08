@@ -192,8 +192,9 @@ impl I18nManager {
 
 #[cfg(test)]
 mod tests {
-    use super::{I18nLanguagePack, I18nManager, I18nStrings, language_id_for_locale_settings};
+    use super::{I18nLanguagePack, I18nManager, I18nStrings};
     use crate::infra::config::dirs::SplitypeConfigDirs;
+    use crate::infra::i18n::packs::language_id_for_locale_settings;
     use crate::theme::ThemeManager;
 
     #[test]

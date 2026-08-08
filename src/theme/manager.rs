@@ -364,19 +364,19 @@ mod tests {
     fn theme_manager_switches_builtin_themes() {
         let mut manager = ThemeManager::default();
         assert_eq!(manager.current_theme_id(), "splitype");
-        assert_eq!(manager.current().name, "splitype");
+        assert_eq!(manager.current().name, "Dark");
         assert_eq!(
             manager
                 .available_themes()
                 .iter()
                 .map(|entry| entry.name.as_str())
                 .collect::<Vec<_>>(),
-            vec!["splitype", "splitype Light"]
+            vec!["Dark", "Light"]
         );
 
         assert!(manager.set_theme_by_id("splitype-light"));
         assert_eq!(manager.current_theme_id(), "splitype-light");
-        assert_eq!(manager.current().name, "splitype Light");
+        assert_eq!(manager.current().name, "Light");
         assert_eq!(
             manager.current().colors.editor_background,
             rgba(0xf7f8fbff).into()
@@ -384,7 +384,7 @@ mod tests {
 
         assert!(manager.set_theme_by_id("splitype"));
         assert_eq!(manager.current_theme_id(), "splitype");
-        assert_eq!(manager.current().name, "splitype");
+        assert_eq!(manager.current().name, "Dark");
         assert!(!manager.set_theme_by_id("missing"));
     }
 }

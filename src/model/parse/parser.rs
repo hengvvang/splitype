@@ -607,10 +607,18 @@ fn attach_child_node(parent: &mut BlockData, child: &mut BlockData) {
 }
 
 /// Set up parent -> children relationships for multiple children.
+///
+/// Children that already carry a parent (nested blocks returned by a
+/// recursive parse) are left untouched: re-attaching them would overwrite
+/// the inner relationship and duplicate the block under the outer parent
+/// (e.g. `>> level2` returned as `[level2, level3]` where `level3` is
+/// already `level2`'s child).
 fn attach_child_nodes(parent: &mut BlockData, children: &mut [BlockData]) {
     for child in children.iter_mut() {
-        child.parent = Some(parent.id);
-        parent.children.push(child.id);
+        if child.parent.is_none() {
+            child.parent = Some(parent.id);
+            parent.children.push(child.id);
+        }
     }
 }
 

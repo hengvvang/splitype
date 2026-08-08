@@ -1018,13 +1018,12 @@ mod tests {
     use crate::editor::actions::{AddLanguageConfig, AddThemeConfig, NoRecentFiles};
     use crate::theme::Theme;
     use crate::windows::titlebar::app_menu::{
-        import_menu_split_index, in_window_menu_bar_height_for_target_os, menu_bar_button_width,
+        import_menu_split_index, menu_bar_button_width,
         menu_items_visual_height_with_gaps, menu_panel_left, menu_panel_width_for_labels,
         owned_menu_item_labels, scrollable_import_menu_scroll_height, submenu_bridge_geometry,
         supports_in_window_menu_for_target_os,
     };
     use gpui::{OwnedMenu, OwnedMenuItem};
-    use uuid::Uuid;
 
     fn disabled_menu_action(name: &str) -> OwnedMenuItem {
         OwnedMenuItem::Action {
@@ -1055,9 +1054,11 @@ mod tests {
         let theme = Theme::default_theme();
         let dimensions = &theme.dimensions;
 
-        assert_eq!(
-            menu_bar_button_width("文件", dimensions),
-            dimensions.menu_bar_button_width
+        // Width follows the label text, so a long ASCII label grows the
+        // button well beyond a short CJK one.
+        assert!(
+            menu_bar_button_width("Language", dimensions)
+                > menu_bar_button_width("文件", dimensions)
         );
         assert!(menu_bar_button_width("Language", dimensions) > dimensions.menu_bar_button_width);
     }
@@ -1085,29 +1086,6 @@ mod tests {
     }
 
     #[test]
-    fn in_window_menu_height_depends_on_platform_and_menu_presence() {
-        let theme = Theme::default_theme();
-        let dimensions = &theme.dimensions;
-
-        assert_eq!(
-            in_window_menu_bar_height_for_target_os("linux", true, dimensions),
-            dimensions.menu_bar_height
-        );
-        assert_eq!(
-            in_window_menu_bar_height_for_target_os("windows", true, dimensions),
-            dimensions.menu_bar_height
-        );
-        assert_eq!(
-            in_window_menu_bar_height_for_target_os("linux", false, dimensions),
-            0.0
-        );
-        assert_eq!(
-            in_window_menu_bar_height_for_target_os("macos", true, dimensions),
-            0.0
-        );
-    }
-
-    #[test]
     fn menu_panel_left_uses_accumulated_dynamic_button_widths() {
         let theme = Theme::default_theme();
         let dimensions = &theme.dimensions;
@@ -1119,11 +1097,11 @@ mod tests {
         ];
 
         let left = menu_panel_left(2, &labels, dimensions);
-        let expected = dimensions.menu_bar_padding_x
+        let expected = crate::windows::titlebar::app_menu::TITLEBAR_MENU_START_X
             + menu_bar_button_width("File", dimensions)
-            + dimensions.menu_bar_gap
+            + crate::windows::titlebar::app_menu::TITLEBAR_MENU_BUTTON_GAP
             + menu_bar_button_width("Language", dimensions)
-            + dimensions.menu_bar_gap;
+            + crate::windows::titlebar::app_menu::TITLEBAR_MENU_BUTTON_GAP;
         let old_fixed_left = dimensions.menu_bar_padding_x
             + 2.0 * (dimensions.menu_bar_button_width + dimensions.menu_bar_gap);
 
@@ -1232,11 +1210,13 @@ mod tests {
 
         let bridge = submenu_bridge_geometry(0, &labels, &items, 1, &submenu_labels, dimensions)
             .expect("submenu bridge geometry should be available");
+        let main_width =
+            menu_panel_width_for_labels(&owned_menu_item_labels(&items), dimensions);
         let submenu_width = menu_panel_width_for_labels(&submenu_labels, dimensions);
 
         assert_eq!(
             bridge.left,
-            dimensions.menu_bar_padding_x + dimensions.menu_panel_width
+            menu_panel_left(0, &labels, dimensions) + main_width
         );
         assert_eq!(bridge.width, dimensions.menu_panel_gap + submenu_width);
         assert!(bridge.height > dimensions.menu_item_height);

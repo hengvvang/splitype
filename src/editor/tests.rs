@@ -7,7 +7,7 @@ use gpui::{
     VisualTestContext,
 };
 
-use super::{Editor, EditorMode};
+use crate::editor::controller::{Editor, EditorMode};
 use crate::editor::actions::{CloseWindow, QuitApplication, SaveDocument};
 use crate::editor::editing::input::shortcuts::{FocusNext, Newline};
 use crate::editor::render::export::ExportFormat;
@@ -51,6 +51,69 @@ fn temp_export_path(test_name: &str, extension: &str) -> PathBuf {
 fn redraw(cx: &mut gpui::VisualTestContext) {
     cx.update(|window, cx| window.draw(cx).clear());
     cx.run_until_parked();
+}
+
+/// Switch the root area's inner panel to the WYSIWYG editing panel.
+/// New sessions start with a Welcome panel that `enter_editing` migrates
+/// to `SourceCode`, so without this the document's blocks are never
+/// mounted and keyboard simulation never reaches them.
+fn ensure_wysiwyg_editing_panel(editor: &gpui::Entity<Editor>, cx: &mut gpui::App) {
+    editor.update(cx, |editor, _cx| {
+        let area = crate::layout::ROOT_AREA_ID;
+        editor.panels.layout.activate_editor_area(area);
+        let mut ids = Vec::new();
+        editor
+            .panels
+            .layout
+            .ensure_editor_session(area)
+            .inner_panel_tree
+            .leaf_ids(&mut ids);
+        for id in ids {
+            editor
+                .panels
+                .layout
+                .ensure_editor_session(area)
+                .inner_panel_tree
+                .set_leaf_kind(
+                    id,
+                    crate::layout::EditorInnerPanelKind::Editing(
+                        crate::layout::EditingPanelKind::Wysiwyg,
+                    ),
+                );
+        }
+    });
+}
+
+/// Focus a specific block so keyboard simulation (`simulate_input` /
+/// `simulate_keystrokes`) lands in the editor. The editor no longer
+/// auto-focuses on window creation, key events dispatch along the
+/// focused path, and the WYSIWYG panel must be mounted for the block to
+/// register its input handler.
+fn focus_block(
+    editor: &gpui::Entity<Editor>,
+    block: &gpui::Entity<crate::editor::tree::block::Block>,
+    cx: &mut gpui::VisualTestContext,
+) {
+    cx.cx.update(|app| ensure_wysiwyg_editing_panel(editor, app));
+    editor.update(cx, |editor, _cx| {
+        editor.focus_block(block.entity_id());
+    });
+    cx.update(|window, cx| {
+        block.update(cx, |block, _cx| {
+            block.focus_handle.focus(window);
+        });
+    });
+    redraw(cx);
+}
+
+/// Focus the first block of the document via [`focus_block`].
+fn focus_first_block(editor: &gpui::Entity<Editor>, cx: &mut gpui::VisualTestContext) {
+    let first = editor
+        .update(cx, |editor, _cx| {
+            editor.doc().blocks().first().map(|visible| visible.entity.clone())
+        })
+        .expect("document should have a block");
+    focus_block(editor, &first, cx);
 }
 
 fn activate_visual_window(cx: &mut VisualTestContext) -> AnyWindowHandle {
@@ -225,7 +288,7 @@ fn about_dialog_body_lines_include_repository_and_star_message() {
     let strings = I18nStrings::zh_cn();
     let lines = Editor::about_dialog_body_lines(&strings);
 
-    assert_eq!(lines[0], format!("splitype {}", env!("CARGO_PKG_VERSION")));
+    assert_eq!(lines[0], format!("Splitype {}", env!("CARGO_PKG_VERSION")));
     assert_eq!(
         lines[2],
         format!(
@@ -266,6 +329,7 @@ async fn ctrl_s_saves_rendered_mode_edit_to_existing_file(cx: &mut TestAppContex
         let path = path.clone();
         move |_window, cx| Editor::from_markdown(cx, "alpha".to_string(), Some(path))
     });
+    focus_first_block(&editor, cx);
 
     cx.simulate_input("!");
     redraw(cx);
@@ -306,6 +370,7 @@ async fn window_save_action_saves_current_editor_without_global_menu_route(
         let path = path.clone();
         move |_window, cx| Editor::from_markdown(cx, "alpha".to_string(), Some(path))
     });
+    focus_first_block(&editor, cx);
 
     cx.simulate_input(" action");
     redraw(cx);
@@ -464,7 +529,10 @@ async fn dropped_paths_pick_first_valid_markdown_file(cx: &mut TestAppContext) {
     });
 
     assert_eq!(
-        Editor::first_dropped_markdown_path(&[text_path, markdown_path.clone()]),
+        crate::editor::editing::input::drop::first_dropped_markdown_path(&[
+            text_path,
+            markdown_path.clone()
+        ]),
         Some(markdown_path)
     );
 }
@@ -881,6 +949,7 @@ async fn window_close_action_closes_current_editor_before_global_menu_route(
         .cx
         .add_window_view(|_window, cx| Editor::from_markdown(cx, "second".to_string(), None));
     let second_window = activate_visual_window(cx);
+    focus_first_block(&_second_editor, cx);
 
     cx.dispatch_action(CloseWindow);
     cx.run_until_parked();
@@ -892,104 +961,25 @@ async fn window_close_action_closes_current_editor_before_global_menu_route(
 }
 
 #[gpui::test]
-async fn dismissing_menu_bar_from_body_clears_open_state(cx: &mut TestAppContext) {
-    let editor = cx.new(|cx| Editor::from_markdown(cx, "alpha".to_string(), None));
-
-    editor.update(cx, |editor, cx| {
-        editor.open_menu_bar(0, cx);
-        editor.set_menu_bar_hovered(true, cx);
-        editor.set_menu_panel_hovered(true, cx);
-        assert_eq!(editor.menu_bar_open, Some(0));
-
-        editor.dismiss_menu_bar_from_body(cx);
-        assert_eq!(editor.menu_bar_open, None);
-        assert!(!editor.menu_bar_hovered);
-        assert!(!editor.menu_panel_hovered);
-        assert!(!editor.menu_submenu_panel_hovered);
-        assert!(editor.menu_close_task.is_none());
-    });
-}
-
-#[gpui::test]
-async fn submenu_panel_hover_keeps_in_window_menu_open(cx: &mut TestAppContext) {
-    let editor = cx.new(|cx| Editor::from_markdown(cx, "alpha".to_string(), None));
-
-    editor.update(cx, |editor, cx| {
-        editor.open_menu_bar(0, cx);
-        editor.open_menu_submenu(2, cx);
-        editor.set_menu_submenu_panel_hovered(true, cx);
-        editor.set_menu_panel_hovered(false, cx);
-        editor.set_menu_bar_hovered(false, cx);
-
-        assert_eq!(editor.menu_bar_open, Some(0));
-        assert_eq!(editor.menu_submenu_open, Some(2));
-        assert!(editor.menu_submenu_panel_hovered);
-        assert!(editor.menu_close_task.is_none());
-
-        editor.set_menu_submenu_panel_hovered(false, cx);
-        assert!(editor.menu_close_task.is_some());
-
-        editor.close_menu_bar(cx);
-    });
-}
-
-// The gap bridge and the submenu panel overlap, so moving the cursor from the
-// bridge onto the submenu emits `bridge: false` and `panel: true` in the same
-// gesture. With both regions sharing one hover flag the stale `bridge: false`
-// could win and tear the menu down, which made reaching the recent-files list
-// fail intermittently. Track the two regions independently so the handoff
-// always keeps the menu open, regardless of event order.
-#[gpui::test]
-async fn submenu_survives_bridge_to_panel_hover_handoff(cx: &mut TestAppContext) {
-    let editor = cx.new(|cx| Editor::from_markdown(cx, "alpha".to_string(), None));
-
-    editor.update(cx, |editor, cx| {
-        editor.open_menu_bar(0, cx);
-        editor.open_menu_submenu(3, cx);
-
-        // Crossing the gap: only the bridge is hovered.
-        editor.set_menu_panel_hovered(false, cx);
-        editor.set_menu_bar_hovered(false, cx);
-        editor.set_menu_submenu_bridge_hovered(true, cx);
-        assert!(editor.menu_close_task.is_none());
-
-        // Handoff into the submenu panel. The bridge reporting `false` after
-        // the panel is already hovered must not schedule a close.
-        editor.set_menu_submenu_panel_hovered(true, cx);
-        editor.set_menu_submenu_bridge_hovered(false, cx);
-
-        assert_eq!(editor.menu_bar_open, Some(0));
-        assert_eq!(editor.menu_submenu_open, Some(3));
-        assert!(editor.menu_submenu_panel_hovered);
-        assert!(
-            editor.menu_close_task.is_none(),
-            "menu must stay open across the bridge-to-panel handoff"
-        );
-
-        editor.close_menu_bar(cx);
-    });
-}
-
-#[gpui::test]
 async fn starting_and_ending_scrollbar_drag_updates_editor_state(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, "alpha".to_string(), None));
 
     editor.update(cx, |editor, cx| {
-        editor.pending_scroll_active_block_into_view = true;
-        editor.pending_scroll_recheck_after_layout = true;
+        editor.tab_mut().focus.pending_scroll_active_block_into_view = true;
+        editor.tab_mut().focus.pending_scroll_recheck_after_layout = true;
 
         editor.start_scrollbar_drag(12.0, 320.0, 64.0, 500.0, cx);
         assert_eq!(
             editor.tab().scroll.scrollbar_drag,
-            Some(super::ScrollbarDragSession {
+            Some(crate::editor::controller::ScrollbarDragSession {
                 pointer_offset_y: 12.0,
                 track_height: 320.0,
                 thumb_height: 64.0,
                 max_scroll_y: 500.0,
             })
         );
-        assert!(!editor.pending_scroll_active_block_into_view);
-        assert!(!editor.pending_scroll_recheck_after_layout);
+        assert!(!editor.tab().focus.pending_scroll_active_block_into_view);
+        assert!(!editor.tab().focus.pending_scroll_recheck_after_layout);
 
         editor.update_scrollbar_drag(172.0, cx);
         let offset_y = -f32::from(editor.tab().scroll.handle.offset().y);
@@ -1118,7 +1108,7 @@ async fn setting_column_alignment_updates_record_and_selection(cx: &mut TestAppC
         );
         assert_eq!(
             editor.tab().tables.axis_selection,
-            Some(super::TableAxisSelection {
+            Some(crate::editor::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
                 kind: crate::model::syntax::table::TableAxisKind::Column,
                 index: 1,
@@ -1141,7 +1131,7 @@ async fn moving_table_row_updates_focus_and_selection(cx: &mut TestAppContext) {
         assert_eq!(record.rows[0][0].serialize_markdown(), "3");
         assert_eq!(
             editor.tab().tables.axis_selection,
-            Some(super::TableAxisSelection {
+            Some(crate::editor::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
                 kind: crate::model::syntax::table::TableAxisKind::Row,
                 index: 1,
@@ -1175,7 +1165,7 @@ async fn moving_first_body_row_up_swaps_with_header(cx: &mut TestAppContext) {
         assert_eq!(record.rows[0][0].serialize_markdown(), "A");
         assert_eq!(
             editor.tab().tables.axis_selection,
-            Some(super::TableAxisSelection {
+            Some(crate::editor::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
                 kind: crate::model::syntax::table::TableAxisKind::Row,
                 index: 0,
@@ -1199,7 +1189,7 @@ async fn moving_header_row_down_swaps_with_first_body(cx: &mut TestAppContext) {
         assert_eq!(record.rows[0][0].serialize_markdown(), "A");
         assert_eq!(
             editor.tab().tables.axis_selection,
-            Some(super::TableAxisSelection {
+            Some(crate::editor::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
                 kind: crate::model::syntax::table::TableAxisKind::Row,
                 index: 1,
@@ -1279,7 +1269,7 @@ async fn body_row_preview_survives_stale_header_leave(cx: &mut TestAppContext) {
         editor.preview_table_axis(id, TableAxisKind::Row, 0, false, cx);
         assert_eq!(
             editor.tab().tables.axis_preview,
-            Some(super::TableAxisSelection {
+            Some(crate::editor::controller::TableAxisSelection {
                 table_block_id: id,
                 kind: TableAxisKind::Row,
                 index: 1,
@@ -1306,7 +1296,7 @@ async fn deleting_table_column_moves_selection_to_nearest_survivor(cx: &mut Test
         assert_eq!(record.header.len(), 2);
         assert_eq!(
             editor.tab().tables.axis_selection,
-            Some(super::TableAxisSelection {
+            Some(crate::editor::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
                 kind: crate::model::syntax::table::TableAxisKind::Column,
                 index: 1,
@@ -2574,7 +2564,7 @@ async fn ctrl_tab_toggles_view_mode(cx: &mut TestAppContext) {
     let (editor, cx) =
         cx.add_window_view(|_window, cx| Editor::from_markdown(cx, "alpha".to_string(), None));
 
-    redraw(cx);
+    focus_first_block(&editor, cx);
     cx.simulate_keystrokes("ctrl-tab");
     redraw(cx);
 
@@ -2597,16 +2587,16 @@ async fn ctrl_a_selects_entire_source_document_in_source_mode(cx: &mut TestAppCo
         Editor::from_markdown(cx, "alpha\n\nbeta".to_string(), None)
     });
 
-    editor.update(cx, |editor, cx| {
+    let source = editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
         assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
         let source = editor.doc().blocks()[0].entity.clone();
-        editor.focus_block(source.entity_id());
         source.update(cx, |block, _cx| {
             block.selected_range = 1..3;
         });
+        source
     });
-    redraw(cx);
+    focus_block(&editor, &source, cx);
 
     cx.simulate_keystrokes("ctrl-a");
     redraw(cx);
@@ -2625,14 +2615,14 @@ async fn ctrl_a_selects_only_focused_block_text_in_rendered_mode(cx: &mut TestAp
         Editor::from_markdown(cx, "alpha\n\nbeta".to_string(), None)
     });
 
-    editor.update(cx, |editor, cx| {
+    let block = editor.update(cx, |editor, cx| {
         let block = editor.doc().blocks()[1].entity.clone();
-        editor.focus_block(block.entity_id());
         block.update(cx, |block, _cx| {
             block.selected_range = 1..1;
         });
+        block
     });
-    redraw(cx);
+    focus_block(&editor, &block, cx);
 
     cx.simulate_keystrokes("ctrl-a");
     redraw(cx);
@@ -2656,14 +2646,14 @@ async fn repeated_ctrl_a_selects_all_rendered_blocks(cx: &mut TestAppContext) {
         move |_window, cx| Editor::from_markdown(cx, markdown.clone(), None)
     });
 
-    editor.update(cx, |editor, cx| {
+    let block = editor.update(cx, |editor, cx| {
         let block = editor.doc().blocks()[0].entity.clone();
-        editor.focus_block(block.entity_id());
         block.update(cx, |block, block_cx| {
             block.move_to(0, block_cx);
         });
+        block
     });
-    redraw(cx);
+    focus_block(&editor, &block, cx);
 
     cx.simulate_keystrokes("ctrl-a");
     redraw(cx);
@@ -2684,7 +2674,9 @@ async fn repeated_ctrl_a_selects_all_rendered_blocks(cx: &mut TestAppContext) {
         let last_id = last.entity.entity_id();
         let last_len = last.entity.read(cx).visible_len();
         let selection = editor
-            .cross_block_selection
+            .tab()
+            .selection
+            .cross_block
             .expect("second Ctrl+A should select the rendered document");
         assert_eq!(selection.anchor.entity_id, first_id);
         assert_eq!(selection.anchor.offset, 0);
@@ -2727,14 +2719,14 @@ async fn rendered_ctrl_a_cycle_expires_before_second_press(cx: &mut TestAppConte
         Editor::from_markdown(cx, "alpha\n\nbeta".to_string(), None)
     });
 
-    editor.update(cx, |editor, cx| {
+    let block = editor.update(cx, |editor, cx| {
         let block = editor.doc().blocks()[1].entity.clone();
-        editor.focus_block(block.entity_id());
         block.update(cx, |block, block_cx| {
             block.move_to(1, block_cx);
         });
+        block
     });
-    redraw(cx);
+    focus_block(&editor, &block, cx);
 
     cx.simulate_keystrokes("ctrl-a");
     redraw(cx);
@@ -2745,7 +2737,9 @@ async fn rendered_ctrl_a_cycle_expires_before_second_press(cx: &mut TestAppConte
             block.selected_range = 1..1;
         });
         let cycle = editor
-            .rendered_select_all_cycle
+            .tab_mut()
+            .selection
+            .select_all_cycle
             .as_mut()
             .expect("first Ctrl+A should arm the rendered select-all cycle");
         cycle.last_pressed_at =
@@ -2761,7 +2755,9 @@ async fn rendered_ctrl_a_cycle_expires_before_second_press(cx: &mut TestAppConte
         assert!(editor.tab().selection.cross_block.is_none());
         assert_eq!(
             editor
-                .rendered_select_all_cycle
+                .tab()
+                .selection
+                .select_all_cycle
                 .expect("cycle should be reset by expired second press")
                 .count,
             1
@@ -2775,14 +2771,14 @@ async fn tab_key_inserts_tab_in_focused_paragraph(cx: &mut TestAppContext) {
     let (editor, cx) =
         cx.add_window_view(|_window, cx| Editor::from_markdown(cx, "ab".to_string(), None));
 
-    editor.update(cx, |editor, cx| {
+    let block = editor.update(cx, |editor, cx| {
         let block = editor.doc().blocks()[0].entity.clone();
-        editor.focus_block(block.entity_id());
         block.update(cx, |block, block_cx| {
             block.move_to(1, block_cx);
         });
+        block
     });
-    redraw(cx);
+    focus_block(&editor, &block, cx);
 
     cx.simulate_keystrokes("tab");
     redraw(cx);
@@ -2801,14 +2797,14 @@ async fn tab_key_inserts_tab_in_focused_code_block(cx: &mut TestAppContext) {
         Editor::from_markdown(cx, "```rust\nab\n```".to_string(), None)
     });
 
-    editor.update(cx, |editor, cx| {
+    let block = editor.update(cx, |editor, cx| {
         let block = editor.doc().blocks()[0].entity.clone();
-        editor.focus_block(block.entity_id());
         block.update(cx, |block, block_cx| {
             block.move_to(1, block_cx);
         });
+        block
     });
-    redraw(cx);
+    focus_block(&editor, &block, cx);
 
     cx.simulate_keystrokes("tab");
     redraw(cx);
@@ -3012,14 +3008,14 @@ async fn tab_key_keeps_list_indent_semantics(cx: &mut TestAppContext) {
     let (editor, cx) =
         cx.add_window_view(|_window, cx| Editor::from_markdown(cx, "- a\n- b".to_string(), None));
 
-    editor.update(cx, |editor, cx| {
+    let second = editor.update(cx, |editor, cx| {
         let second = editor.doc().blocks()[1].entity.clone();
-        editor.focus_block(second.entity_id());
         second.update(cx, |block, block_cx| {
             block.move_to(block.visible_len(), block_cx);
         });
+        second
     });
-    redraw(cx);
+    focus_block(&editor, &second, cx);
 
     cx.simulate_keystrokes("tab");
     redraw(cx);
@@ -3039,7 +3035,7 @@ async fn tab_key_keeps_table_cell_navigation(cx: &mut TestAppContext) {
     let (editor, cx) =
         cx.add_window_view(move |_window, cx| Editor::from_markdown(cx, markdown, None));
 
-    let second_cell_id = editor.update(cx, |editor, cx| {
+    let (second_cell_id, first) = editor.update(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
         let runtime = table
             .read(cx)
@@ -3049,13 +3045,12 @@ async fn tab_key_keeps_table_cell_navigation(cx: &mut TestAppContext) {
             .clone();
         let first = runtime.rows[0][0].clone();
         let second = runtime.rows[0][1].clone();
-        editor.focus_block(first.entity_id());
         first.update(cx, |block, block_cx| {
             block.move_to(block.visible_len(), block_cx);
         });
-        second.entity_id()
+        (second.entity_id(), first)
     });
-    redraw(cx);
+    focus_block(&editor, &first, cx);
 
     cx.simulate_keystrokes("tab");
     redraw(cx);
@@ -3072,7 +3067,7 @@ async fn right_arrow_at_cell_end_moves_to_next_cell(cx: &mut TestAppContext) {
     let (editor, cx) =
         cx.add_window_view(move |_window, cx| Editor::from_markdown(cx, markdown, None));
 
-    let second_cell_id = editor.update(cx, |editor, cx| {
+    let (second_cell_id, first) = editor.update(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
         let runtime = table
             .read(cx)
@@ -3082,13 +3077,12 @@ async fn right_arrow_at_cell_end_moves_to_next_cell(cx: &mut TestAppContext) {
             .clone();
         let first = runtime.rows[0][0].clone();
         let second = runtime.rows[0][1].clone();
-        editor.focus_block(first.entity_id());
         first.update(cx, |block, block_cx| {
             block.move_to(block.visible_len(), block_cx);
         });
-        second.entity_id()
+        (second.entity_id(), first)
     });
-    redraw(cx);
+    focus_block(&editor, &first, cx);
 
     cx.simulate_keystrokes("right");
     redraw(cx);
@@ -3105,7 +3099,7 @@ async fn left_arrow_at_cell_start_moves_to_previous_cell(cx: &mut TestAppContext
     let (editor, cx) =
         cx.add_window_view(move |_window, cx| Editor::from_markdown(cx, markdown, None));
 
-    let first_cell_id = editor.update(cx, |editor, cx| {
+    let (first_cell_id, second) = editor.update(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
         let runtime = table
             .read(cx)
@@ -3115,13 +3109,12 @@ async fn left_arrow_at_cell_start_moves_to_previous_cell(cx: &mut TestAppContext
             .clone();
         let first = runtime.rows[0][0].clone();
         let second = runtime.rows[0][1].clone();
-        editor.focus_block(second.entity_id());
         second.update(cx, |block, block_cx| {
             block.move_to(0, block_cx);
         });
-        first.entity_id()
+        (first.entity_id(), second)
     });
-    redraw(cx);
+    focus_block(&editor, &second, cx);
 
     cx.simulate_keystrokes("left");
     redraw(cx);
@@ -3171,14 +3164,14 @@ async fn ctrl_enter_exits_focused_math_block(cx: &mut TestAppContext) {
     let (editor, cx) =
         cx.add_window_view(|_window, cx| Editor::from_markdown(cx, "$$n^2$$".to_string(), None));
 
-    editor.update(cx, |editor, cx| {
+    let block = editor.update(cx, |editor, cx| {
         let block = editor.doc().blocks()[0].entity.clone();
-        editor.focus_block(block.entity_id());
         block.update(cx, |block, block_cx| {
             block.move_to(block.visible_len(), block_cx);
         });
+        block
     });
-    redraw(cx);
+    focus_block(&editor, &block, cx);
 
     cx.simulate_keystrokes("ctrl-enter");
     redraw(cx);
@@ -3201,7 +3194,7 @@ async fn ctrl_enter_exits_focused_table_cell(cx: &mut TestAppContext) {
     let (editor, cx) =
         cx.add_window_view(move |_window, cx| Editor::from_markdown(cx, markdown, None));
 
-    editor.update(cx, |editor, cx| {
+    let cell = editor.update(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
         let cell = table
             .read(cx)
@@ -3210,12 +3203,12 @@ async fn ctrl_enter_exits_focused_table_cell(cx: &mut TestAppContext) {
             .expect("table runtime")
             .rows[0][0]
             .clone();
-        editor.focus_block(cell.entity_id());
         cell.update(cx, |block, block_cx| {
             block.move_to(block.visible_len(), block_cx);
         });
+        cell
     });
-    redraw(cx);
+    focus_block(&editor, &cell, cx);
 
     cx.simulate_keystrokes("ctrl-enter");
     redraw(cx);

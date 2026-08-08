@@ -308,7 +308,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let prompt = cx.prompt_for_paths(PathPromptOptions {
-            files: false,
+            files: true,
             directories: true,
             multiple: false,
             prompt: None,
@@ -323,15 +323,17 @@ impl Editor {
                     return;
                 }
             };
-            let Some(folder_path) = paths.into_iter().next() else {
+            let Some(path) = paths.into_iter().next() else {
                 return;
             };
-            eprintln!("[explorer] selected folder: {folder_path:?}");
-            if let Err(err) = crate::infra::config::recent::record_recent_folder(&folder_path) {
-                eprintln!("failed to update recent folder history: {err}");
+            eprintln!("[explorer] selected path: {path:?}");
+            if path.is_dir() {
+                if let Err(err) = crate::infra::config::recent::record_recent_folder(&path) {
+                    eprintln!("failed to update recent folder history: {err}");
+                }
             }
             let _ = weak_editor.update(cx, |editor, cx| {
-                editor.open_explorer_folder_path(folder_path, cx);
+                editor.open_explorer_folder_path(path, cx);
                 cx.notify();
             });
         })
@@ -391,7 +393,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let prompt = cx.prompt_for_paths(PathPromptOptions {
-            files: false,
+            files: true,
             directories: true,
             multiple: false,
             prompt: None,
@@ -406,14 +408,14 @@ impl Editor {
                     return;
                 }
             };
-            let Some(folder_path) = paths.into_iter().next() else {
+            let Some(path) = paths.into_iter().next() else {
                 return;
             };
             let _ = weak_editor.update(cx, |editor, cx| {
                 if index < editor.panels.explorer.worktrees.len() {
                     editor.remove_explorer_worktree(index, cx);
                 }
-                editor.add_explorer_worktree(folder_path, cx);
+                editor.add_explorer_worktree(path, cx);
                 cx.notify();
             });
         })

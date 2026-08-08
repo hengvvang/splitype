@@ -248,7 +248,7 @@ pub fn render_custom_titlebar<T: 'static>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use gpui::Tiling;
+    use gpui::{Tiling, rgba};
 
     #[test]
     fn titlebar_options_enable_transparency_on_mac_and_windows() {

@@ -13,5 +13,5 @@ pub mod panels;
 pub mod render;
 pub mod tree;
 
-// ── Re-exports ─────────────────────────────────────────────────────────────
-pub(crate) use controller::EditorMode;
+#[cfg(test)]
+mod tests;

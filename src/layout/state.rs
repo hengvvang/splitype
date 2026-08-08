@@ -1105,6 +1105,7 @@ impl WindowLayout {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use gpui::{px, size};
 
     #[test]
     fn test_area_layout_suite() {
@@ -1166,24 +1167,28 @@ mod tests {
 
         // Turn leaf 1 into Explorer, then split it → Explorer + Explorer.
         layout.change_window_area_kind(1, WindowAreaKind::Explorer);
-        layout.split_window_area(1, Axis::Vertical, 0.5, AreaSplitMode::Copy);
+        let new_explorer = layout
+            .split_window_area(1, Axis::Vertical, 0.5, AreaSplitMode::Copy)
+            .expect("second split should succeed");
         assert_eq!(layout.window_area_tree.count_leaves(), 3);
         assert_eq!(
             layout.window_area_tree.find_leaf_kind(1),
             Some(WindowAreaKind::Explorer)
         );
-        // The new leaf from the second split (id 3) is also Explorer.
+        // The new leaf from the second split is also Explorer.
         assert_eq!(
-            layout.window_area_tree.find_leaf_kind(3),
+            layout.window_area_tree.find_leaf_kind(new_explorer),
             Some(WindowAreaKind::Explorer)
         );
 
         // Settings splits into Settings.
         layout.change_window_area_kind(2, WindowAreaKind::Settings);
-        layout.split_window_area(2, Axis::Horizontal, 0.5, AreaSplitMode::Copy);
+        let new_settings = layout
+            .split_window_area(2, Axis::Horizontal, 0.5, AreaSplitMode::Copy)
+            .expect("settings split should succeed");
         assert_eq!(layout.window_area_tree.count_leaves(), 4);
         assert_eq!(
-            layout.window_area_tree.find_leaf_kind(4),
+            layout.window_area_tree.find_leaf_kind(new_settings),
             Some(WindowAreaKind::Settings)
         );
     }
@@ -1320,10 +1325,10 @@ mod tests {
         layout.close_window_area(b);
         assert_eq!(layout.active_editor_area, Some(a));
 
-        // Closing the last editor → no active editor.
+        // Closing the second-to-last editor falls back to the remaining
+        // root area (the last editor is never closable).
         layout.close_window_area(a);
-        layout.close_window_area(1);
-        assert_eq!(layout.active_editor_area, None);
+        assert_eq!(layout.active_editor_area, Some(1));
     }
 
     #[test]

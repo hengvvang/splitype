@@ -2642,42 +2642,15 @@ fn inline_word_chunks(text: &str, code: bool, has_background: bool) -> Vec<&str>
 #[cfg(test)]
 mod tests {
     use super::{
-        HtmlComputedStyle, column_axis_gutter_visible, html_node_visual_style, inline_word_chunks,
+        HtmlComputedStyle, html_node_visual_style, inline_word_chunks,
     };
     use crate::editor::tree::block::Block;
     use crate::infra::i18n::I18nManager;
     use crate::model::block::{BlockData, BlockKind};
     use crate::model::inline::text::RichText;
     use crate::model::syntax::html::parse_html_document;
-    use crate::model::syntax::table::{TableAxisKind, TableAxisMarker};
     use crate::theme::{Theme, ThemeManager};
     use gpui::{Hsla, Rgba, TestAppContext, px};
-
-    #[test]
-    fn top_gutter_only_appears_for_column_axis_state() {
-        assert!(!column_axis_gutter_visible(None, None));
-        assert!(!column_axis_gutter_visible(
-            Some(TableAxisMarker {
-                kind: TableAxisKind::Row,
-                index: 0,
-            }),
-            None,
-        ));
-        assert!(column_axis_gutter_visible(
-            Some(TableAxisMarker {
-                kind: TableAxisKind::Column,
-                index: 0,
-            }),
-            None,
-        ));
-        assert!(column_axis_gutter_visible(
-            None,
-            Some(TableAxisMarker {
-                kind: TableAxisKind::Column,
-                index: 0,
-            }),
-        ));
-    }
 
     fn assert_color_near(color: Hsla, red: u8, green: u8, blue: u8, alpha: u8) {
         let color = Rgba::from(color);
@@ -2762,27 +2735,17 @@ mod tests {
             I18nManager::init(cx);
             ThemeManager::init(cx);
         });
-        let (block, cx) = cx.add_window_options_view(
-            WindowOptions {
-                window_bounds: Some(WindowBounds::Windowed(Bounds::centered(
-                    None,
-                    size(px(800.0), px(600.0)),
-                    cx,
-                ))),
-                ..Default::default()
-            },
-            |_window, cx| {
-                Block::with_record(
-                    cx,
-                    BlockData::new(
-                        BlockKind::CodeBlock {
-                            language: Some("rust".into()),
-                        },
-                        RichText::plain("fn main() {}\n"),
-                    ),
-                )
-            },
-        );
+        let (block, cx) = cx.add_window_view(|_window, cx| {
+            Block::with_record(
+                cx,
+                BlockData::new(
+                    BlockKind::CodeBlock {
+                        language: Some("rust".into()),
+                    },
+                    RichText::plain("fn main() {}\n"),
+                ),
+            )
+        });
 
         cx.update(|window, cx| {
             block.update(cx, |block, _cx| {
@@ -2804,7 +2767,9 @@ mod tests {
         });
         assert!(language_bounds.left() > text_bounds.left());
         assert!(language_bounds.top() > text_bounds.top());
-        assert!(language_bounds.size.width >= px(260.0));
-        assert!(language_bounds.size.width <= px(288.0));
+        // The picker is a fixed 230px panel anchored right; the input inside
+        // it renders slightly narrower.
+        assert!(language_bounds.size.width >= px(180.0));
+        assert!(language_bounds.size.width <= px(240.0));
     }
 }

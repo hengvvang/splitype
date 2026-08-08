@@ -366,6 +366,7 @@ pub fn build_tree_from_snapshot(snapshot: &WorktreeSnapshot) -> Option<ExplorerF
     let root_entry = snapshot.entries_by_path.values().next()?;
     let mut arena = vec![make_tree_node(root_entry)];
     let mut stack: Vec<usize> = vec![0]; // arena index of the last node at each depth
+    let mut parents = vec![0usize]; // arena index of the parent, per node
     for entry in snapshot.entries_by_path.values().skip(1) {
         let rel = entry.path.strip_prefix(&arena[0].path).ok()?;
         let depth = rel.components().count();
@@ -374,12 +375,23 @@ pub fn build_tree_from_snapshot(snapshot: &WorktreeSnapshot) -> Option<ExplorerF
         }
         let parent = *stack.last()?;
         let idx = arena.len();
-        let node = make_tree_node(entry);
-        arena[parent].children.push(node.clone());
-        arena.push(node);
+        arena.push(make_tree_node(entry));
+        parents.push(parent);
         stack.push(idx);
     }
-    for node in &mut arena {
+    // Assemble children bottom-up. Pushing `arena[idx].clone()` while
+    // walking the arena top-down would freeze an empty child list into the
+    // parent; cloning in reverse order copies each subtree only after its
+    // own children were already attached.
+    for idx in (1..arena.len()).rev() {
+        let parent = parents[idx];
+        let child = arena[idx].clone();
+        arena[parent].children.push(child);
+    }
+    // Sort the assembled tree recursively: sorting `arena` nodes in place
+    // would only fix the arena copies, not the clones stored in parent
+    // child lists.
+    fn sort_children(node: &mut ExplorerFileNode) {
         node.children.sort_by(|left, right| {
             let left_dir = left.kind == ExplorerEntryKind::Directory;
             let right_dir = right.kind == ExplorerEntryKind::Directory;
@@ -387,6 +399,12 @@ pub fn build_tree_from_snapshot(snapshot: &WorktreeSnapshot) -> Option<ExplorerF
                 .cmp(&left_dir)
                 .then_with(|| left.label.to_lowercase().cmp(&right.label.to_lowercase()))
         });
+        for child in &mut node.children {
+            sort_children(child);
+        }
+    }
+    if let Some(root) = arena.first_mut() {
+        sort_children(root);
     }
     arena.into_iter().next()
 }
@@ -432,11 +450,11 @@ pub fn flatten_file_tree(
         path: root.path.clone(),
         label: root.label.clone(),
         depth: 0,
-        kind: ExplorerEntryKind::Directory,
+        kind: root.kind,
         is_expanded: expanded.contains(&root.id),
         has_children: !root.children.is_empty(),
     });
-    if out[0].is_expanded {
+    if out[0].is_expanded && root.kind == ExplorerEntryKind::Directory {
         flatten_children(root_index, &root.children, Some(root.id), 1, expanded, &mut out);
     }
     out

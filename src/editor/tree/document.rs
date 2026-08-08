@@ -748,7 +748,7 @@ use crate::editor::controller::Editor;
                 }
             });
 
-            editor.doc().rebuild_metadata_and_snapshot(cx);
+            editor.doc_mut().rebuild_metadata_and_snapshot(cx);
 
             assert!(root.read(cx).children.is_empty());
             let visible_ids = editor
@@ -822,7 +822,7 @@ use crate::editor::controller::Editor;
             let b = visible[1].entity.clone();
             let c = visible[2].entity.clone();
 
-            editor.doc().with_structure_mutation(cx, |document, cx| {
+            editor.doc_mut().with_structure_mutation(cx, |document, cx| {
                 let moved = document
                     .remove_block_by_id_raw(c.entity_id(), cx)
                     .expect("remove c")

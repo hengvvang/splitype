@@ -350,9 +350,11 @@ pub fn parse_image_reference_definitions(markdown: &str) -> ImageReferenceDefini
         }
 
         if let Some(fence) = parse_reference_scan_opening_fence(line) {
-            if !is_reference_scan_closing_fence(line, fence) {
-                active_fence = Some(fence);
-            }
+            // The opening line is always the fence opener; the closing
+            // check only applies to lines *inside* the fence. Treating a
+            // plain ``` line as its own closer would let fence contents
+            // leak into the definition scan.
+            active_fence = Some(fence);
             index += 1;
             continue;
         }
@@ -698,7 +700,7 @@ fn is_escaped(input: &str, index: usize) -> bool {
 mod tests {
     use super::{
         ImageReferenceDefinition, ImageResolvedSource, ImageSyntax, ImageTarget,
-        ImageReferenceDefinitions, ResolvedImageTarget, TableCellInlineImageSegment,
+        ImageReferenceDefinitions, TableCellInlineImageSegment,
         normalize_reference_label, parse_image_reference_definitions, parse_standalone_image,
         parse_table_cell_inline_images, resolve_image_source,
     };
@@ -813,7 +815,7 @@ mod tests {
     #[test]
     fn parses_table_cell_inline_image_segments() {
         let segments = parse_table_cell_inline_images("text ![img](a.png) more");
-        assert_eq!(segments.len(), 5);
+        assert_eq!(segments.len(), 3);
         assert_eq!(
             segments[0],
             TableCellInlineImageSegment::Text("text ".to_string())
@@ -825,6 +827,10 @@ mod tests {
             }
             _ => panic!("expected image segment"),
         }
+        assert_eq!(
+            segments[2],
+            TableCellInlineImageSegment::Text(" more".to_string())
+        );
     }
 
     #[test]

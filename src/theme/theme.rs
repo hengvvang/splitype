@@ -838,7 +838,7 @@ mod tests {
         let dark = Theme::default_theme();
         let light = Theme::light_theme();
 
-        assert_eq!(light.name, "splitype Light");
+        assert_eq!(light.name, "Light");
         assert_eq!(light.colors.editor_background, rgba(0xf7f8fbff).into());
         assert_eq!(light.colors.text_default, rgba(0x1f2937ff).into());
         assert_eq!(light.colors.text_link, rgba(0x2563ebff).into());

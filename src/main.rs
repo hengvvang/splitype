@@ -4,7 +4,6 @@
 //! file. With no arguments, a single empty window is created.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-#![recursion_limit = "2048"]
 
 mod app;
 mod editor;

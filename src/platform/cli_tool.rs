@@ -34,7 +34,7 @@ fn is_cli_symlink_current_app() -> bool {
 }
 
 #[cfg(any(target_os = "macos", test))]
-fn applescript_string_literal(value: &str) -> String {
+pub(crate) fn applescript_string_literal(value: &str) -> String {
     let mut escaped = String::with_capacity(value.len() + 2);
     escaped.push('"');
     for ch in value.chars() {

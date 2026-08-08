@@ -1378,7 +1378,7 @@ pub(crate) fn open_settings_window(cx: &mut App) -> WindowHandle<SettingsWindow>
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{AppSettings, StartupOpenSetting};
 
     #[test]
     fn test_app_settings_default() {

@@ -228,7 +228,11 @@ impl Editor {
                             .file_name()
                             .map(|name| name.to_string_lossy().into_owned())
                             .unwrap_or_else(|| root.to_string_lossy().into_owned()),
-                        kind: ExplorerEntryKind::Directory,
+                        kind: if root.is_dir() {
+                            ExplorerEntryKind::Directory
+                        } else {
+                            ExplorerEntryKind::File
+                        },
                         children: Vec::new(),
                     }
                 })

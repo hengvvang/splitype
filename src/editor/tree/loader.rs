@@ -77,10 +77,10 @@ fn records_to_entity_blocks(
 }
 #[cfg(test)]
 mod tests {
-    use gpui::TestAppContext;
+    use gpui::{AppContext, TestAppContext};
 
     use crate::model::syntax::html::HtmlCssColor;
-    use crate::editor::block_types::{BlockKind, CalloutKind};
+    use crate::model::block::{BlockKind, CalloutKind};
     use crate::editor::controller::Editor;
 
     #[gpui::test]

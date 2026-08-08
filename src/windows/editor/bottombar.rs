@@ -8,7 +8,7 @@ use crate::ui::components::button::{icon_chip_button, small_pill_button};
 use gpui::prelude::*;
 use gpui::*;
 
-use crate::editor::EditorMode;
+use crate::editor::controller::EditorMode;
 use crate::editor::controller::Editor;
 use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
 use crate::infra::i18n::I18nStrings;

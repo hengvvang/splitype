@@ -263,6 +263,7 @@ impl Editor {
         let is_expanded = entry.is_expanded;
         let node_id = entry.id;
         let click_editor = editor.clone();
+        let click_path = entry.path.clone();
         let right_click_editor = editor.clone();
         let right_click_path = entry.path.clone();
         let arrow_node_id = entry.id;
@@ -275,6 +276,28 @@ impl Editor {
         let drag_label = entry.label.clone();
         let drag_payload = DraggedExplorerSelection {
             selections: vec![mark_selection.clone()],
+        };
+        // A worktree rooted at a single file renders as a file row: its own
+        // icon (markdown for .md) and a click that opens the file instead of
+        // toggling a folder.
+        let root_is_file = entry.kind != ExplorerEntryKind::Directory;
+        let root_icon = if root_is_file {
+            if entry
+                .path
+                .extension()
+                .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+            {
+                MARKDOWN_ICON
+            } else {
+                FILE_ICON
+            }
+        } else {
+            FOLDER_ICON
+        };
+        let root_icon_color = if root_is_file {
+            c.dialog_muted
+        } else {
+            c.text_default
         };
 
         let mut arrow_el = div()
@@ -423,10 +446,10 @@ impl Editor {
             .child(arrow_el)
             .child(
                 svg()
-                    .path("icons/explorer/worktree/folder.svg")
+                    .path(root_icon)
                     .size(px(19.0))
                     .flex_shrink_0()
-                    .text_color(c.text_default),
+                    .text_color(root_icon_color),
             )
             .child(
                 div()
@@ -465,7 +488,7 @@ impl Editor {
                     cx.stop_propagation();
                 }
             })
-            .on_click(move |event, _window, cx| {
+            .on_click(move |event, window, cx| {
                 let id = node_id;
                 let selection = mark_selection.clone();
                 let shift = event.modifiers().shift;
@@ -481,7 +504,10 @@ impl Editor {
                         return;
                     }
                     editor.panels.explorer.marked.clear();
-                    if alt {
+                    if root_is_file {
+                        // A file-rooted worktree opens its file on click.
+                        editor.open_explorer_file_click(click_path.clone(), false, window, cx);
+                    } else if alt {
                         editor.toggle_explorer_subtree(id, cx);
                     } else {
                         editor.toggle_explorer_node(id, cx);
