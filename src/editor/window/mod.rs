@@ -131,7 +131,7 @@ impl Editor {
                 .unwrap_or(true)
         });
         if let Some(area) = self.panels.layout.active_editor_area {
-            if let Some(session) = self.panels.editor_sessions.get_mut(&area) {
+            if let Some(session) = self.editor_sessions.get_mut(&area) {
                 if let Some(tab) = session.tab_list.tabs.get_mut(session.tab_list.active_tab) {
                     tab.file.close_guard_installed = true;
                 }

@@ -7,7 +7,7 @@
 
 use gpui::*;
 
-use crate::editor::controller::WindowPanels;
+use crate::editor::controller::Editor;
 use crate::editor::panels::panel_types::{
     EditingPanelKind, EditorInnerPanelDragAction, EditorInnerPanelKind, EditorSession,
     EditorTabList, InnerPanelLocation, WelcomePanelKind,
@@ -19,7 +19,7 @@ use splitype_layout::tree::{AreaRect, Axis, Direction, SplitTree};
 use splitype_layout::types::EditorAreaMode;
 use splitype_layout::types::{AreaId, AreaSplitMode, PanelId, SplitId, WindowAreaKind};
 
-impl WindowPanels {
+impl Editor {
     /// Split `area_id` at `ratio` with a sibling of the SAME kind, and seed
     /// the new Editor area's session per `mode`: [`AreaSplitMode::Copy`]
     /// clones the source inner panel layout (the host then deep-copies the
@@ -32,15 +32,18 @@ impl WindowPanels {
         ratio: f32,
         mode: AreaSplitMode,
     ) -> Option<AreaId> {
-        let new_id = self.layout.split_window_area(area_id, direction, ratio)?;
-        let kind = self.layout.window_area_tree.find_leaf_kind(area_id);
+        let new_id = self
+            .panels
+            .layout
+            .split_window_area(area_id, direction, ratio)?;
+        let kind = self.panels.layout.window_area_tree.find_leaf_kind(area_id);
         if kind == Some(WindowAreaKind::Editor) {
             match mode {
                 AreaSplitMode::Copy => {
                     if let Some(source) = self.editor_sessions.get(&area_id) {
                         let inner_panel_tree = source
                             .inner_panel_tree
-                            .clone_with_new_ids(&mut self.layout.next_node_id);
+                            .clone_with_new_ids(&mut self.panels.layout.next_node_id);
                         self.editor_sessions.insert(
                             new_id,
                             EditorSession {
@@ -62,14 +65,14 @@ impl WindowPanels {
 
     /// Close an area and clean up its editor session.
     pub fn close_window_area(&mut self, area_id: AreaId) {
-        self.layout.close_window_area(area_id);
+        self.panels.layout.close_window_area(area_id);
         self.editor_sessions.remove(&area_id);
         self.clear_inner_panel_focus(area_id);
     }
 
     /// Join `removed` into `into`, cleaning up the removed area's session.
     pub fn join_window_area(&mut self, into: AreaId, removed: AreaId) -> bool {
-        let ok = self.layout.join_window_area(into, removed);
+        let ok = self.panels.layout.join_window_area(into, removed);
         if ok {
             self.editor_sessions.remove(&removed);
             self.clear_inner_panel_focus(removed);
@@ -81,9 +84,9 @@ impl WindowPanels {
     /// along with the Editor kind so the new Editor area inherits the
     /// swapped-in tabs and panel layout.
     pub fn swap_window_area_kinds(&mut self, a: AreaId, b: AreaId) {
-        let type_a = self.layout.window_area_tree.find_leaf_kind(a);
-        let type_b = self.layout.window_area_tree.find_leaf_kind(b);
-        self.layout.swap_window_area_kinds(a, b);
+        let type_a = self.panels.layout.window_area_tree.find_leaf_kind(a);
+        let type_b = self.panels.layout.window_area_tree.find_leaf_kind(b);
+        self.panels.layout.swap_window_area_kinds(a, b);
         if let (Some(_), Some(_)) = (type_a, type_b) {
             let session_a = self.editor_sessions.remove(&a);
             let session_b = self.editor_sessions.remove(&b);
@@ -109,8 +112,8 @@ impl WindowPanels {
     /// still holds tabs (background editing — switching back restores it)
     /// and drops it once empty.
     pub fn change_window_area_kind(&mut self, area_id: AreaId, kind: WindowAreaKind) {
-        let previous = self.layout.window_area_tree.find_leaf_kind(area_id);
-        self.layout.change_window_area_kind(area_id, kind);
+        let previous = self.panels.layout.window_area_tree.find_leaf_kind(area_id);
+        self.panels.layout.change_window_area_kind(area_id, kind);
         if previous == Some(WindowAreaKind::Editor) && kind != WindowAreaKind::Editor {
             let has_tabs = self
                 .editor_sessions
@@ -125,7 +128,7 @@ impl WindowPanels {
             // restored; a fresh area stays blank until its first use.
             // Either way the switch is an explicit interaction, so the
             // area becomes the active editor.
-            self.layout.activate_editor_area(area_id);
+            self.panels.layout.activate_editor_area(area_id);
         }
     }
 
@@ -146,7 +149,7 @@ impl WindowPanels {
     /// Get or create the editor session for an area. New sessions start
     /// with no tabs and a single default `Welcome` panel.
     pub fn ensure_editor_session(&mut self, area_id: AreaId) -> &mut EditorSession {
-        let next_node_id = &mut self.layout.next_node_id;
+        let next_node_id = &mut self.panels.layout.next_node_id;
         self.editor_sessions.entry(area_id).or_insert_with(|| {
             let panel_id = *next_node_id;
             *next_node_id += 1;
@@ -167,7 +170,8 @@ impl WindowPanels {
 
     /// The active editor area's session, if an active editor exists.
     pub fn active_editor_session(&self) -> Option<&EditorSession> {
-        self.layout
+        self.panels
+            .layout
             .active_editor_area
             .and_then(|area| self.editor_sessions.get(&area))
     }
@@ -247,8 +251,8 @@ impl WindowPanels {
         panel_id: PanelId,
         direction: Axis,
     ) {
-        let new_id = self.layout.next_node_id;
-        self.layout.next_node_id += 1;
+        let new_id = self.panels.layout.next_node_id;
+        self.panels.layout.next_node_id += 1;
         let root = &mut self.ensure_editor_session(area_id).inner_panel_tree;
         let kind = root
             .find_leaf_kind(panel_id)
@@ -272,7 +276,7 @@ impl WindowPanels {
             self.open_editor_inner_panel_dropdown = None;
         } else {
             self.open_editor_inner_panel_dropdown = Some(location);
-            self.layout.open_window_area_dropdown = None;
+            self.panels.layout.open_window_area_dropdown = None;
         }
     }
 
@@ -297,8 +301,8 @@ impl WindowPanels {
         direction: Axis,
         ratio: f32,
     ) {
-        let new_id = self.layout.next_node_id;
-        self.layout.next_node_id += 1;
+        let new_id = self.panels.layout.next_node_id;
+        self.panels.layout.next_node_id += 1;
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
             let root = &mut session.inner_panel_tree;
             let kind = root
@@ -475,7 +479,11 @@ impl WindowPanels {
             } else {
                 Axis::Horizontal
             };
-            if let Some(rect) = self.layout.window_area_rect(session.target_id, &leaf_rects) {
+            if let Some(rect) = self
+                .panels
+                .layout
+                .window_area_rect(session.target_id, &leaf_rects)
+            {
                 if rect.width > 1.0 && rect.height > 1.0 {
                     let ratio = match split_dir {
                         Axis::Horizontal => {

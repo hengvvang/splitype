@@ -89,7 +89,6 @@ impl Editor {
         }
         self.panels.layout.activate_editor_area(area);
         let set = self
-            .panels
             .editor_sessions
             .get_mut(&area)
             .map(|session| &mut session.tab_list)
@@ -122,7 +121,6 @@ impl Editor {
         }
         self.panels.layout.activate_editor_area(area);
         let set = self
-            .panels
             .editor_sessions
             .get_mut(&area)
             .map(|session| &mut session.tab_list)

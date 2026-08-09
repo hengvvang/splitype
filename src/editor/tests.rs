@@ -63,13 +63,11 @@ fn ensure_wysiwyg_editing_panel(editor: &gpui::Entity<Editor>, cx: &mut gpui::Ap
         editor.panels.layout.activate_editor_area(area);
         let mut ids = Vec::new();
         editor
-            .panels
             .ensure_editor_session(area)
             .inner_panel_tree
             .leaf_ids(&mut ids);
         for id in ids {
             editor
-                .panels
                 .ensure_editor_session(area)
                 .inner_panel_tree
                 .set_leaf_kind(

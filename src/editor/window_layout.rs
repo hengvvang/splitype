@@ -13,22 +13,17 @@ use crate::ui::splitter::{splitter_bar_h, splitter_bar_v};
 use crate::ui::menu_item::menu_item;
 use crate::ui::popover::menu_panel;
 
-use std::collections::HashMap;
-
 use gpui::*;
 
 use crate::editor::panels::explorer::state::ExplorerState;
 use crate::editor::panels::outline::state::OutlinePanelState;
-use crate::editor::panels::panel_types::{
-    EditorInnerPanelDragAction, EditorSession, InnerPanelLocation,
-};
+use crate::editor::panels::panel_types::EditorInnerPanelDragAction;
 use crate::editor::panels::settings::SettingsUiState;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 use crate::layout::{
-    AreaId, AreaSplitMode, Axis, BorderMenuState, CornerDragModifier, CornerDragPreview,
-    CornerDragSession, Direction, SplitterDragSession, WindowAreaDragAction, WindowAreaKind,
-    WindowLayout,
+    AreaSplitMode, Axis, BorderMenuState, CornerDragModifier, CornerDragPreview, Direction,
+    SplitterDragSession, WindowAreaDragAction, WindowAreaKind, WindowLayout,
 };
 use splitype_layout::tree::SplitTree;
 
@@ -131,7 +126,7 @@ impl Editor {
                             match action {
                                 WindowAreaDragAction::Swap { from, to } => {
                                     ed.panels.layout.end_window_area_corner_drag();
-                                    ed.panels.swap_window_area_kinds(from, to);
+                                    ed.swap_window_area_kinds(from, to);
                                 }
                                 // Shift + Settings corner: open the floating
                                 // settings window (same as the app menu).
@@ -146,9 +141,8 @@ impl Editor {
                             }
                         }
                         changed = true;
-                    } else if ed.panels.active_editor_inner_panel_splitter_drag.is_some() {
-                        let (area_id, drag) =
-                            ed.panels.active_editor_inner_panel_splitter_drag.unwrap();
+                    } else if ed.active_editor_inner_panel_splitter_drag.is_some() {
+                        let (area_id, drag) = ed.active_editor_inner_panel_splitter_drag.unwrap();
                         let viewport = window.viewport_size();
                         let outer_rects = ed.panels.layout.window_area_rects(viewport);
                         if let Some(outer_rect) =
@@ -160,7 +154,6 @@ impl Editor {
                             };
                             let inner_size = size(px(outer_rect.width), px(outer_rect.height));
                             let span = ed
-                                .panels
                                 .editor_inner_panel_split_pixel_span(
                                     area_id,
                                     drag.split_id,
@@ -173,16 +166,14 @@ impl Editor {
                             if span > 1.0 {
                                 let mut session = drag;
                                 session.total_span = span;
-                                ed.panels.active_editor_inner_panel_splitter_drag =
+                                ed.active_editor_inner_panel_splitter_drag =
                                     Some((area_id, session));
                             }
-                            ed.panels
-                                .update_editor_inner_panel_splitter_drag(area_id, current_pos);
+                            ed.update_editor_inner_panel_splitter_drag(area_id, current_pos);
                             changed = true;
                         }
-                    } else if ed.panels.active_editor_inner_panel_corner_drag.is_some() {
-                        let (area_id, drag) =
-                            ed.panels.active_editor_inner_panel_corner_drag.unwrap();
+                    } else if ed.active_editor_inner_panel_corner_drag.is_some() {
+                        let (area_id, drag) = ed.active_editor_inner_panel_corner_drag.unwrap();
                         let viewport = window.viewport_size();
                         let outer_rects = ed.panels.layout.window_area_rects(viewport);
                         if let Some(outer_rect) =
@@ -199,23 +190,22 @@ impl Editor {
                             if start_x > outer_rect.width || start_y > outer_rect.height {
                                 session.start_pos =
                                     point(px(start_x - outer_rect.x), px(start_y - outer_rect.y));
-                                ed.panels.active_editor_inner_panel_corner_drag =
-                                    Some((area_id, session));
+                                ed.active_editor_inner_panel_corner_drag = Some((area_id, session));
                             }
-                            let action = ed.panels.update_editor_inner_panel_corner_drag(
+                            let action = ed.update_editor_inner_panel_corner_drag(
                                 area_id, inner_pos, inner_size,
                             );
                             if let Some(action) = action {
                                 match action {
                                     EditorInnerPanelDragAction::Swap { from, to } => {
-                                        ed.panels.end_editor_inner_panel_corner_drag();
-                                        ed.panels.swap_editor_inner_panel_kinds(area_id, from, to);
+                                        ed.end_editor_inner_panel_corner_drag();
+                                        ed.swap_editor_inner_panel_kinds(area_id, from, to);
                                     }
                                     EditorInnerPanelDragAction::Duplicate { .. } => {
-                                        ed.panels.end_editor_inner_panel_corner_drag();
+                                        ed.end_editor_inner_panel_corner_drag();
                                     }
                                     EditorInnerPanelDragAction::Cancel => {
-                                        ed.panels.end_editor_inner_panel_corner_drag();
+                                        ed.end_editor_inner_panel_corner_drag();
                                     }
                                     _ => {}
                                 }
@@ -251,21 +241,21 @@ impl Editor {
                                 from_area,
                                 into_area,
                             }) => {
-                                ed.panels.join_window_area(into_area, from_area);
+                                ed.join_window_area(into_area, from_area);
                             }
                             Some(WindowAreaDragAction::Swap { from, to }) => {
-                                ed.panels.swap_window_area_kinds(from, to);
+                                ed.swap_window_area_kinds(from, to);
                             }
                             _ => {}
                         }
                         cx.notify();
                     }
-                    if ed.panels.active_editor_inner_panel_splitter_drag.is_some() {
-                        ed.panels.end_editor_inner_panel_splitter_drag();
+                    if ed.active_editor_inner_panel_splitter_drag.is_some() {
+                        ed.end_editor_inner_panel_splitter_drag();
                         cx.notify();
                     }
-                    if ed.panels.active_editor_inner_panel_corner_drag.is_some() {
-                        match ed.panels.finish_editor_inner_panel_corner_drag() {
+                    if ed.active_editor_inner_panel_corner_drag.is_some() {
+                        match ed.finish_editor_inner_panel_corner_drag() {
                             Some((
                                 area_id,
                                 EditorInnerPanelDragAction::Split {
@@ -274,7 +264,7 @@ impl Editor {
                                     ratio,
                                 },
                             )) => {
-                                ed.panels.split_editor_inner_panel_with_ratio(
+                                ed.split_editor_inner_panel_with_ratio(
                                     area_id, panel_id, direction, ratio,
                                 );
                             }
@@ -285,8 +275,7 @@ impl Editor {
                                     into_panel,
                                 },
                             )) => {
-                                ed.panels
-                                    .join_editor_inner_panel(area_id, into_panel, from_panel);
+                                ed.join_editor_inner_panel(area_id, into_panel, from_panel);
                             }
                             _ => {}
                         }
@@ -410,111 +399,110 @@ impl Editor {
         let container = container.children(preview_overlay);
 
         // INNER_PREVIEW_INSERT
-        let inner_preview_overlay = if let Some((area_id, ref drag)) =
-            self.panels.active_editor_inner_panel_corner_drag
-        {
-            match drag.preview {
-                CornerDragPreview::SplitPreview { direction, ratio } => {
-                    let viewport = window.viewport_size();
-                    let outer_rects = self.panels.layout.window_area_rects(viewport);
-                    if let Some(outer_rect) =
-                        self.panels.layout.window_area_rect(area_id, &outer_rects)
-                    {
-                        let line = match direction {
-                            Axis::Horizontal => div()
-                                .absolute()
-                                .left(px(outer_rect.x + outer_rect.width * ratio))
-                                .top(px(outer_rect.y))
-                                .w(px(3.0))
-                                .h(px(outer_rect.height))
-                                .bg(hsla(0.36, 0.73, 0.57, 0.8)),
-                            Axis::Vertical => div()
-                                .absolute()
-                                .top(px(outer_rect.y + outer_rect.height * ratio))
-                                .left(px(outer_rect.x))
-                                .h(px(3.0))
-                                .w(px(outer_rect.width))
-                                .bg(hsla(0.36, 0.73, 0.57, 0.8)),
-                        };
-                        Some(
-                            div()
-                                .absolute()
-                                .inset(px(0.0))
-                                .child(
-                                    div()
-                                        .absolute()
-                                        .left(px(outer_rect.x))
-                                        .top(px(outer_rect.y))
-                                        .w(px(outer_rect.width))
-                                        .h(px(outer_rect.height))
-                                        .rounded(px(theme.dimensions.area_tile_radius))
-                                        .bg(hsla(0.36, 0.73, 0.57, 0.08)),
-                                )
-                                .child(line),
-                        )
-                    } else {
-                        None
-                    }
-                }
-                CornerDragPreview::JoinPreview {
-                    target_id,
-                    direction,
-                } => {
-                    let viewport = window.viewport_size();
-                    let outer_rects = self.panels.layout.window_area_rects(viewport);
-                    if let Some(outer_rect) =
-                        self.panels.layout.window_area_rect(area_id, &outer_rects)
-                    {
-                        let inner_size = size(px(outer_rect.width), px(outer_rect.height));
-                        let inner_rects = self.panels.editor_inner_panel_rects(area_id, inner_size);
-                        if let Some(inner_rect) =
-                            self.panels.layout.window_area_rect(target_id, &inner_rects)
+        let inner_preview_overlay =
+            if let Some((area_id, ref drag)) = self.active_editor_inner_panel_corner_drag {
+                match drag.preview {
+                    CornerDragPreview::SplitPreview { direction, ratio } => {
+                        let viewport = window.viewport_size();
+                        let outer_rects = self.panels.layout.window_area_rects(viewport);
+                        if let Some(outer_rect) =
+                            self.panels.layout.window_area_rect(area_id, &outer_rects)
                         {
-                            let arrow_symbol = match direction {
-                                Direction::Up => "N",
-                                Direction::Down => "S",
-                                Direction::Right => "E",
-                                Direction::Left => "W",
+                            let line = match direction {
+                                Axis::Horizontal => div()
+                                    .absolute()
+                                    .left(px(outer_rect.x + outer_rect.width * ratio))
+                                    .top(px(outer_rect.y))
+                                    .w(px(3.0))
+                                    .h(px(outer_rect.height))
+                                    .bg(hsla(0.36, 0.73, 0.57, 0.8)),
+                                Axis::Vertical => div()
+                                    .absolute()
+                                    .top(px(outer_rect.y + outer_rect.height * ratio))
+                                    .left(px(outer_rect.x))
+                                    .h(px(3.0))
+                                    .w(px(outer_rect.width))
+                                    .bg(hsla(0.36, 0.73, 0.57, 0.8)),
                             };
                             Some(
                                 div()
                                     .absolute()
-                                    .left(px(outer_rect.x + inner_rect.x))
-                                    .top(px(outer_rect.y + inner_rect.y))
-                                    .w(px(inner_rect.width))
-                                    .h(px(inner_rect.height))
-                                    .rounded(px(theme.dimensions.area_tile_radius))
-                                    .bg(hsla(0.36, 0.73, 0.57, 0.25))
-                                    .border(px(2.0))
-                                    .border_color(hsla(0.36, 0.73, 0.57, 0.8))
-                                    .flex()
-                                    .flex_col()
-                                    .items_center()
-                                    .justify_center()
+                                    .inset(px(0.0))
                                     .child(
                                         div()
-                                            .px(px(12.0))
-                                            .py(px(6.0))
-                                            .rounded_md()
-                                            .bg(hsla(0.0, 0.0, 0.0, 0.75))
-                                            .text_color(hsla(0.0, 0.0, 1.0, 0.95))
-                                            .text_size(px(15.0))
-                                            .font_weight(FontWeight::BOLD)
-                                            .child(format!("{} Join Area", arrow_symbol)),
-                                    ),
+                                            .absolute()
+                                            .left(px(outer_rect.x))
+                                            .top(px(outer_rect.y))
+                                            .w(px(outer_rect.width))
+                                            .h(px(outer_rect.height))
+                                            .rounded(px(theme.dimensions.area_tile_radius))
+                                            .bg(hsla(0.36, 0.73, 0.57, 0.08)),
+                                    )
+                                    .child(line),
                             )
                         } else {
                             None
                         }
-                    } else {
-                        None
                     }
+                    CornerDragPreview::JoinPreview {
+                        target_id,
+                        direction,
+                    } => {
+                        let viewport = window.viewport_size();
+                        let outer_rects = self.panels.layout.window_area_rects(viewport);
+                        if let Some(outer_rect) =
+                            self.panels.layout.window_area_rect(area_id, &outer_rects)
+                        {
+                            let inner_size = size(px(outer_rect.width), px(outer_rect.height));
+                            let inner_rects = self.editor_inner_panel_rects(area_id, inner_size);
+                            if let Some(inner_rect) =
+                                self.panels.layout.window_area_rect(target_id, &inner_rects)
+                            {
+                                let arrow_symbol = match direction {
+                                    Direction::Up => "N",
+                                    Direction::Down => "S",
+                                    Direction::Right => "E",
+                                    Direction::Left => "W",
+                                };
+                                Some(
+                                    div()
+                                        .absolute()
+                                        .left(px(outer_rect.x + inner_rect.x))
+                                        .top(px(outer_rect.y + inner_rect.y))
+                                        .w(px(inner_rect.width))
+                                        .h(px(inner_rect.height))
+                                        .rounded(px(theme.dimensions.area_tile_radius))
+                                        .bg(hsla(0.36, 0.73, 0.57, 0.25))
+                                        .border(px(2.0))
+                                        .border_color(hsla(0.36, 0.73, 0.57, 0.8))
+                                        .flex()
+                                        .flex_col()
+                                        .items_center()
+                                        .justify_center()
+                                        .child(
+                                            div()
+                                                .px(px(12.0))
+                                                .py(px(6.0))
+                                                .rounded_md()
+                                                .bg(hsla(0.0, 0.0, 0.0, 0.75))
+                                                .text_color(hsla(0.0, 0.0, 1.0, 0.95))
+                                                .text_size(px(15.0))
+                                                .font_weight(FontWeight::BOLD)
+                                                .child(format!("{} Join Area", arrow_symbol)),
+                                        ),
+                                )
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    }
+                    CornerDragPreview::Dragging => None,
                 }
-                CornerDragPreview::Dragging => None,
-            }
-        } else {
-            None
-        };
+            } else {
+                None
+            };
         let container = container.children(inner_preview_overlay);
 
         if let Some(border_menu) = self.panels.layout.active_window_area_border_menu {
@@ -914,7 +902,7 @@ impl Editor {
                     })
                     .on_click(move |_event, _window, cx| {
                         let _ = option_editor.update(cx, |ed, cx| {
-                            ed.panels.change_window_area_kind(leaf_id, kind);
+                            ed.change_window_area_kind(leaf_id, kind);
                             cx.notify();
                         });
                     })
@@ -1043,7 +1031,7 @@ impl Editor {
                             .child("Close Area")
                             .on_click(move |_event, _window, cx| {
                                 let _ = close_ed.update(cx, |ed, cx| {
-                                    ed.panels.close_window_area(split_id);
+                                    ed.close_window_area(split_id);
                                     cx.notify();
                                 });
                             }),
@@ -1061,21 +1049,12 @@ impl Editor {
 ///
 /// Pure state records; rendering lives in `crate::editor::window_layout`
 /// (outer layout), `crate::explorer`, and `crate::settings`. The per-area
-/// editor sessions (tab lists + inner panel trees) and inner-panel
-/// operations live in `crate::editor::panels::panels_state`.
+/// editor sessions and inner-panel operations live on the `Editor` entity
+/// (see `crate::editor::panels::panels_state`).
 #[derive(Default)]
 pub struct WindowPanels {
     pub(crate) explorer: ExplorerState,
     pub(crate) layout: WindowLayout,
     pub(crate) outline: OutlinePanelState,
     pub(crate) settings: SettingsUiState,
-    /// Per-Editor-area sessions (tab list + inner panel layout), keyed by
-    /// outer area id. Retained for areas that left Editor with tabs.
-    pub(crate) editor_sessions: HashMap<AreaId, EditorSession>,
-    pub(crate) open_editor_inner_panel_dropdown: Option<InnerPanelLocation>,
-    pub(crate) active_editor_inner_panel_splitter_drag: Option<(AreaId, SplitterDragSession)>,
-    pub(crate) active_editor_inner_panel_corner_drag: Option<(AreaId, CornerDragSession)>,
-    pub(crate) active_editor_inner_panel_border_menu: Option<BorderMenuState>,
-    /// Currently focused inner panel — the status-bar action target.
-    pub(crate) focused_editor_inner_panel: Option<InnerPanelLocation>,
 }

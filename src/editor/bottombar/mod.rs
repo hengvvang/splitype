@@ -303,12 +303,11 @@ impl Editor {
         self.current_tab_area = Some(area_id);
 
         let inner_leaf_count = self
-            .panels
             .ensure_editor_session(area_id)
             .inner_panel_tree
             .count_leaves();
 
-        let focused = self.panels.focused_editor_inner_panel;
+        let focused = self.focused_editor_inner_panel;
         let focused_panel_id = focused.and_then(|loc| {
             if loc.area_id == area_id {
                 Some(loc.panel_id)
@@ -317,8 +316,7 @@ impl Editor {
             }
         });
         let focused_kind = focused_panel_id.and_then(|panel_id| {
-            self.panels
-                .ensure_editor_session(area_id)
+            self.ensure_editor_session(area_id)
                 .inner_panel_tree
                 .find_leaf_kind(panel_id)
         });
@@ -348,8 +346,7 @@ impl Editor {
                 mode_pill =
                     mode_pill.on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = toggle_editor.update(cx, |ed, cx| {
-                            ed.panels
-                                .toggle_editor_inner_panel_dropdown(area_id, panel_id);
+                            ed.toggle_editor_inner_panel_dropdown(area_id, panel_id);
                             cx.notify();
                         });
                     });
@@ -401,8 +398,7 @@ impl Editor {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = split_h_editor.update(cx, |ed, cx| {
-                            ed.panels
-                                .split_editor_inner_panel(area_id, panel_id, Axis::Horizontal);
+                            ed.split_editor_inner_panel(area_id, panel_id, Axis::Horizontal);
                             cx.notify();
                         });
                     })
@@ -421,8 +417,7 @@ impl Editor {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = split_v_editor.update(cx, |ed, cx| {
-                            ed.panels
-                                .split_editor_inner_panel(area_id, panel_id, Axis::Vertical);
+                            ed.split_editor_inner_panel(area_id, panel_id, Axis::Vertical);
                             cx.notify();
                         });
                     })
@@ -442,11 +437,11 @@ impl Editor {
                         )
                         .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                             let _ = close_editor.update(cx, |ed, cx| {
-                                ed.panels.close_editor_inner_panel(area_id, panel_id);
-                                if ed.panels.focused_editor_inner_panel
+                                ed.close_editor_inner_panel(area_id, panel_id);
+                                if ed.focused_editor_inner_panel
                                     == Some(InnerPanelLocation { area_id, panel_id })
                                 {
-                                    ed.panels.focused_editor_inner_panel = None;
+                                    ed.focused_editor_inner_panel = None;
                                 }
                                 cx.notify();
                             });

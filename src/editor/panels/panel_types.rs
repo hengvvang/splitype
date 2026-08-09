@@ -40,8 +40,8 @@ impl<T> EditorTabList<T> {
 /// A retained session is a pure cache: it never participates in explorer
 /// or activation logic until its area is back in the foreground.
 pub struct EditorSession {
-    pub tab_list: EditorTabList<crate::editor::controller::DocumentTab>,
-    pub inner_panel_tree: SplitTree<EditorInnerPanelKind>,
+    pub(crate) tab_list: EditorTabList<crate::editor::controller::DocumentTab>,
+    pub(crate) inner_panel_tree: SplitTree<EditorInnerPanelKind>,
 }
 
 /// Welcome 模式下的面板类型。目前唯一的欢迎面板携带它退出编辑前的
