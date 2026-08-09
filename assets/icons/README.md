@@ -14,7 +14,7 @@ used by several surfaces exists once per surface (see
 
 | Directory | Surface | Icons |
 | --- | --- | --- |
-| `explorer/worktree/` | Worktree: root row and file tree | `folder`, `open_folder`, `replace_folder`, `file`, `markdown`, `view`, `hide`, `sync_folder`, `collapse-all`, `chevron-down`, `chevron-right` |
+| `explorer/worktree/` | Worktree: root row and file tree | `folder`, `open_folder`, `replace_folder`, `file`, `markdown`, `view`, `hide`, `sync_folder`, `collapse-all`, `chevron-down`, `chevron-right`, `file_type_pdf`, `file_type_code`, `file_type_music`, `file_type_image`, `file_type_txt`, `file_type_default` |
 | `explorer/topbar/` | Explorer area top bar (window area header) | `check`, `split-h`, `split-v`, `close`, `maximize`, `restore` |
 | `explorer/bottombar/` | Explorer area bottom bar | `new_folder` |
 | `titlebar/app_menu/` | Menu buttons in the top bar | `app_menu`, `sun`, `moon`, `checkmark`, `chevron-right` |

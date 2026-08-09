@@ -958,7 +958,7 @@ impl Editor {
             }))
             .child(
                 svg()
-                    .path("icons/explorer/worktree/open_folder.svg")
+                    .path("icons/explorer/worktree/folder.svg")
                     .size(px(40.0))
                     .text_color(c.dialog_muted),
             )
@@ -1032,7 +1032,7 @@ impl Editor {
                         .child(
                             div()
                                 .ml(px(10.0))
-                                .text_size(px(13.0))
+                                .text_size(px(14.0))
                                 .font_weight(FontWeight::MEDIUM)
                                 .text_color(c.dialog_muted)
                                 .child(strings.explorer_recent_title.clone()),
@@ -1055,23 +1055,23 @@ impl Editor {
                                 ))
                                 .cursor_pointer()
                                 .px(px(10.0))
-                                .py(px(2.0))
+                                .py(px(3.0))
                                 .rounded(px(d.menu_item_radius))
                                 .hover(|this| this.bg(c.panel_row_hover))
                                 .flex()
                                 .items_center()
-                                .gap(px(6.0))
+                                .gap(px(8.0))
                                 .child(
                                     svg()
                                         .path("icons/explorer/worktree/folder.svg")
-                                        .size(px(14.0))
+                                        .size(px(16.0))
                                         .text_color(c.dialog_muted),
                                 )
                                 .child(
                                     div()
-                                        .max_w(px(190.0))
+                                        .max_w(px(200.0))
                                         .truncate()
-                                        .text_size(px(12.0))
+                                        .text_size(px(13.0))
                                         .text_color(c.dialog_muted)
                                         .hover(|this| this.text_color(c.text_default))
                                         .child(folder_name),
@@ -1096,23 +1096,23 @@ impl Editor {
                                 ))
                                 .cursor_pointer()
                                 .px(px(10.0))
-                                .py(px(2.0))
+                                .py(px(3.0))
                                 .rounded(px(d.menu_item_radius))
                                 .hover(|this| this.bg(c.panel_row_hover))
                                 .flex()
                                 .items_center()
-                                .gap(px(6.0))
+                                .gap(px(8.0))
                                 .child(
                                     svg()
                                         .path("icons/explorer/worktree/markdown.svg")
-                                        .size(px(14.0))
+                                        .size(px(16.0))
                                         .text_color(c.dialog_muted),
                                 )
                                 .child(
                                     div()
-                                        .max_w(px(190.0))
+                                        .max_w(px(200.0))
                                         .truncate()
-                                        .text_size(px(12.0))
+                                        .text_size(px(13.0))
                                         .text_color(c.dialog_muted)
                                         .hover(|this| this.text_color(c.text_default))
                                         .child(file_name),
