@@ -4,7 +4,7 @@
 
 use gpui::*;
 
-use crate::infra::theme::{ThemeColors, ThemeDimensions};
+use splitype_infra::theme::{ThemeColors, ThemeDimensions};
 
 /// Settings navigation tab row.
 pub fn nav_tab(id: impl Into<ElementId>, c: &ThemeColors, d: &ThemeDimensions) -> Stateful<Div> {

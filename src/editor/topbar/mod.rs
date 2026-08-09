@@ -6,8 +6,8 @@ use gpui::*;
 
 use crate::layout::{AreaSplitMode, Axis, WindowAreaKind};
 use crate::infra::theme::Theme;
-use crate::ui::components::button::{icon_chip_button, small_pill_button};
-use crate::ui::components::topbar::topbar_container;
+use crate::ui::button::{icon_chip_button, small_pill_button};
+use crate::ui::topbar::topbar_container;
 use crate::editor::window_layout::area_topbar_icon;
 
 impl crate::editor::controller::Editor {

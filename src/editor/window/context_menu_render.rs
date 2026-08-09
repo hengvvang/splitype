@@ -1,11 +1,11 @@
 //! Rendering of the editor's context menus and the table insert dialog:
 //! the axis menu items, the overlay panel, and the insert-size dialog.
 
-use crate::ui::components::button::{primary_button, secondary_button};
-use crate::ui::components::dialog::dialog_card;
-use crate::ui::components::menu_item::{menu_item, menu_item_row};
-use crate::ui::components::popover::menu_panel;
-use crate::ui::components::popover::overlay;
+use crate::ui::button::{primary_button, secondary_button};
+use crate::ui::dialog::dialog_card;
+use crate::ui::menu_item::{menu_item, menu_item_row};
+use crate::ui::popover::menu_panel;
+use crate::ui::popover::overlay;
 
 use gpui::*;
 

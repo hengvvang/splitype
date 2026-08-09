@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use crate::infra::theme::{ThemeColors, ThemeDimensions};
+use splitype_infra::theme::{ThemeColors, ThemeDimensions};
 
 /// Collapsible section header row (chevron + title stay at call sites).
 pub fn section_header() -> Div {

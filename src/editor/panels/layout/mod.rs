@@ -9,8 +9,8 @@ use crate::layout::{
     Axis, BorderMenuState, CornerDragModifier, EditingPanelKind, EditorInnerPanelKind,
     InnerPanelLocation, SplitTree, SplitterDragSession, WelcomePanelKind,
 };
-use crate::ui::components::popover::menu_panel;
-use crate::ui::components::splitter::{splitter_bar_h, splitter_bar_v};
+use crate::ui::popover::menu_panel;
+use crate::ui::splitter::{splitter_bar_h, splitter_bar_v};
 
 use gpui::*;
 

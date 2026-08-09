@@ -30,8 +30,8 @@ use crate::editor::tree::document::RenderedBlock;
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::infra::theme::{Theme, ThemeDimensions, ThemeManager};
 use crate::model::block::CalloutKind;
-use crate::ui::components::custom_titlebar::{custom_titlebar_height, render_custom_titlebar};
-use crate::ui::components::menu_bar::{
+use crate::ui::custom_titlebar::{custom_titlebar_height, render_custom_titlebar};
+use crate::ui::menu_bar::{
     footnote_group_shell, in_window_menu_bar_height_for_target_os, supports_in_window_menu,
 };
 

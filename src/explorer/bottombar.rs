@@ -4,8 +4,8 @@
 use gpui::*;
 
 use crate::infra::theme::Theme;
-use crate::ui::components::bottombar::bottombar_container;
-use crate::ui::components::button::icon_chip_button;
+use crate::ui::bottombar::bottombar_container;
+use crate::ui::button::icon_chip_button;
 
 impl crate::editor::controller::Editor {
     /// Bottom bar of an Explorer area: add-folder button plus the worktree

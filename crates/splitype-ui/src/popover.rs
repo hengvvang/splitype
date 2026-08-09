@@ -5,7 +5,7 @@
 
 use gpui::*;
 
-use crate::infra::theme::{ThemeColors, ThemeDimensions};
+use splitype_infra::theme::{ThemeColors, ThemeDimensions};
 
 /// Floating menu panel container.
 pub fn menu_panel(c: &ThemeColors, d: &ThemeDimensions) -> Div {

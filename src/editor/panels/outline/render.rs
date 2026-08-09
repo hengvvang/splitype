@@ -10,7 +10,7 @@ use crate::editor::panels::outline::state::{OutlineNode, OutlineNodeKind};
 use crate::editor::panels::outline::{build_outline_tree, prune_outline_state};
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
-use crate::ui::components::empty_state::empty_state_container;
+use crate::ui::empty_state::empty_state_container;
 
 impl Editor {
     pub(crate) fn sync_explorer_outline(&mut self, cx: &mut Context<Self>) {

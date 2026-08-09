@@ -1,12 +1,12 @@
 //! Settings panel rendered inside the editor's tiled layout.
 
-use crate::ui::components::section::{section_card, section_header, settings_row};
-use crate::ui::components::stepper::{
+use crate::ui::section::{section_card, section_header, settings_row};
+use crate::ui::stepper::{
     stepper_container, stepper_divider, stepper_step_button, stepper_value,
 };
-use crate::ui::components::tab::nav_tab;
+use crate::ui::tab::nav_tab;
 
-use crate::ui::components::select::{select_option, select_panel, select_trigger};
+use crate::ui::select::{select_option, select_panel, select_trigger};
 
 use gpui::*;
 
@@ -14,7 +14,7 @@ use crate::editor::controller::*;
 use crate::editor::panels::settings::SettingsTab;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::{Theme, ThemeManager};
-use crate::ui::components::switch::Switch;
+use crate::ui::switch::Switch;
 
 impl Editor {
     pub(crate) fn render_settings_midcontainer(

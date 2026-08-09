@@ -1,11 +1,11 @@
 //! In-window overlay dialogs and their action handlers: unsaved changes,
 //! drop-replace, and info/about overlays.
 
-use crate::ui::components::popover::overlay;
+use crate::ui::popover::overlay;
 
-use crate::ui::components::dialog::dialog_card;
+use crate::ui::dialog::dialog_card;
 
-use crate::ui::components::button::{
+use crate::ui::button::{
     compact_danger_button, compact_primary_button, compact_secondary_button,
 };
 

@@ -5947,6 +5947,7 @@ dependencies = [
  "splitype-layout",
  "splitype-model",
  "splitype-platform",
+ "splitype-ui",
  "tokio",
  "toml 1.1.2+spec-1.1.0",
  "trash",
@@ -6013,6 +6014,15 @@ dependencies = [
 [[package]]
 name = "splitype-platform"
 version = "0.0.1"
+
+[[package]]
+name = "splitype-ui"
+version = "0.0.1"
+dependencies = [
+ "gpui",
+ "splitype-infra",
+ "splitype-platform",
+]
 
 [[package]]
 name = "stable_deref_trait"

@@ -1,8 +1,8 @@
 //! Code block UI — editor section, toolbar, and language picker.
 
-use crate::ui::components::menu_item::menu_item;
+use crate::ui::menu_item::menu_item;
 
-use crate::ui::components::button::icon_button;
+use crate::ui::button::icon_button;
 
 use gpui::*;
 

@@ -6,7 +6,7 @@
 
 use gpui::*;
 
-use crate::infra::theme::ThemeColors;
+use splitype_infra::theme::ThemeColors;
 
 /// Bottom bar container with a top separator line.
 pub fn bottombar_container(c: &ThemeColors, height: f32, padding_x: f32) -> Div {

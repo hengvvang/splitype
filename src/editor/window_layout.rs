@@ -6,12 +6,12 @@
 //! `crate::editor::panels::layout`. This module also aggregates the editor
 //! window's panel state ([`WindowPanels`]).
 
-use crate::ui::components::popover::overlay;
+use crate::ui::popover::overlay;
 
-use crate::ui::components::splitter::{splitter_bar_h, splitter_bar_v};
+use crate::ui::splitter::{splitter_bar_h, splitter_bar_v};
 
-use crate::ui::components::menu_item::menu_item;
-use crate::ui::components::popover::menu_panel;
+use crate::ui::menu_item::menu_item;
+use crate::ui::popover::menu_panel;
 
 use gpui::*;
 

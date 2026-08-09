@@ -5,7 +5,7 @@
 
 use gpui::*;
 
-use crate::infra::theme::{ThemeColors, ThemeDimensions};
+use splitype_infra::theme::{ThemeColors, ThemeDimensions};
 
 /// Dialog card container.
 pub fn dialog_card(c: &ThemeColors, d: &ThemeDimensions) -> Div {

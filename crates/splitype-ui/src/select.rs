@@ -6,7 +6,7 @@
 
 use gpui::*;
 
-use crate::infra::theme::{ThemeColors, ThemeDimensions};
+use splitype_infra::theme::{ThemeColors, ThemeDimensions};
 
 /// Dropdown trigger button (bordered, hoverable).
 pub fn select_trigger(

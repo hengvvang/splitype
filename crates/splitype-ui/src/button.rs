@@ -12,7 +12,7 @@
 
 use gpui::*;
 
-use crate::infra::theme::{ThemeColors, ThemeDimensions};
+use splitype_infra::theme::{ThemeColors, ThemeDimensions};
 
 /// Standard primary action button (36px height, large radius).
 pub fn primary_button(

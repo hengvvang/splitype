@@ -9,7 +9,7 @@
 use gpui::prelude::*;
 use gpui::{AnyElement, OwnedMenuItem, div, px};
 
-use crate::infra::theme::{Theme, ThemeDimensions};
+use splitype_infra::theme::{Theme, ThemeDimensions};
 
 // ── Character width estimation ────────────────────────────────────────────
 
@@ -47,11 +47,11 @@ fn estimated_menu_label_width(label: &str, text_size: f32) -> f32 {
 
 // ── Menu bar button geometry ──────────────────────────────────────────────
 
-pub(crate) const TITLEBAR_MENU_BUTTON_PADDING_X: f32 = 5.0;
-pub(crate) const TITLEBAR_MENU_BUTTON_GAP: f32 = 2.0;
-pub(crate) const TITLEBAR_MENU_START_X: f32 = 32.0;
+pub const TITLEBAR_MENU_BUTTON_PADDING_X: f32 = 5.0;
+pub const TITLEBAR_MENU_BUTTON_GAP: f32 = 2.0;
+pub const TITLEBAR_MENU_START_X: f32 = 32.0;
 
-pub(crate) fn menu_bar_button_width(label: &str, dimensions: &ThemeDimensions) -> f32 {
+pub fn menu_bar_button_width(label: &str, dimensions: &ThemeDimensions) -> f32 {
     let content_width = estimated_menu_label_width(label, dimensions.menu_text_size)
         + TITLEBAR_MENU_BUTTON_PADDING_X * 2.0;
     content_width.ceil().max(20.0)
@@ -59,15 +59,15 @@ pub(crate) fn menu_bar_button_width(label: &str, dimensions: &ThemeDimensions) -
 
 // ── Platform guards ───────────────────────────────────────────────────────
 
-pub(crate) fn supports_in_window_menu_for_target_os(target_os: &str) -> bool {
+pub fn supports_in_window_menu_for_target_os(target_os: &str) -> bool {
     target_os != "macos"
 }
 
-pub(crate) fn supports_in_window_menu() -> bool {
+pub fn supports_in_window_menu() -> bool {
     supports_in_window_menu_for_target_os(std::env::consts::OS)
 }
 
-pub(crate) fn in_window_menu_bar_height_for_target_os(
+pub fn in_window_menu_bar_height_for_target_os(
     _target_os: &str,
     _has_menus: bool,
     _dimensions: &ThemeDimensions,
@@ -77,7 +77,7 @@ pub(crate) fn in_window_menu_bar_height_for_target_os(
 
 // ── Panel positioning ─────────────────────────────────────────────────────
 
-pub(crate) fn menu_panel_left<S: AsRef<str>>(
+pub fn menu_panel_left<S: AsRef<str>>(
     open_index: usize,
     menu_labels: &[S],
     dimensions: &ThemeDimensions,
@@ -90,7 +90,7 @@ pub(crate) fn menu_panel_left<S: AsRef<str>>(
     TITLEBAR_MENU_START_X + prior_width + TITLEBAR_MENU_BUTTON_GAP * open_index as f32
 }
 
-pub(crate) fn menu_panel_width_for_labels<S: AsRef<str>>(
+pub fn menu_panel_width_for_labels<S: AsRef<str>>(
     labels: &[S],
     dimensions: &ThemeDimensions,
 ) -> f32 {
@@ -104,7 +104,7 @@ pub(crate) fn menu_panel_width_for_labels<S: AsRef<str>>(
 
 // ── Item labelling ────────────────────────────────────────────────────────
 
-pub(crate) fn owned_menu_item_labels(items: &[OwnedMenuItem]) -> Vec<String> {
+pub fn owned_menu_item_labels(items: &[OwnedMenuItem]) -> Vec<String> {
     items
         .iter()
         .filter_map(|item| match item {
@@ -118,7 +118,7 @@ pub(crate) fn owned_menu_item_labels(items: &[OwnedMenuItem]) -> Vec<String> {
 
 // ── Visual height helpers ─────────────────────────────────────────────────
 
-pub(crate) fn menu_item_visual_height(item: &OwnedMenuItem, dimensions: &ThemeDimensions) -> f32 {
+pub fn menu_item_visual_height(item: &OwnedMenuItem, dimensions: &ThemeDimensions) -> f32 {
     match item {
         OwnedMenuItem::Separator => {
             dimensions.menu_separator_height + dimensions.menu_separator_margin_y * 2.0
@@ -129,9 +129,9 @@ pub(crate) fn menu_item_visual_height(item: &OwnedMenuItem, dimensions: &ThemeDi
     }
 }
 
-pub(crate) const SCROLLABLE_IMPORT_MENU_VISIBLE_ITEMS: usize = 12;
+pub const SCROLLABLE_IMPORT_MENU_VISIBLE_ITEMS: usize = 12;
 
-pub(crate) fn menu_items_visual_height_with_gaps(
+pub fn menu_items_visual_height_with_gaps(
     items: &[OwnedMenuItem],
     dimensions: &ThemeDimensions,
 ) -> f32 {
@@ -146,7 +146,7 @@ pub(crate) fn menu_items_visual_height_with_gaps(
     items_height + dimensions.menu_panel_gap * items.len().saturating_sub(1) as f32
 }
 
-pub(crate) fn scrollable_import_menu_scroll_height(
+pub fn scrollable_import_menu_scroll_height(
     scroll_items: &[OwnedMenuItem],
     footer_items: &[OwnedMenuItem],
     viewport_height: f32,
@@ -180,7 +180,7 @@ pub(crate) fn scrollable_import_menu_scroll_height(
 
 // ── Sub-menu bridging geometry ────────────────────────────────────────────
 
-pub(crate) fn submenu_panel_top(
+pub fn submenu_panel_top(
     items: &[OwnedMenuItem],
     item_index: usize,
     dimensions: &ThemeDimensions,
@@ -195,14 +195,14 @@ pub(crate) fn submenu_panel_top(
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct MenuSubmenuBridgeGeometry {
-    pub(crate) left: f32,
-    pub(crate) top: f32,
-    pub(crate) width: f32,
-    pub(crate) height: f32,
+pub struct MenuSubmenuBridgeGeometry {
+    pub left: f32,
+    pub top: f32,
+    pub width: f32,
+    pub height: f32,
 }
 
-pub(crate) fn submenu_bridge_geometry<S: AsRef<str>, T: AsRef<str>>(
+pub fn submenu_bridge_geometry<S: AsRef<str>, T: AsRef<str>>(
     open_index: usize,
     menu_labels: &[S],
     items: &[OwnedMenuItem],
@@ -228,7 +228,7 @@ pub(crate) fn submenu_bridge_geometry<S: AsRef<str>, T: AsRef<str>>(
 // ── Shared chrome ─────────────────────────────────────────────────────────
 
 /// Footnote group shell shared by the editor's footnote rendering.
-pub(crate) fn footnote_group_shell(
+pub fn footnote_group_shell(
     children: Vec<AnyElement>,
     theme: &Theme,
     dimensions: &ThemeDimensions,

@@ -13,22 +13,22 @@
 //! - `editor` — the editing runtime and window views.
 //! - `explorer` / `settings` / `titlebar` — top-level views over `editor`.
 //! - `app` — assembly: bootstrap, CLI, menus, window routing.
-//! - `ui` — reusable components; `platform` — OS adapters, living in
-//!   `splitype-platform`.
+//! - `ui` — reusable components, living in `splitype-ui`; `platform` — OS
+//!   adapters, living in `splitype-platform`.
 //!
-//! The domain (`model`), layout engine, system capabilities (`infra`), and
-//! OS adapters (`platform`) are separate crates so the dependency direction
-//! is enforced at compile time: they cannot depend on anything in this
-//! crate.
+//! The domain (`model`), layout engine, system capabilities (`infra`), OS
+//! adapters (`platform`), and component library (`ui`) are separate crates
+//! so the dependency direction is enforced at compile time: they cannot
+//! depend on anything in this crate.
 
 pub use splitype_infra as infra;
 pub use splitype_layout as layout;
 pub use splitype_model as model;
 pub use splitype_platform as platform;
+pub use splitype_ui as ui;
 
 pub mod app;
 pub mod editor;
 pub mod explorer;
 pub mod settings;
 pub mod titlebar;
-pub mod ui;

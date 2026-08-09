@@ -3,17 +3,17 @@
 //!
 //! The menu-bar state machine lives in `crate::editor::menu_bar` (the Editor
 //! entity owns the state); the pure geometry lives in
-//! `crate::ui::components::menu_bar` so both the editor window and this
+//! `crate::ui::menu_bar` so both the editor window and this
 //! renderer can share it.
 
-use crate::ui::components::button::menu_bar_button;
-use crate::ui::components::menu_bar::{
+use crate::ui::button::menu_bar_button;
+use crate::ui::menu_bar::{
     TITLEBAR_MENU_BUTTON_GAP, menu_bar_button_width, menu_panel_left, menu_panel_width_for_labels,
     owned_menu_item_labels, scrollable_import_menu_scroll_height, submenu_bridge_geometry,
     submenu_panel_top,
 };
-use crate::ui::components::menu_item::{menu_item, menu_item_row};
-use crate::ui::components::popover::overlay;
+use crate::ui::menu_item::{menu_item, menu_item_row};
+use crate::ui::popover::overlay;
 
 use gpui::prelude::FluentBuilder;
 use gpui::*;

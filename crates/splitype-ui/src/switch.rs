@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use gpui::{prelude::FluentBuilder, *};
 
-use crate::infra::theme::ThemeManager;
+use splitype_infra::theme::ThemeManager;
 
 /// A toggle switch that can be checked or unchecked.
 #[derive(IntoElement)]

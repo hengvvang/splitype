@@ -7,24 +7,24 @@
 
 use gpui::*;
 
-use crate::platform::app_identity::SPLITYPE_APP_ID;
-use crate::infra::theme::{Theme, ThemeColors, ThemeDimensions};
+use splitype_platform::app_identity::SPLITYPE_APP_ID;
+use splitype_infra::theme::{Theme, ThemeColors, ThemeDimensions};
 
 const TITLEBAR_MIN_HEIGHT: f32 = 32.0;
 const MAC_TRAFFIC_LIGHT_RESERVED_WIDTH: f32 = 84.0;
 
 // ── Window control buttons ("chrome") ─────────────────────────────────────
 
-pub(crate) const TITLEBAR_BUTTON_WIDTH: f32 = 46.0;
-pub(crate) const TITLEBAR_ICON_SIZE: f32 = 12.0;
-pub(crate) const TITLEBAR_CLOSE_ICON: &str = "icons/titlebar/chrome/close.svg";
-pub(crate) const TITLEBAR_MAXIMIZE_ICON: &str = "icons/titlebar/chrome/maximize.svg";
-pub(crate) const TITLEBAR_MINIMIZE_ICON: &str = "icons/titlebar/chrome/mins.svg";
-pub(crate) const TITLEBAR_RESTORE_ICON: &str = "icons/titlebar/chrome/restore.svg";
+pub const TITLEBAR_BUTTON_WIDTH: f32 = 46.0;
+pub const TITLEBAR_ICON_SIZE: f32 = 12.0;
+pub const TITLEBAR_CLOSE_ICON: &str = "icons/titlebar/chrome/close.svg";
+pub const TITLEBAR_MAXIMIZE_ICON: &str = "icons/titlebar/chrome/maximize.svg";
+pub const TITLEBAR_MINIMIZE_ICON: &str = "icons/titlebar/chrome/mins.svg";
+pub const TITLEBAR_RESTORE_ICON: &str = "icons/titlebar/chrome/restore.svg";
 
 /// Icon colour for the window control buttons, chosen for contrast against
 /// the title bar background.
-pub(crate) fn custom_titlebar_icon_color(theme: &Theme) -> Hsla {
+pub fn custom_titlebar_icon_color(theme: &Theme) -> Hsla {
     if theme.colors.dialog_surface.l < 0.5 {
         Hsla::from(rgba(0xf4f4f5ff))
     } else {
@@ -32,7 +32,7 @@ pub(crate) fn custom_titlebar_icon_color(theme: &Theme) -> Hsla {
     }
 }
 
-pub(crate) fn titlebar_maximize_icon(is_maximized: bool, is_fullscreen: bool) -> &'static str {
+pub fn titlebar_maximize_icon(is_maximized: bool, is_fullscreen: bool) -> &'static str {
     if is_maximized || is_fullscreen {
         TITLEBAR_RESTORE_ICON
     } else {
@@ -66,7 +66,7 @@ fn titlebar_control_button(
 /// The minimize / maximize / close button group, rendered for app-drawn
 /// controls. `entity` is the window view; the close button routes through
 /// `on_close` so the caller decides what closing means for its window type.
-pub(crate) fn render_window_control_buttons<T: 'static>(
+pub fn render_window_control_buttons<T: 'static>(
     window: &Window,
     c: &ThemeColors,
     icon_color: Hsla,
@@ -372,7 +372,7 @@ mod tests {
         custom_titlebar_icon_color, titlebar_drag_strategy_for_target_os, titlebar_maximize_icon,
         titlebar_options_for_target_os, window_decorations_for_target_os,
     };
-    use crate::infra::theme::Theme;
+    use splitype_infra::theme::Theme;
     use gpui::{Decorations, Hsla, Tiling, WindowDecorations, rgba};
 
     #[test]

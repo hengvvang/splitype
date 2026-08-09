@@ -8,7 +8,7 @@
 use gpui::*;
 
 use crate::infra::theme::Theme;
-use crate::ui::components::bottombar::bottombar_container;
+use crate::ui::bottombar::bottombar_container;
 
 impl crate::editor::controller::Editor {
     /// Bottom bar of a Settings area. Renders the shared bar shell with no

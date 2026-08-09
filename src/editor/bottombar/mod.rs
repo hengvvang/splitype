@@ -7,9 +7,9 @@
 pub(crate) mod state;
 pub(crate) mod words;
 
-use crate::ui::components::bottombar::bottombar_container;
+use crate::ui::bottombar::bottombar_container;
 
-use crate::ui::components::button::{icon_chip_button, small_pill_button};
+use crate::ui::button::{icon_chip_button, small_pill_button};
 
 use gpui::prelude::*;
 use gpui::*;
