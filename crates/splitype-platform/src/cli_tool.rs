@@ -13,7 +13,7 @@ use std::process::{Command, Output};
 /// Returns `true` only if the symlink exists **and** resolves (directly or via
 /// one level of canonicalization) to the currently running executable.
 #[cfg(target_os = "macos")]
-pub(crate) fn is_cli_symlink_current_app() -> bool {
+pub fn is_cli_symlink_current_app() -> bool {
     let link = std::path::Path::new("/usr/local/bin/splitype");
     let Ok(target) = std::fs::read_link(link) else {
         return false; // does not exist or not a symlink
@@ -35,8 +35,11 @@ pub(crate) fn is_cli_symlink_current_app() -> bool {
     }
 }
 
-#[cfg(any(target_os = "macos", test))]
-pub(crate) fn applescript_string_literal(value: &str) -> String {
+/// Escape a string for use inside an AppleScript string literal.
+///
+/// Pure text transformation, so it compiles on every platform; the
+/// osascript runner below is macOS-only.
+pub fn applescript_string_literal(value: &str) -> String {
     let mut escaped = String::with_capacity(value.len() + 2);
     escaped.push('"');
     for ch in value.chars() {
@@ -55,6 +58,6 @@ pub(crate) fn applescript_string_literal(value: &str) -> String {
 /// Run an AppleScript command with administrator privileges and return the
 /// raw process output (stderr included).
 #[cfg(target_os = "macos")]
-pub(crate) fn run_osascript_script(script: &str) -> std::io::Result<Output> {
+pub fn run_osascript_script(script: &str) -> std::io::Result<Output> {
     Command::new("osascript").arg("-e").arg(script).output()
 }

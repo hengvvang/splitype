@@ -7,7 +7,7 @@ use std::path::PathBuf;
 /// GPUI's macOS `on_open_urls` callback provides `file://` URLs, while tests
 /// and other callers may pass plain paths. Only local `file://` URLs are
 /// accepted; non-file schemes and remote file authorities are rejected.
-pub(crate) fn parse_file_url(value: &str) -> Option<PathBuf> {
+pub fn parse_file_url(value: &str) -> Option<PathBuf> {
     if let Some(rest) = value.strip_prefix("file://") {
         let path = if let Some(path) = rest.strip_prefix("localhost/") {
             format!("/{path}")

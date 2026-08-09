@@ -5946,6 +5946,7 @@ dependencies = [
  "splitype-infra",
  "splitype-layout",
  "splitype-model",
+ "splitype-platform",
  "tokio",
  "toml 1.1.2+spec-1.1.0",
  "trash",
@@ -6008,6 +6009,10 @@ dependencies = [
  "tree-sitter-html",
  "uuid",
 ]
+
+[[package]]
+name = "splitype-platform"
+version = "0.0.1"
 
 [[package]]
 name = "stable_deref_trait"
