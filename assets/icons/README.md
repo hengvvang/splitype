@@ -14,14 +14,14 @@ used by several surfaces exists once per surface (see
 
 | Directory | Surface | Icons |
 | --- | --- | --- |
-| `explorer/worktree/` | Worktree: root row and file tree | `folder`, `folder-open`, `replace-folder`, `file`, `markdown`, `view`, `hide`, `sync`, `collapse-all`, `chevron-down`, `chevron-right` |
+| `explorer/worktree/` | Worktree: root row and file tree | `folder`, `open_folder`, `replace_folder`, `file`, `markdown`, `view`, `hide`, `sync_folder`, `collapse-all`, `chevron-down`, `chevron-right` |
 | `explorer/topbar/` | Explorer area top bar (window area header) | `check`, `split-h`, `split-v`, `close`, `maximize`, `restore` |
-| `explorer/bottombar/` | Explorer area bottom bar | `folder-plus` |
-| `titlebar/app_menu/` | Menu buttons in the top bar | `app-menu`, `sun`, `moon`, `checkmark`, `chevron-right` |
-| `titlebar/chrome/` | Window control buttons (main top bar) | `close`, `minimize`, `maximize`, `restore` |
+| `explorer/bottombar/` | Explorer area bottom bar | `new_folder` |
+| `titlebar/app_menu/` | Menu buttons in the top bar | `app_menu`, `sun`, `moon`, `checkmark`, `chevron-right` |
+| `titlebar/chrome/` | Window control buttons (main top bar) | `close`, `mins`, `maximize`, `restore` |
 | `settings/` | Settings window / panel content | `select-chevron`, `checkmark`, `chevron-down`, `chevron-right`, `sun`, `moon`, `plus`, `minus` |
 | `settings/topbar/` | Settings area top bar (window area header) | `check`, `split-h`, `split-v`, `close`, `maximize`, `restore` |
-| `editor/topbar/` | Editor area top bar | `add`, `active`, `check`, `split-h`, `split-v`, `close`, `maximize`, `restore` |
+| `editor/topbar/` | Editor area top bar | `add_file`, `active`, `check`, `split-h`, `split-v`, `close`, `maximize`, `restore` |
 | `editor/bottombar/` | Editor panel bottom bar and inner-panel switch menu | `split-h`, `split-v`, `close`, `checkmark` |
 | `editor/wysiwyg/` | WYSIWYG panel | `checkbox`, `checkbox-checked` |
 | `editor/context_menu/` | Editor right-click menu | `chevron-right`, `plus`, `minus` |
@@ -52,8 +52,9 @@ directory.**
 
 ## Conventions
 
-- **Naming:** kebab-case, matching the icon's visual (`folder-open.svg`) or
-  role (`checkbox-checked.svg`), never `_` or CamelCase.
+- **Naming:** the icon's role (`checkbox-checked.svg`) or the author's
+  chosen name; hand-supplied icons keep their original file name
+  (`open_folder.svg`, `replace_folder.svg`, `file_type_pdf.svg`).
 - **Color:** every SVG keeps `fill="currentColor"` (or no `fill` at all —
   GPUI renders SVGs as an alpha mask and tints them with `text_color(...)`),
   so the app can color icons with the active theme.
@@ -69,73 +70,22 @@ directory.**
 
 ## Provenance and license
 
-Most runtime icons come from the **Framework7 Icons** set — an iOS-style
-monochrome icon font by the Framework7 authors, licensed under
-**MIT** (redistributable):
+### Author-supplied icons
 
-- Upstream: <https://github.com/framework7io/framework7-icons>
-- The complete, unmodified `svg/` output of `framework7-icons@5.0.5`
-  lives in `../framework7-icons/` (1252 files + LICENSE). **Copy glyphs
-  from there into the per-surface directories below, keeping the
-  app-facing file names**; never edit the archive in place.
-- The archive's own README records the upstream version.
+All runtime icons are **author-supplied SVGs** (Illustrator-exported or
+hand-drawn, flat monochrome style). They are the single source of truth;
+there is no upstream icon library in the repository. GPUI renders them as
+alpha masks and tints them with the active theme via `text_color(...)`, so
+embedded sizes, viewBoxes and fill colors do not matter.
 
-The local files are byte-identical copies of the corresponding upstream
-glyph (56×56 viewBox, no `fill`). GPUI ignores the embedded size and tints
-via `text_color(...)`, so the shape is what matters.
+File-type icons (`explorer/worktree/file_type_*.svg`) are selected by the
+`file_type_icon` extension map in `src/windows/explorer/state.rs`:
+markdown, pdf, code, music, image, txt, default.
 
-### Exceptions (not from Framework7)
+### Pinned exceptions (not author-supplied)
 
-These keep their previous SVGs because the Framework7 set has no
-counterpart, or because their look is intentionally pinned:
-
-- `explorer/worktree/markdown.svg`, `editor/outline/markdown.svg` —
-  the Markdown logo has no F7 equivalent.
 - `editor/wysiwyg/checkbox.svg`, `editor/preview/checkbox.svg`,
   `editor/wysiwyg/checkbox-checked.svg`,
   `editor/preview/checkbox-checked.svg` — the task-list checkbox look in
-  WYSIWYG and Preview is pinned; do not restyle.
-
-The `markdown` files are extracted from the **Segoe Fluent Icons** font
-(Microsoft, `C:\Windows\Fonts\SegoeIcons.ttf`); the `checkbox` files come
-from **Fluent UI System Icons** (MIT). Both predate the Framework7
-migration and are only used for the exceptions above.
-
-### F7 mapping table
-
-| Local file | Framework7 glyph |
-| --- | --- |
-| `explorer/worktree/folder.svg` | `folder` |
-| `explorer/worktree/folder-open.svg` | `folder_fill` |
-| `explorer/bottombar/folder-plus.svg` | `folder_fill_badge_plus` |
-| `explorer/worktree/file.svg` | `doc_text` |
-| `explorer/worktree/chevron-down.svg`, `settings/chevron-down.svg`, `editor/wysiwyg/codeblock/select-chevron.svg`, `settings/select-chevron.svg` | `chevron_down` |
-| `explorer/worktree/chevron-right.svg`, `settings/chevron-right.svg`, `titlebar/app_menu/chevron-right.svg`, `editor/context_menu/chevron-right.svg` | `chevron_right` |
-| `explorer/worktree/view.svg` | `eye` |
-| `explorer/worktree/hide.svg` | `eye_slash` |
-| `explorer/worktree/collapse-all.svg` | `arrow_up_to_line` |
-| `explorer/worktree/sync.svg` | `arrow_2_circlepath` |
-| `explorer/worktree/replace-folder.svg` | `arrow_2_squarepath` |
-| `editor/bottombar/split-h.svg` | `square_split_2x1` |
-| `editor/bottombar/split-v.svg` | `square_split_1x2` |
-| `titlebar/app_menu/app-menu.svg` | `line_horizontal_3` |
-| `settings/plus.svg`, `editor/wysiwyg/table/plus.svg`, `editor/context_menu/plus.svg`, `editor/topbar/add.svg` | `plus` |
-| `settings/minus.svg`, `editor/context_menu/minus.svg` | `minus` |
-| `titlebar/app_menu/sun.svg`, `settings/sun.svg` | `sun_max` |
-| `titlebar/app_menu/moon.svg`, `settings/moon.svg` | `moon_fill` |
-| `editor/wysiwyg/codeblock/line-numbers.svg` | `number` |
-| `editor/wysiwyg/codeblock/copy.svg` | `doc_on_doc` |
-| `settings/checkmark.svg`, `editor/bottombar/checkmark.svg`, `titlebar/app_menu/checkmark.svg`, `editor/wysiwyg/codeblock/select-checkmark.svg` | `checkmark` |
-| `explorer/topbar/check.svg`, `settings/topbar/check.svg`, `editor/topbar/check.svg` | `checkmark` |
-| `explorer/topbar/split-h.svg`, `settings/topbar/split-h.svg`, `editor/topbar/split-h.svg` | `square_split_2x1` |
-| `explorer/topbar/split-v.svg`, `settings/topbar/split-v.svg`, `editor/topbar/split-v.svg` | `square_split_1x2` |
-| `explorer/topbar/close.svg`, `settings/topbar/close.svg`, `editor/topbar/close.svg`, `editor/bottombar/close.svg`, `titlebar/chrome/close.svg` | `xmark` |
-| `explorer/topbar/maximize.svg`, `settings/topbar/maximize.svg`, `editor/topbar/maximize.svg`, `titlebar/chrome/maximize.svg` | `arrow_up_left_arrow_down_right` |
-| `explorer/topbar/restore.svg`, `settings/topbar/restore.svg`, `editor/topbar/restore.svg`, `titlebar/chrome/restore.svg` | `arrow_down_right_arrow_up_left` |
-| `editor/topbar/active.svg` | `link` (active-editor marker) |
-| `titlebar/chrome/minimize.svg` | `minus` |
-| `editor/wysiwyg/callout/note.svg` | `quote_bubble` |
-| `editor/wysiwyg/callout/tip.svg` | `lightbulb` |
-| `editor/wysiwyg/callout/important.svg` | `exclamationmark_circle` |
-| `editor/wysiwyg/callout/warning.svg` | `exclamationmark_triangle` |
-| `editor/wysiwyg/callout/caution.svg` | `xmark_octagon` |
+  WYSIWYG and Preview is pinned; do not restyle. These come from
+  **Fluent UI System Icons** (MIT).

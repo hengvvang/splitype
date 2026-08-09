@@ -90,8 +90,8 @@ impl crate::editor::controller::Editor {
             .flex()
             .items_center()
             .gap(px(4.0))
-            .child(split_h_button)
-            .child(split_v_button);
+            .child(split_v_button)
+            .child(split_h_button);
 
         if leaf_count > 1 {
             let max_editor = editor.clone();
@@ -237,7 +237,7 @@ impl crate::editor::controller::Editor {
                     .text_color(c.dialog_muted)
                     .child(
                         svg()
-                            .path("icons/editor/topbar/add.svg")
+                            .path("icons/settings/plus.svg")
                             .size(px(14.0))
                             .text_color(c.dialog_muted),
                     )

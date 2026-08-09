@@ -67,24 +67,10 @@ impl Editor {
                     cx,
                 )
             } else {
-                self.render_window_area_node(
-                    &root,
-                    theme,
-                    strings,
-                    leaf_count,
-                    window,
-                    cx,
-                )
+                self.render_window_area_node(&root, theme, strings, leaf_count, window, cx)
             }
         } else {
-            self.render_window_area_node(
-                &root,
-                theme,
-                strings,
-                leaf_count,
-                window,
-                cx,
-            )
+            self.render_window_area_node(&root, theme, strings, leaf_count, window, cx)
         };
 
         let root_editor_move = cx.entity().downgrade();
@@ -273,7 +259,10 @@ impl Editor {
                             }) => {
                                 ed.split_area(area_id, direction, ratio, mode, cx);
                             }
-                            Some(WindowAreaDragAction::Join { from_area, into_area }) => {
+                            Some(WindowAreaDragAction::Join {
+                                from_area,
+                                into_area,
+                            }) => {
                                 ed.panels.layout.join_window_area(into_area, from_area);
                             }
                             Some(WindowAreaDragAction::Swap { from, to }) => {
@@ -390,10 +379,7 @@ impl Editor {
                 } => {
                     let viewport = window.viewport_size();
                     let leaf_rects = self.panels.layout.window_area_rects(viewport);
-                    let target_rect = self
-                        .panels
-                        .layout
-                        .window_area_rect(target_id, &leaf_rects);
+                    let target_rect = self.panels.layout.window_area_rect(target_id, &leaf_rects);
 
                     if let Some(target_rect) = target_rect {
                         let arrow_symbol = match direction {
@@ -507,10 +493,8 @@ impl Editor {
                             .panels
                             .layout
                             .editor_inner_panel_rects(area_id, inner_size);
-                        if let Some(inner_rect) = self
-                            .panels
-                            .layout
-                            .window_area_rect(target_id, &inner_rects)
+                        if let Some(inner_rect) =
+                            self.panels.layout.window_area_rect(target_id, &inner_rects)
                         {
                             let arrow_symbol = match direction {
                                 Direction::Up => "N",
@@ -579,16 +563,8 @@ impl Editor {
         let editor = cx.entity().downgrade();
 
         match node {
-            SplitTree::Leaf { id, kind } => self.render_window_area_tile(
-                *id,
-                *kind,
-                theme,
-                strings,
-                leaf_count,
-                false,
-                window,
-                cx,
-            ),
+            SplitTree::Leaf { id, kind } => self
+                .render_window_area_tile(*id, *kind, theme, strings, leaf_count, false, window, cx),
             SplitTree::Split {
                 id,
                 direction,
@@ -600,22 +576,10 @@ impl Editor {
                 let dir = *direction;
                 let r = *ratio;
 
-                let first_elem = self.render_window_area_node(
-                    first,
-                    theme,
-                    strings,
-                    leaf_count,
-                    window,
-                    cx,
-                );
-                let second_elem = self.render_window_area_node(
-                    second,
-                    theme,
-                    strings,
-                    leaf_count,
-                    window,
-                    cx,
-                );
+                let first_elem =
+                    self.render_window_area_node(first, theme, strings, leaf_count, window, cx);
+                let second_elem =
+                    self.render_window_area_node(second, theme, strings, leaf_count, window, cx);
 
                 match direction {
                     Axis::Horizontal => {
@@ -797,11 +761,15 @@ impl Editor {
             WindowAreaKind::Explorer => {
                 self.render_explorer_midcontainer(leaf_id, theme, strings, cx)
             }
-            WindowAreaKind::Settings => self.render_settings_midcontainer(leaf_id, theme, strings, cx),
+            WindowAreaKind::Settings => {
+                self.render_settings_midcontainer(leaf_id, theme, strings, cx)
+            }
         };
 
         let bottombar = match kind {
-            WindowAreaKind::Editor => Some(self.render_editor_bottombar(leaf_id, theme, strings, cx)),
+            WindowAreaKind::Editor => {
+                Some(self.render_editor_bottombar(leaf_id, theme, strings, cx))
+            }
             WindowAreaKind::Explorer => Some(self.render_explorer_bottombar(leaf_id, theme, cx)),
             WindowAreaKind::Settings => Some(self.render_settings_bottombar(leaf_id, theme, cx)),
         };

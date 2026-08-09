@@ -35,7 +35,7 @@ impl crate::editor::controller::Editor {
                             .id(("ws-bottombar-add-folder", area_id))
                             .child(
                                 svg()
-                                    .path("icons/explorer/bottombar/folder-plus.svg")
+                                    .path("icons/explorer/bottombar/new_folder.svg")
                                     .size(px(16.0))
                                     .text_color(c.text_default),
                             )

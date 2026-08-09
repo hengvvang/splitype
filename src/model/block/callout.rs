@@ -34,7 +34,6 @@ impl CalloutKind {
         self.marker()
     }
 
-    #[allow(dead_code)]
     pub fn icon_path(self) -> &'static str {
         match self {
             Self::Note => "icons/editor/wysiwyg/callout/note.svg",

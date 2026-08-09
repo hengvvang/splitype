@@ -13,12 +13,27 @@ impl AssetSource for SplitypeAssets {
             "icons/explorer/worktree/folder.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/explorer/worktree/folder.svg"
             )))),
-            "icons/explorer/worktree/folder-open.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/explorer/worktree/folder-open.svg"
+            "icons/explorer/worktree/open_folder.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/open_folder.svg"
             )))),
-            "icons/explorer/worktree/file.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/explorer/worktree/file.svg"
+            "icons/explorer/worktree/file_type_pdf.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/file_type_pdf.svg"
             )))),
+            "icons/explorer/worktree/file_type_code.svg" => Ok(Some(Cow::Borrowed(
+                include_bytes!("../../assets/icons/explorer/worktree/file_type_code.svg"),
+            ))),
+            "icons/explorer/worktree/file_type_music.svg" => Ok(Some(Cow::Borrowed(
+                include_bytes!("../../assets/icons/explorer/worktree/file_type_music.svg"),
+            ))),
+            "icons/explorer/worktree/file_type_image.svg" => Ok(Some(Cow::Borrowed(
+                include_bytes!("../../assets/icons/explorer/worktree/file_type_image.svg"),
+            ))),
+            "icons/explorer/worktree/file_type_txt.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/file_type_txt.svg"
+            )))),
+            "icons/explorer/worktree/file_type_default.svg" => Ok(Some(Cow::Borrowed(
+                include_bytes!("../../assets/icons/explorer/worktree/file_type_default.svg"),
+            ))),
             "icons/explorer/worktree/markdown.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/explorer/worktree/markdown.svg"
             )))),
@@ -34,11 +49,11 @@ impl AssetSource for SplitypeAssets {
             "icons/explorer/worktree/hide.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/explorer/worktree/hide.svg"
             )))),
-            "icons/explorer/worktree/sync.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/explorer/worktree/sync.svg"
+            "icons/explorer/worktree/sync_folder.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/worktree/sync_folder.svg"
             )))),
-            "icons/explorer/worktree/replace-folder.svg" => Ok(Some(Cow::Borrowed(
-                include_bytes!("../../assets/icons/explorer/worktree/replace-folder.svg"),
+            "icons/explorer/worktree/replace_folder.svg" => Ok(Some(Cow::Borrowed(
+                include_bytes!("../../assets/icons/explorer/worktree/replace_folder.svg"),
             ))),
             "icons/explorer/worktree/collapse-all.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/explorer/worktree/collapse-all.svg"
@@ -65,13 +80,13 @@ impl AssetSource for SplitypeAssets {
             )))),
 
             // ── Explorer: status bar ──────────────────────────────────────
-            "icons/explorer/bottombar/folder-plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/explorer/bottombar/folder-plus.svg"
+            "icons/explorer/bottombar/new_folder.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/explorer/bottombar/new_folder.svg"
             )))),
 
             // ── Titlebar: app menu buttons ────────────────────────────────
-            "icons/titlebar/app_menu/app-menu.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/titlebar/app_menu/app-menu.svg"
+            "icons/titlebar/app_menu/app_menu.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/titlebar/app_menu/app_menu.svg"
             )))),
             "icons/titlebar/app_menu/sun.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/titlebar/app_menu/sun.svg"
@@ -90,8 +105,8 @@ impl AssetSource for SplitypeAssets {
             "icons/titlebar/chrome/close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/titlebar/chrome/close.svg"
             )))),
-            "icons/titlebar/chrome/minimize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/titlebar/chrome/minimize.svg"
+            "icons/titlebar/chrome/mins.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/titlebar/chrome/mins.svg"
             )))),
             "icons/titlebar/chrome/maximize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/titlebar/chrome/maximize.svg"
@@ -147,9 +162,6 @@ impl AssetSource for SplitypeAssets {
             )))),
 
             // ── Editor: window area header ────────────────────────────────
-            "icons/editor/topbar/add.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/editor/topbar/add.svg"
-            )))),
             "icons/editor/topbar/active.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/topbar/active.svg"
             )))),

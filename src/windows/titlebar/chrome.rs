@@ -13,7 +13,7 @@ pub(crate) const TITLEBAR_BUTTON_WIDTH: f32 = 46.0;
 pub(crate) const TITLEBAR_ICON_SIZE: f32 = 12.0;
 pub(crate) const TITLEBAR_CLOSE_ICON: &str = "icons/titlebar/chrome/close.svg";
 pub(crate) const TITLEBAR_MAXIMIZE_ICON: &str = "icons/titlebar/chrome/maximize.svg";
-pub(crate) const TITLEBAR_MINIMIZE_ICON: &str = "icons/titlebar/chrome/minimize.svg";
+pub(crate) const TITLEBAR_MINIMIZE_ICON: &str = "icons/titlebar/chrome/mins.svg";
 pub(crate) const TITLEBAR_RESTORE_ICON: &str = "icons/titlebar/chrome/restore.svg";
 
 /// Icon colour for the window control buttons, chosen for contrast against

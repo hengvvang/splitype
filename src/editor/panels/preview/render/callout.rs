@@ -4,8 +4,8 @@
 
 use gpui::*;
 
-use crate::editor::tree::block::Block;
 use crate::editor::panels::preview::render::inline;
+use crate::editor::tree::block::Block;
 use crate::model::block::CalloutKind;
 use crate::theme::Theme;
 
@@ -62,6 +62,12 @@ pub(crate) fn render_preview_callout(
         .flex()
         .flex_row()
         .items_center()
+        .child(
+            svg()
+                .path(variant.icon_path())
+                .size(px(14.0))
+                .text_color(accent),
+        )
         .child(header_text)
         .into_any_element()
 }

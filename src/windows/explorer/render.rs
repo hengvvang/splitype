@@ -282,15 +282,13 @@ impl Editor {
         // toggling a folder.
         let root_is_file = entry.kind != ExplorerEntryKind::Directory;
         let root_icon = if root_is_file {
-            if entry
+            let ext = entry
                 .path
                 .extension()
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
-            {
-                MARKDOWN_ICON
-            } else {
-                FILE_ICON
-            }
+                .and_then(|e| e.to_str())
+                .unwrap_or("")
+                .to_lowercase();
+            file_type_icon(&ext)
         } else {
             FOLDER_ICON
         };
@@ -350,8 +348,8 @@ impl Editor {
                         .id(("ws-tb-replace", area_id))
                         .child(
                             svg()
-                                .path("icons/explorer/worktree/replace-folder.svg")
-                                .size(px(17.0))
+                                .path("icons/explorer/worktree/replace_folder.svg")
+                                .size(px(14.0))
                                 .text_color(c.text_default),
                         )
                         .on_click(move |_ev, window, cx| {
@@ -371,7 +369,7 @@ impl Editor {
                                 } else {
                                     "icons/explorer/worktree/view.svg"
                                 })
-                                .size(px(17.0))
+                                .size(px(14.0))
                                 .text_color(if hide_hidden {
                                     c.text_default
                                 } else {
@@ -390,8 +388,8 @@ impl Editor {
                         .id(("ws-tb-refresh", area_id))
                         .child(
                             svg()
-                                .path("icons/explorer/worktree/sync.svg")
-                                .size(px(17.0))
+                                .path("icons/explorer/worktree/sync_folder.svg")
+                                .size(px(14.0))
                                 .text_color(c.text_default),
                         )
                         .on_click(move |_ev, _window, cx| {
@@ -407,7 +405,7 @@ impl Editor {
                         .child(
                             svg()
                                 .path("icons/explorer/worktree/collapse-all.svg")
-                                .size(px(17.0))
+                                .size(px(14.0))
                                 .text_color(c.text_default),
                         )
                         .on_click(move |_ev, _window, cx| {
@@ -619,10 +617,7 @@ impl Editor {
                     .and_then(|e| e.to_str())
                     .unwrap_or("")
                     .to_lowercase();
-                match ext.as_str() {
-                    "md" => Some((MARKDOWN_ICON, c.text_default)),
-                    _ => Some((FILE_ICON, c.text_default)),
-                }
+                Some((file_type_icon(&ext), c.text_default))
             }
         };
 
@@ -843,7 +838,7 @@ impl Editor {
         let icon = if is_dir {
             (FOLDER_ICON, c.text_default)
         } else {
-            (MARKDOWN_ICON, c.text_default)
+            (FILE_ICON, c.text_default)
         };
 
         let validation_label = match validation {
@@ -963,7 +958,7 @@ impl Editor {
             }))
             .child(
                 svg()
-                    .path("icons/explorer/worktree/folder-open.svg")
+                    .path("icons/explorer/worktree/open_folder.svg")
                     .size(px(40.0))
                     .text_color(c.dialog_muted),
             )
@@ -1003,7 +998,7 @@ impl Editor {
                     .active(|this| this.opacity(0.92))
                     .child(
                         svg()
-                            .path("icons/explorer/worktree/folder-open.svg")
+                            .path("icons/explorer/worktree/open_folder.svg")
                             .size(px(16.0))
                             .text_color(c.dialog_secondary_button_text),
                     )

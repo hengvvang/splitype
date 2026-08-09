@@ -328,7 +328,7 @@ impl Editor {
             .cursor_pointer()
             .child(
                 svg()
-                    .path("icons/titlebar/app_menu/app-menu.svg")
+                    .path("icons/titlebar/app_menu/app_menu.svg")
                     .size(px(14.0))
                     .text_color(if is_expanded {
                         c.app_menu_active

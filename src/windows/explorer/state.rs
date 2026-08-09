@@ -20,8 +20,8 @@ use std::ops::Range;
 use std::path::{Path, PathBuf};
 
 use gpui::{AnyWindowHandle, Bounds, Entity, FocusHandle, Pixels, Task, UniformListScrollHandle};
-use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
 
 use super::undo::ExplorerUndoHistory;
 use super::worktree::{Worktree, WorktreeSnapshot};
@@ -32,9 +32,33 @@ pub use super::worktree::WorktreeEvent;
 
 pub const FOLDER_ICON: &str = "icons/explorer/worktree/folder.svg";
 pub const MARKDOWN_ICON: &str = "icons/explorer/worktree/markdown.svg";
-pub const FILE_ICON: &str = "icons/explorer/worktree/file.svg";
+pub const FILE_ICON: &str = "icons/explorer/worktree/file_type_default.svg";
+pub const PDF_ICON: &str = "icons/explorer/worktree/file_type_pdf.svg";
+pub const CODE_ICON: &str = "icons/explorer/worktree/file_type_code.svg";
+pub const MUSIC_ICON: &str = "icons/explorer/worktree/file_type_music.svg";
+pub const IMAGE_ICON: &str = "icons/explorer/worktree/file_type_image.svg";
+pub const TXT_ICON: &str = "icons/explorer/worktree/file_type_txt.svg";
 pub const EXPLORER_NODE_HEIGHT: f32 = 28.0;
 pub const EXPLORER_NODE_INDENT: f32 = 14.0;
+
+/// Map a lower-cased file extension to its explorer type icon.
+pub fn file_type_icon(ext: &str) -> &'static str {
+    match ext {
+        "md" | "markdown" => MARKDOWN_ICON,
+        "pdf" => PDF_ICON,
+        "rs" | "c" | "cpp" | "cc" | "cxx" | "h" | "hpp" | "py" | "js" | "ts" | "tsx" | "jsx"
+        | "java" | "go" | "rb" | "php" | "swift" | "kt" | "cs" | "sh" | "bash" | "toml"
+        | "json" | "yaml" | "yml" | "xml" | "html" | "css" | "sql" | "lua" | "r" | "scala"
+        | "zig" | "dart" | "m" | "mm" => CODE_ICON,
+        "mp3" | "wav" | "flac" | "ogg" | "m4a" | "aac" | "wma" | "opus" | "mid" | "midi" => {
+            MUSIC_ICON
+        }
+        "png" | "jpg" | "jpeg" | "gif" | "svg" | "webp" | "bmp" | "ico" | "tiff" | "tif"
+        | "avif" | "heic" => IMAGE_ICON,
+        "txt" | "text" | "log" | "ini" | "conf" | "cfg" => TXT_ICON,
+        _ => FILE_ICON,
+    }
+}
 
 // ── Stable entry ids ────────────────────────────────────────────────────
 
@@ -114,10 +138,7 @@ pub enum ExplorerNodeKind {
 /// worktree index plus the worktree-allocated stable entry id.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ExplorerSelection {
-    File {
-        root: usize,
-        entry: ExplorerEntryId,
-    },
+    File { root: usize, entry: ExplorerEntryId },
     Outline(String),
 }
 
@@ -184,10 +205,10 @@ pub enum ExplorerClipboard {
     Copied(Vec<ExplorerSelection>),
     Cut(Vec<ExplorerSelection>),
 }
-    /// Payload for dragging file-tree entries within the panel (mirrors
-    /// Zed's `DraggedSelection`). The first selection is the row where the
-    /// drag started (`active_selection`); the rest are the marked entries it
-    /// carries along.
+/// Payload for dragging file-tree entries within the panel (mirrors
+/// Zed's `DraggedSelection`). The first selection is the row where the
+/// drag started (`active_selection`); the rest are the marked entries it
+/// carries along.
 #[derive(Clone, Debug)]
 pub struct DraggedExplorerSelection {
     pub selections: Vec<ExplorerSelection>,
@@ -421,7 +442,11 @@ fn make_tree_node(entry: &super::worktree::WorktreeEntry) -> ExplorerFileNode {
         kind: match entry.kind {
             super::worktree::WorktreeEntryKind::Directory => ExplorerEntryKind::Directory,
             super::worktree::WorktreeEntryKind::File => {
-                if entry.path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("md")) {
+                if entry
+                    .path
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("md"))
+                {
                     ExplorerEntryKind::MarkdownFile
                 } else {
                     ExplorerEntryKind::File
@@ -455,7 +480,14 @@ pub fn flatten_file_tree(
         has_children: !root.children.is_empty(),
     });
     if out[0].is_expanded && root.kind == ExplorerEntryKind::Directory {
-        flatten_children(root_index, &root.children, Some(root.id), 1, expanded, &mut out);
+        flatten_children(
+            root_index,
+            &root.children,
+            Some(root.id),
+            1,
+            expanded,
+            &mut out,
+        );
     }
     out
 }
@@ -538,7 +570,14 @@ fn flatten_children(
             has_children: !node.children.is_empty(),
         });
         if is_expanded && !node.children.is_empty() {
-            flatten_children(root_index, &node.children, Some(node.id), depth + 1, expanded, out);
+            flatten_children(
+                root_index,
+                &node.children,
+                Some(node.id),
+                depth + 1,
+                expanded,
+                out,
+            );
         }
     }
 }

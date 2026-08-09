@@ -75,8 +75,8 @@ impl crate::editor::controller::Editor {
             .flex()
             .items_center()
             .gap(px(4.0))
-            .child(split_h_button)
-            .child(split_v_button);
+            .child(split_v_button)
+            .child(split_h_button);
 
         if leaf_count > 1 {
             let max_editor = editor.clone();
