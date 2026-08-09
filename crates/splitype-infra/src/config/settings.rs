@@ -8,8 +8,8 @@ use gpui::*;
 use serde::{Deserialize, Serialize};
 
 use crate::config::dirs::SplitypeConfigDirs;
-use crate::config::recent::read_recent_files;
 use crate::config::keybindings::normalize_shortcut_config;
+use crate::config::recent::read_recent_files;
 use crate::i18n::manager::I18nManager;
 use crate::i18n::packs::language_id_for_locale_settings;
 use crate::theme::ThemeManager;
@@ -406,9 +406,7 @@ pub fn read_app_settings() -> anyhow::Result<AppSettings> {
     read_app_settings_with_dirs(&SplitypeConfigDirs::from_system()?)
 }
 
-pub fn read_app_settings_with_dirs(
-    dirs: &SplitypeConfigDirs,
-) -> anyhow::Result<AppSettings> {
+pub fn read_app_settings_with_dirs(dirs: &SplitypeConfigDirs) -> anyhow::Result<AppSettings> {
     let path = dirs.app_config_file();
     let text = match std::fs::read_to_string(&path) {
         Ok(text) => text,

@@ -24,12 +24,10 @@ use std::time::Duration;
 use gpui::*;
 
 use crate::editor::controller::Editor;
-use crate::infra::theme::ThemeManager;
 use crate::editor::panels::explorer::state::*;
 use crate::editor::panels::explorer::undo::{ExplorerChange, explorer_change_destination};
-use crate::editor::panels::explorer::utils::{
-    execute_entry_ops, explorer_is_copy_modifier,
-};
+use crate::editor::panels::explorer::utils::{execute_entry_ops, explorer_is_copy_modifier};
+use crate::infra::theme::ThemeManager;
 
 impl Editor {
     // ── Panel-level drag handling (cursor style + hover scroll) ─────────
@@ -68,7 +66,10 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        eprintln!("[explorer-drag] panel drag_move @ {:?}", event.event.position);
+        eprintln!(
+            "[explorer-drag] panel drag_move @ {:?}",
+            event.event.position
+        );
         if let Some(previous_position) = self.panels.explorer.previous_drag_position {
             // Modifiers are not refreshed when the cursor does not move, so
             // only re-check the style on actual movement.
@@ -188,7 +189,13 @@ impl Editor {
         if !self.explorer_handle_drag_move(event, window, cx) {
             return;
         }
-        if self.panels.explorer.drag_target.and_then(|t| t.entry_id()).is_none() {
+        if self
+            .panels
+            .explorer
+            .drag_target
+            .and_then(|t| t.entry_id())
+            .is_none()
+        {
             self.panels.explorer.drag_target = Some(DragExplorerTarget::Background);
             cx.notify();
         }
@@ -208,7 +215,12 @@ impl Editor {
         if !self.explorer_handle_drag_move(event, window, cx) {
             return;
         }
-        if self.panels.explorer.drag_target.and_then(|t| t.entry_id()).is_none()
+        if self
+            .panels
+            .explorer
+            .drag_target
+            .and_then(|t| t.entry_id())
+            .is_none()
             && self.explorer_should_highlight_background(event.drag(cx))
         {
             self.panels.explorer.drag_target = Some(DragExplorerTarget::Background);
@@ -277,7 +289,10 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        eprintln!("[explorer-drag] row drag_move @ {:?} entry={}", event.event.position, entry_id.0);
+        eprintln!(
+            "[explorer-drag] row drag_move @ {:?} entry={}",
+            event.event.position, entry_id.0
+        );
         let is_current_target = self
             .panels
             .explorer
@@ -294,7 +309,10 @@ impl Editor {
         if is_current_target {
             return; // same target: keep the highlight and the pending expand
         }
-        eprintln!("[explorer-drag] setting drag target to entry {}", entry_id.0);
+        eprintln!(
+            "[explorer-drag] setting drag target to entry {}",
+            entry_id.0
+        );
         // Keep the multi-select state in sync with what is being dragged
         // (mirrors Zed: single item drags collapse the marks to themselves).
         if let Some(drag) = drag {
@@ -376,7 +394,9 @@ impl Editor {
         // directory or its sibling files.
         if let Some(drag) = drag
             && drag.selections.len() == 1
-            && let Some(ExplorerSelection::File { entry: active_id, .. }) = drag.active()
+            && let Some(ExplorerSelection::File {
+                entry: active_id, ..
+            }) = drag.active()
             && let Some(active) = self.explorer_entry_by_id(*active_id)
             && let Some(active_parent) = active.path.parent()
         {
@@ -451,7 +471,8 @@ impl Editor {
                     if self.explorer_is_root_entry(*entry))
             })
             .filter_map(|selection| {
-                self.explorer_entry_for_selection(selection).map(|entry| entry.path.clone())
+                self.explorer_entry_for_selection(selection)
+                    .map(|entry| entry.path.clone())
             })
             .collect();
         if paths.is_empty() {
@@ -501,7 +522,8 @@ impl Editor {
                     if self.explorer_is_root_entry(*entry))
             })
             .filter_map(|selection| {
-                self.explorer_entry_for_selection(selection).map(|entry| entry.path.clone())
+                self.explorer_entry_for_selection(selection)
+                    .map(|entry| entry.path.clone())
             })
             .collect();
         if paths.is_empty() {
@@ -520,7 +542,10 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        eprintln!("[explorer-drag] drop external onto entry {}: {paths:?}", entry_id.0);
+        eprintln!(
+            "[explorer-drag] drop external onto entry {}: {paths:?}",
+            entry_id.0
+        );
         self.clear_explorer_drag(cx);
         let Some(target_dir) = self.explorer_drop_target_dir(entry_id) else {
             return;
@@ -670,8 +695,7 @@ impl Editor {
                     && let Some(ExplorerChange::Copied { source, dest }) = changes.first()
                     && source.file_name() != dest.file_name()
                 {
-                    editor.panels.explorer.pending_rename =
-                        Some((window_handle, dest.clone()));
+                    editor.panels.explorer.pending_rename = Some((window_handle, dest.clone()));
                 }
                 editor.sync_explorer_models(cx);
                 cx.notify();
@@ -709,16 +733,13 @@ impl Render for DraggedExplorerEntryView {
                     .border_1()
                     .border_color(c.dialog_border)
                     .shadow_lg()
-                    .child(
-                        div()
-                            .text_size(px(12.0))
-                            .text_color(c.text_default)
-                            .child(if self.count > 1 {
-                                format!("{} entries", self.count)
-                            } else {
-                                self.label.clone()
-                            }),
-                    ),
+                    .child(div().text_size(px(12.0)).text_color(c.text_default).child(
+                        if self.count > 1 {
+                            format!("{} entries", self.count)
+                        } else {
+                            self.label.clone()
+                        },
+                    )),
             )
     }
 }

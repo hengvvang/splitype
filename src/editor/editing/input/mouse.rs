@@ -79,12 +79,13 @@ impl Editor {
         max_scroll_y: f32,
         cx: &mut Context<Self>,
     ) {
-        self.tab_mut().scroll.scrollbar_drag = Some(crate::editor::controller::ScrollbarDragSession {
-            pointer_offset_y: pointer_offset_y.clamp(0.0, thumb_height.max(0.0)),
-            track_height,
-            thumb_height,
-            max_scroll_y,
-        });
+        self.tab_mut().scroll.scrollbar_drag =
+            Some(crate::editor::controller::ScrollbarDragSession {
+                pointer_offset_y: pointer_offset_y.clamp(0.0, thumb_height.max(0.0)),
+                track_height,
+                thumb_height,
+                max_scroll_y,
+            });
         self.tab_mut().focus.pending_scroll_active_block_into_view = false;
         self.tab_mut().focus.pending_scroll_recheck_after_layout = false;
         self.bump_scrollbar_visibility(cx);

@@ -2,16 +2,12 @@
 
 use gpui::*;
 
-use crate::editor::tree::block::Block;
 use crate::editor::panels::preview::render::inline;
+use crate::editor::tree::block::Block;
 use crate::infra::theme::Theme;
 
 /// Renders a plain paragraph (and HTML-comment fallback) read-only.
-pub(crate) fn render_preview_paragraph(
-    block: &Block,
-    base: Div,
-    theme: &Theme,
-) -> AnyElement {
+pub(crate) fn render_preview_paragraph(block: &Block, base: Div, theme: &Theme) -> AnyElement {
     let c = &theme.colors;
     let t = &theme.typography;
 
@@ -29,10 +25,6 @@ pub(crate) fn render_preview_paragraph(
 }
 
 /// Renders a raw Markdown fallback block read-only (identical to paragraph).
-pub(crate) fn render_preview_raw_markdown(
-    block: &Block,
-    base: Div,
-    theme: &Theme,
-) -> AnyElement {
+pub(crate) fn render_preview_raw_markdown(block: &Block, base: Div, theme: &Theme) -> AnyElement {
     render_preview_paragraph(block, base, theme)
 }

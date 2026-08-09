@@ -9,8 +9,8 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use futures::StreamExt;
 use gpui::*;
@@ -198,19 +198,18 @@ impl Worktree {
         let weak = cx.weak_entity();
         let task = cx.spawn(async move |_this, cx: &mut AsyncApp| {
             let (tx, mut rx) = futures::channel::mpsc::unbounded::<notify::Event>();
-            let mut watcher = match notify::recommended_watcher(
-                move |res: notify::Result<notify::Event>| {
+            let mut watcher =
+                match notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
                     if let Ok(event) = res {
                         let _ = tx.unbounded_send(event);
                     }
-                },
-            ) {
-                Ok(watcher) => watcher,
-                Err(err) => {
-                    eprintln!("[explorer] failed to start fs watcher: {err}");
-                    return;
-                }
-            };
+                }) {
+                    Ok(watcher) => watcher,
+                    Err(err) => {
+                        eprintln!("[explorer] failed to start fs watcher: {err}");
+                        return;
+                    }
+                };
             if let Err(err) = watcher.watch(&root, notify::RecursiveMode::Recursive) {
                 eprintln!("[explorer] failed to watch '{}': {err}", root.display());
                 return;
@@ -320,21 +319,20 @@ fn is_ignored_entry(name: &std::ffi::OsStr) -> bool {
 /// unstable (`windows_by_handle`)).
 #[cfg(windows)]
 fn file_id(path: &Path, _meta: &std::fs::Metadata) -> Option<u64> {
-    use windows::core::HSTRING;
     use windows::Win32::Foundation::{CloseHandle, HANDLE};
     use windows::Win32::Storage::FileSystem::{
-        CreateFileW, GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, FILE_ATTRIBUTE_NORMAL,
-        FILE_SHARE_DELETE, FILE_SHARE_MODE, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING,
+        BY_HANDLE_FILE_INFORMATION, CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_DELETE,
+        FILE_SHARE_MODE, FILE_SHARE_READ, FILE_SHARE_WRITE, GetFileInformationByHandle,
+        OPEN_EXISTING,
     };
+    use windows::core::HSTRING;
 
     let handle: HANDLE = unsafe {
         CreateFileW(
             &HSTRING::from(path.as_os_str()),
             // FILE_READ_ATTRIBUTES — access to the file's metadata only.
             0x80,
-            FILE_SHARE_MODE(
-                FILE_SHARE_READ.0 | FILE_SHARE_WRITE.0 | FILE_SHARE_DELETE.0,
-            ),
+            FILE_SHARE_MODE(FILE_SHARE_READ.0 | FILE_SHARE_WRITE.0 | FILE_SHARE_DELETE.0),
             None,
             OPEN_EXISTING,
             FILE_ATTRIBUTE_NORMAL,

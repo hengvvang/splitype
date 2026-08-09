@@ -6,11 +6,11 @@ use std::rc::Rc;
 
 use gpui::*;
 
-use crate::editor::tree::block::Block;
 use crate::editor::geometry::text_layout::*;
-use crate::model::syntax::html::html_css_color_to_hsla;
 use crate::editor::render::code_highlight::highlight::code_highlight_color;
+use crate::editor::tree::block::Block;
 use crate::infra::theme::{ThemeColors, ThemeManager};
+use crate::model::syntax::html::html_css_color_to_hsla;
 
 const SOURCE_LINE_NUMBER_GAP: f32 = 12.0;
 
@@ -120,7 +120,6 @@ fn build_text_runs(
         runs
     }
 }
-
 
 fn build_code_text_runs(
     input: &Block,

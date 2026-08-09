@@ -9,8 +9,7 @@ use gpui::*;
 
 use crate::editor::block_protocol::{BlockAction, UndoCaptureKind};
 use crate::editor::editing::input::actions::{
-    Delete, DeleteBack, IndentBlock, Newline, OutdentBlock, WordDeleteBack,
-    WordDeleteForward,
+    Delete, DeleteBack, IndentBlock, Newline, OutdentBlock, WordDeleteBack, WordDeleteForward,
 };
 use crate::editor::tree::block::{Block, CollapsedCaretAffinity};
 use crate::model::block::BlockKind;
@@ -477,5 +476,4 @@ mod tests {
             assert!(!block.is_leaf_quote());
         });
     }
-
 }

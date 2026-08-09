@@ -12,7 +12,6 @@ use crate::editor::render::export::{self as document_export, ExportFormat};
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::{Theme, ThemeManager};
 
-
 impl Editor {
     pub(crate) fn export_dialog_defaults(&self, format: ExportFormat) -> (PathBuf, String) {
         let extension = format.extension();
@@ -36,7 +35,9 @@ impl Editor {
     }
 
     pub(crate) fn export_title(&self) -> String {
-        self.tab().file.path
+        self.tab()
+            .file
+            .path
             .as_ref()
             .and_then(|path| path.file_stem())
             .map(|stem| stem.to_string_lossy().to_string())
@@ -104,7 +105,9 @@ impl Editor {
         let theme = cx.global::<ThemeManager>().current().clone();
         let title = self.export_title();
         let source_base_dir = self
-            .tab().file.path
+            .tab()
+            .file
+            .path
             .as_ref()
             .and_then(|path| path.parent())
             .map(Path::to_path_buf);
@@ -189,5 +192,4 @@ fn show_export_error(window: &mut Window, cx: &mut App, detail: &str) {
 
 // ── Runtime context methods ───────────────────────────────────────────────
 
-impl Editor {
-}
+impl Editor {}

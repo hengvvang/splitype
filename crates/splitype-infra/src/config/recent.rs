@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context as _};
+use anyhow::{Context as _, bail};
 
 use super::dirs::SplitypeConfigDirs;
 
@@ -29,9 +29,7 @@ pub fn record_recent_folder(path: &Path) -> anyhow::Result<Vec<PathBuf>> {
     record_recent_folder_with_dirs(path, &SplitypeConfigDirs::from_system()?)
 }
 
-pub fn read_recent_files_with_dirs(
-    dirs: &SplitypeConfigDirs,
-) -> anyhow::Result<Vec<PathBuf>> {
+pub fn read_recent_files_with_dirs(dirs: &SplitypeConfigDirs) -> anyhow::Result<Vec<PathBuf>> {
     let path = dirs.history_file();
     let text = match std::fs::read_to_string(&path) {
         Ok(text) => text,
@@ -74,9 +72,7 @@ pub fn remove_recent_file_with_dirs(
     Ok(paths)
 }
 
-pub fn read_recent_folders_with_dirs(
-    dirs: &SplitypeConfigDirs,
-) -> anyhow::Result<Vec<PathBuf>> {
+pub fn read_recent_folders_with_dirs(dirs: &SplitypeConfigDirs) -> anyhow::Result<Vec<PathBuf>> {
     let path = dirs.recent_folders_file();
     let text = match std::fs::read_to_string(&path) {
         Ok(text) => text,
@@ -218,8 +214,8 @@ fn same_recent_path(left: &Path, right: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        read_recent_files_with_dirs, record_recent_file_with_dirs, remove_recent_file_with_dirs,
-        SplitypeConfigDirs, RECENT_FILES_LIMIT,
+        RECENT_FILES_LIMIT, SplitypeConfigDirs, read_recent_files_with_dirs,
+        record_recent_file_with_dirs, remove_recent_file_with_dirs,
     };
     use std::path::{Path, PathBuf};
 
@@ -308,9 +304,11 @@ mod tests {
             std::process::id()
         ));
 
-        assert!(record_recent_file_with_dirs(&fixture_path, &dirs)
-            .unwrap()
-            .is_empty());
+        assert!(
+            record_recent_file_with_dirs(&fixture_path, &dirs)
+                .unwrap()
+                .is_empty()
+        );
         assert!(!dirs.history_file().exists());
 
         let _ = std::fs::remove_dir_all(root);

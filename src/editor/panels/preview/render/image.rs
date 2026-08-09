@@ -3,10 +3,10 @@
 
 use gpui::*;
 
-use crate::editor::tree::block::Block;
 use crate::editor::panels::preview::render::{paragraph, preview_centered_column_width};
-use crate::model::syntax::image::{ImageResolvedSource, parse_standalone_image};
+use crate::editor::tree::block::Block;
 use crate::infra::theme::Theme;
+use crate::model::syntax::image::{ImageResolvedSource, parse_standalone_image};
 
 /// Renders a paragraph/list-item block that holds a lone image read-only.
 /// Falls back to the paragraph renderer when the block is not an image.
@@ -30,8 +30,8 @@ pub(crate) fn render_preview_image(
     };
 
     let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
-    let max_width = (preview_centered_column_width(viewport_width, d) - d.block_padding_x * 2.0)
-        .max(160.0);
+    let max_width =
+        (preview_centered_column_width(viewport_width, d) - d.block_padding_x * 2.0).max(160.0);
 
     let source = runtime.resolved_source.clone();
     let image = match source {
@@ -77,12 +77,7 @@ pub(crate) fn render_preview_image(
 
 /// Read-only placeholder for an image that could not be resolved, mirroring
 /// the WYSIWYG "Image Not Found" placeholder.
-fn render_preview_image_placeholder(
-    alt: &str,
-    raw: &str,
-    base: Div,
-    theme: &Theme,
-) -> AnyElement {
+fn render_preview_image_placeholder(alt: &str, raw: &str, base: Div, theme: &Theme) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;

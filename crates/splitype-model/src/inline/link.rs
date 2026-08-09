@@ -12,14 +12,9 @@ pub enum InlineLink {
         title: Option<String>,
     },
     /// Reference-style link resolved from `[label][ref]` syntax.
-    Reference {
-        label: String,
-        destination: String,
-    },
+    Reference { label: String, destination: String },
     /// Autolink from `<scheme:target>` or email-like syntax.
-    Autolink {
-        target: String,
-    },
+    Autolink { target: String },
 }
 
 /// Link target pair used by hit-testing and open-link prompts.

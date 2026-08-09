@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use gpui::*;
 
 use crate::editor::controller::Editor;
-use crate::model::block::BlockData;
 use crate::editor::tree::block::Block;
+use crate::model::block::BlockData;
 
 impl Editor {
     /// Parse a Markdown string into a tree of block entities.

@@ -5,9 +5,9 @@ use gpui::*;
 
 use crate::editor::block_protocol::BlockAction;
 use crate::editor::editing::input::actions::{
-    BlockDown, BlockUp, End, FocusNext, FocusPrev, Home, MoveLeft, MoveRight,
-    SelectAll, SelectEnd, SelectHome, SelectLeft, SelectRight, WordMoveLeft,
-    WordMoveRight, WordSelectLeft, WordSelectRight,
+    BlockDown, BlockUp, End, FocusNext, FocusPrev, Home, MoveLeft, MoveRight, SelectAll, SelectEnd,
+    SelectHome, SelectLeft, SelectRight, WordMoveLeft, WordMoveRight, WordSelectLeft,
+    WordSelectRight,
 };
 use crate::editor::tree::block::Block;
 impl Block {
@@ -233,5 +233,4 @@ impl Block {
     ) {
         self.select_to(self.visible_len(), cx);
     }
-
 }

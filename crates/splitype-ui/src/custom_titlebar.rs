@@ -7,8 +7,8 @@
 
 use gpui::*;
 
-use splitype_platform::app_identity::SPLITYPE_APP_ID;
 use splitype_infra::theme::{Theme, ThemeColors, ThemeDimensions};
+use splitype_platform::app_identity::SPLITYPE_APP_ID;
 
 const TITLEBAR_MIN_HEIGHT: f32 = 32.0;
 const MAC_TRAFFIC_LIGHT_RESERVED_WIDTH: f32 = 84.0;
@@ -372,8 +372,8 @@ mod tests {
         custom_titlebar_icon_color, titlebar_drag_strategy_for_target_os, titlebar_maximize_icon,
         titlebar_options_for_target_os, window_decorations_for_target_os,
     };
-    use splitype_infra::theme::Theme;
     use gpui::{Decorations, Hsla, Tiling, WindowDecorations, rgba};
+    use splitype_infra::theme::Theme;
 
     #[test]
     fn titlebar_options_enable_transparency_on_mac_and_windows() {

@@ -15,12 +15,12 @@ use gpui::*;
 
 use crate::editor::controller::Editor;
 use crate::editor::editing::input::actions::{Copy, Cut, DismissTransientUi, Paste};
-use crate::infra::theme::ThemeManager;
 use crate::editor::panels::explorer::state::{
-    EXPLORER_NODE_HEIGHT, ExplorerEditState,
-    ExplorerFilenameEditor, ExplorerRow, ExplorerValidation,
+    EXPLORER_NODE_HEIGHT, ExplorerEditState, ExplorerFilenameEditor, ExplorerRow,
+    ExplorerValidation,
 };
 use crate::editor::panels::explorer::undo::ExplorerChange;
+use crate::infra::theme::ThemeManager;
 
 // ── UTF-8 / UTF-16 offset conversion ────────────────────────────────────
 
@@ -166,7 +166,10 @@ impl ExplorerFilenameEditor {
             self.reversed = false;
             return;
         }
-        let target = self.text.ceil_char_boundary(cursor + 1).min(self.text.len());
+        let target = self
+            .text
+            .ceil_char_boundary(cursor + 1)
+            .min(self.text.len());
         self.set_cursor(target, anchor, extend);
     }
 
@@ -341,7 +344,8 @@ impl Editor {
         let Some(tree) = self.panels.explorer.trees_cache.get(root).cloned() else {
             return;
         };
-        let Some(node) = crate::editor::panels::explorer::state::find_explorer_node(&tree, &target_path)
+        let Some(node) =
+            crate::editor::panels::explorer::state::find_explorer_node(&tree, &target_path)
         else {
             return;
         };
@@ -360,15 +364,15 @@ impl Editor {
         // Preselect the file stem for files (extensions stay untouched), the
         // whole name for directories — mirrors Zed's rename UX.
         let file_name = node.label.clone();
-        let selection_end = if node.kind == crate::editor::panels::explorer::state::ExplorerEntryKind::Directory
-        {
-            file_name.len()
-        } else {
-            target_path
-                .file_stem()
-                .map(|stem| stem.len())
-                .unwrap_or(file_name.len())
-        };
+        let selection_end =
+            if node.kind == crate::editor::panels::explorer::state::ExplorerEntryKind::Directory {
+                file_name.len()
+            } else {
+                target_path
+                    .file_stem()
+                    .map(|stem| stem.len())
+                    .unwrap_or(file_name.len())
+            };
 
         let mut filename = ExplorerFilenameEditor::default();
         filename.set_text(file_name, Some(0..selection_end));
@@ -378,7 +382,8 @@ impl Editor {
                 root,
                 parent_id: None,
                 target_id: Some(node.id),
-                is_dir: node.kind == crate::editor::panels::explorer::state::ExplorerEntryKind::Directory,
+                is_dir: node.kind
+                    == crate::editor::panels::explorer::state::ExplorerEntryKind::Directory,
                 depth,
                 path: target_path,
                 validation: None,
@@ -412,9 +417,7 @@ impl Editor {
             if !window.is_window_active() {
                 return;
             }
-            if editor.panels.explorer.edit.is_some()
-                && !editor.confirm_explorer_edit(window, cx)
-            {
+            if editor.panels.explorer.edit.is_some() && !editor.confirm_explorer_edit(window, cx) {
                 editor.discard_explorer_edit(cx);
             }
         })
@@ -424,7 +427,11 @@ impl Editor {
     }
 
     /// Scroll the edit row into view and keep it visible while typing.
-    pub(crate) fn autoscroll_explorer_edit(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn autoscroll_explorer_edit(
+        &mut self,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         let Some(index) = self.explorer_edit_row_index() else {
             return;
         };
@@ -533,7 +540,8 @@ impl Editor {
                             }
                         };
                         editor.record_explorer_change(change);
-                        editor.panels.explorer.pending_select = Some((root, new_path_for_update.clone()));
+                        editor.panels.explorer.pending_select =
+                            Some((root, new_path_for_update.clone()));
                         editor.rescan_explorer_worktrees(cx);
                         editor.sync_explorer_models(cx);
                         if is_create && !is_dir {
@@ -671,7 +679,8 @@ impl Editor {
         if let Some(edit) = &mut self.panels.explorer.edit {
             if !edit.filename.selection_range().is_empty() {
                 let text = edit.filename.selected_text().to_string();
-                edit.filename.replace_range(edit.filename.selection_range(), "");
+                edit.filename
+                    .replace_range(edit.filename.selection_range(), "");
                 cx.write_to_clipboard(ClipboardItem::new_string(text));
                 self.populate_explorer_validation(cx);
                 cx.notify();
@@ -816,9 +825,7 @@ impl EntityInputHandler for Editor {
             .or_else(|| edit.filename.marked_range.clone())
             .unwrap_or_else(|| edit.filename.selection_range());
         let sanitized = new_text.replace('\r', "").replace('\n', "");
-        edit.filename
-            .text
-            .replace_range(range.clone(), &sanitized);
+        edit.filename.text.replace_range(range.clone(), &sanitized);
         let marked = range.start..range.start + sanitized.len();
         let selection = new_selected_range_utf16
             .as_ref()
@@ -977,10 +984,8 @@ impl Element for ExplorerFilenameInputElement {
             underline: None,
             strikethrough: None,
         };
-        let runs = if let Some(marked_range) = filename
-            .marked_range
-            .as_ref()
-            .filter(|_| !text.is_empty())
+        let runs = if let Some(marked_range) =
+            filename.marked_range.as_ref().filter(|_| !text.is_empty())
         {
             vec![
                 TextRun {

@@ -7,14 +7,14 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
+use crate::editor::panels::explorer::state::*;
+use crate::explorer::drag_and_drop::DraggedExplorerEntryView;
+use crate::explorer::filename_editor::ExplorerFilenameInputElement;
 use crate::infra::config::recent::{read_recent_files, read_recent_folders};
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 use crate::ui::button::icon_chip_button;
 use crate::ui::empty_state::empty_state_container;
-use crate::explorer::drag_and_drop::DraggedExplorerEntryView;
-use crate::explorer::filename_editor::ExplorerFilenameInputElement;
-use crate::editor::panels::explorer::state::*;
 
 use crate::editor::controller::Editor;
 

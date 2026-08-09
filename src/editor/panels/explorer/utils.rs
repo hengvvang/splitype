@@ -117,5 +117,6 @@ pub fn execute_entry_ops(
 /// The copy modifier inverts a drag from move to copy (mirrors Zed's
 /// `is_copy_modifier_set`: Alt on macOS, Ctrl elsewhere).
 pub fn explorer_is_copy_modifier(modifiers: &gpui::Modifiers) -> bool {
-    cfg!(target_os = "macos") && modifiers.alt || cfg!(not(target_os = "macos")) && modifiers.control
+    cfg!(target_os = "macos") && modifiers.alt
+        || cfg!(not(target_os = "macos")) && modifiers.control
 }

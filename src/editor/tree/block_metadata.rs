@@ -16,7 +16,6 @@ impl Block {
         requested
     }
 
-
     pub(crate) fn kind_metadata_flags(&self) -> u8 {
         let mut flags = 0u8;
         if self.kind().is_quote_container() {
@@ -39,5 +38,4 @@ impl Block {
     pub(crate) fn tree_metadata_is_current(&self) -> bool {
         self.tree_metadata_flags == self.kind_metadata_flags()
     }
-
 }

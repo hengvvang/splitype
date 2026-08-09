@@ -7,7 +7,7 @@
 use gpui::{Pixels, Point};
 
 use crate::tree::{AreaRect, Axis, Direction};
-use crate::types::{AreaId, AreaSplitMode, PanelId};
+use crate::types::{AreaId, AreaSplitMode};
 
 /// Modifier key held during a corner drag.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -86,31 +86,15 @@ pub enum WindowAreaDragAction {
         mode: AreaSplitMode,
     },
     /// Join the dragged area into a neighbor (removes the dragged area).
-    Join { from_area: AreaId, into_area: AreaId },
+    Join {
+        from_area: AreaId,
+        into_area: AreaId,
+    },
     /// Swap the kinds (and per-area state) of two areas.
     Swap { from: AreaId, to: AreaId },
     /// Shift + drag on a Settings corner: open the floating settings
     /// window (the app-menu Open Settings panel).
     OpenSettings,
-    /// Gesture was cancelled (e.g. dragged to an invalid target).
-    Cancel,
-}
-
-/// The action produced by an editor inner-panel corner-drag gesture.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum EditorInnerPanelDragAction {
-    /// Split the dragged panel; the new panel inherits its kind.
-    Split {
-        panel_id: PanelId,
-        direction: Axis,
-        ratio: f32,
-    },
-    /// Join the dragged panel into a neighbor (removes the dragged panel).
-    Join { from_panel: PanelId, into_panel: PanelId },
-    /// Swap the kinds of two panels.
-    Swap { from: PanelId, to: PanelId },
-    /// Shift + drag: currently a no-op in the host.
-    Duplicate { panel_id: PanelId },
     /// Gesture was cancelled (e.g. dragged to an invalid target).
     Cancel,
 }

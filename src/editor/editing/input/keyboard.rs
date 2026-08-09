@@ -108,4 +108,3 @@ impl Editor {
         cx.stop_propagation();
     }
 }
-

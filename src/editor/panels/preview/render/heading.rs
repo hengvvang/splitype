@@ -3,8 +3,8 @@
 
 use gpui::*;
 
-use crate::editor::tree::block::Block;
 use crate::editor::panels::preview::render::inline;
+use crate::editor::tree::block::Block;
 use crate::infra::theme::Theme;
 
 /// Renders a heading block at the given level (1–6).

@@ -7,21 +7,17 @@ use std::ops::Range;
 use super::latex::{InlineLatex, InlineLatexDelimiter};
 use super::link::InlineLink;
 use super::serialize::{
-    Delimiter, apply_delimiter_style, backtick_run_len, can_close_emphasis,
-    emphasis_requires_body, has_closing_delimiter, match_open_delimiter,
+    Delimiter, apply_delimiter_style, backtick_run_len, can_close_emphasis, emphasis_requires_body,
+    has_closing_delimiter, match_open_delimiter,
 };
 use super::style::InlineStyle;
 use super::text::{InlineFragment, RichText};
-use crate::inline::footnote::{
-    InlineFootnoteReference, parse_inline_footnote_reference,
-};
+use crate::inline::footnote::{InlineFootnoteReference, parse_inline_footnote_reference};
 use crate::syntax::html::{
     HtmlAttr, HtmlInlineStyle, HtmlNode, HtmlNodeKind, has_dangerous_attrs, is_inline_tag,
     parse_html_attrs, style_for_node,
 };
-use crate::syntax::link::{
-    LinkReferenceDefinition, LinkReferenceDefinitions, parse_link_target,
-};
+use crate::syntax::link::{LinkReferenceDefinition, LinkReferenceDefinitions, parse_link_target};
 
 // ---------------------------------------------------------------------------
 // Normalizer: traverse CharTokens and rebuild the tree
@@ -881,8 +877,7 @@ fn locate_inline_link(
             } else {
                 raw_label
             };
-            let normalized_label =
-                crate::syntax::image::normalize_reference_label(&link_label)?;
+            let normalized_label = crate::syntax::image::normalize_reference_label(&link_label)?;
             let LinkReferenceDefinition { destination, .. } =
                 reference_definitions.get(&normalized_label)?.clone();
             Some(LocatedInlineLink {
@@ -896,8 +891,7 @@ fn locate_inline_link(
         }
         _ => {
             let raw_label = tokens_to_string(&tokens[index + 1..label_end]);
-            let normalized_label =
-                crate::syntax::image::normalize_reference_label(&raw_label)?;
+            let normalized_label = crate::syntax::image::normalize_reference_label(&raw_label)?;
             let LinkReferenceDefinition { destination, .. } =
                 reference_definitions.get(&normalized_label)?.clone();
             Some(LocatedInlineLink {

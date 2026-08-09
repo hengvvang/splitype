@@ -5,18 +5,16 @@ use crate::ui::popover::overlay;
 
 use crate::ui::dialog::dialog_card;
 
-use crate::ui::button::{
-    compact_danger_button, compact_primary_button, compact_secondary_button,
-};
+use crate::ui::button::{compact_danger_button, compact_primary_button, compact_secondary_button};
 
 use gpui::*;
 
 use crate::editor::controller::{Editor, InfoDialogKind};
-use crate::infra::i18n::{I18nManager, I18nStrings};
-use crate::layout::WindowAreaKind;
-use crate::infra::theme::Theme;
-use crate::editor::window::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
 use crate::editor::window::context_menu::TableInsertTarget;
+use crate::editor::window::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
+use crate::infra::i18n::{I18nManager, I18nStrings};
+use crate::infra::theme::Theme;
+use crate::layout::WindowAreaKind;
 
 /// State for the table insertion dialog opened from the context menu.
 pub(crate) struct TableInsertDialogState {
@@ -92,7 +90,6 @@ impl Editor {
         self.panels.layout.activate_editor_area(area);
         let set = self
             .panels
-            .layout
             .editor_sessions
             .get_mut(&area)
             .map(|session| &mut session.tab_list)
@@ -126,7 +123,6 @@ impl Editor {
         self.panels.layout.activate_editor_area(area);
         let set = self
             .panels
-            .layout
             .editor_sessions
             .get_mut(&area)
             .map(|session| &mut session.tab_list)

@@ -354,7 +354,10 @@ impl Editor {
             return;
         }
 
-        self.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::NonCoalescible, cx);
+        self.prepare_undo_capture(
+            crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
+            cx,
+        );
         let can_insert_image_block = self.tab().mode
             == crate::editor::controller::EditorMode::Wysiwyg
             && block.read(cx).kind() == BlockKind::Paragraph

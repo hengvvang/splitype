@@ -159,8 +159,8 @@ mod tests {
         RenderedRowSpacingInfo, callout_row_top_gap, editor_text_font, rendered_row_top_gap,
         tibetan_font_fallbacks_for_target_os,
     };
-    use crate::model::block::BlockId;
     use crate::infra::theme::Theme;
+    use crate::model::block::BlockId;
     use uuid::Uuid;
 
     #[test]
@@ -309,5 +309,4 @@ mod tests {
 
         assert_eq!(gap, 0.0);
     }
-
 }

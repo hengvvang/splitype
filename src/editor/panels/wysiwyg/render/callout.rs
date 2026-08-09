@@ -3,10 +3,10 @@
 
 use gpui::*;
 
-use crate::editor::tree::block::Block;
-use crate::model::block::CalloutKind;
 use crate::editor::panels::wysiwyg::render::callout_accent_and_background;
+use crate::editor::tree::block::Block;
 use crate::infra::theme::Theme;
+use crate::model::block::CalloutKind;
 
 /// Render a callout (admonition) block.
 pub(crate) fn render_callout(

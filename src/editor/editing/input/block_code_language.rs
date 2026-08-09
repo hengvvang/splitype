@@ -5,9 +5,9 @@ use gpui::*;
 
 use crate::editor::block_protocol::BlockAction;
 use crate::editor::editing::input::actions::{
-    Copy, Cut, Delete, DeleteBack, DismissTransientUi, End, FocusNext,
-    FocusPrev, Home, IndentBlock, MoveLeft, MoveRight, Newline, OutdentBlock,
-    Paste, SelectAll, SelectLeft, SelectRight,
+    Copy, Cut, Delete, DeleteBack, DismissTransientUi, End, FocusNext, FocusPrev, Home,
+    IndentBlock, MoveLeft, MoveRight, Newline, OutdentBlock, Paste, SelectAll, SelectLeft,
+    SelectRight,
 };
 use crate::editor::render::code_highlight::options::code_language_options_matching;
 use crate::editor::tree::block::Block;
@@ -438,5 +438,4 @@ impl Block {
             );
         }
     }
-
 }

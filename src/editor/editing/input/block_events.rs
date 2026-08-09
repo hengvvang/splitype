@@ -866,4 +866,3 @@ impl Editor {
         }
     }
 }
-

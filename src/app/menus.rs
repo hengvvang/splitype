@@ -8,6 +8,10 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
+#[cfg(target_os = "macos")]
+use crate::app::cli_install::{install_cli_tool, uninstall_cli_tool};
+#[cfg(not(target_os = "macos"))]
+use crate::app::cli_install::{install_cli_tool, uninstall_cli_tool};
 use crate::app::window::{
     open_editor_window, open_file_in_new_window, record_recent_file_and_refresh,
 };
@@ -20,22 +24,18 @@ use crate::editor::actions::{
 };
 use crate::editor::controller::{Editor, InfoDialogKind};
 use crate::editor::render::export::ExportFormat;
+use crate::editor::window::{
+    open_bug_report, open_discussions, open_feature_request, open_splitype_repository,
+};
 use crate::infra::config::recent::{read_recent_files, remove_recent_file};
 use crate::infra::config::settings::{
     apply_configured_language, apply_configured_theme, import_language_config_and_select,
     import_theme_config_and_select,
 };
 use crate::infra::i18n::I18nManager;
-#[cfg(target_os = "macos")]
-use crate::app::cli_install::{install_cli_tool, uninstall_cli_tool};
+use crate::infra::theme::ThemeManager;
 #[cfg(target_os = "macos")]
 use crate::platform::cli_tool::is_cli_symlink_current_app;
-#[cfg(not(target_os = "macos"))]
-use crate::app::cli_install::{install_cli_tool, uninstall_cli_tool};
-use crate::infra::theme::ThemeManager;
-use crate::editor::window::{
-    open_bug_report, open_discussions, open_feature_request, open_splitype_repository,
-};
 use crate::settings::open_settings_window;
 
 /// Global app-menu state for platform menu lifecycle hooks.
@@ -538,7 +538,10 @@ fn build_menus(
                     ],
                 }),
                 MenuItem::separator(),
-                MenuItem::action(strings.menu_close_explorer_folder.clone(), CloseExplorerFolder),
+                MenuItem::action(
+                    strings.menu_close_explorer_folder.clone(),
+                    CloseExplorerFolder,
+                ),
             ],
         },
         Menu {
@@ -845,14 +848,14 @@ pub(crate) fn init(cx: &mut App) {
 mod tests {
     use super::build_menus;
     use crate::editor::actions::{
-        AddLanguageConfig, AddThemeConfig, CloseWindow, ExportHtml, ExportPdf,
-        NewWindow, NoRecentFiles, OpenBugReport, OpenDiscussions, OpenFeatureRequest, OpenFile,
+        AddLanguageConfig, AddThemeConfig, CloseWindow, ExportHtml, ExportPdf, NewWindow,
+        NoRecentFiles, OpenBugReport, OpenDiscussions, OpenFeatureRequest, OpenFile,
         OpenRecentFile, OpenSettings, OpenSplitypeRepository, QuitApplication, SaveDocument,
         SelectLanguage, SelectTheme,
     };
     use crate::infra::i18n::I18nManager;
-    use crate::platform::cli_tool::applescript_string_literal;
     use crate::infra::theme::ThemeManager;
+    use crate::platform::cli_tool::applescript_string_literal;
     use gpui::{Action, MenuItem};
     use std::path::PathBuf;
 

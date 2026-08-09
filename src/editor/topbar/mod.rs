@@ -4,11 +4,11 @@
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
-use crate::layout::{AreaSplitMode, Axis, WindowAreaKind};
+use crate::editor::window_layout::area_topbar_icon;
 use crate::infra::theme::Theme;
+use crate::layout::{AreaSplitMode, Axis, WindowAreaKind};
 use crate::ui::button::{icon_chip_button, small_pill_button};
 use crate::ui::topbar::topbar_container;
-use crate::editor::window_layout::area_topbar_icon;
 
 impl crate::editor::controller::Editor {
     /// Top bar of an Editor area: type selector and split/close controls
@@ -125,7 +125,7 @@ impl crate::editor::controller::Editor {
                 )
                 .on_click(move |_event, _window, cx| {
                     let _ = close_editor.update(cx, |ed, cx| {
-                        ed.panels.layout.close_window_area(leaf_id);
+                        ed.panels.close_window_area(leaf_id);
                         cx.notify();
                     });
                 });

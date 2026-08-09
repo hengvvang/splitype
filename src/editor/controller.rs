@@ -19,6 +19,9 @@ pub(crate) use gpui::*;
 pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
 pub(crate) use crate::editor::bottombar::state::BottombarState;
 pub(crate) use crate::editor::menu_bar::MenuBarState;
+pub(crate) use crate::editor::panels::panel_types::{
+    EditingPanelKind, EditorInnerPanelKind, EditorTabList, InnerPanelLocation,
+};
 pub(crate) use crate::editor::panels::{PreviewState, SourceCodePanelRuntime};
 pub(crate) use crate::editor::tree::block::Block;
 pub(crate) use crate::editor::tree::document::Document;
@@ -28,11 +31,8 @@ pub(crate) use crate::editor::tree::footnotes::{
 pub(crate) use crate::editor::window::context_menu::ContextMenuState;
 pub(crate) use crate::editor::window::dialogs::TableInsertDialogState;
 pub(crate) use crate::editor::window_layout::WindowPanels;
-pub(crate) use crate::layout::state::{EditorTabList, ROOT_AREA_ID};
-pub(crate) use crate::layout::types::{
-    AreaId, AreaSplitMode, EditingPanelKind, EditorAreaMode, EditorInnerPanelKind,
-    InnerPanelLocation, PanelId,
-};
+pub(crate) use crate::layout::state::ROOT_AREA_ID;
+pub(crate) use crate::layout::types::{AreaId, AreaSplitMode, EditorAreaMode, PanelId};
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::model::inline::text::RichText;
 pub(crate) use crate::model::syntax::image::{
@@ -396,7 +396,7 @@ impl Editor {
 
     /// Seed the root Editor area as the (empty) active editor.
     fn with_seeded_root_editor(mut self) -> Self {
-        self.panels.layout.ensure_editor_session(ROOT_AREA_ID);
+        self.panels.ensure_editor_session(ROOT_AREA_ID);
         self.panels.layout.activate_editor_area(ROOT_AREA_ID);
         self
     }
@@ -404,7 +404,6 @@ impl Editor {
     /// True when the active editor has at least one document tab.
     pub(crate) fn has_active_tab(&self) -> bool {
         self.panels
-            .layout
             .active_editor_session()
             .is_some_and(|session| !session.tab_list.tabs.is_empty())
     }
@@ -432,12 +431,11 @@ impl Editor {
         // default welcome panel into its editing panel.
         editor
             .panels
-            .layout
             .ensure_editor_session(ROOT_AREA_ID)
             .tab_list
             .tabs
             .push(tab);
-        editor.panels.layout.enter_editing(ROOT_AREA_ID);
+        editor.panels.enter_editing(ROOT_AREA_ID);
         editor.panels.layout.activate_editor_area(ROOT_AREA_ID);
         editor.rebuild_table_runtimes(cx);
         editor.rebuild_image_runtimes(cx);
@@ -495,7 +493,7 @@ impl Editor {
     /// Activates the tab at `index` in the given Editor area, restoring
     /// its focus and window chrome.
     pub(crate) fn activate_tab(&mut self, area_id: AreaId, index: usize, cx: &mut Context<Self>) {
-        let list = &mut self.panels.layout.ensure_editor_session(area_id).tab_list;
+        let list = &mut self.panels.ensure_editor_session(area_id).tab_list;
         if index >= list.tabs.len() {
             return;
         }
@@ -524,17 +522,13 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let already_open = self
-            .panels
-            .layout
-            .editor_session(area_id)
-            .and_then(|session| {
-                session
-                    .tab_list
-                    .tabs
-                    .iter()
-                    .position(|t| t.file.path.as_deref() == Some(path))
-            });
+        let already_open = self.panels.editor_session(area_id).and_then(|session| {
+            session
+                .tab_list
+                .tabs
+                .iter()
+                .position(|t| t.file.path.as_deref() == Some(path))
+        });
         if let Some(index) = already_open {
             self.activate_tab(area_id, index, cx);
             return;
@@ -552,7 +546,7 @@ impl Editor {
             }
         };
         let markdown = String::from_utf8_lossy(&bytes).to_string();
-        let list = &mut self.panels.layout.ensure_editor_session(area_id).tab_list;
+        let list = &mut self.panels.ensure_editor_session(area_id).tab_list;
         let was_welcome = list.tabs.is_empty();
         list.tabs.push(Self::new_tab_from_markdown(
             cx,
@@ -562,7 +556,7 @@ impl Editor {
         let last = list.tabs.len() - 1;
         if was_welcome {
             // First tab: migrate the welcome panels into editing panels.
-            self.panels.layout.enter_editing(area_id);
+            self.panels.enter_editing(area_id);
         }
         self.activate_tab(area_id, last, cx);
         crate::app::menus::record_recent_file_from_editor(path, cx);
@@ -586,14 +580,14 @@ impl Editor {
 
     /// Opens a fresh untitled tab in the given Editor area.
     pub(crate) fn new_untitled_tab(&mut self, area_id: AreaId, cx: &mut Context<Self>) {
-        let list = &mut self.panels.layout.ensure_editor_session(area_id).tab_list;
+        let list = &mut self.panels.ensure_editor_session(area_id).tab_list;
         let was_welcome = list.tabs.is_empty();
         list.tabs
             .push(Self::new_tab_from_markdown(cx, String::new(), None));
         let last = list.tabs.len() - 1;
         if was_welcome {
             // First tab: migrate the welcome panels into editing panels.
-            self.panels.layout.enter_editing(area_id);
+            self.panels.enter_editing(area_id);
         }
         self.activate_tab(area_id, last, cx);
     }
@@ -602,7 +596,7 @@ impl Editor {
     /// neighbor. Closing the last tab leaves the area back in the welcome
     /// state (no tabs).
     pub(crate) fn close_tab(&mut self, area_id: AreaId, index: usize, cx: &mut Context<Self>) {
-        let Some(session) = self.panels.layout.editor_sessions.get_mut(&area_id) else {
+        let Some(session) = self.panels.editor_sessions.get_mut(&area_id) else {
             return;
         };
         let list = &mut session.tab_list;
@@ -615,7 +609,7 @@ impl Editor {
             list.active_tab = 0;
             // Last tab: migrate the editing panels back into welcome
             // panels (they remember their kind for the next entry).
-            self.panels.layout.exit_editing(area_id);
+            self.panels.exit_editing(area_id);
             cx.notify();
             return;
         }
@@ -678,13 +672,11 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.panels.layout.focused_editor_inner_panel =
-            Some(InnerPanelLocation { area_id, panel_id });
+        self.panels.focused_editor_inner_panel = Some(InnerPanelLocation { area_id, panel_id });
         self.panels.layout.activate_editor_area(area_id);
         self.with_current_tab_area(area_id, |editor| {
             let kind = editor
                 .panels
-                .layout
                 .editor_session(area_id)
                 .and_then(|session| session.inner_panel_tree.find_leaf_kind(panel_id));
             match kind {
@@ -727,7 +719,6 @@ impl Editor {
             .expect("tab() requires an active editor area");
         let list = &self
             .panels
-            .layout
             .editor_session(area)
             .expect("routed editor area has no editor session")
             .tab_list;
@@ -739,7 +730,7 @@ impl Editor {
         let area = self
             .routed_tab_area()
             .expect("tab_mut() requires an active editor area");
-        let list = &mut self.panels.layout.ensure_editor_session(area).tab_list;
+        let list = &mut self.panels.ensure_editor_session(area).tab_list;
         let index = list.active_tab;
         &mut list.tabs[index]
     }
@@ -761,7 +752,6 @@ impl Editor {
     /// True when the given Editor area has at least one document tab.
     pub(crate) fn area_has_tabs(&self, area_id: AreaId) -> bool {
         self.panels
-            .layout
             .editor_session(area_id)
             .is_some_and(|session| !session.tab_list.tabs.is_empty())
     }
@@ -770,7 +760,7 @@ impl Editor {
     /// (at least one tab). The single source of truth for how an area's
     /// body and status bar render.
     pub(crate) fn area_mode(&self, area_id: AreaId) -> EditorAreaMode {
-        self.panels.layout.editor_area_mode(area_id)
+        self.panels.editor_area_mode(area_id)
     }
 
     /// The given Editor area's tab list. Panics if the area has no editor
@@ -778,7 +768,6 @@ impl Editor {
     pub(crate) fn tab_list_for(&self, area_id: AreaId) -> &EditorTabList<DocumentTab> {
         &self
             .panels
-            .layout
             .editor_session(area_id)
             .unwrap_or_else(|| panic!("no editor session for area {area_id}"))
             .tab_list
@@ -786,7 +775,7 @@ impl Editor {
 
     /// The given Editor area's tab list, created on demand.
     pub(crate) fn tab_list_mut_for(&mut self, area_id: AreaId) -> &mut EditorTabList<DocumentTab> {
-        &mut self.panels.layout.ensure_editor_session(area_id).tab_list
+        &mut self.panels.ensure_editor_session(area_id).tab_list
     }
 
     /// The given Editor area's active tab.
@@ -797,14 +786,14 @@ impl Editor {
 
     /// The given Editor area's active tab, mutably.
     pub(crate) fn tab_mut_for(&mut self, area_id: AreaId) -> &mut DocumentTab {
-        let list = &mut self.panels.layout.ensure_editor_session(area_id).tab_list;
+        let list = &mut self.panels.ensure_editor_session(area_id).tab_list;
         let index = list.active_tab;
         &mut list.tabs[index]
     }
 
     /// The active editor's tab, if an active editor with tabs exists.
     pub(crate) fn active_editor_tab(&self) -> Option<&DocumentTab> {
-        let session = self.panels.layout.active_editor_session()?;
+        let session = self.panels.active_editor_session()?;
         session.tab_list.tabs.get(session.tab_list.active_tab)
     }
 
@@ -843,7 +832,6 @@ impl Editor {
     ) -> Option<AreaId> {
         let new_id = self
             .panels
-            .layout
             .split_window_area(area_id, direction, ratio, mode)?;
         if mode == AreaSplitMode::Copy {
             self.copy_editor_tab_list(area_id, new_id, cx);
@@ -857,19 +845,18 @@ impl Editor {
     fn copy_editor_tab_list(&mut self, src: AreaId, dst: AreaId, cx: &mut Context<Self>) {
         let Some(source) = self
             .panels
-            .layout
             .editor_session(src)
             .map(|session| &session.tab_list)
         else {
             // Source never got a session (e.g. a non-Editor area): the
             // copy is a blank editor.
-            self.panels.layout.ensure_editor_session(dst);
+            self.panels.ensure_editor_session(dst);
             return;
         };
         if source.tabs.is_empty() {
             // Welcome-state editor: the copy is another welcome-state
             // editor — there is nothing to rebuild for it.
-            self.panels.layout.ensure_editor_session(dst);
+            self.panels.ensure_editor_session(dst);
             return;
         }
         let mut copies: Vec<(String, Option<PathBuf>, EditorMode, bool)> = Vec::new();
@@ -893,7 +880,7 @@ impl Editor {
             list.tabs.push(tab);
         }
         list.active_tab = active.min(list.tabs.len().saturating_sub(1));
-        let dst_list = &mut self.panels.layout.ensure_editor_session(dst).tab_list;
+        let dst_list = &mut self.panels.ensure_editor_session(dst).tab_list;
         *dst_list = list;
 
         // Rebuild the copied area's runtime registries under its routing
@@ -909,7 +896,7 @@ impl Editor {
 
     /// First dirty tab across ALL editor areas, if any.
     pub(crate) fn first_dirty_tab(&self) -> Option<(AreaId, usize)> {
-        for (area, session) in &self.panels.layout.editor_sessions {
+        for (area, session) in &self.panels.editor_sessions {
             for (index, tab) in session.tab_list.tabs.iter().enumerate() {
                 if tab.file.dirty {
                     return Some((*area, index));

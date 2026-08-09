@@ -13,18 +13,24 @@ use crate::ui::splitter::{splitter_bar_h, splitter_bar_v};
 use crate::ui::menu_item::menu_item;
 use crate::ui::popover::menu_panel;
 
+use std::collections::HashMap;
+
 use gpui::*;
 
 use crate::editor::panels::explorer::state::ExplorerState;
 use crate::editor::panels::outline::state::OutlinePanelState;
+use crate::editor::panels::panel_types::{
+    EditorInnerPanelDragAction, EditorSession, InnerPanelLocation,
+};
 use crate::editor::panels::settings::SettingsUiState;
 use crate::infra::i18n::I18nStrings;
-use crate::layout::{
-    AreaSplitMode, Axis, BorderMenuState, CornerDragModifier, CornerDragPreview, Direction,
-    EditorInnerPanelDragAction, SplitTree, SplitterDragSession, WindowAreaDragAction,
-    WindowAreaKind, WindowLayout,
-};
 use crate::infra::theme::Theme;
+use crate::layout::{
+    AreaId, AreaSplitMode, Axis, BorderMenuState, CornerDragModifier, CornerDragPreview,
+    CornerDragSession, Direction, SplitterDragSession, WindowAreaDragAction, WindowAreaKind,
+    WindowLayout,
+};
+use splitype_layout::tree::SplitTree;
 
 use super::controller::*;
 
@@ -125,7 +131,7 @@ impl Editor {
                             match action {
                                 WindowAreaDragAction::Swap { from, to } => {
                                     ed.panels.layout.end_window_area_corner_drag();
-                                    ed.panels.layout.swap_window_area_kinds(from, to);
+                                    ed.panels.swap_window_area_kinds(from, to);
                                 }
                                 // Shift + Settings corner: open the floating
                                 // settings window (same as the app menu).
@@ -140,17 +146,9 @@ impl Editor {
                             }
                         }
                         changed = true;
-                    } else if ed
-                        .panels
-                        .layout
-                        .active_editor_inner_panel_splitter_drag
-                        .is_some()
-                    {
-                        let (area_id, drag) = ed
-                            .panels
-                            .layout
-                            .active_editor_inner_panel_splitter_drag
-                            .unwrap();
+                    } else if ed.panels.active_editor_inner_panel_splitter_drag.is_some() {
+                        let (area_id, drag) =
+                            ed.panels.active_editor_inner_panel_splitter_drag.unwrap();
                         let viewport = window.viewport_size();
                         let outer_rects = ed.panels.layout.window_area_rects(viewport);
                         if let Some(outer_rect) =
@@ -163,7 +161,6 @@ impl Editor {
                             let inner_size = size(px(outer_rect.width), px(outer_rect.height));
                             let span = ed
                                 .panels
-                                .layout
                                 .editor_inner_panel_split_pixel_span(
                                     area_id,
                                     drag.split_id,
@@ -176,25 +173,16 @@ impl Editor {
                             if span > 1.0 {
                                 let mut session = drag;
                                 session.total_span = span;
-                                ed.panels.layout.active_editor_inner_panel_splitter_drag =
+                                ed.panels.active_editor_inner_panel_splitter_drag =
                                     Some((area_id, session));
                             }
                             ed.panels
-                                .layout
                                 .update_editor_inner_panel_splitter_drag(area_id, current_pos);
                             changed = true;
                         }
-                    } else if ed
-                        .panels
-                        .layout
-                        .active_editor_inner_panel_corner_drag
-                        .is_some()
-                    {
-                        let (area_id, drag) = ed
-                            .panels
-                            .layout
-                            .active_editor_inner_panel_corner_drag
-                            .unwrap();
+                    } else if ed.panels.active_editor_inner_panel_corner_drag.is_some() {
+                        let (area_id, drag) =
+                            ed.panels.active_editor_inner_panel_corner_drag.unwrap();
                         let viewport = window.viewport_size();
                         let outer_rects = ed.panels.layout.window_area_rects(viewport);
                         if let Some(outer_rect) =
@@ -211,25 +199,23 @@ impl Editor {
                             if start_x > outer_rect.width || start_y > outer_rect.height {
                                 session.start_pos =
                                     point(px(start_x - outer_rect.x), px(start_y - outer_rect.y));
-                                ed.panels.layout.active_editor_inner_panel_corner_drag =
+                                ed.panels.active_editor_inner_panel_corner_drag =
                                     Some((area_id, session));
                             }
-                            let action = ed.panels.layout.update_editor_inner_panel_corner_drag(
+                            let action = ed.panels.update_editor_inner_panel_corner_drag(
                                 area_id, inner_pos, inner_size,
                             );
                             if let Some(action) = action {
                                 match action {
                                     EditorInnerPanelDragAction::Swap { from, to } => {
-                                        ed.panels.layout.end_editor_inner_panel_corner_drag();
-                                        ed.panels
-                                            .layout
-                                            .swap_editor_inner_panel_kinds(area_id, from, to);
+                                        ed.panels.end_editor_inner_panel_corner_drag();
+                                        ed.panels.swap_editor_inner_panel_kinds(area_id, from, to);
                                     }
                                     EditorInnerPanelDragAction::Duplicate { .. } => {
-                                        ed.panels.layout.end_editor_inner_panel_corner_drag();
+                                        ed.panels.end_editor_inner_panel_corner_drag();
                                     }
                                     EditorInnerPanelDragAction::Cancel => {
-                                        ed.panels.layout.end_editor_inner_panel_corner_drag();
+                                        ed.panels.end_editor_inner_panel_corner_drag();
                                     }
                                     _ => {}
                                 }
@@ -265,31 +251,21 @@ impl Editor {
                                 from_area,
                                 into_area,
                             }) => {
-                                ed.panels.layout.join_window_area(into_area, from_area);
+                                ed.panels.join_window_area(into_area, from_area);
                             }
                             Some(WindowAreaDragAction::Swap { from, to }) => {
-                                ed.panels.layout.swap_window_area_kinds(from, to);
+                                ed.panels.swap_window_area_kinds(from, to);
                             }
                             _ => {}
                         }
                         cx.notify();
                     }
-                    if ed
-                        .panels
-                        .layout
-                        .active_editor_inner_panel_splitter_drag
-                        .is_some()
-                    {
-                        ed.panels.layout.end_editor_inner_panel_splitter_drag();
+                    if ed.panels.active_editor_inner_panel_splitter_drag.is_some() {
+                        ed.panels.end_editor_inner_panel_splitter_drag();
                         cx.notify();
                     }
-                    if ed
-                        .panels
-                        .layout
-                        .active_editor_inner_panel_corner_drag
-                        .is_some()
-                    {
-                        match ed.panels.layout.finish_editor_inner_panel_corner_drag() {
+                    if ed.panels.active_editor_inner_panel_corner_drag.is_some() {
+                        match ed.panels.finish_editor_inner_panel_corner_drag() {
                             Some((
                                 area_id,
                                 EditorInnerPanelDragAction::Split {
@@ -298,7 +274,7 @@ impl Editor {
                                     ratio,
                                 },
                             )) => {
-                                ed.panels.layout.split_editor_inner_panel_with_ratio(
+                                ed.panels.split_editor_inner_panel_with_ratio(
                                     area_id, panel_id, direction, ratio,
                                 );
                             }
@@ -310,7 +286,6 @@ impl Editor {
                                 },
                             )) => {
                                 ed.panels
-                                    .layout
                                     .join_editor_inner_panel(area_id, into_panel, from_panel);
                             }
                             _ => {}
@@ -436,7 +411,7 @@ impl Editor {
 
         // INNER_PREVIEW_INSERT
         let inner_preview_overlay = if let Some((area_id, ref drag)) =
-            self.panels.layout.active_editor_inner_panel_corner_drag
+            self.panels.active_editor_inner_panel_corner_drag
         {
             match drag.preview {
                 CornerDragPreview::SplitPreview { direction, ratio } => {
@@ -491,10 +466,7 @@ impl Editor {
                         self.panels.layout.window_area_rect(area_id, &outer_rects)
                     {
                         let inner_size = size(px(outer_rect.width), px(outer_rect.height));
-                        let inner_rects = self
-                            .panels
-                            .layout
-                            .editor_inner_panel_rects(area_id, inner_size);
+                        let inner_rects = self.panels.editor_inner_panel_rects(area_id, inner_size);
                         if let Some(inner_rect) =
                             self.panels.layout.window_area_rect(target_id, &inner_rects)
                         {
@@ -942,7 +914,7 @@ impl Editor {
                     })
                     .on_click(move |_event, _window, cx| {
                         let _ = option_editor.update(cx, |ed, cx| {
-                            ed.panels.layout.change_window_area_kind(leaf_id, kind);
+                            ed.panels.change_window_area_kind(leaf_id, kind);
                             cx.notify();
                         });
                     })
@@ -1071,7 +1043,7 @@ impl Editor {
                             .child("Close Area")
                             .on_click(move |_event, _window, cx| {
                                 let _ = close_ed.update(cx, |ed, cx| {
-                                    ed.panels.layout.close_window_area(split_id);
+                                    ed.panels.close_window_area(split_id);
                                     cx.notify();
                                 });
                             }),
@@ -1088,11 +1060,22 @@ impl Editor {
 /// Sidebar and tiled-layout state of the editor window.
 ///
 /// Pure state records; rendering lives in `crate::editor::window_layout`
-/// (outer layout), `crate::explorer`, and `crate::settings`.
+/// (outer layout), `crate::explorer`, and `crate::settings`. The per-area
+/// editor sessions (tab lists + inner panel trees) and inner-panel
+/// operations live in `crate::editor::panels::panels_state`.
 #[derive(Default)]
 pub struct WindowPanels {
     pub(crate) explorer: ExplorerState,
-    pub(crate) layout: WindowLayout<DocumentTab>,
+    pub(crate) layout: WindowLayout,
     pub(crate) outline: OutlinePanelState,
     pub(crate) settings: SettingsUiState,
+    /// Per-Editor-area sessions (tab list + inner panel layout), keyed by
+    /// outer area id. Retained for areas that left Editor with tabs.
+    pub(crate) editor_sessions: HashMap<AreaId, EditorSession>,
+    pub(crate) open_editor_inner_panel_dropdown: Option<InnerPanelLocation>,
+    pub(crate) active_editor_inner_panel_splitter_drag: Option<(AreaId, SplitterDragSession)>,
+    pub(crate) active_editor_inner_panel_corner_drag: Option<(AreaId, CornerDragSession)>,
+    pub(crate) active_editor_inner_panel_border_menu: Option<BorderMenuState>,
+    /// Currently focused inner panel — the status-bar action target.
+    pub(crate) focused_editor_inner_panel: Option<InnerPanelLocation>,
 }

@@ -1,8 +1,8 @@
 //! Code-block syntax highlighting support.
 
-use std::ops::Range;
 #[cfg(feature = "code-highlight-core")]
 use std::collections::HashMap;
+use std::ops::Range;
 #[cfg(feature = "code-highlight-core")]
 use std::sync::LazyLock;
 

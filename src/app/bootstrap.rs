@@ -18,16 +18,16 @@ use crate::app::menus::{init as init_app_menu, install_menus};
 use crate::app::window::open_editor_window;
 #[cfg(target_os = "macos")]
 use crate::app::window::open_file_in_new_window;
-#[cfg(target_os = "macos")]
-use crate::platform::file_url::parse_file_url;
+use crate::editor::keybindings::init_with_keybindings as init_editor;
 use crate::infra::config::settings::{
     EditorSettings, ExplorerSettingsStore, StartupOpenSetting, first_existing_recent_markdown_file,
     load_or_create_app_settings,
 };
 use crate::infra::i18n::I18nManager;
 use crate::infra::net::http_client::install_http_client;
-use crate::editor::keybindings::init_with_keybindings as init_editor;
 use crate::infra::theme::ThemeManager;
+#[cfg(target_os = "macos")]
+use crate::platform::file_url::parse_file_url;
 
 /// On macOS, re-launch the process detached from the terminal.
 #[cfg(target_os = "macos")]

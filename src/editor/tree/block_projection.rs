@@ -5,20 +5,19 @@ use std::time::Instant;
 
 use gpui::*;
 
-use crate::editor::tree::block::Block;
+use super::block::CollapsedCaretAffinity;
 use crate::editor::block_protocol::{BlockAction, UndoCaptureKind};
 use crate::editor::editing::projection::{
     ExpandedInlineProjection, ExpandedInlineSegment, ExpandedInlineSegmentKind, ExpandedLinkRun,
     ProjectedLinkSelectionSnapshot,
 };
+use crate::editor::tree::block::Block;
 use crate::model::block::BlockKind;
 use crate::model::inline::render_cache::InlineRenderCache;
 use crate::model::inline::style::StyleFlag;
 use crate::model::inline::text::{InlineFragment, InlineInsertionAttributes, RichText};
-use super::block::CollapsedCaretAffinity;
 
 impl Block {
-
     pub(crate) fn current_cache(&self) -> &InlineRenderCache {
         self.projection
             .as_ref()
@@ -169,7 +168,10 @@ impl Block {
             .and_then(|projection| projection.link_run_fully_covering_range(range))
     }
 
-    pub(crate) fn collapsed_caret_affinity_for_display_offset(&self, offset: usize) -> CollapsedCaretAffinity {
+    pub(crate) fn collapsed_caret_affinity_for_display_offset(
+        &self,
+        offset: usize,
+    ) -> CollapsedCaretAffinity {
         self.projection
             .as_ref()
             .map(|projection| projection.collapsed_affinity_for_display_offset(offset))
@@ -178,7 +180,9 @@ impl Block {
 
     /// Affinity of the current selection's anchor and focus, used to restore
     /// each endpoint accurately when the projection is rebuilt.
-    pub(crate) fn selection_endpoint_affinities(&self) -> (CollapsedCaretAffinity, CollapsedCaretAffinity) {
+    pub(crate) fn selection_endpoint_affinities(
+        &self,
+    ) -> (CollapsedCaretAffinity, CollapsedCaretAffinity) {
         let (anchor, focus) = self.selection_anchor_focus();
         (
             self.collapsed_caret_affinity_for_display_offset(anchor),
@@ -489,7 +493,10 @@ impl Block {
             .any(Self::quote_line_starts_block_syntax)
     }
 
-    pub(crate) fn adjust_range_for_shortcut(range: &Range<usize>, removed_prefix_len: usize) -> Range<usize> {
+    pub(crate) fn adjust_range_for_shortcut(
+        range: &Range<usize>,
+        removed_prefix_len: usize,
+    ) -> Range<usize> {
         range.start.saturating_sub(removed_prefix_len)..range.end.saturating_sub(removed_prefix_len)
     }
 
@@ -524,7 +531,10 @@ impl Block {
         targets
     }
 
-    pub(crate) fn clean_offset_before_fragment_index(fragments: &[InlineFragment], index: usize) -> usize {
+    pub(crate) fn clean_offset_before_fragment_index(
+        fragments: &[InlineFragment],
+        index: usize,
+    ) -> usize {
         fragments
             .iter()
             .take(index)
@@ -1210,5 +1220,4 @@ impl Block {
             cx,
         );
     }
-
 }

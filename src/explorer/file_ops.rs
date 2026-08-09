@@ -9,8 +9,8 @@ use gpui::*;
 use crate::editor::controller::Editor;
 use crate::editor::panels::explorer::state::*;
 use crate::editor::panels::explorer::undo::{
-    ExplorerChange, explorer_change_destination, execute_explorer_change,
-    execute_explorer_change_inverse,
+    ExplorerChange, execute_explorer_change, execute_explorer_change_inverse,
+    explorer_change_destination,
 };
 use crate::editor::panels::explorer::utils::execute_entry_ops;
 
@@ -29,7 +29,10 @@ impl Editor {
         }
         let names: Vec<String> = selections
             .iter()
-            .filter_map(|sel| self.explorer_entry_for_selection(sel).map(|entry| entry.label.clone()))
+            .filter_map(|sel| {
+                self.explorer_entry_for_selection(sel)
+                    .map(|entry| entry.label.clone())
+            })
             .collect();
         let summary = if names.len() == 1 {
             names[0].clone()
@@ -54,7 +57,9 @@ impl Editor {
                     selections
                         .iter()
                         .filter_map(|sel| {
-                            editor.explorer_entry_for_selection(sel).map(|entry| entry.path.clone())
+                            editor
+                                .explorer_entry_for_selection(sel)
+                                .map(|entry| entry.path.clone())
                         })
                         .collect()
                 })
@@ -99,7 +104,10 @@ impl Editor {
         }
         let paths: Vec<PathBuf> = selections
             .iter()
-            .filter_map(|sel| self.explorer_entry_for_selection(sel).map(|entry| entry.path.clone()))
+            .filter_map(|sel| {
+                self.explorer_entry_for_selection(sel)
+                    .map(|entry| entry.path.clone())
+            })
             .collect();
         let weak_editor = cx.entity().downgrade();
         let _ = cx.spawn(async move |_this, cx| {
@@ -200,7 +208,8 @@ impl Editor {
             .items()
             .iter()
             .filter_map(|selection| {
-                self.explorer_entry_for_selection(selection).map(|entry| entry.path.clone())
+                self.explorer_entry_for_selection(selection)
+                    .map(|entry| entry.path.clone())
             })
             .collect();
         if items.is_empty() {
@@ -217,8 +226,12 @@ impl Editor {
             let _ = weak_editor.update(cx, |editor, cx| {
                 if is_cut {
                     // After the first paste a cut becomes a copy (Zed).
-                    editor.panels.explorer.clipboard =
-                        editor.panels.explorer.clipboard.take().map(ExplorerClipboard::into_copied);
+                    editor.panels.explorer.clipboard = editor
+                        .panels
+                        .explorer
+                        .clipboard
+                        .take()
+                        .map(ExplorerClipboard::into_copied);
                 }
                 editor.panels.explorer.marked.clear();
                 editor.rescan_explorer_worktrees(cx);
@@ -251,8 +264,7 @@ impl Editor {
                         && let ExplorerChange::Copied { source, dest } = change
                         && source.file_name() != dest.file_name()
                     {
-                        editor.panels.explorer.pending_rename =
-                            Some((window_handle, dest.clone()));
+                        editor.panels.explorer.pending_rename = Some((window_handle, dest.clone()));
                     }
                 }
                 editor.sync_explorer_models(cx);

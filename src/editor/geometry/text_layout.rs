@@ -56,7 +56,6 @@ pub(crate) fn source_line_number_tops(lines: &[WrappedLine], line_height: Pixels
     tops
 }
 
-
 pub(crate) fn hard_line_ranges(text: &str) -> Vec<Range<usize>> {
     let mut ranges = Vec::new();
     let mut start = 0;
@@ -412,4 +411,3 @@ pub(crate) fn footnote_at_position<'a>(
 
     None
 }
-

@@ -3,11 +3,11 @@
 
 use gpui::*;
 
+use crate::editor::panels::preview::render::preview_centered_column_width;
 use crate::editor::render::mermaid_render::render_mermaid_svg_for_display;
 use crate::editor::tree::block::Block;
-use crate::editor::panels::preview::render::preview_centered_column_width;
-use crate::model::syntax::mermaid::parse_mermaid_fence_source;
 use crate::infra::theme::Theme;
+use crate::model::syntax::mermaid::parse_mermaid_fence_source;
 
 /// Renders a Mermaid diagram block read-only.
 pub(crate) fn render_preview_mermaid_diagram(

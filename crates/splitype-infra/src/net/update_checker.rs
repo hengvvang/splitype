@@ -140,9 +140,7 @@ pub struct UpdateVersionInfo {
     pub source: UpdateSource,
 }
 
-pub fn check_latest_version(
-    current_version: &str,
-) -> Result<UpdateCheckResult, UpdateCheckError> {
+pub fn check_latest_version(current_version: &str) -> Result<UpdateCheckResult, UpdateCheckError> {
     check_latest_version_with(current_version, fetch_remote_cargo_toml)
 }
 

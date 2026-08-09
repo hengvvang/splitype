@@ -7,9 +7,9 @@
 mod tests {
     use gpui::{AppContext, TestAppContext};
 
-    use crate::model::syntax::html::HtmlCssColor;
-    use crate::model::block::{BlockKind, CalloutKind};
     use crate::editor::controller::Editor;
+    use crate::model::block::{BlockKind, CalloutKind};
+    use crate::model::syntax::html::HtmlCssColor;
 
     #[gpui::test]
     async fn imports_setext_headings_and_grouped_paragraphs(cx: &mut TestAppContext) {
@@ -163,10 +163,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
-            assert_eq!(
-                visible[0].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[0].entity.read(cx).display_text(), "alpha  \nbeta");
             assert_eq!(editor.doc().to_markdown(cx), "- alpha  \n  beta");
         });
@@ -185,15 +182,9 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
-            assert_eq!(
-                visible[0].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[0].entity.read(cx).display_text(), "parent");
-            assert_eq!(
-                visible[1].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[1].entity.read(cx).display_text(), "nested bullet");
             assert_eq!(
                 visible[2].entity.read(cx).kind(),
@@ -216,10 +207,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(
-                visible[0].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(
                 visible[1].entity.read(cx).kind(),
                 BlockKind::CodeBlock { language: None }
@@ -262,10 +250,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(
-                visible[0].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(
                 visible[1].entity.read(cx).kind(),
                 BlockKind::CodeBlock {
@@ -348,10 +333,7 @@ mod tests {
             );
             assert_eq!(visible[4].entity.read(cx).display_text(), "dd");
             assert_eq!(visible[4].entity.read(cx).list_ordinal, Some(1));
-            assert_eq!(
-                editor.doc().to_markdown(cx),
-                "1. aa\n2. bb\n3. cc\n\n1. dd"
-            );
+            assert_eq!(editor.doc().to_markdown(cx), "1. aa\n2. bb\n3. cc\n\n1. dd");
         });
     }
 
@@ -478,10 +460,7 @@ mod tests {
                 visible[0].entity.read(cx).display_text(),
                 "Quote with list:"
             );
-            assert_eq!(
-                visible[1].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[1].entity.read(cx).display_text(), "item 1");
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(
@@ -558,10 +537,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
-            assert_eq!(
-                visible[0].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert!(visible[0].entity.read(cx).children.is_empty());
             assert_eq!(editor.doc().to_markdown(cx), markdown);
         });
@@ -575,10 +551,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(
-                visible[0].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[0].entity.read(cx).display_text(), "item");
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).render_depth, 1);
@@ -595,10 +568,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(
-                visible[0].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "child text");
             assert_eq!(visible[1].entity.read(cx).render_depth, 1);
@@ -678,10 +648,7 @@ mod tests {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
-            assert_eq!(
-                visible[1].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[2].entity.read(cx).display_text(), "child text");
@@ -703,10 +670,7 @@ mod tests {
                 visible[0].entity.read(cx).kind(),
                 BlockKind::Callout(CalloutKind::Note)
             );
-            assert_eq!(
-                visible[1].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(visible[1].entity.read(cx).callout_depth, 1);
             assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
@@ -1032,22 +996,13 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 4);
-            assert_eq!(
-                visible[0].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[0].entity.read(cx).display_text(), "native before");
-            assert_eq!(
-                visible[1].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[1].entity.read(cx).display_text(), "raw item");
             assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::HtmlBlock);
             assert!(visible[2].entity.read(cx).display_text().contains("<div>"));
-            assert_eq!(
-                visible[3].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[3].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[3].entity.read(cx).display_text(), "native after");
         });
     }
@@ -1151,10 +1106,7 @@ mod tests {
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::MathBlock);
             assert_eq!(visible[1].entity.read(cx).display_text(), "$$x^2$$");
             assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
-            assert_eq!(
-                editor.doc().to_markdown(cx),
-                "before\n\n$$x^2$$\n\nafter"
-            );
+            assert_eq!(editor.doc().to_markdown(cx), "before\n\n$$x^2$$\n\nafter");
         });
     }
 
@@ -1423,10 +1375,7 @@ mod tests {
         list_editor.update(cx, |editor, cx| {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(
-                visible[0].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::HtmlComment);
             assert_eq!(visible[1].entity.read(cx).display_text(), "<!--\nlist\n-->");
             assert_eq!(visible[1].entity.read(cx).render_depth, 1);
@@ -1501,15 +1450,9 @@ mod tests {
                 visible[1].entity.read(cx).display_text(),
                 "Footnote text with bold"
             );
-            assert_eq!(
-                visible[2].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[2].entity.read(cx).display_text(), "item 1");
-            assert_eq!(
-                visible[3].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[3].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[3].entity.read(cx).display_text(), "item 2");
             assert_eq!(visible[4].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(
@@ -1685,10 +1628,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(
-                visible[0].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[0].entity.read(cx).display_text(), "item");
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "text");
@@ -1714,10 +1654,7 @@ mod tests {
 
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(
-                visible[0].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "text");
             assert_eq!(visible[1].entity.read(cx).render_depth, 0);
@@ -1731,10 +1668,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 3);
-            assert_eq!(
-                visible[0].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.read(cx).render_depth, 0);
@@ -1754,10 +1688,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 2);
-            assert_eq!(
-                visible[0].entity.read(cx).kind(),
-                BlockKind::BulletListItem
-            );
+            assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(visible[0].entity.read(cx).display_text(), "item");
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "child text");

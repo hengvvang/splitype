@@ -9,13 +9,13 @@ use pulldown_cmark::{CowStr, Event, Options, Parser, Tag, html};
 
 use crate::editor::render::latex_render::{inline_math_font_size, render_latex_to_svg};
 use crate::editor::render::mermaid_render::render_mermaid_to_svg;
+use crate::infra::theme::{FontWeightDef, Theme};
 use crate::model::syntax::html::{parse_html_image_block, sanitize_html_for_export};
 use crate::model::syntax::image::is_remote_image_source;
 use crate::model::syntax::math::parse_display_math_source;
 use crate::model::syntax::mermaid::{
     is_mermaid_closing_fence, parse_mermaid_fence_source, parse_mermaid_fence_start,
 };
-use crate::infra::theme::{FontWeightDef, Theme};
 
 /// Builds a full HTML document with embedded CSS derived from the active theme.
 #[cfg_attr(not(test), allow(dead_code))]

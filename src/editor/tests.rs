@@ -7,11 +7,14 @@ use gpui::{
     VisualTestContext,
 };
 
-use crate::editor::controller::{Editor, EditorMode};
 use crate::editor::actions::{CloseWindow, QuitApplication, SaveDocument};
+use crate::editor::controller::{Editor, EditorMode};
 use crate::editor::editing::input::actions::{FocusNext, Newline};
 use crate::editor::render::export::ExportFormat;
+use crate::editor::window::context_menu::TableInsertTarget;
+use crate::editor::window::dialogs::TableInsertDialogState;
 use crate::infra::i18n::{I18nManager, I18nStrings};
+use crate::infra::theme::{Theme, ThemeManager};
 use crate::model::block::BlockKind;
 use crate::model::inline::footnote::superscript_ordinal;
 use crate::model::inline::text::RichText;
@@ -20,9 +23,6 @@ use crate::model::syntax::image::{
     parse_table_cell_inline_images,
 };
 use crate::model::syntax::table::TableColumnAlignment;
-use crate::infra::theme::{Theme, ThemeManager};
-use crate::editor::window::context_menu::TableInsertTarget;
-use crate::editor::window::dialogs::TableInsertDialogState;
 fn init_editor_test_app(cx: &mut TestAppContext) {
     cx.update(|cx| {
         I18nManager::init(cx);
@@ -64,20 +64,18 @@ fn ensure_wysiwyg_editing_panel(editor: &gpui::Entity<Editor>, cx: &mut gpui::Ap
         let mut ids = Vec::new();
         editor
             .panels
-            .layout
             .ensure_editor_session(area)
             .inner_panel_tree
             .leaf_ids(&mut ids);
         for id in ids {
             editor
                 .panels
-                .layout
                 .ensure_editor_session(area)
                 .inner_panel_tree
                 .set_leaf_kind(
                     id,
-                    crate::layout::EditorInnerPanelKind::Editing(
-                        crate::layout::EditingPanelKind::Wysiwyg,
+                    crate::editor::panels::panel_types::EditorInnerPanelKind::Editing(
+                        crate::editor::panels::panel_types::EditingPanelKind::Wysiwyg,
                     ),
                 );
         }
@@ -94,7 +92,8 @@ fn focus_block(
     block: &gpui::Entity<crate::editor::tree::block::Block>,
     cx: &mut gpui::VisualTestContext,
 ) {
-    cx.cx.update(|app| ensure_wysiwyg_editing_panel(editor, app));
+    cx.cx
+        .update(|app| ensure_wysiwyg_editing_panel(editor, app));
     editor.update(cx, |editor, _cx| {
         editor.focus_block(block.entity_id());
     });
@@ -110,7 +109,11 @@ fn focus_block(
 fn focus_first_block(editor: &gpui::Entity<Editor>, cx: &mut gpui::VisualTestContext) {
     let first = editor
         .update(cx, |editor, _cx| {
-            editor.doc().blocks().first().map(|visible| visible.entity.clone())
+            editor
+                .doc()
+                .blocks()
+                .first()
+                .map(|visible| visible.entity.clone())
         })
         .expect("document should have a block");
     focus_block(editor, &first, cx);
@@ -291,10 +294,7 @@ fn about_dialog_body_lines_include_repository_and_star_message() {
     assert_eq!(lines[0], format!("Splitype {}", env!("CARGO_PKG_VERSION")));
     assert_eq!(
         lines[2],
-        format!(
-            "GitHub: {}",
-            crate::editor::window::SPLITYPE_REPOSITORY_URL
-        )
+        format!("GitHub: {}", crate::editor::window::SPLITYPE_REPOSITORY_URL)
     );
     assert_eq!(
         lines[3],

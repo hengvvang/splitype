@@ -56,14 +56,11 @@ impl Editor {
             block.update(cx, |block, _cx| block.set_source_document_mode());
             let area = area_id;
             let panel = panel_id;
-            cx.subscribe(
-                &block,
-                move |this, block, event, cx| {
-                    this.with_current_tab_area(area, |editor| {
-                        editor.on_source_code_panel_changed(panel, block, event, cx);
-                    });
-                },
-            )
+            cx.subscribe(&block, move |this, block, event, cx| {
+                this.with_current_tab_area(area, |editor| {
+                    editor.on_source_code_panel_changed(panel, block, event, cx);
+                });
+            })
             .detach();
             runtime.block = Some(block);
             runtime.synced_doc_hash = doc_hash;

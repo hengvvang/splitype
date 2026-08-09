@@ -16,10 +16,11 @@ use gpui::*;
 
 use crate::editor::controller::Editor;
 use crate::editor::controller::EditorMode;
+use crate::editor::panels::panel_types::InnerPanelLocation;
 use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::{Theme, ThemeColors, ThemeDimensions};
-use crate::layout::{Axis, InnerPanelLocation};
+use crate::layout::Axis;
 
 use state::BottombarState;
 use words::count_words;
@@ -303,12 +304,11 @@ impl Editor {
 
         let inner_leaf_count = self
             .panels
-            .layout
             .ensure_editor_session(area_id)
             .inner_panel_tree
             .count_leaves();
 
-        let focused = self.panels.layout.focused_editor_inner_panel;
+        let focused = self.panels.focused_editor_inner_panel;
         let focused_panel_id = focused.and_then(|loc| {
             if loc.area_id == area_id {
                 Some(loc.panel_id)
@@ -318,7 +318,6 @@ impl Editor {
         });
         let focused_kind = focused_panel_id.and_then(|panel_id| {
             self.panels
-                .layout
                 .ensure_editor_session(area_id)
                 .inner_panel_tree
                 .find_leaf_kind(panel_id)
@@ -350,7 +349,6 @@ impl Editor {
                     mode_pill.on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = toggle_editor.update(cx, |ed, cx| {
                             ed.panels
-                                .layout
                                 .toggle_editor_inner_panel_dropdown(area_id, panel_id);
                             cx.notify();
                         });
@@ -403,11 +401,8 @@ impl Editor {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = split_h_editor.update(cx, |ed, cx| {
-                            ed.panels.layout.split_editor_inner_panel(
-                                area_id,
-                                panel_id,
-                                Axis::Horizontal,
-                            );
+                            ed.panels
+                                .split_editor_inner_panel(area_id, panel_id, Axis::Horizontal);
                             cx.notify();
                         });
                     })
@@ -426,11 +421,8 @@ impl Editor {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = split_v_editor.update(cx, |ed, cx| {
-                            ed.panels.layout.split_editor_inner_panel(
-                                area_id,
-                                panel_id,
-                                Axis::Vertical,
-                            );
+                            ed.panels
+                                .split_editor_inner_panel(area_id, panel_id, Axis::Vertical);
                             cx.notify();
                         });
                     })
@@ -450,11 +442,11 @@ impl Editor {
                         )
                         .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                             let _ = close_editor.update(cx, |ed, cx| {
-                                ed.panels.layout.close_editor_inner_panel(area_id, panel_id);
-                                if ed.panels.layout.focused_editor_inner_panel
+                                ed.panels.close_editor_inner_panel(area_id, panel_id);
+                                if ed.panels.focused_editor_inner_panel
                                     == Some(InnerPanelLocation { area_id, panel_id })
                                 {
-                                    ed.panels.layout.focused_editor_inner_panel = None;
+                                    ed.panels.focused_editor_inner_panel = None;
                                 }
                                 cx.notify();
                             });

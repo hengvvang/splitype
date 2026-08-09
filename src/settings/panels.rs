@@ -1,9 +1,7 @@
 //! Settings panel rendered inside the editor's tiled layout.
 
 use crate::ui::section::{section_card, section_header, settings_row};
-use crate::ui::stepper::{
-    stepper_container, stepper_divider, stepper_step_button, stepper_value,
-};
+use crate::ui::stepper::{stepper_container, stepper_divider, stepper_step_button, stepper_value};
 use crate::ui::tab::nav_tab;
 
 use crate::ui::select::{select_option, select_panel, select_trigger};

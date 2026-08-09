@@ -26,8 +26,8 @@ use gpui::*;
 use crate::editor::controller::*;
 use crate::editor::tree::block::Block;
 use crate::infra::i18n::I18nStrings;
-use crate::model::block::BlockKind;
 use crate::infra::theme::Theme;
+use crate::model::block::BlockKind;
 
 impl Editor {
     pub(crate) fn render_tiled_preview_panel(
@@ -48,7 +48,8 @@ impl Editor {
         // renderers. No GPUI view mounting, no event suppression needed: the
         // preview elements carry no interaction handlers at all.
         let block_elements: Vec<AnyElement> = self
-            .tab().preview
+            .tab()
+            .preview
             .blocks
             .iter()
             .map(|entity| render_preview_block(entity.read(cx), 0, 0, theme, window, cx))
@@ -111,9 +112,7 @@ pub(crate) fn render_preview_block(
 
     let content = match block.kind() {
         BlockKind::ThematicBreak => thematic_break::render_preview_thematic_break(theme),
-        BlockKind::Heading { level } => {
-            heading::render_preview_heading(block, level, base, theme)
-        }
+        BlockKind::Heading { level } => heading::render_preview_heading(block, level, base, theme),
         BlockKind::BulletListItem => {
             list_item::render_preview_bulleted_list_item(block, depth, base, theme)
         }
@@ -134,9 +133,9 @@ pub(crate) fn render_preview_block(
         BlockKind::Table => table_block::render_preview_table(block, base, theme, window),
         BlockKind::HtmlBlock => html_block::render_preview_html_block(block, base, theme),
         BlockKind::MathBlock => latex_math::render_preview_latex_math(block, base, theme),
-        BlockKind::MermaidBlock => mermaid_diagram::render_preview_mermaid_diagram(
-            block, base, theme, window,
-        ),
+        BlockKind::MermaidBlock => {
+            mermaid_diagram::render_preview_mermaid_diagram(block, base, theme, window)
+        }
         BlockKind::RawMarkdown => paragraph::render_preview_raw_markdown(block, base, theme),
         BlockKind::Paragraph | BlockKind::HtmlComment => {
             if block.renders_as_standalone_image() {
@@ -192,7 +191,9 @@ pub(crate) fn preview_centered_column_width(
             .clamp(0.0, 1.0);
         1.0 - t * (1.0 - d.centered_min_ratio)
     };
-    (available_content_width * ratio).max(320.0).min(available_content_width)
+    (available_content_width * ratio)
+        .max(320.0)
+        .min(available_content_width)
 }
 
 /// Wraps content with the quote guide lines at the given depth, mirroring

@@ -6,20 +6,16 @@
 use gpui::*;
 
 use crate::editor::tree::block::Block;
+use crate::infra::theme::Theme;
 use crate::model::syntax::html::{
     HtmlNode, HtmlNodeKind, attr_value, html_css_color_to_hsla, parse_html_document,
     parse_html_image_block, style_for_node,
 };
 use crate::model::syntax::image::resolve_image_source;
-use crate::infra::theme::Theme;
 
 /// Renders a raw HTML block read-only with the same visuals as the WYSIWYG
 /// HTML document rendering.
-pub(crate) fn render_preview_html_block(
-    block: &Block,
-    base: Div,
-    theme: &Theme,
-) -> AnyElement {
+pub(crate) fn render_preview_html_block(block: &Block, base: Div, theme: &Theme) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;
@@ -82,7 +78,6 @@ impl HtmlComputedStyle {
         }
     }
 }
-
 
 fn html_node_visual_style(
     node: &HtmlNode,
@@ -181,8 +176,8 @@ fn render_preview_html_node(
         "strong" | "b" => {
             render_preview_html_inline_container(node, theme, node_style, FontWeight::BOLD)
         }
-        "em" | "i" | "span" | "abbr" | "dfn" | "time" | "u" | "ins" | "del" | "small"
-        | "sup" | "sub" | "a" | "mark" => {
+        "em" | "i" | "span" | "abbr" | "dfn" | "time" | "u" | "ins" | "del" | "small" | "sup"
+        | "sub" | "a" | "mark" => {
             render_preview_html_inline_container(node, theme, node_style, FontWeight::NORMAL)
         }
         "code" | "kbd" => {
@@ -192,9 +187,11 @@ fn render_preview_html_node(
                 .px(px(4.0))
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
-                .children(node.children.iter().map(|child| {
-                    render_preview_html_node(child, theme, node_style.computed)
-                }));
+                .children(
+                    node.children
+                        .iter()
+                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
+                );
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
@@ -235,9 +232,11 @@ fn render_preview_html_node(
                 .border_color(c.border_quote)
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
-                .children(node.children.iter().map(|child| {
-                    render_preview_html_node(child, theme, node_style.computed)
-                }));
+                .children(
+                    node.children
+                        .iter()
+                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
+                );
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
@@ -265,9 +264,11 @@ fn render_preview_html_node(
                 .border_color(theme.colors.table_border)
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
-                .children(node.children.iter().map(|child| {
-                    render_preview_html_node(child, theme, node_style.computed)
-                }));
+                .children(
+                    node.children
+                        .iter()
+                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
+                );
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
@@ -280,9 +281,11 @@ fn render_preview_html_node(
                 .flex_col()
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
-                .children(node.children.iter().map(|child| {
-                    render_preview_html_node(child, theme, node_style.computed)
-                }));
+                .children(
+                    node.children
+                        .iter()
+                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
+                );
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
@@ -294,9 +297,11 @@ fn render_preview_html_node(
                 .flex()
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
-                .children(node.children.iter().map(|child| {
-                    render_preview_html_node(child, theme, node_style.computed)
-                }));
+                .children(
+                    node.children
+                        .iter()
+                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
+                );
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
@@ -317,9 +322,11 @@ fn render_preview_html_node(
                 } else {
                     FontWeight::NORMAL
                 })
-                .children(node.children.iter().map(|child| {
-                    render_preview_html_node(child, theme, node_style.computed)
-                }));
+                .children(
+                    node.children
+                        .iter()
+                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
+                );
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
@@ -332,9 +339,11 @@ fn render_preview_html_node(
                 .font_weight(FontWeight::SEMIBOLD)
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
-                .children(node.children.iter().map(|child| {
-                    render_preview_html_node(child, theme, node_style.computed)
-                }));
+                .children(
+                    node.children
+                        .iter()
+                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
+                );
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
@@ -346,9 +355,11 @@ fn render_preview_html_node(
                 .text_center()
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
-                .children(node.children.iter().map(|child| {
-                    render_preview_html_node(child, theme, node_style.computed)
-                }));
+                .children(
+                    node.children
+                        .iter()
+                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
+                );
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
@@ -359,9 +370,11 @@ fn render_preview_html_node(
                 .w_full()
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
-                .children(node.children.iter().map(|child| {
-                    render_preview_html_node(child, theme, node_style.computed)
-                }));
+                .children(
+                    node.children
+                        .iter()
+                        .map(|child| render_preview_html_node(child, theme, node_style.computed)),
+                );
             if let Some(bg) = node_style.background {
                 element = element.bg(bg);
             }
@@ -464,26 +477,27 @@ fn render_preview_html_details(
         .iter()
         .filter(|child| child.tag_name != "summary");
 
-    let mut container = div()
-        .w_full()
-        .rounded_sm()
-        .border(px(1.0))
-        .border_color(theme.colors.table_border)
-        .px(px(theme.dimensions.block_padding_x))
-        .py(px(theme.dimensions.block_padding_y))
-        .text_size(px(node_style.computed.font_size))
-        .text_color(node_style.computed.color)
-        .child(
-            div()
-                .w_full()
-                .flex()
-                .gap(px(theme.dimensions.list_marker_gap))
-                .font_weight(FontWeight::SEMIBOLD)
-                .child(if is_open { "\u{25BE}" } else { "\u{25B8}" })
-                .children(summary.into_iter().map(|summary| {
-                    render_preview_html_node(summary, theme, node_style.computed)
-                })),
-        );
+    let mut container =
+        div()
+            .w_full()
+            .rounded_sm()
+            .border(px(1.0))
+            .border_color(theme.colors.table_border)
+            .px(px(theme.dimensions.block_padding_x))
+            .py(px(theme.dimensions.block_padding_y))
+            .text_size(px(node_style.computed.font_size))
+            .text_color(node_style.computed.color)
+            .child(
+                div()
+                    .w_full()
+                    .flex()
+                    .gap(px(theme.dimensions.list_marker_gap))
+                    .font_weight(FontWeight::SEMIBOLD)
+                    .child(if is_open { "\u{25BE}" } else { "\u{25B8}" })
+                    .children(summary.into_iter().map(|summary| {
+                        render_preview_html_node(summary, theme, node_style.computed)
+                    })),
+            );
     if let Some(bg) = node_style.background {
         container = container.bg(bg);
     }
@@ -493,9 +507,9 @@ fn render_preview_html_details(
             div()
                 .w_full()
                 .pt(px(theme.dimensions.block_padding_y))
-                .children(body.map(|child| {
-                    render_preview_html_node(child, theme, node_style.computed)
-                })),
+                .children(
+                    body.map(|child| render_preview_html_node(child, theme, node_style.computed)),
+                ),
         );
     }
 

@@ -2,8 +2,8 @@
 
 use gpui::*;
 
-use crate::editor::tree::block::Block;
 use crate::editor::panels::preview::render::inline;
+use crate::editor::tree::block::Block;
 use crate::infra::theme::Theme;
 
 /// Renders a blockquote's own content line read-only. Nested children are

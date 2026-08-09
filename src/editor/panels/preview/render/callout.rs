@@ -6,8 +6,8 @@ use gpui::*;
 
 use crate::editor::panels::preview::render::inline;
 use crate::editor::tree::block::Block;
-use crate::model::block::CalloutKind;
 use crate::infra::theme::Theme;
+use crate::model::block::CalloutKind;
 
 /// Accent and background colors for a callout variant, mirroring the
 /// WYSIWYG callout styles.

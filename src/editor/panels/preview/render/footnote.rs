@@ -2,8 +2,8 @@
 
 use gpui::*;
 
-use crate::editor::tree::block::Block;
 use crate::editor::panels::preview::render::inline;
+use crate::editor::tree::block::Block;
 use crate::infra::theme::Theme;
 
 /// Renders a footnote definition block read-only.
@@ -57,12 +57,7 @@ pub(crate) fn render_preview_footnote_definition(
         );
 
     if block.footnote_definition_has_backref() {
-        header = header
-            .child(
-                div()
-                    .text_color(c.footnote_backref)
-                    .child("\u{21A9}"),
-            );
+        header = header.child(div().text_color(c.footnote_backref).child("\u{21A9}"));
     }
 
     header.into_any_element()

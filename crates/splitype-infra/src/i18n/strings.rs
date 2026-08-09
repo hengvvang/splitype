@@ -72,7 +72,7 @@ pub struct I18nStrings {
     pub menu_language: String,
     /// Top-level Theme menu label.
     pub menu_theme: String,
-        /// Top-level Help menu label.
+    /// Top-level Help menu label.
     pub menu_help: String,
     /// Language menu item for importing a custom language pack.
     pub menu_add_language_config: String,
@@ -104,7 +104,7 @@ pub struct I18nStrings {
     pub menu_check_updates: String,
     /// Help menu item for showing About information.
     pub menu_about: String,
-        /// About panel label for the website link.
+    /// About panel label for the website link.
     pub about_website_label: String,
     /// About panel label for the wiki link.
     pub about_wiki_label: String,
@@ -124,7 +124,7 @@ pub struct I18nStrings {
     pub menu_feature_request: String,
     /// Help menu item for joining the GitHub discussions.
     pub menu_discussions: String,
-        /// Menu item for closing the folder shown in the explorer.
+    /// Menu item for closing the folder shown in the explorer.
     pub menu_close_explorer_folder: String,
     /// Native file-dialog prompt for opening Markdown files.
     pub open_markdown_files_prompt: String,
@@ -234,7 +234,7 @@ pub struct I18nStrings {
     pub settings_shortcut_dismiss_transient_ui: String,
     pub settings_shortcut_toggle_view_mode: String,
     pub settings_shortcut_toggle_explorer: String,
-                        /// Title of the recent-files list in the explorer empty state.
+    /// Title of the recent-files list in the explorer empty state.
     pub explorer_recent_title: String,
     /// Message shown when the current document has no headings.
     pub explorer_empty_outline: String,
@@ -276,7 +276,7 @@ pub struct I18nStrings {
     pub explorer_add_folder: String,
     /// Explorer context menu (worktree root): remove this folder from the explorer.
     pub explorer_remove_folder: String,
-        /// Title of the link-opening confirmation prompt.
+    /// Title of the link-opening confirmation prompt.
     pub open_link_title: String,
     /// Confirm button for the link-opening prompt.
     pub open_link_open: String,
@@ -1159,9 +1159,7 @@ impl I18nStringsDe {
             explorer_empty_outline: self
                 .explorer_empty_outline
                 .unwrap_or(defaults.explorer_empty_outline),
-            explorer_new_file: self
-                .explorer_new_file
-                .unwrap_or(defaults.explorer_new_file),
+            explorer_new_file: self.explorer_new_file.unwrap_or(defaults.explorer_new_file),
             explorer_new_folder: self
                 .explorer_new_folder
                 .unwrap_or(defaults.explorer_new_folder),
@@ -1171,9 +1169,7 @@ impl I18nStringsDe {
             explorer_open_in_default_app: self
                 .explorer_open_in_default_app
                 .unwrap_or(defaults.explorer_open_in_default_app),
-            explorer_trash: self
-                .explorer_trash
-                .unwrap_or(defaults.explorer_trash),
+            explorer_trash: self.explorer_trash.unwrap_or(defaults.explorer_trash),
             explorer_cut: self.explorer_cut.unwrap_or(defaults.explorer_cut),
             explorer_copy: self.explorer_copy.unwrap_or(defaults.explorer_copy),
             explorer_duplicate: self

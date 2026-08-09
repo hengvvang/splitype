@@ -25,11 +25,7 @@ fn fence_language(block: &Block) -> Option<String> {
 }
 
 /// Renders a fenced code block read-only with syntax highlighting.
-pub(crate) fn render_preview_fenced_code(
-    block: &Block,
-    base: Div,
-    theme: &Theme,
-) -> AnyElement {
+pub(crate) fn render_preview_fenced_code(block: &Block, base: Div, theme: &Theme) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;

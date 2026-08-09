@@ -4,8 +4,8 @@ pub(crate) mod render;
 
 use gpui::*;
 
-use crate::editor::tree::block::Block;
 use crate::editor::controller::Editor;
+use crate::editor::tree::block::Block;
 use crate::model::block::BlockData;
 
 /// Read-only block tree shown in the preview panel.

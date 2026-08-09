@@ -47,7 +47,6 @@ impl Editor {
             if let Some(area) = self.panels.layout.active_editor_area {
                 if let Some(panel_id) = self
                     .panels
-                    .layout
                     .focused_editor_inner_panel
                     .filter(|loc| loc.area_id == area)
                     .map(|loc| loc.panel_id)
@@ -69,7 +68,7 @@ impl Editor {
         let Some(area_id) = self.panels.layout.active_editor_area else {
             return;
         };
-        let Some(new_id) = self.panels.layout.split_window_area(
+        let Some(new_id) = self.panels.split_window_area(
             area_id,
             crate::layout::Axis::Horizontal,
             0.5,

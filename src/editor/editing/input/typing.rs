@@ -131,7 +131,10 @@ impl Editor {
         // The newline's own capture was already finalized by the block's Changed
         // event (nothing had changed yet), so start a fresh one here that spans
         // the heading/separator conversion. prepare is a no-op if one is pending.
-        self.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::NonCoalescible, cx);
+        self.prepare_undo_capture(
+            crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
+            cx,
+        );
 
         if let Some(prev) = target {
             let heading_title = prev.read(cx).record.text.clone();
@@ -220,7 +223,10 @@ impl Editor {
             return false;
         };
 
-        self.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::NonCoalescible, cx);
+        self.prepare_undo_capture(
+            crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
+            cx,
+        );
         // Remove the lower (delimiter) block first so the header index is stable.
         let header_index = location.index - 1;
         let removed_delimiter = block.entity_id();
@@ -261,7 +267,10 @@ impl Editor {
             return false;
         };
 
-        self.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::NonCoalescible, cx);
+        self.prepare_undo_capture(
+            crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
+            cx,
+        );
         table.rows.push(row);
         table_block.update(cx, |block, cx| {
             block.record.table = Some(table);

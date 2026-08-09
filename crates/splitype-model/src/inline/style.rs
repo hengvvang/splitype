@@ -30,15 +30,24 @@ impl InlineStyle {
     }
 
     pub fn with_italic(self) -> Self {
-        Self { italic: true, ..self }
+        Self {
+            italic: true,
+            ..self
+        }
     }
 
     pub fn with_underline(self) -> Self {
-        Self { underline: true, ..self }
+        Self {
+            underline: true,
+            ..self
+        }
     }
 
     pub fn with_strikethrough(self) -> Self {
-        Self { strikethrough: true, ..self }
+        Self {
+            strikethrough: true,
+            ..self
+        }
     }
 
     pub fn with_code(self) -> Self {
@@ -46,11 +55,17 @@ impl InlineStyle {
     }
 
     pub fn with_superscript(self) -> Self {
-        Self { script: InlineScript::Superscript, ..self }
+        Self {
+            script: InlineScript::Superscript,
+            ..self
+        }
     }
 
     pub fn with_subscript(self) -> Self {
-        Self { script: InlineScript::Subscript, ..self }
+        Self {
+            script: InlineScript::Subscript,
+            ..self
+        }
     }
 
     pub fn has_script(self) -> bool {
@@ -73,17 +88,40 @@ pub enum StyleFlag {
 /// Applies or removes a [`StyleFlag`] on an [`InlineStyle`].
 pub(crate) fn set_style_flag(style: InlineStyle, flag: StyleFlag, enabled: bool) -> InlineStyle {
     match flag {
-        StyleFlag::Bold => InlineStyle { bold: enabled, ..style },
-        StyleFlag::Italic => InlineStyle { italic: enabled, ..style },
-        StyleFlag::Underline => InlineStyle { underline: enabled, ..style },
-        StyleFlag::Strikethrough => InlineStyle { strikethrough: enabled, ..style },
-        StyleFlag::Code => InlineStyle { code: enabled, ..style },
+        StyleFlag::Bold => InlineStyle {
+            bold: enabled,
+            ..style
+        },
+        StyleFlag::Italic => InlineStyle {
+            italic: enabled,
+            ..style
+        },
+        StyleFlag::Underline => InlineStyle {
+            underline: enabled,
+            ..style
+        },
+        StyleFlag::Strikethrough => InlineStyle {
+            strikethrough: enabled,
+            ..style
+        },
+        StyleFlag::Code => InlineStyle {
+            code: enabled,
+            ..style
+        },
         StyleFlag::Superscript => {
-            let script = if enabled { InlineScript::Superscript } else { InlineScript::Normal };
+            let script = if enabled {
+                InlineScript::Superscript
+            } else {
+                InlineScript::Normal
+            };
             InlineStyle { script, ..style }
         }
         StyleFlag::Subscript => {
-            let script = if enabled { InlineScript::Subscript } else { InlineScript::Normal };
+            let script = if enabled {
+                InlineScript::Subscript
+            } else {
+                InlineScript::Normal
+            };
             InlineStyle { script, ..style }
         }
     }

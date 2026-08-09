@@ -9,6 +9,8 @@
 
 pub(crate) mod layout;
 pub(crate) mod outline;
+pub(crate) mod panel_types;
+pub(crate) mod panels_state;
 pub(crate) mod preview;
 pub(crate) mod source_code;
 pub(crate) mod wysiwyg;
