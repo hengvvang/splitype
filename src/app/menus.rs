@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use crate::app::windows::{
+use crate::app::window::{
     open_editor_window, open_file_in_new_window, record_recent_file_and_refresh,
 };
 use crate::editor::actions::{

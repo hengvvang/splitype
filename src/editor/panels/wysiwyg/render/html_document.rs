@@ -10,8 +10,8 @@ use crate::editor::tree::block::{Block, ImageHandle};
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::Theme;
 use crate::model::syntax::html::{
-    HtmlCssColor, HtmlDocument, HtmlNode, HtmlNodeKind, attr_value, parse_html_image_block,
-    style_for_node,
+    HtmlDocument, HtmlNode, HtmlNodeKind, attr_value, html_css_color_to_hsla,
+    parse_html_image_block, style_for_node,
 };
 use crate::model::syntax::image::resolve_image_source;
 
@@ -56,17 +56,6 @@ impl HtmlComputedStyle {
     }
 }
 
-pub(crate) fn html_css_color_to_hsla(color: HtmlCssColor, current_color: Hsla) -> Hsla {
-    match color {
-        HtmlCssColor::CurrentColor => current_color,
-        HtmlCssColor::Rgba(color) => Hsla::from(Rgba {
-            r: color.red as f32 / 255.0,
-            g: color.green as f32 / 255.0,
-            b: color.blue as f32 / 255.0,
-            a: color.alpha.clamp(0.0, 1.0),
-        }),
-    }
-}
 
 pub(crate) fn html_node_visual_style(
     node: &HtmlNode,

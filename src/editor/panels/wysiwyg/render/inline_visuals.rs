@@ -16,7 +16,7 @@ use crate::model::inline::style::InlineScript;
 use crate::model::syntax::image::{
     ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
 };
-use crate::editor::panels::wysiwyg::render::html_document::html_css_color_to_hsla;
+use crate::model::syntax::html::html_css_color_to_hsla;
 use crate::editor::panels::wysiwyg::render::LinkFollowCursor;
 use crate::editor::panels::wysiwyg::render::render_image_placeholder;
 use crate::editor::panels::wysiwyg::render::render_loading_placeholder;

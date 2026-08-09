@@ -690,10 +690,10 @@ async fn app_menu_opened_windows_activate_and_close_independently(cx: &mut TestA
     init_editor_test_app(cx);
 
     let first_window =
-        cx.update(|cx| crate::app::windows::open_editor_window(cx, "first".to_string(), None));
+        cx.update(|cx| crate::app::window::open_editor_window(cx, "first".to_string(), None));
     cx.run_until_parked();
     let second_window =
-        cx.update(|cx| crate::app::windows::open_editor_window(cx, "second".to_string(), None));
+        cx.update(|cx| crate::app::window::open_editor_window(cx, "second".to_string(), None));
     cx.run_until_parked();
 
     let active_window = cx.update(|cx| cx.active_window().expect("window should be active"));
@@ -737,10 +737,10 @@ async fn app_menu_opened_file_window_reinstalls_close_guard_after_registration(
     fs::write(&opened_path, "opened from file").expect("write opened markdown");
 
     let first_window =
-        cx.update(|cx| crate::app::windows::open_editor_window(cx, "first".to_string(), None));
+        cx.update(|cx| crate::app::window::open_editor_window(cx, "first".to_string(), None));
     cx.run_until_parked();
     let second_window = cx.update(|cx| {
-        crate::app::windows::open_editor_window(
+        crate::app::window::open_editor_window(
             cx,
             fs::read_to_string(&opened_path).expect("read opened markdown"),
             Some(opened_path.clone()),
@@ -780,9 +780,9 @@ async fn app_menu_opened_dirty_file_window_prompts_only_that_window(cx: &mut Tes
     fs::write(&opened_path, "opened from file").expect("write opened markdown");
 
     let first_window =
-        cx.update(|cx| crate::app::windows::open_editor_window(cx, "first".to_string(), None));
+        cx.update(|cx| crate::app::window::open_editor_window(cx, "first".to_string(), None));
     let second_window = cx.update(|cx| {
-        crate::app::windows::open_editor_window(
+        crate::app::window::open_editor_window(
             cx,
             fs::read_to_string(&opened_path).expect("read opened markdown"),
             Some(opened_path.clone()),
@@ -818,9 +818,9 @@ async fn app_menu_opened_dirty_window_close_guard_prompts_only_that_window(
     init_editor_test_app(cx);
 
     let first_window =
-        cx.update(|cx| crate::app::windows::open_editor_window(cx, "first".to_string(), None));
+        cx.update(|cx| crate::app::window::open_editor_window(cx, "first".to_string(), None));
     let second_window =
-        cx.update(|cx| crate::app::windows::open_editor_window(cx, "second".to_string(), None));
+        cx.update(|cx| crate::app::window::open_editor_window(cx, "second".to_string(), None));
     cx.run_until_parked();
 
     second_window

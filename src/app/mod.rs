@@ -4,4 +4,4 @@ pub mod assets;
 pub mod bootstrap;
 pub mod cli;
 pub mod menus;
-pub mod windows;
+pub mod window;

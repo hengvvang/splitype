@@ -8,7 +8,7 @@ use gpui::*;
 
 use crate::editor::tree::block::Block;
 use crate::editor::geometry::text_layout::*;
-use crate::model::syntax::html::HtmlCssColor;
+use crate::model::syntax::html::html_css_color_to_hsla;
 use crate::editor::render::code_highlight::highlight::code_highlight_color;
 use crate::infra::theme::{ThemeColors, ThemeManager};
 
@@ -121,17 +121,6 @@ fn build_text_runs(
     }
 }
 
-fn html_css_color_to_hsla(color: HtmlCssColor, current_color: Hsla) -> Hsla {
-    match color {
-        HtmlCssColor::CurrentColor => current_color,
-        HtmlCssColor::Rgba(color) => Hsla::from(Rgba {
-            r: color.red as f32 / 255.0,
-            g: color.green as f32 / 255.0,
-            b: color.blue as f32 / 255.0,
-            a: color.alpha.clamp(0.0, 1.0),
-        }),
-    }
-}
 
 fn build_code_text_runs(
     input: &Block,

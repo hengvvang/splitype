@@ -15,9 +15,9 @@ use gpui::*;
 
 use crate::app::cli::Args;
 use crate::app::menus::{init as init_app_menu, install_menus};
-use crate::app::windows::open_editor_window;
+use crate::app::window::open_editor_window;
 #[cfg(target_os = "macos")]
-use crate::app::windows::open_file_in_new_window;
+use crate::app::window::open_file_in_new_window;
 #[cfg(target_os = "macos")]
 use crate::platform::file_url::parse_file_url;
 use crate::infra::config::settings::{
