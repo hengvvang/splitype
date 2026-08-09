@@ -10,12 +10,14 @@
 //! 5. **Scroll content** — windowed rows in scroll container with listeners.
 //! 6. **Chrome** — titlebar, tiled sidebar, menu panel, context menu,
 //!    table-insert dialog, info/drop/unsaved overlays.
+//!
+//! The per-area top bar and bottom status bar live in
+//! `crate::editor::topbar` and `crate::editor::bottombar`; this module
+//! covers the window-level render flow and floating overlays.
 
-pub(crate) mod bottombar;
 pub(crate) mod context_menu;
 pub(crate) mod dialogs;
 pub(crate) mod export;
-pub(crate) mod topbar;
 
 use std::time::{Duration, Instant};
 
@@ -24,8 +26,8 @@ use gpui::*;
 use crate::editor::controller::*;
 use crate::editor::tree::document::RenderedBlock;
 use crate::infra::i18n::{I18nManager, I18nStrings};
-use crate::model::block::CalloutKind;
 use crate::infra::theme::{Theme, ThemeDimensions, ThemeManager};
+use crate::model::block::CalloutKind;
 use crate::ui::components::custom_titlebar::{custom_titlebar_height, render_custom_titlebar};
 use crate::ui::components::menu_bar::{
     footnote_group_shell, in_window_menu_bar_height_for_target_os, supports_in_window_menu,

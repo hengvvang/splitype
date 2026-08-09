@@ -5,8 +5,45 @@
 //! separate blocks, while structural Markdown and block/risky HTML are left to
 //! the document block builder.
 
-use crate::model::syntax::table::collect_pipeless_table_region;
+use gpui::Context;
+use gpui::Entity;
+
+use crate::editor::controller::Editor;
+use crate::editor::tree::block::Block;
+use crate::model::block::{BlockData, BlockKind};
+use crate::model::inline::text::RichText;
 use crate::model::syntax::html::is_inline_tag;
+use crate::model::syntax::table::collect_pipeless_table_region;
+
+impl Editor {
+    /// Build one paragraph block per non-empty physical line, with a single
+    /// empty block for an all-empty paste (so pasting blank text still
+    /// produces an editable paragraph).
+    pub(crate) fn build_plain_paste_blocks_from_lines(
+        cx: &mut Context<Self>,
+        lines: &[String],
+    ) -> Vec<Entity<Block>> {
+        let mut blocks = lines
+            .iter()
+            .filter(|line| !line.trim().is_empty())
+            .map(|line| {
+                Self::new_block(
+                    cx,
+                    BlockData::new(BlockKind::Paragraph, RichText::from_markdown(line)),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        if blocks.is_empty() && !lines.is_empty() {
+            blocks.push(Self::new_block(
+                cx,
+                BlockData::new(BlockKind::Paragraph, RichText::plain(String::new())),
+            ));
+        }
+
+        blocks
+    }
+}
 
 pub(crate) fn should_split_plain_multiline_paste(lines: &[String]) -> bool {
     // A pipeless GFM table reads cell-by-cell as plain lines, so detect the

@@ -2,7 +2,7 @@
 //! editor-window and app-level commands.
 //!
 //! Text-editing actions and the keybinding configuration table live in
-//! `editing::input::shortcuts`; this module holds the command actions that
+//! `editing::input::actions`; this module holds the command actions that
 //! menus dispatch and window chrome binds.
 
 use gpui::*;

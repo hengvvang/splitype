@@ -4,7 +4,7 @@
 
 use gpui::*;
 
-use super::shortcuts::{JumpToBottom, JumpToTop, PageDown, PageUp};
+use super::actions::{JumpToBottom, JumpToTop, PageDown, PageUp};
 use crate::editor::block_protocol::BlockAction;
 use crate::editor::controller::*;
 use crate::editor::tree::block::CollapsedCaretAffinity;
@@ -411,9 +411,7 @@ impl Editor {
         cx: &App,
     ) -> Option<(Option<Entity<crate::editor::tree::block::Block>>, usize)> {
         let callout_root = self.topmost_quote_ancestor(entity_id, cx)?;
-        let location = self
-            .doc()
-            .find_block_location(callout_root.entity_id())?;
+        let location = self.doc().find_block_location(callout_root.entity_id())?;
         Some((location.parent.clone(), location.index + 1))
     }
 
@@ -504,7 +502,10 @@ impl Editor {
             return false;
         }
 
-        self.prepare_undo_capture(crate::editor::block_protocol::UndoCaptureKind::NonCoalescible, cx);
+        self.prepare_undo_capture(
+            crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
+            cx,
+        );
         self.doc_mut().with_structure_mutation(cx, |document, cx| {
             let _ = document.remove_block_by_id_raw(block.entity_id(), cx);
             parent.update(cx, |parent, cx| {

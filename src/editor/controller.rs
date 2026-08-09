@@ -17,6 +17,7 @@ use std::sync::Arc;
 pub(crate) use gpui::*;
 
 pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
+pub(crate) use crate::editor::bottombar::state::BottombarState;
 pub(crate) use crate::editor::menu_bar::MenuBarState;
 pub(crate) use crate::editor::panels::{PreviewState, SourceCodePanelRuntime};
 pub(crate) use crate::editor::tree::block::Block;
@@ -24,6 +25,8 @@ pub(crate) use crate::editor::tree::document::Document;
 pub(crate) use crate::editor::tree::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
+pub(crate) use crate::editor::window::context_menu::ContextMenuState;
+pub(crate) use crate::editor::window::dialogs::TableInsertDialogState;
 pub(crate) use crate::editor::window_layout::WindowPanels;
 pub(crate) use crate::layout::state::{EditorTabList, ROOT_AREA_ID};
 pub(crate) use crate::layout::types::{
@@ -43,9 +46,6 @@ pub(crate) use crate::model::syntax::table::{
     TableAxisHighlight, TableAxisKind, TableAxisMarker, TableColumnAlignment, TableData,
     serialize_table_cell_markdown,
 };
-pub(crate) use crate::editor::window::bottombar::BottombarState;
-pub(crate) use crate::editor::window::context_menu::ContextMenuState;
-pub(crate) use crate::editor::window::dialogs::TableInsertDialogState;
 
 /// Link navigation request deferred until a `Window` is available.
 #[derive(Clone, Debug, PartialEq, Eq)]

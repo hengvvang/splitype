@@ -1,13 +1,11 @@
 //! Keyboard event handling for the Editor.
 //!
-//! This module owns:
-//! - The full [`Editor`] keyboard event handler implementation (merged from
-//!   the legacy `engine::input::keyboard`).
-//! - `classify_block_action` — a pure routing table that maps every
-//!   [`BlockAction`] variant to the correct [`Editor`] handler, without
-//!   duplicating the mutation bodies.
-//! - `block_event_clears_cross_block_selection` — determines whether a
-//!   given action should dismiss any active cross-block text selection.
+//! This module owns the full [`Editor`] keyboard event handler: tab-key
+//! routing between blocks (indent / outdent) and the focused-block query it
+//! uses. Focus management lives in [`super::focus`], rendered-quote metadata
+//! refresh in [`super::quote_metadata`], and block-event classification in
+//! [`super::block_events`]; the editor's keyboard tests live here because
+//! they exercise the whole input pipeline end to end.
 //!
 //! # Event dispatch flow
 //!
@@ -20,15 +18,11 @@
 //!     └─ Main match: classify_block_action maps each variant → handler
 //! ```
 
-use std::time::Instant;
-
 use gpui::*;
 
-use super::shortcuts::{IndentBlock, OutdentBlock};
-use crate::editor::block_protocol::BlockAction;
+use super::actions::{IndentBlock, OutdentBlock};
 use crate::editor::controller::Editor;
-use crate::model::block::{BlockData, BlockKind};
-use crate::model::inline::text::RichText;
+use crate::model::block::BlockKind;
 
 impl Editor {
     pub(crate) fn focused_block_for_tab_key(
@@ -113,169 +107,14 @@ impl Editor {
         }
         cx.stop_propagation();
     }
-
-    pub(crate) fn build_plain_paste_blocks_from_lines(
-        cx: &mut Context<Self>,
-        lines: &[String],
-    ) -> Vec<Entity<crate::editor::tree::block::Block>> {
-        let mut blocks = lines
-            .iter()
-            .filter(|line| !line.trim().is_empty())
-            .map(|line| {
-                Self::new_block(
-                    cx,
-                    BlockData::new(BlockKind::Paragraph, RichText::from_markdown(line)),
-                )
-            })
-            .collect::<Vec<_>>();
-
-        if blocks.is_empty() && !lines.is_empty() {
-            blocks.push(Self::new_block(
-                cx,
-                BlockData::new(BlockKind::Paragraph, RichText::plain(String::new())),
-            ));
-        }
-
-        blocks
-    }
-
-    pub(crate) fn block_is_quote_structure_related(
-        &self,
-        block: &Entity<crate::editor::tree::block::Block>,
-        cx: &App,
-    ) -> bool {
-        if self.tab().mode != crate::editor::controller::EditorMode::Wysiwyg {
-            return false;
-        }
-
-        let block_ref = block.read(cx);
-        block_ref.kind().is_quote_container()
-            || block_ref.quote_depth > 0
-            || block_ref.quote_group_anchor.is_some()
-    }
-
-    pub(crate) fn refresh_rendered_quote_metadata_if_needed(
-        &mut self,
-        block: &Entity<crate::editor::tree::block::Block>,
-        cx: &mut Context<Self>,
-    ) {
-        if !self.block_is_quote_structure_related(block, cx) {
-            return;
-        }
-
-        // Pure text edits never change tree metadata (quote depths, anchors,
-        // ordinals) — only structural edits do (those already rebuild via
-        // `with_structure_mutation`/`replace_blocks`), or kind changes on the
-        // edited block (tracked by its kind-trait snapshot). Skipping the
-        // full-tree DFS while both are current keeps typing inside quotes
-        // from paying an O(document) cost per keystroke.
-        if self.doc().metadata_is_current() && block.read(cx).tree_metadata_is_current() {
-            return;
-        }
-        self.doc_mut().rebuild_metadata_and_snapshot(cx);
-    }
-
-    pub(crate) fn rendered_quote_text_requires_reparse(
-        block: &Entity<crate::editor::tree::block::Block>,
-        cx: &App,
-    ) -> bool {
-        let block_ref = block.read(cx);
-        if block_ref.quote_depth == 0 && !block_ref.kind().is_quote_container() {
-            return false;
-        }
-
-        let text = block_ref.display_text();
-        if !text.contains('\n') {
-            return false;
-        }
-
-        text.split('\n').skip(1).any(|line| {
-            let trimmed_end = line.trim_end();
-            if trimmed_end.is_empty() {
-                return false;
-            }
-
-            let leading_spaces = trimmed_end.bytes().take_while(|b| *b == b' ').count();
-            if leading_spaces >= 4 {
-                return true;
-            }
-
-            BlockKind::detect_markdown_shortcut(&format!("{trimmed_end} "))
-                .is_some_and(|(kind, _)| kind != BlockKind::Paragraph)
-                || BlockKind::parse_code_fence_opening(trimmed_end).is_some()
-                || BlockKind::parse_thematic_break_line(trimmed_end)
-                || BlockKind::parse_atx_heading_line(trimmed_end).is_some()
-        })
-    }
-
-    pub(crate) fn block_event_clears_cross_block_selection(event: &BlockAction) -> bool {
-        matches!(
-            event,
-            BlockAction::Changed
-                | BlockAction::RequestNewline { .. }
-                | BlockAction::RequestNewlineAbove
-                | BlockAction::RequestEnterCalloutBody
-                | BlockAction::RequestQuoteBreak
-                | BlockAction::RequestCalloutBreak
-                | BlockAction::RequestMergeIntoPrev { .. }
-                | BlockAction::RequestPasteMultiline { .. }
-                | BlockAction::RequestPasteImage { .. }
-                | BlockAction::RequestIndent
-                | BlockAction::RequestOutdent
-                | BlockAction::RequestDowngradeNestedListItemToChildParagraph
-                | BlockAction::ToggleTaskChecked
-                | BlockAction::RequestAppendTableColumn
-                | BlockAction::RequestAppendTableRow
-                | BlockAction::RequestExpandTable
-                | BlockAction::RequestDelete
-        )
-    }
-
-    pub(crate) fn focus_block(&mut self, entity_id: EntityId) {
-        self.tab_mut().focus.pending = Some(entity_id);
-        self.tab_mut().focus.active_entity = Some(entity_id);
-        self.tab_mut().focus.pending_scroll_active_block_into_view = true;
-    }
-
-    pub(crate) fn reset_block_cursor(
-        block: &Entity<crate::editor::tree::block::Block>,
-        cursor: usize,
-        cx: &mut Context<Self>,
-    ) {
-        block.update(cx, move |block, cx| {
-            block.selected_range = cursor..cursor;
-            block.selection_reversed = false;
-            block.marked_range = None;
-            block.vertical_motion_x = None;
-            block.cursor_blink_epoch = Instant::now();
-            cx.notify();
-        });
-    }
-
-    pub(crate) fn focus_block_range(
-        &mut self,
-        block: &Entity<crate::editor::tree::block::Block>,
-        range: std::ops::Range<usize>,
-        cx: &mut Context<Self>,
-    ) {
-        block.update(cx, move |block, cx| {
-            block.selected_range = range.clone();
-            block.selection_reversed = false;
-            block.marked_range = None;
-            block.vertical_motion_x = None;
-            block.cursor_blink_epoch = Instant::now();
-            cx.notify();
-        });
-        self.focus_block(block.entity_id());
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::Editor;
     use crate::editor::block_protocol::BlockAction;
-    use crate::editor::editing::input::shortcuts::ExitCodeBlock;
-    use crate::editor::editing::input::shortcuts::{Delete, DeleteBack, Newline};
+    use crate::editor::editing::input::actions::ExitCodeBlock;
+    use crate::editor::editing::input::actions::{Delete, DeleteBack, Newline};
     use crate::editor::tree::block::Block;
     use crate::model::block::{BlockData, BlockKind, CalloutKind};
     use crate::model::inline::text::RichText;

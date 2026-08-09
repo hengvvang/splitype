@@ -7,6 +7,31 @@ use crate::editor::block_protocol::BlockAction;
 use crate::editor::controller::*;
 
 impl Editor {
+    /// Whether the given action should dismiss any active cross-block text
+    /// selection (typing, structural edits, and paste all replace it).
+    pub(crate) fn block_event_clears_cross_block_selection(event: &BlockAction) -> bool {
+        matches!(
+            event,
+            BlockAction::Changed
+                | BlockAction::RequestNewline { .. }
+                | BlockAction::RequestNewlineAbove
+                | BlockAction::RequestEnterCalloutBody
+                | BlockAction::RequestQuoteBreak
+                | BlockAction::RequestCalloutBreak
+                | BlockAction::RequestMergeIntoPrev { .. }
+                | BlockAction::RequestPasteMultiline { .. }
+                | BlockAction::RequestPasteImage { .. }
+                | BlockAction::RequestIndent
+                | BlockAction::RequestOutdent
+                | BlockAction::RequestDowngradeNestedListItemToChildParagraph
+                | BlockAction::ToggleTaskChecked
+                | BlockAction::RequestAppendTableColumn
+                | BlockAction::RequestAppendTableRow
+                | BlockAction::RequestExpandTable
+                | BlockAction::RequestDelete
+        )
+    }
+
     pub(crate) fn on_block_event(
         &mut self,
         block: Entity<crate::editor::tree::block::Block>,
@@ -846,8 +871,8 @@ impl Editor {
 mod tests {
     use super::Editor;
     use crate::editor::block_protocol::BlockAction;
-    use crate::editor::editing::input::shortcuts::ExitCodeBlock;
-    use crate::editor::editing::input::shortcuts::{DeleteBack, Newline};
+    use crate::editor::editing::input::actions::ExitCodeBlock;
+    use crate::editor::editing::input::actions::{DeleteBack, Newline};
     use crate::model::block::{BlockData, BlockKind, CalloutKind};
     use crate::model::inline::text::RichText;
     use gpui::{AppContext, TestAppContext};

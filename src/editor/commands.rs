@@ -15,7 +15,7 @@ use crate::editor::actions::{
     SaveDocumentAs, ToggleViewMode, UninstallCliTool,
 };
 use crate::editor::controller::*;
-use crate::editor::editing::input::shortcuts::{Redo, Undo};
+use crate::editor::editing::input::actions::{Redo, Undo};
 use crate::infra::i18n::I18nManager;
 use crate::infra::net::update_checker::{
     self as update_check, UpdateCheckResult, UpdateVersionInfo,

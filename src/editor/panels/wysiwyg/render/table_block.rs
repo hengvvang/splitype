@@ -4,9 +4,10 @@
 use gpui::*;
 
 use crate::editor::block_protocol::BlockAction;
-use crate::editor::editing::table::TableGrid;
+use crate::editor::editing::table_runtime::TableGrid;
 use crate::editor::panels::wysiwyg::render::effective_table_width;
-use crate::editor::tree::block::{Block, BlockEditMode};
+use crate::editor::tree::block::Block;
+use crate::editor::tree::block_edit_mode::BlockEditMode;
 use crate::model::syntax::table::TableAxisHighlight;
 use crate::model::syntax::table::TableCellPosition;
 use crate::model::syntax::table::TableColumnAlignment;

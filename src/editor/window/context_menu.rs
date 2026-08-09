@@ -14,7 +14,7 @@ use std::time::Duration;
 use gpui::*;
 
 use crate::editor::controller::{Editor, EditorMode, TableAxisSelection};
-use crate::editor::editing::input::shortcuts::DismissTransientUi;
+use crate::editor::editing::input::actions::DismissTransientUi;
 use crate::infra::i18n::I18nManager;
 use crate::model::syntax::table::{TableAxisKind, TableColumnAlignment, TableData};
 use crate::infra::theme::Theme;

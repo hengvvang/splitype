@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use gpui::*;
 
 use crate::editor::controller::Editor;
-use crate::editor::editing::input::shortcuts::{Copy, Cut, DismissTransientUi, Paste};
+use crate::editor::editing::input::actions::{Copy, Cut, DismissTransientUi, Paste};
 use crate::infra::theme::ThemeManager;
 use crate::editor::panels::explorer::state::{
     EXPLORER_NODE_HEIGHT, ExplorerEditState,

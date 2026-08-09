@@ -1,8 +1,9 @@
-//! Text-editing action definitions — the block-editing action protocol.
+//! Block-editing action definitions — the block-editing action protocol.
 //!
 //! Actions are scoped to the `"BlockEditor"` key context on each block. Window
 //! and menu command actions live in `crate::editor::actions`; the
 //! keybinding configuration table lives in `crate::editor::keybindings`.
+//! Handlers for these actions live in [`super::block_actions`].
 
 use gpui::*;
 

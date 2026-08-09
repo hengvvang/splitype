@@ -10,7 +10,7 @@ use crate::editor::controller::{
     CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, EditorMode,
     SourceTargetMapping, UndoSelectionSnapshot,
 };
-use crate::editor::editing::input::shortcuts::{Copy, Cut, Delete, DeleteBack};
+use crate::editor::editing::input::actions::{Copy, Cut, Delete, DeleteBack};
 use crate::editor::tree::block::Block;
 use crate::model::block::BlockKind;
 use crate::model::syntax::table::serialize_table_markdown_lines;
@@ -948,7 +948,7 @@ mod tests {
 
     use super::{CrossBlockSelection, CrossBlockSelectionEndpoint, Editor};
     use crate::editor::block_protocol::UndoCaptureKind;
-    use crate::editor::editing::input::shortcuts::{Cut, Undo};
+    use crate::editor::editing::input::actions::{Cut, Undo};
     use crate::infra::i18n::I18nManager;
     use crate::infra::theme::ThemeManager;
 

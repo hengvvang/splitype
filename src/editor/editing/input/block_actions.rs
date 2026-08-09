@@ -1,6 +1,6 @@
 //! Action handlers dispatched by GPUI's action system when bound keys are
 //! pressed on a focused block.  Each handler maps to a named action declared
-//! in [`crate::editor::editing::input::shortcuts`] and delegates structural changes to the
+//! in [`crate::editor::editing::input::actions`] and delegates structural changes to the
 //! parent editor via `BlockAction` emissions.
 
 use std::time::Duration;
@@ -13,7 +13,7 @@ use crate::model::block::BlockKind;
 use crate::model::inline::text::RichText;
 use crate::editor::render::code_highlight::options::code_language_options_matching;
 use crate::editor::editing::input::paste::should_split_plain_multiline_paste;
-use crate::editor::editing::input::shortcuts::{
+use crate::editor::editing::input::actions::{
     BlockDown, BlockUp, BoldSelection, CodeSelection, Copy, Cut, Delete, DeleteBack,
     DismissTransientUi, End, ExitCodeBlock, FocusNext, FocusPrev, Home, IndentBlock,
     ItalicSelection, MoveLeft, MoveRight, Newline, OutdentBlock, Paste, SelectAll, SelectEnd,

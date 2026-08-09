@@ -9,7 +9,7 @@ use gpui::{
 
 use crate::editor::controller::{Editor, EditorMode};
 use crate::editor::actions::{CloseWindow, QuitApplication, SaveDocument};
-use crate::editor::editing::input::shortcuts::{FocusNext, Newline};
+use crate::editor::editing::input::actions::{FocusNext, Newline};
 use crate::editor::render::export::ExportFormat;
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::model::block::BlockKind;
