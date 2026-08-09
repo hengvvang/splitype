@@ -11,7 +11,7 @@ use crate::model::syntax::table::TableAxisHighlight;
 use crate::model::syntax::table::TableCellPosition;
 use crate::model::syntax::table::TableColumnAlignment;
 use crate::model::syntax::table::{TableAxisKind, TableAxisMarker, TableColumnLayout};
-use crate::theme::Theme;
+use crate::infra::theme::Theme;
 
 /// Render a native table block.
 pub(crate) fn render_table(

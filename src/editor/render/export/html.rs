@@ -7,15 +7,15 @@ use base64::{Engine as _, engine::general_purpose};
 use gpui::{Hsla, Rgba};
 use pulldown_cmark::{CowStr, Event, Options, Parser, Tag, html};
 
+use crate::editor::render::latex_render::{inline_math_font_size, render_latex_to_svg};
+use crate::editor::render::mermaid_render::render_mermaid_to_svg;
 use crate::model::syntax::html::{parse_html_image_block, sanitize_html_for_export};
+use crate::model::syntax::image::is_remote_image_source;
+use crate::model::syntax::math::parse_display_math_source;
 use crate::model::syntax::mermaid::{
     is_mermaid_closing_fence, parse_mermaid_fence_source, parse_mermaid_fence_start,
 };
-use crate::model::syntax::math::parse_display_math_source;
-use crate::editor::render::latex_render::{inline_math_font_size, render_latex_to_svg};
-use crate::editor::render::mermaid_render::render_mermaid_to_svg;
-use crate::infra::net;
-use crate::theme::{FontWeightDef, Theme};
+use crate::infra::theme::{FontWeightDef, Theme};
 
 /// Builds a full HTML document with embedded CSS derived from the active theme.
 #[cfg_attr(not(test), allow(dead_code))]
@@ -523,7 +523,7 @@ fn local_image_data_uri(source: &str, base_dir: Option<&Path>) -> Option<String>
     if source.is_empty()
         || source.starts_with('#')
         || source.starts_with("data:")
-        || net::is_remote_image_source(source)
+        || is_remote_image_source(source)
     {
         return None;
     }
@@ -1022,7 +1022,7 @@ mod tests {
         contains_tibetan_text, render_chromium_pdf_html_with_base_dir, render_html,
         render_html_with_base_dir,
     };
-    use crate::theme::Theme;
+    use crate::infra::theme::Theme;
     use std::fs;
     use uuid::Uuid;
 

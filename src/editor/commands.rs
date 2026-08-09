@@ -3,7 +3,7 @@
 //!
 //! Action handlers wired in the window chrome (`src/windows/`) delegate to
 //! these methods. File prompts and menu state live in
-//! `crate::windows::titlebar::app_menu::state`.
+//! `crate::editor::menu_bar`.
 
 use std::path::Path;
 

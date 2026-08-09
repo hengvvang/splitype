@@ -7,13 +7,14 @@
 
 mod app;
 mod editor;
+mod explorer;
 mod infra;
 mod layout;
 mod model;
 mod platform;
-mod theme;
+mod settings;
+mod titlebar;
 mod ui;
-mod windows;
 
 fn main() {
     let args = app::cli::parse();

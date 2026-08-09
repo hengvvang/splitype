@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::theme::ThemeColors;
+use crate::infra::theme::ThemeColors;
 
 /// Horizontal splitter bar (resizes rows).
 pub fn splitter_bar_h(id: impl Into<ElementId>, c: &ThemeColors) -> Stateful<Div> {

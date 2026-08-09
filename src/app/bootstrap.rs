@@ -27,7 +27,7 @@ use crate::infra::config::settings::{
 use crate::infra::i18n::I18nManager;
 use crate::infra::net::http_client::install_http_client;
 use crate::editor::keybindings::init_with_keybindings as init_editor;
-use crate::theme::ThemeManager;
+use crate::infra::theme::ThemeManager;
 
 /// On macOS, re-launch the process detached from the terminal.
 #[cfg(target_os = "macos")]

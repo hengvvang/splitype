@@ -4,7 +4,7 @@ use gpui::*;
 
 use crate::editor::tree::block::Block;
 use crate::editor::panels::preview::render::inline;
-use crate::theme::Theme;
+use crate::infra::theme::Theme;
 
 /// Renders a plain paragraph (and HTML-comment fallback) read-only.
 pub(crate) fn render_preview_paragraph(

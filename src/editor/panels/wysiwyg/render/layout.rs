@@ -6,7 +6,7 @@
 use gpui::*;
 
 use crate::editor::controller::*;
-use crate::theme::*;
+use crate::infra::theme::*;
 
 // ── Spacing helpers ─────────────────────────────────────────────────────
 
@@ -160,7 +160,7 @@ mod tests {
         tibetan_font_fallbacks_for_target_os,
     };
     use crate::model::block::BlockId;
-    use crate::theme::Theme;
+    use crate::infra::theme::Theme;
     use uuid::Uuid;
 
     #[test]

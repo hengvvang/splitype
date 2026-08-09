@@ -9,7 +9,7 @@ use gpui::{FontStyle, FontWeight, Pixels, SharedString, TextRun, Window, px};
 
 use crate::model::inline::render_cache::InlineRenderCache;
 use crate::model::inline::text::RichText;
-use crate::theme::Theme;
+use crate::infra::theme::Theme;
 
 /// Horizontal alignment declared by the table's delimiter row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

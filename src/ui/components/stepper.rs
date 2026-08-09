@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::theme::{ThemeColors, ThemeDimensions};
+use crate::infra::theme::{ThemeColors, ThemeDimensions};
 
 /// Stepper container (decrement | value | increment).
 pub fn stepper_container(c: &ThemeColors, d: &ThemeDimensions) -> Div {

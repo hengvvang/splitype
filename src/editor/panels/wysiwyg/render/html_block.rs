@@ -4,7 +4,7 @@
 use gpui::*;
 
 use crate::editor::tree::block::Block;
-use crate::theme::Theme;
+use crate::infra::theme::Theme;
 
 /// Render a raw HTML block.
 pub(crate) fn render_html_block(

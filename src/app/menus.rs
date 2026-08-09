@@ -30,11 +30,11 @@ use crate::infra::i18n::I18nManager;
 use crate::platform::cli_tool::{install_cli_tool, is_cli_symlink_current_app, uninstall_cli_tool};
 #[cfg(not(target_os = "macos"))]
 use crate::platform::cli_tool::{install_cli_tool, uninstall_cli_tool};
-use crate::theme::ThemeManager;
-use crate::windows::editor::{
+use crate::infra::theme::ThemeManager;
+use crate::editor::window::{
     open_bug_report, open_discussions, open_feature_request, open_splitype_repository,
 };
-use crate::windows::settings::open_settings_window;
+use crate::settings::open_settings_window;
 
 /// Global app-menu state for platform menu lifecycle hooks.
 #[derive(Default)]
@@ -850,7 +850,7 @@ mod tests {
     };
     use crate::infra::i18n::I18nManager;
     use crate::platform::cli_tool::applescript_string_literal;
-    use crate::theme::ThemeManager;
+    use crate::infra::theme::ThemeManager;
     use gpui::{Action, MenuItem};
     use std::path::PathBuf;
 

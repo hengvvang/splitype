@@ -11,7 +11,7 @@ use crate::editor::render::latex_render::{inline_math_font_size, render_inline_m
 use crate::model::inline::render_cache::InlineSpan;
 use crate::model::inline::style::InlineScript;
 use crate::model::inline::text::RichText;
-use crate::theme::Theme;
+use crate::infra::theme::Theme;
 
 /// Renders the inline content of `text` with `base_color` and `font_size`,
 /// mirroring the WYSIWYG inline segment styling without any editing state.

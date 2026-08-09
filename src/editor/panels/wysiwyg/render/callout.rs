@@ -6,7 +6,7 @@ use gpui::*;
 use crate::editor::tree::block::Block;
 use crate::model::block::CalloutKind;
 use crate::editor::panels::wysiwyg::render::callout_accent_and_background;
-use crate::theme::Theme;
+use crate::infra::theme::Theme;
 
 /// Render a callout (admonition) block.
 pub(crate) fn render_callout(

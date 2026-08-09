@@ -6,7 +6,7 @@
 
 use gpui::*;
 
-use crate::theme::{ThemeColors, ThemeDimensions};
+use crate::infra::theme::{ThemeColors, ThemeDimensions};
 
 /// Menu item row structure (no interaction states).
 ///

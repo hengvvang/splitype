@@ -3,7 +3,7 @@
 //! editing panels) inside each Edit area.
 //!
 //! The layout engine (tree, sessions, operations) lives in `crate::layout`;
-//! the window-level area layout rendering lives in `crate::windows::layout`.
+//! the window-level area layout rendering lives in `crate::editor::window_layout`.
 
 use crate::layout::{
     Axis, BorderMenuState, CornerDragModifier, EditingPanelKind, EditorInnerPanelKind,
@@ -16,7 +16,7 @@ use gpui::*;
 
 use crate::editor::controller::*;
 use crate::infra::i18n::I18nStrings;
-use crate::theme::Theme;
+use crate::infra::theme::Theme;
 
 impl Editor {
     /// Render one Editor area's inner panel layout. While building, the

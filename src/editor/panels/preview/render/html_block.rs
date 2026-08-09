@@ -11,7 +11,7 @@ use crate::model::syntax::html::{
     style_for_node,
 };
 use crate::model::syntax::image::resolve_image_source;
-use crate::theme::Theme;
+use crate::infra::theme::Theme;
 
 /// Renders a raw HTML block read-only with the same visuals as the WYSIWYG
 /// HTML document rendering.

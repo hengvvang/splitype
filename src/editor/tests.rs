@@ -20,9 +20,9 @@ use crate::model::syntax::image::{
     parse_table_cell_inline_images,
 };
 use crate::model::syntax::table::TableColumnAlignment;
-use crate::theme::{Theme, ThemeManager};
-use crate::windows::editor::context_menu::TableInsertTarget;
-use crate::windows::editor::dialogs::TableInsertDialogState;
+use crate::infra::theme::{Theme, ThemeManager};
+use crate::editor::window::context_menu::TableInsertTarget;
+use crate::editor::window::dialogs::TableInsertDialogState;
 fn init_editor_test_app(cx: &mut TestAppContext) {
     cx.update(|cx| {
         I18nManager::init(cx);
@@ -293,7 +293,7 @@ fn about_dialog_body_lines_include_repository_and_star_message() {
         lines[2],
         format!(
             "GitHub: {}",
-            crate::windows::editor::SPLITYPE_REPOSITORY_URL
+            crate::editor::window::SPLITYPE_REPOSITORY_URL
         )
     );
     assert_eq!(
@@ -305,12 +305,12 @@ fn about_dialog_body_lines_include_repository_and_star_message() {
 #[gpui::test]
 async fn about_github_link_uses_gpui_url_opening(cx: &mut TestAppContext) {
     cx.update(|cx| {
-        crate::windows::editor::open_splitype_repository(cx);
+        crate::editor::window::open_splitype_repository(cx);
     });
 
     assert_eq!(
         cx.opened_url(),
-        Some(crate::windows::editor::SPLITYPE_REPOSITORY_URL.to_string())
+        Some(crate::editor::window::SPLITYPE_REPOSITORY_URL.to_string())
     );
 }
 

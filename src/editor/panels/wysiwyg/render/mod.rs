@@ -75,7 +75,7 @@ use crate::model::syntax::image::{
 use crate::model::syntax::math::parse_display_math_source;
 use crate::model::syntax::mermaid::parse_mermaid_fence_source;
 use crate::model::syntax::table::{TableAxisHighlight, TableAxisKind};
-use crate::theme::{Theme, ThemeDimensions, ThemeManager};
+use crate::infra::theme::{Theme, ThemeDimensions, ThemeManager};
 
 #[allow(dead_code)]
 const TASK_CHECKMARK: &str = "\u{2713}";
@@ -2681,7 +2681,7 @@ mod tests {
     use crate::model::block::{BlockData, BlockKind};
     use crate::model::inline::text::RichText;
     use crate::model::syntax::html::parse_html_document;
-    use crate::theme::{Theme, ThemeManager};
+    use crate::infra::theme::{Theme, ThemeManager};
     use gpui::{Hsla, Rgba, TestAppContext, px};
 
     fn assert_color_near(color: Hsla, red: u8, green: u8, blue: u8, alpha: u8) {

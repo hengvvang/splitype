@@ -1,7 +1,6 @@
 //! HTTP client integration used by remote image loading.
 
 use std::io;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use futures::AsyncReadExt;
@@ -25,13 +24,6 @@ pub(crate) fn install_http_client(cx: &mut App) {
         Ok(client) => cx.set_http_client(Arc::new(client)),
         Err(error) => eprintln!("failed to install HTTP client for image loading: {error}"),
     }
-}
-
-pub(crate) fn is_remote_image_source(source: &str) -> bool {
-    http_client::Uri::from_str(source)
-        .ok()
-        .and_then(|uri| uri.scheme_str().map(str::to_owned))
-        .is_some_and(|scheme| scheme == "http" || scheme == "https")
 }
 
 /// GPUI `HttpClient` bridge backed by reqwest's blocking transport.
@@ -164,7 +156,7 @@ impl HttpClient for ReqwestTransportHttpClient {
 mod tests {
     use super::{
         DEFAULT_ACCEPT_LANGUAGE, DEFAULT_CACHE_CONTROL, DEFAULT_IMAGE_ACCEPT,
-        apply_missing_default_headers, default_image_request_headers, is_remote_image_source,
+        apply_missing_default_headers, default_image_request_headers,
     };
     use reqwest::header::{
         ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, CACHE_CONTROL, CONNECTION, CONTENT_LENGTH, HOST,
@@ -218,13 +210,5 @@ mod tests {
         assert_eq!(headers.get(USER_AGENT).unwrap(), TEST_USER_AGENT);
         assert_eq!(headers.get(CACHE_CONTROL).unwrap(), DEFAULT_CACHE_CONTROL);
         assert_eq!(headers.get(PRAGMA).unwrap(), DEFAULT_CACHE_CONTROL);
-    }
-
-    #[test]
-    fn detects_remote_http_sources() {
-        assert!(is_remote_image_source("https://example.com/image.png"));
-        assert!(is_remote_image_source("http://example.com/image.gif"));
-        assert!(!is_remote_image_source("./image.png"));
-        assert!(!is_remote_image_source("images/photo.jpg"));
     }
 }

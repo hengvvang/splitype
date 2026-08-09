@@ -6,8 +6,6 @@ use std::str::FromStr;
 
 use gpui::{SharedUri, http_client::Uri};
 
-use crate::infra::net;
-
 /// Active fenced code block while scanning for image reference definitions.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct FenceInfo {
@@ -99,8 +97,19 @@ impl ImageSyntax {
     }
 }
 
+/// True when `source` parses as an HTTP(S) URL.
+///
+/// Pure URI classification — no network access — so it lives with the rest
+/// of the image source model instead of the HTTP client transport.
+pub fn is_remote_image_source(source: &str) -> bool {
+    Uri::from_str(source)
+        .ok()
+        .and_then(|uri| uri.scheme_str().map(str::to_owned))
+        .is_some_and(|scheme| scheme == "http" || scheme == "https")
+}
+
 pub fn resolve_image_source(source: &str, base_dir: Option<&Path>) -> ImageResolvedSource {
-    if net::is_remote_image_source(source) {
+    if is_remote_image_source(source) {
         return ImageResolvedSource::Remote(SharedUri::from(source.to_string()));
     }
 
@@ -699,10 +708,10 @@ fn is_escaped(input: &str, index: usize) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        ImageReferenceDefinition, ImageResolvedSource, ImageSyntax, ImageTarget,
-        ImageReferenceDefinitions, TableCellInlineImageSegment,
-        normalize_reference_label, parse_image_reference_definitions, parse_standalone_image,
-        parse_table_cell_inline_images, resolve_image_source,
+        ImageReferenceDefinition, ImageReferenceDefinitions, ImageResolvedSource, ImageSyntax,
+        ImageTarget, TableCellInlineImageSegment, normalize_reference_label,
+        parse_image_reference_definitions, parse_standalone_image, parse_table_cell_inline_images,
+        resolve_image_source,
     };
     use std::path::Path;
 
@@ -849,9 +858,7 @@ mod tests {
         assert_eq!(segments.len(), 1);
         assert_eq!(
             segments[0],
-            TableCellInlineImageSegment::Text(
-                r"escaped \!\[not an image\] text".to_string()
-            )
+            TableCellInlineImageSegment::Text(r"escaped \!\[not an image\] text".to_string())
         );
     }
 

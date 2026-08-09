@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use crate::theme::Theme;
+use crate::infra::theme::Theme;
 
 /// Renders a thematic break (horizontal rule) read-only.
 pub(crate) fn render_preview_thematic_break(theme: &Theme) -> AnyElement {

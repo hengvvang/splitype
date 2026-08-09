@@ -27,7 +27,7 @@ use crate::editor::controller::*;
 use crate::editor::tree::block::Block;
 use crate::infra::i18n::I18nStrings;
 use crate::model::block::BlockKind;
-use crate::theme::Theme;
+use crate::infra::theme::Theme;
 
 impl Editor {
     pub(crate) fn render_tiled_preview_panel(
@@ -181,7 +181,7 @@ pub(crate) fn render_preview_block(
 /// depths are structural).
 pub(crate) fn preview_centered_column_width(
     viewport_width: f32,
-    d: &crate::theme::ThemeDimensions,
+    d: &crate::infra::theme::ThemeDimensions,
 ) -> f32 {
     let available_content_width = (viewport_width - d.editor_padding * 2.0).max(1.0);
     let ratio = if viewport_width <= d.centered_shrink_start {

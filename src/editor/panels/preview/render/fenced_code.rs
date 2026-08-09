@@ -7,7 +7,7 @@ use crate::editor::render::code_highlight::highlight::{
     code_highlight_color, highlight_code_block,
 };
 use crate::editor::tree::block::Block;
-use crate::theme::Theme;
+use crate::infra::theme::Theme;
 
 /// Extracts the fence language tag from the raw source (e.g. `rust` from
 /// ```rust ... ```), mirroring the WYSIWYG language resolution.

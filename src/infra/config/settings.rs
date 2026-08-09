@@ -9,10 +9,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::infra::config::dirs::SplitypeConfigDirs;
 use crate::infra::config::recent::read_recent_files;
+use crate::infra::config::keybindings::normalize_shortcut_config;
 use crate::infra::i18n::manager::I18nManager;
 use crate::infra::i18n::packs::language_id_for_locale_settings;
-use crate::editor::keybindings::normalize_shortcut_config;
-use crate::theme::ThemeManager;
+use crate::infra::theme::ThemeManager;
 
 pub(crate) const DEFAULT_THEME_ID: &str = "splitype";
 const DEFAULT_LANGUAGE_ID: &str = "en-US";

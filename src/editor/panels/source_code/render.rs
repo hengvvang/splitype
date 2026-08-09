@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::controller::*;
-use crate::theme::Theme;
+use crate::infra::theme::Theme;
 
 impl Editor {
     pub(crate) fn render_source_code_panel(

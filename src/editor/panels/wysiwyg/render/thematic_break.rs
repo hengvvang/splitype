@@ -4,7 +4,7 @@
 use gpui::*;
 
 use crate::editor::tree::block::Block;
-use crate::theme::Theme;
+use crate::infra::theme::Theme;
 
 /// Render a thematic break (horizontal rule) when the block is not focused.
 pub(crate) fn render_thematic_break_unfocused(

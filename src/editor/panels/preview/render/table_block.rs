@@ -8,7 +8,7 @@ use crate::editor::tree::block::Block;
 use crate::editor::panels::preview::render::inline;
 use crate::editor::panels::preview::render::preview_centered_column_width;
 use crate::model::syntax::table::TableColumnLayout;
-use crate::theme::Theme;
+use crate::infra::theme::Theme;
 
 /// Renders a native table block read-only with content-measured column
 /// widths, mirroring the WYSIWYG table layout.

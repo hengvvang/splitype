@@ -3,10 +3,12 @@
 //! Components here must not depend on `editor`, `model`, or `windows`;
 //! they only consume `theme` and gpui so any view can reuse them.
 
-pub mod button;
 pub mod bottombar;
+pub mod button;
+pub mod custom_titlebar;
 pub mod dialog;
 pub mod empty_state;
+pub mod menu_bar;
 pub mod menu_item;
 pub mod popover;
 pub mod section;

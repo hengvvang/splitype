@@ -17,12 +17,14 @@ use std::sync::Arc;
 pub(crate) use gpui::*;
 
 pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
+pub(crate) use crate::editor::menu_bar::MenuBarState;
 pub(crate) use crate::editor::panels::{PreviewState, SourceCodePanelRuntime};
 pub(crate) use crate::editor::tree::block::Block;
 pub(crate) use crate::editor::tree::document::Document;
 pub(crate) use crate::editor::tree::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
+pub(crate) use crate::editor::window_layout::WindowPanels;
 pub(crate) use crate::layout::state::{EditorTabList, ROOT_AREA_ID};
 pub(crate) use crate::layout::types::{
     AreaId, AreaSplitMode, EditingPanelKind, EditorAreaMode, EditorInnerPanelKind,
@@ -41,11 +43,9 @@ pub(crate) use crate::model::syntax::table::{
     TableAxisHighlight, TableAxisKind, TableAxisMarker, TableColumnAlignment, TableData,
     serialize_table_cell_markdown,
 };
-pub(crate) use crate::windows::editor::bottombar::BottombarState;
-pub(crate) use crate::windows::editor::context_menu::ContextMenuState;
-pub(crate) use crate::windows::editor::dialogs::TableInsertDialogState;
-pub(crate) use crate::windows::layout::WindowPanels;
-pub(crate) use crate::windows::titlebar::app_menu::state::MenuBarState;
+pub(crate) use crate::editor::window::bottombar::BottombarState;
+pub(crate) use crate::editor::window::context_menu::ContextMenuState;
+pub(crate) use crate::editor::window::dialogs::TableInsertDialogState;
 
 /// Link navigation request deferred until a `Window` is available.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -775,7 +775,7 @@ impl Editor {
 
     /// The given Editor area's tab list. Panics if the area has no editor
     /// session (rendering code must call `tab_list_mut_for` first).
-    pub(crate) fn tab_list_for(&self, area_id: AreaId) -> &EditorTabList {
+    pub(crate) fn tab_list_for(&self, area_id: AreaId) -> &EditorTabList<DocumentTab> {
         &self
             .panels
             .layout
@@ -785,7 +785,7 @@ impl Editor {
     }
 
     /// The given Editor area's tab list, created on demand.
-    pub(crate) fn tab_list_mut_for(&mut self, area_id: AreaId) -> &mut EditorTabList {
+    pub(crate) fn tab_list_mut_for(&mut self, area_id: AreaId) -> &mut EditorTabList<DocumentTab> {
         &mut self.panels.layout.ensure_editor_session(area_id).tab_list
     }
 

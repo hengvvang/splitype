@@ -1,33 +1,31 @@
 //! Outline panel — heading tree derived from the document source.
 
 pub(crate) mod render;
+pub(crate) mod state;
 
 use std::collections::HashSet;
 
 use crate::model::block::BlockKind;
-use crate::windows::explorer::state::{
-    ExplorerState, ExplorerNode, ExplorerNodeKind, ExplorerSelection,
-};
+
+use state::{OutlineNode, OutlineNodeKind, OutlinePanelState};
 
 /// Prune expanded-node state and selection that no longer exist in the
 /// current outline tree.
-pub(crate) fn prune_outline_state(explorer: &mut ExplorerState, outline: &[ExplorerNode]) {
+pub(crate) fn prune_outline_state(outline: &mut OutlinePanelState, nodes: &[OutlineNode]) {
     let mut current_ids = HashSet::new();
-    collect_node_ids(outline, &mut current_ids);
-    explorer
-        .expanded_outline
-        .retain(|id| current_ids.contains(id));
+    collect_node_ids(nodes, &mut current_ids);
+    outline.expanded.retain(|id| current_ids.contains(id));
 
     if matches!(
-        &explorer.selected,
-        Some(ExplorerSelection::Outline(id)) if !current_ids.contains(id)
+        &outline.selected,
+        Some(id) if !current_ids.contains(id)
     ) {
-        explorer.selected = None;
+        outline.selected = None;
     }
 }
 
 /// Collect all node ids from a tree (recursively) into `ids`.
-pub(crate) fn collect_node_ids(nodes: &[ExplorerNode], ids: &mut HashSet<String>) {
+pub(crate) fn collect_node_ids(nodes: &[OutlineNode], ids: &mut HashSet<String>) {
     for node in nodes {
         ids.insert(node.id.clone());
         collect_node_ids(&node.children, ids);
@@ -38,7 +36,7 @@ pub(crate) fn collect_node_ids(nodes: &[ExplorerNode], ids: &mut HashSet<String>
 ///
 /// Code-fence content is skipped so headings inside fenced blocks are not
 /// included in the outline.
-pub(crate) fn build_outline_tree(markdown: &str) -> Vec<ExplorerNode> {
+pub(crate) fn build_outline_tree(markdown: &str) -> Vec<OutlineNode> {
     let mut roots = Vec::new();
     let mut stack: Vec<(u8, Vec<usize>)> = Vec::new();
     let mut fence: Option<(char, usize)> = None;
@@ -68,10 +66,10 @@ pub(crate) fn build_outline_tree(markdown: &str) -> Vec<ExplorerNode> {
             stack.pop();
         }
 
-        let node = ExplorerNode {
+        let node = OutlineNode {
             id: format!("outline:{line_index}"),
             label: title,
-            kind: ExplorerNodeKind::Heading {
+            kind: OutlineNodeKind::Heading {
                 line: line_index,
                 level,
             },
@@ -98,9 +96,9 @@ pub(crate) fn build_outline_tree(markdown: &str) -> Vec<ExplorerNode> {
 
 /// Navigate to a child list at the given index path.
 fn children_at_path_mut<'a>(
-    nodes: &'a mut Vec<ExplorerNode>,
+    nodes: &'a mut Vec<OutlineNode>,
     path: &[usize],
-) -> &'a mut Vec<ExplorerNode> {
+) -> &'a mut Vec<OutlineNode> {
     let mut current = nodes;
     for &index in path {
         current = &mut current[index].children;

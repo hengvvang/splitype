@@ -10,7 +10,6 @@ use std::collections::HashMap;
 
 use gpui::{Pixels, Point, Size};
 
-use crate::editor::controller::DocumentTab;
 use crate::layout::sessions::{
     BorderMenuState, CornerDragModifier, CornerDragPreview, CornerDragSession,
     EditorInnerPanelDragAction, MODIFIER_THRESHOLD_PX, SplitterDragSession, WindowAreaDragAction,
@@ -27,12 +26,14 @@ use crate::layout::types::{
 /// Every Editor area keeps its own ordered tab list; tabs are deep-copied
 /// when an Editor area is split (normal drag) and start empty for fresh
 /// editors (Shift-drag).
-pub struct EditorTabList {
-    pub tabs: Vec<DocumentTab>,
+/// Tab payload type is owned by the host (editor); layout only stores and
+/// reorders tabs, so it stays generic over the payload.
+pub struct EditorTabList<T> {
+    pub tabs: Vec<T>,
     pub active_tab: usize,
 }
 
-impl EditorTabList {
+impl<T> EditorTabList<T> {
     pub fn empty() -> Self {
         Self {
             tabs: Vec::new(),
@@ -50,18 +51,18 @@ impl EditorTabList {
 /// editing) so the tabs are restored when the area becomes Editor again.
 /// A retained session is a pure cache: it never participates in explorer
 /// or activation logic until its area is back in the foreground.
-pub struct EditorSession {
-    pub tab_list: EditorTabList,
+pub struct EditorSession<T> {
+    pub tab_list: EditorTabList<T>,
     pub inner_panel_tree: SplitTree<EditorInnerPanelKind>,
 }
 
 /// Full state for the tiled area layout manager.
-pub struct WindowLayout {
+pub struct WindowLayout<T> {
     /// Outer tiled layout tree.
     pub window_area_tree: SplitTree<WindowAreaKind>,
     /// Per-Editor-area sessions (tab list + inner panel layout), keyed by
     /// outer area id. Retained for areas that left Editor with tabs.
-    pub editor_sessions: HashMap<AreaId, EditorSession>,
+    pub editor_sessions: HashMap<AreaId, EditorSession<T>>,
     /// Global node id pool (leaves and split nodes share it).
     pub next_node_id: usize,
     pub open_window_area_dropdown: Option<AreaId>,
@@ -89,7 +90,7 @@ pub struct WindowLayout {
 /// The id of the root area created by the default layout.
 pub(crate) const ROOT_AREA_ID: AreaId = 1;
 
-impl Default for WindowLayout {
+impl<T> Default for WindowLayout<T> {
     fn default() -> Self {
         Self {
             window_area_tree: SplitTree::Leaf {
@@ -115,7 +116,7 @@ impl Default for WindowLayout {
     }
 }
 
-impl WindowLayout {
+impl<T> WindowLayout<T> {
     // ------------------------------------------------------------------
     // Split / close / type (outer)
     // ------------------------------------------------------------------
@@ -147,8 +148,9 @@ impl WindowLayout {
             // fresh ids, and an empty tab list the host fills by
             // deep-copying the documents.
             if let Some(source) = self.editor_sessions.get(&area_id) {
-                let inner_panel_tree =
-                    source.inner_panel_tree.clone_with_new_ids(&mut self.next_node_id);
+                let inner_panel_tree = source
+                    .inner_panel_tree
+                    .clone_with_new_ids(&mut self.next_node_id);
                 self.editor_sessions.insert(
                     new_id,
                     EditorSession {
@@ -213,7 +215,7 @@ impl WindowLayout {
 
     /// Get or create the editor session for an area. New sessions start
     /// with no tabs and a single default `Welcome` panel.
-    pub fn ensure_editor_session(&mut self, area_id: AreaId) -> &mut EditorSession {
+    pub fn ensure_editor_session(&mut self, area_id: AreaId) -> &mut EditorSession<T> {
         let next_node_id = &mut self.next_node_id;
         self.editor_sessions.entry(area_id).or_insert_with(|| {
             let panel_id = *next_node_id;
@@ -229,12 +231,12 @@ impl WindowLayout {
     }
 
     /// The editor session for `area_id`, if one exists.
-    pub fn editor_session(&self, area_id: AreaId) -> Option<&EditorSession> {
+    pub fn editor_session(&self, area_id: AreaId) -> Option<&EditorSession<T>> {
         self.editor_sessions.get(&area_id)
     }
 
     /// The active editor area's session, if an active editor exists.
-    pub fn active_editor_session(&self) -> Option<&EditorSession> {
+    pub fn active_editor_session(&self) -> Option<&EditorSession<T>> {
         self.active_editor_area
             .and_then(|area| self.editor_sessions.get(&area))
     }
@@ -352,7 +354,9 @@ impl WindowLayout {
         let root = &mut self.ensure_editor_session(area_id).inner_panel_tree;
         let kind = root
             .find_leaf_kind(panel_id)
-            .unwrap_or(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)));
+            .unwrap_or(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(
+                None,
+            )));
         root.split_leaf_with_ratio(panel_id, new_id, direction, 0.5, kind);
     }
 
@@ -401,7 +405,9 @@ impl WindowLayout {
             let root = &mut session.inner_panel_tree;
             let kind = root
                 .find_leaf_kind(panel_id)
-                .unwrap_or(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)));
+                .unwrap_or(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(
+                    None,
+                )));
             root.split_leaf_with_ratio(panel_id, new_id, direction, ratio, kind);
         }
     }
@@ -620,12 +626,13 @@ impl WindowLayout {
                     ratio,
                 })
             }
-            CornerDragPreview::JoinPreview { target_id, direction: _ } => {
-                Some(EditorInnerPanelDragAction::Join {
-                    from_panel: session.target_id,
-                    into_panel: target_id,
-                })
-            }
+            CornerDragPreview::JoinPreview {
+                target_id,
+                direction: _,
+            } => Some(EditorInnerPanelDragAction::Join {
+                from_panel: session.target_id,
+                into_panel: target_id,
+            }),
             CornerDragPreview::Dragging => Some(EditorInnerPanelDragAction::Cancel),
         };
         self.end_editor_inner_panel_corner_drag();
@@ -1015,12 +1022,13 @@ impl WindowLayout {
                     mode,
                 })
             }
-            CornerDragPreview::JoinPreview { target_id, direction: _ } => {
-                Some(WindowAreaDragAction::Join {
-                    from_area: session.target_id,
-                    into_area: target_id,
-                })
-            }
+            CornerDragPreview::JoinPreview {
+                target_id,
+                direction: _,
+            } => Some(WindowAreaDragAction::Join {
+                from_area: session.target_id,
+                into_area: target_id,
+            }),
             CornerDragPreview::Dragging => Some(WindowAreaDragAction::Cancel),
         };
         self.end_window_area_corner_drag();
@@ -1109,7 +1117,7 @@ mod tests {
 
     #[test]
     fn test_area_layout_suite() {
-        let mut layout = WindowLayout::default();
+        let mut layout = WindowLayout::<()>::default();
         assert_eq!(layout.window_area_tree.count_leaves(), 1);
 
         layout.split_window_area(1, Axis::Horizontal, 0.5, AreaSplitMode::Copy);
@@ -1146,7 +1154,7 @@ mod tests {
 
     #[test]
     fn test_split_inherits_source_kind() {
-        let mut layout = WindowLayout::default();
+        let mut layout = WindowLayout::<()>::default();
         // Default: single Editor leaf.
         assert_eq!(
             layout.window_area_tree.find_leaf_kind(1),
@@ -1195,7 +1203,7 @@ mod tests {
 
     #[test]
     fn test_editor_split_clones_inner_layout_and_tab_list() {
-        let mut layout = WindowLayout::default();
+        let mut layout = WindowLayout::<()>::default();
         // Source Editor area (id 1) with a two-panel inner layout.
         layout
             .ensure_editor_session(1)
@@ -1232,7 +1240,7 @@ mod tests {
 
     #[test]
     fn test_fresh_editor_split_gets_empty_tab_list() {
-        let mut layout = WindowLayout::default();
+        let mut layout = WindowLayout::<()>::default();
         layout
             .ensure_editor_session(1)
             .inner_panel_tree
@@ -1267,7 +1275,7 @@ mod tests {
 
     #[test]
     fn test_editing_mode_transitions_restore_panel_kinds() {
-        let mut layout = WindowLayout::default();
+        let mut layout = WindowLayout::<()>::default();
         // Enter editing: the initial welcome panel becomes SourceCode.
         layout.ensure_editor_session(1);
         layout.enter_editing(1);
@@ -1308,7 +1316,7 @@ mod tests {
 
     #[test]
     fn test_active_editor_falls_back_to_last_focused() {
-        let mut layout = WindowLayout::default();
+        let mut layout = WindowLayout::<()>::default();
         layout.activate_editor_area(1);
         let a = layout
             .split_window_area(1, Axis::Horizontal, 0.5, AreaSplitMode::Copy)
@@ -1333,7 +1341,7 @@ mod tests {
 
     #[test]
     fn test_area_mode_transitions() {
-        let mut layout = WindowLayout::default();
+        let mut layout = WindowLayout::<()>::default();
         // A default root editor that never opened a document: welcome.
         assert_eq!(layout.editor_area_mode(1), EditorAreaMode::Welcome);
         // Fresh-split editors are welcome too.
@@ -1357,7 +1365,7 @@ mod tests {
 
     #[test]
     fn test_join_sibling_leaves() {
-        let mut layout = WindowLayout::default();
+        let mut layout = WindowLayout::<()>::default();
         // Create a simple horizontal split: [Editor, Editor]
         layout.split_window_area(1, Axis::Horizontal, 0.5, AreaSplitMode::Copy);
         assert_eq!(layout.window_area_tree.count_leaves(), 2);
@@ -1374,7 +1382,7 @@ mod tests {
 
     #[test]
     fn test_join_nested_leaves() {
-        let mut layout = WindowLayout::default();
+        let mut layout = WindowLayout::<()>::default();
         // Build: Split(H) { Leaf(1), Split(V) { Leaf(2), Leaf(3) } }
         layout.split_window_area(1, Axis::Horizontal, 0.5, AreaSplitMode::Copy); // ids: 1, 2
         layout.split_window_area(2, Axis::Vertical, 0.5, AreaSplitMode::Copy); // ids: 1, 2, 3
@@ -1388,7 +1396,7 @@ mod tests {
 
     #[test]
     fn test_window_area_rects() {
-        let mut layout = WindowLayout::default();
+        let mut layout = WindowLayout::<()>::default();
         layout.split_window_area(1, Axis::Horizontal, 0.5, AreaSplitMode::Copy);
         let rects = layout.window_area_rects(size(px(1000.0), px(800.0)));
         assert_eq!(rects.len(), 2);
@@ -1404,7 +1412,7 @@ mod tests {
 
     #[test]
     fn test_inner_layout_defaults_to_welcome() {
-        let mut layout = WindowLayout::default();
+        let mut layout = WindowLayout::<()>::default();
         let inner = &layout.ensure_editor_session(1).inner_panel_tree;
         assert_eq!(inner.count_leaves(), 1);
         assert_eq!(
@@ -1417,7 +1425,7 @@ mod tests {
 
     #[test]
     fn test_inner_split_inherits_target_kind() {
-        let mut layout = WindowLayout::default();
+        let mut layout = WindowLayout::<()>::default();
         // Set up inner: Wysiwyg panel (id 2, first allocated panel id).
         let _ = layout.ensure_editor_session(1);
         layout.change_editor_inner_panel_kind(1, 2, EditingPanelKind::Wysiwyg);
@@ -1438,7 +1446,7 @@ mod tests {
 
     #[test]
     fn test_corner_drag_split_inherits_dragged_kind() {
-        let mut layout = WindowLayout::default();
+        let mut layout = WindowLayout::<()>::default();
         let _ = layout.ensure_editor_session(1);
         layout.change_editor_inner_panel_kind(1, 2, EditingPanelKind::Preview);
         // Corner-drag split; the new panel inherits Preview.

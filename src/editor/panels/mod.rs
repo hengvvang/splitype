@@ -8,5 +8,8 @@ pub(crate) mod preview;
 pub(crate) mod source_code;
 pub(crate) mod wysiwyg;
 
+pub(crate) mod explorer;
+pub(crate) mod settings;
+
 pub(crate) use preview::PreviewState;
 pub(crate) use source_code::SourceCodePanelRuntime;

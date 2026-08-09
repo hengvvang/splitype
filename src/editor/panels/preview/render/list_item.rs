@@ -6,7 +6,7 @@ use gpui::*;
 
 use crate::editor::panels::preview::render::inline;
 use crate::editor::tree::block::Block;
-use crate::theme::Theme;
+use crate::infra::theme::Theme;
 
 /// Bullet marker shapes by nesting depth (solid disc, hollow disc, square).
 fn bullet_marker(depth: usize, color: Hsla) -> AnyElement {
