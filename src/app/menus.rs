@@ -179,15 +179,28 @@ fn current_window_candidates(cx: &mut App) -> Vec<AnyWindowHandle> {
 }
 
 fn request_close_editor_window(window: AnyWindowHandle, cx: &mut App) -> bool {
-    let Some(window) = window.downcast::<Editor>() else {
-        return false;
-    };
-
-    window
-        .update(cx, |editor, window, cx| {
-            editor.request_close_current_window(window, cx);
-        })
-        .is_ok()
+    // Production windows are Shell-rooted; close through the primary editor.
+    if let Some(window) = window.clone().downcast::<crate::app::shell::Shell>() {
+        return window
+            .update(cx, |shell, window, cx| {
+                let Some(editor) = shell.primary_editor().cloned() else {
+                    return;
+                };
+                editor.update(cx, |editor, cx| {
+                    editor.request_close_current_window(window, cx);
+                });
+            })
+            .is_ok();
+    }
+    // Transitional Editor-rooted windows (tests).
+    if let Some(window) = window.downcast::<Editor>() {
+        return window
+            .update(cx, |editor, window, cx| {
+                editor.request_close_current_window(window, cx);
+            })
+            .is_ok();
+    }
+    false
 }
 
 fn request_close_current_editor_window(cx: &mut App) {

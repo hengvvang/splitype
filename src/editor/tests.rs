@@ -701,7 +701,10 @@ async fn app_menu_opened_windows_activate_and_close_independently(cx: &mut TestA
 
     assert!(
         second_window
-            .update(cx, |editor, _window, _cx| editor
+            .update(cx, |shell, _window, _cx| shell
+                .primary_editor()
+                .expect("editor area")
+                .read(_cx)
                 .tab()
                 .file
                 .close_guard_installed)
@@ -751,9 +754,12 @@ async fn app_menu_opened_file_window_reinstalls_close_guard_after_registration(
     assert_ne!(first_window.window_id(), second_window.window_id());
 
     second_window
-        .update(cx, |editor, window, cx| {
-            assert!(editor.tab().file.close_guard_installed);
-            assert!(editor.on_window_should_close(window, cx));
+        .update(cx, |shell, window, cx| {
+            let editor = shell.primary_editor().expect("editor area").clone();
+            editor.update(cx, |editor, cx| {
+                assert!(editor.tab().file.close_guard_installed);
+                assert!(editor.on_window_should_close(window, cx));
+            });
         })
         .expect("second editor window should be open");
 
@@ -789,20 +795,25 @@ async fn app_menu_opened_dirty_file_window_prompts_only_that_window(cx: &mut Tes
     cx.run_until_parked();
 
     second_window
-        .update(cx, |editor, window, cx| {
-            editor.mark_dirty(cx);
-            assert!(!editor.on_window_should_close(window, cx));
+        .update(cx, |shell, window, cx| {
+            let editor = shell.primary_editor().expect("editor area").clone();
+            editor.update(cx, |editor, cx| {
+                editor.mark_dirty(cx);
+                assert!(!editor.on_window_should_close(window, cx));
+            });
         })
         .expect("second editor window should be open");
 
     first_window
-        .update(cx, |editor, _window, _cx| {
-            assert!(!editor.tab().file.show_unsaved_changes_dialog);
+        .update(cx, |shell, _window, cx| {
+            let editor = shell.primary_editor().expect("editor area");
+            assert!(!editor.read(cx).tab().file.show_unsaved_changes_dialog);
         })
         .expect("first editor window should be open");
     second_window
-        .update(cx, |editor, _window, _cx| {
-            assert!(editor.tab().file.show_unsaved_changes_dialog);
+        .update(cx, |shell, _window, cx| {
+            let editor = shell.primary_editor().expect("editor area");
+            assert!(editor.read(cx).tab().file.show_unsaved_changes_dialog);
         })
         .expect("second editor window should be open");
 
@@ -822,20 +833,25 @@ async fn app_menu_opened_dirty_window_close_guard_prompts_only_that_window(
     cx.run_until_parked();
 
     second_window
-        .update(cx, |editor, window, cx| {
-            editor.mark_dirty(cx);
-            assert!(!editor.on_window_should_close(window, cx));
+        .update(cx, |shell, window, cx| {
+            let editor = shell.primary_editor().expect("editor area").clone();
+            editor.update(cx, |editor, cx| {
+                editor.mark_dirty(cx);
+                assert!(!editor.on_window_should_close(window, cx));
+            });
         })
         .expect("second editor window should be open");
 
     first_window
-        .update(cx, |editor, _window, _cx| {
-            assert!(!editor.tab().file.show_unsaved_changes_dialog);
+        .update(cx, |shell, _window, cx| {
+            let editor = shell.primary_editor().expect("editor area");
+            assert!(!editor.read(cx).tab().file.show_unsaved_changes_dialog);
         })
         .expect("first editor window should be open");
     second_window
-        .update(cx, |editor, _window, _cx| {
-            assert!(editor.tab().file.show_unsaved_changes_dialog);
+        .update(cx, |shell, _window, cx| {
+            let editor = shell.primary_editor().expect("editor area");
+            assert!(editor.read(cx).tab().file.show_unsaved_changes_dialog);
         })
         .expect("second editor window should be open");
 }

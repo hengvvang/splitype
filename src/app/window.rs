@@ -6,8 +6,10 @@ use anyhow::Context as _;
 use gpui::*;
 
 use crate::app::menus::install_menus;
+use crate::app::shell::{AreaContent, Shell};
 use crate::editor::controller::Editor;
 use crate::infra::config::recent::record_recent_file;
+use crate::layout::ROOT_AREA_ID;
 use crate::ui::custom_titlebar::splitype_window_options;
 
 fn window_title(file_path: Option<&Path>) -> SharedString {
@@ -34,31 +36,40 @@ pub(crate) fn open_editor_window(
     cx: &mut App,
     markdown: String,
     file_path: Option<PathBuf>,
-) -> WindowHandle<Editor> {
+) -> WindowHandle<Shell> {
     let bounds = Bounds::centered(None, size(px(1080.), px(720.)), cx);
     let title = window_title(file_path.as_deref());
     let handle = cx
         .open_window(
             splitype_window_options(title, bounds),
             move |_window, cx| {
-                cx.new(move |cx| {
+                let editor = cx.new(|cx| {
                     // No content and no path → welcome state with zero tabs.
                     if markdown.is_empty() && file_path.is_none() {
-                        Editor::empty(cx)
+                        Editor::empty_in_shell(None, ROOT_AREA_ID, cx)
                     } else {
-                        Editor::from_markdown(cx, markdown, file_path)
+                        Editor::from_markdown_in_shell(None, ROOT_AREA_ID, cx, markdown, file_path)
                     }
+                });
+                cx.new(move |_cx| Shell {
+                    areas: [(ROOT_AREA_ID, AreaContent::Editor(editor))].into(),
                 })
             },
         )
         .unwrap();
 
     handle
-        .update(cx, |editor, window, cx| {
+        .update(cx, |shell, window, cx| {
             window.activate_window();
-            editor.force_install_close_guard(cx, window);
+            let shell_weak = cx.entity().downgrade();
+            if let Some(editor) = shell.primary_editor() {
+                editor.update(cx, |editor, cx| {
+                    editor.shell = Some(shell_weak);
+                    editor.force_install_close_guard(cx, window);
+                });
+            }
         })
-        .expect("newly opened editor window should be updateable");
+        .expect("newly opened shell window should be updateable");
 
     handle
 }

@@ -223,6 +223,15 @@ pub struct Editor {
     /// closures) every frame, so the timestamp must live in editor state
     /// rather than in a click-handler closure.
     pub(crate) welcome_last_click: Option<Instant>,
+    /// Weak handle to the owning window shell (set at construction).
+    pub(crate) shell: Option<crate::app::shell::WeakShell>,
+    /// The outer area this editor renders as content for. Read once the
+    /// editor renders its own area frame instead of the whole window.
+    #[allow(dead_code)] // read by the upcoming area-frame rendering split
+    pub(crate) area_id: crate::layout::AreaId,
+    /// Window-level panel state (outer layout, explorer, outline, settings).
+    /// Owned here for now; the Shell entity delegates rendering to this
+    /// editor and reads this state incrementally.
     pub(crate) panels: WindowPanels,
     /// Per-Editor-area sessions (tab list + inner panel layout), keyed by
     /// outer area id. Retained for areas that left Editor with tabs.
@@ -388,6 +397,15 @@ impl Editor {
     /// before any file is opened or an Untitled tab is started. The default
     /// layout seeds one root Editor area with an empty tab bar.
     pub fn empty(_cx: &mut Context<Self>) -> Self {
+        Self::empty_in_shell(None, crate::layout::ROOT_AREA_ID, _cx)
+    }
+
+    /// Creates an editor with no document tabs, bound to a window shell.
+    pub(crate) fn empty_in_shell(
+        shell: Option<crate::app::shell::WeakShell>,
+        area_id: crate::layout::AreaId,
+        _cx: &mut Context<Self>,
+    ) -> Self {
         Self {
             current_tab_area: None,
             bottombar_state: BottombarState::default(),
@@ -398,6 +416,8 @@ impl Editor {
             info_dialog: None,
             update_check_in_progress: false,
             welcome_last_click: None,
+            shell,
+            area_id,
             panels: WindowPanels::default(),
             editor_sessions: HashMap::new(),
             open_editor_inner_panel_dropdown: None,
@@ -428,6 +448,17 @@ impl Editor {
         markdown: String,
         file_path: Option<PathBuf>,
     ) -> Self {
+        Self::from_markdown_in_shell(None, crate::layout::ROOT_AREA_ID, cx, markdown, file_path)
+    }
+
+    /// Creates an editor from markdown, bound to a window shell.
+    pub(crate) fn from_markdown_in_shell(
+        shell: Option<crate::app::shell::WeakShell>,
+        area_id: crate::layout::AreaId,
+        cx: &mut Context<Self>,
+        markdown: String,
+        file_path: Option<PathBuf>,
+    ) -> Self {
         let tab = Self::new_tab_from_markdown(cx, markdown, file_path);
         let mut editor = Self {
             current_tab_area: None,
@@ -439,6 +470,8 @@ impl Editor {
             info_dialog: None,
             update_check_in_progress: false,
             welcome_last_click: None,
+            shell,
+            area_id,
             panels: WindowPanels::default(),
             editor_sessions: HashMap::new(),
             open_editor_inner_panel_dropdown: None,
