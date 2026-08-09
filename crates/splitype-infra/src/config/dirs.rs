@@ -25,8 +25,8 @@ impl SplitypeConfigDirs {
         })
     }
 
-    /// Creates a directory set from a caller-provided root for tests.
-    #[cfg(test)]
+    /// Creates a directory set from a caller-provided root, used by
+    /// integration tests and embedders to isolate file I/O.
     pub fn from_root(root: impl Into<PathBuf>) -> Self {
         Self { root: root.into() }
     }
