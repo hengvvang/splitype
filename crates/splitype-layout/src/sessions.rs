@@ -6,8 +6,8 @@
 
 use gpui::{Pixels, Point};
 
-use crate::layout::tree::{AreaRect, Axis, Direction};
-use crate::layout::types::{AreaId, AreaSplitMode, PanelId};
+use crate::tree::{AreaRect, Axis, Direction};
+use crate::types::{AreaId, AreaSplitMode, PanelId};
 
 /// Modifier key held during a corner drag.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

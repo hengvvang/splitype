@@ -10,13 +10,13 @@ use std::collections::HashMap;
 
 use gpui::{Pixels, Point, Size};
 
-use crate::layout::sessions::{
+use crate::sessions::{
     BorderMenuState, CornerDragModifier, CornerDragPreview, CornerDragSession,
     EditorInnerPanelDragAction, MODIFIER_THRESHOLD_PX, SplitterDragSession, WindowAreaDragAction,
     id_at_point,
 };
-use crate::layout::tree::{AreaRect, Axis, Direction, SplitTree};
-use crate::layout::types::{
+use crate::tree::{AreaRect, Axis, Direction, SplitTree};
+use crate::types::{
     AreaId, AreaSplitMode, EditingPanelKind, EditorAreaMode, EditorInnerPanelKind,
     InnerPanelLocation, PanelId, SplitId, WelcomePanelKind, WindowAreaKind,
 };
@@ -88,7 +88,7 @@ pub struct WindowLayout<T> {
 }
 
 /// The id of the root area created by the default layout.
-pub(crate) const ROOT_AREA_ID: AreaId = 1;
+pub const ROOT_AREA_ID: AreaId = 1;
 
 impl<T> Default for WindowLayout<T> {
     fn default() -> Self {

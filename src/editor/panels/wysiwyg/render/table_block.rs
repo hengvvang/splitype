@@ -5,14 +5,15 @@ use gpui::*;
 
 use crate::editor::block_protocol::BlockAction;
 use crate::editor::editing::table_runtime::TableGrid;
+use crate::editor::geometry::table_measure::measure_table_column_layout;
 use crate::editor::panels::wysiwyg::render::effective_table_width;
 use crate::editor::tree::block::Block;
 use crate::editor::tree::block_edit_mode::BlockEditMode;
+use crate::infra::theme::Theme;
 use crate::model::syntax::table::TableAxisHighlight;
 use crate::model::syntax::table::TableCellPosition;
 use crate::model::syntax::table::TableColumnAlignment;
 use crate::model::syntax::table::{TableAxisKind, TableAxisMarker, TableColumnLayout};
-use crate::infra::theme::Theme;
 
 /// Render a native table block.
 pub(crate) fn render_table(
@@ -53,7 +54,7 @@ pub(crate) fn render_table(
         .record
         .table
         .as_ref()
-        .map(|table| TableColumnLayout::measure(table, table_width, window, theme))
+        .map(|table| measure_table_column_layout(table, table_width, window, theme))
         .unwrap_or_else(|| TableColumnLayout::equal(runtime.header.len()));
     let preview_marker = block.table_axis_preview;
     let selected_marker = block.table_axis_selection;
@@ -430,13 +431,16 @@ pub(crate) fn render_table(
                     .block_mouse_except_scroll()
                     .on_hover(cx.listener(Block::on_table_append_column_button_hover))
                     .on_click(cx.listener(Block::on_append_table_column))
-                    .child(svg().path("icons/editor/wysiwyg/table/plus.svg").size(px(12.0)).text_color(
-                        if column_button_hovered {
-                            c.table_append_button_text
-                        } else {
-                            c.table_border
-                        },
-                    )),
+                    .child(
+                        svg()
+                            .path("icons/editor/wysiwyg/table/plus.svg")
+                            .size(px(12.0))
+                            .text_color(if column_button_hovered {
+                                c.table_append_button_text
+                            } else {
+                                c.table_border
+                            }),
+                    ),
             );
 
         let row_control = div()
@@ -479,13 +483,16 @@ pub(crate) fn render_table(
                     .block_mouse_except_scroll()
                     .on_hover(cx.listener(Block::on_table_append_row_button_hover))
                     .on_click(cx.listener(Block::on_append_table_row))
-                    .child(svg().path("icons/editor/wysiwyg/table/plus.svg").size(px(12.0)).text_color(
-                        if row_button_hovered {
-                            c.table_append_button_text
-                        } else {
-                            c.table_border
-                        },
-                    )),
+                    .child(
+                        svg()
+                            .path("icons/editor/wysiwyg/table/plus.svg")
+                            .size(px(12.0))
+                            .text_color(if row_button_hovered {
+                                c.table_append_button_text
+                            } else {
+                                c.table_border
+                            }),
+                    ),
             );
 
         let expand_control = div()

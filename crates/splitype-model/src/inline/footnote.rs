@@ -24,7 +24,7 @@ pub struct InlineFootnoteHit {
 
 impl InlineFootnoteReference {
     /// Reconstruct the raw `[^id]` Markdown for this reference.
-    pub(crate) fn raw_markdown(&self) -> String {
+    pub fn raw_markdown(&self) -> String {
         format!("[^{}]", self.id)
     }
 
@@ -56,7 +56,7 @@ pub(crate) fn parse_inline_footnote_reference(markdown: &str) -> Option<String> 
 }
 
 /// Converts a footnote ordinal to a superscript Unicode string.
-pub(crate) fn superscript_ordinal(ordinal: usize) -> String {
+pub fn superscript_ordinal(ordinal: usize) -> String {
     ordinal
         .to_string()
         .chars()

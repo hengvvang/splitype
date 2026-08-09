@@ -4,10 +4,10 @@
 
 use gpui::*;
 
-use crate::editor::tree::block::Block;
+use crate::editor::geometry::table_measure::measure_table_column_layout;
 use crate::editor::panels::preview::render::inline;
 use crate::editor::panels::preview::render::preview_centered_column_width;
-use crate::model::syntax::table::TableColumnLayout;
+use crate::editor::tree::block::Block;
 use crate::infra::theme::Theme;
 
 /// Renders a native table block read-only with content-measured column
@@ -39,7 +39,7 @@ pub(crate) fn render_preview_table(
 
     let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
     let table_width = preview_centered_column_width(viewport_width, d);
-    let column_layout = TableColumnLayout::measure(table, table_width, window, theme);
+    let column_layout = measure_table_column_layout(table, table_width, window, theme);
 
     let header_cells = table
         .header
@@ -50,18 +50,14 @@ pub(crate) fn render_preview_table(
         })
         .collect::<Vec<_>>();
 
-    let header_row = div()
-        .w_full()
-        .flex()
-        .gap(px(0.0))
-        .child(
-            div()
-                .w_full()
-                .flex()
-                .children(header_cells)
-                .border_b(px(d.table_selection_border_width.max(1.0)))
-                .border_color(c.table_border),
-        );
+    let header_row = div().w_full().flex().gap(px(0.0)).child(
+        div()
+            .w_full()
+            .flex()
+            .children(header_cells)
+            .border_b(px(d.table_selection_border_width.max(1.0)))
+            .border_color(c.table_border),
+    );
 
     let body_rows = table
         .rows

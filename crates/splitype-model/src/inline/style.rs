@@ -60,7 +60,7 @@ impl InlineStyle {
 
 /// Inline style flag addressable by editing commands (toggle bold, italic, etc.).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum StyleFlag {
+pub enum StyleFlag {
     Bold,
     Italic,
     Underline,

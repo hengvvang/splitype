@@ -59,12 +59,12 @@ impl InlineLink {
 
     /// Whether the link syntax is source-preserving (cannot be losslessly
     /// reconstructed from plain text alone).
-    pub(crate) fn is_source_preserving(&self) -> bool {
+    pub fn is_source_preserving(&self) -> bool {
         matches!(self, Self::Reference { .. } | Self::Autolink { .. })
     }
 
     /// Opening marker for Markdown serialization.
-    pub(crate) fn open_marker(&self) -> &'static str {
+    pub fn open_marker(&self) -> &'static str {
         match self {
             Self::Autolink { .. } => "<",
             Self::Inline { .. } | Self::Reference { .. } => "[",
@@ -72,7 +72,7 @@ impl InlineLink {
     }
 
     /// Middle marker between label and target (None for autolinks).
-    pub(crate) fn middle_marker(&self) -> Option<&'static str> {
+    pub fn middle_marker(&self) -> Option<&'static str> {
         match self {
             Self::Inline { .. } => Some("]("),
             Self::Reference { .. } => Some("]["),
@@ -81,7 +81,7 @@ impl InlineLink {
     }
 
     /// The editable portion of the link syntax (URL + optional title, or reference label).
-    pub(crate) fn editable_text(&self) -> Option<String> {
+    pub fn editable_text(&self) -> Option<String> {
         match self {
             Self::Inline { destination, title } => {
                 Some(format_inline_link_target(destination, title.as_deref()))
@@ -92,7 +92,7 @@ impl InlineLink {
     }
 
     /// Closing marker for Markdown serialization.
-    pub(crate) fn close_marker(&self) -> &'static str {
+    pub fn close_marker(&self) -> &'static str {
         match self {
             Self::Inline { .. } => ")",
             Self::Reference { .. } => "]",

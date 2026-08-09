@@ -5,7 +5,7 @@
 //! are still outside the runtime-safe subset continue to use raw-Markdown
 //! fallback paths.
 
-use crate::model::inline::text::RichText;
+use crate::inline::text::RichText;
 
 /// Horizontal alignment declared by the table's delimiter row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -645,7 +645,7 @@ mod tests {
         collect_root_table_candidate_region, is_root_table_candidate_line, parse_root_table_region,
         serialize_table_markdown_lines,
     };
-    use crate::model::inline::text::RichText;
+    use crate::inline::text::RichText;
 
     fn assert_close(left: f32, right: f32) {
         assert!(

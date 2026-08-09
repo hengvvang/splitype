@@ -8,10 +8,10 @@
 
 use super::id::BlockId;
 use super::kind::BlockKind;
-use crate::model::inline::text::RichText;
-use crate::model::syntax::html::{HtmlDocument, parse_html_document};
-use crate::model::syntax::image::parse_standalone_image;
-use crate::model::syntax::table::TableData;
+use crate::inline::text::RichText;
+use crate::syntax::html::{HtmlDocument, parse_html_document};
+use crate::syntax::image::parse_standalone_image;
+use crate::syntax::table::TableData;
 
 /// Persistent data of a single block in the document tree.
 #[derive(Debug, Clone)]

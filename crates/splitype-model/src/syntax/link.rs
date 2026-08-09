@@ -8,7 +8,7 @@ use std::str::FromStr;
 
 use gpui::http_client::Uri;
 
-use crate::model::syntax::image::normalize_reference_label;
+use crate::syntax::image::normalize_reference_label;
 
 /// A single link reference definition: `[label]: destination "title"`.
 #[derive(Clone, Debug, PartialEq, Eq)]

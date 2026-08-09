@@ -6,40 +6,40 @@
 
 use std::ops::Range;
 
-use crate::model::inline::text::RichText;
+use crate::inline::text::RichText;
 
 /// Bidirectional offset map between source Markdown and visible inline text.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct InlineMarkdownOffsetMap {
+pub struct InlineMarkdownOffsetMap {
     pub(crate) markdown: String,
     pub(crate) visible_to_markdown: Vec<usize>,
     pub(crate) markdown_to_visible: Vec<usize>,
 }
 
 impl InlineMarkdownOffsetMap {
-    pub(crate) fn markdown(&self) -> &str {
+    pub fn markdown(&self) -> &str {
         &self.markdown
     }
 
-    pub(crate) fn visible_to_markdown_offset(&self, offset: usize) -> usize {
+    pub fn visible_to_markdown_offset(&self, offset: usize) -> usize {
         self.visible_to_markdown
             .get(offset.min(self.visible_to_markdown.len().saturating_sub(1)))
             .copied()
             .unwrap_or(0)
     }
 
-    pub(crate) fn visible_to_markdown_range(&self, range: Range<usize>) -> Range<usize> {
+    pub fn visible_to_markdown_range(&self, range: Range<usize>) -> Range<usize> {
         self.visible_to_markdown_offset(range.start)..self.visible_to_markdown_offset(range.end)
     }
 
-    pub(crate) fn markdown_to_visible_offset(&self, offset: usize) -> usize {
+    pub fn markdown_to_visible_offset(&self, offset: usize) -> usize {
         self.markdown_to_visible
             .get(offset.min(self.markdown_to_visible.len().saturating_sub(1)))
             .copied()
             .unwrap_or(0)
     }
 
-    pub(crate) fn markdown_to_visible_range(&self, range: Range<usize>) -> Range<usize> {
+    pub fn markdown_to_visible_range(&self, range: Range<usize>) -> Range<usize> {
         self.markdown_to_visible_offset(range.start)..self.markdown_to_visible_offset(range.end)
     }
 }

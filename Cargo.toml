@@ -5,7 +5,14 @@ edition = "2024"
 repository = "https://github.com/hengvvang/splitype"
 license = "Apache-2.0"
 
-[lints.clippy]
+[workspace]
+members = [
+    ".",
+    "crates/splitype-model",
+    "crates/splitype-layout",
+]
+
+[workspace.lints.clippy]
 # Allow stylistic patterns the project doesn't enforce. These mirror the
 # spirit of gpui-component's workspace lints — categorically silence
 # noise (range-loop indexing, identical-block flagging, helper-arg
@@ -24,10 +31,13 @@ question_mark = "allow"
 collapsible_if = "allow"
 collapsible_else_if = "allow"
 
+[lints]
+workspace = true
+
 [features]
 default = ["code-highlight-core", "code-highlight-official", "code-highlight-config", "html-native"]
 code-highlight-core = ["dep:tree-sitter", "dep:tree-sitter-highlight"]
-html-native = ["dep:tree-sitter", "dep:tree-sitter-html"]
+html-native = ["dep:tree-sitter", "dep:tree-sitter-html", "splitype-model/html-native"]
 code-highlight-official = [
     "code-highlight-core",
     "dep:tree-sitter-rust",
@@ -58,6 +68,8 @@ anyhow = "1"
 base64 = "0.22.1"
 uuid = "1.23"
 gpui = { version = "0.2.2", features = ["runtime_shaders"] }
+splitype-model = { path = "crates/splitype-model" }
+splitype-layout = { path = "crates/splitype-layout" }
 unicode-segmentation = "1.13"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

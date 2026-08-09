@@ -9,14 +9,14 @@ use std::ops::Range;
 
 use super::markdown::{NormalizeBuilder, flatten_tokens, parse_until};
 use super::serialize::{clamp_to_char_boundary, serialize_fragment_run_markdown_with_offset_map};
-use crate::model::inline::footnote::{InlineFootnoteReference, superscript_ordinal};
-use crate::model::inline::latex::InlineLatex;
-use crate::model::inline::link::InlineLink;
-use crate::model::inline::offsets::{InlineEditResult, InlineMarkdownOffsetMap};
-use crate::model::inline::render_cache::InlineRenderCache;
-use crate::model::inline::style::{InlineStyle, StyleFlag, set_style_flag, style_flag_enabled};
-use crate::model::syntax::html::HtmlInlineStyle;
-use crate::model::syntax::link::LinkReferenceDefinitions;
+use crate::inline::footnote::{InlineFootnoteReference, superscript_ordinal};
+use crate::inline::latex::InlineLatex;
+use crate::inline::link::InlineLink;
+use crate::inline::offsets::{InlineEditResult, InlineMarkdownOffsetMap};
+use crate::inline::render_cache::InlineRenderCache;
+use crate::inline::style::{InlineStyle, StyleFlag, set_style_flag, style_flag_enabled};
+use crate::syntax::html::HtmlInlineStyle;
+use crate::syntax::link::LinkReferenceDefinitions;
 
 /// A contiguous run of text with a uniform [`InlineStyle`].
 ///
@@ -54,7 +54,7 @@ pub struct InlineInsertionAttributes {
 /// Markdown and HTML delimiter variants, avoiding ambiguous `****` runs.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct RichText {
-    pub(crate) fragments: Vec<InlineFragment>,
+    pub fragments: Vec<InlineFragment>,
 }
 
 impl RichText {
@@ -131,7 +131,7 @@ impl RichText {
             .sum()
     }
 
-    pub(crate) fn has_source_preserving_links(&self) -> bool {
+    pub fn has_source_preserving_links(&self) -> bool {
         self.fragments.iter().any(|fragment| {
             fragment
                 .link
@@ -146,25 +146,25 @@ impl RichText {
     /// reference/autolink links these are not "source preserving", but their
     /// `[...](...)` markers are still stripped from the fragment text, so an
     /// edit that re-derives the tree from visible text alone would drop them.
-    pub(crate) fn has_inline_links(&self) -> bool {
+    pub fn has_inline_links(&self) -> bool {
         self.fragments
             .iter()
             .any(|fragment| matches!(fragment.link, Some(InlineLink::Inline { .. })))
     }
 
-    pub(crate) fn has_mixed_inline_visuals(&self) -> bool {
+    pub fn has_mixed_inline_visuals(&self) -> bool {
         self.fragments
             .iter()
             .any(|fragment| fragment.math.is_some() || fragment.style.has_script())
     }
 
-    pub(crate) fn has_footnote_references(&self) -> bool {
+    pub fn has_footnote_references(&self) -> bool {
         self.fragments
             .iter()
             .any(|fragment| fragment.footnote.is_some())
     }
 
-    pub(crate) fn apply_footnote_reference_state(
+    pub fn apply_footnote_reference_state(
         &mut self,
         mut resolve: impl FnMut(&str) -> Option<(usize, usize)>,
     ) {
@@ -198,7 +198,7 @@ impl RichText {
         self.markdown_offset_map().markdown
     }
 
-    pub(crate) fn markdown_offset_map(&self) -> InlineMarkdownOffsetMap {
+    pub fn markdown_offset_map(&self) -> InlineMarkdownOffsetMap {
         if self.fragments.is_empty() {
             return InlineMarkdownOffsetMap {
                 markdown: String::new(),
@@ -401,7 +401,7 @@ impl RichText {
         self.normalize_fragments();
     }
 
-    pub(crate) fn replace_fragment_range(
+    pub fn replace_fragment_range(
         &mut self,
         range: Range<usize>,
         replacement: Vec<InlineFragment>,
@@ -496,7 +496,7 @@ impl RichText {
         self.toggle_style(range, StyleFlag::Code)
     }
 
-    pub(crate) fn unwrap_styles_on_fragments(&mut self, targets: &[(usize, StyleFlag)]) {
+    pub fn unwrap_styles_on_fragments(&mut self, targets: &[(usize, StyleFlag)]) {
         if targets.is_empty() {
             return;
         }

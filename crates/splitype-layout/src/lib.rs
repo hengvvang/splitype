@@ -12,10 +12,10 @@
 //! It depends only on gpui's geometry types (`Point`/`Size`/`Pixels`);
 //! rendering and Editor state live in `src/windows` / `src/editor`.
 
-pub(crate) mod sessions;
-pub(crate) mod state;
-pub(crate) mod tree;
-pub(crate) mod types;
+pub mod sessions;
+pub mod state;
+pub mod tree;
+pub mod types;
 
 pub use sessions::*;
 pub use state::*;

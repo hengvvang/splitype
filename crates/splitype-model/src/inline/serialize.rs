@@ -8,7 +8,7 @@ use super::markdown::{
 use super::offsets::InlineMarkdownOffsetMap;
 use super::style::{InlineScript, InlineStyle};
 use super::text::InlineFragment;
-use crate::model::syntax::html::HtmlInlineStyle;
+use crate::syntax::html::HtmlInlineStyle;
 
 // ---------------------------------------------------------------------------
 // Serializer helpers
@@ -760,7 +760,7 @@ fn stack_variants(
     vec![markdown_stack, html_stack]
 }
 
-pub(crate) fn can_use_markdown_script_delimiters(
+pub fn can_use_markdown_script_delimiters(
     previous_fragment: Option<&InlineFragment>,
     fragment: &InlineFragment,
 ) -> bool {

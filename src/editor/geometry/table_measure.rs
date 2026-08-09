@@ -1,10 +1,12 @@
-//! Table column width measurement — preferred-width estimation and the
-//! `TableColumnLayout::measure` entry point.
+//! Table column width measurement — preferred-width estimation using the
+//! window's text system.
 //!
 //! Text shaping requires a live `Window` and theme dimensions, so this
 //! presentation logic lives in `editor::geometry` instead of the pure
-//! `model::syntax::table` data model. The layout *math* (`from_preferred_widths`)
-//! stays in the model, keeping the model testable without a runtime.
+//! `splitype_model::syntax::table` data model. The layout *math*
+//! (`from_preferred_widths`) stays in the model, keeping the model testable
+//! without a runtime. It is a free function (not an `impl` on
+//! `TableColumnLayout`) because the type is defined in `splitype-model`.
 
 use gpui::{FontStyle, FontWeight, Pixels, SharedString, TextRun, Window, px};
 
@@ -13,21 +15,23 @@ use crate::model::inline::render_cache::InlineRenderCache;
 use crate::model::inline::text::RichText;
 use crate::model::syntax::table::{TableColumnLayout, TableData};
 
-impl TableColumnLayout {
-    /// Measure preferred column widths with the window's text system and
-    /// normalize them to fractions of the available table width.
-    pub fn measure(
-        table: &TableData,
-        table_width: f32,
-        window: &mut Window,
-        theme: &Theme,
-    ) -> Self {
-        let preferred_widths = measure_preferred_column_widths(table, window, theme)
-            .into_iter()
-            .map(f32::from)
-            .collect::<Vec<_>>();
-        Self::from_preferred_widths(&preferred_widths, table_width, minimum_column_width(theme))
-    }
+/// Measure preferred column widths with the window's text system and
+/// normalize them to fractions of the available table width.
+pub(crate) fn measure_table_column_layout(
+    table: &TableData,
+    table_width: f32,
+    window: &mut Window,
+    theme: &Theme,
+) -> TableColumnLayout {
+    let preferred_widths = measure_preferred_column_widths(table, window, theme)
+        .into_iter()
+        .map(f32::from)
+        .collect::<Vec<_>>();
+    TableColumnLayout::from_preferred_widths(
+        &preferred_widths,
+        table_width,
+        minimum_column_width(theme),
+    )
 }
 
 fn measure_preferred_column_widths(

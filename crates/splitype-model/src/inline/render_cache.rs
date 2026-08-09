@@ -5,12 +5,12 @@
 
 use std::ops::Range;
 
-use crate::model::inline::footnote::InlineFootnoteReference;
-use crate::model::inline::latex::InlineLatex;
-use crate::model::inline::link::InlineLink;
-use crate::model::inline::style::InlineStyle;
-use crate::model::inline::text::RichText;
-use crate::model::syntax::html::HtmlInlineStyle;
+use crate::inline::footnote::InlineFootnoteReference;
+use crate::inline::latex::InlineLatex;
+use crate::inline::link::InlineLink;
+use crate::inline::style::InlineStyle;
+use crate::inline::text::RichText;
+use crate::syntax::html::HtmlInlineStyle;
 
 /// A visible-text range with its associated [`InlineStyle`], used by
 /// the render cache to build styled text runs for the text system.
@@ -19,8 +19,8 @@ pub struct InlineSpan {
     pub range: Range<usize>,
     pub style: InlineStyle,
     pub html_style: Option<HtmlInlineStyle>,
-    pub link: Option<crate::model::inline::link::InlineLinkHit>,
-    pub footnote: Option<crate::model::inline::footnote::InlineFootnoteHit>,
+    pub link: Option<crate::inline::link::InlineLinkHit>,
+    pub footnote: Option<crate::inline::footnote::InlineFootnoteHit>,
     pub math: Option<InlineLatex>,
 }
 
@@ -100,7 +100,7 @@ impl InlineRenderCache {
         self.link_hit_at(offset).map(|hit| hit.open_target.as_str())
     }
 
-    pub fn link_hit_at(&self, offset: usize) -> Option<&crate::model::inline::link::InlineLinkHit> {
+    pub fn link_hit_at(&self, offset: usize) -> Option<&crate::inline::link::InlineLinkHit> {
         self.spans
             .iter()
             .find(|span| span.range.start <= offset && offset < span.range.end)
@@ -111,7 +111,7 @@ impl InlineRenderCache {
     pub fn footnote_hit_at(
         &self,
         offset: usize,
-    ) -> Option<&crate::model::inline::footnote::InlineFootnoteHit> {
+    ) -> Option<&crate::inline::footnote::InlineFootnoteHit> {
         self.spans
             .iter()
             .find(|span| span.range.start <= offset && offset < span.range.end)

@@ -5,22 +5,22 @@
 //! This module has no GPUI context or entity dependencies — it operates
 //! entirely on plain data types from `core::ast` and `core::text`.
 
-use crate::model::block::callout::CalloutKind;
-use crate::model::block::fence::CodeFenceOpening;
-use crate::model::block::kind::BlockKind;
-use crate::model::block::record::BlockData;
-use crate::model::inline::text::RichText;
-use crate::model::parse::indent::{
+use crate::block::callout::CalloutKind;
+use crate::block::fence::CodeFenceOpening;
+use crate::block::kind::BlockKind;
+use crate::block::record::BlockData;
+use crate::inline::text::RichText;
+use crate::parse::indent::{
     collect_until_blank_line, dedent_lines, display_columns, is_quote_start,
     leading_indent_columns_and_bytes, strip_fence_indent, strip_indented_code_prefix,
     strip_leading_columns, strip_one_quote_level,
 };
-use crate::model::syntax::footnote::parse_footnote_definition_head;
-use crate::model::syntax::html::{HtmlSafetyClass, parse_html_document};
-use crate::model::syntax::image::parse_standalone_image;
-use crate::model::syntax::math::parse_display_math_source;
-use crate::model::syntax::mermaid::is_mermaid_info_string;
-use crate::model::syntax::table::{
+use crate::syntax::footnote::parse_footnote_definition_head;
+use crate::syntax::html::{HtmlSafetyClass, parse_html_document};
+use crate::syntax::image::parse_standalone_image;
+use crate::syntax::math::parse_display_math_source;
+use crate::syntax::mermaid::is_mermaid_info_string;
+use crate::syntax::table::{
     collect_pipeless_table_region, collect_root_table_candidate_region,
     collect_table_candidate_region, is_root_table_candidate_line, is_table_candidate_line,
     parse_root_table_region, parse_table_region,
