@@ -12,7 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use gpui::Keystroke;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) enum ShortcutCategory {
+pub enum ShortcutCategory {
     File,
     Edit,
     Navigation,
@@ -23,7 +23,7 @@ pub(crate) enum ShortcutCategory {
 
 #[repr(u32)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) enum ShortcutCommand {
+pub enum ShortcutCommand {
     Newline,
     DeleteBack,
     Delete,
@@ -74,13 +74,13 @@ pub(crate) enum ShortcutCommand {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct ShortcutDefinition {
-    pub(crate) command: ShortcutCommand,
-    pub(crate) id: &'static str,
+pub struct ShortcutDefinition {
+    pub command: ShortcutCommand,
+    pub id: &'static str,
     #[allow(dead_code)]
-    pub(crate) category: ShortcutCategory,
-    pub(crate) default_keys: &'static [&'static str],
-    pub(crate) context: Option<&'static str>,
+    pub category: ShortcutCategory,
+    pub default_keys: &'static [&'static str],
+    pub context: Option<&'static str>,
 }
 
 const BLOCK_CONTEXT: Option<&str> = Some("BlockEditor");
@@ -102,7 +102,7 @@ const CLOSE_WINDOW_DEFAULT_KEYS: &[&str] = &["cmd-w"];
 #[cfg(not(target_os = "macos"))]
 const CLOSE_WINDOW_DEFAULT_KEYS: &[&str] = &["ctrl-q"];
 
-pub(crate) const SHORTCUT_DEFINITIONS: &[ShortcutDefinition] = &[
+pub const SHORTCUT_DEFINITIONS: &[ShortcutDefinition] = &[
     ShortcutDefinition {
         command: ShortcutCommand::Newline,
         id: "newline",
@@ -438,11 +438,11 @@ pub(crate) const SHORTCUT_DEFINITIONS: &[ShortcutDefinition] = &[
 ];
 
 #[allow(dead_code)]
-pub(crate) fn shortcut_definitions() -> &'static [ShortcutDefinition] {
+pub fn shortcut_definitions() -> &'static [ShortcutDefinition] {
     SHORTCUT_DEFINITIONS
 }
 
-pub(crate) fn normalize_shortcut_keys(keys: &[String]) -> Option<Vec<String>> {
+pub fn normalize_shortcut_keys(keys: &[String]) -> Option<Vec<String>> {
     let mut seen = BTreeSet::new();
     let mut normalized = Vec::new();
     for key in keys {
@@ -458,7 +458,7 @@ pub(crate) fn normalize_shortcut_keys(keys: &[String]) -> Option<Vec<String>> {
     (!normalized.is_empty()).then_some(normalized)
 }
 
-pub(crate) fn default_keys(definition: ShortcutDefinition) -> Vec<String> {
+pub fn default_keys(definition: ShortcutDefinition) -> Vec<String> {
     definition
         .default_keys
         .iter()
@@ -504,7 +504,7 @@ fn shortcuts_conflict(
     left.context == right.context && left_keys.iter().any(|key| right_keys.contains(key))
 }
 
-pub(crate) fn normalize_shortcut_config(
+pub fn normalize_shortcut_config(
     config: &BTreeMap<String, Vec<String>>,
 ) -> BTreeMap<String, Vec<String>> {
     let mut effective: BTreeMap<&'static str, (bool, Vec<String>)> = BTreeMap::new();
@@ -557,7 +557,7 @@ pub(crate) fn normalize_shortcut_config(
 }
 
 #[allow(dead_code)]
-pub(crate) fn resolved_shortcut_keys(
+pub fn resolved_shortcut_keys(
     config: &BTreeMap<String, Vec<String>>,
     command: ShortcutCommand,
 ) -> Vec<String> {
@@ -573,7 +573,7 @@ pub(crate) fn resolved_shortcut_keys(
 }
 
 #[allow(dead_code)]
-pub(crate) fn shortcut_conflict_for(
+pub fn shortcut_conflict_for(
     command: ShortcutCommand,
     proposed_keys: &[String],
     config: &BTreeMap<String, Vec<String>>,

@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use gpui::{App, Global};
 
-use crate::infra::config::dirs::SplitypeConfigDirs;
-use crate::infra::config::jsonc::{read_json_or_jsonc, sanitize_config_file_stem};
+use crate::config::dirs::SplitypeConfigDirs;
+use crate::config::jsonc::{read_json_or_jsonc, sanitize_config_file_stem};
 
 use super::theme::{
     BUILTIN_THEME_SPLITYPE_ID, BUILTIN_THEME_SPLITYPE_LIGHT_ID, BUILTIN_THEME_SPLITYPE_LIGHT_NAME,
@@ -42,7 +42,7 @@ impl Default for ThemeManager {
 impl ThemeManager {
     /// Installs the configured theme into GPUI's global state.
     pub fn init(cx: &mut App) {
-        let theme_id = crate::infra::config::settings::read_app_settings()
+        let theme_id = crate::config::settings::read_app_settings()
             .map(|preferences| preferences.default_theme_id)
             .unwrap_or_else(|_| BUILTIN_THEME_SPLITYPE_ID.into());
         Self::init_with_theme_id(cx, &theme_id);
@@ -246,8 +246,8 @@ impl ThemeManager {
 #[cfg(test)]
 mod tests {
     use super::ThemeManager;
-    use crate::infra::config::dirs::SplitypeConfigDirs;
-    use crate::infra::theme::theme::Theme;
+    use crate::config::dirs::SplitypeConfigDirs;
+    use crate::theme::theme::Theme;
     use gpui::rgba;
 
     #[test]

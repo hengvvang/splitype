@@ -11,7 +11,7 @@
 //!
 //! Everything here depends only on gpui and other `infra` submodules.
 
-pub(crate) mod config;
-pub(crate) mod i18n;
-pub(crate) mod net;
-pub(crate) mod theme;
+pub mod config;
+pub mod i18n;
+pub mod net;
+pub mod theme;

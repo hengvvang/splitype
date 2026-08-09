@@ -5940,14 +5940,12 @@ dependencies = [
  "ratex-layout",
  "ratex-parser",
  "ratex-svg",
- "reqwest",
  "schemars",
- "semver",
  "serde",
  "serde_json",
+ "splitype-infra",
  "splitype-layout",
  "splitype-model",
- "sys-locale",
  "tokio",
  "toml 1.1.2+spec-1.1.0",
  "trash",
@@ -5974,6 +5972,23 @@ dependencies = [
  "url",
  "uuid",
  "windows 0.61.3",
+]
+
+[[package]]
+name = "splitype-infra"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "directories",
+ "futures",
+ "gpui",
+ "reqwest",
+ "semver",
+ "serde",
+ "serde_json",
+ "sys-locale",
+ "toml 1.1.2+spec-1.1.0",
+ "uuid",
 ]
 
 [[package]]

@@ -6,30 +6,30 @@ use anyhow::{bail, Context as _};
 
 use super::dirs::SplitypeConfigDirs;
 
-pub(crate) const RECENT_FILES_LIMIT: usize = 20;
-pub(crate) const RECENT_FOLDERS_LIMIT: usize = 10;
+pub const RECENT_FILES_LIMIT: usize = 20;
+pub const RECENT_FOLDERS_LIMIT: usize = 10;
 
-pub(crate) fn read_recent_files() -> anyhow::Result<Vec<PathBuf>> {
+pub fn read_recent_files() -> anyhow::Result<Vec<PathBuf>> {
     read_recent_files_with_dirs(&SplitypeConfigDirs::from_system()?)
 }
 
-pub(crate) fn record_recent_file(path: &Path) -> anyhow::Result<Vec<PathBuf>> {
+pub fn record_recent_file(path: &Path) -> anyhow::Result<Vec<PathBuf>> {
     record_recent_file_with_dirs(path, &SplitypeConfigDirs::from_system()?)
 }
 
-pub(crate) fn remove_recent_file(path: &Path) -> anyhow::Result<Vec<PathBuf>> {
+pub fn remove_recent_file(path: &Path) -> anyhow::Result<Vec<PathBuf>> {
     remove_recent_file_with_dirs(path, &SplitypeConfigDirs::from_system()?)
 }
 
-pub(crate) fn read_recent_folders() -> anyhow::Result<Vec<PathBuf>> {
+pub fn read_recent_folders() -> anyhow::Result<Vec<PathBuf>> {
     read_recent_folders_with_dirs(&SplitypeConfigDirs::from_system()?)
 }
 
-pub(crate) fn record_recent_folder(path: &Path) -> anyhow::Result<Vec<PathBuf>> {
+pub fn record_recent_folder(path: &Path) -> anyhow::Result<Vec<PathBuf>> {
     record_recent_folder_with_dirs(path, &SplitypeConfigDirs::from_system()?)
 }
 
-pub(crate) fn read_recent_files_with_dirs(
+pub fn read_recent_files_with_dirs(
     dirs: &SplitypeConfigDirs,
 ) -> anyhow::Result<Vec<PathBuf>> {
     let path = dirs.history_file();
@@ -44,7 +44,7 @@ pub(crate) fn read_recent_files_with_dirs(
     Ok(normalize_recent_files(text.lines().map(PathBuf::from)))
 }
 
-pub(crate) fn record_recent_file_with_dirs(
+pub fn record_recent_file_with_dirs(
     path: &Path,
     dirs: &SplitypeConfigDirs,
 ) -> anyhow::Result<Vec<PathBuf>> {
@@ -64,7 +64,7 @@ pub(crate) fn record_recent_file_with_dirs(
     Ok(paths)
 }
 
-pub(crate) fn remove_recent_file_with_dirs(
+pub fn remove_recent_file_with_dirs(
     path: &Path,
     dirs: &SplitypeConfigDirs,
 ) -> anyhow::Result<Vec<PathBuf>> {
@@ -74,7 +74,7 @@ pub(crate) fn remove_recent_file_with_dirs(
     Ok(paths)
 }
 
-pub(crate) fn read_recent_folders_with_dirs(
+pub fn read_recent_folders_with_dirs(
     dirs: &SplitypeConfigDirs,
 ) -> anyhow::Result<Vec<PathBuf>> {
     let path = dirs.recent_folders_file();
@@ -88,7 +88,7 @@ pub(crate) fn read_recent_folders_with_dirs(
     Ok(normalize_recent_files(text.lines().map(PathBuf::from)))
 }
 
-pub(crate) fn record_recent_folder_with_dirs(
+pub fn record_recent_folder_with_dirs(
     path: &Path,
     dirs: &SplitypeConfigDirs,
 ) -> anyhow::Result<Vec<PathBuf>> {

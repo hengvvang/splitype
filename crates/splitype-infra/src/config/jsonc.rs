@@ -5,7 +5,7 @@ use std::path::Path;
 use anyhow::{Context as _, bail};
 use serde_json::{Map, Value};
 
-pub(crate) fn is_supported_config_file(path: &Path) -> bool {
+pub fn is_supported_config_file(path: &Path) -> bool {
     path.extension()
         .and_then(|extension| extension.to_str())
         .map(|extension| {
@@ -14,7 +14,7 @@ pub(crate) fn is_supported_config_file(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-pub(crate) fn read_json_or_jsonc(path: &Path) -> anyhow::Result<Value> {
+pub fn read_json_or_jsonc(path: &Path) -> anyhow::Result<Value> {
     if !is_supported_config_file(path) {
         bail!("configuration files must use the .json or .jsonc extension");
     }
@@ -34,12 +34,12 @@ pub(crate) fn read_json_or_jsonc(path: &Path) -> anyhow::Result<Value> {
     Ok(parsed)
 }
 
-pub(crate) fn parse_jsonc_value(text: &str) -> anyhow::Result<Value> {
+pub fn parse_jsonc_value(text: &str) -> anyhow::Result<Value> {
     let stripped = strip_jsonc_comments(text)?;
     Ok(serde_json::from_str(&stripped)?)
 }
 
-pub(crate) fn strip_jsonc_comments(input: &str) -> anyhow::Result<String> {
+pub fn strip_jsonc_comments(input: &str) -> anyhow::Result<String> {
     let mut output = String::with_capacity(input.len());
     let mut chars = input.chars().peekable();
     let mut in_string = false;
@@ -105,7 +105,7 @@ pub(crate) fn strip_jsonc_comments(input: &str) -> anyhow::Result<String> {
     Ok(output)
 }
 
-pub(crate) fn sanitize_config_file_stem(value: &str) -> String {
+pub fn sanitize_config_file_stem(value: &str) -> String {
     let mut output = String::new();
     let mut last_was_separator = false;
     for ch in value.trim().chars() {
@@ -128,7 +128,7 @@ pub(crate) fn sanitize_config_file_stem(value: &str) -> String {
     }
 }
 
-pub(crate) fn prune_empty_json_values(value: &mut Value) -> bool {
+pub fn prune_empty_json_values(value: &mut Value) -> bool {
     match value {
         Value::Null => true,
         Value::String(text) => text.trim().is_empty(),
@@ -144,7 +144,7 @@ pub(crate) fn prune_empty_json_values(value: &mut Value) -> bool {
     }
 }
 
-pub(crate) fn merge_non_empty_json_values(base: &mut Value, patch: &Value) {
+pub fn merge_non_empty_json_values(base: &mut Value, patch: &Value) {
     if is_empty_json_value(patch) {
         return;
     }
@@ -169,7 +169,7 @@ pub(crate) fn merge_non_empty_json_values(base: &mut Value, patch: &Value) {
     }
 }
 
-pub(crate) fn object_without_empty_values(mut object: Map<String, Value>) -> Map<String, Value> {
+pub fn object_without_empty_values(mut object: Map<String, Value>) -> Map<String, Value> {
     object.retain(|_, value| !prune_empty_json_values(value));
     object
 }

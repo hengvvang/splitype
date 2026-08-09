@@ -7,7 +7,7 @@ use directories::ProjectDirs;
 
 /// Cross-platform configuration directories owned by splitype.
 #[derive(Debug, Clone)]
-pub(crate) struct SplitypeConfigDirs {
+pub struct SplitypeConfigDirs {
     root: PathBuf,
 }
 
@@ -17,7 +17,7 @@ impl SplitypeConfigDirs {
     /// GPUI does not currently expose an app config path, so user-imported
     /// language and theme packs are stored under the OS location returned by
     /// `directories::ProjectDirs`.
-    pub(crate) fn from_system() -> anyhow::Result<Self> {
+    pub fn from_system() -> anyhow::Result<Self> {
         let dirs = ProjectDirs::from("com", "hengvvang", "splitype")
             .context("failed to resolve the splitype config directory")?;
         Ok(Self {
@@ -27,27 +27,27 @@ impl SplitypeConfigDirs {
 
     /// Creates a directory set from a caller-provided root for tests.
     #[cfg(test)]
-    pub(crate) fn from_root(root: impl Into<PathBuf>) -> Self {
+    pub fn from_root(root: impl Into<PathBuf>) -> Self {
         Self { root: root.into() }
     }
 
-    pub(crate) fn languages_dir(&self) -> PathBuf {
+    pub fn languages_dir(&self) -> PathBuf {
         self.root.join("languages")
     }
 
-    pub(crate) fn themes_dir(&self) -> PathBuf {
+    pub fn themes_dir(&self) -> PathBuf {
         self.root.join("themes")
     }
 
-    pub(crate) fn history_file(&self) -> PathBuf {
+    pub fn history_file(&self) -> PathBuf {
         self.root.join(".history")
     }
 
-    pub(crate) fn recent_folders_file(&self) -> PathBuf {
+    pub fn recent_folders_file(&self) -> PathBuf {
         self.root.join(".recent-folders")
     }
 
-    pub(crate) fn app_config_file(&self) -> PathBuf {
+    pub fn app_config_file(&self) -> PathBuf {
         self.root.join("config.toml")
     }
 }

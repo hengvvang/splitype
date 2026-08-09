@@ -568,7 +568,7 @@ pub struct I18nStringsDe {
     settings_status_bar_show_mode_switch: Option<String>,
 }
 
-pub(crate) const I18N_STRING_KEYS: &[&str] = &[
+pub const I18N_STRING_KEYS: &[&str] = &[
     "dirty_title_marker",
     "unsaved_changes_title",
     "unsaved_changes_message",

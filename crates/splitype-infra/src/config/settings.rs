@@ -7,19 +7,19 @@ use anyhow::Context as _;
 use gpui::*;
 use serde::{Deserialize, Serialize};
 
-use crate::infra::config::dirs::SplitypeConfigDirs;
-use crate::infra::config::recent::read_recent_files;
-use crate::infra::config::keybindings::normalize_shortcut_config;
-use crate::infra::i18n::manager::I18nManager;
-use crate::infra::i18n::packs::language_id_for_locale_settings;
-use crate::infra::theme::ThemeManager;
+use crate::config::dirs::SplitypeConfigDirs;
+use crate::config::recent::read_recent_files;
+use crate::config::keybindings::normalize_shortcut_config;
+use crate::i18n::manager::I18nManager;
+use crate::i18n::packs::language_id_for_locale_settings;
+use crate::theme::ThemeManager;
 
-pub(crate) const DEFAULT_THEME_ID: &str = "splitype";
+pub const DEFAULT_THEME_ID: &str = "splitype";
 const DEFAULT_LANGUAGE_ID: &str = "en-US";
 
 /// A user-configurable button shown in the status bar.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct StatusBarButton {
+pub struct StatusBarButton {
     pub id: String,
     pub label: String,
     pub action_id: String,
@@ -27,7 +27,7 @@ pub(crate) struct StatusBarButton {
 
 /// Status bar visibility and component toggles.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct StatusBarSettings {
+pub struct StatusBarSettings {
     pub enabled: bool,
     pub show_word_count: bool,
     pub show_cursor_position: bool,
@@ -51,13 +51,13 @@ impl Default for StatusBarSettings {
 
 /// Startup document selection stored in `config.toml`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum StartupOpenSetting {
+pub enum StartupOpenSetting {
     NewFile,
     LastOpenedFile,
 }
 
 impl StartupOpenSetting {
-    pub(crate) fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             Self::NewFile => "new_file",
             Self::LastOpenedFile => "last_opened_file",
@@ -74,14 +74,14 @@ impl StartupOpenSetting {
 
 /// Explorer tree sorting mode (mirrors Zed's `ProjectPanelSortMode`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ExplorerSortMode {
+pub enum ExplorerSortMode {
     DirectoriesFirst,
     FilesFirst,
     Mixed,
 }
 
 impl ExplorerSortMode {
-    pub(crate) fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             Self::DirectoriesFirst => "directories_first",
             Self::FilesFirst => "files_first",
@@ -100,13 +100,13 @@ impl ExplorerSortMode {
 
 /// Explorer tree sort order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ExplorerSortOrder {
+pub enum ExplorerSortOrder {
     Ascending,
     Descending,
 }
 
 impl ExplorerSortOrder {
-    pub(crate) fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             Self::Ascending => "ascending",
             Self::Descending => "descending",
@@ -123,7 +123,7 @@ impl ExplorerSortOrder {
 
 /// Explorer sidebar settings persisted in `config.toml`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct ExplorerSettings {
+pub struct ExplorerSettings {
     pub hide_hidden: bool,
     pub sort_mode: ExplorerSortMode,
     pub sort_order: ExplorerSortOrder,
@@ -178,7 +178,7 @@ impl ExplorerSettingsStore {
 
 /// Where pasted clipboard images should be stored before inserting Markdown.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum ImagePasteBehavior {
+pub enum ImagePasteBehavior {
     None,
     CopyToDocumentFolder,
     CopyToAssetsFolder,
@@ -186,7 +186,7 @@ pub(crate) enum ImagePasteBehavior {
 }
 
 impl ImagePasteBehavior {
-    pub(crate) fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             Self::None => "none",
             Self::CopyToDocumentFolder => "copy_to_document_folder",
@@ -207,15 +207,15 @@ impl ImagePasteBehavior {
 
 /// User settings persisted under the app config directory.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct AppSettings {
-    pub(crate) startup_open: StartupOpenSetting,
-    pub(crate) default_language_id: String,
-    pub(crate) default_theme_id: String,
-    pub(crate) show_table_headers: bool,
-    pub(crate) image_paste_behavior: ImagePasteBehavior,
-    pub(crate) keybindings: BTreeMap<String, Vec<String>>,
-    pub(crate) status_bar: StatusBarSettings,
-    pub(crate) explorer: ExplorerSettings,
+pub struct AppSettings {
+    pub startup_open: StartupOpenSetting,
+    pub default_language_id: String,
+    pub default_theme_id: String,
+    pub show_table_headers: bool,
+    pub image_paste_behavior: ImagePasteBehavior,
+    pub keybindings: BTreeMap<String, Vec<String>>,
+    pub status_bar: StatusBarSettings,
+    pub explorer: ExplorerSettings,
 }
 
 impl Default for AppSettings {
@@ -238,7 +238,7 @@ impl Default for AppSettings {
 /// value back to the settings file.
 pub struct EditorSettings {
     show_table_headers: bool,
-    pub(crate) status_bar_settings: StatusBarSettings,
+    pub status_bar_settings: StatusBarSettings,
 }
 
 impl Global for EditorSettings {}
@@ -402,11 +402,11 @@ impl From<&AppSettings> for SettingsFile {
     }
 }
 
-pub(crate) fn read_app_settings() -> anyhow::Result<AppSettings> {
+pub fn read_app_settings() -> anyhow::Result<AppSettings> {
     read_app_settings_with_dirs(&SplitypeConfigDirs::from_system()?)
 }
 
-pub(crate) fn read_app_settings_with_dirs(
+pub fn read_app_settings_with_dirs(
     dirs: &SplitypeConfigDirs,
 ) -> anyhow::Result<AppSettings> {
     let path = dirs.app_config_file();
@@ -426,7 +426,7 @@ pub(crate) fn read_app_settings_with_dirs(
     Ok(app_settings_from_toml_value(&value, DEFAULT_LANGUAGE_ID))
 }
 
-pub(crate) fn load_or_create_app_settings() -> anyhow::Result<AppSettings> {
+pub fn load_or_create_app_settings() -> anyhow::Result<AppSettings> {
     let dirs = SplitypeConfigDirs::from_system()?;
     load_or_create_app_settings_with_dirs_and_locales(&dirs, sys_locale::get_locales())
 }
@@ -606,11 +606,11 @@ where
     Ok(settings)
 }
 
-pub(crate) fn save_app_settings(settings: &AppSettings) -> anyhow::Result<()> {
+pub fn save_app_settings(settings: &AppSettings) -> anyhow::Result<()> {
     save_app_settings_with_dirs(settings, &SplitypeConfigDirs::from_system()?)
 }
 
-pub(crate) fn save_app_settings_with_dirs(
+pub fn save_app_settings_with_dirs(
     settings: &AppSettings,
     dirs: &SplitypeConfigDirs,
 ) -> anyhow::Result<()> {
@@ -623,12 +623,12 @@ pub(crate) fn save_app_settings_with_dirs(
     std::fs::write(&path, text).with_context(|| format!("failed to write '{}'", path.display()))
 }
 
-pub(crate) fn first_existing_recent_markdown_file() -> Option<PathBuf> {
+pub fn first_existing_recent_markdown_file() -> Option<PathBuf> {
     let recent_files = read_recent_files().ok()?;
     recent_files.into_iter().find(|path| path.is_file())
 }
 
-pub(crate) fn apply_configured_language(cx: &mut App, language_id: &str) -> anyhow::Result<bool> {
+pub fn apply_configured_language(cx: &mut App, language_id: &str) -> anyhow::Result<bool> {
     let mut applied = false;
     let changed = cx.update_global::<I18nManager, _>(|i18n_manager, _cx| {
         let changed = i18n_manager.set_language_by_id(language_id);
@@ -644,7 +644,7 @@ pub(crate) fn apply_configured_language(cx: &mut App, language_id: &str) -> anyh
     Ok(changed)
 }
 
-pub(crate) fn apply_configured_theme(cx: &mut App, theme_id: &str) -> anyhow::Result<bool> {
+pub fn apply_configured_theme(cx: &mut App, theme_id: &str) -> anyhow::Result<bool> {
     let mut applied = false;
     let changed = cx.update_global::<ThemeManager, _>(|theme_manager, _cx| {
         let changed = theme_manager.set_theme_by_id(theme_id);
@@ -660,7 +660,7 @@ pub(crate) fn apply_configured_theme(cx: &mut App, theme_id: &str) -> anyhow::Re
     Ok(changed)
 }
 
-pub(crate) fn import_language_config_and_select(
+pub fn import_language_config_and_select(
     cx: &mut App,
     path: impl AsRef<std::path::Path>,
 ) -> anyhow::Result<String> {
@@ -673,7 +673,7 @@ pub(crate) fn import_language_config_and_select(
     Ok(imported_id)
 }
 
-pub(crate) fn import_theme_config_and_select(
+pub fn import_theme_config_and_select(
     cx: &mut App,
     path: impl AsRef<std::path::Path>,
 ) -> anyhow::Result<String> {
@@ -686,7 +686,7 @@ pub(crate) fn import_theme_config_and_select(
     Ok(imported_id)
 }
 
-pub(crate) fn save_settings_from_window(
+pub fn save_settings_from_window(
     startup_open: StartupOpenSetting,
     default_theme_id: &str,
     image_paste_behavior: ImagePasteBehavior,

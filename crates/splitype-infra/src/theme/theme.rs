@@ -7,7 +7,7 @@ use gpui::{Hsla, hsla, rgba};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::infra::config::jsonc::{
+use crate::config::jsonc::{
     merge_non_empty_json_values, object_without_empty_values, prune_empty_json_values,
     sanitize_config_file_stem,
 };
@@ -422,13 +422,13 @@ pub struct ThemeCatalogEntry {
     pub name: String,
 }
 
-pub(crate) const BUILTIN_THEME_SPLITYPE_ID: &str = "splitype";
-pub(crate) const BUILTIN_THEME_SPLITYPE_NAME: &str = "Dark";
-pub(crate) const BUILTIN_THEME_SPLITYPE_LIGHT_ID: &str = "splitype-light";
-pub(crate) const BUILTIN_THEME_SPLITYPE_LIGHT_NAME: &str = "Light";
-pub(crate) const CUSTOM_THEME_ID: &str = "custom";
+pub const BUILTIN_THEME_SPLITYPE_ID: &str = "splitype";
+pub const BUILTIN_THEME_SPLITYPE_NAME: &str = "Dark";
+pub const BUILTIN_THEME_SPLITYPE_LIGHT_ID: &str = "splitype-light";
+pub const BUILTIN_THEME_SPLITYPE_LIGHT_NAME: &str = "Light";
+pub const CUSTOM_THEME_ID: &str = "custom";
 
-pub(crate) fn builtin_theme_catalog() -> Vec<ThemeCatalogEntry> {
+pub fn builtin_theme_catalog() -> Vec<ThemeCatalogEntry> {
     vec![
         ThemeCatalogEntry {
             id: BUILTIN_THEME_SPLITYPE_ID.into(),
@@ -442,19 +442,19 @@ pub(crate) fn builtin_theme_catalog() -> Vec<ThemeCatalogEntry> {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct CustomThemeEntry {
-    pub(crate) id: String,
-    pub(crate) name: String,
-    pub(crate) creator: String,
-    pub(crate) base_theme_id: String,
-    pub(crate) theme: Theme,
+pub struct CustomThemeEntry {
+    pub id: String,
+    pub name: String,
+    pub creator: String,
+    pub base_theme_id: String,
+    pub theme: Theme,
 }
 
-pub(crate) fn custom_theme_from_value(value: Value) -> anyhow::Result<(CustomThemeEntry, Value)> {
+pub fn custom_theme_from_value(value: Value) -> anyhow::Result<(CustomThemeEntry, Value)> {
     custom_theme_from_value_with_default_base(value, BUILTIN_THEME_SPLITYPE_ID)
 }
 
-pub(crate) fn custom_theme_from_value_with_default_base(
+pub fn custom_theme_from_value_with_default_base(
     mut value: Value,
     default_base_theme_id: &str,
 ) -> anyhow::Result<(CustomThemeEntry, Value)> {

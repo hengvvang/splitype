@@ -5,7 +5,7 @@ use anyhow::{Context as _, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::infra::config::jsonc::{
+use crate::config::jsonc::{
     object_without_empty_values, prune_empty_json_values,
 };
 
