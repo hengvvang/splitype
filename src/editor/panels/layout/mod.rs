@@ -11,7 +11,6 @@ use crate::editor::panels::panel_types::{
 };
 use crate::layout::{Axis, BorderMenuState, CornerDragModifier, SplitterDragSession};
 use crate::ui::popover::menu_panel;
-use crate::ui::splitter::{splitter_bar_h, splitter_bar_v};
 use splitype_layout::tree::SplitTree;
 
 use gpui::*;
@@ -207,6 +206,12 @@ impl Editor {
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
+        let overlay_style = splitype_layout::interaction::OverlayStyle {
+            tile_radius: d.area_tile_radius,
+            border: c.dialog_border,
+            selection: c.selection,
+            ..Default::default()
+        };
 
         match node {
             SplitTree::Leaf { id: panel_id, kind } => {
@@ -358,38 +363,41 @@ impl Editor {
                                     .child(first_elem),
                             )
                             .child(
-                                splitter_bar_h(("inner-splitter-bar-h", split_id), c)
-                                    .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
-                                        let start_pos = f32::from(event.position.x);
-                                        let _ = bar_editor.update(cx, |ed, cx| {
-                                            ed.active_editor_inner_panel_splitter_drag = Some((
-                                                area_id,
-                                                SplitterDragSession {
+                                splitype_layout::interaction::splitter_bar_h(
+                                    ("inner-splitter-bar-h", split_id),
+                                    &overlay_style,
+                                )
+                                .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
+                                    let start_pos = f32::from(event.position.x);
+                                    let _ = bar_editor.update(cx, |ed, cx| {
+                                        ed.active_editor_inner_panel_splitter_drag = Some((
+                                            area_id,
+                                            SplitterDragSession {
+                                                split_id,
+                                                direction: Axis::Horizontal,
+                                                start_pointer_pos: start_pos,
+                                                start_ratio: r,
+                                                total_span: 1000.0,
+                                            },
+                                        ));
+                                        cx.notify();
+                                    });
+                                })
+                                .on_mouse_down(
+                                    MouseButton::Right,
+                                    move |event, _window, cx| {
+                                        let pos = event.position;
+                                        let _ = menu_editor.update(cx, |ed, cx| {
+                                            ed.active_editor_inner_panel_border_menu =
+                                                Some(BorderMenuState {
                                                     split_id,
-                                                    direction: Axis::Horizontal,
-                                                    start_pointer_pos: start_pos,
-                                                    start_ratio: r,
-                                                    total_span: 1000.0,
-                                                },
-                                            ));
+                                                    direction: dir,
+                                                    position: pos,
+                                                });
                                             cx.notify();
                                         });
-                                    })
-                                    .on_mouse_down(
-                                        MouseButton::Right,
-                                        move |event, _window, cx| {
-                                            let pos = event.position;
-                                            let _ = menu_editor.update(cx, |ed, cx| {
-                                                ed.active_editor_inner_panel_border_menu =
-                                                    Some(BorderMenuState {
-                                                        split_id,
-                                                        direction: dir,
-                                                        position: pos,
-                                                    });
-                                                cx.notify();
-                                            });
-                                        },
-                                    ),
+                                    },
+                                ),
                             )
                             .child(
                                 div()
@@ -427,38 +435,41 @@ impl Editor {
                                     .child(first_elem),
                             )
                             .child(
-                                splitter_bar_v(("inner-splitter-bar-v", split_id), c)
-                                    .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
-                                        let start_pos = f32::from(event.position.y);
-                                        let _ = bar_editor.update(cx, |ed, cx| {
-                                            ed.active_editor_inner_panel_splitter_drag = Some((
-                                                area_id,
-                                                SplitterDragSession {
+                                splitype_layout::interaction::splitter_bar_v(
+                                    ("inner-splitter-bar-v", split_id),
+                                    &overlay_style,
+                                )
+                                .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
+                                    let start_pos = f32::from(event.position.y);
+                                    let _ = bar_editor.update(cx, |ed, cx| {
+                                        ed.active_editor_inner_panel_splitter_drag = Some((
+                                            area_id,
+                                            SplitterDragSession {
+                                                split_id,
+                                                direction: Axis::Vertical,
+                                                start_pointer_pos: start_pos,
+                                                start_ratio: r,
+                                                total_span: 700.0,
+                                            },
+                                        ));
+                                        cx.notify();
+                                    });
+                                })
+                                .on_mouse_down(
+                                    MouseButton::Right,
+                                    move |event, _window, cx| {
+                                        let pos = event.position;
+                                        let _ = menu_editor.update(cx, |ed, cx| {
+                                            ed.active_editor_inner_panel_border_menu =
+                                                Some(BorderMenuState {
                                                     split_id,
-                                                    direction: Axis::Vertical,
-                                                    start_pointer_pos: start_pos,
-                                                    start_ratio: r,
-                                                    total_span: 700.0,
-                                                },
-                                            ));
+                                                    direction: dir,
+                                                    position: pos,
+                                                });
                                             cx.notify();
                                         });
-                                    })
-                                    .on_mouse_down(
-                                        MouseButton::Right,
-                                        move |event, _window, cx| {
-                                            let pos = event.position;
-                                            let _ = menu_editor.update(cx, |ed, cx| {
-                                                ed.active_editor_inner_panel_border_menu =
-                                                    Some(BorderMenuState {
-                                                        split_id,
-                                                        direction: dir,
-                                                        position: pos,
-                                                    });
-                                                cx.notify();
-                                            });
-                                        },
-                                    ),
+                                    },
+                                ),
                             )
                             .child(
                                 div()

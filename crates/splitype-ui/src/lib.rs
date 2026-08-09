@@ -13,7 +13,6 @@ pub mod menu_item;
 pub mod popover;
 pub mod section;
 pub mod select;
-pub mod splitter;
 pub mod stepper;
 pub mod switch;
 pub mod tab;
