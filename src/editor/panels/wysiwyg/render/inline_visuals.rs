@@ -1,27 +1,21 @@
 //! Inline visuals — text runs, math, images inside a block.
 
-
-
 use gpui::*;
 
-const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
-
+use crate::editor::panels::wysiwyg::render::LinkFollowCursor;
 use crate::editor::panels::wysiwyg::render::inline::text_element::BlockTextElement;
-use crate::editor::render::latex_render::{
-    inline_math_font_size, render_inline_math_svg,
-};
+use crate::editor::panels::wysiwyg::render::inline_word_chunks;
+use crate::editor::panels::wysiwyg::render::render_image_placeholder;
+use crate::editor::panels::wysiwyg::render::render_loading_placeholder;
+use crate::editor::render::latex_render::{inline_math_font_size, render_inline_math_svg};
 use crate::editor::tree::block::{Block, ImageHandle};
 use crate::infra::i18n::I18nStrings;
+use crate::infra::theme::Theme;
 use crate::model::inline::style::InlineScript;
+use crate::model::syntax::html::html_css_color_to_hsla;
 use crate::model::syntax::image::{
     ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
 };
-use crate::model::syntax::html::html_css_color_to_hsla;
-use crate::editor::panels::wysiwyg::render::LinkFollowCursor;
-use crate::editor::panels::wysiwyg::render::render_image_placeholder;
-use crate::editor::panels::wysiwyg::render::render_loading_placeholder;
-use crate::editor::panels::wysiwyg::render::inline_word_chunks;
-use crate::infra::theme::Theme;
 
 #[allow(dead_code)]
 const TASK_CHECKMARK: &str = "\u{2713}";
@@ -474,5 +468,4 @@ impl Block {
                 .into_any_element(),
         )
     }
-
 }

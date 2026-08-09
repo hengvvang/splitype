@@ -11,3 +11,6 @@ pub mod paste;
 pub mod paste_img;
 pub mod quote_metadata;
 pub mod typing;
+
+#[cfg(test)]
+mod keyboard_tests;

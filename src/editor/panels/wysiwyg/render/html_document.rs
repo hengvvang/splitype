@@ -1,10 +1,6 @@
 //! HTML document rendering — style computation and node walkers.
 
-
-
 use gpui::*;
-
-const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
 
 use crate::editor::tree::block::{Block, ImageHandle};
 use crate::infra::i18n::I18nManager;
@@ -55,7 +51,6 @@ impl HtmlComputedStyle {
         }
     }
 }
-
 
 pub(crate) fn html_node_visual_style(
     node: &HtmlNode,

@@ -496,7 +496,7 @@ impl RichText {
         self.toggle_style(range, StyleFlag::Code)
     }
 
-    pub fn unwrap_styles_on_fragments(&mut self, targets: &[(usize, StyleFlag)]) {
+    pub(crate) fn unwrap_styles_on_fragments(&mut self, targets: &[(usize, StyleFlag)]) {
         if targets.is_empty() {
             return;
         }

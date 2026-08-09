@@ -27,9 +27,11 @@ use crate::infra::config::settings::{
 };
 use crate::infra::i18n::I18nManager;
 #[cfg(target_os = "macos")]
-use crate::platform::cli_tool::{install_cli_tool, is_cli_symlink_current_app, uninstall_cli_tool};
+use crate::app::cli_install::{install_cli_tool, uninstall_cli_tool};
+#[cfg(target_os = "macos")]
+use crate::platform::cli_tool::is_cli_symlink_current_app;
 #[cfg(not(target_os = "macos"))]
-use crate::platform::cli_tool::{install_cli_tool, uninstall_cli_tool};
+use crate::app::cli_install::{install_cli_tool, uninstall_cli_tool};
 use crate::infra::theme::ThemeManager;
 use crate::editor::window::{
     open_bug_report, open_discussions, open_feature_request, open_splitype_repository,
