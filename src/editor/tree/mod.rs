@@ -14,4 +14,6 @@ pub mod block_projection;
 pub mod document;
 pub mod footnotes;
 pub mod loader;
+#[cfg(test)]
+mod loader_tests;
 pub mod serialize;

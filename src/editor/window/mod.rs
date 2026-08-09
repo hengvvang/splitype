@@ -16,6 +16,8 @@
 //! covers the window-level render flow and floating overlays.
 
 pub(crate) mod context_menu;
+pub(crate) mod context_menu_actions;
+pub(crate) mod context_menu_render;
 pub(crate) mod dialogs;
 pub(crate) mod export;
 
