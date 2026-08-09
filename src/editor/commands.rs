@@ -61,7 +61,8 @@ impl Editor {
 
     pub(crate) fn toggle_view_mode_from_ui(&mut self, cx: &mut Context<Self>) {
         self.end_block_pointer_selection_sessions(cx);
-        self.tab_mut().undo.last_selection_snapshot = self.capture_source_selection_snapshot(cx);
+        self.tab_mut().undo.last_selection_snapshot =
+            self.capture_source_selection_snapshot_global(cx);
         self.toggle_view_mode(cx);
     }
 
@@ -180,7 +181,7 @@ impl Editor {
 
     pub(crate) fn toggle_view_mode(&mut self, cx: &mut Context<Self>) {
         self.end_block_pointer_selection_sessions(cx);
-        let selection_snapshot = self.capture_source_selection_snapshot(cx);
+        let selection_snapshot = self.capture_source_selection_snapshot_global(cx);
         self.clear_cross_block_selection(cx);
         self.tab_mut().selection.select_all_cycle = None;
         match self.tab().mode {

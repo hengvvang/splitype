@@ -32,16 +32,6 @@ pub struct InlineFragment {
     pub math: Option<InlineLatex>,
 }
 
-/// A cursor inside the inline text tree.
-///
-/// `fragment_index` identifies the fragment and `byte_offset` addresses a byte
-/// boundary inside that fragment's text.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct TextCursor {
-    pub fragment_index: usize,
-    pub byte_offset: usize,
-}
-
 /// Fragment attributes inherited by inserted text at a caret position.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct InlineInsertionAttributes {

@@ -16,6 +16,7 @@ use crate::editor::editing::projection::{
 use crate::editor::editing::table::TableGrid;
 use crate::editor::geometry::text_layout as element;
 use crate::editor::render::code_highlight::highlight::{CodeHighlightResult, highlight_code_block};
+use crate::editor::render::mermaid_render::MermaidSvgRender;
 use crate::editor::tree::footnotes::FootnoteMap;
 use crate::model::block::{BlockData, BlockId, BlockKind, CalloutKind};
 use crate::model::inline::footnote::InlineFootnoteHit;
@@ -193,6 +194,14 @@ pub struct Block {
     pub(crate) list_group_separator_candidate: bool,
     numbered_list_restart_requested: bool,
     quote_reparse_requested: bool,
+    /// Kind-trait snapshot written by the tree-metadata rebuild; detects kind
+    /// changes (e.g. quote -> paragraph downgrades) that need a metadata
+    /// refresh even though the structure itself is unchanged.
+    pub(crate) tree_metadata_flags: u8,
+    /// Last Mermaid display render for this block, keyed by content
+    /// fingerprint and the display parameters that produced it. Rendering
+    /// and the surrounding SVG file reads are skipped while the key holds.
+    pub(crate) mermaid_render_cache: Option<(u64, u32, u32, MermaidSvgRender)>,
 }
 
 impl Block {
@@ -274,6 +283,8 @@ impl Block {
             list_group_separator_candidate: false,
             numbered_list_restart_requested: false,
             quote_reparse_requested: false,
+            tree_metadata_flags: 0,
+            mermaid_render_cache: None,
         };
         block.sync_code_highlight();
         block.refresh_cached_display_text();
@@ -310,16 +321,20 @@ impl Block {
         image_reference_definitions: Arc<ImageReferenceDefinitions>,
         link_reference_definitions: Arc<LinkReferenceDefinitions>,
         footnote_registry: Arc<FootnoteMap>,
-    ) {
+    ) -> bool {
+        let mut changed = false;
         if self.image_base_dir != base_dir {
             self.image_base_dir = base_dir;
+            changed = true;
         }
         if self.image_reference_definitions != image_reference_definitions {
             self.image_reference_definitions = image_reference_definitions;
+            changed = true;
         }
-        self.sync_link_reference_definitions(link_reference_definitions);
-        self.sync_footnote_registry(footnote_registry);
-        self.sync_image_runtime();
+        changed |= self.sync_link_reference_definitions(link_reference_definitions);
+        changed |= self.sync_footnote_registry(footnote_registry);
+        changed |= self.sync_image_runtime();
+        changed
     }
 
     pub(crate) fn uses_raw_text_editing(&self) -> bool {
@@ -350,6 +365,33 @@ impl Block {
             self.edit_mode = BlockEditMode::for_kind(&self.record.kind);
             self.show_source_line_numbers = false;
         }
+    }
+
+    /// Flags describing the block-kind traits that tree metadata (quote
+    /// depths, anchors, list ordinals, footnote anchors) derives from.
+    /// Written by the tree-metadata rebuild; compared on text edits to detect
+    /// kind changes that require a metadata refresh without a structural edit.
+    pub(crate) fn kind_metadata_flags(&self) -> u8 {
+        let mut flags = 0u8;
+        if self.kind().is_quote_container() {
+            flags |= 1;
+        }
+        if self.kind().is_list_item() {
+            flags |= 2;
+        }
+        if self.kind().is_footnote_definition() {
+            flags |= 4;
+        }
+        if self.kind().callout_kind().is_some() {
+            flags |= 8;
+        }
+        flags
+    }
+
+    /// Whether the kind-derived metadata (quote depth, anchors, ordinals)
+    /// stored on this block matches its current kind traits.
+    pub(crate) fn tree_metadata_is_current(&self) -> bool {
+        self.tree_metadata_flags == self.kind_metadata_flags()
     }
 
     pub fn display_text(&self) -> &str {
@@ -538,9 +580,9 @@ impl Block {
     fn sync_link_reference_definitions(
         &mut self,
         link_reference_definitions: Arc<LinkReferenceDefinitions>,
-    ) {
+    ) -> bool {
         if self.link_reference_definitions == link_reference_definitions {
-            return;
+            return false;
         }
 
         let selected_markdown = (!self.uses_raw_text_editing())
@@ -558,7 +600,7 @@ impl Block {
 
         self.link_reference_definitions = link_reference_definitions;
         if self.uses_raw_text_editing() {
-            return;
+            return true;
         }
 
         let markdown = self.record.text.serialize_markdown();
@@ -567,7 +609,7 @@ impl Block {
             &self.link_reference_definitions,
         );
         if self.record.text == next_title {
-            return;
+            return true;
         }
 
         self.record.set_text(next_title);
@@ -595,11 +637,12 @@ impl Block {
         if had_projection {
             self.sync_inline_projection_for_focus(true);
         }
+        true
     }
 
-    fn sync_footnote_registry(&mut self, footnote_registry: Arc<FootnoteMap>) {
+    fn sync_footnote_registry(&mut self, footnote_registry: Arc<FootnoteMap>) -> bool {
         if self.footnote_registry == footnote_registry {
-            return;
+            return false;
         }
 
         let selected_markdown = (!self.uses_raw_text_editing())
@@ -617,7 +660,7 @@ impl Block {
 
         self.footnote_registry = footnote_registry;
         if self.uses_raw_text_editing() || !self.record.text.has_footnote_references() {
-            return;
+            return true;
         }
 
         let mut next_title = self.record.text.clone();
@@ -634,7 +677,7 @@ impl Block {
             Some((occurrence.ordinal?, occurrence.occurrence_index))
         });
         if self.record.text == next_title {
-            return;
+            return true;
         }
 
         self.record.set_text(next_title);
@@ -662,6 +705,7 @@ impl Block {
         if had_projection {
             self.sync_inline_projection_for_focus(true);
         }
+        true
     }
 
     fn should_use_markdown_space_link_edit(&self) -> bool {

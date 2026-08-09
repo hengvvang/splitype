@@ -43,7 +43,8 @@ impl Editor {
         };
 
         if let Some(block) = self
-            .tab().focus
+            .tab()
+            .focus
             .active_entity
             .and_then(|entity_id| self.focusable_entity_by_id(entity_id))
             .filter(is_focused)
@@ -162,6 +163,15 @@ impl Editor {
             return;
         }
 
+        // Pure text edits never change tree metadata (quote depths, anchors,
+        // ordinals) — only structural edits do (those already rebuild via
+        // `with_structure_mutation`/`replace_blocks`), or kind changes on the
+        // edited block (tracked by its kind-trait snapshot). Skipping the
+        // full-tree DFS while both are current keeps typing inside quotes
+        // from paying an O(document) cost per keystroke.
+        if self.doc().metadata_is_current() && block.read(cx).tree_metadata_is_current() {
+            return;
+        }
         self.doc_mut().rebuild_metadata_and_snapshot(cx);
     }
 
@@ -264,11 +274,11 @@ impl Editor {
 mod tests {
     use super::Editor;
     use crate::editor::block_protocol::BlockAction;
+    use crate::editor::editing::input::shortcuts::ExitCodeBlock;
+    use crate::editor::editing::input::shortcuts::{Delete, DeleteBack, Newline};
     use crate::editor::tree::block::Block;
     use crate::model::block::{BlockData, BlockKind, CalloutKind};
     use crate::model::inline::text::RichText;
-    use crate::editor::editing::input::shortcuts::ExitCodeBlock;
-    use crate::editor::editing::input::shortcuts::{Delete, DeleteBack, Newline};
     use gpui::{App, AppContext, Entity, TestAppContext};
 
     #[gpui::test]
@@ -287,7 +297,10 @@ mod tests {
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(editor.doc().to_markdown(cx), "> first\n\n> ");
-            assert_eq!(editor.tab().focus.pending, Some(visible[1].entity.entity_id()));
+            assert_eq!(
+                editor.tab().focus.pending,
+                Some(visible[1].entity.entity_id())
+            );
         });
     }
 
@@ -298,11 +311,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
 
         editor.update(cx, |editor, cx| {
-            let paragraph = editor
-                .doc()
-                .first_root()
-                .expect("root paragraph")
-                .clone();
+            let paragraph = editor.doc().first_root().expect("root paragraph").clone();
             paragraph.update(cx, |block, cx| {
                 block.prepare_undo_capture(
                     crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
@@ -429,11 +438,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
 
         editor.update(cx, |editor, cx| {
-            let paragraph = editor
-                .doc()
-                .first_root()
-                .expect("root paragraph")
-                .clone();
+            let paragraph = editor.doc().first_root().expect("root paragraph").clone();
             paragraph.update(cx, |block, cx| {
                 block.prepare_undo_capture(
                     crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
@@ -454,7 +459,10 @@ mod tests {
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
             assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
             assert_eq!(editor.doc().to_markdown(cx), "> [!NOTE]\n> ");
-            assert_eq!(editor.tab().focus.pending, Some(visible[1].entity.entity_id()));
+            assert_eq!(
+                editor.tab().focus.pending,
+                Some(visible[1].entity.entity_id())
+            );
         });
     }
 
@@ -504,10 +512,7 @@ mod tests {
             );
             assert_eq!(visible[4].entity.read(cx).display_text(), "");
             assert_eq!(visible[4].entity.read(cx).list_ordinal, Some(1));
-            assert_eq!(
-                editor.doc().to_markdown(cx),
-                "1. aa\n2. bb\n3. cc\n\n1. "
-            );
+            assert_eq!(editor.doc().to_markdown(cx), "1. aa\n2. bb\n3. cc\n\n1. ");
         });
     }
 
@@ -719,10 +724,7 @@ mod tests {
             assert_eq!(visible[0].entity.read(cx).display_text(), "let x = 1;");
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).display_text(), "");
-            assert_eq!(
-                editor.doc().to_markdown(cx),
-                "```rust\nlet x = 1;\n```\n\n"
-            );
+            assert_eq!(editor.doc().to_markdown(cx), "```rust\nlet x = 1;\n```\n\n");
         });
     }
 
@@ -1421,11 +1423,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
         editor.update(cx, |editor, cx| {
-            let paragraph = editor
-                .doc()
-                .first_root()
-                .expect("paragraph root")
-                .clone();
+            let paragraph = editor.doc().first_root().expect("paragraph root").clone();
             editor.on_block_event(
                 paragraph,
                 &BlockAction::RequestFocusNext { preferred_x: None },
@@ -1503,11 +1501,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
         editor.update(cx, |editor, cx| {
-            let paragraph = editor
-                .doc()
-                .first_root()
-                .expect("paragraph root")
-                .clone();
+            let paragraph = editor.doc().first_root().expect("paragraph root").clone();
             editor.on_block_event(paragraph, &BlockAction::RequestBlockDown, cx);
 
             let header_cell = table_root(editor, cx)
@@ -2218,11 +2212,11 @@ mod tests {
             assert_eq!(visible[3].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(visible[3].entity.read(cx).display_text(), "");
             assert_eq!(visible[3].entity.read(cx).quote_depth, 2);
+            assert_eq!(editor.doc().to_markdown(cx), "> outer\n> > inner\n> \n> > ");
             assert_eq!(
-                editor.doc().to_markdown(cx),
-                "> outer\n> > inner\n> \n> > "
+                editor.tab().focus.pending,
+                Some(visible[3].entity.entity_id())
             );
-            assert_eq!(editor.tab().focus.pending, Some(visible[3].entity.entity_id()));
         });
     }
 
@@ -2251,11 +2245,7 @@ mod tests {
         });
 
         let empty_quote_id = editor.update(cx, |editor, _cx| {
-            editor
-                .doc()
-                .first_root()
-                .expect("empty quote")
-                .entity_id()
+            editor.doc().first_root().expect("empty quote").entity_id()
         });
 
         cx.update(|window, cx| {
@@ -2287,11 +2277,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
 
         editor.update(cx, |editor, cx| {
-            let paragraph = editor
-                .doc()
-                .first_root()
-                .expect("root paragraph")
-                .clone();
+            let paragraph = editor.doc().first_root().expect("root paragraph").clone();
             paragraph.update(cx, |block, cx| {
                 block.prepare_undo_capture(
                     crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
@@ -2304,11 +2290,7 @@ mod tests {
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let quote = editor
-                    .doc()
-                    .first_root()
-                    .expect("shortcut quote")
-                    .clone();
+                let quote = editor.doc().first_root().expect("shortcut quote").clone();
                 quote.update(cx, |block, block_cx| {
                     block.move_to(block.visible_len(), block_cx);
                     block.on_delete_back(&DeleteBack, window, block_cx);
@@ -2438,7 +2420,10 @@ mod tests {
             assert_eq!(visible[2].entity.read(cx).display_text(), "");
             assert_eq!(visible[2].entity.read(cx).quote_depth, 0);
             assert_eq!(editor.doc().to_markdown(cx), "> [!TIP]\n> body\n\n");
-            assert_eq!(editor.tab().focus.pending, Some(visible[2].entity.entity_id()));
+            assert_eq!(
+                editor.tab().focus.pending,
+                Some(visible[2].entity.entity_id())
+            );
         });
     }
 
@@ -2448,11 +2433,7 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, "> ".to_string(), None));
 
         let empty_quote_id = editor.update(cx, |editor, _cx| {
-            editor
-                .doc()
-                .first_root()
-                .expect("empty quote")
-                .entity_id()
+            editor.doc().first_root().expect("empty quote").entity_id()
         });
 
         cx.update(|window, cx| {
@@ -2484,11 +2465,7 @@ mod tests {
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let quote = editor
-                    .doc()
-                    .first_root()
-                    .expect("container quote")
-                    .clone();
+                let quote = editor.doc().first_root().expect("container quote").clone();
                 quote.update(cx, |block, block_cx| {
                     block.move_to(0, block_cx);
                     block.on_delete_back(&DeleteBack, window, block_cx);

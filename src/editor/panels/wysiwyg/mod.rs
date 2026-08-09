@@ -20,7 +20,9 @@ impl Editor {
             return;
         }
 
-        let selection_snapshot = self.capture_source_selection_snapshot(cx);
+        // The tree is rebuilt from scratch below, so a structural anchor may
+        // no longer fit; capture a global source range instead.
+        let selection_snapshot = self.capture_source_selection_snapshot_global(cx);
         let source = self.doc().to_markdown(cx);
         let mut roots = Self::parse_document(cx, &source);
         if roots.is_empty() {

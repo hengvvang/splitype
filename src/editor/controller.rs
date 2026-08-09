@@ -25,21 +25,21 @@ pub(crate) use crate::editor::tree::footnotes::{
 };
 pub(crate) use crate::layout::state::{EditorTabList, ROOT_AREA_ID};
 pub(crate) use crate::layout::types::{
-    AreaId, AreaSplitMode, EditingPanelKind, EditorAreaMode, EditorInnerPanelKind, InnerPanelLocation,
-    PanelId,
+    AreaId, AreaSplitMode, EditingPanelKind, EditorAreaMode, EditorInnerPanelKind,
+    InnerPanelLocation, PanelId,
 };
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::model::inline::text::RichText;
 pub(crate) use crate::model::syntax::image::{
-    parse_image_reference_definitions, ImageReferenceDefinitions,
+    ImageReferenceDefinitions, parse_image_reference_definitions,
 };
 pub(crate) use crate::model::syntax::link::{
-    parse_link_reference_definitions, LinkReferenceDefinitions,
+    LinkReferenceDefinitions, parse_link_reference_definitions,
 };
 pub(crate) use crate::model::syntax::table::TableCellPosition;
 pub(crate) use crate::model::syntax::table::{
-    serialize_table_cell_markdown, TableAxisHighlight, TableAxisKind, TableAxisMarker,
-    TableColumnAlignment, TableData,
+    TableAxisHighlight, TableAxisKind, TableAxisMarker, TableColumnAlignment, TableData,
+    serialize_table_cell_markdown,
 };
 pub(crate) use crate::windows::editor::bottombar::BottombarState;
 pub(crate) use crate::windows::editor::context_menu::ContextMenuState;
@@ -110,6 +110,13 @@ pub(crate) struct ReferenceRegistries {
     pub(crate) image: Arc<ImageReferenceDefinitions>,
     pub(crate) link: Arc<LinkReferenceDefinitions>,
     pub(crate) footnotes: Arc<FootnoteMap>,
+    /// Base directory the registries were last synced against; blocks
+    /// re-resolve image sources whenever this changes.
+    pub(crate) base_dir: Option<PathBuf>,
+    /// Document structure version at the time every current block last
+    /// received its runtime context. A mismatch means blocks were added or
+    /// replaced since, so the per-block sync cannot be skipped.
+    pub(crate) synced_structure_version: u64,
 }
 
 /// Native table cell bindings and axis selections.
@@ -266,11 +273,29 @@ pub(crate) struct ScrollbarDragSession {
     pub(crate) max_scroll_y: f32,
 }
 
-/// Source-mode selection snapshot stored with undo history.
+/// A block-local selection captured as a path through the block tree.
+///
+/// Undo restores rebuild every block entity, so the anchor addresses the
+/// block structurally (root index + sibling index per level) instead of by
+/// entity id. The range is the block's current (projected) content range.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct BlockSelectionAnchor {
+    /// Root index followed by the sibling index of each child level.
+    pub(crate) path: Vec<usize>,
+    /// Current (projected) content range inside the anchored block.
+    pub(crate) content_range: std::ops::Range<usize>,
+}
+
+/// Selection snapshot used by undo/redo to restore the caret.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct UndoSelectionSnapshot {
+    /// Global source range. Only meaningful for cross-block selections and
+    /// source-mode selections; block-local snapshots carry [`Self::block_anchor`]
+    /// instead and leave this empty.
     pub(crate) range: std::ops::Range<usize>,
     pub(crate) reversed: bool,
+    /// Block-local caret anchor, when the selection lives inside one block.
+    pub(crate) block_anchor: Option<BlockSelectionAnchor>,
 }
 
 /// One undo history entry containing source text and selection state.
@@ -614,7 +639,8 @@ impl Editor {
     /// transient per-area render/event context if set, else the active
     /// editor.
     pub(crate) fn routed_tab_area(&self) -> Option<AreaId> {
-        self.current_tab_area.or(self.panels.layout.active_editor_area)
+        self.current_tab_area
+            .or(self.panels.layout.active_editor_area)
     }
 
     /// Run `f` with the routing hint set to `area_id`, restoring the
@@ -713,11 +739,7 @@ impl Editor {
         let area = self
             .routed_tab_area()
             .expect("tab_mut() requires an active editor area");
-        let list = &mut self
-            .panels
-            .layout
-            .ensure_editor_session(area)
-            .tab_list;
+        let list = &mut self.panels.layout.ensure_editor_session(area).tab_list;
         let index = list.active_tab;
         &mut list.tabs[index]
     }
@@ -832,12 +854,7 @@ impl Editor {
     /// Deep-copy the source Editor area's tab list into `dst`: every tab is
     /// re-materialized from its serialized document, so the two editors are
     /// fully independent (separate undo, focus, scroll, and dirty state).
-    fn copy_editor_tab_list(
-        &mut self,
-        src: AreaId,
-        dst: AreaId,
-        cx: &mut Context<Self>,
-    ) {
+    fn copy_editor_tab_list(&mut self, src: AreaId, dst: AreaId, cx: &mut Context<Self>) {
         let Some(source) = self
             .panels
             .layout

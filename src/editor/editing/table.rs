@@ -2,8 +2,8 @@
 //! [`TableGrid`] of cell editors attached to a table block.
 
 use crate::editor::block_protocol::UndoCaptureKind;
-use crate::editor::tree::block::Block;
 use crate::editor::controller::*;
+use crate::editor::tree::block::Block;
 
 /// Runtime cell editors attached to one native table block.
 #[derive(Clone)]
@@ -117,6 +117,10 @@ impl Editor {
                 self.install_table_runtime_for_block(&visible.entity, &table, cx);
             }
         }
+        // Cells are runtime-only blocks outside the document tree; recreating
+        // them invalidates the runtime-context sync state so the next
+        // rebuild_image_runtimes refreshes the new cell entities.
+        self.doc_mut().mark_structure_changed();
         self.rebuild_image_runtimes(cx);
         self.sync_table_axis_visuals(cx);
     }
@@ -710,11 +714,15 @@ impl Editor {
         for table_block in &visible_tables {
             let block_id = table_block.entity_id();
             let preview_marker = self
-.tab().tables.axis_preview
+                .tab()
+                .tables
+                .axis_preview
                 .filter(|selection| selection.table_block_id == block_id)
                 .map(Self::table_axis_marker);
             let selected_marker = self
-.tab().tables.axis_selection
+                .tab()
+                .tables
+                .axis_selection
                 .filter(|selection| selection.table_block_id == block_id)
                 .map(Self::table_axis_marker);
 
@@ -728,10 +736,14 @@ impl Editor {
             };
 
             let selected = self
-.tab().tables.axis_selection
+                .tab()
+                .tables
+                .axis_selection
                 .filter(|selection| selection.table_block_id == block_id);
             let preview = self
-.tab().tables.axis_preview
+                .tab()
+                .tables
+                .axis_preview
                 .filter(|selection| selection.table_block_id == block_id);
 
             // `row` is the visual row index: `0` is the header and body rows

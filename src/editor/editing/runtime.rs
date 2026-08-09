@@ -6,16 +6,19 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use crate::editor::tree::block::Block;
 use crate::editor::controller::*;
-
+use crate::editor::tree::block::Block;
 
 impl Editor {
     pub(crate) fn current_edit_target_entity_id_from_state(&self, cx: &App) -> Option<EntityId> {
-        self.tab().focus.active_entity
+        self.tab()
+            .focus
+            .active_entity
             .filter(|entity_id| self.focusable_entity_by_id(*entity_id).is_some())
             .or_else(|| {
-                self.tab().focus.pending
+                self.tab()
+                    .focus
+                    .pending
                     .filter(|entity_id| self.focusable_entity_by_id(*entity_id).is_some())
             })
             .or_else(|| self.first_focusable_entity_id(cx))
@@ -46,7 +49,9 @@ impl Editor {
         }
 
         let cells: Vec<Entity<Block>> = self
-            .tab().tables.cells
+            .tab()
+            .tables
+            .cells
             .values()
             .map(|binding| binding.cell.clone())
             .collect();
@@ -95,7 +100,9 @@ impl Editor {
     }
 
     pub(crate) fn image_base_dir(&self) -> Option<PathBuf> {
-        self.tab().file.path
+        self.tab()
+            .file
+            .path
             .as_ref()
             .and_then(|path| path.parent().map(Path::to_path_buf))
             .or_else(|| std::env::current_dir().ok())
@@ -112,19 +119,21 @@ impl Editor {
         let link_reference_definitions = self.tab().references.link.clone();
         let footnote_registry = self.tab().references.footnotes.clone();
         block.update(cx, move |block, cx| {
-            block.set_runtime_context(
+            // Only repaint blocks whose runtime context actually changed;
+            // with the registries now reused by value comparison, most blocks
+            // keep their old context on any given edit.
+            if block.set_runtime_context(
                 next_base_dir.clone(),
                 image_reference_definitions.clone(),
                 link_reference_definitions.clone(),
                 footnote_registry.clone(),
-            );
-            cx.notify();
+            ) {
+                cx.notify();
+            }
         });
     }
 
-    pub(crate) fn rebuild_footnote_registry(&mut self, cx: &App) {
-                use std::sync::Arc;
-
+    pub(crate) fn rebuild_footnote_registry(&mut self, cx: &App) -> FootnoteMap {
         let mut definitions = HashMap::new();
         let visible = self.doc().blocks().to_vec();
         for visible_block in &visible {
@@ -205,20 +214,103 @@ impl Editor {
             }
         }
 
-        self.tab_mut().references.footnotes = Arc::new(FootnoteMap {
+        FootnoteMap {
             bindings,
             block_occurrences,
-        });
+        }
+    }
+
+    /// Whether any block could contribute reference definitions
+    /// (`[label]: url` lines), footnote content, or standalone images to the
+    /// document-wide scans.
+    ///
+    /// Reference definitions are only ever detected in raw-preserving block
+    /// kinds or in text containing `]:`; footnote bindings need `[^` markers;
+    /// standalone images start with `![`. When none of these markers exist
+    /// the registries stay empty and no block context refresh is needed.
+    /// Code-block text is fence-suppressed by the scanners, so it is excluded.
+    fn has_runtime_sync_candidates(&self, cx: &App) -> bool {
+        let block_has_candidates = |block: &Block| -> bool {
+            if block.record.preserves_raw_source() || block.kind() == BlockKind::FootnoteDefinition
+            {
+                return true;
+            }
+            if matches!(block.kind(), BlockKind::CodeBlock { .. }) {
+                return false;
+            }
+            let visible_text = block.record.text.visible_text();
+            visible_text.contains("]:")
+                || visible_text.contains("[^")
+                || visible_text.contains("![")
+        };
+
+        self.doc()
+            .blocks()
+            .iter()
+            .any(|visible| block_has_candidates(visible.entity.read(cx)))
+            || self
+                .tab()
+                .tables
+                .cells
+                .values()
+                .any(|binding| block_has_candidates(binding.cell.read(cx)))
     }
 
     pub(crate) fn rebuild_image_runtimes(&mut self, cx: &mut Context<Self>) {
         use std::sync::Arc;
 
         let base_dir = self.image_base_dir();
+
+        // Fast path: when no block can contribute reference definitions or
+        // footnote content and the registries are already empty, there is
+        // nothing to rebuild. This turns the per-keystroke cost from a
+        // full-document serialization plus per-block resync into a cheap
+        // scan of block text.
+        let registries_empty = {
+            let references = &self.tab().references;
+            references.image.is_empty()
+                && references.link.is_empty()
+                && references.footnotes.bindings.is_empty()
+                && references.footnotes.block_occurrences.is_empty()
+        };
+        if !self.has_runtime_sync_candidates(cx)
+            && registries_empty
+            && self.tab().references.base_dir == base_dir
+        {
+            // No block needs a runtime context, so the (empty) context is
+            // already correct for every block in the document.
+            self.tab_mut().references.synced_structure_version = self.doc().structure_version();
+            return;
+        }
+
         let markdown = self.doc().to_markdown(cx);
-        self.tab_mut().references.image = Arc::new(parse_image_reference_definitions(&markdown));
-        self.tab_mut().references.link = Arc::new(parse_link_reference_definitions(&markdown));
-        self.rebuild_footnote_registry(cx);
+        let next_image = Arc::new(parse_image_reference_definitions(&markdown));
+        let next_link = Arc::new(parse_link_reference_definitions(&markdown));
+        let next_footnotes = Arc::new(self.rebuild_footnote_registry(cx));
+
+        // Registries are compared by value, so when nothing actually changed
+        // and the block set is the same one that was last synced, the
+        // per-block context sync below is skipped entirely — blocks keep
+        // their current contexts and are not re-notified.
+        let registries_unchanged = {
+            let references = &self.tab().references;
+            references.synced_structure_version == self.doc().structure_version()
+                && references.base_dir == base_dir
+                && *references.image == *next_image
+                && *references.link == *next_link
+                && *references.footnotes == *next_footnotes
+        };
+        if registries_unchanged {
+            return;
+        }
+
+        self.tab_mut().references.base_dir = base_dir;
+        self.tab_mut().references.image = next_image;
+        self.tab_mut().references.link = next_link;
+        self.tab_mut().references.footnotes = next_footnotes;
+        self.tab_mut().references.synced_structure_version = self.doc().structure_version();
+
+        let base_dir = self.tab().references.base_dir.clone();
         let visible = self.doc().blocks().to_vec();
         for visible_block in visible {
             self.sync_runtime_context_for_block(&visible_block.entity, base_dir.as_deref(), cx);
@@ -241,7 +333,9 @@ impl Editor {
 
     pub(crate) fn focusable_entity_by_id(&self, entity_id: EntityId) -> Option<Entity<Block>> {
         self.doc().block_entity_by_id(entity_id).or_else(|| {
-            self.tab().tables.cells
+            self.tab()
+                .tables
+                .cells
                 .get(&entity_id)
                 .map(|binding| binding.cell.clone())
         })
@@ -266,14 +360,14 @@ impl Editor {
         window: &Window,
         cx: &App,
     ) -> Option<EntityId> {
-        self.doc()
-            .focused_block_entity_id(window, cx)
-            .or_else(|| {
-                self.tab().tables.cells
-                    .values()
-                    .find(|binding| binding.cell.read(cx).focus_handle.is_focused(window))
-                    .map(|binding| binding.cell.entity_id())
-            })
+        self.doc().focused_block_entity_id(window, cx).or_else(|| {
+            self.tab()
+                .tables
+                .cells
+                .values()
+                .find(|binding| binding.cell.read(cx).focus_handle.is_focused(window))
+                .map(|binding| binding.cell.entity_id())
+        })
     }
 
     pub(crate) fn focused_edit_target(&self, window: &Window, cx: &App) -> Option<Entity<Block>> {
@@ -291,5 +385,4 @@ impl Editor {
             .filter(|block| block.read(cx).kind() == BlockKind::Table)
     }
 }
-impl Editor {
-}
+impl Editor {}

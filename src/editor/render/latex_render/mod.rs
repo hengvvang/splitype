@@ -3,16 +3,32 @@
 //! Display-math source parsing lives in `model::syntax::math`; this module
 //! only owns the SVG rendering pipeline and its cache.
 
+use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex, OnceLock};
 
 use anyhow::{Context as _, anyhow};
 use directories::ProjectDirs;
 use gpui::{Hsla, Rgba};
 
 use crate::model::syntax::math::DisplayMathSource;
+
+/// Upper bound on formulas retained in the in-memory SVG cache. Content
+/// is addresses by hash, so eviction is safe: the disk cache still holds
+/// the SVG and a miss just re-reads it.
+const LATEX_SVG_MEMORY_CACHE_CAP: usize = 256;
+
+/// Process-wide in-memory SVG cache shared by every render call site
+/// (editor, preview, export). Without it, each frame re-runs the full
+/// ratex parse + layout + glyph-embedding pipeline for every formula.
+static LATEX_SVG_MEMORY_CACHE: OnceLock<Mutex<HashMap<u64, Arc<LatexSvgRender>>>> = OnceLock::new();
+
+fn latex_svg_memory_cache() -> &'static Mutex<HashMap<u64, Arc<LatexSvgRender>>> {
+    LATEX_SVG_MEMORY_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
 
 const DISPLAY_MATH_SCALE: f32 = 1.25;
 const INLINE_MATH_SCALE: f32 = 1.12;
@@ -41,7 +57,7 @@ pub(crate) fn render_display_math_svg(
     source: &DisplayMathSource,
     text_color: Hsla,
     font_size: f32,
-) -> anyhow::Result<LatexSvgRender> {
+) -> anyhow::Result<Arc<LatexSvgRender>> {
     render_latex_svg_to_cache(&source.body, text_color, font_size)
 }
 
@@ -50,23 +66,44 @@ pub(crate) fn render_inline_math_svg(
     latex: &str,
     text_color: Hsla,
     font_size: f32,
-) -> anyhow::Result<LatexSvgRender> {
+) -> anyhow::Result<Arc<LatexSvgRender>> {
     render_latex_svg_to_cache(latex, text_color, font_size)
 }
 
+/// Resolve a formula to a cached SVG, rendering only on a total miss.
+///
+/// The lookup order is in-memory hash cache -> disk cache file -> render.
+/// The previous implementation rendered first and only used the cache to
+/// skip the disk write, so every frame re-ran the full ratex pipeline for
+/// every formula in the document.
 fn render_latex_svg_to_cache(
     latex: &str,
     text_color: Hsla,
     font_size: f32,
-) -> anyhow::Result<LatexSvgRender> {
-    let svg = render_latex_to_svg(latex, text_color, font_size)?;
-    let key = latex_cache_key(latex, text_color, font_size);
-    let path = latex_cache_dir()?.join(format!("{key}.svg"));
-    if !path.exists() {
+) -> anyhow::Result<Arc<LatexSvgRender>> {
+    let key = latex_cache_fingerprint(latex, text_color, font_size);
+    if let Some(cached) = latex_svg_memory_cache().lock().unwrap().get(&key) {
+        return Ok(cached.clone());
+    }
+
+    let path = latex_cache_dir()?.join(format!("{key:016x}.svg"));
+    let svg = if path.exists() {
+        fs::read_to_string(&path)
+            .with_context(|| format!("failed to read LaTeX SVG cache '{}'", path.display()))?
+    } else {
+        let svg = render_latex_to_svg(latex, text_color, font_size)?;
         fs::write(&path, &svg)
             .with_context(|| format!("failed to write LaTeX SVG cache '{}'", path.display()))?;
+        svg
+    };
+
+    let rendered = Arc::new(LatexSvgRender { path, svg });
+    let mut cache = latex_svg_memory_cache().lock().unwrap();
+    if cache.len() >= LATEX_SVG_MEMORY_CACHE_CAP {
+        cache.clear();
     }
-    Ok(LatexSvgRender { path, svg })
+    cache.insert(key, rendered.clone());
+    Ok(rendered)
 }
 
 /// Render a LaTeX expression into self-contained SVG text.
@@ -91,13 +128,13 @@ pub(crate) fn render_latex_to_svg(
     Ok(svg)
 }
 
-/// Stable cache key for formula content and visual parameters.
-pub(crate) fn latex_cache_key(latex: &str, text_color: Hsla, font_size: f32) -> String {
+/// Stable 64-bit fingerprint for formula content and visual parameters.
+pub(crate) fn latex_cache_fingerprint(latex: &str, text_color: Hsla, font_size: f32) -> u64 {
     let mut hasher = DefaultHasher::new();
     latex.hash(&mut hasher);
     svg_color(text_color).hash(&mut hasher);
     font_size.to_bits().hash(&mut hasher);
-    format!("{:016x}", hasher.finish())
+    hasher.finish()
 }
 
 fn latex_cache_dir() -> anyhow::Result<PathBuf> {
@@ -164,8 +201,8 @@ mod tests {
 
     #[test]
     fn cache_key_changes_with_theme_inputs() {
-        let first = latex_cache_key("\\frac{1}{2}", Hsla::from(rgba(0xffffffff)), 18.0);
-        let second = latex_cache_key("\\frac{1}{2}", Hsla::from(rgba(0x000000ff)), 18.0);
+        let first = latex_cache_fingerprint("\\frac{1}{2}", Hsla::from(rgba(0xffffffff)), 18.0);
+        let second = latex_cache_fingerprint("\\frac{1}{2}", Hsla::from(rgba(0x000000ff)), 18.0);
         assert_ne!(first, second);
     }
 

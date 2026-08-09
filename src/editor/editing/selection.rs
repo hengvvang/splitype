@@ -42,7 +42,15 @@ impl Editor {
     pub(crate) fn clear_cross_block_selection(&mut self, cx: &mut Context<Self>) {
         let had_selection = self.tab_mut().selection.cross_block.take().is_some();
         self.tab_mut().selection.cross_block_drag = None;
-        let changed_visuals = self.clear_cross_block_selection_visuals(cx);
+        // Visual ranges are only ever written while a cross-block selection
+        // (or drag) is active, so when there was none the all-blocks scan
+        // below has nothing to clear. Skipping it removes an O(blocks) entity
+        // update from every keystroke while editing without a selection.
+        let changed_visuals = if had_selection {
+            self.clear_cross_block_selection_visuals(cx)
+        } else {
+            false
+        };
         let changed = had_selection || changed_visuals;
         if changed {
             cx.notify();
@@ -330,6 +338,7 @@ impl Editor {
         Some(UndoSelectionSnapshot {
             range,
             reversed: normalized.reversed,
+            block_anchor: None,
         })
     }
 
@@ -699,6 +708,7 @@ impl Editor {
             &UndoSelectionSnapshot {
                 range: selected_source_range,
                 reversed: false,
+                block_anchor: None,
             },
             cx,
         );
@@ -877,6 +887,7 @@ impl Editor {
             &UndoSelectionSnapshot {
                 range: start..start,
                 reversed: false,
+                block_anchor: None,
             },
             cx,
         );
@@ -1307,7 +1318,9 @@ mod tests {
             let empty =
                 Editor::new_block(cx, crate::model::block::BlockData::paragraph(String::new()));
             let index = editor.doc().root_count();
-            editor.doc_mut().insert_blocks_at(None, index, vec![empty], cx);
+            editor
+                .doc_mut()
+                .insert_blocks_at(None, index, vec![empty], cx);
 
             let visible = editor.doc().blocks().to_vec();
             assert_eq!(visible.len(), 3);

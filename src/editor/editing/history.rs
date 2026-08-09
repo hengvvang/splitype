@@ -8,15 +8,17 @@ use std::time::Instant;
 use gpui::*;
 
 use crate::editor::controller::{
-    BlockData, Editor, EditorMode, HistoryEntry, PendingUndoCapture, UndoCaptureKind,
-    UndoSelectionSnapshot,
+    BlockData, BlockSelectionAnchor, Editor, EditorMode, HistoryEntry, PendingUndoCapture,
+    UndoCaptureKind, UndoSelectionSnapshot,
 };
+use crate::editor::tree::block::Block;
 
 impl Editor {
     pub(crate) fn empty_selection_snapshot() -> UndoSelectionSnapshot {
         UndoSelectionSnapshot {
             range: 0..0,
             reversed: false,
+            block_anchor: None,
         }
     }
 
@@ -34,6 +36,59 @@ impl Editor {
                     UndoSelectionSnapshot {
                         range: block_ref.selected_range.clone(),
                         reversed: block_ref.selection_reversed,
+                        block_anchor: None,
+                    }
+                })
+                .unwrap_or_else(Self::empty_selection_snapshot);
+        }
+
+        let Some(target) = self.current_edit_target_from_state(cx) else {
+            return self.tab().undo.last_selection_snapshot.clone();
+        };
+
+        // Block-local caret: capture the block's structural path plus its
+        // current content range. This avoids rebuilding the full-document
+        // source mapping on every keystroke; restore resolves the path
+        // directly on the (possibly rebuilt) block tree. Runtime-only blocks
+        // such as table cells are not part of the tree, so they fall back to
+        // the full-mapping path below.
+        let Some(path) = self.block_tree_path(&target, cx) else {
+            return self.capture_source_selection_snapshot_global(cx);
+        };
+        let (selected_range, selection_reversed) = target.read_with(cx, |block, _cx| {
+            (block.selected_range.clone(), block.selection_reversed)
+        });
+        UndoSelectionSnapshot {
+            range: 0..0,
+            reversed: selection_reversed,
+            block_anchor: Some(BlockSelectionAnchor {
+                path,
+                content_range: selected_range,
+            }),
+        }
+    }
+
+    /// Capture with a global source range, used when the selection must
+    /// survive a view-mode toggle or a full document reparse (quote
+    /// normalization), where the anchor's tree path may no longer fit.
+    pub(crate) fn capture_source_selection_snapshot_global(
+        &self,
+        cx: &App,
+    ) -> UndoSelectionSnapshot {
+        if let Some(snapshot) = self.cross_block_source_selection_snapshot(cx) {
+            return snapshot;
+        }
+
+        if self.tab().mode == EditorMode::SourceCode {
+            return self
+                .doc()
+                .first_root()
+                .map(|block| {
+                    let block_ref = block.read(cx);
+                    UndoSelectionSnapshot {
+                        range: block_ref.selected_range.clone(),
+                        reversed: block_ref.selection_reversed,
+                        block_anchor: None,
                     }
                 })
                 .unwrap_or_else(Self::empty_selection_snapshot);
@@ -63,7 +118,39 @@ impl Editor {
         UndoSelectionSnapshot {
             range: start..end,
             reversed: target.read(cx).selection_reversed,
+            block_anchor: None,
         }
+    }
+
+    /// Resolves a block entity to its structural path (root index, then the
+    /// sibling index of each child level, root-first). Returns None for
+    /// runtime-only blocks that are not part of the document tree.
+    pub(crate) fn block_tree_path(&self, block: &Entity<Block>, _cx: &App) -> Option<Vec<usize>> {
+        let mut path = Vec::new();
+        let mut current = Some(block.entity_id());
+        while let Some(entity_id) = current {
+            let location = self.doc().find_block_location(entity_id)?;
+            path.push(location.index);
+            current = location.parent.as_ref().map(|parent| parent.entity_id());
+        }
+        path.reverse();
+        Some(path)
+    }
+
+    /// Resolves a structural path back to its block entity, if it still fits
+    /// the current tree (indices may have shifted after structural edits).
+    pub(crate) fn block_entity_by_path(&self, path: &[usize], cx: &App) -> Option<Entity<Block>> {
+        let mut blocks = self.doc().root_blocks();
+        let mut entity: Option<Entity<Block>> = None;
+        for (level, &index) in path.iter().enumerate() {
+            let block = blocks.get(index)?.clone();
+            entity = Some(block.clone());
+            if level + 1 == path.len() {
+                return Some(block);
+            }
+            blocks = block.read(cx).children.as_slice();
+        }
+        entity
     }
 
     pub(crate) fn capture_history_entry(&self, kind: UndoCaptureKind, cx: &App) -> HistoryEntry {
@@ -103,8 +190,15 @@ impl Editor {
     }
 
     pub(crate) fn refresh_stable_document_snapshot(&mut self, cx: &App) {
+        let source = self.current_document_source(cx);
+        self.refresh_stable_document_snapshot_with_source(source, cx);
+    }
+
+    /// Refreshes the stable undo snapshot, reusing an already-serialized
+    /// source instead of serializing the document a second time.
+    fn refresh_stable_document_snapshot_with_source(&mut self, source: String, cx: &App) {
         self.tab_mut().undo.last_selection_snapshot = self.capture_source_selection_snapshot(cx);
-        self.tab_mut().undo.last_stable_source_text = self.current_document_source(cx);
+        self.tab_mut().undo.last_stable_source_text = source;
     }
 
     pub(crate) fn finalize_pending_undo_capture(&mut self, cx: &mut Context<Self>) {
@@ -120,7 +214,7 @@ impl Editor {
 
         let current_source = self.current_document_source(cx);
         if current_source == pending.snapshot.source_text {
-            self.refresh_stable_document_snapshot(cx);
+            self.refresh_stable_document_snapshot_with_source(current_source, cx);
             return;
         }
 
@@ -143,7 +237,7 @@ impl Editor {
                 self.tab_mut().undo.undo_entries.drain(0..overflow);
             }
         }
-        self.refresh_stable_document_snapshot(cx);
+        self.refresh_stable_document_snapshot_with_source(current_source, cx);
     }
 
     pub(crate) fn apply_selection_snapshot_in_current_mode(
@@ -157,7 +251,14 @@ impl Editor {
                     return;
                 };
                 let len = block.read(cx).visible_len();
-                let selected_range = snapshot.range.start.min(len)..snapshot.range.end.min(len);
+                // Anchored snapshots carry a block-local caret; treat it as a
+                // raw offset into the single source block as a best effort.
+                let cursor = snapshot
+                    .block_anchor
+                    .as_ref()
+                    .map(|anchor| anchor.content_range.end)
+                    .unwrap_or(snapshot.range.end);
+                let selected_range = cursor.min(len)..cursor.min(len);
                 block.update(cx, move |block, cx| {
                     block.selected_range = selected_range.clone();
                     block.selection_reversed = snapshot.reversed;
@@ -170,6 +271,26 @@ impl Editor {
                 self.tab_mut().focus.active_entity = Some(block.entity_id());
             }
             EditorMode::Wysiwyg => {
+                if let Some(anchor) = &snapshot.block_anchor
+                    && let Some(block) = self.block_entity_by_path(&anchor.path, cx)
+                {
+                    let entity_id = block.entity_id();
+                    let selected_range = anchor.content_range.clone();
+                    block.update(cx, move |block, cx| {
+                        let len = block.visible_len();
+                        block.selected_range =
+                            selected_range.start.min(len)..selected_range.end.min(len);
+                        block.selection_reversed = snapshot.reversed;
+                        block.marked_range = None;
+                        block.vertical_motion_x = None;
+                        block.cursor_blink_epoch = Instant::now();
+                        cx.notify();
+                    });
+                    self.tab_mut().focus.pending = Some(entity_id);
+                    self.tab_mut().focus.active_entity = Some(entity_id);
+                    return;
+                }
+
                 if self.apply_cross_block_selection_snapshot_if_possible(snapshot, cx) {
                     return;
                 }

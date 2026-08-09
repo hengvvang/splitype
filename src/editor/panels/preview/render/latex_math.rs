@@ -3,19 +3,13 @@
 
 use gpui::*;
 
-use crate::editor::render::latex_render::{
-    display_math_font_size, render_display_math_svg,
-};
+use crate::editor::render::latex_render::{display_math_font_size, render_display_math_svg};
 use crate::editor::tree::block::Block;
 use crate::model::syntax::math::parse_display_math_source;
 use crate::theme::Theme;
 
 /// Renders a LaTeX math block read-only.
-pub(crate) fn render_preview_latex_math(
-    block: &Block,
-    base: Div,
-    theme: &Theme,
-) -> AnyElement {
+pub(crate) fn render_preview_latex_math(block: &Block, base: Div, theme: &Theme) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;
@@ -57,7 +51,7 @@ pub(crate) fn render_preview_latex_math(
             .justify_center()
             .py(px(d.block_padding_y.max(6.0)))
             .child(
-                img(rendered.path)
+                img(rendered.path.clone())
                     .max_w(Length::Definite(relative(1.0)))
                     .max_h(px(d.image_root_max_height))
                     .object_fit(ObjectFit::Contain),

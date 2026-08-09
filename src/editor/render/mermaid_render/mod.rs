@@ -151,9 +151,14 @@ fn render_mermaid_raw(source: &str) -> anyhow::Result<String> {
 
 /// Stable cache key for Mermaid content.
 pub(crate) fn mermaid_cache_key(source: &str) -> String {
+    format!("{:016x}", mermaid_content_fingerprint(source))
+}
+
+/// Stable 64-bit fingerprint for Mermaid diagram content.
+pub(crate) fn mermaid_content_fingerprint(source: &str) -> u64 {
     let mut hasher = DefaultHasher::new();
     source.hash(&mut hasher);
-    format!("{:016x}", hasher.finish())
+    hasher.finish()
 }
 
 /// Stable cache key for editor display SVG content and scale.

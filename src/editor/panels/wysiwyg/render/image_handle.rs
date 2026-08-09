@@ -5,9 +5,7 @@ use std::time::Instant;
 
 use crate::editor::tree::block::{Block, CollapsedCaretAffinity, ImageHandle};
 use crate::model::block::BlockKind;
-use crate::model::syntax::image::{
-    ImageSyntax, parse_standalone_image, resolve_image_source,
-};
+use crate::model::syntax::image::{ImageSyntax, parse_standalone_image, resolve_image_source};
 
 impl Block {
     pub(crate) fn image_runtime(&self) -> Option<&ImageHandle> {
@@ -55,7 +53,7 @@ impl Block {
         self.image_base_dir.as_deref()
     }
 
-    pub(crate) fn sync_image_runtime(&mut self) {
+    pub(crate) fn sync_image_runtime(&mut self) -> bool {
         let next_runtime = if self.can_present_as_image() {
             self.standalone_image_markdown_for_runtime()
                 .and_then(|markdown| parse_standalone_image(&markdown))
@@ -70,7 +68,11 @@ impl Block {
             self.image_edit_expanded = false;
             self.image_expand_requested = false;
         }
+        if self.image_runtime == next_runtime {
+            return false;
+        }
         self.image_runtime = next_runtime;
+        true
     }
 
     fn standalone_image_markdown_for_runtime(&self) -> Option<String> {

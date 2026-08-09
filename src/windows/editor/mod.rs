@@ -11,10 +11,10 @@
 //! 6. **Chrome** — titlebar, tiled sidebar, menu panel, context menu,
 //!    table-insert dialog, info/drop/unsaved overlays.
 
+pub(crate) mod bottombar;
 pub(crate) mod context_menu;
 pub(crate) mod dialogs;
 pub(crate) mod export;
-pub(crate) mod bottombar;
 pub(crate) mod topbar;
 
 use std::time::{Duration, Instant};
@@ -22,8 +22,10 @@ use std::time::{Duration, Instant};
 use gpui::*;
 
 use crate::editor::controller::*;
+use crate::editor::tree::document::RenderedBlock;
 use crate::infra::i18n::{I18nManager, I18nStrings};
-use crate::theme::ThemeManager;
+use crate::model::block::CalloutKind;
+use crate::theme::{Theme, ThemeDimensions, ThemeManager};
 use crate::windows::titlebar::app_menu::*;
 use crate::windows::titlebar::{custom_titlebar_height, render_custom_titlebar};
 
@@ -31,6 +33,29 @@ use crate::windows::titlebar::{custom_titlebar_height, render_custom_titlebar};
 
 /// Rows within this many pixels of the viewport stay mounted.
 pub const RENDER_OVERDRAW_PX: f32 = 800.0;
+
+/// One inner row inside a planned render row (callout / footnote group).
+#[derive(Clone, Debug)]
+enum PlannedInnerSegment {
+    /// A single block row with its leading `mt` gap.
+    Block { gap: f32 },
+    /// A footnote subgroup: an outer gap plus per-block row gaps.
+    FootnoteSubgroup { gap: f32, row_gaps: Vec<f32> },
+}
+
+/// Lightweight plan for one render row, built for every row but materialized
+/// into elements only for the windowed range.
+struct PlannedRow {
+    /// Block range covered by this row, `[start, end)` in visible order.
+    start: usize,
+    end: usize,
+    /// Callout accent variant when this row is a callout group.
+    callout_variant: Option<CalloutKind>,
+    /// The outer container's leading `mt` gap.
+    outer_gap: f32,
+    /// Inner rows in order; the sum of their block counts equals `end - start`.
+    segments: Vec<PlannedInnerSegment>,
+}
 
 pub(crate) const SPLITYPE_REPOSITORY_URL: &str = "https://github.com/hengvvang/splitype";
 pub(crate) const SPLITYPE_BUG_REPORT_URL: &str =
@@ -489,22 +514,23 @@ impl Editor {
                 .read_with(cx, |block, _cx| RenderedRowSpacingInfo::from_block(block))
         };
         let mut previous_row_spacing = None;
-        // One entry per render row; off-screen rows are dropped after windowing.
-        let mut row_elements: Vec<AnyElement> = Vec::new();
+        // One lightweight plan entry per render row, covering the whole
+        // document; elements are only built for the windowed range below, so
+        // off-screen rows cost nothing but the spacing reads.
+        let mut rows: Vec<PlannedRow> = Vec::new();
         let mut row_starts: Vec<usize> = Vec::new();
         // Each row's leading `mt` gap; the top spacer subtracts the first mounted
         // row's, since that row re-applies it.
         let mut row_top_gaps: Vec<f32> = Vec::new();
         let mut index = 0usize;
         while index < blocks.len() {
-            let first_visible = blocks[index].clone();
             let first_spacing = spacing_for(index);
             let top_gap = rendered_row_top_gap(previous_row_spacing, first_spacing, d.block_gap);
 
             if let (Some(callout_anchor), Some(callout_variant)) =
                 (first_spacing.callout_anchor, first_spacing.callout_variant)
             {
-                let mut group_children = Vec::new();
+                let mut segments = Vec::new();
                 let mut group_end = index;
                 let mut previous_callout_row = None;
                 while group_end < blocks.len()
@@ -512,192 +538,87 @@ impl Editor {
                 {
                     let row_spacing = spacing_for(group_end);
                     if let Some(footnote_anchor) = row_spacing.footnote_anchor {
-                        let mut footnote_children = Vec::new();
                         let mut footnote_end = group_end;
                         let mut previous_footnote_row = None;
+                        let mut row_gaps = Vec::new();
                         while footnote_end < blocks.len()
                             && spacing_for(footnote_end).callout_anchor == Some(callout_anchor)
                             && spacing_for(footnote_end).footnote_anchor == Some(footnote_anchor)
                         {
                             let footnote_spacing = spacing_for(footnote_end);
-                            let entity = blocks[footnote_end].entity.clone();
-                            let row = div()
-                                .w_full()
-                                .flex_shrink_0()
-                                .mt(px(footnote_row_top_gap(previous_footnote_row, d.block_gap)))
-                                .child(entity.clone());
-                            let row = if self.tab().mode == EditorMode::Wysiwyg {
-                                let row_editor = editor.clone();
-                                let entity_id = entity.entity_id();
-                                row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
-                                    let _ = row_editor.update(cx, |editor, cx| {
-                                        editor.with_current_tab_area(area_id, |editor| {
-                                            editor.panels.layout.activate_editor_area(area_id);
-                                            editor.on_block_context_menu_mouse_down(
-                                                entity_id, event, window, cx,
-                                            );
-                                        });
-                                    });
-                                })
-                            } else {
-                                row
-                            };
-
-                            footnote_children.push(row.into_any_element());
+                            row_gaps.push(footnote_row_top_gap(previous_footnote_row, d.block_gap));
                             previous_footnote_row = Some(footnote_spacing);
                             footnote_end += 1;
                         }
 
-                        group_children.push(
-                            div()
-                                .w_full()
-                                .flex_shrink_0()
-                                .mt(px(callout_row_top_gap(
-                                    previous_callout_row,
-                                    row_spacing,
-                                    d,
-                                )))
-                                .child(footnote_group_shell(footnote_children, &theme, d))
-                                .into_any_element(),
-                        );
+                        segments.push(PlannedInnerSegment::FootnoteSubgroup {
+                            gap: callout_row_top_gap(previous_callout_row, row_spacing, d),
+                            row_gaps,
+                        });
                         previous_callout_row = Some(spacing_for(footnote_end - 1));
                         group_end = footnote_end;
                         continue;
                     }
 
-                    let entity = blocks[group_end].entity.clone();
-                    let row = div()
-                        .w_full()
-                        .flex_shrink_0()
-                        .mt(px(callout_row_top_gap(
-                            previous_callout_row,
-                            row_spacing,
-                            d,
-                        )))
-                        .child(entity.clone());
-                    let row = if self.tab().mode == EditorMode::Wysiwyg {
-                        let row_editor = editor.clone();
-                        let entity_id = entity.entity_id();
-                        row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
-                            let _ = row_editor.update(cx, |editor, cx| {
-                                editor.with_current_tab_area(area_id, |editor| {
-                                    editor.panels.layout.activate_editor_area(area_id);
-                                    editor.on_block_context_menu_mouse_down(
-                                        entity_id, event, window, cx,
-                                    );
-                                });
-                            });
-                        })
-                    } else {
-                        row
-                    };
-                    group_children.push(row.into_any_element());
+                    segments.push(PlannedInnerSegment::Block {
+                        gap: callout_row_top_gap(previous_callout_row, row_spacing, d),
+                    });
                     previous_callout_row = Some(row_spacing);
                     group_end += 1;
                 }
 
-                let (accent, _background) = callout_colors(callout_variant, &theme);
                 row_starts.push(index);
                 row_top_gaps.push(top_gap);
-                row_elements.push(
-                    div()
-                        .w(px(centered_width))
-                        .max_w(relative(1.0))
-                        .flex_shrink_0()
-                        .mt(px(top_gap))
-                        .flex()
-                        .flex_col()
-                        .gap(px(0.0))
-                        .px(px(d.callout_padding_x))
-                        .py(px(d.callout_padding_y))
-                        .rounded_r(px(d.callout_radius))
-                        .border_l(px(d.callout_border_width))
-                        .border_color(accent)
-                        .children(group_children)
-                        .into_any_element(),
-                );
+                rows.push(PlannedRow {
+                    start: index,
+                    end: group_end,
+                    callout_variant: Some(callout_variant),
+                    outer_gap: top_gap,
+                    segments,
+                });
                 previous_row_spacing = Some(spacing_for(group_end - 1));
                 index = group_end;
                 continue;
             }
 
             if let Some(footnote_anchor) = first_spacing.footnote_anchor {
-                let mut group_children = Vec::new();
+                let mut segments = Vec::new();
                 let mut group_end = index;
                 let mut previous_footnote_row = None;
                 while group_end < blocks.len()
                     && spacing_for(group_end).footnote_anchor == Some(footnote_anchor)
                 {
                     let row_spacing = spacing_for(group_end);
-                    let entity = blocks[group_end].entity.clone();
-                    let row = div()
-                        .w_full()
-                        .flex_shrink_0()
-                        .mt(px(footnote_row_top_gap(previous_footnote_row, d.block_gap)))
-                        .child(entity.clone());
-                    let row = if self.tab().mode == EditorMode::Wysiwyg {
-                        let row_editor = editor.clone();
-                        let entity_id = entity.entity_id();
-                        row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
-                            let _ = row_editor.update(cx, |editor, cx| {
-                                editor.with_current_tab_area(area_id, |editor| {
-                                    editor.panels.layout.activate_editor_area(area_id);
-                                    editor.on_block_context_menu_mouse_down(
-                                        entity_id, event, window, cx,
-                                    );
-                                });
-                            });
-                        })
-                    } else {
-                        row
-                    };
-                    group_children.push(row.into_any_element());
+                    segments.push(PlannedInnerSegment::Block {
+                        gap: footnote_row_top_gap(previous_footnote_row, d.block_gap),
+                    });
                     previous_footnote_row = Some(row_spacing);
                     group_end += 1;
                 }
 
                 row_starts.push(index);
                 row_top_gaps.push(top_gap);
-                row_elements.push(
-                    div()
-                        .w(px(centered_width))
-                        .max_w(relative(1.0))
-                        .flex_shrink_0()
-                        .mt(px(top_gap))
-                        .child(footnote_group_shell(group_children, &theme, d))
-                        .into_any_element(),
-                );
+                rows.push(PlannedRow {
+                    start: index,
+                    end: group_end,
+                    callout_variant: None,
+                    outer_gap: top_gap,
+                    segments,
+                });
                 previous_row_spacing = Some(spacing_for(group_end - 1));
                 index = group_end;
                 continue;
             }
 
-            let entity = first_visible.entity.clone();
-            let row = div()
-                .w(px(centered_width))
-                .max_w(relative(1.0))
-                .flex_shrink_0()
-                .mt(px(top_gap))
-                .child(entity.clone());
-            let row = if self.tab().mode == EditorMode::Wysiwyg {
-                let row_editor = editor.clone();
-                let entity_id = entity.entity_id();
-                row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
-                    let _ = row_editor.update(cx, |editor, cx| {
-                        editor.with_current_tab_area(area_id, |editor| {
-                            editor.panels.layout.activate_editor_area(area_id);
-                            editor.on_block_context_menu_mouse_down(
-                                entity_id, event, window, cx,
-                            );
-                        });
-                    });
-                })
-            } else {
-                row
-            };
             row_starts.push(index);
             row_top_gaps.push(top_gap);
-            row_elements.push(row.into_any_element());
+            rows.push(PlannedRow {
+                start: index,
+                end: index + 1,
+                callout_variant: None,
+                outer_gap: top_gap,
+                segments: Vec::new(),
+            });
             previous_row_spacing = Some(first_spacing);
             index += 1;
         }
@@ -819,10 +740,19 @@ impl Editor {
                     .into_any_element(),
             );
         }
-        for (row_index, element) in row_elements.into_iter().enumerate() {
-            if row_index >= render_window.run_start && row_index < render_window.run_end {
-                block_rows.push(element);
+        for (row_index, plan) in rows.iter().enumerate() {
+            if row_index < render_window.run_start || row_index >= render_window.run_end {
+                continue;
             }
+            block_rows.push(self.build_planned_row_element(
+                plan,
+                &blocks,
+                editor.clone(),
+                area_id,
+                centered_width,
+                &theme,
+                d,
+            ));
         }
         if render_window.bottom_h > 0.5 {
             block_rows.push(
@@ -866,27 +796,36 @@ impl Editor {
                     this.on_editor_capture_mouse_down(event, window, cx);
                 });
             }))
-            .on_mouse_down(MouseButton::Left, cx.listener(move |this, event, window, cx| {
-                this.with_current_tab_area(area_id, |this| {
-                    this.panels.layout.activate_editor_area(area_id);
-                    this.on_editor_mouse_down(event, window, cx);
-                });
-            }))
+            .on_mouse_down(
+                MouseButton::Left,
+                cx.listener(move |this, event, window, cx| {
+                    this.with_current_tab_area(area_id, |this| {
+                        this.panels.layout.activate_editor_area(area_id);
+                        this.on_editor_mouse_down(event, window, cx);
+                    });
+                }),
+            )
             .on_mouse_move(cx.listener(move |this, event, window, cx| {
                 this.with_current_tab_area(area_id, |this| {
                     this.on_editor_mouse_move(event, window, cx);
                 });
             }))
-            .on_mouse_up(MouseButton::Left, cx.listener(move |this, event, window, cx| {
-                this.with_current_tab_area(area_id, |this| {
-                    this.on_editor_mouse_up(event, window, cx);
-                });
-            }))
-            .on_mouse_up_out(MouseButton::Left, cx.listener(move |this, event, window, cx| {
-                this.with_current_tab_area(area_id, |this| {
-                    this.on_editor_mouse_up(event, window, cx);
-                });
-            }))
+            .on_mouse_up(
+                MouseButton::Left,
+                cx.listener(move |this, event, window, cx| {
+                    this.with_current_tab_area(area_id, |this| {
+                        this.on_editor_mouse_up(event, window, cx);
+                    });
+                }),
+            )
+            .on_mouse_up_out(
+                MouseButton::Left,
+                cx.listener(move |this, event, window, cx| {
+                    this.with_current_tab_area(area_id, |this| {
+                        this.on_editor_mouse_up(event, window, cx);
+                    });
+                }),
+            )
             .on_scroll_wheel(cx.listener(move |this, event, window, cx| {
                 this.with_current_tab_area(area_id, |this| {
                     this.on_editor_scroll_wheel(event, window, cx);
@@ -912,7 +851,9 @@ impl Editor {
         };
 
         let content_area = div()
-            .id(ElementId::Name(format!("editor-scroll-{area_id}-{panel_id}").into()))
+            .id(ElementId::Name(
+                format!("editor-scroll-{area_id}-{panel_id}").into(),
+            ))
             .w_full()
             .h_full()
             .flex_1()
@@ -989,9 +930,8 @@ impl Editor {
                                             f32::from(event.position.y) - track_origin_y;
                                         let _ = editor.update(cx, |editor, cx| {
                                             editor.with_current_tab_area(area_id, |editor| {
-                                                editor.update_scrollbar_drag(
-                                                    pointer_y_in_track, cx,
-                                                );
+                                                editor
+                                                    .update_scrollbar_drag(pointer_y_in_track, cx);
                                             });
                                         });
                                     }
@@ -1011,6 +951,158 @@ impl Editor {
         self.current_tab_area = previous;
         content_area.into_any_element()
     }
+
+    /// Materializes one planned render row into its element tree. Only rows
+    /// inside the windowed range are built, so off-screen rows cost nothing
+    /// but their plan (spacing reads).
+    fn build_planned_row_element(
+        &self,
+        plan: &PlannedRow,
+        blocks: &[RenderedBlock],
+        editor: WeakEntity<Self>,
+        area_id: usize,
+        centered_width: f32,
+        theme: &Theme,
+        d: &ThemeDimensions,
+    ) -> AnyElement {
+        debug_assert_eq!(
+            plan.start
+                + if plan.segments.is_empty() {
+                    // Single block rows carry no inner segments.
+                    1
+                } else {
+                    plan.segments
+                        .iter()
+                        .map(|segment| match segment {
+                            PlannedInnerSegment::Block { .. } => 1,
+                            PlannedInnerSegment::FootnoteSubgroup { row_gaps, .. } => {
+                                row_gaps.len()
+                            }
+                        })
+                        .sum::<usize>()
+                },
+            plan.end,
+            "planned row segment block counts must match its block range"
+        );
+
+        let attach_context_menu = |row: Div, entity_id: EntityId| -> Div {
+            if self.tab().mode == EditorMode::Wysiwyg {
+                let row_editor = editor.clone();
+                row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
+                    let _ = row_editor.update(cx, |editor, cx| {
+                        editor.with_current_tab_area(area_id, |editor| {
+                            editor.panels.layout.activate_editor_area(area_id);
+                            editor.on_block_context_menu_mouse_down(entity_id, event, window, cx);
+                        });
+                    });
+                })
+            } else {
+                row
+            }
+        };
+
+        match (plan.callout_variant, plan.segments.is_empty()) {
+            // Single block row.
+            (None, true) => {
+                let entity = blocks[plan.start].entity.clone();
+                let entity_id = entity.entity_id();
+                let row = div()
+                    .w(px(centered_width))
+                    .max_w(relative(1.0))
+                    .flex_shrink_0()
+                    .mt(px(plan.outer_gap))
+                    .child(entity.clone());
+                attach_context_menu(row, entity_id).into_any_element()
+            }
+            // Plain footnote group.
+            (None, false) => {
+                let mut children = Vec::new();
+                let mut block_offset = plan.start;
+                for segment in &plan.segments {
+                    let PlannedInnerSegment::Block { gap } = segment else {
+                        debug_assert!(false, "plain footnote group cannot contain subgroups");
+                        continue;
+                    };
+                    let entity = blocks[block_offset].entity.clone();
+                    let entity_id = entity.entity_id();
+                    let row = div()
+                        .w_full()
+                        .flex_shrink_0()
+                        .mt(px(*gap))
+                        .child(entity.clone());
+                    children.push(attach_context_menu(row, entity_id).into_any_element());
+                    block_offset += 1;
+                }
+                div()
+                    .w(px(centered_width))
+                    .max_w(relative(1.0))
+                    .flex_shrink_0()
+                    .mt(px(plan.outer_gap))
+                    .child(footnote_group_shell(children, theme, d))
+                    .into_any_element()
+            }
+            // Callout group (possibly with footnote subgroups inside).
+            (Some(variant), _) => {
+                let (accent, _background) = callout_colors(variant, theme);
+                let mut group_children = Vec::new();
+                let mut block_offset = plan.start;
+                for segment in &plan.segments {
+                    match segment {
+                        PlannedInnerSegment::Block { gap } => {
+                            let entity = blocks[block_offset].entity.clone();
+                            let entity_id = entity.entity_id();
+                            let row = div()
+                                .w_full()
+                                .flex_shrink_0()
+                                .mt(px(*gap))
+                                .child(entity.clone());
+                            group_children
+                                .push(attach_context_menu(row, entity_id).into_any_element());
+                            block_offset += 1;
+                        }
+                        PlannedInnerSegment::FootnoteSubgroup { gap, row_gaps } => {
+                            let mut footnote_children = Vec::new();
+                            for row_gap in row_gaps {
+                                let entity = blocks[block_offset].entity.clone();
+                                let entity_id = entity.entity_id();
+                                let row = div()
+                                    .w_full()
+                                    .flex_shrink_0()
+                                    .mt(px(*row_gap))
+                                    .child(entity.clone());
+                                footnote_children
+                                    .push(attach_context_menu(row, entity_id).into_any_element());
+                                block_offset += 1;
+                            }
+                            group_children.push(
+                                div()
+                                    .w_full()
+                                    .flex_shrink_0()
+                                    .mt(px(*gap))
+                                    .child(footnote_group_shell(footnote_children, theme, d))
+                                    .into_any_element(),
+                            );
+                        }
+                    }
+                }
+                div()
+                    .w(px(centered_width))
+                    .max_w(relative(1.0))
+                    .flex_shrink_0()
+                    .mt(px(plan.outer_gap))
+                    .flex()
+                    .flex_col()
+                    .gap(px(0.0))
+                    .px(px(d.callout_padding_x))
+                    .py(px(d.callout_padding_y))
+                    .rounded_r(px(d.callout_radius))
+                    .border_l(px(d.callout_border_width))
+                    .border_color(accent)
+                    .children(group_children)
+                    .into_any_element()
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1018,9 +1110,9 @@ mod tests {
     use crate::editor::actions::{AddLanguageConfig, AddThemeConfig, NoRecentFiles};
     use crate::theme::Theme;
     use crate::windows::titlebar::app_menu::{
-        import_menu_split_index, menu_bar_button_width,
-        menu_items_visual_height_with_gaps, menu_panel_left, menu_panel_width_for_labels,
-        owned_menu_item_labels, scrollable_import_menu_scroll_height, submenu_bridge_geometry,
+        import_menu_split_index, menu_bar_button_width, menu_items_visual_height_with_gaps,
+        menu_panel_left, menu_panel_width_for_labels, owned_menu_item_labels,
+        scrollable_import_menu_scroll_height, submenu_bridge_geometry,
         supports_in_window_menu_for_target_os,
     };
     use gpui::{OwnedMenu, OwnedMenuItem};
@@ -1210,8 +1302,7 @@ mod tests {
 
         let bridge = submenu_bridge_geometry(0, &labels, &items, 1, &submenu_labels, dimensions)
             .expect("submenu bridge geometry should be available");
-        let main_width =
-            menu_panel_width_for_labels(&owned_menu_item_labels(&items), dimensions);
+        let main_width = menu_panel_width_for_labels(&owned_menu_item_labels(&items), dimensions);
         let submenu_width = menu_panel_width_for_labels(&submenu_labels, dimensions);
 
         assert_eq!(

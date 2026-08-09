@@ -8,8 +8,8 @@ use crate::ui::components::button::{icon_chip_button, small_pill_button};
 use gpui::prelude::*;
 use gpui::*;
 
-use crate::editor::controller::EditorMode;
 use crate::editor::controller::Editor;
+use crate::editor::controller::EditorMode;
 use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
 use crate::infra::i18n::I18nStrings;
 use crate::layout::{Axis, InnerPanelLocation};
@@ -362,8 +362,13 @@ impl Editor {
             .count_leaves();
 
         let focused = self.panels.layout.focused_editor_inner_panel;
-        let focused_panel_id =
-            focused.and_then(|loc| if loc.area_id == area_id { Some(loc.panel_id) } else { None });
+        let focused_panel_id = focused.and_then(|loc| {
+            if loc.area_id == area_id {
+                Some(loc.panel_id)
+            } else {
+                None
+            }
+        });
         let focused_kind = focused_panel_id.and_then(|panel_id| {
             self.panels
                 .layout
@@ -394,14 +399,15 @@ impl Editor {
                 .opacity(if editing { 1.0 } else { 0.6 })
                 .child(label);
             if editing {
-                mode_pill = mode_pill.on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                    let _ = toggle_editor.update(cx, |ed, cx| {
-                        ed.panels
-                            .layout
-                            .toggle_editor_inner_panel_dropdown(area_id, panel_id);
-                        cx.notify();
+                mode_pill =
+                    mode_pill.on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                        let _ = toggle_editor.update(cx, |ed, cx| {
+                            ed.panels
+                                .layout
+                                .toggle_editor_inner_panel_dropdown(area_id, panel_id);
+                            cx.notify();
+                        });
                     });
-                });
             }
             left_items.push(mode_pill.into_any_element());
         }
@@ -536,11 +542,48 @@ impl Editor {
         EditorSettings::status_bar_settings(cx)
     }
 
-    /// Returns (line, col), both 1-based, from the source-mode selection snapshot.
+    /// Returns (line, col), both 1-based, for the current caret.
+    ///
+    /// Block-local anchors count newlines in the anchored block plus every
+    /// visible block before it, avoiding a full-document source mapping and
+    /// raw-source rebuild on every frame the status bar is visible.
     pub(crate) fn compute_source_cursor_position(&self, cx: &App) -> (usize, usize) {
         use unicode_segmentation::UnicodeSegmentation;
 
         let snapshot = self.capture_source_selection_snapshot(cx);
+        if let Some(anchor) = &snapshot.block_anchor
+            && let Some(block) = self.block_entity_by_path(&anchor.path, cx)
+        {
+            let entity_id = block.entity_id();
+            let mut before_lines = 0usize;
+            let mut found = false;
+            for visible in self.doc().blocks() {
+                if visible.entity.entity_id() == entity_id {
+                    found = true;
+                    break;
+                }
+                before_lines += visible.entity.read(cx).display_text().matches('\n').count() + 1;
+            }
+            if found {
+                let text = block.read(cx).display_text();
+                let clamped = anchor.content_range.end.min(text.len());
+                let safe = if text.is_char_boundary(clamped) {
+                    clamped
+                } else {
+                    (0..=clamped)
+                        .rev()
+                        .find(|&i| text.is_char_boundary(i))
+                        .unwrap_or(0)
+                };
+                let line = text[..safe].matches('\n').count() + 1;
+                let last_newline = text[..safe].rfind('\n').map(|i| i + 1).unwrap_or(0);
+                let col = text[last_newline..safe].graphemes(true).count() + 1;
+                return (before_lines + line, col);
+            }
+        }
+
+        // Cross-block selections and runtime-only blocks (table cells) fall
+        // back to the global source-range path.
         let cursor_offset = snapshot.range.end;
         let text = self.doc().to_raw_source(cx);
         // Snap to valid UTF-8 char boundary to avoid panics on multi-byte chars.

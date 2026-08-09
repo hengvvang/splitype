@@ -7,10 +7,10 @@
 
 use gpui::*;
 
+use crate::editor::render::latex_render::{inline_math_font_size, render_inline_math_svg};
 use crate::model::inline::render_cache::InlineSpan;
 use crate::model::inline::style::InlineScript;
 use crate::model::inline::text::RichText;
-use crate::editor::render::latex_render::{inline_math_font_size, render_inline_math_svg};
 use crate::theme::Theme;
 
 /// Renders the inline content of `text` with `base_color` and `font_size`,
@@ -31,13 +31,24 @@ pub(crate) fn render_preview_inline(
         if segment.is_empty() {
             continue;
         }
-        elements.push(render_preview_span(segment, span, base_color, font_size, font_weight, theme));
+        elements.push(render_preview_span(
+            segment,
+            span,
+            base_color,
+            font_size,
+            font_weight,
+            theme,
+        ));
     }
     if elements.is_empty() {
         elements.push(div().into_any_element());
     }
 
-    div().flex().flex_wrap().children(elements).into_any_element()
+    div()
+        .flex()
+        .flex_wrap()
+        .children(elements)
+        .into_any_element()
 }
 
 /// Renders a single styled inline span as a plain (non-interactive) element.
@@ -108,7 +119,7 @@ pub(crate) fn render_preview_span(
                 .items_center()
                 .h(px(math_size * 1.65))
                 .child(
-                    img(rendered.path)
+                    img(rendered.path.clone())
                         .max_h(px(math_size * 1.65))
                         .object_fit(ObjectFit::Contain),
                 )

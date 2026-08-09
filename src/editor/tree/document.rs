@@ -9,11 +9,11 @@ use std::collections::HashMap;
 
 use gpui::*;
 
-use crate::model::syntax::table::serialize_table_markdown_lines;
+use crate::editor::controller::Editor;
 use crate::editor::tree::block::Block;
 use crate::model::block::{BlockId, BlockKind, CalloutKind};
 use crate::model::syntax::image::parse_standalone_image;
-use crate::editor::controller::Editor;
+use crate::model::syntax::table::serialize_table_markdown_lines;
 
 /// A block together with its position in the current visible DFS order.
 #[derive(Clone)]
@@ -55,6 +55,16 @@ impl BlockIndex {
 pub(crate) struct Document {
     roots: Vec<Entity<Block>>,
     snapshot: BlockIndex,
+    /// Incremented on every structural change (insert/remove/replace).
+    /// Runtime-context syncs use it to detect newly-created blocks that have
+    /// never received a context, so unchanged registries can still skip the
+    /// per-block loop when the block set is identical to the last sync.
+    structure_version: u64,
+    /// The structure version the tree metadata (quote depths, anchors,
+    /// ordinals, visible snapshot) was last rebuilt for. Text-only edits do
+    /// not change tree metadata, so callers can skip the full DFS while
+    /// this matches [`Self::structure_version`].
+    metadata_rebuild_version: u64,
 }
 
 impl Document {
@@ -62,7 +72,27 @@ impl Document {
         Self {
             roots,
             snapshot: BlockIndex::default(),
+            structure_version: 0,
+            metadata_rebuild_version: 0,
         }
+    }
+
+    /// Version of the current block set; grows on every structural edit.
+    pub(crate) fn structure_version(&self) -> u64 {
+        self.structure_version
+    }
+
+    /// Whether the cached tree metadata was rebuilt for the current
+    /// structure. Text-only edits leave it true.
+    pub(crate) fn metadata_is_current(&self) -> bool {
+        self.metadata_rebuild_version == self.structure_version
+    }
+
+    /// Records that runtime-only blocks (e.g. table cells) were recreated,
+    /// so the next runtime-context sync refreshes them even when the
+    /// document registries are unchanged.
+    pub(crate) fn mark_structure_changed(&mut self) {
+        self.structure_version += 1;
     }
 
     pub(crate) fn first_root(&self) -> Option<&Entity<Block>> {
@@ -132,6 +162,7 @@ impl Document {
 
     pub(crate) fn replace_blocks(&mut self, roots: Vec<Entity<Block>>, cx: &mut Context<Editor>) {
         self.roots = roots;
+        self.structure_version += 1;
         self.rebuild_metadata_and_snapshot(cx);
     }
 
@@ -170,6 +201,7 @@ impl Document {
         mutate: impl FnOnce(&mut Self, &mut Context<Editor>) -> R,
     ) -> R {
         let result = mutate(self, cx);
+        self.structure_version += 1;
         self.rebuild_metadata_and_snapshot(cx);
         result
     }
@@ -199,6 +231,7 @@ impl Document {
             cx,
             &mut self.snapshot,
         );
+        self.metadata_rebuild_version = self.structure_version;
     }
 
     pub(crate) fn take_children(
@@ -393,6 +426,7 @@ impl Document {
                 block.parent_is_list_item = parent_is_list_item;
                 block.list_ordinal = list_ordinal;
                 block.list_group_separator_candidate = list_group_separator_candidate;
+                block.tree_metadata_flags = block.kind_metadata_flags();
             });
 
             let last_descendant_id = if children.is_empty() {
@@ -680,8 +714,8 @@ impl Document {
 mod tests {
     use gpui::{AppContext, TestAppContext};
 
+    use crate::editor::controller::Editor;
     use crate::model::block::{BlockData, BlockKind};
-use crate::editor::controller::Editor;
 
     #[gpui::test]
     async fn snapshot_tracks_nested_visible_order(cx: &mut TestAppContext) {
@@ -822,18 +856,20 @@ use crate::editor::controller::Editor;
             let b = visible[1].entity.clone();
             let c = visible[2].entity.clone();
 
-            editor.doc_mut().with_structure_mutation(cx, |document, cx| {
-                let moved = document
-                    .remove_block_by_id_raw(c.entity_id(), cx)
-                    .expect("remove c")
-                    .0;
-                document.insert_blocks_at_raw(
-                    Some(a.clone()),
-                    a.read(cx).children.len(),
-                    vec![moved],
-                    cx,
-                );
-            });
+            editor
+                .doc_mut()
+                .with_structure_mutation(cx, |document, cx| {
+                    let moved = document
+                        .remove_block_by_id_raw(c.entity_id(), cx)
+                        .expect("remove c")
+                        .0;
+                    document.insert_blocks_at_raw(
+                        Some(a.clone()),
+                        a.read(cx).children.len(),
+                        vec![moved],
+                        cx,
+                    );
+                });
 
             assert_eq!(
                 editor.doc().visible_index_for_entity_id(a.entity_id()),
