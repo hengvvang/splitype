@@ -19,10 +19,7 @@ use crate::editor::panels::panel_types::EditorInnerPanelDragAction;
 use crate::editor::panels::settings::SettingsUiState;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
-use crate::layout::{
-    AreaSplitMode, Axis, BorderMenuState, SplitterDragSession, WindowAreaDragAction,
-    WindowAreaKind, WindowLayout,
-};
+use crate::layout::{AreaSplitMode, Axis, WindowAreaDragAction, WindowAreaKind, WindowLayout};
 use splitype_layout::tree::SplitTree;
 
 use super::controller::*;
@@ -89,57 +86,31 @@ impl Editor {
                 let pos = event.position;
                 let _ = root_editor_move.update(cx, |ed, cx| {
                     let mut changed = false;
-                    if let Some(drag) = ed.panels.layout.active_window_area_splitter_drag {
-                        let current_pos = match drag.direction {
-                            Axis::Horizontal => f32::from(pos.x),
-                            Axis::Vertical => f32::from(pos.y),
-                        };
-                        let viewport = window.viewport_size();
-                        let span = ed
-                            .panels
-                            .layout
-                            .window_area_split_pixel_span(drag.split_id, viewport)
-                            .unwrap_or_else(|| match drag.direction {
-                                Axis::Horizontal => f32::from(viewport.width),
-                                Axis::Vertical => f32::from(viewport.height),
-                            });
-
-                        if span > 1.0 {
-                            let mut session = drag;
-                            session.total_span = span;
-                            ed.panels.layout.active_window_area_splitter_drag = Some(session);
-                        }
-                        ed.panels
-                            .layout
-                            .update_window_area_splitter_drag(current_pos);
+                    let viewport = window.viewport_size();
+                    let (gesture_active, immediate) =
+                        splitype_layout::interaction::update_window_drag(
+                            &mut ed.panels.layout,
+                            pos,
+                            viewport,
+                        );
+                    if gesture_active {
                         changed = true;
-                    } else if ed.panels.layout.active_window_area_corner_drag.is_some() {
-                        let viewport = window.viewport_size();
-                        let action = ed
-                            .panels
-                            .layout
-                            .update_window_area_corner_drag(pos, viewport);
-                        // Modifier actions still execute immediately.
-                        if let Some(action) = action {
-                            match action {
-                                WindowAreaDragAction::Swap { from, to } => {
-                                    ed.panels.layout.end_window_area_corner_drag();
-                                    ed.swap_window_area_kinds(from, to);
-                                }
-                                // Shift + Settings corner: open the floating
-                                // settings window (same as the app menu).
-                                WindowAreaDragAction::OpenSettings => {
-                                    ed.panels.layout.end_window_area_corner_drag();
-                                    crate::settings::open_settings_window(cx);
-                                }
-                                WindowAreaDragAction::Cancel => {
-                                    ed.panels.layout.end_window_area_corner_drag();
-                                }
-                                _ => {} // Split/Join handled on mouse_up
+                    }
+                    if let Some(action) = immediate {
+                        match action {
+                            WindowAreaDragAction::Swap { from, to } => {
+                                ed.swap_window_area_kinds(from, to);
                             }
+                            // Shift + Settings corner: open the floating
+                            // settings window (same as the app menu).
+                            WindowAreaDragAction::OpenSettings => {
+                                crate::settings::open_settings_window(cx);
+                            }
+                            WindowAreaDragAction::Cancel => {}
+                            _ => {} // Split/Join handled on mouse_up
                         }
-                        changed = true;
-                    } else if ed.active_editor_inner_panel_splitter_drag.is_some() {
+                    }
+                    if ed.active_editor_inner_panel_splitter_drag.is_some() {
                         let (area_id, drag) = ed.active_editor_inner_panel_splitter_drag.unwrap();
                         let viewport = window.viewport_size();
                         let outer_rects = ed.panels.layout.window_area_rects(viewport);
@@ -218,30 +189,28 @@ impl Editor {
             })
             .on_mouse_up(MouseButton::Left, move |_event, _window, cx| {
                 let _ = root_editor_up.update(cx, |ed, cx| {
-                    if ed.panels.layout.active_window_area_splitter_drag.is_some() {
-                        ed.panels.layout.end_window_area_splitter_drag();
-                        cx.notify();
-                    }
-                    if ed.panels.layout.active_window_area_corner_drag.is_some() {
-                        match ed.panels.layout.finish_window_area_corner_drag() {
+                    if let Some(action) =
+                        splitype_layout::interaction::finish_window_drag(&mut ed.panels.layout)
+                    {
+                        match action {
                             // Corner-drag split: same-kind area; Editor areas
                             // seed the new area per `mode` (deep-copied tab
                             // list + cloned inner layout, or a blank editor).
-                            Some(WindowAreaDragAction::Split {
+                            WindowAreaDragAction::Split {
                                 area_id,
                                 direction,
                                 ratio,
                                 mode,
-                            }) => {
+                            } => {
                                 ed.split_area(area_id, direction, ratio, mode, cx);
                             }
-                            Some(WindowAreaDragAction::Join {
+                            WindowAreaDragAction::Join {
                                 from_area,
                                 into_area,
-                            }) => {
+                            } => {
                                 ed.join_window_area(into_area, from_area);
                             }
-                            Some(WindowAreaDragAction::Swap { from, to }) => {
+                            WindowAreaDragAction::Swap { from, to } => {
                                 ed.swap_window_area_kinds(from, to);
                             }
                             _ => {}
@@ -406,14 +375,13 @@ impl Editor {
                                 .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                     let start_pos = f32::from(event.position.x);
                                     let _ = bar_editor.update(cx, |ed, cx| {
-                                        ed.panels.layout.active_window_area_splitter_drag =
-                                            Some(SplitterDragSession {
-                                                split_id,
-                                                direction: Axis::Horizontal,
-                                                start_pointer_pos: start_pos,
-                                                start_ratio: r,
-                                                total_span: 1000.0,
-                                            });
+                                        splitype_layout::interaction::start_splitter_drag(
+                                            &mut ed.panels.layout,
+                                            split_id,
+                                            Axis::Horizontal,
+                                            start_pos,
+                                            r,
+                                        );
                                         cx.notify();
                                     });
                                 })
@@ -422,12 +390,12 @@ impl Editor {
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_editor.update(cx, |ed, cx| {
-                                            ed.panels.layout.active_window_area_border_menu =
-                                                Some(BorderMenuState {
-                                                    split_id,
-                                                    direction: dir,
-                                                    position: pos,
-                                                });
+                                            splitype_layout::interaction::open_border_menu(
+                                                &mut ed.panels.layout,
+                                                split_id,
+                                                dir,
+                                                pos,
+                                            );
                                             cx.notify();
                                         });
                                     },
@@ -479,14 +447,13 @@ impl Editor {
                                 .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                     let start_pos = f32::from(event.position.y);
                                     let _ = bar_editor.update(cx, |ed, cx| {
-                                        ed.panels.layout.active_window_area_splitter_drag =
-                                            Some(SplitterDragSession {
-                                                split_id,
-                                                direction: Axis::Vertical,
-                                                start_pointer_pos: start_pos,
-                                                start_ratio: r,
-                                                total_span: 700.0,
-                                            });
+                                        splitype_layout::interaction::start_splitter_drag(
+                                            &mut ed.panels.layout,
+                                            split_id,
+                                            Axis::Vertical,
+                                            start_pos,
+                                            r,
+                                        );
                                         cx.notify();
                                     });
                                 })
@@ -495,12 +462,12 @@ impl Editor {
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_editor.update(cx, |ed, cx| {
-                                            ed.panels.layout.active_window_area_border_menu =
-                                                Some(BorderMenuState {
-                                                    split_id,
-                                                    direction: dir,
-                                                    position: pos,
-                                                });
+                                            splitype_layout::interaction::open_border_menu(
+                                                &mut ed.panels.layout,
+                                                split_id,
+                                                dir,
+                                                pos,
+                                            );
                                             cx.notify();
                                         });
                                     },
