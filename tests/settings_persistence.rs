@@ -4,9 +4,9 @@
 //! `splitype-infra` API, isolating all file I/O under a temp root so the
 //! user's real configuration is never touched.
 
-use splitype_infra::config::dirs::SplitypeConfigDirs;
-use splitype_infra::config::jsonc::{parse_jsonc_value, sanitize_config_file_stem};
-use splitype_infra::config::recent::{
+use splitype::infra::config::dirs::SplitypeConfigDirs;
+use splitype::infra::config::jsonc::{parse_jsonc_value, sanitize_config_file_stem};
+use splitype::infra::config::recent::{
     read_recent_files_with_dirs, read_recent_folders_with_dirs, record_recent_file_with_dirs,
     record_recent_folder_with_dirs, remove_recent_file_with_dirs,
 };

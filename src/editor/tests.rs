@@ -72,8 +72,8 @@ fn ensure_wysiwyg_editing_panel(editor: &gpui::Entity<Editor>, cx: &mut gpui::Ap
                 .inner_panel_tree
                 .set_leaf_kind(
                     id,
-                    crate::editor::panels::panel_types::EditorInnerPanelKind::Editing(
-                        crate::editor::panels::panel_types::EditingPanelKind::Wysiwyg,
+                    crate::editor::session::EditorInnerPanelKind::Editing(
+                        crate::editor::session::EditingPanelKind::Wysiwyg,
                     ),
                 );
         }

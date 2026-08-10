@@ -15,11 +15,11 @@ use gpui::*;
 
 use crate::editor::controller::Editor;
 use crate::editor::editing::input::actions::{Copy, Cut, DismissTransientUi, Paste};
-use crate::editor::panels::explorer::state::{
+use crate::editor::explorer::state::{
     EXPLORER_NODE_HEIGHT, ExplorerEditState, ExplorerFilenameEditor, ExplorerRow,
     ExplorerValidation,
 };
-use crate::editor::panels::explorer::undo::ExplorerChange;
+use crate::editor::explorer::undo::ExplorerChange;
 use crate::infra::theme::ThemeManager;
 
 // ── UTF-8 / UTF-16 offset conversion ────────────────────────────────────
@@ -250,7 +250,7 @@ impl Editor {
             let parent = edit.path.parent()?;
             parent.join(filename)
         };
-        let existing = crate::editor::panels::explorer::state::find_explorer_node(tree, &new_path);
+        let existing = crate::editor::explorer::state::find_explorer_node(tree, &new_path);
         let is_self = edit
             .target_id
             .is_some_and(|id| existing.is_some_and(|node| node.id == id));
@@ -345,7 +345,7 @@ impl Editor {
             return;
         };
         let Some(node) =
-            crate::editor::panels::explorer::state::find_explorer_node(&tree, &target_path)
+            crate::editor::explorer::state::find_explorer_node(&tree, &target_path)
         else {
             return;
         };
@@ -365,7 +365,7 @@ impl Editor {
         // whole name for directories — mirrors Zed's rename UX.
         let file_name = node.label.clone();
         let selection_end =
-            if node.kind == crate::editor::panels::explorer::state::ExplorerEntryKind::Directory {
+            if node.kind == crate::editor::explorer::state::ExplorerEntryKind::Directory {
                 file_name.len()
             } else {
                 target_path
@@ -383,7 +383,7 @@ impl Editor {
                 parent_id: None,
                 target_id: Some(node.id),
                 is_dir: node.kind
-                    == crate::editor::panels::explorer::state::ExplorerEntryKind::Directory,
+                    == crate::editor::explorer::state::ExplorerEntryKind::Directory,
                 depth,
                 path: target_path,
                 validation: None,

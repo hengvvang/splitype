@@ -8,11 +8,8 @@ license = "Apache-2.0"
 [workspace]
 members = [
     ".",
-    "crates/splitype-infra",
     "crates/splitype-layout",
     "crates/splitype-model",
-    "crates/splitype-platform",
-    "crates/splitype-ui",
 ]
 
 [workspace.lints.clippy]
@@ -71,11 +68,8 @@ anyhow = "1"
 base64 = "0.22.1"
 uuid = "1.23"
 gpui = { version = "0.2.2", features = ["runtime_shaders"] }
-splitype-infra = { path = "crates/splitype-infra" }
 splitype-model = { path = "crates/splitype-model" }
 splitype-layout = { path = "crates/splitype-layout" }
-splitype-platform = { path = "crates/splitype-platform" }
-splitype-ui = { path = "crates/splitype-ui" }
 unicode-segmentation = "1.13"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -94,6 +88,9 @@ ratex-svg = { version = "0.1.9", features = ["embed-fonts", "standalone"] }
 mermaid-rs-renderer = { version = "0.3.0", default-features = false }
 notify = "8"
 trash = "5"
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "default-tls"] }
+semver = "1"
+sys-locale = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = ["Win32_Storage_FileSystem"] }

@@ -6,7 +6,7 @@
 //! order metadata. State is grouped into cohesive sub-records (`file`,
 //! `focus`, `undo`, `scroll`, `tables`, `preview`, `references`, `menu_bar`,
 //! `bottombar_state`, overlays) plus the panel state defined in
-//! `super::panels`.
+//! `super::session_ops` / `super::explorer`.
 
 pub(crate) use std::time::{Duration, Instant};
 
@@ -19,10 +19,9 @@ pub(crate) use gpui::*;
 pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
 pub(crate) use crate::editor::bottombar::state::BottombarState;
 pub(crate) use crate::editor::menu_bar::MenuBarState;
-pub(crate) use crate::editor::panels::panel_types::{
+pub(crate) use crate::editor::session::{
     EditingPanelKind, EditorInnerPanelKind, EditorSession, EditorTabList, InnerPanelLocation,
 };
-pub(crate) use crate::editor::panels::{PreviewState, SourceCodePanelRuntime};
 pub(crate) use crate::editor::tree::block::Block;
 pub(crate) use crate::editor::tree::document::Document;
 pub(crate) use crate::editor::tree::footnotes::{
@@ -31,6 +30,7 @@ pub(crate) use crate::editor::tree::footnotes::{
 pub(crate) use crate::editor::window::context_menu::ContextMenuState;
 pub(crate) use crate::editor::window::dialogs::TableInsertDialogState;
 pub(crate) use crate::editor::window_layout::WindowPanels;
+pub(crate) use crate::editor::{PreviewState, SourceCodePanelRuntime};
 pub(crate) use crate::layout::sessions::{BorderMenuState, CornerDragSession, SplitterDragSession};
 pub(crate) use crate::layout::state::ROOT_AREA_ID;
 pub(crate) use crate::layout::types::{AreaId, AreaSplitMode, EditorAreaMode, PanelId};

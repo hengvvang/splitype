@@ -9,7 +9,7 @@ use crate::ui::select::{select_option, select_panel, select_trigger};
 use gpui::*;
 
 use crate::editor::controller::*;
-use crate::editor::panels::settings::SettingsTab;
+use crate::editor::settings::SettingsTab;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::{Theme, ThemeManager};
 use crate::ui::switch::Switch;

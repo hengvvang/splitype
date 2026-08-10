@@ -2,7 +2,7 @@
 //!
 //! # Architecture (mirroring Zed's project panel)
 //!
-//! - **State & model** live in `crate::editor::panels::explorer` (owned by
+//! - **State & model** live in `crate::editor::explorer` (owned by
 //!   the Editor entity): the [`worktree`] scan entities, the [`state`]
 //!   (file-tree nodes, visible rows, selection), the [`undo`] manager, and
 //!   the background [`utils`] helpers. This view module depends on them
@@ -28,8 +28,8 @@
 //!   root rows with their title buttons and the inline edit row.
 //!
 //! The outline panel (headings) keeps its own state in
-//! `crate::editor::panels::outline`; the sidebar state and file-tree model
-//! live in `crate::editor::panels::explorer`.
+//! `crate::editor::outline`; the sidebar state and file-tree model
+//! live in `crate::editor::explorer`.
 
 pub(crate) mod bottombar;
 pub(crate) mod drag_and_drop;

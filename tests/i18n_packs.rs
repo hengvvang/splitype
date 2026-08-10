@@ -4,7 +4,7 @@
 //! that partial JSON packs fall back to the English defaults.
 
 use serde_json::{Map, Value};
-use splitype_infra::i18n::strings::I18nStrings;
+use splitype::infra::i18n::strings::I18nStrings;
 
 fn key_set(strings: &I18nStrings) -> Map<String, Value> {
     serde_json::to_value(strings)

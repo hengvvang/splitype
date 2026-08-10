@@ -24,9 +24,9 @@ use std::time::Duration;
 use gpui::*;
 
 use crate::editor::controller::Editor;
-use crate::editor::panels::explorer::state::*;
-use crate::editor::panels::explorer::undo::{ExplorerChange, explorer_change_destination};
-use crate::editor::panels::explorer::utils::{execute_entry_ops, explorer_is_copy_modifier};
+use crate::editor::explorer::state::*;
+use crate::editor::explorer::undo::{ExplorerChange, explorer_change_destination};
+use crate::editor::explorer::utils::{execute_entry_ops, explorer_is_copy_modifier};
 use crate::infra::theme::ThemeManager;
 
 impl Editor {

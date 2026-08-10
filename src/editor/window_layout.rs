@@ -3,7 +3,7 @@
 //!
 //! The layout engine (tree, sessions, operations) lives in `crate::layout`;
 //! the editor's inner panel layout rendering lives in
-//! `crate::editor::panels::layout`. This module also aggregates the editor
+//! `crate::editor::panel_layout`. This module also aggregates the editor
 //! window's panel state ([`WindowPanels`]).
 
 use crate::ui::menu_item::menu_item;
@@ -11,10 +11,10 @@ use crate::ui::popover::menu_panel;
 
 use gpui::*;
 
-use crate::editor::panels::explorer::state::ExplorerState;
-use crate::editor::panels::outline::state::OutlinePanelState;
-use crate::editor::panels::panel_types::EditorInnerPanelDragAction;
-use crate::editor::panels::settings::SettingsUiState;
+use crate::editor::explorer::state::ExplorerState;
+use crate::editor::outline::state::OutlinePanelState;
+use crate::editor::session::EditorInnerPanelDragAction;
+use crate::editor::settings::SettingsUiState;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 use crate::layout::{AreaSplitMode, Axis, WindowAreaDragAction, WindowAreaKind, WindowLayout};
@@ -799,7 +799,7 @@ impl Editor {
 /// Pure state records; rendering lives in `crate::editor::window_layout`
 /// (outer layout), `crate::explorer`, and `crate::settings`. The per-area
 /// editor sessions and inner-panel operations live on the `Editor` entity
-/// (see `crate::editor::panels::panels_state`).
+/// (see `crate::editor::session_ops`).
 #[derive(Default)]
 pub struct WindowPanels {
     pub(crate) explorer: ExplorerState,

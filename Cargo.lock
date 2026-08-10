@@ -5940,14 +5940,14 @@ dependencies = [
  "ratex-layout",
  "ratex-parser",
  "ratex-svg",
+ "reqwest",
  "schemars",
+ "semver",
  "serde",
  "serde_json",
- "splitype-infra",
  "splitype-layout",
  "splitype-model",
- "splitype-platform",
- "splitype-ui",
+ "sys-locale",
  "tokio",
  "toml 1.1.2+spec-1.1.0",
  "trash",
@@ -5977,23 +5977,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "splitype-infra"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "directories",
- "futures",
- "gpui",
- "reqwest",
- "semver",
- "serde",
- "serde_json",
- "sys-locale",
- "toml 1.1.2+spec-1.1.0",
- "uuid",
-]
-
-[[package]]
 name = "splitype-layout"
 version = "0.0.1"
 dependencies = [
@@ -6009,19 +5992,6 @@ dependencies = [
  "tree-sitter",
  "tree-sitter-html",
  "uuid",
-]
-
-[[package]]
-name = "splitype-platform"
-version = "0.0.1"
-
-[[package]]
-name = "splitype-ui"
-version = "0.0.1"
-dependencies = [
- "gpui",
- "splitype-infra",
- "splitype-platform",
 ]
 
 [[package]]

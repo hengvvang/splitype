@@ -16,7 +16,7 @@ use gpui::*;
 
 use crate::editor::controller::Editor;
 use crate::editor::controller::EditorMode;
-use crate::editor::panels::panel_types::InnerPanelLocation;
+use crate::editor::session::InnerPanelLocation;
 use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::{Theme, ThemeColors, ThemeDimensions};

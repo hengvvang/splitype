@@ -89,7 +89,7 @@ pub(crate) fn open_discussions(cx: &mut App) {
     cx.open_url(SPLITYPE_DISCUSSIONS_URL);
 }
 
-use crate::editor::panels::wysiwyg::render::layout::{
+use crate::editor::wysiwyg::render::layout::{
     RenderedRowSpacingInfo, callout_colors, callout_row_top_gap, editor_text_font,
     footnote_row_top_gap, rendered_row_top_gap,
 };

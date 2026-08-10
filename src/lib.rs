@@ -5,30 +5,29 @@
 //!
 //! # Crate layout
 //!
-//! - `model` — pure Markdown domain layer (no crate-internal imports);
-//!   lives in the `splitype-model` crate and is re-exported here.
+//! - `model` — pure Markdown domain layer; lives in the `splitype-model`
+//!   crate and is re-exported here.
 //! - `layout` — pure tiled-layout engine; lives in `splitype-layout`.
-//! - `infra` — system capabilities (config, i18n, net, theme); lives in
-//!   `splitype-infra`.
+//! - `infra` — system capabilities (config, i18n, net, theme).
 //! - `editor` — the editing runtime and window views.
 //! - `explorer` / `settings` / `titlebar` — top-level views over `editor`.
 //! - `app` — assembly: bootstrap, CLI, menus, window routing.
-//! - `ui` — reusable components, living in `splitype-ui`; `platform` — OS
-//!   adapters, living in `splitype-platform`.
+//! - `ui` — reusable components; `platform` — OS adapters.
 //!
-//! The domain (`model`), layout engine, system capabilities (`infra`), OS
-//! adapters (`platform`), and component library (`ui`) are separate crates
-//! so the dependency direction is enforced at compile time: they cannot
-//! depend on anything in this crate.
+//! The domain (`model`) and layout engine stay in separate crates because
+//! they are reusable engines with no application coupling. Everything that
+//! is specific to this application (`infra`, `ui`, `platform`) lives here
+//! as plain modules so the boundary between engine and application stays
+//! obvious.
 
-pub use splitype_infra as infra;
 pub use splitype_layout as layout;
 pub use splitype_model as model;
-pub use splitype_platform as platform;
-pub use splitype_ui as ui;
 
 pub mod app;
 pub mod editor;
 pub mod explorer;
+pub mod infra;
+pub mod platform;
 pub mod settings;
 pub mod titlebar;
+pub mod ui;

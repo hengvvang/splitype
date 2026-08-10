@@ -8,9 +8,9 @@ use gpui::*;
 
 use crate::editor::actions::{CloseExplorerFolder, ToggleExplorer};
 use crate::editor::controller::Editor;
-use crate::editor::panels::explorer::state::*;
-use crate::editor::panels::explorer::worktree::Worktree;
-use crate::editor::panels::outline::state::OutlinePanelState;
+use crate::editor::explorer::state::*;
+use crate::editor::explorer::worktree::Worktree;
+use crate::editor::outline::state::OutlinePanelState;
 use crate::infra::config::settings::ExplorerSettingsStore;
 
 /// Re-key a selection after a worktree removal: selections inside the
@@ -267,11 +267,11 @@ impl Editor {
     /// or the tree build in one glance.
     fn debug_print_explorer_tree(&self) {
         fn print_node(
-            node: &crate::editor::panels::explorer::state::ExplorerFileNode,
+            node: &crate::editor::explorer::state::ExplorerFileNode,
             depth: usize,
         ) {
             let suffix = if node.kind
-                == crate::editor::panels::explorer::state::ExplorerEntryKind::Directory
+                == crate::editor::explorer::state::ExplorerEntryKind::Directory
             {
                 "/"
             } else {

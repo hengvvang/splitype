@@ -7,7 +7,7 @@ use std::path::Path;
 use gpui::*;
 
 use crate::editor::controller::Editor;
-use crate::editor::panels::explorer::state::*;
+use crate::editor::explorer::state::*;
 
 // Explorer navigation actions. They intentionally carry no default key
 // bindings (keybinding design is out of scope); handlers are wired on the

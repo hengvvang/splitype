@@ -13,7 +13,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use gpui::{AppContext, TestAppContext};
 
 use crate::editor::controller::Editor;
-use crate::editor::panels::explorer::state::*;
+use crate::editor::explorer::state::*;
 
 fn init_explorer_test_app(cx: &mut TestAppContext) {
     cx.update(|cx| {
