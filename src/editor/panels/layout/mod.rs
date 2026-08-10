@@ -9,7 +9,7 @@
 use crate::editor::panels::panel_types::{
     EditingPanelKind, EditorInnerPanelKind, InnerPanelLocation, WelcomePanelKind,
 };
-use crate::layout::{Axis, BorderMenuState, CornerDragModifier, SplitterDragSession};
+use crate::layout::{Axis, BorderMenuState, SplitterDragSession};
 use crate::ui::popover::menu_panel;
 use splitype_layout::tree::SplitTree;
 
@@ -246,44 +246,22 @@ impl Editor {
                     },
                 };
 
-                let make_inner_corner = |id_str: &'static str, top: bool, left: bool| {
-                    let inner_editor = inner_editor.clone();
-                    let mut corner_div = div()
-                        .id((id_str, panel_id))
-                        .absolute()
-                        .occlude()
-                        .size(px(10.0))
-                        .cursor_crosshair()
-                        .rounded(px(4.0));
-
-                    if top {
-                        corner_div = corner_div.top(px(2.0));
-                    } else {
-                        corner_div = corner_div.bottom(px(2.0));
-                    }
-                    if left {
-                        corner_div = corner_div.left(px(2.0));
-                    } else {
-                        corner_div = corner_div.right(px(2.0));
-                    }
-
-                    corner_div.on_mouse_down(MouseButton::Left, move |event, _window, cx| {
-                        let pos = event.position;
-                        let modifier = if event.modifiers.control {
-                            CornerDragModifier::Swap
-                        } else if event.modifiers.shift {
-                            CornerDragModifier::Duplicate
-                        } else {
-                            CornerDragModifier::None
-                        };
+                let corner_handles = splitype_layout::interaction::corner_drag_handles(
+                    "inner-corner",
+                    panel_id,
+                    2.0,
+                    10.0,
+                    true,
+                    true,
+                    move |modifier, pos, cx| {
                         let _ = inner_editor.update(cx, |ed, cx| {
                             ed.start_editor_inner_panel_corner_drag(
                                 area_id, panel_id, pos, modifier,
                             );
                             cx.notify();
                         });
-                    })
-                };
+                    },
+                );
 
                 // Auto-focus first inner panel if none is focused.
                 if self.focused_editor_inner_panel.is_none() {
@@ -307,10 +285,7 @@ impl Editor {
                     .border_color(c.dialog_border)
                     .shadow_lg()
                     .child(div().w_full().flex_1().min_h(px(0.0)).child(inner_body))
-                    .child(make_inner_corner("edit-sub-tl", true, true))
-                    .child(make_inner_corner("edit-sub-tr", true, false))
-                    .child(make_inner_corner("edit-sub-bl", false, true))
-                    .child(make_inner_corner("edit-sub-br", false, false))
+                    .child(corner_handles)
                     .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
                         let _ = focus_editor.update(cx, |ed, cx| {
                             // Select this panel and move the keyboard edit

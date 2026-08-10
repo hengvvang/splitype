@@ -11,7 +11,7 @@
 
 use gpui::*;
 
-use crate::sessions::{CornerDragPreview, CornerDragSession};
+use crate::sessions::{CornerDragModifier, CornerDragPreview, CornerDragSession};
 use crate::tree::{AreaRect, Axis, Direction};
 
 /// Visual parameters for split interaction overlays.
@@ -73,6 +73,81 @@ pub fn splitter_bar_v(id: impl Into<ElementId>, style: &OverlayStyle) -> Statefu
 /// Find the rect with the given id in a rect list.
 fn rect_by_id<'a>(rects: &'a [AreaRect], id: usize) -> Option<&'a AreaRect> {
     rects.iter().find(|rect| rect.id == id)
+}
+
+/// The modifier key held during a corner drag, decoded from a mouse event.
+fn corner_drag_modifier(event: &MouseDownEvent) -> CornerDragModifier {
+    if event.modifiers.control {
+        CornerDragModifier::Swap
+    } else if event.modifiers.shift {
+        CornerDragModifier::Duplicate
+    } else {
+        CornerDragModifier::None
+    }
+}
+
+/// Build the four corner-drag handles of a tile.
+///
+/// `id_prefix` names the handles ("area-corner" for window areas,
+/// "inner-corner" for editor panels) so ids stay unique per tree level;
+/// `target_id` is the leaf id embedded in each handle's id and passed to
+/// the drag callback. `on_start_drag` receives the decoded modifier, the
+/// pointer position, and the app context on a left mouse-down.
+pub fn corner_drag_handles<F>(
+    id_prefix: &'static str,
+    target_id: usize,
+    gap: f32,
+    handle_size: f32,
+    rounded: bool,
+    occlude: bool,
+    on_start_drag: F,
+) -> Stateful<Div>
+where
+    F: Fn(CornerDragModifier, Point<Pixels>, &mut App) + 'static + Clone,
+{
+    let make = |id_str: &'static str, top: bool, left: bool| {
+        let on_start_drag = on_start_drag.clone();
+        let mut corner_div = div()
+            .id((
+                SharedString::from(format!("{id_prefix}-{id_str}")),
+                target_id,
+            ))
+            .absolute()
+            .size(px(handle_size))
+            .cursor_crosshair();
+        if rounded {
+            corner_div = corner_div.rounded(px(4.0));
+        }
+        if occlude {
+            corner_div = corner_div.occlude();
+        }
+        if top {
+            corner_div = corner_div.top(px(gap));
+        } else {
+            corner_div = corner_div.bottom(px(gap));
+        }
+        if left {
+            corner_div = corner_div.left(px(gap));
+        } else {
+            corner_div = corner_div.right(px(gap));
+        }
+        corner_div.on_mouse_down(MouseButton::Left, move |event, _window, cx| {
+            let modifier = corner_drag_modifier(event);
+            on_start_drag(modifier, event.position, cx);
+        })
+    };
+
+    div()
+        .id((
+            SharedString::from(format!("{id_prefix}-corners")),
+            target_id,
+        ))
+        .absolute()
+        .inset(px(-gap))
+        .child(make("tl", true, true))
+        .child(make("tr", true, false))
+        .child(make("bl", false, true))
+        .child(make("br", false, false))
 }
 
 /// The split preview line for a horizontal split (left|right): a vertical

@@ -20,8 +20,8 @@ use crate::editor::panels::settings::SettingsUiState;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 use crate::layout::{
-    AreaSplitMode, Axis, BorderMenuState, CornerDragModifier, SplitterDragSession,
-    WindowAreaDragAction, WindowAreaKind, WindowLayout,
+    AreaSplitMode, Axis, BorderMenuState, SplitterDragSession, WindowAreaDragAction,
+    WindowAreaKind, WindowLayout,
 };
 use splitype_layout::tree::SplitTree;
 
@@ -622,51 +622,22 @@ impl Editor {
 
         // Corner drag handles positioned at the four outer corners of the tile card.
         let editor_corner = cx.entity().downgrade();
-        let make_outer_corner = |id_str: &'static str, top: bool, left: bool| {
-            let editor_corner = editor_corner.clone();
-            let mut corner_div = div()
-                .id((id_str, leaf_id))
-                .absolute()
-                .size(px(20.0))
-                .cursor_crosshair();
-
-            if top {
-                corner_div = corner_div.top(px(gap));
-            } else {
-                corner_div = corner_div.bottom(px(gap));
-            }
-            if left {
-                corner_div = corner_div.left(px(gap));
-            } else {
-                corner_div = corner_div.right(px(gap));
-            }
-
-            corner_div.on_mouse_down(MouseButton::Left, move |event, _window, cx| {
-                let pos = event.position;
-                let modifier = if event.modifiers.control {
-                    CornerDragModifier::Swap
-                } else if event.modifiers.shift {
-                    CornerDragModifier::Duplicate
-                } else {
-                    CornerDragModifier::None
-                };
+        let corner_handles = splitype_layout::interaction::corner_drag_handles(
+            "area-corner",
+            leaf_id,
+            gap,
+            20.0,
+            false,
+            false,
+            move |modifier, pos, cx| {
                 let _ = editor_corner.update(cx, |ed, cx| {
                     ed.panels
                         .layout
                         .start_window_area_corner_drag(leaf_id, pos, modifier);
                     cx.notify();
                 });
-            })
-        };
-
-        let corner_handles = div()
-            .id(("area-corners", leaf_id))
-            .absolute()
-            .inset(px(-gap))
-            .child(make_outer_corner("area-corner-tl", true, true))
-            .child(make_outer_corner("area-corner-tr", true, false))
-            .child(make_outer_corner("area-corner-bl", false, true))
-            .child(make_outer_corner("area-corner-br", false, false));
+            },
+        );
 
         // Wrap in a padded container so the gap is uniform.
         let mut wrapped = div()
