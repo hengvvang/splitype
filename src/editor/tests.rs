@@ -3360,3 +3360,87 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
         assert_eq!(editor.tab().focus.pending, Some(restored_cell.entity_id()));
     });
 }
+
+#[gpui::test]
+async fn rendering_one_editor_area_keeps_other_areas_source_block(cx: &mut TestAppContext) {
+    init_editor_test_app(cx);
+
+    use crate::app::window_area::DEFAULT_EDITOR_AREA_ID;
+    use crate::editor::session::{EditingPanelKind, EditorInnerPanelKind};
+    use crate::splitter::tree::Axis;
+
+    let (editor, cx) = cx.add_window_view({
+        move |_window, cx| Editor::from_markdown(cx, "alpha\nbeta".to_string(), None)
+    });
+
+    // Two Editor areas in one window, each holding a SourceCode panel.
+    let second_area = editor.update(cx, |editor, cx| {
+        editor.panels.layout.activate_area(DEFAULT_EDITOR_AREA_ID);
+        let mut ids = Vec::new();
+        editor
+            .ensure_editor_session(DEFAULT_EDITOR_AREA_ID)
+            .root
+            .tree
+            .leaf_ids(&mut ids);
+        for id in ids {
+            editor.ensure_editor_session(DEFAULT_EDITOR_AREA_ID).root.tree.set_leaf_kind(
+                id,
+                EditorInnerPanelKind::Editing(EditingPanelKind::SourceCode),
+            );
+        }
+        let second = editor
+            .split_window_area(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5, false)
+            .expect("split first editor area");
+        editor.new_untitled_tab(second, cx);
+        let mut ids = Vec::new();
+        editor
+            .ensure_editor_session(second)
+            .root
+            .tree
+            .leaf_ids(&mut ids);
+        for id in ids {
+            editor.ensure_editor_session(second).root.tree.set_leaf_kind(
+                id,
+                EditorInnerPanelKind::Editing(EditingPanelKind::SourceCode),
+            );
+        }
+        second
+    });
+
+    fn source_block_ids(
+        editor: &gpui::Entity<Editor>,
+        cx: &mut gpui::VisualTestContext,
+        second_area: usize,
+    ) -> (Option<gpui::EntityId>, Option<gpui::EntityId>) {
+        editor.read_with(cx, |editor, _cx| {
+            (
+                editor
+                    .source_code_panel_runtimes
+                    .get(&(DEFAULT_EDITOR_AREA_ID, 1))
+                    .and_then(|runtime| runtime.block.as_ref().map(|block| block.entity_id())),
+                editor
+                    .source_code_panel_runtimes
+                    .get(&(second_area, 1))
+                    .and_then(|runtime| runtime.block.as_ref().map(|block| block.entity_id())),
+            )
+        })
+    }
+
+    // The first frame materializes both panels' blocks.
+    redraw(cx);
+    let before = source_block_ids(&editor, cx, second_area);
+    assert!(before.0.is_some(), "first area source block should exist");
+    assert!(before.1.is_some(), "second area source block should exist");
+
+    // Every following frame must keep BOTH blocks alive: rendering one
+    // area used to drop the other area's source runtime, rebuilding its
+    // block entity every frame and killing keyboard editing.
+    for _ in 0..3 {
+        redraw(cx);
+        let after = source_block_ids(&editor, cx, second_area);
+        assert_eq!(
+            before, after,
+            "source block entities must survive other areas' render passes"
+        );
+    }
+}

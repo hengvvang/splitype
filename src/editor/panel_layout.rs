@@ -43,9 +43,14 @@ impl Editor {
         self.tab_list_mut_for(area_id);
         let inner_tree = self.ensure_editor_session(area_id).root.tree.clone();
 
-        // Drop runtimes of panels that were closed or joined.
-        self.source_code_panel_runtimes
-            .retain(|(area, panel), _| *area == area_id && inner_tree.contains_leaf(*panel));
+        // Drop runtimes of THIS area's panels that were closed or joined,
+        // and of areas that no longer exist. Runtimes of other live areas
+        // belong to their own render pass — deleting them here would
+        // destroy another area's focused source block every frame.
+        let sessions = &self.editor_sessions;
+        self.source_code_panel_runtimes.retain(|(area, panel), _| {
+            sessions.contains_key(area) && (*area != area_id || inner_tree.contains_leaf(*panel))
+        });
 
         let previous = self.current_tab_area;
         self.current_tab_area = Some(area_id);
