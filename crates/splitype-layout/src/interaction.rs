@@ -69,6 +69,7 @@ pub fn splitter_bar_h(
     style: &OverlayStyle,
 ) -> Stateful<Div> {
     if active {
+        // Drag-in-progress: highlight only the 1px boundary line.
         div()
             .id(id)
             .absolute()
@@ -77,7 +78,6 @@ pub fn splitter_bar_h(
             .bottom_0()
             .w(px(4.0))
             .cursor_col_resize()
-            .bg(style.active.opacity(0.25))
             .child(
                 div()
                     .absolute()
@@ -120,6 +120,7 @@ pub fn splitter_bar_v(
     style: &OverlayStyle,
 ) -> Stateful<Div> {
     if active {
+        // Drag-in-progress: highlight only the 1px boundary line.
         div()
             .id(id)
             .absolute()
@@ -128,7 +129,6 @@ pub fn splitter_bar_v(
             .right_0()
             .h(px(4.0))
             .cursor_row_resize()
-            .bg(style.active.opacity(0.25))
             .child(
                 div()
                     .absolute()
