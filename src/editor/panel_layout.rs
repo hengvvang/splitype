@@ -306,9 +306,7 @@ impl Editor {
 
     pub(crate) fn render_editor_inner_panel_node(
         &mut self,
-        node: &splitype_splitter::tree::SplitTree<
-            crate::editor::session::EditorInnerPanelKind,
-        >,
+        node: &splitype_splitter::tree::SplitTree<crate::editor::session::EditorInnerPanelKind>,
         area_id: usize,
         theme: &Theme,
         strings: &I18nStrings,

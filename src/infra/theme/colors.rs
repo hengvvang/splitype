@@ -150,8 +150,7 @@ pub struct ThemeColors {
     pub cursor: Hsla,
     /// Text-selection highlight colour.
     pub selection: Hsla,
-    /// Focus/active accent — window-area focus border and splitter drag
-    /// highlight (#72cffe sky blue).
+    /// Active drag accent — splitter-bar drag highlight (#72cffe sky blue).
     pub focus_accent: Hsla,
     /// Split-preview indicator colour (drag-to-split lines and highlights).
     pub split_indicator: Hsla,

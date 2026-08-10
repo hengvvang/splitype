@@ -581,9 +581,7 @@ impl Editor {
 
         // Tile card with overflow hidden (no corner handles inside, to avoid clipping).
         // Mouse interaction with any part of the tile marks it as the focused
-        // window area (visible via the focus border); Editor tiles additionally
-        // become the active editor.
-        let is_focused_area = self.panels.layout.focused_window_area == Some(leaf_id);
+        // window area and, for Editor tiles, the active editor.
         let tile_focus = cx.entity().downgrade();
         let mut tile_card = div()
             .id(("tiled-area-card", leaf_id))
@@ -594,16 +592,8 @@ impl Editor {
             .relative()
             .rounded(px(radius))
             .bg(c.dialog_surface)
-            .border(px(if is_focused_area {
-                d.dialog_border_width.max(1.5)
-            } else {
-                d.dialog_border_width
-            }))
-            .border_color(if is_focused_area {
-                c.focus_accent
-            } else {
-                c.dialog_border
-            })
+            .border(px(d.dialog_border_width))
+            .border_color(c.dialog_border)
             .shadow_lg()
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                 let _ = tile_focus.update(cx, |ed, cx| {

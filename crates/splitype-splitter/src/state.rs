@@ -39,14 +39,28 @@ pub struct WindowLayout {
 /// The id of the root area created by the default layout.
 pub const ROOT_AREA_ID: AreaId = 1;
 
+/// The Editor area id of the default layout: the initial split is
+/// Explorer (left) + Editor (right), and the split node shares the Editor
+/// leaf's id by the tree's split-id convention.
+pub const DEFAULT_EDITOR_AREA_ID: AreaId = 2;
+
 impl Default for WindowLayout {
     fn default() -> Self {
         Self {
-            window_area_tree: SplitTree::Leaf {
-                id: ROOT_AREA_ID,
-                kind: WindowAreaKind::Editor,
+            window_area_tree: SplitTree::Split {
+                id: DEFAULT_EDITOR_AREA_ID,
+                direction: Axis::Horizontal,
+                ratio: 0.3,
+                first: Box::new(SplitTree::Leaf {
+                    id: ROOT_AREA_ID,
+                    kind: WindowAreaKind::Explorer,
+                }),
+                second: Box::new(SplitTree::Leaf {
+                    id: DEFAULT_EDITOR_AREA_ID,
+                    kind: WindowAreaKind::Editor,
+                }),
             },
-            next_node_id: 2,
+            next_node_id: 3,
             open_window_area_dropdown: None,
             maximized_window_area: None,
             active_window_area_splitter_drag: None,
@@ -531,16 +545,17 @@ mod tests {
     #[test]
     fn test_area_layout_suite() {
         let mut layout = WindowLayout::default();
-        assert_eq!(layout.window_area_tree.count_leaves(), 1);
+        // Default: Explorer (1) + Editor (2).
+        assert_eq!(layout.window_area_tree.count_leaves(), 2);
 
         layout.split_window_area(1, Axis::Horizontal, 0.5);
-        assert_eq!(layout.window_area_tree.count_leaves(), 2);
-
-        layout.split_window_area(2, Axis::Vertical, 0.5);
         assert_eq!(layout.window_area_tree.count_leaves(), 3);
 
+        layout.split_window_area(2, Axis::Vertical, 0.5);
+        assert_eq!(layout.window_area_tree.count_leaves(), 4);
+
         layout.close_window_area(2);
-        assert_eq!(layout.window_area_tree.count_leaves(), 2);
+        assert_eq!(layout.window_area_tree.count_leaves(), 3);
 
         layout.change_window_area_kind(1, WindowAreaKind::Explorer);
         assert_eq!(
@@ -568,37 +583,25 @@ mod tests {
     #[test]
     fn test_split_inherits_source_kind() {
         let mut layout = WindowLayout::default();
-        // Default: single Editor leaf.
+        // Default: Explorer (1) + Editor (2).
         assert_eq!(
             layout.window_area_tree.find_leaf_kind(1),
-            Some(WindowAreaKind::Editor)
-        );
-
-        // Split → Editor + Editor (same kind, not cycled).
-        layout.split_window_area(1, Axis::Horizontal, 0.5);
-        assert_eq!(layout.window_area_tree.count_leaves(), 2);
-        assert_eq!(
-            layout.window_area_tree.find_leaf_kind(1),
-            Some(WindowAreaKind::Editor)
+            Some(WindowAreaKind::Explorer)
         );
         assert_eq!(
             layout.window_area_tree.find_leaf_kind(2),
             Some(WindowAreaKind::Editor)
         );
 
-        // Turn leaf 1 into Explorer, then split it → Explorer + Explorer.
-        layout.change_window_area_kind(1, WindowAreaKind::Explorer);
-        let new_explorer = layout
-            .split_window_area(1, Axis::Vertical, 0.5)
-            .expect("second split should succeed");
+        // Split the Explorer leaf → Explorer + Explorer (same kind, not cycled).
+        layout.split_window_area(1, Axis::Horizontal, 0.5);
         assert_eq!(layout.window_area_tree.count_leaves(), 3);
         assert_eq!(
             layout.window_area_tree.find_leaf_kind(1),
             Some(WindowAreaKind::Explorer)
         );
-        // The new leaf from the second split is also Explorer.
         assert_eq!(
-            layout.window_area_tree.find_leaf_kind(new_explorer),
+            layout.window_area_tree.find_leaf_kind(3),
             Some(WindowAreaKind::Explorer)
         );
 
@@ -617,10 +620,11 @@ mod tests {
     #[test]
     fn test_active_editor_falls_back_to_last_focused() {
         let mut layout = WindowLayout::default();
-        layout.activate_editor_area(1);
-        let a = layout.split_window_area(1, Axis::Horizontal, 0.5).unwrap();
-        let b = layout.split_window_area(1, Axis::Vertical, 0.5).unwrap();
-        // Activation order: 1, a, b → active is b.
+        // Default: Explorer (1) + Editor (2); drive the Editor side.
+        layout.activate_editor_area(2);
+        let a = layout.split_window_area(2, Axis::Horizontal, 0.5).unwrap();
+        let b = layout.split_window_area(2, Axis::Vertical, 0.5).unwrap();
+        // Activation order: 2, a, b → active is b.
         layout.activate_editor_area(a);
         layout.activate_editor_area(b);
         assert_eq!(layout.active_editor_area, Some(b));
@@ -632,14 +636,13 @@ mod tests {
         // Closing the second-to-last editor falls back to the remaining
         // root area (the last editor is never closable).
         layout.close_window_area(a);
-        assert_eq!(layout.active_editor_area, Some(1));
+        assert_eq!(layout.active_editor_area, Some(2));
     }
 
     #[test]
     fn test_join_sibling_leaves() {
         let mut layout = WindowLayout::default();
-        // Create a simple horizontal split: [Editor, Editor]
-        layout.split_window_area(1, Axis::Horizontal, 0.5);
+        // Default layout already has two sibling leaves: Explorer (1) + Editor (2).
         assert_eq!(layout.window_area_tree.count_leaves(), 2);
 
         // Join leaf 2 into leaf 1: remove 2, expand 1.
@@ -648,19 +651,18 @@ mod tests {
         assert_eq!(layout.window_area_tree.count_leaves(), 1);
         assert_eq!(
             layout.window_area_tree.find_leaf_kind(1),
-            Some(WindowAreaKind::Editor)
+            Some(WindowAreaKind::Explorer)
         );
     }
 
     #[test]
     fn test_join_nested_leaves() {
         let mut layout = WindowLayout::default();
-        // Build: Split(H) { Leaf(1), Split(V) { Leaf(2), Leaf(3) } }
-        layout.split_window_area(1, Axis::Horizontal, 0.5); // ids: 1, 2
-        layout.split_window_area(2, Axis::Vertical, 0.5); // ids: 1, 2, 3
+        // Build: Split(H) { Split(H) { Leaf(1), Leaf(3) }, Leaf(2) }
+        layout.split_window_area(1, Axis::Horizontal, 0.5); // ids: 1, 3, 2
         assert_eq!(layout.window_area_tree.count_leaves(), 3);
 
-        // Join leaf 1 with leaf 2 → 2 leaves remain.
+        // Join leaf 1 with leaf 2 (different subtrees) → 2 leaves remain.
         let ok = layout.join_window_area(1, 2);
         assert!(ok);
         assert_eq!(layout.window_area_tree.count_leaves(), 2);
@@ -669,16 +671,15 @@ mod tests {
     #[test]
     fn test_window_area_rects() {
         let mut layout = WindowLayout::default();
-        layout.split_window_area(1, Axis::Horizontal, 0.5);
+        // Default: Explorer (1) at 30%, Editor (2) at 70%.
         let rects = layout.window_area_rects(size(px(1000.0), px(800.0)));
         assert_eq!(rects.len(), 2);
-        // First leaf: left half, second leaf: right half.
         let first = rects[0];
         let second = rects[1];
-        assert!((first.width - 500.0).abs() < 1.0);
-        assert!((second.width - 500.0).abs() < 1.0);
+        assert!((first.width - 300.0).abs() < 1.0);
+        assert!((second.width - 700.0).abs() < 1.0);
         assert!((first.height - 800.0).abs() < 1.0);
         assert!((second.height - 800.0).abs() < 1.0);
-        assert!((second.x - 500.0).abs() < 1.0);
+        assert!((second.x - 300.0).abs() < 1.0);
     }
 }

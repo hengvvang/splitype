@@ -59,7 +59,7 @@ fn redraw(cx: &mut gpui::VisualTestContext) {
 /// mounted and keyboard simulation never reaches them.
 fn ensure_wysiwyg_editing_panel(editor: &gpui::Entity<Editor>, cx: &mut gpui::App) {
     editor.update(cx, |editor, _cx| {
-        let area = crate::splitter::ROOT_AREA_ID;
+        let area = crate::splitter::DEFAULT_EDITOR_AREA_ID;
         editor.panels.layout.activate_editor_area(area);
         let mut ids = Vec::new();
         editor

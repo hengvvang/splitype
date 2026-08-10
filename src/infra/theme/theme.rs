@@ -298,7 +298,7 @@ impl Theme {
         Self {
             name: BUILTIN_THEME_SPLITYPE_LIGHT_NAME.into(),
             colors: ThemeColors {
-                editor_background: Hsla::from(rgba(0xf7f8fbff)),
+                editor_background: Hsla::from(rgba(0xffffffff)),
                 source_mode_block_bg: Hsla::from(rgba(0xeef2f7ff)),
                 comment_bg: Hsla::from(rgba(0xfef3c766)),
                 text_default: Hsla::from(rgba(0x1f2937ff)),
@@ -844,7 +844,7 @@ mod tests {
         let light = Theme::light_theme();
 
         assert_eq!(light.name, "Light");
-        assert_eq!(light.colors.editor_background, rgba(0xf7f8fbff).into());
+        assert_eq!(light.colors.editor_background, rgba(0xffffffff).into());
         assert_eq!(light.colors.text_default, rgba(0x1f2937ff).into());
         assert_eq!(light.colors.text_link, rgba(0x2563ebff).into());
         assert_eq!(light.colors.code_bg, rgba(0xf1f5f9ff).into());

@@ -9,7 +9,7 @@ use crate::app::menus::install_menus;
 use crate::app::shell::{AreaContent, Shell};
 use crate::editor::controller::Editor;
 use crate::infra::config::recent::record_recent_file;
-use crate::splitter::ROOT_AREA_ID;
+use crate::splitter::DEFAULT_EDITOR_AREA_ID;
 use crate::ui::custom_titlebar::splitype_window_options;
 
 fn window_title(file_path: Option<&Path>) -> SharedString {
@@ -46,13 +46,21 @@ pub(crate) fn open_editor_window(
                 let editor = cx.new(|cx| {
                     // No content and no path → welcome state with zero tabs.
                     if markdown.is_empty() && file_path.is_none() {
-                        Editor::empty_in_shell(None, ROOT_AREA_ID, cx)
+                        Editor::empty_in_shell(None, DEFAULT_EDITOR_AREA_ID, cx)
                     } else {
-                        Editor::from_markdown_in_shell(None, ROOT_AREA_ID, cx, markdown, file_path)
+                        Editor::from_markdown_in_shell(
+                            None,
+                            DEFAULT_EDITOR_AREA_ID,
+                            cx,
+                            markdown,
+                            file_path,
+                        )
                     }
                 });
                 cx.new(move |_cx| Shell {
-                    areas: [(ROOT_AREA_ID, AreaContent::Editor(editor))].into(),
+                    // The default layout is Explorer (left) + Editor (right);
+                    // only Editor areas carry content entities.
+                    areas: [(DEFAULT_EDITOR_AREA_ID, AreaContent::Editor(editor))].into(),
                 })
             },
         )

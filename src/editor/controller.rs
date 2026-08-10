@@ -31,9 +31,6 @@ pub(crate) use crate::editor::window::context_menu::ContextMenuState;
 pub(crate) use crate::editor::window::dialogs::TableInsertDialogState;
 pub(crate) use crate::editor::window_layout::WindowPanels;
 pub(crate) use crate::editor::{PreviewState, SourceCodePanelRuntime};
-pub(crate) use crate::splitter::sessions::{BorderMenuState, CornerDragSession, SplitterDragSession};
-pub(crate) use crate::splitter::state::ROOT_AREA_ID;
-pub(crate) use crate::splitter::types::{AreaId, AreaSplitMode, EditorAreaMode, PanelId};
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::model::inline::text::RichText;
 pub(crate) use crate::model::syntax::image::{
@@ -47,6 +44,11 @@ pub(crate) use crate::model::syntax::table::{
     TableAxisHighlight, TableAxisKind, TableAxisMarker, TableColumnAlignment, TableData,
     serialize_table_cell_markdown,
 };
+pub(crate) use crate::splitter::sessions::{
+    BorderMenuState, CornerDragSession, SplitterDragSession,
+};
+pub(crate) use crate::splitter::state::DEFAULT_EDITOR_AREA_ID;
+pub(crate) use crate::splitter::types::{AreaId, AreaSplitMode, EditorAreaMode, PanelId};
 
 /// Link navigation request deferred until a `Window` is available.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -395,9 +397,10 @@ impl Editor {
 
     /// Creates an editor with no document tabs — the welcome state shown
     /// before any file is opened or an Untitled tab is started. The default
-    /// layout seeds one root Editor area with an empty tab bar.
+    /// layout seeds a left Explorer area and a right Editor area with an
+    /// empty tab bar.
     pub fn empty(_cx: &mut Context<Self>) -> Self {
-        Self::empty_in_shell(None, crate::splitter::ROOT_AREA_ID, _cx)
+        Self::empty_in_shell(None, crate::splitter::DEFAULT_EDITOR_AREA_ID, _cx)
     }
 
     /// Creates an editor with no document tabs, bound to a window shell.
@@ -427,13 +430,15 @@ impl Editor {
             focused_editor_inner_panel: None,
             source_code_panel_runtimes: HashMap::new(),
         }
-        .with_seeded_root_editor()
+        .with_seeded_editor()
     }
 
-    /// Seed the root Editor area as the (empty) active editor.
-    fn with_seeded_root_editor(mut self) -> Self {
-        self.ensure_editor_session(ROOT_AREA_ID);
-        self.panels.layout.activate_editor_area(ROOT_AREA_ID);
+    /// Seed the default layout's Editor area as the (empty) active editor.
+    fn with_seeded_editor(mut self) -> Self {
+        self.ensure_editor_session(DEFAULT_EDITOR_AREA_ID);
+        self.panels
+            .layout
+            .activate_editor_area(DEFAULT_EDITOR_AREA_ID);
         self
     }
 
@@ -448,7 +453,13 @@ impl Editor {
         markdown: String,
         file_path: Option<PathBuf>,
     ) -> Self {
-        Self::from_markdown_in_shell(None, crate::splitter::ROOT_AREA_ID, cx, markdown, file_path)
+        Self::from_markdown_in_shell(
+            None,
+            crate::splitter::DEFAULT_EDITOR_AREA_ID,
+            cx,
+            markdown,
+            file_path,
+        )
     }
 
     /// Creates an editor from markdown, bound to a window shell.
@@ -481,15 +492,18 @@ impl Editor {
             focused_editor_inner_panel: None,
             source_code_panel_runtimes: HashMap::new(),
         };
-        // Seed the root Editor area with the initial tab, migrating the
+        // Seed the default Editor area with the initial tab, migrating the
         // default welcome panel into its editing panel.
         editor
-            .ensure_editor_session(ROOT_AREA_ID)
+            .ensure_editor_session(DEFAULT_EDITOR_AREA_ID)
             .tab_list
             .tabs
             .push(tab);
-        editor.enter_editing(ROOT_AREA_ID);
-        editor.panels.layout.activate_editor_area(ROOT_AREA_ID);
+        editor.enter_editing(DEFAULT_EDITOR_AREA_ID);
+        editor
+            .panels
+            .layout
+            .activate_editor_area(DEFAULT_EDITOR_AREA_ID);
         editor.rebuild_table_runtimes(cx);
         editor.rebuild_image_runtimes(cx);
         editor.refresh_preview_blocks(cx);

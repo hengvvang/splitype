@@ -9,7 +9,7 @@
 use gpui::{Size, px};
 
 use splitype_splitter::Axis;
-use splitype_splitter::state::{ROOT_AREA_ID, WindowLayout};
+use splitype_splitter::state::{DEFAULT_EDITOR_AREA_ID, ROOT_AREA_ID, WindowLayout};
 use splitype_splitter::tree::AreaRect;
 use splitype_splitter::types::WindowAreaKind;
 
@@ -25,64 +25,83 @@ fn root_rects(state: &WindowLayout) -> Vec<AreaRect> {
     rects
 }
 
-/// The default layout has exactly one root editor area.
+/// The default layout is Explorer (left, 30%) + Editor (right, 70%).
 #[test]
-fn default_layout_has_single_root_area() {
+fn default_layout_is_explorer_editor_split() {
     let state = layout();
-    let mut out = Vec::new();
-    state.window_area_tree.leaf_ids(&mut out);
-    assert_eq!(out, vec![ROOT_AREA_ID]);
+    let mut leaves = Vec::new();
+    state.window_area_tree.leaf_ids(&mut leaves);
+    assert_eq!(leaves, vec![ROOT_AREA_ID, DEFAULT_EDITOR_AREA_ID]);
+    assert_eq!(
+        state.window_area_tree.find_leaf_kind(ROOT_AREA_ID),
+        Some(WindowAreaKind::Explorer)
+    );
+    assert_eq!(
+        state
+            .window_area_tree
+            .find_leaf_kind(DEFAULT_EDITOR_AREA_ID),
+        Some(WindowAreaKind::Editor)
+    );
+    let rects = root_rects(&state);
+    assert_eq!(rects.len(), 2);
+    assert!((rects[0].width - 30.0).abs() < 0.001);
+    assert!((rects[1].width - 70.0).abs() < 0.001);
 }
 
-/// Splitting an area doubles the leaf count and halves the rects.
+/// Splitting an area adds a leaf and halves that side's rects.
 #[test]
 fn split_window_area_creates_two_leaves() {
     let mut state = layout();
     let new_id = state
-        .split_window_area(ROOT_AREA_ID, Axis::Horizontal, 0.5)
+        .split_window_area(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5)
         .expect("split");
 
     let mut leaves = Vec::new();
     state.window_area_tree.leaf_ids(&mut leaves);
-    assert_eq!(leaves.len(), 2);
+    assert_eq!(leaves.len(), 3);
 
     let rects = root_rects(&state);
-    assert_eq!(rects.len(), 2);
-    assert_eq!(rects[0].width, rects[1].width);
-    assert_eq!(rects[0].x, 0.0);
+    assert_eq!(rects.len(), 3);
+    // Explorer keeps its 30%; the Editor side halves into two 35% panes.
+    assert!((rects[0].width - 30.0).abs() < 0.001);
+    assert!((rects[1].width - 35.0).abs() < 0.001);
     let right = rects
         .iter()
         .find(|rect| rect.id == new_id)
         .expect("new area");
-    assert_eq!(right.x, 50.0);
+    assert!((right.x - 65.0).abs() < 0.001);
 }
 
-/// Closing an area joins the tree back to a single leaf.
+/// Closing an area joins the tree back to the default split.
 #[test]
-fn closing_area_joins_back_to_single_leaf() {
+fn closing_area_joins_back_to_default_split() {
     let mut state = layout();
     let new_id = state
-        .split_window_area(ROOT_AREA_ID, Axis::Horizontal, 0.5)
+        .split_window_area(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5)
         .expect("split");
 
     state.close_window_area(new_id);
     let mut leaves = Vec::new();
     state.window_area_tree.leaf_ids(&mut leaves);
-    assert_eq!(leaves, vec![ROOT_AREA_ID]);
+    assert_eq!(leaves, vec![ROOT_AREA_ID, DEFAULT_EDITOR_AREA_ID]);
 }
 
 /// Area kinds switch on the tree leaves.
 #[test]
 fn area_kinds_switch_on_leaves() {
     let mut state = layout();
-    state.change_window_area_kind(ROOT_AREA_ID, WindowAreaKind::Explorer);
+    state.change_window_area_kind(DEFAULT_EDITOR_AREA_ID, WindowAreaKind::Settings);
     assert_eq!(
-        state.window_area_tree.find_leaf_kind(ROOT_AREA_ID),
-        Some(WindowAreaKind::Explorer)
+        state
+            .window_area_tree
+            .find_leaf_kind(DEFAULT_EDITOR_AREA_ID),
+        Some(WindowAreaKind::Settings)
     );
-    state.change_window_area_kind(ROOT_AREA_ID, WindowAreaKind::Editor);
+    state.change_window_area_kind(DEFAULT_EDITOR_AREA_ID, WindowAreaKind::Editor);
     assert_eq!(
-        state.window_area_tree.find_leaf_kind(ROOT_AREA_ID),
+        state
+            .window_area_tree
+            .find_leaf_kind(DEFAULT_EDITOR_AREA_ID),
         Some(WindowAreaKind::Editor)
     );
 }
@@ -91,28 +110,30 @@ fn area_kinds_switch_on_leaves() {
 #[test]
 fn split_ratio_affects_rect_widths() {
     let mut state = layout();
-    state.split_window_area(ROOT_AREA_ID, Axis::Horizontal, 0.25);
+    state.split_window_area(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.25);
 
     let rects = root_rects(&state);
-    assert_eq!(rects.len(), 2);
+    assert_eq!(rects.len(), 3);
+    // Editor side splits at 25%: the first Editor pane is 70% * 25% = 17.5.
     let left = rects
         .iter()
-        .find(|rect| rect.id == ROOT_AREA_ID)
-        .expect("left rect");
-    assert!((left.width - 25.0).abs() < 0.001);
+        .find(|rect| rect.id == DEFAULT_EDITOR_AREA_ID)
+        .expect("left editor rect");
+    assert!((left.width - 17.5).abs() < 0.001);
 }
 
 /// Window area rects scale to the container size.
 #[test]
 fn window_area_rects_scale_to_container() {
     let mut state = layout();
-    state.split_window_area(ROOT_AREA_ID, Axis::Horizontal, 0.5);
+    state.split_window_area(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5);
 
     let rects = state.window_area_rects(Size::new(px(1000.0), px(800.0)));
-    assert_eq!(rects.len(), 2);
-    assert_eq!(rects[0].width, 500.0);
-    assert_eq!(rects[1].x, 500.0);
-    assert_eq!(rects[1].height, 800.0);
+    assert_eq!(rects.len(), 3);
+    assert_eq!(rects[0].width, 300.0);
+    assert_eq!(rects[2].x, 650.0);
+    assert_eq!(rects[2].height, 800.0);
+    assert_eq!(rects[2].x + rects[2].width, 1000.0);
 }
 
 /// Maximizing tracks a single area and can be toggled off.
@@ -120,7 +141,7 @@ fn window_area_rects_scale_to_container() {
 fn maximize_toggles_single_area() {
     let mut state = layout();
     let new_id = state
-        .split_window_area(ROOT_AREA_ID, Axis::Horizontal, 0.5)
+        .split_window_area(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5)
         .expect("split");
 
     state.toggle_window_area_maximize(new_id);
@@ -133,11 +154,10 @@ fn maximize_toggles_single_area() {
 #[test]
 fn activation_history_tracks_editors() {
     let mut state = layout();
-    let new_id = state
-        .split_window_area(ROOT_AREA_ID, Axis::Horizontal, 0.5)
-        .expect("split");
-
-    state.activate_editor_area(new_id);
-    assert_eq!(state.active_editor_area, Some(new_id));
-    assert_eq!(state.editor_activation_history, vec![new_id]);
+    state.activate_editor_area(DEFAULT_EDITOR_AREA_ID);
+    assert_eq!(state.active_editor_area, Some(DEFAULT_EDITOR_AREA_ID));
+    assert_eq!(
+        state.editor_activation_history,
+        vec![DEFAULT_EDITOR_AREA_ID]
+    );
 }

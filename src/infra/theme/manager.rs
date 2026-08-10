@@ -379,7 +379,7 @@ mod tests {
         assert_eq!(manager.current().name, "Light");
         assert_eq!(
             manager.current().colors.editor_background,
-            rgba(0xf7f8fbff).into()
+            rgba(0xffffffff).into()
         );
 
         assert!(manager.set_theme_by_id("splitype"));
