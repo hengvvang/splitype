@@ -7,7 +7,7 @@
 use gpui::{Pixels, Point};
 
 use crate::tree::{AreaRect, Axis, Direction};
-use crate::types::{AreaId, AreaSplitMode};
+use crate::types::AreaSplitMode;
 
 /// Modifier key held during a corner drag.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -44,6 +44,16 @@ pub struct SplitterDragSession {
     pub total_span: f32,
 }
 
+impl SplitterDragSession {
+    /// The split ratio for the current pointer position: the drag delta
+    /// over the split's pixel span, added to the start ratio and clamped.
+    /// Pure computation shared by every layout level.
+    pub fn ratio_at(&self, current_pointer_pos: f32) -> f32 {
+        let delta = current_pointer_pos - self.start_pointer_pos;
+        (self.start_ratio + delta / self.total_span).clamp(0.08, 0.92)
+    }
+}
+
 /// Corner-drag gesture session.
 ///
 /// Analogous to Blender's `sActionzoneData` – tracks which area corner was
@@ -74,28 +84,28 @@ pub struct BorderMenuState {
     pub position: Point<Pixels>,
 }
 
-/// The action produced by a window-area corner-drag gesture (outer level).
+/// The action produced by a corner-drag gesture (generic over the layout
+/// level: window areas on the outer tree, editor panels on the inner one).
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub enum WindowAreaDragAction {
-    /// Split the dragged area with a same-kind sibling. The host seeds the
-    /// new Editor area per `mode`: a deep-copied tab list, or a blank one.
+pub enum CornerDragAction {
+    /// Split the dragged leaf with a same-kind sibling. The `mode` seeds
+    /// the new leaf: [`AreaSplitMode::Copy`] clones the source, `Fresh`
+    /// starts blank.
     Split {
-        area_id: AreaId,
+        target_id: usize,
         direction: Axis,
         ratio: f32,
         mode: AreaSplitMode,
     },
-    /// Join the dragged area into a neighbor (removes the dragged area).
-    Join {
-        from_area: AreaId,
-        into_area: AreaId,
-    },
-    /// Swap the kinds (and per-area state) of two areas.
-    Swap { from: AreaId, to: AreaId },
-    /// Shift + drag on a Settings corner: open the floating settings
-    /// window (the app-menu Open Settings panel).
-    OpenSettings,
-    /// Gesture was cancelled (e.g. dragged to an invalid target).
+    /// Join the dragged leaf into a neighbor (removes the dragged leaf).
+    Join { from: usize, into: usize },
+    /// Swap the kinds (and per-leaf state) of two leaves.
+    Swap { from: usize, to: usize },
+    /// Shift + drag on a kind whose behavior is `Duplicate`: the host
+    /// decides what to do (inner editor panels currently no-op).
+    Duplicate { target_id: usize },
+    /// Gesture was cancelled. Hosts interpret kind-specific shortcuts:
+    /// the outer Settings corner opens the floating settings window.
     Cancel,
 }
 

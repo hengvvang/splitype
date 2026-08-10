@@ -82,12 +82,12 @@ impl Editor {
         // have been switched away (background editing): bring it back to
         // the foreground first, so the active-editor invariant (active is
         // always a foreground Editor) holds.
-        if !self.panels.layout.is_foreground_editor(area) {
+        if !self.panels.layout.is_editor_area(area) {
             self.panels
                 .layout
-                .change_window_area_kind(area, WindowAreaKind::Editor);
+                .set_kind(area, WindowAreaKind::Editor);
         }
-        self.panels.layout.activate_editor_area(area);
+        self.panels.layout.activate_area(area);
         let set = self
             .editor_sessions
             .get_mut(&area)
@@ -114,12 +114,12 @@ impl Editor {
         };
         // The dirty area may be in the background (switched away): bring it
         // back to the foreground so the active-editor invariant holds.
-        if !self.panels.layout.is_foreground_editor(area) {
+        if !self.panels.layout.is_editor_area(area) {
             self.panels
                 .layout
-                .change_window_area_kind(area, WindowAreaKind::Editor);
+                .set_kind(area, WindowAreaKind::Editor);
         }
-        self.panels.layout.activate_editor_area(area);
+        self.panels.layout.activate_area(area);
         let set = self
             .editor_sessions
             .get_mut(&area)

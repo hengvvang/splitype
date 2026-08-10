@@ -31,7 +31,7 @@ impl crate::editor::controller::Editor {
         // link icon after its name; other kinds and inactive editors stay
         // plain text.
         let is_active_editor = kind == crate::splitter::WindowAreaKind::Editor
-            && self.panels.layout.active_editor_area == Some(leaf_id);
+            && self.panels.layout.active_area == Some(leaf_id);
         let type_button = small_pill_button(c, d)
             .id(("area-topbar-type", leaf_id))
             .text_size(px(12.0))
@@ -47,7 +47,7 @@ impl crate::editor::controller::Editor {
             })
             .on_click(move |_event, _window, cx| {
                 let _ = type_editor.update(cx, |ed, cx| {
-                    ed.panels.layout.toggle_window_area_dropdown(leaf_id);
+                    ed.panels.layout.toggle_dropdown(leaf_id);
                     cx.notify();
                 });
             });
@@ -109,7 +109,7 @@ impl crate::editor::controller::Editor {
                 )
                 .on_click(move |_event, _window, cx| {
                     let _ = max_editor.update(cx, |ed, cx| {
-                        ed.panels.layout.toggle_window_area_maximize(leaf_id);
+                        ed.panels.layout.toggle_maximize(leaf_id);
                         cx.notify();
                     });
                 });
@@ -186,7 +186,7 @@ impl crate::editor::controller::Editor {
                                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                                     let _ = tab_editor.update(cx, |ed, cx| {
                                         ed.with_current_tab_area(leaf_id, |ed| {
-                                            ed.panels.layout.activate_editor_area(leaf_id);
+                                            ed.panels.layout.activate_area(leaf_id);
                                             ed.activate_tab(leaf_id, index, cx);
                                         });
                                         cx.notify();
@@ -212,7 +212,7 @@ impl crate::editor::controller::Editor {
                                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                                     let _ = close_editor.update(cx, |ed, cx| {
                                         ed.with_current_tab_area(leaf_id, |ed| {
-                                            ed.panels.layout.activate_editor_area(leaf_id);
+                                            ed.panels.layout.activate_area(leaf_id);
                                             ed.close_tab(leaf_id, index, cx);
                                         });
                                         cx.notify();
@@ -244,7 +244,7 @@ impl crate::editor::controller::Editor {
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = add_editor.update(cx, |ed, cx| {
                             ed.with_current_tab_area(leaf_id, |ed| {
-                                ed.panels.layout.activate_editor_area(leaf_id);
+                                ed.panels.layout.activate_area(leaf_id);
                                 ed.new_untitled_tab(leaf_id, cx);
                             });
                             cx.notify();

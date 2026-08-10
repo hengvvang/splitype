@@ -32,7 +32,7 @@ impl crate::editor::controller::Editor {
             .child(kind.name().to_string())
             .on_click(move |_event, _window, cx| {
                 let _ = type_editor.update(cx, |ed, cx| {
-                    ed.panels.layout.toggle_window_area_dropdown(leaf_id);
+                    ed.panels.layout.toggle_dropdown(leaf_id);
                     cx.notify();
                 });
             });
@@ -94,7 +94,7 @@ impl crate::editor::controller::Editor {
                 )
                 .on_click(move |_event, _window, cx| {
                     let _ = max_editor.update(cx, |ed, cx| {
-                        ed.panels.layout.toggle_window_area_maximize(leaf_id);
+                        ed.panels.layout.toggle_maximize(leaf_id);
                         cx.notify();
                     });
                 });

@@ -9,9 +9,9 @@
 use crate::editor::session::{
     EditingPanelKind, EditorInnerPanelKind, InnerPanelLocation, WelcomePanelKind,
 };
-use crate::splitter::{Axis, BorderMenuState, SplitterDragSession};
-use crate::ui::popover::menu_panel;
+use crate::splitter::Axis;
 use splitype_splitter::tree::SplitTree;
+use crate::ui::popover::menu_panel;
 
 use gpui::*;
 
@@ -38,7 +38,7 @@ impl Editor {
     ) -> AnyElement {
         let c = &theme.colors;
         self.tab_list_mut_for(area_id);
-        let inner_tree = self.ensure_editor_session(area_id).inner_panel_tree.clone();
+        let inner_tree = self.ensure_editor_session(area_id).splitter.tree.clone();
 
         // Drop runtimes of panels that were closed or joined.
         self.source_code_panel_runtimes
@@ -90,18 +90,20 @@ impl Editor {
             self.render_editor_inner_panel_node(&inner_tree, area_id, theme, strings, window, cx);
         self.current_tab_area = previous;
 
-        let dropdown = if let Some(loc) = self.open_editor_inner_panel_dropdown {
-            if loc.area_id == area_id {
+        let dropdown = {
+            let open_panel = self.ensure_editor_session(area_id).splitter.open_dropdown;
+            if let Some(panel_id) = open_panel {
                 let current_type = self
                     .ensure_editor_session(area_id)
-                    .inner_panel_tree
-                    .find_leaf_kind(loc.panel_id)
+                    .splitter
+                    .tree
+                    .find_leaf_kind(panel_id)
                     .unwrap_or(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(
                         None,
                     )));
                 Some(self.render_editor_inner_panel_dropdown_menu(
                     area_id,
-                    loc.panel_id,
+                    panel_id,
                     current_type,
                     theme,
                     cx,
@@ -109,8 +111,6 @@ impl Editor {
             } else {
                 None
             }
-        } else {
-            None
         };
 
         let mut container = div()
@@ -136,17 +136,19 @@ impl Editor {
             active: c.focus_accent,
             ..Default::default()
         };
-        if let Some((drag_area_id, drag)) = self.active_editor_inner_panel_corner_drag {
-            if drag_area_id == area_id {
-                let mut rects = Vec::new();
-                inner_tree.collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
-                if let Some(preview) = splitype_splitter::interaction::render_corner_drag_preview(
-                    &drag,
-                    &rects,
-                    &overlay_style,
-                ) {
-                    container = container.child(preview);
-                }
+        if let Some(drag) = self
+            .ensure_editor_session(area_id)
+            .splitter
+            .active_corner_drag
+        {
+            let mut rects = Vec::new();
+            inner_tree.collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
+            if let Some(preview) = splitype_splitter::interaction::render_corner_drag_preview(
+                &drag,
+                &rects,
+                &overlay_style,
+            ) {
+                container = container.child(preview);
             }
         }
 
@@ -155,7 +157,11 @@ impl Editor {
         // inner-panel operations. The split node id doubles as the id of
         // its second (right/bottom) leaf, matching the outer tree's
         // semantics: Split/Close act on that side, Swap flips the sides.
-        if let Some(border_menu) = self.active_editor_inner_panel_border_menu {
+        if let Some(border_menu) = self
+            .ensure_editor_session(area_id)
+            .splitter
+            .active_border_menu
+        {
             let menu_overlay =
                 self.render_editor_inner_panel_border_menu(border_menu, area_id, theme, cx);
             container = container.child(menu_overlay);
@@ -179,7 +185,11 @@ impl Editor {
         let split_h: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = split_h_ed.update(app, |ed, cx| {
                 ed.split_editor_inner_panel_with_ratio(area_id, split_id, Axis::Horizontal, 0.5);
-                ed.active_editor_inner_panel_border_menu = None;
+                ed.editor_sessions
+                    .get_mut(&area_id)
+                    .unwrap()
+                    .splitter
+                    .active_border_menu = None;
                 cx.notify();
             });
         });
@@ -187,7 +197,11 @@ impl Editor {
         let split_v: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = split_v_ed.update(app, |ed, cx| {
                 ed.split_editor_inner_panel_with_ratio(area_id, split_id, Axis::Vertical, 0.5);
-                ed.active_editor_inner_panel_border_menu = None;
+                ed.editor_sessions
+                    .get_mut(&area_id)
+                    .unwrap()
+                    .splitter
+                    .active_border_menu = None;
                 cx.notify();
             });
         });
@@ -202,14 +216,22 @@ impl Editor {
         let close: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = close_ed.update(app, |ed, cx| {
                 ed.close_editor_inner_panel(area_id, split_id);
-                ed.active_editor_inner_panel_border_menu = None;
+                ed.editor_sessions
+                    .get_mut(&area_id)
+                    .unwrap()
+                    .splitter
+                    .active_border_menu = None;
                 cx.notify();
             });
         });
         let dismiss_ed = editor.clone();
         let dismiss: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = dismiss_ed.update(app, |ed, cx| {
-                ed.active_editor_inner_panel_border_menu = None;
+                ed.editor_sessions
+                    .get_mut(&area_id)
+                    .unwrap()
+                    .splitter
+                    .active_border_menu = None;
                 cx.notify();
             });
         });
@@ -278,7 +300,7 @@ impl Editor {
                     if is_double {
                         // The clicked editor becomes the active editor and
                         // its routing context is set for the tab creation.
-                        ed.panels.layout.activate_editor_area(area_id);
+                        ed.panels.layout.activate_area(area_id);
                         ed.current_tab_area = Some(area_id);
                         ed.new_untitled_tab(area_id, cx);
                         ed.current_tab_area = None;
@@ -366,9 +388,11 @@ impl Editor {
                     false,
                     move |modifier, pos, cx| {
                         let _ = inner_editor.update(cx, |ed, cx| {
-                            ed.start_editor_inner_panel_corner_drag(
-                                area_id, panel_id, pos, modifier,
-                            );
+                            ed.editor_sessions
+                                .get_mut(&area_id)
+                                .unwrap()
+                                .splitter
+                                .start_corner_drag(panel_id, pos, modifier);
                             cx.notify();
                         });
                     },
@@ -379,7 +403,7 @@ impl Editor {
                     self.focused_editor_inner_panel =
                         Some(InnerPanelLocation { area_id, panel_id });
                     // The auto-focused editor becomes the active editor too.
-                    self.panels.layout.activate_editor_area(area_id);
+                    self.panels.layout.activate_area(area_id);
                 }
 
                 let focus_editor = cx.entity().downgrade();
@@ -439,9 +463,13 @@ impl Editor {
                     Axis::Horizontal => {
                         let bar_editor = inner_editor.clone();
                         let menu_editor = inner_editor.clone();
-                        let bar_active = self
-                            .active_editor_inner_panel_splitter_drag
-                            .is_some_and(|(_, drag)| drag.split_id == split_id);
+                        let bar_active =
+                            self.editor_sessions.get(&area_id).is_some_and(|session| {
+                                session
+                                    .splitter
+                                    .active_splitter_drag
+                                    .is_some_and(|drag| drag.split_id == split_id)
+                            });
                         div()
                             .w_full()
                             .h_full()
@@ -480,20 +508,34 @@ impl Editor {
                                     bar_active,
                                     &overlay_style,
                                 )
-                                .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
+                                .on_mouse_down(MouseButton::Left, move |event, window, cx| {
                                     let start_pos = f32::from(event.position.x);
                                     let _ = bar_editor.update(cx, |ed, cx| {
-                                        ed.active_editor_inner_panel_splitter_drag = Some((
-                                            area_id,
-                                            SplitterDragSession {
+                                        if let Some(session) = ed.editor_sessions.get_mut(&area_id)
+                                        {
+                                            // The move handler tracks the pointer in the
+                                            // area's local space, so rebase the start
+                                            // position the same way.
+                                            let local_start = ed
+                                                .panels
+                                                .layout
+                                                .leaf_rect(
+                                                    area_id,
+                                                    &ed.panels
+                                                        .layout
+                                                        .leaf_rects(window.viewport_size()),
+                                                )
+                                                .map(|rect| start_pos - rect.x)
+                                                .unwrap_or(start_pos);
+                                            splitype_splitter::interaction::start_splitter_drag(
+                                                &mut session.splitter,
                                                 split_id,
-                                                direction: Axis::Horizontal,
-                                                start_pointer_pos: start_pos,
-                                                start_ratio: r,
-                                                total_span: 1000.0,
-                                            },
-                                        ));
-                                        cx.notify();
+                                                Axis::Horizontal,
+                                                local_start,
+                                                r,
+                                            );
+                                            cx.notify();
+                                        }
                                     });
                                 })
                                 .on_mouse_down(
@@ -501,13 +543,17 @@ impl Editor {
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_editor.update(cx, |ed, cx| {
-                                            ed.active_editor_inner_panel_border_menu =
-                                                Some(BorderMenuState {
+                                            if let Some(session) =
+                                                ed.editor_sessions.get_mut(&area_id)
+                                            {
+                                                splitype_splitter::interaction::open_border_menu(
+                                                    &mut session.splitter,
                                                     split_id,
-                                                    direction: dir,
-                                                    position: pos,
-                                                });
-                                            cx.notify();
+                                                    dir,
+                                                    pos,
+                                                );
+                                                cx.notify();
+                                            }
                                         });
                                     },
                                 ),
@@ -517,9 +563,13 @@ impl Editor {
                     Axis::Vertical => {
                         let bar_editor = inner_editor.clone();
                         let menu_editor = inner_editor.clone();
-                        let bar_active = self
-                            .active_editor_inner_panel_splitter_drag
-                            .is_some_and(|(_, drag)| drag.split_id == split_id);
+                        let bar_active =
+                            self.editor_sessions.get(&area_id).is_some_and(|session| {
+                                session
+                                    .splitter
+                                    .active_splitter_drag
+                                    .is_some_and(|drag| drag.split_id == split_id)
+                            });
                         div()
                             .w_full()
                             .h_full()
@@ -558,20 +608,33 @@ impl Editor {
                                     bar_active,
                                     &overlay_style,
                                 )
-                                .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
+                                .on_mouse_down(MouseButton::Left, move |event, window, cx| {
                                     let start_pos = f32::from(event.position.y);
                                     let _ = bar_editor.update(cx, |ed, cx| {
-                                        ed.active_editor_inner_panel_splitter_drag = Some((
-                                            area_id,
-                                            SplitterDragSession {
+                                        if let Some(session) = ed.editor_sessions.get_mut(&area_id)
+                                        {
+                                            // Rebase the start position into the area's
+                                            // local space, matching the move handler.
+                                            let local_start = ed
+                                                .panels
+                                                .layout
+                                                .leaf_rect(
+                                                    area_id,
+                                                    &ed.panels
+                                                        .layout
+                                                        .leaf_rects(window.viewport_size()),
+                                                )
+                                                .map(|rect| start_pos - rect.y)
+                                                .unwrap_or(start_pos);
+                                            splitype_splitter::interaction::start_splitter_drag(
+                                                &mut session.splitter,
                                                 split_id,
-                                                direction: Axis::Vertical,
-                                                start_pointer_pos: start_pos,
-                                                start_ratio: r,
-                                                total_span: 700.0,
-                                            },
-                                        ));
-                                        cx.notify();
+                                                Axis::Vertical,
+                                                local_start,
+                                                r,
+                                            );
+                                            cx.notify();
+                                        }
                                     });
                                 })
                                 .on_mouse_down(
@@ -579,13 +642,17 @@ impl Editor {
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_editor.update(cx, |ed, cx| {
-                                            ed.active_editor_inner_panel_border_menu =
-                                                Some(BorderMenuState {
+                                            if let Some(session) =
+                                                ed.editor_sessions.get_mut(&area_id)
+                                            {
+                                                splitype_splitter::interaction::open_border_menu(
+                                                    &mut session.splitter,
                                                     split_id,
-                                                    direction: dir,
-                                                    position: pos,
-                                                });
-                                            cx.notify();
+                                                    dir,
+                                                    pos,
+                                                );
+                                                cx.notify();
+                                            }
                                         });
                                     },
                                 ),

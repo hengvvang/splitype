@@ -20,7 +20,7 @@ fn layout() -> WindowLayout {
 fn root_rects(state: &WindowLayout) -> Vec<AreaRect> {
     let mut rects = Vec::new();
     state
-        .window_area_tree
+        .tree
         .collect_leaf_rects(0.0, 0.0, 100.0, 100.0, &mut rects);
     rects
 }
@@ -30,15 +30,15 @@ fn root_rects(state: &WindowLayout) -> Vec<AreaRect> {
 fn default_layout_is_explorer_editor_split() {
     let state = layout();
     let mut leaves = Vec::new();
-    state.window_area_tree.leaf_ids(&mut leaves);
+    state.tree.leaf_ids(&mut leaves);
     assert_eq!(leaves, vec![ROOT_AREA_ID, DEFAULT_EDITOR_AREA_ID]);
     assert_eq!(
-        state.window_area_tree.find_leaf_kind(ROOT_AREA_ID),
+        state.tree.find_leaf_kind(ROOT_AREA_ID),
         Some(WindowAreaKind::Explorer)
     );
     assert_eq!(
         state
-            .window_area_tree
+            .tree
             .find_leaf_kind(DEFAULT_EDITOR_AREA_ID),
         Some(WindowAreaKind::Editor)
     );
@@ -53,11 +53,11 @@ fn default_layout_is_explorer_editor_split() {
 fn split_window_area_creates_two_leaves() {
     let mut state = layout();
     let new_id = state
-        .split_window_area(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5)
+        .split_leaf(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5)
         .expect("split");
 
     let mut leaves = Vec::new();
-    state.window_area_tree.leaf_ids(&mut leaves);
+    state.tree.leaf_ids(&mut leaves);
     assert_eq!(leaves.len(), 3);
 
     let rects = root_rects(&state);
@@ -77,12 +77,12 @@ fn split_window_area_creates_two_leaves() {
 fn closing_area_joins_back_to_default_split() {
     let mut state = layout();
     let new_id = state
-        .split_window_area(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5)
+        .split_leaf(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5)
         .expect("split");
 
-    state.close_window_area(new_id);
+    state.close_leaf(new_id);
     let mut leaves = Vec::new();
-    state.window_area_tree.leaf_ids(&mut leaves);
+    state.tree.leaf_ids(&mut leaves);
     assert_eq!(leaves, vec![ROOT_AREA_ID, DEFAULT_EDITOR_AREA_ID]);
 }
 
@@ -90,17 +90,17 @@ fn closing_area_joins_back_to_default_split() {
 #[test]
 fn area_kinds_switch_on_leaves() {
     let mut state = layout();
-    state.change_window_area_kind(DEFAULT_EDITOR_AREA_ID, WindowAreaKind::Settings);
+    state.set_kind(DEFAULT_EDITOR_AREA_ID, WindowAreaKind::Settings);
     assert_eq!(
         state
-            .window_area_tree
+            .tree
             .find_leaf_kind(DEFAULT_EDITOR_AREA_ID),
         Some(WindowAreaKind::Settings)
     );
-    state.change_window_area_kind(DEFAULT_EDITOR_AREA_ID, WindowAreaKind::Editor);
+    state.set_kind(DEFAULT_EDITOR_AREA_ID, WindowAreaKind::Editor);
     assert_eq!(
         state
-            .window_area_tree
+            .tree
             .find_leaf_kind(DEFAULT_EDITOR_AREA_ID),
         Some(WindowAreaKind::Editor)
     );
@@ -110,7 +110,7 @@ fn area_kinds_switch_on_leaves() {
 #[test]
 fn split_ratio_affects_rect_widths() {
     let mut state = layout();
-    state.split_window_area(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.25);
+    state.split_leaf(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.25);
 
     let rects = root_rects(&state);
     assert_eq!(rects.len(), 3);
@@ -126,9 +126,9 @@ fn split_ratio_affects_rect_widths() {
 #[test]
 fn window_area_rects_scale_to_container() {
     let mut state = layout();
-    state.split_window_area(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5);
+    state.split_leaf(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5);
 
-    let rects = state.window_area_rects(Size::new(px(1000.0), px(800.0)));
+    let rects = state.leaf_rects(Size::new(px(1000.0), px(800.0)));
     assert_eq!(rects.len(), 3);
     assert_eq!(rects[0].width, 300.0);
     assert_eq!(rects[2].x, 650.0);
@@ -141,23 +141,23 @@ fn window_area_rects_scale_to_container() {
 fn maximize_toggles_single_area() {
     let mut state = layout();
     let new_id = state
-        .split_window_area(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5)
+        .split_leaf(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5)
         .expect("split");
 
-    state.toggle_window_area_maximize(new_id);
-    assert_eq!(state.maximized_window_area, Some(new_id));
-    state.toggle_window_area_maximize(new_id);
-    assert_eq!(state.maximized_window_area, None);
+    state.toggle_maximize(new_id);
+    assert_eq!(state.maximized_area, Some(new_id));
+    state.toggle_maximize(new_id);
+    assert_eq!(state.maximized_area, None);
 }
 
 /// Activation history records the most recent editor area.
 #[test]
 fn activation_history_tracks_editors() {
     let mut state = layout();
-    state.activate_editor_area(DEFAULT_EDITOR_AREA_ID);
-    assert_eq!(state.active_editor_area, Some(DEFAULT_EDITOR_AREA_ID));
+    state.activate_area(DEFAULT_EDITOR_AREA_ID);
+    assert_eq!(state.active_area, Some(DEFAULT_EDITOR_AREA_ID));
     assert_eq!(
-        state.editor_activation_history,
+        state.activation_history,
         vec![DEFAULT_EDITOR_AREA_ID]
     );
 }

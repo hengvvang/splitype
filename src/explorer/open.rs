@@ -27,7 +27,7 @@ impl Editor {
         self.autoscroll_explorer_selection();
         // Explorer interacts with the ACTIVE editor: the file opens in its
         // tab bar. With no Editor area present the click is ignored.
-        if self.panels.layout.active_editor_area.is_none() {
+        if self.panels.layout.active_area.is_none() {
             return;
         }
         self.open_file_in_active_editor(&path, window, cx);
@@ -44,7 +44,7 @@ impl Editor {
     ) {
         self.open_explorer_file(path, window, cx);
         if focus_editor {
-            if let Some(area) = self.panels.layout.active_editor_area {
+            if let Some(area) = self.panels.layout.active_area {
                 if let Some(panel_id) = self
                     .focused_editor_inner_panel
                     .filter(|loc| loc.area_id == area)
@@ -64,7 +64,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(area_id) = self.panels.layout.active_editor_area else {
+        let Some(area_id) = self.panels.layout.active_area else {
             return;
         };
         let Some(new_id) = self.split_window_area(
@@ -75,7 +75,7 @@ impl Editor {
         ) else {
             return;
         };
-        self.panels.layout.activate_editor_area(new_id);
+        self.panels.layout.activate_area(new_id);
         self.open_file_in_area(new_id, &path, window, cx);
         cx.notify();
     }

@@ -1,20 +1,19 @@
-//! Editor panel types — the inner-panel vocabulary of an Editor area.
+//! Editor session types — the per-area tab list, the inner panel split
+//! container, and the panel-kind vocabulary of an Editor area.
 //!
-//! Split out of `splitype-splitter` when the inner panel layout moved back to
-//! the editor layer: the layout crate now owns only the outer window tree,
-//! while the editor owns its own panel kinds, tab list, and panel split
-//! tree. `SplitTree` itself stays generic and is reused from the layout
-//! crate.
+//! The inner panel layout is a [`SplitterContainer`] — the same generic
+//! container the window-level area layout uses — so both levels share one
+//! split model and one set of interactions (see `splitype-splitter`).
 
-use splitype_splitter::tree::SplitTree;
+use splitype_splitter::state::{ContainerKind, ShiftBehavior, SplitterContainer};
 
 /// The document tabs owned by one Editor area.
 ///
 /// Every Editor area keeps its own ordered tab list; tabs are deep-copied
 /// when an Editor area is split (normal drag) and start empty for fresh
 /// editors (Shift-drag).
-/// Tab payload type is owned by the host (editor); layout only stores and
-/// reorders tabs, so it stays generic over the payload.
+/// Tab payload type is owned by the host (editor); the container only
+/// stores and reorders tabs, so it stays generic over the payload.
 #[derive(Debug, Default, Clone)]
 pub struct EditorTabList<T> {
     pub tabs: Vec<T>,
@@ -31,7 +30,7 @@ impl<T> EditorTabList<T> {
 }
 
 /// The complete per-area editor state: the document tabs plus the inner
-/// panel split tree.
+/// panel split container.
 ///
 /// Aggregating both under one key guarantees they can never drift apart —
 /// an area always has exactly one tab list and one panel layout. Sessions
@@ -41,7 +40,21 @@ impl<T> EditorTabList<T> {
 /// or activation logic until its area is back in the foreground.
 pub struct EditorSession {
     pub(crate) tab_list: EditorTabList<crate::editor::controller::DocumentTab>,
-    pub(crate) inner_panel_tree: SplitTree<EditorInnerPanelKind>,
+    /// The midcontainer's split container: the inner panel tree, its
+    /// operations, and the active drag sessions.
+    pub(crate) splitter: SplitterContainer<EditorInnerPanelKind>,
+}
+
+impl ContainerKind for EditorInnerPanelKind {
+    fn shift_behavior(&self) -> ShiftBehavior {
+        // Shift + corner drag on an inner panel is a no-op duplicate.
+        ShiftBehavior::Duplicate
+    }
+
+    fn is_editor(&self) -> bool {
+        // Inner panels never participate in window-level activation.
+        false
+    }
 }
 
 /// Welcome 模式下的面板类型。目前唯一的欢迎面板携带它退出编辑前的
@@ -124,31 +137,4 @@ impl EditingPanelKind {
 pub struct InnerPanelLocation {
     pub area_id: splitype_splitter::types::AreaId,
     pub panel_id: splitype_splitter::types::PanelId,
-}
-
-/// The action produced by an editor inner-panel corner-drag gesture.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum EditorInnerPanelDragAction {
-    /// Split the dragged panel; the new panel inherits its kind.
-    Split {
-        panel_id: splitype_splitter::types::PanelId,
-        direction: splitype_splitter::tree::Axis,
-        ratio: f32,
-    },
-    /// Join the dragged panel into a neighbor (removes the dragged panel).
-    Join {
-        from_panel: splitype_splitter::types::PanelId,
-        into_panel: splitype_splitter::types::PanelId,
-    },
-    /// Swap the kinds of two panels.
-    Swap {
-        from: splitype_splitter::types::PanelId,
-        to: splitype_splitter::types::PanelId,
-    },
-    /// Shift + drag: currently a no-op in the host.
-    Duplicate {
-        panel_id: splitype_splitter::types::PanelId,
-    },
-    /// Gesture was cancelled (e.g. dragged to an invalid target).
-    Cancel,
 }

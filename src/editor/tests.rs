@@ -60,16 +60,16 @@ fn redraw(cx: &mut gpui::VisualTestContext) {
 fn ensure_wysiwyg_editing_panel(editor: &gpui::Entity<Editor>, cx: &mut gpui::App) {
     editor.update(cx, |editor, _cx| {
         let area = crate::splitter::DEFAULT_EDITOR_AREA_ID;
-        editor.panels.layout.activate_editor_area(area);
+        editor.panels.layout.activate_area(area);
         let mut ids = Vec::new();
         editor
             .ensure_editor_session(area)
-            .inner_panel_tree
+            .splitter.tree
             .leaf_ids(&mut ids);
         for id in ids {
             editor
                 .ensure_editor_session(area)
-                .inner_panel_tree
+                .splitter.tree
                 .set_leaf_kind(
                     id,
                     crate::editor::session::EditorInnerPanelKind::Editing(

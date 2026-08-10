@@ -130,7 +130,7 @@ impl Editor {
                 .update(cx, |this, cx| this.on_window_should_close(window, cx))
                 .unwrap_or(true)
         });
-        if let Some(area) = self.panels.layout.active_editor_area {
+        if let Some(area) = self.panels.layout.active_area {
             if let Some(session) = self.editor_sessions.get_mut(&area) {
                 if let Some(tab) = session.tab_list.tabs.get_mut(session.tab_list.active_tab) {
                     tab.file.close_guard_installed = true;
@@ -788,7 +788,7 @@ impl Editor {
                 // Dropping into this editor activates it and routes the
                 // replace flow to ITS tab set.
                 this.with_current_tab_area(area_id, |this| {
-                    this.panels.layout.activate_editor_area(area_id);
+                    this.panels.layout.activate_area(area_id);
                     this.on_external_paths_drop(paths, window, cx);
                 });
             }))
@@ -806,7 +806,7 @@ impl Editor {
                 MouseButton::Left,
                 cx.listener(move |this, event, window, cx| {
                     this.with_current_tab_area(area_id, |this| {
-                        this.panels.layout.activate_editor_area(area_id);
+                        this.panels.layout.activate_area(area_id);
                         this.on_editor_mouse_down(event, window, cx);
                     });
                 }),
@@ -847,7 +847,7 @@ impl Editor {
                 MouseButton::Right,
                 cx.listener(move |this, event, window, cx| {
                     this.with_current_tab_area(area_id, |this| {
-                        this.panels.layout.activate_editor_area(area_id);
+                        this.panels.layout.activate_area(area_id);
                         this.on_editor_context_menu_mouse_down(event, window, cx);
                     });
                 }),
@@ -896,7 +896,7 @@ impl Editor {
                         let _ = scrollbar_editor.update(cx, |editor, cx| {
                             cx.stop_propagation();
                             editor.with_current_tab_area(area_id, |editor| {
-                                editor.panels.layout.activate_editor_area(area_id);
+                                editor.panels.layout.activate_area(area_id);
                                 editor.start_scrollbar_drag(
                                     pointer_offset_y,
                                     track_height,
@@ -997,7 +997,7 @@ impl Editor {
                 row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
                     let _ = row_editor.update(cx, |editor, cx| {
                         editor.with_current_tab_area(area_id, |editor| {
-                            editor.panels.layout.activate_editor_area(area_id);
+                            editor.panels.layout.activate_area(area_id);
                             editor.on_block_context_menu_mouse_down(entity_id, event, window, cx);
                         });
                     });

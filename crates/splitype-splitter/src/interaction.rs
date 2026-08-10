@@ -169,14 +169,14 @@ fn rect_by_id<'a>(rects: &'a [AreaRect], id: usize) -> Option<&'a AreaRect> {
 ///
 /// `current_ratio` is the split ratio at drag start; the real span is
 /// refreshed on the first move event.
-pub fn start_splitter_drag(
-    layout: &mut crate::state::WindowLayout,
+pub fn start_splitter_drag<T: crate::state::ContainerKind>(
+    container: &mut crate::state::SplitterContainer<T>,
     split_id: usize,
     direction: Axis,
     start_pointer_pos: f32,
     current_ratio: f32,
 ) {
-    layout.active_window_area_splitter_drag = Some(crate::sessions::SplitterDragSession {
+    container.active_splitter_drag = Some(crate::sessions::SplitterDragSession {
         split_id,
         direction,
         start_pointer_pos,
@@ -186,36 +186,38 @@ pub fn start_splitter_drag(
 }
 
 /// Open the border context menu on a split bar (right click).
-pub fn open_border_menu(
-    layout: &mut crate::state::WindowLayout,
+pub fn open_border_menu<T: crate::state::ContainerKind>(
+    container: &mut crate::state::SplitterContainer<T>,
     split_id: usize,
     direction: Axis,
     position: Point<Pixels>,
 ) {
-    layout.active_window_area_border_menu = Some(crate::sessions::BorderMenuState {
+    container.active_border_menu = Some(crate::sessions::BorderMenuState {
         split_id,
         direction,
         position,
     });
 }
 
-/// Progress the active window-area drag gesture (splitter or corner).
+/// Progress the active drag gesture (splitter or corner) of a container.
 ///
-/// Returns whether a gesture was active (the host should repaint) and an
-/// action to execute immediately — split and join are deferred to
-/// [`finish_window_drag`].
-pub fn update_window_drag(
-    layout: &mut crate::state::WindowLayout,
+/// Generic over the layout level: the outer window container passes the
+/// pointer and viewport in window coordinates; an editor midcontainer
+/// passes them in its local space. Returns whether a gesture was active
+/// (the host should repaint) and an action to execute immediately —
+/// split and join are deferred to [`finish_window_drag`].
+pub fn update_window_drag<T: crate::state::ContainerKind>(
+    container: &mut crate::state::SplitterContainer<T>,
     pos: Point<Pixels>,
     viewport: Size<Pixels>,
-) -> (bool, Option<crate::sessions::WindowAreaDragAction>) {
-    if let Some(drag) = layout.active_window_area_splitter_drag {
+) -> (bool, Option<crate::sessions::CornerDragAction>) {
+    if let Some(drag) = container.active_splitter_drag {
         let current_pos = match drag.direction {
             Axis::Horizontal => f32::from(pos.x),
             Axis::Vertical => f32::from(pos.y),
         };
-        let span = layout
-            .window_area_split_pixel_span(drag.split_id, viewport)
+        let span = container
+            .split_pixel_span(drag.split_id, viewport)
             .unwrap_or_else(|| match drag.direction {
                 Axis::Horizontal => f32::from(viewport.width),
                 Axis::Vertical => f32::from(viewport.height),
@@ -223,28 +225,28 @@ pub fn update_window_drag(
         if span > 1.0 {
             let mut session = drag;
             session.total_span = span;
-            layout.active_window_area_splitter_drag = Some(session);
+            container.active_splitter_drag = Some(session);
         }
-        layout.update_window_area_splitter_drag(current_pos);
+        container.update_splitter_drag(current_pos);
         (true, None)
-    } else if layout.active_window_area_corner_drag.is_some() {
-        let action = layout.update_window_area_corner_drag(pos, viewport);
+    } else if container.active_corner_drag.is_some() {
+        let action = container.update_corner_drag(pos, viewport);
         (true, action)
     } else {
         (false, None)
     }
 }
 
-/// End the active window-area drag gesture; returns the final action
+/// End the active drag gesture of a container; returns the final action
 /// (split or join) the host should apply.
-pub fn finish_window_drag(
-    layout: &mut crate::state::WindowLayout,
-) -> Option<crate::sessions::WindowAreaDragAction> {
-    if layout.active_window_area_splitter_drag.is_some() {
-        layout.end_window_area_splitter_drag();
+pub fn finish_window_drag<T: crate::state::ContainerKind>(
+    container: &mut crate::state::SplitterContainer<T>,
+) -> Option<crate::sessions::CornerDragAction> {
+    if container.active_splitter_drag.is_some() {
+        container.end_splitter_drag();
         None
-    } else if layout.active_window_area_corner_drag.is_some() {
-        layout.finish_window_area_corner_drag()
+    } else if container.active_corner_drag.is_some() {
+        container.finish_corner_drag()
     } else {
         None
     }

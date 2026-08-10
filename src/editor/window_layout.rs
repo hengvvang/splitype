@@ -13,11 +13,10 @@ use gpui::*;
 
 use crate::editor::explorer::state::ExplorerState;
 use crate::editor::outline::state::OutlinePanelState;
-use crate::editor::session::EditorInnerPanelDragAction;
 use crate::editor::settings::SettingsUiState;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
-use crate::splitter::{AreaSplitMode, Axis, WindowAreaDragAction, WindowAreaKind, WindowLayout};
+use crate::splitter::{AreaSplitMode, Axis, CornerDragAction, WindowAreaKind, WindowLayout};
 use splitype_splitter::tree::SplitTree;
 
 use super::controller::*;
@@ -76,10 +75,10 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let root = self.panels.layout.window_area_tree.clone();
+        let root = self.panels.layout.tree.clone();
         let leaf_count = root.count_leaves();
 
-        let layout_tree = if let Some(maximized_id) = self.panels.layout.maximized_window_area {
+        let layout_tree = if let Some(maximized_id) = self.panels.layout.maximized_area {
             if let Some(kind) = root.find_leaf_kind(maximized_id) {
                 self.render_window_area_tile(
                     maximized_id,
@@ -125,88 +124,106 @@ impl Editor {
                     }
                     if let Some(action) = immediate {
                         match action {
-                            WindowAreaDragAction::Swap { from, to } => {
+                            CornerDragAction::Swap { from, to } => {
                                 ed.swap_window_area_kinds(from, to);
                             }
-                            // Shift + Settings corner: open the floating
-                            // settings window (same as the app menu).
-                            WindowAreaDragAction::OpenSettings => {
-                                crate::settings::open_settings_window(cx);
+                            CornerDragAction::Cancel => {
+                                // Shift + drag on a Settings corner: the container
+                                // cancels so the host can interpret the shortcut
+                                // (open the floating settings window).
+                                if let Some(session) = ed.panels.layout.active_corner_drag {
+                                    if session.modifier
+                                        == crate::splitter::CornerDragModifier::Duplicate
+                                        && ed.panels.layout.tree.find_leaf_kind(session.target_id)
+                                            == Some(crate::splitter::WindowAreaKind::Settings)
+                                    {
+                                        crate::settings::open_settings_window(cx);
+                                    }
+                                }
                             }
-                            WindowAreaDragAction::Cancel => {}
                             _ => {} // Split/Join handled on mouse_up
                         }
                     }
-                    if ed.active_editor_inner_panel_splitter_drag.is_some() {
-                        let (area_id, drag) = ed.active_editor_inner_panel_splitter_drag.unwrap();
+                    // Inner splitter drag: locate the session whose container
+                    // holds the active drag, and drive it through the shared
+                    // container API.
+                    if let Some((area_id, session)) = ed
+                        .editor_sessions
+                        .iter_mut()
+                        .find(|(_, s)| s.splitter.active_splitter_drag.is_some())
+                    {
+                        let drag = session.splitter.active_splitter_drag.unwrap();
                         let viewport = window.viewport_size();
-                        let outer_rects = ed.panels.layout.window_area_rects(viewport);
-                        if let Some(outer_rect) =
-                            ed.panels.layout.window_area_rect(area_id, &outer_rects)
+                        let outer_rects = ed.panels.layout.leaf_rects(viewport);
+                        if let Some(outer_rect) = ed.panels.layout.leaf_rect(*area_id, &outer_rects)
                         {
                             let current_pos = match drag.direction {
                                 Axis::Horizontal => f32::from(pos.x) - outer_rect.x,
                                 Axis::Vertical => f32::from(pos.y) - outer_rect.y,
                             };
                             let inner_size = size(px(outer_rect.width), px(outer_rect.height));
-                            let span = ed
-                                .editor_inner_panel_split_pixel_span(
-                                    area_id,
-                                    drag.split_id,
-                                    inner_size,
-                                )
+                            let span = session
+                                .splitter
+                                .split_pixel_span(drag.split_id, inner_size)
                                 .unwrap_or_else(|| match drag.direction {
                                     Axis::Horizontal => outer_rect.width,
                                     Axis::Vertical => outer_rect.height,
                                 });
                             if span > 1.0 {
-                                let mut session = drag;
-                                session.total_span = span;
-                                ed.active_editor_inner_panel_splitter_drag =
-                                    Some((area_id, session));
+                                let mut refreshed = drag;
+                                refreshed.total_span = span;
+                                session.splitter.active_splitter_drag = Some(refreshed);
                             }
-                            ed.update_editor_inner_panel_splitter_drag(area_id, current_pos);
+                            session.splitter.update_splitter_drag(current_pos);
                             changed = true;
                         }
-                    } else if ed.active_editor_inner_panel_corner_drag.is_some() {
-                        let (area_id, drag) = ed.active_editor_inner_panel_corner_drag.unwrap();
+                    } else if let Some((area_id, session)) = ed
+                        .editor_sessions
+                        .iter_mut()
+                        .find(|(_, s)| s.splitter.active_corner_drag.is_some())
+                    {
+                        let area_id = *area_id;
+                        let drag = session.splitter.active_corner_drag.unwrap();
                         let viewport = window.viewport_size();
-                        let outer_rects = ed.panels.layout.window_area_rects(viewport);
-                        if let Some(outer_rect) =
-                            ed.panels.layout.window_area_rect(area_id, &outer_rects)
+                        let outer_rects = ed.panels.layout.leaf_rects(viewport);
+                        let mut pending_swap: Option<(usize, usize)> = None;
+                        let mut end_gesture = false;
+                        if let Some(outer_rect) = ed.panels.layout.leaf_rect(area_id, &outer_rects)
                         {
-                            let mut session = drag;
+                            let mut updated = drag;
                             let inner_pos = point(
                                 px(f32::from(pos.x) - outer_rect.x),
                                 px(f32::from(pos.y) - outer_rect.y),
                             );
                             let inner_size = size(px(outer_rect.width), px(outer_rect.height));
-                            let start_x = f32::from(session.start_pos.x);
-                            let start_y = f32::from(session.start_pos.y);
+                            let start_x = f32::from(updated.start_pos.x);
+                            let start_y = f32::from(updated.start_pos.y);
                             if start_x > outer_rect.width || start_y > outer_rect.height {
-                                session.start_pos =
+                                updated.start_pos =
                                     point(px(start_x - outer_rect.x), px(start_y - outer_rect.y));
-                                ed.active_editor_inner_panel_corner_drag = Some((area_id, session));
                             }
-                            let action = ed.update_editor_inner_panel_corner_drag(
-                                area_id, inner_pos, inner_size,
-                            );
+                            session.splitter.active_corner_drag = Some(updated);
+                            let action = session.splitter.update_corner_drag(inner_pos, inner_size);
                             if let Some(action) = action {
                                 match action {
-                                    EditorInnerPanelDragAction::Swap { from, to } => {
-                                        ed.end_editor_inner_panel_corner_drag();
-                                        ed.swap_editor_inner_panel_kinds(area_id, from, to);
+                                    CornerDragAction::Swap { from, to } => {
+                                        end_gesture = true;
+                                        pending_swap = Some((from, to));
                                     }
-                                    EditorInnerPanelDragAction::Duplicate { .. } => {
-                                        ed.end_editor_inner_panel_corner_drag();
-                                    }
-                                    EditorInnerPanelDragAction::Cancel => {
-                                        ed.end_editor_inner_panel_corner_drag();
+                                    CornerDragAction::Duplicate { .. }
+                                    | CornerDragAction::Cancel => {
+                                        end_gesture = true;
                                     }
                                     _ => {}
                                 }
                             }
+                            if end_gesture {
+                                session.splitter.end_corner_drag();
+                            }
                             changed = true;
+                        }
+                        if let Some((from, to)) = pending_swap {
+                            ed.swap_editor_inner_panel_kinds(area_id, from, to);
                         }
                     }
                     if changed {
@@ -223,53 +240,57 @@ impl Editor {
                             // Corner-drag split: same-kind area; Editor areas
                             // seed the new area per `mode` (deep-copied tab
                             // list + cloned inner layout, or a blank editor).
-                            WindowAreaDragAction::Split {
-                                area_id,
+                            CornerDragAction::Split {
+                                target_id,
                                 direction,
                                 ratio,
                                 mode,
                             } => {
-                                ed.split_area(area_id, direction, ratio, mode, cx);
+                                ed.split_area(target_id, direction, ratio, mode, cx);
                             }
-                            WindowAreaDragAction::Join {
-                                from_area,
-                                into_area,
-                            } => {
-                                ed.join_window_area(into_area, from_area);
+                            CornerDragAction::Join { from, into } => {
+                                ed.join_window_area(into, from);
                             }
-                            WindowAreaDragAction::Swap { from, to } => {
+                            CornerDragAction::Swap { from, to } => {
                                 ed.swap_window_area_kinds(from, to);
                             }
                             _ => {}
                         }
                         cx.notify();
                     }
-                    if ed.active_editor_inner_panel_splitter_drag.is_some() {
-                        ed.end_editor_inner_panel_splitter_drag();
+                    // Inner splitter drag end.
+                    let splitter_pending = ed
+                        .editor_sessions
+                        .iter_mut()
+                        .find(|(_, s)| s.splitter.active_splitter_drag.is_some());
+                    if let Some((_, session)) = splitter_pending {
+                        session.splitter.end_splitter_drag();
                         cx.notify();
                     }
-                    if ed.active_editor_inner_panel_corner_drag.is_some() {
-                        match ed.finish_editor_inner_panel_corner_drag() {
-                            Some((
-                                area_id,
-                                EditorInnerPanelDragAction::Split {
-                                    panel_id,
-                                    direction,
-                                    ratio,
-                                },
-                            )) => {
+                    // Inner corner drag end: finish the gesture through the
+                    // shared container, then apply the action.
+                    let corner_pending = ed
+                        .editor_sessions
+                        .iter_mut()
+                        .find(|(_, s)| s.splitter.active_corner_drag.is_some())
+                        .map(|(area_id, session)| {
+                            let action = session.splitter.finish_corner_drag();
+                            (*area_id, action)
+                        });
+                    if let Some((area_id, Some(action))) = corner_pending {
+                        match action {
+                            CornerDragAction::Split {
+                                target_id,
+                                direction,
+                                ratio,
+                                ..
+                            } => {
                                 ed.split_editor_inner_panel_with_ratio(
-                                    area_id, panel_id, direction, ratio,
+                                    area_id, target_id, direction, ratio,
                                 );
                             }
-                            Some((
-                                area_id,
-                                EditorInnerPanelDragAction::Join {
-                                    from_panel,
-                                    into_panel,
-                                },
-                            )) => {
-                                ed.join_editor_inner_panel(area_id, into_panel, from_panel);
+                            CornerDragAction::Join { from, into } => {
+                                ed.join_editor_inner_panel(area_id, into, from);
                             }
                             _ => {}
                         }
@@ -292,7 +313,7 @@ impl Editor {
         let preview_overlay = self
             .panels
             .layout
-            .active_window_area_corner_drag
+            .active_corner_drag
             .as_ref()
             .and_then(|drag| {
                 // Normalized rects: the preview positions itself with
@@ -301,7 +322,7 @@ impl Editor {
                 let mut rects = Vec::new();
                 self.panels
                     .layout
-                    .window_area_tree
+                    .tree
                     .collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
                 splitype_splitter::interaction::render_corner_drag_preview(
                     drag,
@@ -311,7 +332,7 @@ impl Editor {
             });
         let container = container.children(preview_overlay);
 
-        if let Some(border_menu) = self.panels.layout.active_window_area_border_menu {
+        if let Some(border_menu) = self.panels.layout.active_border_menu {
             let menu_overlay = self.render_window_area_border_menu(border_menu, theme, cx);
             container.child(menu_overlay).into_any_element()
         } else {
@@ -364,7 +385,7 @@ impl Editor {
                         let bar_active = self
                             .panels
                             .layout
-                            .active_window_area_splitter_drag
+                            .active_splitter_drag
                             .is_some_and(|drag| drag.split_id == split_id);
 
                         // The split areas tile seamlessly; the splitter bar
@@ -446,7 +467,7 @@ impl Editor {
                         let bar_active = self
                             .panels
                             .layout
-                            .active_window_area_splitter_drag
+                            .active_splitter_drag
                             .is_some_and(|drag| drag.split_id == split_id);
 
                         div()
@@ -597,9 +618,9 @@ impl Editor {
             .shadow_lg()
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                 let _ = tile_focus.update(cx, |ed, cx| {
-                    ed.panels.layout.focused_window_area = Some(leaf_id);
+                    ed.panels.layout.focused_area = Some(leaf_id);
                     if kind == crate::splitter::WindowAreaKind::Editor {
-                        ed.panels.layout.activate_editor_area(leaf_id);
+                        ed.panels.layout.activate_area(leaf_id);
                     }
                     cx.notify();
                 });
@@ -622,9 +643,7 @@ impl Editor {
             false,
             move |modifier, pos, cx| {
                 let _ = editor_corner.update(cx, |ed, cx| {
-                    ed.panels
-                        .layout
-                        .start_window_area_corner_drag(leaf_id, pos, modifier);
+                    ed.panels.layout.start_corner_drag(leaf_id, pos, modifier);
                     cx.notify();
                 });
             },
@@ -642,7 +661,7 @@ impl Editor {
             .child(tile_card)
             .child(corner_handles);
 
-        let dropdown_open = self.panels.layout.open_window_area_dropdown == Some(leaf_id);
+        let dropdown_open = self.panels.layout.open_dropdown == Some(leaf_id);
         if dropdown_open {
             let menu = self.render_area_type_dropdown_menu(leaf_id, kind, theme, cx);
             wrapped = wrapped.child(menu);
@@ -735,7 +754,7 @@ impl Editor {
         let swap_ed = editor.clone();
         let swap: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = swap_ed.update(app, |ed, cx| {
-                ed.panels.layout.swap_window_area_split_sides(split_id);
+                ed.panels.layout.swap_split_sides(split_id);
                 cx.notify();
             });
         });
@@ -749,7 +768,7 @@ impl Editor {
         let dismiss_ed = editor.clone();
         let dismiss: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = dismiss_ed.update(app, |ed, cx| {
-                ed.panels.layout.active_window_area_border_menu = None;
+                ed.panels.layout.active_border_menu = None;
                 cx.notify();
             });
         });

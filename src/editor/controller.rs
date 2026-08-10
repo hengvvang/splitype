@@ -44,9 +44,6 @@ pub(crate) use crate::model::syntax::table::{
     TableAxisHighlight, TableAxisKind, TableAxisMarker, TableColumnAlignment, TableData,
     serialize_table_cell_markdown,
 };
-pub(crate) use crate::splitter::sessions::{
-    BorderMenuState, CornerDragSession, SplitterDragSession,
-};
 pub(crate) use crate::splitter::state::DEFAULT_EDITOR_AREA_ID;
 pub(crate) use crate::splitter::types::{AreaId, AreaSplitMode, EditorAreaMode, PanelId};
 
@@ -235,13 +232,11 @@ pub struct Editor {
     /// Owned here for now; the Shell entity delegates rendering to this
     /// editor and reads this state incrementally.
     pub(crate) panels: WindowPanels,
-    /// Per-Editor-area sessions (tab list + inner panel layout), keyed by
-    /// outer area id. Retained for areas that left Editor with tabs.
+    /// Per-Editor-area sessions (tab list + inner panel split container),
+    /// keyed by outer area id. Retained for areas that left Editor with
+    /// tabs. The inner-panel drag sessions live inside each session's
+    /// `splitter` container.
     pub(crate) editor_sessions: HashMap<AreaId, EditorSession>,
-    pub(crate) open_editor_inner_panel_dropdown: Option<InnerPanelLocation>,
-    pub(crate) active_editor_inner_panel_splitter_drag: Option<(AreaId, SplitterDragSession)>,
-    pub(crate) active_editor_inner_panel_corner_drag: Option<(AreaId, CornerDragSession)>,
-    pub(crate) active_editor_inner_panel_border_menu: Option<BorderMenuState>,
     /// Currently focused inner panel — the status-bar action target.
     pub(crate) focused_editor_inner_panel: Option<InnerPanelLocation>,
     /// Per-SourceCode-panel editing runtimes (keyed by the globally unique
@@ -423,10 +418,6 @@ impl Editor {
             area_id,
             panels: WindowPanels::default(),
             editor_sessions: HashMap::new(),
-            open_editor_inner_panel_dropdown: None,
-            active_editor_inner_panel_splitter_drag: None,
-            active_editor_inner_panel_corner_drag: None,
-            active_editor_inner_panel_border_menu: None,
             focused_editor_inner_panel: None,
             source_code_panel_runtimes: HashMap::new(),
         }
@@ -436,9 +427,7 @@ impl Editor {
     /// Seed the default layout's Editor area as the (empty) active editor.
     fn with_seeded_editor(mut self) -> Self {
         self.ensure_editor_session(DEFAULT_EDITOR_AREA_ID);
-        self.panels
-            .layout
-            .activate_editor_area(DEFAULT_EDITOR_AREA_ID);
+        self.panels.layout.activate_area(DEFAULT_EDITOR_AREA_ID);
         self
     }
 
@@ -485,10 +474,6 @@ impl Editor {
             area_id,
             panels: WindowPanels::default(),
             editor_sessions: HashMap::new(),
-            open_editor_inner_panel_dropdown: None,
-            active_editor_inner_panel_splitter_drag: None,
-            active_editor_inner_panel_corner_drag: None,
-            active_editor_inner_panel_border_menu: None,
             focused_editor_inner_panel: None,
             source_code_panel_runtimes: HashMap::new(),
         };
@@ -500,10 +485,7 @@ impl Editor {
             .tabs
             .push(tab);
         editor.enter_editing(DEFAULT_EDITOR_AREA_ID);
-        editor
-            .panels
-            .layout
-            .activate_editor_area(DEFAULT_EDITOR_AREA_ID);
+        editor.panels.layout.activate_area(DEFAULT_EDITOR_AREA_ID);
         editor.rebuild_table_runtimes(cx);
         editor.rebuild_image_runtimes(cx);
         editor.refresh_preview_blocks(cx);
@@ -637,7 +619,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        if let Some(area) = self.panels.layout.active_editor_area {
+        if let Some(area) = self.panels.layout.active_area {
             self.open_file_in_area(area, path, window, cx);
             true
         } else {
@@ -700,8 +682,7 @@ impl Editor {
     /// transient per-area render/event context if set, else the active
     /// editor.
     pub(crate) fn routed_tab_area(&self) -> Option<AreaId> {
-        self.current_tab_area
-            .or(self.panels.layout.active_editor_area)
+        self.current_tab_area.or(self.panels.layout.active_area)
     }
 
     /// Run `f` with the routing hint set to `area_id`, restoring the
@@ -740,11 +721,11 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.focused_editor_inner_panel = Some(InnerPanelLocation { area_id, panel_id });
-        self.panels.layout.activate_editor_area(area_id);
+        self.panels.layout.activate_area(area_id);
         self.with_current_tab_area(area_id, |editor| {
             let kind = editor
                 .editor_session(area_id)
-                .and_then(|session| session.inner_panel_tree.find_leaf_kind(panel_id));
+                .and_then(|session| session.splitter.tree.find_leaf_kind(panel_id));
             match kind {
                 // The source panel's own block becomes the edit target.
                 Some(EditorInnerPanelKind::Editing(EditingPanelKind::SourceCode)) => {
