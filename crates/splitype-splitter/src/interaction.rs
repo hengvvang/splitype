@@ -14,8 +14,8 @@
 
 use gpui::*;
 
-use crate::sessions::{CornerDragModifier, CornerDragPreview, CornerDragSession};
-use crate::tree::{AreaRect, Axis, Direction};
+use crate::sessions::{CornerDragModifier, CornerDragSession};
+use crate::tree::Axis;
 
 /// Visual parameters for split interaction overlays.
 #[derive(Clone, Copy, Debug)]
@@ -160,16 +160,11 @@ pub fn splitter_bar_v(
     }
 }
 
-/// Find the rect with the given id in a rect list.
-fn rect_by_id<'a>(rects: &'a [AreaRect], id: usize) -> Option<&'a AreaRect> {
-    rects.iter().find(|rect| rect.id == id)
-}
-
 /// Start a splitter-bar drag on a split node.
 ///
 /// `current_ratio` is the split ratio at drag start; the real span is
 /// refreshed on the first move event.
-pub fn start_splitter_drag<T: crate::state::ContainerKind>(
+pub fn start_splitter_drag<T: Copy + PartialEq>(
     container: &mut crate::state::SplitterContainer<T>,
     split_id: usize,
     direction: Axis,
@@ -186,7 +181,7 @@ pub fn start_splitter_drag<T: crate::state::ContainerKind>(
 }
 
 /// Open the border context menu on a split bar (right click).
-pub fn open_border_menu<T: crate::state::ContainerKind>(
+pub fn open_border_menu<T: Copy + PartialEq>(
     container: &mut crate::state::SplitterContainer<T>,
     split_id: usize,
     direction: Axis,
@@ -204,13 +199,14 @@ pub fn open_border_menu<T: crate::state::ContainerKind>(
 /// Generic over the layout level: the outer window container passes the
 /// pointer and viewport in window coordinates; an editor midcontainer
 /// passes them in its local space. Returns whether a gesture was active
-/// (the host should repaint) and an action to execute immediately —
-/// split and join are deferred to [`finish_window_drag`].
-pub fn update_window_drag<T: crate::state::ContainerKind>(
+/// (the host should repaint). The host reads the container's drag
+/// sessions to apply its own policy; `finish_window_drag` returns the
+/// corner-drag facts on release.
+pub fn update_window_drag<T: Copy + PartialEq>(
     container: &mut crate::state::SplitterContainer<T>,
     pos: Point<Pixels>,
     viewport: Size<Pixels>,
-) -> (bool, Option<crate::sessions::CornerDragAction>) {
+) -> bool {
     if let Some(drag) = container.active_splitter_drag {
         let current_pos = match drag.direction {
             Axis::Horizontal => f32::from(pos.x),
@@ -228,20 +224,20 @@ pub fn update_window_drag<T: crate::state::ContainerKind>(
             container.active_splitter_drag = Some(session);
         }
         container.update_splitter_drag(current_pos);
-        (true, None)
+        true
     } else if container.active_corner_drag.is_some() {
-        let action = container.update_corner_drag(pos, viewport);
-        (true, action)
+        container.update_corner_drag(pos, viewport);
+        true
     } else {
-        (false, None)
+        false
     }
 }
 
-/// End the active drag gesture of a container; returns the final action
-/// (split or join) the host should apply.
-pub fn finish_window_drag<T: crate::state::ContainerKind>(
+/// End the active drag gesture of a container; returns the final corner-
+/// drag facts (splitter-bar drags just end).
+pub fn finish_window_drag<T: Copy + PartialEq>(
     container: &mut crate::state::SplitterContainer<T>,
-) -> Option<crate::sessions::CornerDragAction> {
+) -> Option<CornerDragSession> {
     if container.active_splitter_drag.is_some() {
         container.end_splitter_drag();
         None
@@ -255,9 +251,11 @@ pub fn finish_window_drag<T: crate::state::ContainerKind>(
 /// The modifier key held during a corner drag, decoded from a mouse event.
 fn corner_drag_modifier(event: &MouseDownEvent) -> CornerDragModifier {
     if event.modifiers.control {
-        CornerDragModifier::Swap
+        CornerDragModifier::Ctrl
     } else if event.modifiers.shift {
-        CornerDragModifier::Duplicate
+        CornerDragModifier::Shift
+    } else if event.modifiers.alt {
+        CornerDragModifier::Alt
     } else {
         CornerDragModifier::None
     }
@@ -325,135 +323,6 @@ where
         .child(make("tr", true, false))
         .child(make("bl", false, true))
         .child(make("br", false, false))
-}
-
-/// The split preview line for a horizontal split (left|right): a vertical
-/// divider at `ratio` of the target rect's width. Deliberately thin (1px)
-/// like IDE split guides. `rect` is normalized (0..1) so the preview is
-/// independent of the container's pixel size.
-fn split_line_horizontal(rect: &AreaRect, ratio: f32, accent: Hsla) -> Div {
-    div()
-        .absolute()
-        .left(relative(rect.x + rect.width * ratio))
-        .top(relative(rect.y))
-        .w(px(1.0))
-        .h(relative(rect.height))
-        .bg(accent)
-}
-
-/// The split preview line for a vertical split (top|bottom): a horizontal
-/// divider at `ratio` of the target rect's height. Deliberately thin (1px)
-/// like IDE split guides. `rect` is normalized (0..1).
-fn split_line_vertical(rect: &AreaRect, ratio: f32, accent: Hsla) -> Div {
-    div()
-        .absolute()
-        .top(relative(rect.y + rect.height * ratio))
-        .left(relative(rect.x))
-        .h(px(1.0))
-        .w(relative(rect.width))
-        .bg(accent)
-}
-
-/// A full-window overlay drawing the split line plus a faint highlight over
-/// the leaf being split. `rect` is normalized (0..1).
-fn split_preview_overlay(
-    rect: &AreaRect,
-    direction: Axis,
-    ratio: f32,
-    style: &OverlayStyle,
-) -> AnyElement {
-    let line = match direction {
-        Axis::Horizontal => split_line_horizontal(rect, ratio, style.accent),
-        Axis::Vertical => split_line_vertical(rect, ratio, style.accent),
-    };
-    overlay_container()
-        .child(
-            div()
-                .absolute()
-                .left(relative(rect.x))
-                .top(relative(rect.y))
-                .w(relative(rect.width))
-                .h(relative(rect.height))
-                .rounded(px(style.tile_radius))
-                .bg(style.accent.opacity(0.1)),
-        )
-        .child(line)
-        .into_any_element()
-}
-
-/// Arrow symbol for a join direction.
-fn join_arrow(direction: Direction) -> &'static str {
-    match direction {
-        Direction::Up => "▲",
-        Direction::Down => "▼",
-        Direction::Right => "▶",
-        Direction::Left => "◀",
-    }
-}
-
-/// A full-window overlay highlighting the join target with an arrow badge.
-/// `target` is normalized (0..1).
-fn join_preview_overlay(
-    target: &AreaRect,
-    direction: Direction,
-    style: &OverlayStyle,
-) -> AnyElement {
-    let arrow = join_arrow(direction);
-    overlay_container()
-        .child(
-            div()
-                .absolute()
-                .left(relative(target.x))
-                .top(relative(target.y))
-                .w(relative(target.width))
-                .h(relative(target.height))
-                .rounded(px(style.tile_radius))
-                .bg(style.accent.opacity(0.25))
-                .border(px(2.0))
-                .border_color(style.accent)
-                .flex()
-                .flex_col()
-                .items_center()
-                .justify_center()
-                .child(
-                    div()
-                        .px(px(12.0))
-                        .py(px(6.0))
-                        .rounded_md()
-                        .bg(hsla(0.0, 0.0, 0.0, 0.75))
-                        .text_color(hsla(0.0, 0.0, 1.0, 0.95))
-                        .text_size(px(15.0))
-                        .font_weight(FontWeight::BOLD)
-                        .child(format!("{arrow} Join Area")),
-                ),
-        )
-        .into_any_element()
-}
-
-/// Render the corner-drag preview overlay.
-///
-/// `rects` are the leaf rects of the split tree in **normalized** layout
-/// coordinates (0..1 of the initialized container), which the overlay
-/// positions with `relative()` — so the preview tracks the tree geometry
-/// exactly, regardless of the container's pixel size or any chrome
-/// (topbar/bottombar) around it. Returns `None` while the gesture is
-/// still in its initial `Dragging` state or when the target area cannot
-/// be located.
-pub fn render_corner_drag_preview(
-    drag: &CornerDragSession,
-    rects: &[AreaRect],
-    style: &OverlayStyle,
-) -> Option<AnyElement> {
-    match drag.preview {
-        CornerDragPreview::SplitPreview { direction, ratio } => rect_by_id(rects, drag.target_id)
-            .map(|rect| split_preview_overlay(rect, direction, ratio, style)),
-        CornerDragPreview::JoinPreview {
-            target_id,
-            direction,
-        } => rect_by_id(rects, target_id)
-            .map(|target| join_preview_overlay(target, direction, style)),
-        CornerDragPreview::Dragging => None,
-    }
 }
 
 /// Visual parameters for floating menu panels (border context menus).

@@ -5,7 +5,7 @@
 //! container the window-level area layout uses — so both levels share one
 //! split model and one set of interactions (see `splitype-splitter`).
 
-use splitype_splitter::state::{ContainerKind, ShiftBehavior, SplitterContainer};
+use splitype_splitter::state::SplitterContainer;
 
 /// The document tabs owned by one Editor area.
 ///
@@ -43,13 +43,6 @@ pub struct EditorSession {
     /// The midcontainer's split container: the inner panel tree, its
     /// operations, and the active drag sessions.
     pub(crate) splitter: SplitterContainer<EditorInnerPanelKind>,
-}
-
-impl ContainerKind for EditorInnerPanelKind {
-    fn shift_behavior(&self) -> ShiftBehavior {
-        // Shift + corner drag on an inner panel is a no-op duplicate.
-        ShiftBehavior::Duplicate
-    }
 }
 
 /// Welcome 模式下的面板类型。目前唯一的欢迎面板携带它退出编辑前的

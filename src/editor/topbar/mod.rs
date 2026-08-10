@@ -4,10 +4,10 @@
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
+use crate::app::window_area::WindowAreaKind;
 use crate::editor::window_layout::area_topbar_icon;
 use crate::infra::theme::Theme;
-use crate::splitter::{AreaSplitMode, Axis};
-use crate::app::window_area::WindowAreaKind;
+use crate::splitter::Axis;
 use crate::ui::button::{icon_chip_button, small_pill_button};
 use crate::ui::topbar::topbar_container;
 
@@ -65,7 +65,7 @@ impl crate::editor::controller::Editor {
             .on_click(move |_event, _window, cx| {
                 let _ = split_h_editor.update(cx, |ed, cx| {
                     // Same-kind split; Editor areas deep-copy their tabs.
-                    ed.split_area(leaf_id, Axis::Horizontal, 0.5, AreaSplitMode::Copy, cx);
+                    ed.split_area(leaf_id, Axis::Horizontal, 0.5, true, cx);
                     cx.notify();
                 });
             });
@@ -82,7 +82,7 @@ impl crate::editor::controller::Editor {
             .on_click(move |_event, _window, cx| {
                 let _ = split_v_editor.update(cx, |ed, cx| {
                     // Same-kind split; Editor areas deep-copy their tabs.
-                    ed.split_area(leaf_id, Axis::Vertical, 0.5, AreaSplitMode::Copy, cx);
+                    ed.split_area(leaf_id, Axis::Vertical, 0.5, true, cx);
                     cx.notify();
                 });
             });

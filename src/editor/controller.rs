@@ -21,9 +21,11 @@ pub(crate) use crate::app::window_area::EditorAreaMode;
 pub(crate) use crate::app::window_area::WindowAreaKind;
 pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
 pub(crate) use crate::editor::bottombar::state::BottombarState;
+pub(crate) use crate::editor::drag_policy::WindowDragPolicy;
 pub(crate) use crate::editor::menu_bar::MenuBarState;
 pub(crate) use crate::editor::session::{
     EditingPanelKind, EditorInnerPanelKind, EditorSession, EditorTabList, InnerPanelLocation,
+    WelcomePanelKind,
 };
 pub(crate) use crate::editor::tree::block::Block;
 pub(crate) use crate::editor::tree::document::Document;
@@ -47,7 +49,9 @@ pub(crate) use crate::model::syntax::table::{
     TableAxisHighlight, TableAxisKind, TableAxisMarker, TableColumnAlignment, TableData,
     serialize_table_cell_markdown,
 };
-pub(crate) use crate::splitter::types::{AreaSplitMode, NodeId};
+pub(crate) use crate::splitter::types::NodeId;
+pub(crate) use splitype_splitter::policy::ClonedContainer;
+pub(crate) use splitype_splitter::state::SplitterContainer;
 
 /// Link navigation request deferred until a `Window` is available.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -234,6 +238,9 @@ pub struct Editor {
     /// Owned here for now; the Shell entity delegates rendering to this
     /// editor and reads this state incrementally.
     pub(crate) panels: WindowPanels,
+    /// The drag policy for the outer layout: what a finished corner drag
+    /// means (Shift = clone window, plain = split with content seed).
+    pub(crate) drag_policy: WindowDragPolicy,
     /// Per-Editor-area sessions (tab list + inner panel split container),
     /// keyed by outer area id. Retained for areas that left Editor with
     /// tabs. The inner-panel drag sessions live inside each session's
@@ -404,7 +411,7 @@ impl Editor {
     pub(crate) fn empty_in_shell(
         shell: Option<crate::app::shell::WeakShell>,
         area_id: crate::splitter::NodeId,
-        _cx: &mut Context<Self>,
+        cx: &mut Context<Self>,
     ) -> Self {
         Self {
             current_tab_area: None,
@@ -419,6 +426,7 @@ impl Editor {
             shell,
             area_id,
             panels: WindowPanels::default(),
+            drag_policy: WindowDragPolicy::new(cx.entity().downgrade()),
             editor_sessions: HashMap::new(),
             focused_editor_inner_panel: None,
             source_code_panel_runtimes: HashMap::new(),
@@ -475,6 +483,7 @@ impl Editor {
             shell,
             area_id,
             panels: WindowPanels::default(),
+            drag_policy: WindowDragPolicy::new(cx.entity().downgrade()),
             editor_sessions: HashMap::new(),
             focused_editor_inner_panel: None,
             source_code_panel_runtimes: HashMap::new(),
@@ -875,20 +884,19 @@ impl Editor {
     }
 
     /// Split `area_id` with a same-kind sibling and seed the new Editor
-    /// area per `mode`: [`AreaSplitMode::Copy`] deep-copies the source tab
-    /// list (and the layout clones the inner panel layout);
-    /// [`AreaSplitMode::Fresh`] leaves the new editor blank. Returns the
-    /// new area's id.
+    /// area per `copy_content`: `true` deep-copies the source tab list
+    /// (and the layout clones the inner panel layout); `false` leaves the
+    /// new editor blank. Returns the new area's id.
     pub(crate) fn split_area(
         &mut self,
         area_id: NodeId,
         direction: crate::splitter::Axis,
         ratio: f32,
-        mode: AreaSplitMode,
+        copy_content: bool,
         cx: &mut Context<Self>,
     ) -> Option<NodeId> {
-        let new_id = self.split_window_area(area_id, direction, ratio, mode)?;
-        if mode == AreaSplitMode::Copy {
+        let new_id = self.split_window_area(area_id, direction, ratio, copy_content)?;
+        if copy_content {
             self.copy_editor_tab_list(area_id, new_id, cx);
         }
         Some(new_id)
@@ -955,5 +963,133 @@ impl Editor {
             }
         }
         None
+    }
+
+    // ------------------------------------------------------------------
+    // Drag-policy content steps (wired by `drag_policy`)
+    // ------------------------------------------------------------------
+
+    /// Seed the fresh sibling leaf of a plain-drag split: deep-copy the
+    /// source editor's content (inner panel layout + tab list) into `dst`.
+    /// Non-Editor areas have no content to copy.
+    pub(crate) fn seed_split_content(
+        &mut self,
+        container: &mut crate::app::window_area::WindowLayout,
+        src_id: NodeId,
+        dst_id: NodeId,
+        cx: &mut Context<Self>,
+    ) {
+        Self::clone_inner_layout(&mut self.editor_sessions, container, src_id, dst_id);
+        self.copy_editor_tab_list(src_id, dst_id, cx);
+    }
+
+    /// Clone the inner panel layout of `src_id`'s editor session into a
+    /// fresh session for `dst_id`, drawing new ids from the container's
+    /// pool. Creates a blank session when the source has none.
+    pub(crate) fn clone_inner_layout(
+        editor_sessions: &mut HashMap<NodeId, EditorSession>,
+        container: &mut crate::app::window_area::WindowLayout,
+        src_id: NodeId,
+        dst_id: NodeId,
+    ) {
+        if container.tree.find_leaf_kind(src_id)
+            != Some(crate::app::window_area::WindowAreaKind::Editor)
+        {
+            return;
+        }
+        if let Some(source) = editor_sessions.get(&src_id) {
+            // Deep-copy the inner panel tree with fresh ids from the
+            // window-wide pool, so the new area's panels are independent
+            // and never collide with existing ones.
+            let mut splitter = SplitterContainer::single_leaf(
+                dst_id,
+                EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
+            );
+            splitter.tree = source
+                .splitter
+                .tree
+                .clone_with_new_ids(&mut container.next_node_id);
+            splitter.next_node_id = container.next_node_id;
+            editor_sessions.insert(
+                dst_id,
+                EditorSession {
+                    tab_list: EditorTabList::empty(),
+                    splitter,
+                },
+            );
+        } else {
+            editor_sessions
+                .entry(dst_id)
+                .or_insert_with(|| EditorSession {
+                    tab_list: EditorTabList::empty(),
+                    splitter: SplitterContainer::single_leaf(
+                        dst_id,
+                        EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
+                    ),
+                });
+        }
+    }
+
+    /// Shift-drag default behavior: clone the WHOLE window into a new
+    /// independent window — same outer layout (fresh ids), and every
+    /// Editor area's content (inner panel layout + tab list) deep-copied.
+    pub(crate) fn clone_window_into_new_window(
+        &mut self,
+        cloned: ClonedContainer<crate::app::window_area::WindowAreaKind>,
+        cx: &mut Context<Self>,
+    ) {
+        let mut sessions = HashMap::new();
+        let mut next_id = cloned.next_node_id;
+        for (old_id, new_id) in &cloned.id_map {
+            if cloned.tree.find_leaf_kind(*new_id)
+                == Some(crate::app::window_area::WindowAreaKind::Editor)
+            {
+                if let Some(source) = self.editor_sessions.get(old_id) {
+                    sessions.insert(
+                        *new_id,
+                        Self::clone_editor_session(source, &mut next_id, cx),
+                    );
+                }
+            }
+        }
+        crate::app::window::open_cloned_window(cloned.tree, next_id, sessions, cx);
+    }
+
+    /// Deep-copy one editor session: the inner panel tree gets fresh ids,
+    /// every tab is re-materialized from its serialized document (so undo,
+    /// focus, scroll, and dirty state start fresh but content is identical).
+    fn clone_editor_session(
+        source: &EditorSession,
+        next_id: &mut usize,
+        cx: &mut Context<Self>,
+    ) -> EditorSession {
+        let root_id = *next_id;
+        *next_id += 1;
+        let mut splitter = SplitterContainer::single_leaf(
+            root_id,
+            EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
+        );
+        splitter.tree = source.splitter.tree.clone_with_new_ids(next_id);
+        splitter.next_node_id = *next_id;
+
+        let mut tabs = Vec::with_capacity(source.tab_list.tabs.len());
+        for tab in &source.tab_list.tabs {
+            let text = if tab.mode == EditorMode::SourceCode {
+                tab.document.to_raw_source(cx)
+            } else {
+                tab.document.to_markdown(cx)
+            };
+            let mut new_tab = Self::new_tab_from_markdown(cx, text, tab.file.path.clone());
+            new_tab.mode = tab.mode;
+            new_tab.file.dirty = tab.file.dirty;
+            tabs.push(new_tab);
+        }
+        EditorSession {
+            tab_list: EditorTabList {
+                active_tab: source.tab_list.active_tab.min(tabs.len().saturating_sub(1)),
+                tabs,
+            },
+            splitter,
+        }
     }
 }

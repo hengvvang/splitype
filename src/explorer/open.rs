@@ -67,12 +67,9 @@ impl Editor {
         let Some(area_id) = self.panels.layout.active_area else {
             return;
         };
-        let Some(new_id) = self.split_window_area(
-            area_id,
-            crate::splitter::Axis::Horizontal,
-            0.5,
-            crate::splitter::AreaSplitMode::Fresh,
-        ) else {
+        let Some(new_id) =
+            self.split_window_area(area_id, crate::splitter::Axis::Horizontal, 0.5, false)
+        else {
             return;
         };
         self.panels.layout.activate_area(new_id);

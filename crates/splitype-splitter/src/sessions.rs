@@ -1,37 +1,25 @@
-//! Drag-session records and the corner-drag action vocabulary.
+//! Drag-session records and the corner-drag fact vocabulary.
 //!
 //! These are pure state records; the gesture handling that drives them
-//! lives in the hosts' render layers (`src/windows/layout` for the outer
-//! layout, `src/editor/windows/layout` for the inner one).
+//! and every policy decision (what a drag means, whether to render an
+//! indicator) lives in the hosts' render layers (`src/editor/window_layout`
+//! for the outer layout, `src/editor/panel_layout` for the inner one).
 
 use gpui::{Pixels, Point};
 
 use crate::tree::{AreaRect, Axis, Direction};
-use crate::types::AreaSplitMode;
 
-/// Modifier key held during a corner drag.
+/// Modifier key held during a corner drag — a raw gesture fact.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CornerDragModifier {
+    /// Plain drag.
     None,
-    Swap, // Ctrl – swap area contents
-    /// Shift – behavior depends on the dragged area's kind: Explorer
-    /// behaves like a plain drag, Settings opens the floating settings
-    /// window, Editor splits into a fresh blank editor.
-    Duplicate,
-}
-
-/// Live preview state during a corner drag gesture.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum CornerDragPreview {
-    /// Still near the corner, not enough movement yet.
-    Dragging,
-    /// Showing a split preview line at the given ratio.
-    SplitPreview { direction: Axis, ratio: f32 },
-    /// Showing a join target highlight.
-    JoinPreview {
-        target_id: usize,
-        direction: Direction,
-    },
+    /// Ctrl + drag — the host decides (default: swap area contents).
+    Ctrl,
+    /// Shift + drag — the host decides (default: clone the window).
+    Shift,
+    /// Alt + drag — the host decides (default: no-op).
+    Alt,
 }
 
 /// Active drag session for resizing a split bar.
@@ -54,10 +42,12 @@ impl SplitterDragSession {
     }
 }
 
-/// Corner-drag gesture session.
+/// Corner-drag gesture session — raw facts only.
 ///
-/// Analogous to Blender's `sActionzoneData` – tracks which area corner was
-/// grabbed, the gesture direction, and the modifier key held.
+/// Analogous to Blender's `sActionzoneData`: tracks which area corner was
+/// grabbed, the gesture direction, the modifier key, and the pointer
+/// facts. The engine never interprets them; hosts decide what the gesture
+/// means and whether / how to render an indicator.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CornerDragSession {
     /// The area (outer level) or panel (inner level) whose corner was grabbed.
@@ -68,8 +58,10 @@ pub struct CornerDragSession {
     pub gesture_dir: Option<Direction>,
     /// Modifier key held during the drag.
     pub modifier: CornerDragModifier,
-    /// Live preview state for the corner drag overlay.
-    pub preview: CornerDragPreview,
+    /// The pointer's latest position (same coordinate space as the drag).
+    pub pointer_pos: Option<Point<Pixels>>,
+    /// The leaf the pointer is currently over, if any.
+    pub hover_leaf: Option<usize>,
 }
 
 /// Context menu state for right-clicking a border divider bar between areas.
@@ -84,32 +76,7 @@ pub struct BorderMenuState {
     pub position: Point<Pixels>,
 }
 
-/// The action produced by a corner-drag gesture (generic over the layout
-/// level: window areas on the outer tree, editor panels on the inner one).
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum CornerDragAction {
-    /// Split the dragged leaf with a same-kind sibling. The `mode` seeds
-    /// the new leaf: [`AreaSplitMode::Copy`] clones the source, `Fresh`
-    /// starts blank.
-    Split {
-        target_id: usize,
-        direction: Axis,
-        ratio: f32,
-        mode: AreaSplitMode,
-    },
-    /// Join the dragged leaf into a neighbor (removes the dragged leaf).
-    Join { from: usize, into: usize },
-    /// Swap the kinds (and per-leaf state) of two leaves.
-    Swap { from: usize, to: usize },
-    /// Shift + drag on a kind whose behavior is `Duplicate`: the host
-    /// decides what to do (inner editor panels currently no-op).
-    Duplicate { target_id: usize },
-    /// Gesture was cancelled. Hosts interpret kind-specific shortcuts:
-    /// the outer Settings corner opens the floating settings window.
-    Cancel,
-}
-
-/// Minimum drag distance before swap / duplicate gesture.
+/// Minimum drag distance before a host's modifier-based shortcut fires.
 pub const MODIFIER_THRESHOLD_PX: f32 = 4.0;
 
 /// Return the id of the element that contains `pos`, given pixel-space rects.

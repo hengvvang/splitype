@@ -11,14 +11,17 @@ use crate::ui::popover::menu_panel;
 
 use gpui::*;
 
+use crate::app::window_area::WindowAreaKind;
+use crate::app::window_area::WindowLayout;
+use crate::editor::corner_drag_preview::render_corner_drag_preview;
 use crate::editor::explorer::state::ExplorerState;
 use crate::editor::outline::state::OutlinePanelState;
 use crate::editor::settings::SettingsUiState;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
-use crate::splitter::{AreaSplitMode, Axis, CornerDragAction};
-use crate::app::window_area::WindowAreaKind;
-use crate::app::window_area::WindowLayout;
+use crate::splitter::{Axis, CornerDragModifier};
+use splitype_splitter::policy::{DragPolicy, InnerPanelDragPolicy};
+use splitype_splitter::sessions::{MODIFIER_THRESHOLD_PX, id_at_point};
 use splitype_splitter::tree::SplitTree;
 
 use super::controller::*;
@@ -115,35 +118,32 @@ impl Editor {
                 let _ = root_editor_move.update(cx, |ed, cx| {
                     let mut changed = false;
                     let viewport = window.viewport_size();
-                    let (gesture_active, immediate) =
-                        splitype_splitter::interaction::update_window_drag(
-                            &mut ed.panels.layout,
-                            pos,
-                            viewport,
-                        );
-                    if gesture_active {
+                    if splitype_splitter::interaction::update_window_drag(
+                        &mut ed.panels.layout,
+                        pos,
+                        viewport,
+                    ) {
                         changed = true;
                     }
-                    if let Some(action) = immediate {
-                        match action {
-                            CornerDragAction::Swap { from, to } => {
-                                ed.swap_window_area_kinds(from, to);
-                            }
-                            CornerDragAction::Cancel => {
-                                // Shift + drag on a Settings corner: the container
-                                // cancels so the host can interpret the shortcut
-                                // (open the floating settings window).
-                                if let Some(session) = ed.panels.layout.active_corner_drag {
-                                    if session.modifier
-                                        == crate::splitter::CornerDragModifier::Duplicate
-                                        && ed.panels.layout.tree.find_leaf_kind(session.target_id)
-                                            == Some(crate::app::window_area::WindowAreaKind::Settings)
-                                    {
-                                        crate::settings::open_settings_window(cx);
-                                    }
+                    // Outer gesture shortcuts (host-owned, immediate):
+                    // Ctrl past the threshold swaps the dragged area with
+                    // the hovered one and ends the gesture. Shift drags
+                    // defer to the drag policy on mouse-up (clone window);
+                    // they never show the visual indicator.
+                    if let Some(drag) = ed.panels.layout.active_corner_drag {
+                        let dx = f32::from(pos.x - drag.start_pos.x);
+                        let dy = f32::from(pos.y - drag.start_pos.y);
+                        let dist = (dx * dx + dy * dy).sqrt();
+                        if dist >= MODIFIER_THRESHOLD_PX
+                            && drag.modifier == CornerDragModifier::Ctrl
+                        {
+                            let rects = ed.panels.layout.leaf_rects(viewport);
+                            if let Some(over) = id_at_point(&rects, pos) {
+                                if over != drag.target_id {
+                                    ed.swap_window_area_kinds(drag.target_id, over);
                                 }
                             }
-                            _ => {} // Split/Join handled on mouse_up
+                            ed.panels.layout.end_corner_drag();
                         }
                     }
                     // Inner splitter drag: locate the session whose container
@@ -189,7 +189,6 @@ impl Editor {
                         let viewport = window.viewport_size();
                         let outer_rects = ed.panels.layout.leaf_rects(viewport);
                         let mut pending_swap: Option<(usize, usize)> = None;
-                        let mut end_gesture = false;
                         if let Some(outer_rect) = ed.panels.layout.leaf_rect(area_id, &outer_rects)
                         {
                             let mut updated = drag;
@@ -205,22 +204,34 @@ impl Editor {
                                     point(px(start_x - outer_rect.x), px(start_y - outer_rect.y));
                             }
                             session.splitter.active_corner_drag = Some(updated);
-                            let action = session.splitter.update_corner_drag(inner_pos, inner_size);
-                            if let Some(action) = action {
-                                match action {
-                                    CornerDragAction::Swap { from, to } => {
-                                        end_gesture = true;
-                                        pending_swap = Some((from, to));
+                            session.splitter.update_corner_drag(inner_pos, inner_size);
+                            // Inner gesture shortcuts (host-owned,
+                            // immediate): Ctrl past the threshold swaps
+                            // the dragged panel with the hovered one;
+                            // Shift past the threshold ends the gesture as
+                            // a no-op. Plain drags defer to the inner drag
+                            // policy on mouse-up.
+                            if let Some(drag) = session.splitter.active_corner_drag {
+                                let dx = f32::from(inner_pos.x - drag.start_pos.x);
+                                let dy = f32::from(inner_pos.y - drag.start_pos.y);
+                                let dist = (dx * dx + dy * dy).sqrt();
+                                if dist >= MODIFIER_THRESHOLD_PX {
+                                    match drag.modifier {
+                                        CornerDragModifier::Ctrl => {
+                                            let rects = session.splitter.leaf_rects(inner_size);
+                                            if let Some(over) = id_at_point(&rects, inner_pos) {
+                                                if over != drag.target_id {
+                                                    pending_swap = Some((drag.target_id, over));
+                                                }
+                                            }
+                                            session.splitter.end_corner_drag();
+                                        }
+                                        CornerDragModifier::Shift => {
+                                            session.splitter.end_corner_drag();
+                                        }
+                                        CornerDragModifier::None | CornerDragModifier::Alt => {}
                                     }
-                                    CornerDragAction::Duplicate { .. }
-                                    | CornerDragAction::Cancel => {
-                                        end_gesture = true;
-                                    }
-                                    _ => {}
                                 }
-                            }
-                            if end_gesture {
-                                session.splitter.end_corner_drag();
                             }
                             changed = true;
                         }
@@ -233,30 +244,41 @@ impl Editor {
                     }
                 });
             })
-            .on_mouse_up(MouseButton::Left, move |_event, _window, cx| {
+            .on_mouse_up(MouseButton::Left, move |_event, window, cx| {
                 let _ = root_editor_up.update(cx, |ed, cx| {
-                    if let Some(action) =
+                    // Outer corner drag end: the window-level drag policy
+                    // interprets the raw facts (plain = split/join with
+                    // content seed, Shift = clone the window, Ctrl = swap,
+                    // Alt = nothing).
+                    if let Some(facts) =
                         splitype_splitter::interaction::finish_window_drag(&mut ed.panels.layout)
                     {
-                        match action {
-                            // Corner-drag split: same-kind area; Editor areas
-                            // seed the new area per `mode` (deep-copied tab
-                            // list + cloned inner layout, or a blank editor).
-                            CornerDragAction::Split {
-                                target_id,
-                                direction,
-                                ratio,
-                                mode,
-                            } => {
-                                ed.split_area(target_id, direction, ratio, mode, cx);
-                            }
-                            CornerDragAction::Join { from, into } => {
-                                ed.join_window_area(into, from);
-                            }
-                            CornerDragAction::Swap { from, to } => {
-                                ed.swap_window_area_kinds(from, to);
-                            }
-                            _ => {}
+                        let viewport = window.viewport_size();
+                        match facts.modifier {
+                            CornerDragModifier::None => ed.drag_policy.policy.on_plain_drag(
+                                &mut ed.panels.layout,
+                                &facts,
+                                viewport,
+                                cx,
+                            ),
+                            CornerDragModifier::Shift => ed.drag_policy.policy.on_shift_drag(
+                                &mut ed.panels.layout,
+                                &facts,
+                                viewport,
+                                cx,
+                            ),
+                            CornerDragModifier::Ctrl => ed.drag_policy.policy.on_ctrl_drag(
+                                &mut ed.panels.layout,
+                                &facts,
+                                viewport,
+                                cx,
+                            ),
+                            CornerDragModifier::Alt => ed.drag_policy.policy.on_alt_drag(
+                                &mut ed.panels.layout,
+                                &facts,
+                                viewport,
+                                cx,
+                            ),
                         }
                         cx.notify();
                     }
@@ -270,31 +292,54 @@ impl Editor {
                         cx.notify();
                     }
                     // Inner corner drag end: finish the gesture through the
-                    // shared container, then apply the action.
+                    // shared container, then let the inner-panel policy
+                    // interpret the facts (Shift is a no-op override).
                     let corner_pending = ed
                         .editor_sessions
                         .iter_mut()
                         .find(|(_, s)| s.splitter.active_corner_drag.is_some())
                         .map(|(area_id, session)| {
-                            let action = session.splitter.finish_corner_drag();
-                            (*area_id, action)
+                            let facts = session.splitter.finish_corner_drag();
+                            (*area_id, facts)
                         });
-                    if let Some((area_id, Some(action))) = corner_pending {
-                        match action {
-                            CornerDragAction::Split {
-                                target_id,
-                                direction,
-                                ratio,
-                                ..
-                            } => {
-                                ed.split_editor_inner_panel_with_ratio(
-                                    area_id, target_id, direction, ratio,
-                                );
+                    if let Some((area_id, Some(facts))) = corner_pending {
+                        let viewport = window.viewport_size();
+                        let inner_size = {
+                            let outer_rects = ed.panels.layout.leaf_rects(viewport);
+                            ed.panels
+                                .layout
+                                .leaf_rect(area_id, &outer_rects)
+                                .map(|rect| size(px(rect.width), px(rect.height)))
+                                .unwrap_or(viewport)
+                        };
+                        let mut policy = InnerPanelDragPolicy;
+                        if let Some(session) = ed.editor_sessions.get_mut(&area_id) {
+                            match facts.modifier {
+                                CornerDragModifier::None => policy.on_plain_drag(
+                                    &mut session.splitter,
+                                    &facts,
+                                    inner_size,
+                                    cx,
+                                ),
+                                CornerDragModifier::Shift => policy.on_shift_drag(
+                                    &mut session.splitter,
+                                    &facts,
+                                    inner_size,
+                                    cx,
+                                ),
+                                CornerDragModifier::Ctrl => policy.on_ctrl_drag(
+                                    &mut session.splitter,
+                                    &facts,
+                                    inner_size,
+                                    cx,
+                                ),
+                                CornerDragModifier::Alt => policy.on_alt_drag(
+                                    &mut session.splitter,
+                                    &facts,
+                                    inner_size,
+                                    cx,
+                                ),
                             }
-                            CornerDragAction::Join { from, into } => {
-                                ed.join_editor_inner_panel(area_id, into, from);
-                            }
-                            _ => {}
                         }
                         cx.notify();
                     }
@@ -302,8 +347,9 @@ impl Editor {
             })
             .child(layout_tree);
 
-        // Build the preview overlay for corner drag gestures (content-independent
-        // rendering lives in splitype_splitter::interaction).
+        // Build the preview overlay for corner drag gestures. Host policy:
+        // only plain (no-modifier) drags show an indicator; modifier drags
+        // have their own immediate behaviors.
         let overlay_style = splitype_splitter::interaction::OverlayStyle {
             accent: theme.colors.split_indicator,
             tile_radius: theme.dimensions.area_tile_radius,
@@ -318,17 +364,13 @@ impl Editor {
             .active_corner_drag
             .as_ref()
             .and_then(|drag| {
-                // Normalized rects: the preview positions itself with
-                // `relative()` against the tiled-layout container, so it
-                // tracks the area tree geometry exactly.
-                let mut rects = Vec::new();
-                self.panels
-                    .layout
-                    .tree
-                    .collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
-                splitype_splitter::interaction::render_corner_drag_preview(
+                if drag.modifier != CornerDragModifier::None {
+                    return None;
+                }
+                render_corner_drag_preview(
+                    &self.panels.layout,
                     drag,
-                    &rects,
+                    window.viewport_size(),
                     &overlay_style,
                 )
             });
@@ -742,14 +784,14 @@ impl Editor {
         let split_h_ed = editor.clone();
         let split_h: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = split_h_ed.update(app, |ed, cx| {
-                ed.split_area(split_id, Axis::Horizontal, 0.5, AreaSplitMode::Copy, cx);
+                ed.split_area(split_id, Axis::Horizontal, 0.5, true, cx);
                 cx.notify();
             });
         });
         let split_v_ed = editor.clone();
         let split_v: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = split_v_ed.update(app, |ed, cx| {
-                ed.split_area(split_id, Axis::Vertical, 0.5, AreaSplitMode::Copy, cx);
+                ed.split_area(split_id, Axis::Vertical, 0.5, true, cx);
                 cx.notify();
             });
         });

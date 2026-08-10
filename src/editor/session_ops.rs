@@ -12,7 +12,7 @@ use crate::editor::controller::Editor;
 use crate::editor::session::{
     EditingPanelKind, EditorInnerPanelKind, EditorSession, EditorTabList, WelcomePanelKind,
 };
-use crate::splitter::{AreaSplitMode, NodeId};
+use crate::splitter::NodeId;
 use splitype_splitter::state::SplitterContainer;
 use splitype_splitter::tree::Axis;
 
@@ -33,50 +33,26 @@ fn new_inner_session() -> EditorSession {
 
 impl Editor {
     /// Split `area_id` at `ratio` with a sibling of the SAME kind, and seed
-    /// the new Editor area's session per `mode`: [`AreaSplitMode::Copy`]
-    /// clones the source inner panel layout (the host then deep-copies the
-    /// tab list); [`AreaSplitMode::Fresh`] starts blank. Returns the new
-    /// area's id.
+    /// the new Editor area's session per `copy_content`: `true` clones the
+    /// source inner panel layout (the host then deep-copies the tab list);
+    /// `false` starts blank. Returns the new area's id.
     pub fn split_window_area(
         &mut self,
         area_id: NodeId,
         direction: Axis,
         ratio: f32,
-        mode: AreaSplitMode,
+        copy_content: bool,
     ) -> Option<NodeId> {
         let new_id = self.panels.layout.split_leaf(area_id, direction, ratio)?;
-        let kind = self.panels.layout.tree.find_leaf_kind(area_id);
-        if kind == Some(WindowAreaKind::Editor) {
-            match mode {
-                AreaSplitMode::Copy => {
-                    if let Some(source) = self.editor_sessions.get(&area_id) {
-                        // Deep-copy the inner panel tree with fresh ids from
-                        // the window-wide pool, so the new area's panels are
-                        // independent and never collide with existing ones.
-                        let mut splitter = SplitterContainer::single_leaf(
-                            new_id,
-                            EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
-                        );
-                        splitter.tree = source
-                            .splitter
-                            .tree
-                            .clone_with_new_ids(&mut self.panels.layout.next_node_id);
-                        splitter.next_node_id = self.panels.layout.next_node_id;
-                        self.editor_sessions.insert(
-                            new_id,
-                            EditorSession {
-                                tab_list: EditorTabList::empty(),
-                                splitter,
-                            },
-                        );
-                    } else {
-                        self.ensure_editor_session(new_id);
-                    }
-                }
-                AreaSplitMode::Fresh => {
-                    self.ensure_editor_session(new_id);
-                }
-            }
+        if copy_content {
+            Self::clone_inner_layout(
+                &mut self.editor_sessions,
+                &mut self.panels.layout,
+                area_id,
+                new_id,
+            );
+        } else if self.panels.layout.tree.find_leaf_kind(area_id) == Some(WindowAreaKind::Editor) {
+            self.ensure_editor_session(new_id);
         }
         Some(new_id)
     }

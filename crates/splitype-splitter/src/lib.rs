@@ -13,6 +13,7 @@
 //! rendering and Editor state live in `src/windows` / `src/editor`.
 
 pub mod interaction;
+pub mod policy;
 pub mod sessions;
 pub mod state;
 pub mod tree;

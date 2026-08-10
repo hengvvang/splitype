@@ -11,43 +11,18 @@
 use gpui::{Pixels, Point, Size};
 
 use crate::sessions::{
-    BorderMenuState, CornerDragAction, CornerDragModifier, CornerDragPreview, CornerDragSession,
-    MODIFIER_THRESHOLD_PX, SplitterDragSession, id_at_point,
+    BorderMenuState, CornerDragModifier, CornerDragSession, SplitterDragSession, id_at_point,
 };
 use crate::tree::{AreaRect, Axis, Direction, SplitTree};
-use crate::types::{AreaSplitMode, NodeId};
-
-/// Kind-dependent behavior of a Shift + corner drag.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ShiftBehavior {
-    /// Fall through to the plain split/join preview; a finished split
-    /// either deep-copies the dragged leaf (`fresh: false`, Explorer) or
-    /// seeds a blank one (`fresh: true`, Editor).
-    Preview { fresh: bool },
-    /// Emit a `Duplicate` action immediately (inner editor panels).
-    Duplicate,
-    /// Emit `Cancel` immediately; the host interprets the shortcut
-    /// (outer Settings opens the settings window).
-    Cancel,
-}
-
-/// Behaviors a leaf kind contributes to the generic container.
-///
-/// The engine only asks for *operation* semantics (what Shift + corner
-/// drag does). Application taxonomy — which kinds are "editors", which
-/// participate in routing — stays on the host side.
-pub trait ContainerKind: Copy + PartialEq {
-    /// How Shift + corner drag behaves on this kind.
-    fn shift_behavior(&self) -> ShiftBehavior;
-}
+use crate::types::NodeId;
 
 /// The generic tiled split container: the split tree, its operations, the
 /// active drag sessions, and the activation tracking.
 ///
-/// Window-level areas instantiate it with [`WindowAreaKind`]; each editor
-/// midcontainer instantiates it with `EditorInnerPanelKind`, so both
-/// levels share one interaction model (see `crate::interaction`).
-pub struct SplitterContainer<T: ContainerKind> {
+/// The engine is kind-agnostic: `T` is a plain stored kind tag (the host's
+/// own enum) used only to tag leaves. All policy — what a drag means,
+/// whether to show an indicator, how to seed a split — lives in the hosts.
+pub struct SplitterContainer<T: Copy + PartialEq> {
     /// The split tree of this container.
     pub tree: SplitTree<T>,
     /// Global id pool shared by leaves and split nodes.
@@ -69,7 +44,7 @@ pub struct SplitterContainer<T: ContainerKind> {
     pub focused_area: Option<usize>,
 }
 
-impl<T: ContainerKind> SplitterContainer<T> {
+impl<T: Copy + PartialEq> SplitterContainer<T> {
     /// A container with one leaf, used to seed editor midcontainers.
     pub fn single_leaf(initial_id: usize, kind: T) -> Self {
         Self {
@@ -90,7 +65,7 @@ impl<T: ContainerKind> SplitterContainer<T> {
     }
 }
 
-impl<T: ContainerKind> SplitterContainer<T> {
+impl<T: Copy + PartialEq> SplitterContainer<T> {
     // ------------------------------------------------------------------
     // Split / close / kind / join / swap
     // ------------------------------------------------------------------
@@ -238,7 +213,7 @@ impl<T: ContainerKind> SplitterContainer<T> {
     }
 
     // ------------------------------------------------------------------
-    // Corner drag — split / join / swap / duplicate
+    // Corner drag — raw gesture facts only
     // ------------------------------------------------------------------
 
     /// Begin a corner-drag gesture from `target_id` at `pos` with an
@@ -254,192 +229,105 @@ impl<T: ContainerKind> SplitterContainer<T> {
             start_pos: pos,
             gesture_dir: None,
             modifier,
-            preview: CornerDragPreview::Dragging,
+            pointer_pos: Some(pos),
+            hover_leaf: None,
         });
     }
 
     /// Process a mouse-move event during a corner drag.
     ///
+    /// Only updates the raw facts of the active session — cardinal
+    /// gesture direction, pointer position, and the hovered leaf. The
+    /// engine never interprets them: the host decides what the gesture
+    /// means, when a shortcut fires, and whether to render an indicator.
+    ///
     /// `current_pos` and the container size must share a coordinate system
     /// (the host passes the pointer and size in the container's own space —
     /// window coords for the outer layout, the midcontainer's local space
-    /// for an editor). Modifier-based actions (Ctrl / Shift) fire
-    /// immediately when they cross their threshold; the no-modifier
-    /// split/join path only updates the preview and returns `None` so the
-    /// caller can paint the live overlay.
+    /// for an editor). Returns whether a session was updated.
     pub fn update_corner_drag(
         &mut self,
         current_pos: Point<Pixels>,
         container_size: Size<Pixels>,
-    ) -> Option<CornerDragAction> {
+    ) -> bool {
         let session = match self.active_corner_drag {
             Some(ref s) => *s,
-            None => return None,
+            None => return false,
         };
 
         let dx = f32::from(current_pos.x - session.start_pos.x);
         let dy = f32::from(current_pos.y - session.start_pos.y);
-        let dist = (dx * dx + dy * dy).sqrt();
         let abs_dx = dx.abs();
         let abs_dy = dy.abs();
 
-        // Determine cardinal direction.
+        // Cardinal direction from the mouse delta so far.
         let dir = if abs_dy > abs_dx {
             if dy > 0.0 {
                 Direction::Down
             } else {
                 Direction::Up
             }
+        } else if dx > 0.0 {
+            Direction::Right
         } else {
-            if dx > 0.0 {
-                Direction::Right
-            } else {
-                Direction::Left
-            }
+            Direction::Left
         };
 
-        // Update gesture direction for cursor feedback.
-        self.active_corner_drag.as_mut().unwrap().gesture_dir = Some(dir);
-
-        // --- Modifier-based actions (Ctrl / Shift) ---
-        // Swap (Ctrl) stays immediate: once the threshold is crossed the
-        // action is returned so the caller can execute it straight away.
-        // Duplicate (Shift) is kind-dependent: inner panels emit a
-        // Duplicate action, outer Settings cancels (the host opens the
-        // settings window), and outer Editor/Explorer fall through to the
-        // plain split/join preview.
-        if session.modifier != CornerDragModifier::None {
-            if dist < MODIFIER_THRESHOLD_PX {
-                return None;
-            }
-            match session.modifier {
-                CornerDragModifier::Swap => {
-                    let leaf_rects = self.leaf_rects(container_size);
-                    let over_id = id_at_point(&leaf_rects, current_pos);
-                    return Some(if let Some(target) = over_id {
-                        if target != session.target_id {
-                            CornerDragAction::Swap {
-                                from: session.target_id,
-                                to: target,
-                            }
-                        } else {
-                            CornerDragAction::Cancel
-                        }
-                    } else {
-                        CornerDragAction::Cancel
-                    });
-                }
-                CornerDragModifier::Duplicate => {
-                    match self
-                        .tree
-                        .find_leaf_kind(session.target_id)
-                        .map(|kind| kind.shift_behavior())
-                    {
-                        Some(ShiftBehavior::Duplicate) => {
-                            return Some(CornerDragAction::Duplicate {
-                                target_id: session.target_id,
-                            });
-                        }
-                        Some(ShiftBehavior::Cancel) => {
-                            return Some(CornerDragAction::Cancel);
-                        }
-                        Some(ShiftBehavior::Preview { .. }) => {
-                            // Fall through to the preview path below.
-                        }
-                        None => return Some(CornerDragAction::Cancel),
-                    }
-                }
-                CornerDragModifier::None => unreachable!(),
-            }
-        }
-
-        // --- No modifier: split vs join preview ---
+        // The leaf under the pointer, if any.
         let leaf_rects = self.leaf_rects(container_size);
         let over_id = id_at_point(&leaf_rects, current_pos);
 
-        if over_id == Some(session.target_id) || over_id.is_none() {
-            // Cursor is still in the same leaf (or outside). Potential split.
-            let split_dir = if dir.is_vertical() {
-                Axis::Vertical
-            } else {
-                Axis::Horizontal
-            };
-            // Calculate split ratio from cursor position within the leaf.
-            if let Some(rect) = self.leaf_rect(session.target_id, &leaf_rects) {
-                if rect.width > 1.0 && rect.height > 1.0 {
-                    let ratio = match split_dir {
-                        Axis::Horizontal => {
-                            let r = (f32::from(current_pos.x) - rect.x) / rect.width;
-                            r.clamp(0.15, 0.85)
-                        }
-                        Axis::Vertical => {
-                            let r = (f32::from(current_pos.y) - rect.y) / rect.height;
-                            r.clamp(0.15, 0.85)
-                        }
-                    };
-                    self.active_corner_drag.as_mut().unwrap().preview =
-                        CornerDragPreview::SplitPreview {
-                            direction: split_dir,
-                            ratio,
-                        };
-                }
-            }
-        } else if let Some(target_id) = over_id {
-            // Cursor is over a different leaf. Potential join.
-            self.active_corner_drag.as_mut().unwrap().preview = CornerDragPreview::JoinPreview {
-                target_id,
-                direction: dir,
-            };
-        }
-
-        None
+        self.active_corner_drag = Some(CornerDragSession {
+            target_id: session.target_id,
+            start_pos: session.start_pos,
+            gesture_dir: Some(dir),
+            modifier: session.modifier,
+            pointer_pos: Some(current_pos),
+            hover_leaf: over_id,
+        });
+        true
     }
 
     /// Finish the corner-drag gesture on mouse release.
     ///
-    /// Reads the active session's preview state and returns the appropriate
-    /// action, then clears the session.
-    pub fn finish_corner_drag(&mut self) -> Option<CornerDragAction> {
+    /// Returns the final raw facts and clears the session. The host
+    /// decides what to do with them (split / join / shortcut / nothing).
+    pub fn finish_corner_drag(&mut self) -> Option<CornerDragSession> {
         let session = self.active_corner_drag?;
-        // Shift + drag on a `Preview { fresh: true }` kind (outer Editor)
-        // creates a fresh initial-state leaf instead of a deep copy.
-        let fresh = session.modifier == CornerDragModifier::Duplicate
-            && self
-                .tree
-                .find_leaf_kind(session.target_id)
-                .is_some_and(|kind| {
-                    matches!(
-                        kind.shift_behavior(),
-                        ShiftBehavior::Preview { fresh: true }
-                    )
-                });
-        let action = match session.preview {
-            CornerDragPreview::SplitPreview { direction, ratio } => {
-                let mode = if fresh {
-                    AreaSplitMode::Fresh
-                } else {
-                    AreaSplitMode::Copy
-                };
-                CornerDragAction::Split {
-                    target_id: session.target_id,
-                    direction,
-                    ratio,
-                    mode,
-                }
-            }
-            CornerDragPreview::JoinPreview { target_id, .. } => CornerDragAction::Join {
-                from: session.target_id,
-                into: target_id,
-            },
-            CornerDragPreview::Dragging => CornerDragAction::Cancel,
-        };
-        self.end_corner_drag();
-        Some(action)
+        self.active_corner_drag = None;
+        Some(session)
     }
 
     /// End the corner-drag session, clearing state.
     pub fn end_corner_drag(&mut self) {
         self.active_corner_drag = None;
+    }
+
+    /// Compute the split axis and ratio for a finished corner drag from
+    /// the session facts (host-independent geometry). Returns `None` until
+    /// the gesture has a direction and a pointer position.
+    pub fn corner_split_facts(
+        &self,
+        facts: &CornerDragSession,
+        container_size: Size<Pixels>,
+    ) -> Option<(Axis, f32)> {
+        let dir = facts.gesture_dir?;
+        let pos = facts.pointer_pos?;
+        let mut rects = Vec::new();
+        self.tree.collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
+        let target = rects.iter().find(|rect| rect.id == facts.target_id)?;
+        let axis = if dir.is_vertical() {
+            Axis::Vertical
+        } else {
+            Axis::Horizontal
+        };
+        let norm_x = f32::from(pos.x) / f32::from(container_size.width);
+        let norm_y = f32::from(pos.y) / f32::from(container_size.height);
+        let ratio = match axis {
+            Axis::Horizontal => ((norm_x - target.x) / target.width).clamp(0.15, 0.85),
+            Axis::Vertical => ((norm_y - target.y) / target.height).clamp(0.15, 0.85),
+        };
+        Some((axis, ratio))
     }
 
     // ------------------------------------------------------------------
@@ -516,15 +404,6 @@ mod tests {
     enum TestKind {
         A,
         B,
-    }
-
-    impl ContainerKind for TestKind {
-        fn shift_behavior(&self) -> ShiftBehavior {
-            match self {
-                Self::A => ShiftBehavior::Preview { fresh: true },
-                Self::B => ShiftBehavior::Duplicate,
-            }
-        }
     }
 
     fn test_layout() -> SplitterContainer<TestKind> {

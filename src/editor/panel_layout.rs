@@ -10,8 +10,8 @@ use crate::editor::session::{
     EditingPanelKind, EditorInnerPanelKind, InnerPanelLocation, WelcomePanelKind,
 };
 use crate::splitter::Axis;
-use splitype_splitter::tree::SplitTree;
 use crate::ui::popover::menu_panel;
+use splitype_splitter::tree::SplitTree;
 
 use gpui::*;
 
@@ -41,9 +41,8 @@ impl Editor {
         let inner_tree = self.ensure_editor_session(area_id).splitter.tree.clone();
 
         // Drop runtimes of panels that were closed or joined.
-        self.source_code_panel_runtimes.retain(|(area, panel), _| {
-            *area == area_id && inner_tree.contains_leaf(*panel)
-        });
+        self.source_code_panel_runtimes
+            .retain(|(area, panel), _| *area == area_id && inner_tree.contains_leaf(*panel));
 
         let previous = self.current_tab_area;
         self.current_tab_area = Some(area_id);
@@ -58,13 +57,15 @@ impl Editor {
             && let Some(target_id) = self.focused_edit_target_entity_id(window, cx)
         {
             if let Some(((_, panel_id), _)) =
-                self.source_code_panel_runtimes.iter().find(|((area, _), runtime)| {
-                    *area == area_id
-                        && runtime
-                            .block
-                            .as_ref()
-                            .is_some_and(|block| block.entity_id() == target_id)
-                })
+                self.source_code_panel_runtimes
+                    .iter()
+                    .find(|((area, _), runtime)| {
+                        *area == area_id
+                            && runtime
+                                .block
+                                .as_ref()
+                                .is_some_and(|block| block.entity_id() == target_id)
+                    })
             {
                 // Keyboard focus sits in a source panel's own block.
                 if inner_tree.contains_leaf(*panel_id) {
@@ -128,7 +129,8 @@ impl Editor {
 
         // Inner corner-drag preview: rendered inside the midcontainer so
         // the normalized rects position with `relative()` against the
-        // layout's initialization region (topbar/bottombar excluded).
+        // layout's initialization region (topbar/bottombar excluded). Host
+        // policy: only plain (no-modifier) drags show an indicator.
         let d = &theme.dimensions;
         let overlay_style = splitype_splitter::interaction::OverlayStyle {
             accent: c.split_indicator,
@@ -138,19 +140,31 @@ impl Editor {
             active: c.focus_accent,
             ..Default::default()
         };
+        let inner_size = {
+            let viewport = window.viewport_size();
+            let outer_rects = self.panels.layout.leaf_rects(viewport);
+            self.panels
+                .layout
+                .leaf_rect(area_id, &outer_rects)
+                .map(|rect| size(px(rect.width), px(rect.height)))
+                .unwrap_or(viewport)
+        };
         if let Some(drag) = self
             .ensure_editor_session(area_id)
             .splitter
             .active_corner_drag
         {
-            let mut rects = Vec::new();
-            inner_tree.collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
-            if let Some(preview) = splitype_splitter::interaction::render_corner_drag_preview(
-                &drag,
-                &rects,
-                &overlay_style,
-            ) {
-                container = container.child(preview);
+            if drag.modifier == splitype_splitter::sessions::CornerDragModifier::None {
+                if let Some(preview) =
+                    crate::editor::corner_drag_preview::render_corner_drag_preview(
+                        &self.ensure_editor_session(area_id).splitter,
+                        &drag,
+                        inner_size,
+                        &overlay_style,
+                    )
+                {
+                    container = container.child(preview);
+                }
             }
         }
 

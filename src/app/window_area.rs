@@ -1,11 +1,12 @@
 //! Window-area kinds and the window-level splitter container.
 //!
-//! The splitter engine stays generic: it only knows [`ContainerKind`]
-//! contracts. The application registers its own area kinds here (by
-//! implementing the trait), defines the window layout alias, and seeds the
+//! The splitter engine stays kind-agnostic: it stores whatever kind tag
+//! the application defines and never interprets it. The application
+//! defines its own area kinds here, implements its own taxonomy (which
+//! kinds are editors, how each kind seeds a split), and seeds the
 //! default layout (Explorer + Editor).
 
-use splitype_splitter::state::{ContainerKind, ShiftBehavior, SplitterContainer};
+use splitype_splitter::state::SplitterContainer;
 use splitype_splitter::types::NodeId;
 
 /// Top-level area types in the tiled split layout.
@@ -59,17 +60,6 @@ impl EditorAreaMode {
     /// True when the area's session holds tabs.
     pub fn is_editing(self) -> bool {
         matches!(self, Self::Editing)
-    }
-}
-
-/// Registration of the window-area kinds with the splitter engine.
-impl ContainerKind for WindowAreaKind {
-    fn shift_behavior(&self) -> ShiftBehavior {
-        match self {
-            WindowAreaKind::Settings => ShiftBehavior::Cancel,
-            WindowAreaKind::Editor => ShiftBehavior::Preview { fresh: true },
-            WindowAreaKind::Explorer => ShiftBehavior::Preview { fresh: false },
-        }
     }
 }
 

@@ -1,5 +1,6 @@
 //! Editor window creation and file-open routing.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context as _;
@@ -7,10 +8,13 @@ use gpui::*;
 
 use crate::app::menus::install_menus;
 use crate::app::shell::{AreaContent, Shell};
+use crate::app::window_area::{DEFAULT_EDITOR_AREA_ID, WindowAreaKind};
 use crate::editor::controller::Editor;
+use crate::editor::session::EditorSession;
 use crate::infra::config::recent::record_recent_file;
-use crate::app::window_area::DEFAULT_EDITOR_AREA_ID;
+use crate::splitter::NodeId;
 use crate::ui::custom_titlebar::splitype_window_options;
+use splitype_splitter::tree::SplitTree;
 
 fn window_title(file_path: Option<&Path>) -> SharedString {
     if let Some(path) = file_path {
@@ -60,6 +64,64 @@ pub(crate) fn open_editor_window(
                 cx.new(move |_cx| Shell {
                     // The default layout is Explorer (left) + Editor (right);
                     // only Editor areas carry content entities.
+                    areas: [(DEFAULT_EDITOR_AREA_ID, AreaContent::Editor(editor))].into(),
+                })
+            },
+        )
+        .unwrap();
+
+    handle
+        .update(cx, |shell, window, cx| {
+            window.activate_window();
+            let shell_weak = cx.entity().downgrade();
+            if let Some(editor) = shell.primary_editor() {
+                editor.update(cx, |editor, cx| {
+                    editor.shell = Some(shell_weak);
+                    editor.force_install_close_guard(cx, window);
+                });
+            }
+        })
+        .expect("newly opened shell window should be updateable");
+
+    handle
+}
+
+/// Opens a new independent window showing a whole cloned container
+/// (Shift-drag default): the outer tree keeps its shape with fresh ids,
+/// and every Editor area's session (inner layout + tab list) is
+/// deep-copied by the caller.
+pub(crate) fn open_cloned_window(
+    tree: SplitTree<WindowAreaKind>,
+    next_node_id: usize,
+    sessions: HashMap<NodeId, EditorSession>,
+    cx: &mut App,
+) -> WindowHandle<Shell> {
+    let bounds = Bounds::centered(None, size(px(1080.), px(720.)), cx);
+    let handle = cx
+        .open_window(
+            splitype_window_options(SharedString::new("Splitype"), bounds),
+            move |_window, cx| {
+                let editor = cx.new(|cx| {
+                    let mut ed = Editor::empty_in_shell(None, DEFAULT_EDITOR_AREA_ID, cx);
+                    ed.panels.layout.tree = tree;
+                    ed.panels.layout.next_node_id = next_node_id;
+                    ed.editor_sessions = sessions;
+                    // Activate the first Editor leaf of the cloned layout
+                    // (the empty constructor seeds the default area id,
+                    // which the clone may not contain).
+                    let mut ids = Vec::new();
+                    ed.panels.layout.tree.leaf_ids(&mut ids);
+                    if let Some(id) = ids.into_iter().find(|id| {
+                        ed.panels.layout.tree.find_leaf_kind(*id) == Some(WindowAreaKind::Editor)
+                    }) {
+                        ed.panels.layout.activate_area(id);
+                    } else {
+                        ed.panels.layout.active_area = None;
+                        ed.panels.layout.activation_history.clear();
+                    }
+                    ed
+                });
+                cx.new(move |_cx| Shell {
                     areas: [(DEFAULT_EDITOR_AREA_ID, AreaContent::Editor(editor))].into(),
                 })
             },
