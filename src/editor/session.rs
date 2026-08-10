@@ -64,9 +64,10 @@ impl DragPolicy<EditorInnerPanelKind> for SplitterContainer<EditorInnerPanelKind
     }
 }
 
-/// Welcome 模式下的面板类型。目前唯一的欢迎面板携带它退出编辑前的
-/// 编辑面板类型（`None` = 从未编辑过），重新进入编辑时按它恢复；
-/// 将来 welcome 模式可扩展更多面板（如"最近文件"）。
+/// Panel kinds for welcome mode. The only welcome panel carries the
+/// editing panel kind it had before leaving editing (`None` = never
+/// edited), which is restored when the area re-enters editing; welcome
+/// mode may grow more panel types (e.g. recent files) later.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WelcomePanelKind {
     Welcome(Option<EditingPanelKind>),
@@ -79,9 +80,10 @@ pub enum WelcomePanelKind {
 /// matches on the panel kind directly.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditorInnerPanelKind {
-    /// Welcome 模式统一面板：渲染欢迎提示（双击开始编辑）。
+    /// The unified welcome-mode panel: renders the guidance prompt
+    /// (double-click to start editing).
     Welcome(WelcomePanelKind),
-    /// Editing 模式面板：渲染对应的编辑视图。
+    /// An editing-mode panel: renders its editing view.
     Editing(EditingPanelKind),
 }
 

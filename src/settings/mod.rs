@@ -16,7 +16,7 @@ use std::collections::BTreeMap;
 use gpui::*;
 
 use crate::editor::keybindings::install_keybindings;
-use crate::infra::config::keybindings::{ShortcutCommand, normalize_shortcut_config};
+use crate::infra::config::keybindings::normalize_shortcut_config;
 use crate::infra::config::settings::{
     AppSettings, DEFAULT_THEME_ID, EditorSettings, ImagePasteBehavior, StartupOpenSetting,
     StatusBarSettings, apply_configured_language, read_app_settings, save_settings_from_window,
@@ -55,20 +55,12 @@ pub(crate) struct SettingsWindow {
     font_size: u32,
     line_height: f32,
     editing_stepper: Option<String>,
-    #[allow(dead_code)]
-    recording_shortcut: Option<ShortcutCommand>,
-    #[allow(dead_code)]
-    shortcut_error: Option<String>,
     status_bar_enabled: bool,
     status_bar_show_word_count: bool,
     status_bar_show_cursor_position: bool,
-    status_bar_show_sidebar_toggle: bool,
-    status_bar_show_mode_switch: bool,
     saved_status_bar_enabled: bool,
     saved_status_bar_show_word_count: bool,
     saved_status_bar_show_cursor_position: bool,
-    saved_status_bar_show_sidebar_toggle: bool,
-    saved_status_bar_show_mode_switch: bool,
     expanded_sections: std::collections::HashSet<String>,
 }
 
@@ -119,18 +111,12 @@ impl SettingsWindow {
             font_size: 14,
             line_height: 1.6,
             editing_stepper: None,
-            recording_shortcut: None,
-            shortcut_error: None,
             status_bar_enabled: settings.status_bar.enabled,
             status_bar_show_word_count: settings.status_bar.show_word_count,
             status_bar_show_cursor_position: settings.status_bar.show_cursor_position,
-            status_bar_show_sidebar_toggle: settings.status_bar.show_sidebar_toggle,
-            status_bar_show_mode_switch: settings.status_bar.show_mode_switch,
             saved_status_bar_enabled: settings.status_bar.enabled,
             saved_status_bar_show_word_count: settings.status_bar.show_word_count,
             saved_status_bar_show_cursor_position: settings.status_bar.show_cursor_position,
-            saved_status_bar_show_sidebar_toggle: settings.status_bar.show_sidebar_toggle,
-            saved_status_bar_show_mode_switch: settings.status_bar.show_mode_switch,
             expanded_sections,
         }
     }
@@ -152,13 +138,6 @@ impl SettingsWindow {
             || self.status_bar_enabled != self.saved_status_bar_enabled
             || self.status_bar_show_word_count != self.saved_status_bar_show_word_count
             || self.status_bar_show_cursor_position != self.saved_status_bar_show_cursor_position
-            || self.status_bar_show_sidebar_toggle != self.saved_status_bar_show_sidebar_toggle
-            || self.status_bar_show_mode_switch != self.saved_status_bar_show_mode_switch
-    }
-
-    #[allow(dead_code)]
-    fn cancel(&mut self, _: &ClickEvent, window: &mut Window, _: &mut Context<Self>) {
-        window.remove_window();
     }
 
     fn on_titlebar_close(
@@ -186,9 +165,6 @@ impl SettingsWindow {
                 enabled: self.status_bar_enabled,
                 show_word_count: self.status_bar_show_word_count,
                 show_cursor_position: self.status_bar_show_cursor_position,
-                show_sidebar_toggle: self.status_bar_show_sidebar_toggle,
-                show_mode_switch: self.status_bar_show_mode_switch,
-                custom_buttons: Vec::new(),
             },
         ) {
             Ok(settings) => settings,
@@ -232,9 +208,6 @@ impl SettingsWindow {
             ed_settings.status_bar_settings.show_word_count = settings.status_bar.show_word_count;
             ed_settings.status_bar_settings.show_cursor_position =
                 settings.status_bar.show_cursor_position;
-            ed_settings.status_bar_settings.show_sidebar_toggle =
-                settings.status_bar.show_sidebar_toggle;
-            ed_settings.status_bar_settings.show_mode_switch = settings.status_bar.show_mode_switch;
         });
 
         let _strings = cx.global::<I18nManager>().strings().clone();
@@ -247,8 +220,6 @@ impl SettingsWindow {
         self.saved_status_bar_enabled = settings.status_bar.enabled;
         self.saved_status_bar_show_word_count = settings.status_bar.show_word_count;
         self.saved_status_bar_show_cursor_position = settings.status_bar.show_cursor_position;
-        self.saved_status_bar_show_sidebar_toggle = settings.status_bar.show_sidebar_toggle;
-        self.saved_status_bar_show_mode_switch = settings.status_bar.show_mode_switch;
 
         self.selected_theme_id = settings.default_theme_id;
         self.startup_open = settings.startup_open;
@@ -794,41 +765,6 @@ impl Render for SettingsWindow {
                     "Cursor Position Badge",
                     "Display line and column coordinates in status bar",
                     ctrl_sb_pos,
-                ));
-
-                let sb_side_ed = cx.entity().downgrade();
-                let ctrl_sb_side = Switch::new("win-switch-sb-side")
-                    .checked(self.status_bar_show_sidebar_toggle)
-                    .on_click(move |ev, win, cx| {
-                        let _ = sb_side_ed.update(cx, |this, cx| {
-                            this.status_bar_show_sidebar_toggle =
-                                !this.status_bar_show_sidebar_toggle;
-                            this.save(ev, win, cx);
-                        });
-                    })
-                    .into_any_element();
-
-                sec2_items.push(make_row(
-                    "Sidebar Toggle Button",
-                    "Display button to toggle file tree sidebar in status bar",
-                    ctrl_sb_side,
-                ));
-
-                let sb_mode_ed = cx.entity().downgrade();
-                let ctrl_sb_mode = Switch::new("win-switch-sb-mode")
-                    .checked(self.status_bar_show_mode_switch)
-                    .on_click(move |ev, win, cx| {
-                        let _ = sb_mode_ed.update(cx, |this, cx| {
-                            this.status_bar_show_mode_switch = !this.status_bar_show_mode_switch;
-                            this.save(ev, win, cx);
-                        });
-                    })
-                    .into_any_element();
-
-                sec2_items.push(make_row(
-                    "Mode Switch Button",
-                    "Display button to switch Edit/Preview modes in status bar",
-                    ctrl_sb_mode,
                 ));
 
                 sections.push(make_section(

@@ -19,7 +19,7 @@ use crate::tree::NodeId;
 pub struct SplitterContainer<T> {
     /// This panel's node id (unique within its root's id space).
     pub id: NodeId,
-    /// The panel type — the identity of the panel.
+    /// The panel kind — the identity of the panel.
     pub kind: T,
     /// This panel's own corner-drag session, while one of its four
     /// corners is being dragged.

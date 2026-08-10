@@ -35,7 +35,6 @@ pub fn builtin_language_catalog() -> Vec<LanguageCatalogEntry> {
 
 /// A JSON language pack with metadata and fallback-completed strings.
 #[derive(Debug, Clone, Serialize)]
-#[allow(dead_code)]
 pub struct I18nLanguagePack {
     pub id: String,
     pub name: String,
@@ -53,7 +52,6 @@ pub struct I18nLanguagePack {
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct I18nLanguagePackDe {
     id: String,
     name: Option<String>,
@@ -66,7 +64,6 @@ struct I18nLanguagePackDe {
     strings: I18nStringsDe,
 }
 
-#[allow(dead_code)]
 impl I18nLanguagePack {
     /// Parses a language pack from JSON text.
     pub fn from_json(json: &str) -> anyhow::Result<Self> {
@@ -98,7 +95,6 @@ impl I18nLanguagePack {
     }
 }
 
-#[allow(dead_code)]
 fn language_name_for_id(language_id: &str) -> Option<&'static str> {
     match language_id {
         BUILTIN_LANGUAGE_ZH_CN_ID => Some(BUILTIN_LANGUAGE_ZH_CN_NAME),

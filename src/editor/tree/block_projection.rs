@@ -1,4 +1,9 @@
 //! Inline projection engine — editable Markdown delimiters on a block.
+//!
+//! This module manages the block-side projection state: the build /
+//! clear / rebuild entry points that keep a block's projection in sync
+//! with its source. The pure projection algorithm engine itself lives in
+//! `crate::editor::editing::projection`.
 
 use std::ops::Range;
 use std::time::Instant;
@@ -278,14 +283,6 @@ impl Block {
 
     pub(crate) fn current_to_clean_offset(&self, offset: usize) -> usize {
         self.unexpand_offset(offset)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn pointer_target_offset(&self, offset: usize) -> usize {
-        self.projection
-            .as_ref()
-            .map(|projection| projection.pointer_target_offset(offset))
-            .unwrap_or(offset)
     }
 
     pub(crate) fn projected_move_left_target(

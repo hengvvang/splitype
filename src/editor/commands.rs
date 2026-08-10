@@ -1,7 +1,7 @@
 //! Window commands — save/export/quit/close, CLI tooling, view-mode
 //! switching, and dirty tracking.
 //!
-//! Action handlers wired in the window chrome (`src/windows/`) delegate to
+//! Action handlers wired in the window chrome (`src/editor/window/`) delegate to
 //! these methods. File prompts and menu state live in
 //! `crate::editor::menu_bar`.
 
@@ -170,13 +170,6 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         crate::app::cli_install::uninstall_cli_tool(cx);
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn set_view_mode(&mut self, target_mode: EditorMode, cx: &mut Context<Self>) {
-        if self.tab().mode != target_mode {
-            self.toggle_view_mode(cx);
-        }
     }
 
     pub(crate) fn toggle_view_mode(&mut self, cx: &mut Context<Self>) {

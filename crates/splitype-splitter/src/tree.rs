@@ -243,14 +243,14 @@ impl<T: Copy + PartialEq> SplitTree<T> {
 
     /// Split a leaf at a specific ratio (clamped to [0.15, 0.85]).
     ///
-    /// `next_type` is the area type assigned to the newly created sibling leaf.
+    /// `next_kind` is the area kind assigned to the newly created sibling leaf.
     pub fn split_leaf_with_ratio(
         &mut self,
         target_id: usize,
         new_id: usize,
         direction: Axis,
         ratio: f32,
-        next_type: T,
+        next_kind: T,
     ) -> bool {
         let ratio = ratio.clamp(0.15, 0.85);
         match self {
@@ -262,7 +262,7 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                         direction,
                         ratio,
                         first: Box::new(Self::Leaf(original)),
-                        second: Box::new(Self::Leaf(SplitterContainer::new(new_id, next_type))),
+                        second: Box::new(Self::Leaf(SplitterContainer::new(new_id, next_kind))),
                     };
                     true
                 } else {
@@ -270,8 +270,8 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                 }
             }
             Self::Split { first, second, .. } => {
-                first.split_leaf_with_ratio(target_id, new_id, direction, ratio, next_type)
-                    || second.split_leaf_with_ratio(target_id, new_id, direction, ratio, next_type)
+                first.split_leaf_with_ratio(target_id, new_id, direction, ratio, next_kind)
+                    || second.split_leaf_with_ratio(target_id, new_id, direction, ratio, next_kind)
             }
         }
     }

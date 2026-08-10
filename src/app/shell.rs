@@ -1,10 +1,8 @@
 //! The window shell — the OS window's root entity.
 //!
-//! Owns the window-level panel state (outer layout tree, explorer, outline,
-//! settings) and the mapping from layout areas to content entities
-//! (`AreaContent`). Renders the titlebar, split containers, and overlays;
-//! content entities (`Editor`) render their own area frame and reach back
-//! into the shell through a weak handle.
+//! Owns the mapping from layout areas to content entities (`AreaContent`)
+//! and delegates the full window rendering to its primary editor, which
+//! owns the window-level panel state and all overlays.
 
 use std::collections::HashMap;
 
@@ -12,10 +10,6 @@ use gpui::*;
 
 use crate::editor::controller::Editor;
 use crate::splitter::NodeId;
-
-/// Weak handle to the window shell, held by content entities to reach
-/// layout operations without creating a reference cycle.
-pub type WeakShell = WeakEntity<Shell>;
 
 /// The content of one area in the outer layout tree.
 pub enum AreaContent {

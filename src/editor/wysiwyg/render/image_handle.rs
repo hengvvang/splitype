@@ -1,9 +1,8 @@
 //! Rendered standalone image runtime state.
 
 use std::path::Path;
-use std::time::Instant;
 
-use crate::editor::tree::block::{Block, CollapsedCaretAffinity, ImageHandle};
+use crate::editor::tree::block::{Block, ImageHandle};
 use crate::model::block::BlockKind;
 use crate::model::syntax::image::{ImageSyntax, parse_standalone_image, resolve_image_source};
 
@@ -64,10 +63,6 @@ impl Block {
             None
         };
 
-        if next_runtime.is_none() {
-            self.image_edit_expanded = false;
-            self.image_expand_requested = false;
-        }
         if self.image_runtime == next_runtime {
             return false;
         }
@@ -85,33 +80,6 @@ impl Block {
         parse_standalone_image(&serialized)
             .is_some()
             .then_some(serialized)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn request_image_edit_expansion(&mut self) {
-        if self.image_runtime.is_some() {
-            self.image_expand_requested = true;
-        }
-    }
-
-    #[allow(dead_code)]
-    pub(super) fn consume_requested_image_edit_expansion(&mut self) -> bool {
-        if self.image_runtime.is_some() && self.image_expand_requested && !self.image_edit_expanded
-        {
-            self.image_expand_requested = false;
-            self.image_edit_expanded = true;
-            self.clear_inline_projection();
-            self.assign_collapsed_selection_offset(
-                self.visible_len(),
-                CollapsedCaretAffinity::Default,
-                None,
-            );
-            self.cursor_blink_epoch = Instant::now();
-            self.clear_vertical_motion();
-            return true;
-        }
-
-        false
     }
 
     pub(crate) fn sync_image_focus_state(&mut self, _focused: bool) -> bool {

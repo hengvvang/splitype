@@ -36,12 +36,6 @@ impl WindowAreaKind {
         &[Self::Editor, Self::Explorer, Self::Settings]
     }
 
-    /// Whether this kind is an Editor area. Host-side taxonomy: the
-    /// splitter engine stays kind-agnostic, so the application answers
-    /// this question with its own enum.
-    pub fn is_editor(self) -> bool {
-        matches!(self, Self::Editor)
-    }
 }
 
 /// The two outer states an Editor area can be in.

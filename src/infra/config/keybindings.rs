@@ -11,18 +11,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use gpui::Keystroke;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum ShortcutCategory {
-    File,
-    Edit,
-    Navigation,
-    Formatting,
-    Block,
-    Other,
-}
-
 #[repr(u32)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ShortcutCommand {
     Newline,
     DeleteBack,
@@ -77,8 +67,6 @@ pub enum ShortcutCommand {
 pub struct ShortcutDefinition {
     pub command: ShortcutCommand,
     pub id: &'static str,
-    #[allow(dead_code)]
-    pub category: ShortcutCategory,
     pub default_keys: &'static [&'static str],
     pub context: Option<&'static str>,
 }
@@ -106,105 +94,90 @@ pub const SHORTCUT_DEFINITIONS: &[ShortcutDefinition] = &[
     ShortcutDefinition {
         command: ShortcutCommand::Newline,
         id: "newline",
-        category: ShortcutCategory::Block,
         default_keys: &["enter"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::DeleteBack,
         id: "delete_back",
-        category: ShortcutCategory::Edit,
         default_keys: &["backspace"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::Delete,
         id: "delete",
-        category: ShortcutCategory::Edit,
         default_keys: &["delete"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::WordDeleteBack,
         id: "word_delete_back",
-        category: ShortcutCategory::Edit,
         default_keys: &["ctrl-backspace", "alt-backspace"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::WordDeleteForward,
         id: "word_delete_forward",
-        category: ShortcutCategory::Edit,
         default_keys: &["ctrl-delete", "alt-delete"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::FocusPrev,
         id: "focus_prev",
-        category: ShortcutCategory::Navigation,
         default_keys: &["up"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::FocusNext,
         id: "focus_next",
-        category: ShortcutCategory::Navigation,
         default_keys: &["down"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::MoveLeft,
         id: "move_left",
-        category: ShortcutCategory::Navigation,
         default_keys: &["left"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::MoveRight,
         id: "move_right",
-        category: ShortcutCategory::Navigation,
         default_keys: &["right"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::WordMoveLeft,
         id: "word_move_left",
-        category: ShortcutCategory::Navigation,
         default_keys: &["ctrl-left", "alt-left"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::WordMoveRight,
         id: "word_move_right",
-        category: ShortcutCategory::Navigation,
         default_keys: &["ctrl-right", "alt-right"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::Home,
         id: "home",
-        category: ShortcutCategory::Navigation,
         default_keys: &["home"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::End,
         id: "end",
-        category: ShortcutCategory::Navigation,
         default_keys: &["end"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::BlockUp,
         id: "block_up",
-        category: ShortcutCategory::Navigation,
         default_keys: &["ctrl-up", "alt-up"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::BlockDown,
         id: "block_down",
-        category: ShortcutCategory::Navigation,
         default_keys: &["ctrl-down", "alt-down"],
         context: BLOCK_CONTEXT,
     },
@@ -214,233 +187,196 @@ pub const SHORTCUT_DEFINITIONS: &[ShortcutDefinition] = &[
     ShortcutDefinition {
         command: ShortcutCommand::PageUp,
         id: "page_up",
-        category: ShortcutCategory::Navigation,
         default_keys: &["pageup"],
         context: None,
     },
     ShortcutDefinition {
         command: ShortcutCommand::PageDown,
         id: "page_down",
-        category: ShortcutCategory::Navigation,
         default_keys: &["pagedown"],
         context: None,
     },
     ShortcutDefinition {
         command: ShortcutCommand::JumpToTop,
         id: "jump_to_top",
-        category: ShortcutCategory::Navigation,
         default_keys: &["ctrl-home", "cmd-up"],
         context: None,
     },
     ShortcutDefinition {
         command: ShortcutCommand::JumpToBottom,
         id: "jump_to_bottom",
-        category: ShortcutCategory::Navigation,
         default_keys: &["ctrl-end", "cmd-down"],
         context: None,
     },
     ShortcutDefinition {
         command: ShortcutCommand::SelectLeft,
         id: "select_left",
-        category: ShortcutCategory::Navigation,
         default_keys: &["shift-left"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::SelectRight,
         id: "select_right",
-        category: ShortcutCategory::Navigation,
         default_keys: &["shift-right"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::WordSelectLeft,
         id: "word_select_left",
-        category: ShortcutCategory::Navigation,
         default_keys: &["ctrl-shift-left", "alt-shift-left"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::WordSelectRight,
         id: "word_select_right",
-        category: ShortcutCategory::Navigation,
         default_keys: &["ctrl-shift-right", "alt-shift-right"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::SelectHome,
         id: "select_home",
-        category: ShortcutCategory::Navigation,
         default_keys: &["shift-home"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::SelectEnd,
         id: "select_end",
-        category: ShortcutCategory::Navigation,
         default_keys: &["shift-end"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::SelectAll,
         id: SELECT_ALL_ID,
-        category: ShortcutCategory::Edit,
         default_keys: &["cmd-a", "ctrl-a"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::Copy,
         id: "copy",
-        category: ShortcutCategory::Edit,
         default_keys: &["cmd-c", "ctrl-c"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::Cut,
         id: "cut",
-        category: ShortcutCategory::Edit,
         default_keys: &["cmd-x", "ctrl-x"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::Paste,
         id: "paste",
-        category: ShortcutCategory::Edit,
         default_keys: &["cmd-v", "ctrl-v"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::Undo,
         id: "undo",
-        category: ShortcutCategory::Edit,
         default_keys: &["cmd-z", "ctrl-z"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::Redo,
         id: "redo",
-        category: ShortcutCategory::Edit,
         default_keys: &["cmd-shift-z", "ctrl-y"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::BoldSelection,
         id: "bold_selection",
-        category: ShortcutCategory::Formatting,
         default_keys: &["cmd-b", "ctrl-b"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::ItalicSelection,
         id: "italic_selection",
-        category: ShortcutCategory::Formatting,
         default_keys: &["cmd-i", "ctrl-i"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::UnderlineSelection,
         id: "underline_selection",
-        category: ShortcutCategory::Formatting,
         default_keys: &["cmd-u", "ctrl-u"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::CodeSelection,
         id: "code_selection",
-        category: ShortcutCategory::Formatting,
         default_keys: &["cmd-`", "ctrl-`"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::IndentBlock,
         id: "indent_block",
-        category: ShortcutCategory::Block,
         default_keys: &["tab"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::OutdentBlock,
         id: "outdent_block",
-        category: ShortcutCategory::Block,
         default_keys: &["shift-tab"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::ExitCodeBlock,
         id: "exit_code_block",
-        category: ShortcutCategory::Block,
         default_keys: &["cmd-enter", "ctrl-enter"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
         command: ShortcutCommand::SaveDocument,
         id: "save_document",
-        category: ShortcutCategory::File,
         default_keys: &["cmd-s", "ctrl-s"],
         context: None,
     },
     ShortcutDefinition {
         command: ShortcutCommand::SaveDocumentAs,
         id: "save_document_as",
-        category: ShortcutCategory::File,
         default_keys: &["cmd-shift-s", "ctrl-shift-s"],
         context: None,
     },
     ShortcutDefinition {
         command: ShortcutCommand::NewWindow,
         id: "new_window",
-        category: ShortcutCategory::File,
         default_keys: &["cmd-n", "ctrl-n"],
         context: None,
     },
     ShortcutDefinition {
         command: ShortcutCommand::OpenFile,
         id: "open_file",
-        category: ShortcutCategory::File,
         default_keys: &["cmd-o", "ctrl-o"],
         context: None,
     },
     ShortcutDefinition {
         command: ShortcutCommand::QuitApplication,
         id: "quit_application",
-        category: ShortcutCategory::File,
         default_keys: QUIT_APPLICATION_DEFAULT_KEYS,
         context: None,
     },
     ShortcutDefinition {
         command: ShortcutCommand::CloseWindow,
         id: "close_window",
-        category: ShortcutCategory::File,
         default_keys: CLOSE_WINDOW_DEFAULT_KEYS,
         context: None,
     },
     ShortcutDefinition {
         command: ShortcutCommand::DismissTransientUi,
         id: "dismiss_transient_ui",
-        category: ShortcutCategory::Other,
         default_keys: &["escape"],
         context: None,
     },
     ShortcutDefinition {
         command: ShortcutCommand::ToggleViewMode,
         id: "toggle_view_mode",
-        category: ShortcutCategory::Navigation,
         default_keys: &["ctrl-tab", "cmd-tab"],
         context: None,
     },
     ShortcutDefinition {
         command: ShortcutCommand::ToggleExplorer,
         id: "toggle_explorer",
-        category: ShortcutCategory::Navigation,
         default_keys: &["ctrl-w"],
         context: None,
     },
 ];
-
-#[allow(dead_code)]
-pub fn shortcut_definitions() -> &'static [ShortcutDefinition] {
-    SHORTCUT_DEFINITIONS
-}
 
 pub fn normalize_shortcut_keys(keys: &[String]) -> Option<Vec<String>> {
     let mut seen = BTreeSet::new();
@@ -556,7 +492,7 @@ pub fn normalize_shortcut_config(
         .collect()
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn resolved_shortcut_keys(
     config: &BTreeMap<String, Vec<String>>,
     command: ShortcutCommand,
@@ -572,7 +508,7 @@ pub fn resolved_shortcut_keys(
         .unwrap_or_else(|| default_keys(*definition))
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn shortcut_conflict_for(
     command: ShortcutCommand,
     proposed_keys: &[String],

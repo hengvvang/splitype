@@ -28,7 +28,7 @@ pub(crate) mod thematic_break;
 
 use gpui::*;
 
-const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
+pub(crate) const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
 
 use crate::editor::block_protocol::BlockAction;
 use crate::editor::controller::Editor;
@@ -61,9 +61,6 @@ use crate::model::syntax::math::parse_display_math_source;
 use crate::model::syntax::mermaid::parse_mermaid_fence_source;
 use crate::model::syntax::table::{TableAxisHighlight, TableAxisKind};
 
-#[allow(dead_code)]
-const TASK_CHECKMARK: &str = "\u{2713}";
-
 pub(crate) fn render_custom_bullet_marker(depth: usize, color: Hsla) -> AnyElement {
     match depth % 3 {
         0 => {
@@ -94,16 +91,6 @@ pub(crate) fn render_custom_bullet_marker(depth: usize, color: Hsla) -> AnyEleme
     }
 }
 
-/// Makes a row-axis highlight color more opaque (more solid, still translucent)
-/// for the header row, keeping the theme's hue so the header handle reads as a
-/// stronger version of the body-row handles in whatever colors the theme uses.
-#[allow(dead_code)]
-fn header_axis_emphasis(color: Hsla) -> Hsla {
-    Hsla {
-        a: color.a + (1.0 - color.a) * 0.5,
-        ..color
-    }
-}
 pub(crate) fn render_image_placeholder(
     runtime: &ImageHandle,
     width: Length,

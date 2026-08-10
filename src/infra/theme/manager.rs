@@ -9,9 +9,9 @@ use crate::infra::config::dirs::SplitypeConfigDirs;
 use crate::infra::config::jsonc::{read_json_or_jsonc, sanitize_config_file_stem};
 
 use super::theme::{
-    BUILTIN_THEME_SPLITYPE_ID, BUILTIN_THEME_SPLITYPE_LIGHT_ID, BUILTIN_THEME_SPLITYPE_LIGHT_NAME,
-    BUILTIN_THEME_SPLITYPE_NAME, CUSTOM_THEME_ID, CustomThemeEntry, Theme, ThemeCatalogEntry,
-    builtin_theme_catalog, custom_theme_from_value, custom_theme_from_value_with_default_base,
+    BUILTIN_THEME_SPLITYPE_ID, BUILTIN_THEME_SPLITYPE_LIGHT_ID, CustomThemeEntry, Theme,
+    ThemeCatalogEntry, builtin_theme_catalog, custom_theme_from_value,
+    custom_theme_from_value_with_default_base,
 };
 
 /// Global singleton that holds the current [`Theme`].
@@ -38,16 +38,18 @@ impl Default for ThemeManager {
     }
 }
 
-#[allow(unused)]
+#[cfg(test)]
 impl ThemeManager {
-    /// Installs the configured theme into GPUI's global state.
+    /// Test-only: installs the configured theme into GPUI's global state.
     pub fn init(cx: &mut App) {
         let theme_id = crate::infra::config::settings::read_app_settings()
             .map(|preferences| preferences.default_theme_id)
             .unwrap_or_else(|_| BUILTIN_THEME_SPLITYPE_ID.into());
         Self::init_with_theme_id(cx, &theme_id);
     }
+}
 
+impl ThemeManager {
     /// Installs a specific theme into GPUI's global state.
     pub fn init_with_theme_id(cx: &mut App, theme_id: &str) {
         let mut manager = Self::default();
@@ -80,28 +82,6 @@ impl ThemeManager {
     /// Returns all built-in and imported themes exposed in the native menu.
     pub fn available_themes(&self) -> &[ThemeCatalogEntry] {
         &self.theme_catalog
-    }
-
-    /// Loads and activates a theme from a file.
-    pub fn load_file(&mut self, path: impl AsRef<Path>) -> anyhow::Result<()> {
-        let theme = Theme::from_file(path)?;
-        self.current_theme_id = self.theme_id_for_loaded_theme(&theme);
-        self.current = Arc::new(theme);
-        Ok(())
-    }
-
-    /// Loads and activates a theme from JSON text.
-    pub fn load_json(&mut self, json: &str) -> anyhow::Result<()> {
-        let theme = Theme::from_json(json)?;
-        self.current_theme_id = self.theme_id_for_loaded_theme(&theme);
-        self.current = Arc::new(theme);
-        Ok(())
-    }
-
-    /// Replaces the active theme with a fully constructed value.
-    pub fn set_theme(&mut self, theme: Theme) {
-        self.current_theme_id = self.theme_id_for_loaded_theme(&theme);
-        self.current = Arc::new(theme);
     }
 
     /// Restores the built-in default theme.
@@ -217,16 +197,6 @@ impl ThemeManager {
             name: format!("{} - {}", entry.name, entry.creator),
         }));
         self.theme_catalog = catalog;
-    }
-
-    fn theme_id_for_loaded_theme(&self, theme: &Theme) -> String {
-        if theme.name == BUILTIN_THEME_SPLITYPE_NAME {
-            BUILTIN_THEME_SPLITYPE_ID.into()
-        } else if theme.name == BUILTIN_THEME_SPLITYPE_LIGHT_NAME {
-            BUILTIN_THEME_SPLITYPE_LIGHT_ID.into()
-        } else {
-            CUSTOM_THEME_ID.into()
-        }
     }
 
     fn theme_import_base_theme_id(&self) -> String {

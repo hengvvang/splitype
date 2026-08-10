@@ -487,11 +487,6 @@ impl RichText {
         self.toggle_style(range, StyleFlag::Underline)
     }
 
-    #[allow(dead_code)]
-    pub fn toggle_strikethrough(&mut self, range: Range<usize>) -> bool {
-        self.toggle_style(range, StyleFlag::Strikethrough)
-    }
-
     pub fn toggle_code(&mut self, range: Range<usize>) -> bool {
         self.toggle_style(range, StyleFlag::Code)
     }
@@ -507,21 +502,6 @@ impl RichText {
             }
         }
         self.normalize_fragments();
-    }
-
-    #[allow(dead_code)]
-    pub fn replace_visible_range(
-        &self,
-        range: Range<usize>,
-        new_text: &str,
-        inserted_attributes: InlineInsertionAttributes,
-    ) -> InlineEditResult {
-        self.replace_visible_range_with_link_references(
-            range,
-            new_text,
-            inserted_attributes,
-            &LinkReferenceDefinitions::default(),
-        )
     }
 
     pub fn replace_visible_range_with_link_references(
@@ -590,11 +570,6 @@ impl RichText {
     /// delimiter sequences (`**`, `*`, `<u>`, etc.), removes them, and
     /// applies the corresponding [`InlineStyle`] to the text between
     /// matching pairs.  Unmatched delimiters are emitted as literal text.
-    #[allow(dead_code)]
-    pub fn normalize_inline_syntax(&self) -> InlineEditResult {
-        self.normalize_inline_syntax_with_link_references(&LinkReferenceDefinitions::default())
-    }
-
     pub fn normalize_inline_syntax_with_link_references(
         &self,
         reference_definitions: &LinkReferenceDefinitions,

@@ -6,24 +6,7 @@ use std::str::FromStr;
 
 use gpui::{SharedUri, http_client::Uri};
 
-/// Active fenced code block while scanning for image reference definitions.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct FenceInfo {
-    ch: char,
-    len: usize,
-}
-
-/// HTML block start that suppresses reference-definition scanning.
-enum HtmlBlockStart {
-    /// HTML comment beginning with `<!--`.
-    Comment,
-    /// HTML tag block whose closing behavior depends on the tag.
-    Tag {
-        name: String,
-        self_closing: bool,
-        closes_same_line: bool,
-    },
-}
+use crate::syntax::html::{FenceInfo, HtmlBlockStart};
 
 /// Parsed standalone image expression.
 #[derive(Clone, Debug, PartialEq, Eq)]

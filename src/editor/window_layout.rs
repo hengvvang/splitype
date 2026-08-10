@@ -32,10 +32,6 @@ use super::controller::*;
 /// Every `WindowAreaKind` owns its own copies of the top-bar icons
 /// (decoupling — see `assets/icons/README.md`), so a button's asset
 /// path depends on the kind of the area it renders in.
-///
-/// NOTE: the on-disk icon directories are still named `titlebar/` /
-/// `statusbar/`; they move to `topbar/` / `bottombar/` in the asset
-/// rename pass that follows this refactor.
 pub(crate) fn area_topbar_icon(kind: WindowAreaKind, name: &str) -> SharedString {
     let dir = match kind {
         WindowAreaKind::Explorer => "explorer",
@@ -610,7 +606,7 @@ impl Editor {
     pub(crate) fn render_area_type_dropdown_menu(
         &mut self,
         leaf_id: usize,
-        current_type: crate::app::window_area::WindowAreaKind,
+        current_kind: crate::app::window_area::WindowAreaKind,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -619,7 +615,7 @@ impl Editor {
         let t = &theme.typography;
         let editor = cx.entity().downgrade();
 
-        let available_types = WindowAreaKind::all();
+        let available_kinds = WindowAreaKind::all();
 
         menu_panel(c, d)
             .id(("area-dropdown-overlay", leaf_id))
@@ -628,9 +624,9 @@ impl Editor {
             .top(px(28.0))
             .left(px(8.0))
             .w(px(d.menu_panel_width))
-            .children(available_types.iter().enumerate().map(|(idx, kind)| {
+            .children(available_kinds.iter().enumerate().map(|(idx, kind)| {
                 let kind = *kind;
-                let is_current = kind == current_type;
+                let is_current = kind == current_kind;
                 let option_editor = editor.clone();
                 menu_item(("area-type-opt", idx), c, d)
                     .w_full()
@@ -646,7 +642,7 @@ impl Editor {
                     .child(kind.name())
                     .child(if is_current {
                         svg()
-                            .path(area_topbar_icon(current_type, "check"))
+                            .path(area_topbar_icon(current_kind, "check"))
                             .size(px(13.0))
                             .text_color(c.dialog_primary_button_bg)
                             .into_any_element()

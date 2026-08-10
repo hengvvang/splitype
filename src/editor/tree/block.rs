@@ -17,9 +17,10 @@ use crate::editor::render::mermaid_render::MermaidSvgRender;
 use crate::editor::tree::block_edit_mode::BlockEditMode;
 use crate::editor::tree::footnotes::FootnoteMap;
 use crate::model::block::{BlockData, BlockId, BlockKind, CalloutKind};
+#[cfg(test)]
 use crate::model::inline::footnote::InlineFootnoteHit;
-use crate::model::inline::link::InlineLinkHit;
 use crate::model::inline::render_cache::{InlineRenderCache, InlineSpan};
+#[cfg(test)]
 use crate::model::inline::style::InlineStyle;
 use crate::model::inline::text::RichText;
 use crate::model::syntax::image::ImageReferenceDefinitions;
@@ -147,8 +148,6 @@ pub struct Block {
     /// Which column is being hovered (for Anytype-style handle visibility).
     pub(crate) table_hovered_column: Option<usize>,
     pub(crate) image_runtime: Option<ImageHandle>,
-    pub(crate) image_edit_expanded: bool,
-    pub(crate) image_expand_requested: bool,
     pub(crate) html_details_open: bool,
     pub(crate) image_base_dir: Option<PathBuf>,
     pub(crate) image_reference_definitions: Arc<ImageReferenceDefinitions>,
@@ -236,8 +235,6 @@ impl Block {
             table_hovered_row: None,
             table_hovered_column: None,
             image_runtime: None,
-            image_edit_expanded: false,
-            image_expand_requested: false,
             html_details_open: false,
             image_base_dir: None,
             image_reference_definitions: Arc::default(),
@@ -349,12 +346,12 @@ impl Block {
         self.current_cache().spans()
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn inline_style_at(&self, offset: usize) -> InlineStyle {
         self.current_cache().style_at(offset)
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn inline_html_style_at(
         &self,
         offset: usize,
@@ -362,27 +359,14 @@ impl Block {
         self.current_cache().html_style_at(offset)
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn inline_link_at(&self, offset: usize) -> Option<&str> {
         self.current_cache().link_at(offset)
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn inline_link_hit_at(&self, offset: usize) -> Option<&InlineLinkHit> {
-        self.current_cache().link_hit_at(offset)
-    }
-
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn inline_footnote_hit_at(&self, offset: usize) -> Option<&InlineFootnoteHit> {
         self.current_cache().footnote_hit_at(offset)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn inline_math_at(
-        &self,
-        offset: usize,
-    ) -> Option<&crate::model::inline::latex::InlineLatex> {
-        self.current_cache().inline_math_at(offset)
     }
 
     pub(crate) fn has_mixed_inline_visuals(&self) -> bool {

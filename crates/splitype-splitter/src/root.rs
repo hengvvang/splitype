@@ -144,9 +144,9 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     /// Swap the kind of leaf `a` and leaf `b`. Both leaves leave the
     /// activation history (same rule as [`Self::set_kind`]).
     pub fn swap_kinds(&mut self, a: usize, b: usize) {
-        let type_a = self.tree.find_leaf_kind(a);
-        let type_b = self.tree.find_leaf_kind(b);
-        if let (Some(ta), Some(tb)) = (type_a, type_b) {
+        let kind_a = self.tree.find_leaf_kind(a);
+        let kind_b = self.tree.find_leaf_kind(b);
+        if let (Some(ta), Some(tb)) = (kind_a, kind_b) {
             self.tree.set_leaf_kind(a, tb);
             self.tree.set_leaf_kind(b, ta);
             self.retire_area(a);

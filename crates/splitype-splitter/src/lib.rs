@@ -23,8 +23,8 @@ pub mod root;
 pub mod sessions;
 pub mod tree;
 
-pub use container::*;
-pub use policy::*;
-pub use root::*;
-pub use sessions::*;
-pub use tree::*;
+pub use container::SplitterContainer;
+pub use policy::{ClonedContainer, DragPolicy};
+pub use root::SplitterRoot;
+pub use sessions::{BorderMenuState, CornerDragModifier};
+pub use tree::{Axis, NodeId, SplitTree};

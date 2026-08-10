@@ -59,15 +59,6 @@ impl Editor {
         self.clear_inner_panel_focus(area_id);
     }
 
-    /// Join `removed` into `into`, cleaning up the removed area's session.
-    pub fn join_window_area(&mut self, into: NodeId, removed: NodeId) -> bool {
-        let ok = self.panels.layout.join_leaves(into, removed);
-        if ok {
-            self.editor_sessions.remove(&removed);
-            self.clear_inner_panel_focus(removed);
-        }
-        ok
-    }
 
     /// Swap the area kind of area `a` and area `b`. Editor sessions move
     /// along with the Editor kind so the new Editor area inherits the
@@ -271,19 +262,6 @@ impl Editor {
         session.root.split_leaf(panel_id, direction, ratio);
     }
 
-    /// Join an inner panel into another within the same inner tree.
-    pub fn join_editor_inner_panel(
-        &mut self,
-        area_id: NodeId,
-        into: NodeId,
-        removed: NodeId,
-    ) -> bool {
-        if let Some(session) = self.editor_sessions.get_mut(&area_id) {
-            session.root.join_leaves(into, removed)
-        } else {
-            false
-        }
-    }
 
     /// Swap area types between two inner panels.
     pub fn swap_editor_inner_panel_kinds(&mut self, area_id: NodeId, a: NodeId, b: NodeId) {

@@ -12,8 +12,6 @@ use crate::editor::tree::block::Block;
 use crate::infra::theme::{ThemeColors, ThemeManager};
 use crate::model::syntax::html::html_css_color_to_hsla;
 
-const SOURCE_LINE_NUMBER_GAP: f32 = 12.0;
-
 fn build_text_runs(
     input: &Block,
     display_text: &SharedString,

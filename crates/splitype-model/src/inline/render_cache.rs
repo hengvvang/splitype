@@ -87,7 +87,6 @@ impl InlineRenderCache {
             .unwrap_or_default()
     }
 
-    #[allow(dead_code)]
     pub fn html_style_at(&self, offset: usize) -> Option<HtmlInlineStyle> {
         self.spans
             .iter()
@@ -95,19 +94,14 @@ impl InlineRenderCache {
             .and_then(|span| span.html_style)
     }
 
-    #[allow(dead_code)]
     pub fn link_at(&self, offset: usize) -> Option<&str> {
-        self.link_hit_at(offset).map(|hit| hit.open_target.as_str())
-    }
-
-    pub fn link_hit_at(&self, offset: usize) -> Option<&crate::inline::link::InlineLinkHit> {
         self.spans
             .iter()
             .find(|span| span.range.start <= offset && offset < span.range.end)
             .and_then(|span| span.link.as_ref())
+            .map(|hit| hit.open_target.as_str())
     }
 
-    #[allow(dead_code)]
     pub fn footnote_hit_at(
         &self,
         offset: usize,
@@ -116,13 +110,5 @@ impl InlineRenderCache {
             .iter()
             .find(|span| span.range.start <= offset && offset < span.range.end)
             .and_then(|span| span.footnote.as_ref())
-    }
-
-    #[allow(dead_code)]
-    pub fn inline_math_at(&self, offset: usize) -> Option<&InlineLatex> {
-        self.spans
-            .iter()
-            .find(|span| span.range.start <= offset && offset < span.range.end)
-            .and_then(|span| span.math.as_ref())
     }
 }

@@ -385,4 +385,3 @@ impl Editor {
             .filter(|block| block.read(cx).kind() == BlockKind::Table)
     }
 }
-impl Editor {}

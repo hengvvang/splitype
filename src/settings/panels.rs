@@ -564,46 +564,6 @@ impl Editor {
                         theme,
                         inner_border_color,
                     ));
-
-                    let sub4_ed = cx.entity().downgrade();
-                    let ctrl_sb_sidebar = Switch::new("switch-sb-sidebar")
-                        .checked(self.panels.settings.pref_show_sidebar_toggle)
-                        .on_click(move |_ev, _win, cx| {
-                            let _ = sub4_ed.update(cx, |ed, cx| {
-                                ed.panels.settings.pref_show_sidebar_toggle =
-                                    !ed.panels.settings.pref_show_sidebar_toggle;
-                                cx.notify();
-                            });
-                        })
-                        .into_any_element();
-
-                    sec2_items.push(make_row(
-                        "Sidebar Toggle Button",
-                        "Display button to toggle file tree sidebar in status bar",
-                        ctrl_sb_sidebar,
-                        theme,
-                        inner_border_color,
-                    ));
-
-                    let sub5_ed = cx.entity().downgrade();
-                    let ctrl_sb_mode = Switch::new("switch-sb-mode")
-                        .checked(self.panels.settings.pref_show_mode_switch)
-                        .on_click(move |_ev, _win, cx| {
-                            let _ = sub5_ed.update(cx, |ed, cx| {
-                                ed.panels.settings.pref_show_mode_switch =
-                                    !ed.panels.settings.pref_show_mode_switch;
-                                cx.notify();
-                            });
-                        })
-                        .into_any_element();
-
-                    sec2_items.push(make_row(
-                        "Mode Switch Button",
-                        "Display button to switch Edit/Preview modes in status bar",
-                        ctrl_sb_mode,
-                        theme,
-                        inner_border_color,
-                    ));
                 }
 
                 let sec2_ed = cx.entity().downgrade();

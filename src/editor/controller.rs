@@ -5,7 +5,7 @@
 //! [`Document`], which centralizes structural mutations and cached visible
 //! order metadata. State is grouped into cohesive sub-records (`file`,
 //! `focus`, `undo`, `scroll`, `tables`, `preview`, `references`, `menu_bar`,
-//! `bottombar_state`, overlays) plus the panel state defined in
+//! `overlays`) plus the panel state defined in
 //! `super::session_ops` / `super::explorer`.
 
 pub(crate) use std::time::{Duration, Instant};
@@ -20,7 +20,6 @@ pub(crate) use crate::app::window_area::DEFAULT_EDITOR_AREA_ID;
 pub(crate) use crate::app::window_area::EditorAreaMode;
 pub(crate) use crate::app::window_area::WindowAreaKind;
 pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
-pub(crate) use crate::editor::bottombar::state::BottombarState;
 pub(crate) use crate::editor::menu_bar::MenuBarState;
 pub(crate) use crate::editor::session::{
     EditingPanelKind, EditorInnerPanelKind, EditorSession, EditorTabList, InnerPanelLocation,
@@ -209,8 +208,6 @@ pub struct Editor {
     /// and cleared by window-level entry points, which then resolve to the
     /// active editor.
     pub(crate) current_tab_area: Option<NodeId>,
-    /// Hover state for the editor window's bottom bar.
-    pub(crate) bottombar_state: BottombarState,
     /// Open/hover state for the in-window titlebar menu bar.
     pub(crate) menu_bar: MenuBarState,
     /// Rendered-mode context menu currently open in the editor.
@@ -227,8 +224,6 @@ pub struct Editor {
     /// closures) every frame, so the timestamp must live in editor state
     /// rather than in a click-handler closure.
     pub(crate) welcome_last_click: Option<Instant>,
-    /// Weak handle to the owning window shell (set at construction).
-    pub(crate) shell: Option<crate::app::shell::WeakShell>,
     /// Window-level panel state (outer layout, explorer, outline, settings).
     /// Owned here for now; the Shell entity delegates rendering to this
     /// editor and reads this state incrementally.
@@ -395,18 +390,9 @@ impl Editor {
     /// before any file is opened or an Untitled tab is started. The default
     /// layout seeds a left Explorer area and a right Editor area with an
     /// empty tab bar.
-    pub fn empty(cx: &mut Context<Self>) -> Self {
-        Self::empty_in_shell(None, cx)
-    }
-
-    /// Creates an editor with no document tabs, bound to a window shell.
-    pub(crate) fn empty_in_shell(
-        shell: Option<crate::app::shell::WeakShell>,
-        _cx: &mut Context<Self>,
-    ) -> Self {
+    pub(crate) fn empty(_cx: &mut Context<Self>) -> Self {
         let this = Self {
             current_tab_area: None,
-            bottombar_state: BottombarState::default(),
             menu_bar: MenuBarState::default(),
             context_menu: None,
             context_menu_submenu_close_task: None,
@@ -414,7 +400,6 @@ impl Editor {
             info_dialog: None,
             update_check_in_progress: false,
             welcome_last_click: None,
-            shell,
             panels: WindowPanels::default(),
             editor_sessions: HashMap::new(),
             focused_editor_inner_panel: None,
@@ -441,20 +426,9 @@ impl Editor {
         markdown: String,
         file_path: Option<PathBuf>,
     ) -> Self {
-        Self::from_markdown_in_shell(None, cx, markdown, file_path)
-    }
-
-    /// Creates an editor from markdown, bound to a window shell.
-    pub(crate) fn from_markdown_in_shell(
-        shell: Option<crate::app::shell::WeakShell>,
-        cx: &mut Context<Self>,
-        markdown: String,
-        file_path: Option<PathBuf>,
-    ) -> Self {
         let tab = Self::new_tab_from_markdown(cx, markdown, file_path);
         let mut editor = Self {
             current_tab_area: None,
-            bottombar_state: BottombarState::default(),
             menu_bar: MenuBarState::default(),
             context_menu: None,
             context_menu_submenu_close_task: None,
@@ -462,7 +436,6 @@ impl Editor {
             info_dialog: None,
             update_check_in_progress: false,
             welcome_last_click: None,
-            shell,
             panels: WindowPanels::default(),
             editor_sessions: HashMap::new(),
             focused_editor_inner_panel: None,

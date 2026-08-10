@@ -17,7 +17,6 @@ pub(crate) struct MenuBarState {
     pub(crate) expanded: bool,
     /// Open child submenu inside the in-window fallback menu panel.
     pub(crate) submenu_open: Option<usize>,
-    pub(crate) bar_hovered: bool,
     pub(crate) panel_hovered: bool,
     pub(crate) submenu_panel_hovered: bool,
     /// Hover state for the invisible bridge spanning the gap between the menu
@@ -36,16 +35,6 @@ impl Editor {
             self.menu_bar.submenu_open = None;
         }
         cx.notify();
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn on_menu_bar_hover(
-        &mut self,
-        hovered: &bool,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.set_menu_bar_hovered(*hovered, cx);
     }
 
     pub(crate) fn on_menu_panel_hover(
@@ -140,8 +129,7 @@ impl Editor {
                     .await;
                 let _ = weak_editor.update(cx, |editor, cx| {
                     editor.menu_bar.close_task = None;
-                    if !editor.menu_bar.bar_hovered
-                        && !editor.menu_bar.panel_hovered
+                    if !editor.menu_bar.panel_hovered
                         && !editor.menu_bar.submenu_panel_hovered
                         && !editor.menu_bar.submenu_bridge_hovered
                     {
@@ -152,24 +140,11 @@ impl Editor {
         ));
     }
 
-    pub(crate) fn set_menu_bar_hovered(&mut self, hovered: bool, cx: &mut Context<Self>) {
-        self.menu_bar.bar_hovered = hovered;
-        if hovered {
-            self.menu_bar.close_task = None;
-        } else if !self.menu_bar.panel_hovered
-            && !self.menu_bar.submenu_panel_hovered
-            && !self.menu_bar.submenu_bridge_hovered
-        {
-            self.schedule_menu_bar_close(cx);
-        }
-    }
-
     pub(crate) fn set_menu_panel_hovered(&mut self, hovered: bool, cx: &mut Context<Self>) {
         self.menu_bar.panel_hovered = hovered;
         if hovered {
             self.menu_bar.close_task = None;
-        } else if !self.menu_bar.bar_hovered
-            && !self.menu_bar.submenu_panel_hovered
+        } else if !self.menu_bar.submenu_panel_hovered
             && !self.menu_bar.submenu_bridge_hovered
         {
             self.schedule_menu_bar_close(cx);
@@ -180,8 +155,7 @@ impl Editor {
         self.menu_bar.submenu_panel_hovered = hovered;
         if hovered {
             self.menu_bar.close_task = None;
-        } else if !self.menu_bar.bar_hovered
-            && !self.menu_bar.panel_hovered
+        } else if !self.menu_bar.panel_hovered
             && !self.menu_bar.submenu_bridge_hovered
         {
             self.schedule_menu_bar_close(cx);
@@ -201,8 +175,7 @@ impl Editor {
         self.menu_bar.submenu_bridge_hovered = hovered;
         if hovered {
             self.menu_bar.close_task = None;
-        } else if !self.menu_bar.bar_hovered
-            && !self.menu_bar.panel_hovered
+        } else if !self.menu_bar.panel_hovered
             && !self.menu_bar.submenu_panel_hovered
         {
             self.schedule_menu_bar_close(cx);
@@ -251,12 +224,10 @@ impl Editor {
     pub(crate) fn close_menu_bar(&mut self, cx: &mut Context<Self>) {
         let had_open_menu = self.menu_bar.open.take().is_some();
         let had_open_submenu = self.menu_bar.submenu_open.take().is_some();
-        let had_hover_state = self.menu_bar.bar_hovered
-            || self.menu_bar.panel_hovered
+        let had_hover_state = self.menu_bar.panel_hovered
             || self.menu_bar.submenu_panel_hovered
             || self.menu_bar.submenu_bridge_hovered;
         let had_pending_close = self.menu_bar.close_task.take().is_some();
-        self.menu_bar.bar_hovered = false;
         self.menu_bar.panel_hovered = false;
         self.menu_bar.submenu_panel_hovered = false;
         self.menu_bar.submenu_bridge_hovered = false;

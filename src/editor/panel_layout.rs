@@ -113,7 +113,7 @@ impl Editor {
                     .is_some_and(|p| p.open_dropdown)
             });
             if let Some(panel_id) = open_panel {
-                let current_type = root
+                let current_kind = root
                     .tree
                     .find_leaf_kind(panel_id)
                     .unwrap_or(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(
@@ -122,7 +122,7 @@ impl Editor {
                 Some(self.render_editor_inner_panel_dropdown_menu(
                     area_id,
                     panel_id,
-                    current_type,
+                    current_kind,
                     theme,
                     cx,
                 ))
@@ -891,7 +891,7 @@ impl Editor {
         let t = &theme.typography;
         let editor = cx.entity().downgrade();
 
-        let available_types = EditingPanelKind::all();
+        let available_kinds = EditingPanelKind::all();
 
         menu_panel(c, d)
             .id(("inner-area-dropdown-overlay", panel_id))
@@ -903,7 +903,7 @@ impl Editor {
             // the window bottom edge.
             .bottom(px(0.0))
             .w(px(d.menu_panel_width))
-            .children(available_types.iter().enumerate().map(|(idx, kind)| {
+            .children(available_kinds.iter().enumerate().map(|(idx, kind)| {
                 let kind = *kind;
                 let is_current = kind == current_kind.editing_kind();
                 let option_editor = editor.clone();

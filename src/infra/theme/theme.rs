@@ -1,7 +1,5 @@
 //! Theme struct and trait definitions.
 
-use std::path::Path;
-
 use anyhow::{Context as _, bail};
 use gpui::{Hsla, hsla, rgba};
 use serde::{Deserialize, Serialize};
@@ -404,17 +402,13 @@ impl Theme {
     }
 
     /// Parses a theme from JSON text.
+    #[cfg(test)]
     pub fn from_json(json: &str) -> anyhow::Result<Self> {
         Ok(serde_json::from_str(json)?)
     }
 
-    /// Loads a theme from a JSON file on disk.
-    pub fn from_file(path: impl AsRef<Path>) -> anyhow::Result<Self> {
-        let json = std::fs::read_to_string(path)?;
-        Self::from_json(&json)
-    }
-
     /// Serializes the theme into pretty-printed JSON.
+    #[cfg(test)]
     pub fn to_json(&self) -> anyhow::Result<String> {
         Ok(serde_json::to_string_pretty(self)?)
     }

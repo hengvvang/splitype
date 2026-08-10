@@ -7,8 +7,7 @@ bar.
 
 ## Overview
 
-The window is divided into **areas** (`window_area_tree`), each with a kind
-(`Explorer`, `Settings`, `Editor`). An `Editor` area owns an **editor
+The window is divided into **areas** (`WindowAreaKind`: `Explorer`, `Settings`, `Editor`). An `Editor` area owns an **editor
 session** — its own tab list *and* its own inner panel split tree. This is
 deliberate: every editor area is independent (separate tabs, separate panel
 layout), and explorer file opens target the **active editor** only.
@@ -19,12 +18,12 @@ area — the panel layout controls *structure*, the active tab controls
 
 | Concern | Owner |
 | --- | --- |
-| Window area layout | `WindowLayout.window_area_tree` |
-| Per-area tabs + panel tree | `WindowLayout.editor_sessions` |
-| Panel arrangement | `EditorSession.inner_panel_tree` (split tree) |
+| Window area layout | `Editor.panels.layout` (`SplitterRoot<WindowAreaKind>`) |
+| Per-area tabs + panel tree | `Editor.editor_sessions` (`HashMap<AreaId, EditorSession>`) |
+| Panel arrangement | `EditorSession.root` (split tree) |
 | Data source | The area's active tab (`EditorSession.tab_list`) |
-| Explorer file target | `WindowLayout.active_editor_area` (foreground only) |
-| Status-bar action target | `WindowLayout.focused_editor_inner_panel` |
+| Explorer file target | `panels.layout.active_area` (foreground only) |
+| Status-bar action target | `Editor.focused_editor_inner_panel` |
 
 ## Data Model
 
@@ -56,8 +55,8 @@ enum SplitTree<T> {
 focused_editor_inner_panel: Option<InnerPanelLocation>   // { area_id, panel_id }
 ```
 
-The layout lives in `WindowLayout`, so it survives tab switches — switching
-tabs only changes which document every panel of that area renders.
+The layout lives in `Editor.panels.layout`, so it survives tab switches —
+switching tabs only changes which document every panel of that area renders.
 
 ## Panel Kinds and Mode Transitions
 
@@ -133,13 +132,15 @@ before any document is opened.
   back to `Editor` restores the tabs and the panel layout. Empty sessions
   are dropped (`change_window_area_kind`).
 - The **active editor** is the last focused *foreground* editor
-  (`active_editor_area` + `editor_activation_history`). `is_foreground_editor`
+  (`panels.layout.active_area` + `activation_history`). `is_foreground_editor`
   is the only consumer of the foreground/background distinction; explorer
   file opens target the active editor and are ignored when no foreground
   editor exists — they never land in a background (retained) session.
 - `EditorAreaMode` (`Welcome`/`Editing`) remains the area-level query for
-  renderers and the status bar; the panel kinds encode the same fact
-  per-panel.
+  renderers and the status bar; the panel kinds (`EditorInnerPanelKind`)
+  encode the same fact per-panel. The two are distinct concepts that share
+  the Welcome/Editing vocabulary: the area mode is derived from whether the
+  session holds tabs, the panel kinds are the tree's real state.
 
 ## Focus Design
 
@@ -185,8 +186,10 @@ Explorer opens a file                → targets the active (foreground) editor;
 
 | Concern | File |
 | --- | --- |
-| Layout state (areas, sessions, focus, drag sessions) | `src/layout/state.rs` |
-| Split tree operations | `src/layout/tree.rs` |
-| Panel kinds and mode types | `src/layout/types.rs` |
-| Inner panel rendering | `src/editor/panels/layout/mod.rs` |
-| Status-bar buttons and focus display | `src/windows/editor/status_bar.rs` |
+| Window layout state (`WindowPanels`, sessions, focus, drag sessions) | `src/editor/controller.rs`, `src/app/window_area.rs` |
+| Split tree operations | `crates/splitype-splitter/src/` (`tree.rs`, `root.rs`, `sessions.rs`, `policy.rs`, `interaction.rs`) |
+| Session operations (split/join/kind changes) | `src/editor/session_ops.rs` |
+| Panel kinds and mode types | `src/editor/session.rs` |
+| Inner panel rendering | `src/editor/panel_layout.rs` |
+| Window-level tiled rendering | `src/editor/window_layout.rs` |
+| Status-bar buttons and focus display | `src/editor/bottombar/mod.rs` |

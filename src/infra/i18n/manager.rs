@@ -29,8 +29,8 @@ impl Default for I18nManager {
 }
 
 impl I18nManager {
-    /// Installs the configured UI language into GPUI's global state.
-    #[allow(dead_code)]
+    /// Test-only: installs the configured UI language into GPUI's global state.
+    #[cfg(test)]
     pub fn init(cx: &mut App) {
         let language_id = crate::infra::config::settings::read_app_settings()
             .map(|settings| settings.default_language_id)

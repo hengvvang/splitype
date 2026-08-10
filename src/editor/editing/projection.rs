@@ -608,39 +608,6 @@ impl ExpandedInlineProjection {
         })
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn pointer_target_offset(&self, offset: usize) -> usize {
-        for segment in &self.segments {
-            match segment.kind {
-                ExpandedInlineSegmentKind::OpeningDelimiter(_)
-                    if offset >= segment.display_range.start
-                        && offset <= segment.display_range.end =>
-                {
-                    return segment.display_range.end;
-                }
-                ExpandedInlineSegmentKind::ClosingDelimiter(_)
-                    if offset >= segment.display_range.start
-                        && offset <= segment.display_range.end =>
-                {
-                    return segment.display_range.start;
-                }
-                ExpandedInlineSegmentKind::MiddleDelimiter(ExpandedInlineKind::Link)
-                    if offset >= segment.display_range.start
-                        && offset <= segment.display_range.end =>
-                {
-                    if let Some(link_group) = segment.link_group
-                        && let Some(run) = self.link_runs.get(link_group)
-                    {
-                        return run.target_display_range.start;
-                    }
-                    return segment.display_range.end;
-                }
-                _ => {}
-            }
-        }
-        offset
-    }
-
     pub(crate) fn collapsed_affinity_for_display_offset(
         &self,
         offset: usize,

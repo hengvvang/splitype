@@ -11,8 +11,6 @@ use crate::model::syntax::html::{
 };
 use crate::model::syntax::image::resolve_image_source;
 
-#[allow(dead_code)]
-const TASK_CHECKMARK: &str = "\u{2713}";
 fn html_children_text(node: &HtmlNode) -> String {
     if node.children.is_empty() {
         return node.raw_source.clone();

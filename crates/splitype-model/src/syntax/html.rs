@@ -13,6 +13,25 @@ use cssparser::color::{parse_hash_color, parse_named_color};
 #[cfg(feature = "html-native")]
 use tree_sitter::Parser;
 
+/// Active fenced code block while scanning for image/link reference definitions.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct FenceInfo {
+    pub(crate) ch: char,
+    pub(crate) len: usize,
+}
+
+/// HTML block start that suppresses reference-definition scanning.
+pub(crate) enum HtmlBlockStart {
+    /// HTML comment beginning with `<!--`.
+    Comment,
+    /// HTML tag block whose closing behavior depends on the tag.
+    Tag {
+        name: String,
+        self_closing: bool,
+        closes_same_line: bool,
+    },
+}
+
 /// Safety classification for an HTML fragment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HtmlSafetyClass {

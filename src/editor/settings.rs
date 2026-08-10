@@ -34,12 +34,9 @@ impl SettingsTab {
 pub struct SettingsUiState {
     pub tab: SettingsTab,
     pub expanded_sections: HashSet<String>,
-    pub expanded_cards: HashSet<String>,
     pub pref_show_status_bar: bool,
     pub pref_show_word_count: bool,
     pub pref_show_cursor_pos: bool,
-    pub pref_show_sidebar_toggle: bool,
-    pub pref_show_mode_switch: bool,
     pub pref_show_table_headers: bool,
     pub pref_font_size: u32,
     pub pref_line_height: f32,
@@ -68,19 +65,12 @@ impl SettingsUiState {
         sections.insert("doc_actions".to_string());
         sections.insert("view_controls".to_string());
 
-        let mut cards = HashSet::new();
-        cards.insert("status_bar".to_string());
-        cards.insert("markdown_options".to_string());
-
         Self {
             tab: SettingsTab::Interface,
             expanded_sections: sections,
-            expanded_cards: cards,
             pref_show_status_bar: true,
             pref_show_word_count: true,
             pref_show_cursor_pos: true,
-            pref_show_sidebar_toggle: true,
-            pref_show_mode_switch: true,
             pref_show_table_headers: true,
             pref_font_size: 14,
             pref_line_height: 1.6,
@@ -96,15 +86,6 @@ impl SettingsUiState {
             self.expanded_sections.remove(section_key);
         } else {
             self.expanded_sections.insert(section_key.to_string());
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn toggle_card(&mut self, card_key: &str) {
-        if self.expanded_cards.contains(card_key) {
-            self.expanded_cards.remove(card_key);
-        } else {
-            self.expanded_cards.insert(card_key.to_string());
         }
     }
 }

@@ -64,7 +64,7 @@ directory.**
   references it as `svg().path("icons/...")`.
 - **Dynamic paths:** area top bar icons (`icons/{area}/topbar/{name}.svg`)
   are referenced through `area_topbar_icon(kind, name)` in
-  `src/windows/layout/mod.rs`, not as string literals. When renaming or
+  `src/editor/window_layout.rs`, not as string literals. When renaming or
   deleting files in the three `topbar/` directories, search for the `name`
   argument (e.g. `"check"`, `"split-h"`) instead of the full path.
 
@@ -79,7 +79,7 @@ alpha masks and tints them with the active theme via `text_color(...)`, so
 embedded sizes, viewBoxes and fill colors do not matter.
 
 File-type icons (`explorer/worktree/file_type_*.svg`) are selected by the
-`file_type_icon` extension map in `src/windows/explorer/state.rs`:
+`file_type_icon` extension map in `src/editor/explorer/state.rs`:
 markdown, pdf, code, music, image, txt, default.
 
 ### Pinned exceptions (not author-supplied)

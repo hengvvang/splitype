@@ -49,14 +49,6 @@ pub struct WorktreeSnapshot {
     inode_to_id: HashMap<u64, u64>,
 }
 
-impl WorktreeSnapshot {
-    /// Whether the snapshot contains the given stable id.
-    #[allow(dead_code)] // selection-preservation checks during rescans
-    pub fn contains_id(&self, id: u64) -> bool {
-        self.path_for_id.contains_key(&id)
-    }
-}
-
 // ── Events ──────────────────────────────────────────────────────────────
 
 #[derive(Clone, Debug)]
@@ -131,12 +123,6 @@ impl Worktree {
         }
         self.hide_hidden = hide_hidden;
         self.rescan(cx);
-    }
-
-    /// Whether the initial scan has produced a non-empty snapshot.
-    #[allow(dead_code)] // may feed a scan-status indicator later
-    pub fn is_scanned(&self) -> bool {
-        !self.snapshot.entries_by_path.is_empty()
     }
 
     /// Request a full background rescan. While one is in flight, further
@@ -214,7 +200,6 @@ impl Worktree {
                 eprintln!("[explorer] failed to watch '{}': {err}", root.display());
                 return;
             }
-            eprintln!("[explorer] fs watcher started for '{}'", root.display());
             while rx.next().await.is_some() {
                 let _ = weak.update(cx, |this, cx| this.on_fs_event(cx));
             }

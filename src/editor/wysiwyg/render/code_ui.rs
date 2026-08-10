@@ -6,7 +6,7 @@ use crate::ui::button::icon_button;
 
 use gpui::*;
 
-const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
+use super::BLOCK_EDITOR_CONTEXT;
 
 use crate::editor::wysiwyg::render::inline::text_element::{
     BlockTextElement, CodeLanguageInputElement,
@@ -17,9 +17,6 @@ use crate::editor::render::code_highlight::options::{
 use crate::editor::tree::block::Block;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
-
-#[allow(dead_code)]
-const TASK_CHECKMARK: &str = "\u{2713}";
 
 impl Block {
     pub(crate) fn render_code_editor_section(

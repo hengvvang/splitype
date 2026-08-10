@@ -1,10 +1,9 @@
 //! Bottom status bar of an Editor area: mode pill, cursor position, word
-//! count, custom buttons, and split/close controls.
+//! count, and split/close controls.
 //!
-//! Hover state lives in [`state`]; the pure word counter lives in
-//! [`words`]. The shared bar container comes from `crate::ui`.
+//! The pure word counter lives in [`words`]. The shared bar container comes
+//! from `crate::ui`.
 
-pub(crate) mod state;
 pub(crate) mod words;
 
 use crate::ui::bottombar::bottombar_container;
@@ -15,14 +14,12 @@ use gpui::prelude::*;
 use gpui::*;
 
 use crate::editor::controller::Editor;
-use crate::editor::controller::EditorMode;
 use crate::editor::session::InnerPanelLocation;
-use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
+use crate::infra::config::settings::{EditorSettings, StatusBarSettings};
 use crate::infra::i18n::I18nStrings;
-use crate::infra::theme::{Theme, ThemeColors, ThemeDimensions};
+use crate::infra::theme::Theme;
 use crate::splitter::Axis;
 
-use state::BottombarState;
 use words::count_words;
 
 /// Render a cursor-position label (e.g. `12 : 47`).
@@ -40,6 +37,7 @@ pub fn render_cursor((line, col): (usize, usize), theme: &Theme) -> AnyElement {
 }
 
 /// Render a word-count label, optionally showing selection vs total.
+/// Returns an element, or `None` when the status bar itself is disabled.
 pub fn render_word_count(
     selection_count: Option<usize>,
     total_count: usize,
@@ -65,224 +63,9 @@ pub fn render_word_count(
         .into_any_element()
 }
 
-/// Status bar button — transparent with a state-driven hover background.
-fn bottombar_button(
-    id: impl Into<ElementId>,
-    c: &ThemeColors,
-    d: &ThemeDimensions,
-) -> Stateful<Div> {
-    div()
-        .id(id)
-        .h(px(d.bottombar_height - 4.0))
-        .px(px(6.0))
-        .flex()
-        .items_center()
-        .rounded(px(4.0))
-        .cursor_pointer()
-        .text_size(px(d.bottombar_text_size))
-        .text_color(c.bottombar_text)
-}
-pub fn render_custom_button(
-    state: &mut BottombarState,
-    button: &StatusBarButton,
-    theme: &Theme,
-    cx: &mut Context<Editor>,
-) -> AnyElement {
-    let c = &theme.colors;
-    let d = &theme.dimensions;
-
-    let id = button.id.clone();
-    let hovered = state.custom_button_hovered.as_deref() == Some(&button.id);
-
-    bottombar_button(
-        ElementId::Name(format!("bottombar-custom-button-{}", button.id).into()),
-        c,
-        d,
-    )
-    .bg(if hovered {
-        c.bottombar_button_hover
-    } else {
-        hsla(0., 0., 0., 0.)
-    })
-    .cursor_pointer()
-    .text_size(px(d.bottombar_text_size))
-    .text_color(c.bottombar_text)
-    .child(button.label.clone())
-    .on_hover(cx.listener(
-        move |editor: &mut Editor,
-              hovered: &bool,
-              _window: &mut Window,
-              cx: &mut Context<Editor>| {
-            if *hovered {
-                editor.bottombar_state.custom_button_hovered = Some(id.clone());
-            } else if editor.bottombar_state.custom_button_hovered.as_deref() == Some(&id) {
-                editor.bottombar_state.custom_button_hovered = None;
-            }
-            cx.notify();
-        },
-    ))
-    .into_any_element()
-}
-
-#[allow(dead_code)]
-pub fn render_sidebar_toggle(
-    state: &mut BottombarState,
-    _is_open: bool,
-    theme: &Theme,
-    strings: &I18nStrings,
-    cx: &mut Context<Editor>,
-) -> AnyElement {
-    let c = &theme.colors;
-    let d = &theme.dimensions;
-
-    bottombar_button("bottombar-sidebar-toggle", c, d)
-        .bg(if state.sidebar_hovered {
-            c.bottombar_button_hover
-        } else {
-            hsla(0., 0., 0., 0.)
-        })
-        .cursor_pointer()
-        .text_size(px(d.bottombar_text_size))
-        .text_color(c.bottombar_text)
-        .child(strings.status_bar_files.clone())
-        .on_hover(cx.listener(
-            |editor: &mut Editor,
-             hovered: &bool,
-             _window: &mut Window,
-             cx: &mut Context<Editor>| {
-                editor.bottombar_state.sidebar_hovered = *hovered;
-                cx.notify();
-            },
-        ))
-        .on_click(cx.listener(
-            |editor: &mut Editor,
-             _: &gpui::ClickEvent,
-             window: &mut Window,
-             cx: &mut Context<Editor>| {
-                editor.toggle_explorer_drawer(window, cx);
-            },
-        ))
-        .into_any_element()
-}
-
-#[allow(dead_code)]
-pub fn render_mode_switch(
-    state: &mut BottombarState,
-    view_mode: EditorMode,
-    theme: &Theme,
-    strings: &I18nStrings,
-    cx: &mut Context<Editor>,
-) -> AnyElement {
-    let c = &theme.colors;
-    let d = &theme.dimensions;
-
-    let label = match view_mode {
-        EditorMode::SourceCode => strings.status_bar_mode_rendered.clone(),
-        EditorMode::Wysiwyg => strings.status_bar_mode_source.clone(),
-    };
-
-    bottombar_button("bottombar-mode-switch", c, d)
-        .bg(if state.mode_hovered {
-            c.bottombar_button_hover
-        } else {
-            hsla(0., 0., 0., 0.)
-        })
-        .cursor_pointer()
-        .text_size(px(d.bottombar_text_size))
-        .text_color(c.bottombar_text)
-        .child(label)
-        .on_hover(cx.listener(
-            |editor: &mut Editor,
-             hovered: &bool,
-             _window: &mut Window,
-             cx: &mut Context<Editor>| {
-                editor.bottombar_state.mode_hovered = *hovered;
-                cx.notify();
-            },
-        ))
-        .on_click(cx.listener(
-            |editor: &mut Editor,
-             _: &gpui::ClickEvent,
-             _window: &mut Window,
-             cx: &mut Context<Editor>| {
-                editor.toggle_view_mode_from_ui(cx);
-            },
-        ))
-        .into_any_element()
-}
-
 // ── Editor methods ────────────────────────────────────────────────────────
 
 impl Editor {
-    #[allow(dead_code)]
-    pub(crate) fn render_bottombar(
-        &mut self,
-        theme: &Theme,
-        strings: &I18nStrings,
-        _window: &Window,
-        cx: &mut Context<Self>,
-    ) -> Option<AnyElement> {
-        let prefs = self.bottombar_settings(cx);
-        if !prefs.enabled {
-            return None;
-        }
-
-        let c = &theme.colors;
-        let d = &theme.dimensions;
-
-        let left_items: Vec<AnyElement> = Vec::new();
-
-        let mut right_items: Vec<AnyElement> = Vec::new();
-
-        if prefs.show_cursor_position && self.tab().mode == EditorMode::SourceCode {
-            right_items.push(render_cursor(
-                self.compute_source_cursor_position(cx),
-                theme,
-            ));
-        }
-
-        if prefs.show_word_count {
-            let text = self.serialized_document_text(cx);
-            let total_count = count_words(&text);
-            let selection_count = self.selected_markdown_text(cx).as_deref().map(count_words);
-            right_items.push(render_word_count(
-                selection_count,
-                total_count,
-                theme,
-                strings,
-            ));
-        }
-
-        for button in &prefs.custom_buttons {
-            right_items.push(render_custom_button(
-                &mut self.bottombar_state,
-                button,
-                theme,
-                cx,
-            ));
-        }
-
-        let bar = bottombar_container(c, d.bottombar_height, d.bottombar_padding_x)
-            .id("bottombar")
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(d.bottombar_item_gap))
-                    .children(left_items),
-            )
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(d.bottombar_item_gap))
-                    .children(right_items),
-            )
-            .into_any_element();
-
-        Some(bar)
-    }
-
     /// Bottom bar of an Editor area: inner-panel switch, split/close
     /// controls, cursor position and word count.
     pub(crate) fn render_editor_bottombar(
@@ -329,10 +112,10 @@ impl Editor {
         // displays the outer mode itself ("Welcome") and is disabled; in the
         // editing state it displays the focused panel kind and opens the
         // panel-type dropdown.
-        if let (Some(panel_id), Some(ftype)) = (focused_panel_id, focused_kind) {
+        if let (Some(panel_id), Some(focused_kind)) = (focused_panel_id, focused_kind) {
             let editing = self.area_mode(area_id).is_editing();
             let toggle_editor = cx.entity().downgrade();
-            let label = ftype.name().to_string();
+            let label = focused_kind.name().to_string();
             let mut mode_pill = small_pill_button(c, d)
                 .text_size(px(11.0))
                 .text_color(if editing {

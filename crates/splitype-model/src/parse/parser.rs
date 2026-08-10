@@ -16,7 +16,7 @@ use crate::parse::indent::{
     strip_leading_columns, strip_one_quote_level,
 };
 use crate::syntax::footnote::parse_footnote_definition_head;
-use crate::syntax::html::{HtmlSafetyClass, parse_html_document};
+use crate::syntax::html::{HtmlBlockStart, HtmlSafetyClass, parse_html_document};
 use crate::syntax::image::parse_standalone_image;
 use crate::syntax::math::parse_display_math_source;
 use crate::syntax::mermaid::is_mermaid_info_string;
@@ -32,18 +32,6 @@ use crate::syntax::table::{
 
 /// Parsed opening code-fence metadata.
 type FenceInfo = CodeFenceOpening;
-
-/// HTML block form recognized by the Markdown importer.
-enum HtmlBlockStart {
-    /// HTML comment region beginning with `<!--`.
-    Comment,
-    /// HTML tag block whose closing behavior depends on the tag shape.
-    Tag {
-        name: String,
-        self_closing: bool,
-        closes_same_line: bool,
-    },
-}
 
 /// Ordered-list or unordered-list marker parsed from one source line.
 #[derive(Clone)]
@@ -1456,8 +1444,7 @@ pub fn parse_document(markdown: &str) -> Vec<BlockData> {
 
 /// Build nodes from pre-split Markdown lines.
 ///
-/// Equivalent to the (now pure) version of the legacy
-/// `Editor::build_blocks_from_lines`.
+/// Equivalent to the editor's `build_blocks_from_lines`.
 pub fn build_blocks_from_lines(lines: &[String]) -> Vec<BlockData> {
     build_blocks_from_lines_internal(lines, true)
 }

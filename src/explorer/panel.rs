@@ -16,7 +16,6 @@ use crate::infra::config::settings::ExplorerSettingsStore;
 /// Re-key a selection after a worktree removal: selections inside the
 /// removed worktree fall back to `fallback`; selections in later worktrees
 /// shift down by one index.
-#[allow(dead_code)] // used by `remove_explorer_worktree` (menu item TBD)
 fn remap_explorer_selection(
     sel: ExplorerSelection,
     removed: usize,
@@ -240,7 +239,6 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.refresh_explorer_trees(cx);
-        self.debug_print_explorer_tree();
         self.select_active_file_in_tree(true);
         self.rebuild_explorer_entries();
         self.autoscroll_explorer_selection();
@@ -260,39 +258,6 @@ impl Editor {
             }
         }
         cx.notify();
-    }
-
-    /// Diagnostic: print the full scanned tree (label, kind, child count)
-    /// after every rescan, so a missing subtree can be traced to the scan
-    /// or the tree build in one glance.
-    fn debug_print_explorer_tree(&self) {
-        fn print_node(
-            node: &crate::editor::explorer::state::ExplorerFileNode,
-            depth: usize,
-        ) {
-            let suffix = if node.kind
-                == crate::editor::explorer::state::ExplorerEntryKind::Directory
-            {
-                "/"
-            } else {
-                ""
-            };
-            eprintln!(
-                "{} {}{} children={}",
-                "  ".repeat(depth),
-                node.label,
-                suffix,
-                node.children.len()
-            );
-            for child in &node.children {
-                print_node(child, depth + 1);
-            }
-        }
-        eprintln!("[explorer] === tree after scan ===");
-        for tree in &self.panels.explorer.trees_cache {
-            print_node(tree, 0);
-        }
-        eprintln!("[explorer] === end tree ===");
     }
 
     pub(crate) fn open_explorer_folder_path(&mut self, path: PathBuf, cx: &mut Context<Self>) {
@@ -347,7 +312,6 @@ impl Editor {
             let Some(path) = paths.into_iter().next() else {
                 return;
             };
-            eprintln!("[explorer] selected path: {path:?}");
             if path.is_dir() {
                 if let Err(err) = crate::infra::config::recent::record_recent_folder(&path) {
                     eprintln!("failed to update recent folder history: {err}");
@@ -443,7 +407,6 @@ impl Editor {
         .detach();
     }
 
-    #[allow(dead_code)]
     pub(crate) fn reveal_in_file_explorer(&self, path: &Path) {
         let path = path.to_path_buf();
         #[cfg(target_os = "windows")]
@@ -467,54 +430,7 @@ impl Editor {
         }
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn delete_explorer_item(
-        &mut self,
-        path: PathBuf,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        let item_name = path
-            .file_name()
-            .map(|n| n.to_string_lossy())
-            .unwrap_or_default();
-        let is_dir = path.is_dir();
-        let prompt_msg = format!("Are you sure you want to delete '{}'?", item_name);
-        let strings = cx
-            .global::<crate::infra::i18n::I18nManager>()
-            .strings()
-            .clone();
-        let ok_btn = "Delete";
-        let cancel_btn = strings.settings_cancel.clone();
 
-        let prompt = window.prompt(
-            PromptLevel::Warning,
-            &prompt_msg,
-            None,
-            &[ok_btn, cancel_btn.as_str()],
-            cx,
-        );
-
-        let weak_editor = cx.entity().downgrade();
-        let _ = cx.spawn(async move |_this, cx| {
-            if let Ok(0) = prompt.await {
-                let res = if is_dir {
-                    std::fs::remove_dir_all(&path)
-                } else {
-                    std::fs::remove_file(&path)
-                };
-                if let Err(err) = res {
-                    eprintln!("failed to delete item: {err}");
-                } else {
-                    let _ = weak_editor.update(cx, |editor, cx| {
-                        editor.rescan_explorer_worktrees(cx);
-                        editor.sync_explorer_models(cx);
-                        cx.notify();
-                    });
-                }
-            }
-        });
-    }
     pub(crate) fn start_inline_create_file(
         &mut self,
         parent: PathBuf,

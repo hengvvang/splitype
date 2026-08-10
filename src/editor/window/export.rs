@@ -189,7 +189,3 @@ fn show_export_error(window: &mut Window, cx: &mut App, detail: &str) {
         cx,
     );
 }
-
-// ── Runtime context methods ───────────────────────────────────────────────
-
-impl Editor {}

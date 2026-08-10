@@ -13,7 +13,7 @@ use crate::model::inline::footnote::InlineFootnoteHit;
 use crate::model::inline::link::InlineLinkHit;
 
 const SOURCE_LINE_NUMBER_MIN_DIGITS: usize = 2;
-const SOURCE_LINE_NUMBER_GAP: f32 = 12.0;
+pub(crate) const SOURCE_LINE_NUMBER_GAP: f32 = 12.0;
 const SOURCE_LINE_NUMBER_DIGIT_WIDTH_RATIO: f32 = 0.62;
 
 pub(crate) fn source_line_count(text: &str) -> usize {

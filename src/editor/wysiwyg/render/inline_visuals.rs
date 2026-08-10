@@ -17,9 +17,6 @@ use crate::model::syntax::image::{
     ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
 };
 
-#[allow(dead_code)]
-const TASK_CHECKMARK: &str = "\u{2713}";
-
 impl Block {
     pub(crate) fn render_text_or_mixed_inline_visuals(
         &self,

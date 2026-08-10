@@ -101,8 +101,8 @@ pub(crate) fn install_keybindings(cx: &mut App, config: &BTreeMap<String, Vec<St
     cx.bind_keys(resolved_keybindings(config));
 }
 
-/// Register key bindings for the block editor.
-#[allow(dead_code)]
+/// Test-only: registers default key bindings for the block editor.
+#[cfg(test)]
 pub fn init(cx: &mut App) {
     install_keybindings(cx, &BTreeMap::new());
 }

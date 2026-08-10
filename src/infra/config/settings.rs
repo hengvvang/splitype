@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use anyhow::Context as _;
 use gpui::*;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::infra::config::dirs::SplitypeConfigDirs;
 use crate::infra::config::keybindings::normalize_shortcut_config;
@@ -17,23 +17,12 @@ use crate::infra::theme::ThemeManager;
 pub const DEFAULT_THEME_ID: &str = "splitype";
 const DEFAULT_LANGUAGE_ID: &str = "en-US";
 
-/// A user-configurable button shown in the status bar.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct StatusBarButton {
-    pub id: String,
-    pub label: String,
-    pub action_id: String,
-}
-
 /// Status bar visibility and component toggles.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StatusBarSettings {
     pub enabled: bool,
     pub show_word_count: bool,
     pub show_cursor_position: bool,
-    pub show_sidebar_toggle: bool,
-    pub show_mode_switch: bool,
-    pub custom_buttons: Vec<StatusBarButton>,
 }
 
 impl Default for StatusBarSettings {
@@ -42,9 +31,6 @@ impl Default for StatusBarSettings {
             enabled: true,
             show_word_count: true,
             show_cursor_position: true,
-            show_sidebar_toggle: true,
-            show_mode_switch: true,
-            custom_buttons: Vec::new(),
         }
     }
 }
@@ -259,9 +245,6 @@ impl EditorSettings {
                 enabled: status_bar.enabled,
                 show_word_count: status_bar.show_word_count,
                 show_cursor_position: status_bar.show_cursor_position,
-                show_sidebar_toggle: status_bar.show_sidebar_toggle,
-                show_mode_switch: status_bar.show_mode_switch,
-                custom_buttons: Vec::new(),
             },
         });
     }
@@ -281,9 +264,6 @@ impl EditorSettings {
                 enabled: s.status_bar_settings.enabled,
                 show_word_count: s.status_bar_settings.show_word_count,
                 show_cursor_position: s.status_bar_settings.show_cursor_position,
-                show_sidebar_toggle: s.status_bar_settings.show_sidebar_toggle,
-                show_mode_switch: s.status_bar_settings.show_mode_switch,
-                custom_buttons: Vec::new(),
             })
             .unwrap_or_default();
         Self::set_global(cx, show_table_headers, &status_bar);
@@ -304,9 +284,6 @@ impl EditorSettings {
                 enabled: s.status_bar_settings.enabled,
                 show_word_count: s.status_bar_settings.show_word_count,
                 show_cursor_position: s.status_bar_settings.show_cursor_position,
-                show_sidebar_toggle: s.status_bar_settings.show_sidebar_toggle,
-                show_mode_switch: s.status_bar_settings.show_mode_switch,
-                custom_buttons: Vec::new(),
             })
             .unwrap_or_default()
     }
@@ -349,10 +326,6 @@ struct StatusBarSettingsFile {
     enabled: bool,
     show_word_count: bool,
     show_cursor_position: bool,
-    show_sidebar_toggle: bool,
-    show_mode_switch: bool,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    custom_buttons: Vec<StatusBarButton>,
 }
 
 #[derive(Serialize)]
@@ -368,9 +341,6 @@ impl From<&StatusBarSettings> for StatusBarSettingsFile {
             enabled: value.enabled,
             show_word_count: value.show_word_count,
             show_cursor_position: value.show_cursor_position,
-            show_sidebar_toggle: value.show_sidebar_toggle,
-            show_mode_switch: value.show_mode_switch,
-            custom_buttons: value.custom_buttons.clone(),
         }
     }
 }
@@ -495,42 +465,10 @@ fn app_settings_from_toml_value(value: &toml::Value, fallback_language_id: &str)
                 .get("show_cursor_position")
                 .and_then(|v| v.as_bool())
                 .unwrap_or(true);
-            let show_sidebar_toggle = sb
-                .get("show_sidebar_toggle")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(true);
-            let show_mode_switch = sb
-                .get("show_mode_switch")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(true);
-            let custom_buttons = sb
-                .get("custom_buttons")
-                .and_then(|v| v.as_array())
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|item| {
-                            let id = item.get("id")?.as_str()?.to_string();
-                            let label = item.get("label")?.as_str()?.to_string();
-                            Some(StatusBarButton {
-                                id,
-                                label,
-                                action_id: item
-                                    .get("action_id")
-                                    .and_then(|a| a.as_str())
-                                    .unwrap_or("")
-                                    .to_string(),
-                            })
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
             StatusBarSettings {
                 enabled,
                 show_word_count,
                 show_cursor_position,
-                show_sidebar_toggle,
-                show_mode_switch,
-                custom_buttons,
             }
         })
         .unwrap_or_default();

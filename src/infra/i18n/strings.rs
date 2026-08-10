@@ -336,12 +336,6 @@ pub struct I18nStrings {
     pub code_language_placeholder: String,
     /// Placeholder shown in the code-block language picker search field.
     pub code_language_search_placeholder: String,
-    /// Label for the sidebar/files toggle button in the status bar.
-    pub status_bar_files: String,
-    /// Label for source mode in the status bar mode switch.
-    pub status_bar_mode_source: String,
-    /// Label for rendered mode in the status bar mode switch.
-    pub status_bar_mode_rendered: String,
     /// Suffix shown after the word count number.
     pub status_bar_word_count_suffix: String,
     /// Nav label for the status bar settings tab.
@@ -352,10 +346,6 @@ pub struct I18nStrings {
     pub settings_status_bar_show_word_count: String,
     /// Label for the cursor position toggle.
     pub settings_status_bar_show_cursor_position: String,
-    /// Label for the sidebar toggle visibility.
-    pub settings_status_bar_show_sidebar_toggle: String,
-    /// Label for the mode switch visibility.
-    pub settings_status_bar_show_mode_switch: String,
 }
 
 /// Partial string set used by JSON language packs.
@@ -556,16 +546,11 @@ pub struct I18nStringsDe {
     image_loading_with_alt_template: Option<String>,
     code_language_placeholder: Option<String>,
     code_language_search_placeholder: Option<String>,
-    status_bar_files: Option<String>,
-    status_bar_mode_source: Option<String>,
-    status_bar_mode_rendered: Option<String>,
     status_bar_word_count_suffix: Option<String>,
     settings_nav_status_bar: Option<String>,
     settings_status_bar_enabled: Option<String>,
     settings_status_bar_show_word_count: Option<String>,
     settings_status_bar_show_cursor_position: Option<String>,
-    settings_status_bar_show_sidebar_toggle: Option<String>,
-    settings_status_bar_show_mode_switch: Option<String>,
 }
 
 pub const I18N_STRING_KEYS: &[&str] = &[
@@ -764,16 +749,11 @@ pub const I18N_STRING_KEYS: &[&str] = &[
     "image_loading_with_alt_template",
     "code_language_placeholder",
     "code_language_search_placeholder",
-    "status_bar_files",
-    "status_bar_mode_source",
-    "status_bar_mode_rendered",
     "status_bar_word_count_suffix",
     "settings_nav_status_bar",
     "settings_status_bar_enabled",
     "settings_status_bar_show_word_count",
     "settings_status_bar_show_cursor_position",
-    "settings_status_bar_show_sidebar_toggle",
-    "settings_status_bar_show_mode_switch",
 ];
 
 impl I18nStringsDe {
@@ -1276,13 +1256,6 @@ impl I18nStringsDe {
             code_language_search_placeholder: self
                 .code_language_search_placeholder
                 .unwrap_or(defaults.code_language_search_placeholder),
-            status_bar_files: self.status_bar_files.unwrap_or(defaults.status_bar_files),
-            status_bar_mode_source: self
-                .status_bar_mode_source
-                .unwrap_or(defaults.status_bar_mode_source),
-            status_bar_mode_rendered: self
-                .status_bar_mode_rendered
-                .unwrap_or(defaults.status_bar_mode_rendered),
             status_bar_word_count_suffix: self
                 .status_bar_word_count_suffix
                 .unwrap_or(defaults.status_bar_word_count_suffix),
@@ -1298,12 +1271,6 @@ impl I18nStringsDe {
             settings_status_bar_show_cursor_position: self
                 .settings_status_bar_show_cursor_position
                 .unwrap_or(defaults.settings_status_bar_show_cursor_position),
-            settings_status_bar_show_sidebar_toggle: self
-                .settings_status_bar_show_sidebar_toggle
-                .unwrap_or(defaults.settings_status_bar_show_sidebar_toggle),
-            settings_status_bar_show_mode_switch: self
-                .settings_status_bar_show_mode_switch
-                .unwrap_or(defaults.settings_status_bar_show_mode_switch),
         }
     }
 }
@@ -1514,9 +1481,6 @@ impl I18nStrings {
             image_loading_with_alt_template: "正在加载 {alt}".into(),
             code_language_placeholder: "语言".into(),
             code_language_search_placeholder: "搜索语言...".into(),
-            status_bar_files: "侧边栏".into(),
-            status_bar_mode_source: "源码".into(),
-            status_bar_mode_rendered: "渲染".into(),
             status_bar_word_count_suffix: "字".into(),
             ..Self::en_us()
         };
@@ -1526,8 +1490,6 @@ impl I18nStrings {
         strings.settings_status_bar_enabled = "显示状态栏".into();
         strings.settings_status_bar_show_word_count = "字数统计".into();
         strings.settings_status_bar_show_cursor_position = "光标位置".into();
-        strings.settings_status_bar_show_sidebar_toggle = "侧边栏".into();
-        strings.settings_status_bar_show_mode_switch = "模式切换".into();
         strings.settings_image_insert_behavior = "插入图片时...".into();
         strings.settings_image_paste_none = "无特殊操作".into();
         strings.settings_image_paste_copy_to_document_folder = "复制图片到 ./ 文件夹".into();
@@ -1751,16 +1713,11 @@ impl I18nStrings {
             image_loading_with_alt_template: "Loading {alt}".into(),
             code_language_placeholder: "Language".into(),
             code_language_search_placeholder: "Search languages...".into(),
-            status_bar_files: "Sidebar".into(),
-            status_bar_mode_source: "Source".into(),
-            status_bar_mode_rendered: "Rendered".into(),
             status_bar_word_count_suffix: "words".into(),
             settings_nav_status_bar: "Status Bar".into(),
             settings_status_bar_enabled: "Show Status Bar".into(),
             settings_status_bar_show_word_count: "Word Count".into(),
             settings_status_bar_show_cursor_position: "Cursor Position".into(),
-            settings_status_bar_show_sidebar_toggle: "Sidebar Toggle".into(),
-            settings_status_bar_show_mode_switch: "Mode Switch".into(),
         }
     }
 

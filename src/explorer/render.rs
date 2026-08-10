@@ -541,7 +541,6 @@ impl Editor {
             .on_drag(drag_payload, move |payload, click_offset, _window, cx| {
                 let label = drag_label.clone();
                 let count = payload.selections.len();
-                eprintln!("[explorer-drag] drag started: {count} item(s), label '{label}'");
                 cx.new(|_| DraggedExplorerEntryView {
                     label,
                     count,
@@ -581,8 +580,6 @@ impl Editor {
         let click_editor = editor.clone();
         let click_kind = entry.kind;
         let click_path = entry.path.clone();
-        let click_depth = entry.depth;
-        let click_has_children = entry.has_children;
         let click_root = entry.root;
         let right_click_editor = editor.clone();
         let right_click_path = entry.path.clone();
@@ -668,12 +665,6 @@ impl Editor {
             .gap(px(6.0))
             .pl(px(6.0 + entry.depth as f32 * EXPLORER_NODE_INDENT))
             .pr(px(8.0))
-            .on_mouse_down(MouseButton::Left, move |event, _window, _cx| {
-                eprintln!(
-                    "[explorer] row mouse_down id={} at {:?}",
-                    drag_entry_id.0, event.position
-                );
-            })
             .bg(if is_drag_target {
                 c.callout_tip_bg
             } else if is_marked {
@@ -735,10 +726,6 @@ impl Editor {
                 let shift = event.modifiers().shift;
                 let alt = event.modifiers().alt;
                 let secondary = event.modifiers().secondary();
-                eprintln!(
-                    "[explorer] entry click id={} kind={:?} count={} depth={} children={} root={}",
-                    id.0, kind, click_count, click_depth, click_has_children, click_root
-                );
                 let _ = click_editor.update(cx, |editor, cx| {
                     if shift {
                         editor.select_explorer_range(id, cx);
@@ -804,9 +791,6 @@ impl Editor {
             .on_drag(drag_payload, move |payload, click_offset, _window, cx| {
                 let label = drag_label.clone();
                 let count = payload.selections.len();
-                eprintln!(
-                    "[explorer-drag] drag started (root row): {count} item(s), label '{label}'"
-                );
                 cx.new(|_| DraggedExplorerEntryView {
                     label,
                     count,
