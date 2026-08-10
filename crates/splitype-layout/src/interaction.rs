@@ -28,6 +28,8 @@ pub struct OverlayStyle {
     pub border: Hsla,
     /// Splitter bar hover color.
     pub selection: Hsla,
+    /// Splitter bar drag-in-progress color (line + hit-zone glow).
+    pub active: Hsla,
 }
 
 impl Default for OverlayStyle {
@@ -38,6 +40,8 @@ impl Default for OverlayStyle {
             tile_radius: 8.0,
             border: hsla(0.0, 0.0, 0.0, 0.2),
             selection: hsla(0.58, 0.6, 0.6, 0.8),
+            // Sky blue (≈ #72cffe) for the active drag highlight.
+            active: hsla(0.556, 0.99, 0.72, 0.9),
         }
     }
 }
@@ -51,27 +55,109 @@ pub fn overlay_container() -> Div {
 }
 
 /// Horizontal splitter bar (resizes rows).
-pub fn splitter_bar_h(id: impl Into<ElementId>, style: &OverlayStyle) -> Stateful<Div> {
-    div()
-        .id(id)
-        .w(px(2.0))
-        .h_full()
-        .flex_shrink_0()
-        .cursor_col_resize()
-        .bg(style.border)
-        .hover(|this| this.bg(style.selection))
+///
+/// An overlay, not a flex child: the split areas tile seamlessly and the
+/// bar floats on the boundary at `ratio` (a fraction of the container
+/// width). The 4px hit zone sits on the second side; a 1px guide line
+/// marks the boundary. `active` is the drag-in-progress state (driven by
+/// the host from the drag session): the hit zone glows stronger and the
+/// guide line takes the selection color.
+pub fn splitter_bar_h(
+    id: impl Into<ElementId>,
+    ratio: f32,
+    active: bool,
+    style: &OverlayStyle,
+) -> Stateful<Div> {
+    if active {
+        div()
+            .id(id)
+            .absolute()
+            .left(relative(ratio))
+            .top_0()
+            .bottom_0()
+            .w(px(4.0))
+            .cursor_col_resize()
+            .bg(style.active.opacity(0.25))
+            .child(
+                div()
+                    .absolute()
+                    .left_0()
+                    .top_0()
+                    .bottom_0()
+                    .w(px(1.0))
+                    .bg(style.active),
+            )
+    } else {
+        div()
+            .id(id)
+            .absolute()
+            .left(relative(ratio))
+            .top_0()
+            .bottom_0()
+            .w(px(4.0))
+            .cursor_col_resize()
+            .child(
+                div()
+                    .absolute()
+                    .left_0()
+                    .top_0()
+                    .bottom_0()
+                    .w(px(1.0))
+                    .bg(style.border),
+            )
+            .hover(move |this| this.bg(style.selection.opacity(0.15)))
+    }
 }
 
 /// Vertical splitter bar (resizes columns).
-pub fn splitter_bar_v(id: impl Into<ElementId>, style: &OverlayStyle) -> Stateful<Div> {
-    div()
-        .id(id)
-        .h(px(2.0))
-        .w_full()
-        .flex_shrink_0()
-        .cursor_row_resize()
-        .bg(style.border)
-        .hover(|this| this.bg(style.selection))
+///
+/// Same overlay model as [`splitter_bar_h`]: floats on the boundary at
+/// `ratio` of the container height, 4px hit zone plus a 1px guide line.
+pub fn splitter_bar_v(
+    id: impl Into<ElementId>,
+    ratio: f32,
+    active: bool,
+    style: &OverlayStyle,
+) -> Stateful<Div> {
+    if active {
+        div()
+            .id(id)
+            .absolute()
+            .top(relative(ratio))
+            .left_0()
+            .right_0()
+            .h(px(4.0))
+            .cursor_row_resize()
+            .bg(style.active.opacity(0.25))
+            .child(
+                div()
+                    .absolute()
+                    .top_0()
+                    .left_0()
+                    .right_0()
+                    .h(px(1.0))
+                    .bg(style.active),
+            )
+    } else {
+        div()
+            .id(id)
+            .absolute()
+            .top(relative(ratio))
+            .left_0()
+            .right_0()
+            .h(px(4.0))
+            .cursor_row_resize()
+            .child(
+                div()
+                    .absolute()
+                    .top_0()
+                    .left_0()
+                    .right_0()
+                    .h(px(1.0))
+                    .bg(style.border),
+            )
+            .hover(move |this| this.bg(style.selection.opacity(0.15)))
+    }
 }
 
 /// Find the rect with the given id in a rect list.
@@ -241,32 +327,33 @@ where
 
 /// The split preview line for a horizontal split (left|right): a vertical
 /// divider at `ratio` of the target rect's width. Deliberately thin (1px)
-/// like IDE split guides.
+/// like IDE split guides. `rect` is normalized (0..1) so the preview is
+/// independent of the container's pixel size.
 fn split_line_horizontal(rect: &AreaRect, ratio: f32, accent: Hsla) -> Div {
     div()
         .absolute()
-        .left(px(rect.x + rect.width * ratio))
-        .top(px(rect.y))
+        .left(relative(rect.x + rect.width * ratio))
+        .top(relative(rect.y))
         .w(px(1.0))
-        .h(px(rect.height))
+        .h(relative(rect.height))
         .bg(accent)
 }
 
 /// The split preview line for a vertical split (top|bottom): a horizontal
 /// divider at `ratio` of the target rect's height. Deliberately thin (1px)
-/// like IDE split guides.
+/// like IDE split guides. `rect` is normalized (0..1).
 fn split_line_vertical(rect: &AreaRect, ratio: f32, accent: Hsla) -> Div {
     div()
         .absolute()
-        .top(px(rect.y + rect.height * ratio))
-        .left(px(rect.x))
+        .top(relative(rect.y + rect.height * ratio))
+        .left(relative(rect.x))
         .h(px(1.0))
-        .w(px(rect.width))
+        .w(relative(rect.width))
         .bg(accent)
 }
 
 /// A full-window overlay drawing the split line plus a faint highlight over
-/// the leaf being split.
+/// the leaf being split. `rect` is normalized (0..1).
 fn split_preview_overlay(
     rect: &AreaRect,
     direction: Axis,
@@ -281,10 +368,10 @@ fn split_preview_overlay(
         .child(
             div()
                 .absolute()
-                .left(px(rect.x))
-                .top(px(rect.y))
-                .w(px(rect.width))
-                .h(px(rect.height))
+                .left(relative(rect.x))
+                .top(relative(rect.y))
+                .w(relative(rect.width))
+                .h(relative(rect.height))
                 .rounded(px(style.tile_radius))
                 .bg(style.accent.opacity(0.1)),
         )
@@ -303,6 +390,7 @@ fn join_arrow(direction: Direction) -> &'static str {
 }
 
 /// A full-window overlay highlighting the join target with an arrow badge.
+/// `target` is normalized (0..1).
 fn join_preview_overlay(
     target: &AreaRect,
     direction: Direction,
@@ -313,10 +401,10 @@ fn join_preview_overlay(
         .child(
             div()
                 .absolute()
-                .left(px(target.x))
-                .top(px(target.y))
-                .w(px(target.width))
-                .h(px(target.height))
+                .left(relative(target.x))
+                .top(relative(target.y))
+                .w(relative(target.width))
+                .h(relative(target.height))
                 .rounded(px(style.tile_radius))
                 .bg(style.accent.opacity(0.25))
                 .border(px(2.0))
@@ -340,11 +428,15 @@ fn join_preview_overlay(
         .into_any_element()
 }
 
-/// Render the window-level corner-drag preview overlay.
+/// Render the corner-drag preview overlay.
 ///
-/// `rects` are the pixel-space rects of the outer window areas. Returns
-/// `None` while the gesture is still in its initial `Dragging` state or
-/// when the target area cannot be located.
+/// `rects` are the leaf rects of the split tree in **normalized** layout
+/// coordinates (0..1 of the initialized container), which the overlay
+/// positions with `relative()` — so the preview tracks the tree geometry
+/// exactly, regardless of the container's pixel size or any chrome
+/// (topbar/bottombar) around it. Returns `None` while the gesture is
+/// still in its initial `Dragging` state or when the target area cannot
+/// be located.
 pub fn render_corner_drag_preview(
     drag: &CornerDragSession,
     rects: &[AreaRect],
@@ -358,59 +450,6 @@ pub fn render_corner_drag_preview(
             direction,
         } => rect_by_id(rects, target_id)
             .map(|target| join_preview_overlay(target, direction, style)),
-        CornerDragPreview::Dragging => None,
-    }
-}
-
-/// Render the inner-panel corner-drag preview overlay.
-///
-/// `outer_rect` is the pixel-space rect of the containing window area;
-/// `inner_rects` are the panel rects relative to that area's top-left.
-pub fn render_inner_corner_drag_preview(
-    drag: &CornerDragSession,
-    outer_rect: &AreaRect,
-    inner_rects: &[AreaRect],
-    style: &OverlayStyle,
-) -> Option<AnyElement> {
-    match drag.preview {
-        CornerDragPreview::SplitPreview { direction, ratio } => {
-            // The line spans the whole outer area at the split ratio.
-            let line = match direction {
-                Axis::Horizontal => split_line_horizontal(outer_rect, ratio, style.accent),
-                Axis::Vertical => split_line_vertical(outer_rect, ratio, style.accent),
-            };
-            Some(
-                overlay_container()
-                    .child(
-                        div()
-                            .absolute()
-                            .left(px(outer_rect.x))
-                            .top(px(outer_rect.y))
-                            .w(px(outer_rect.width))
-                            .h(px(outer_rect.height))
-                            .rounded(px(style.tile_radius))
-                            .bg(style.accent.opacity(0.1)),
-                    )
-                    .child(line)
-                    .into_any_element(),
-            )
-        }
-        CornerDragPreview::JoinPreview {
-            target_id,
-            direction,
-        } => rect_by_id(inner_rects, target_id).map(|inner_rect| {
-            join_preview_overlay(
-                &AreaRect {
-                    id: inner_rect.id,
-                    x: outer_rect.x + inner_rect.x,
-                    y: outer_rect.y + inner_rect.y,
-                    width: inner_rect.width,
-                    height: inner_rect.height,
-                },
-                direction,
-                style,
-            )
-        }),
         CornerDragPreview::Dragging => None,
     }
 }

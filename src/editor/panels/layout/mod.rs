@@ -117,12 +117,37 @@ impl Editor {
             .w_full()
             .h_full()
             .relative()
-            .p(px(2.0))
             .bg(c.editor_background)
             .child(inner_rendered);
 
         if let Some(dropdown) = dropdown {
             container = container.child(dropdown);
+        }
+
+        // Inner corner-drag preview: rendered inside the midcontainer so
+        // the normalized rects position with `relative()` against the
+        // layout's initialization region (topbar/bottombar excluded).
+        let d = &theme.dimensions;
+        let overlay_style = splitype_layout::interaction::OverlayStyle {
+            accent: c.split_indicator,
+            tile_radius: d.area_tile_radius,
+            border: c.dialog_border,
+            selection: c.selection,
+            active: c.focus_accent,
+            ..Default::default()
+        };
+        if let Some((drag_area_id, drag)) = self.active_editor_inner_panel_corner_drag {
+            if drag_area_id == area_id {
+                let mut rects = Vec::new();
+                inner_tree.collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
+                if let Some(preview) = splitype_layout::interaction::render_corner_drag_preview(
+                    &drag,
+                    &rects,
+                    &overlay_style,
+                ) {
+                    container = container.child(preview);
+                }
+            }
         }
 
         // Inner-panel border menu: same context menu as the outer window
@@ -297,6 +322,7 @@ impl Editor {
             tile_radius: d.area_tile_radius,
             border: c.dialog_border,
             selection: c.selection,
+            active: c.focus_accent,
             ..Default::default()
         };
 
@@ -336,10 +362,10 @@ impl Editor {
                 let corner_handles = splitype_layout::interaction::corner_drag_handles(
                     "inner-corner",
                     panel_id,
-                    2.0,
-                    10.0,
-                    true,
-                    true,
+                    d.inner_panel_gap,
+                    20.0,
+                    false,
+                    false,
                     move |modifier, pos, cx| {
                         let _ = inner_editor.update(cx, |ed, cx| {
                             ed.start_editor_inner_panel_corner_drag(
@@ -359,29 +385,39 @@ impl Editor {
                 }
 
                 let focus_editor = cx.entity().downgrade();
+                let panel_gap = d.inner_panel_gap;
 
+                // The leaf container is the split-out area: unadorned and
+                // seamless, it only partitions the initialized region. The
+                // panel floats inside it with a uniform inset on all four
+                // sides and carries the content.
                 div()
                     .w_full()
                     .h_full()
-                    .flex()
-                    .flex_col()
                     .relative()
-                    .rounded(px(d.area_tile_radius))
-                    .bg(c.dialog_surface)
-                    .border(px(d.dialog_border_width))
-                    .border_color(c.dialog_border)
-                    .shadow_lg()
-                    .child(div().w_full().flex_1().min_h(px(0.0)).child(inner_body))
+                    .child(
+                        div()
+                            .absolute()
+                            .inset(px(panel_gap))
+                            .flex()
+                            .flex_col()
+                            .rounded(px(d.area_tile_radius))
+                            .bg(c.dialog_surface)
+                            .border(px(d.dialog_border_width))
+                            .border_color(c.dialog_border)
+                            .shadow_lg()
+                            .child(div().w_full().flex_1().min_h(px(0.0)).child(inner_body))
+                            .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
+                                let _ = focus_editor.update(cx, |ed, cx| {
+                                    // Select this panel and move the keyboard edit
+                                    // focus to its editing target (source block or
+                                    // the shared document block).
+                                    ed.focus_editor_inner_panel(area_id, panel_id, window, cx);
+                                    cx.notify();
+                                });
+                            }),
+                    )
                     .child(corner_handles)
-                    .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
-                        let _ = focus_editor.update(cx, |ed, cx| {
-                            // Select this panel and move the keyboard edit
-                            // focus to its editing target (source block or
-                            // the shared document block).
-                            ed.focus_editor_inner_panel(area_id, panel_id, window, cx);
-                            cx.notify();
-                        });
-                    })
                     .into_any_element()
             }
             SplitTree::Split {
@@ -405,6 +441,9 @@ impl Editor {
                     Axis::Horizontal => {
                         let bar_editor = inner_editor.clone();
                         let menu_editor = inner_editor.clone();
+                        let bar_active = self
+                            .active_editor_inner_panel_splitter_drag
+                            .is_some_and(|(_, drag)| drag.split_id == split_id);
                         div()
                             .w_full()
                             .h_full()
@@ -412,6 +451,7 @@ impl Editor {
                             .flex_row()
                             .min_w(px(0.0))
                             .min_h(px(0.0))
+                            .relative()
                             .child(
                                 div()
                                     .w(relative(r))
@@ -425,8 +465,21 @@ impl Editor {
                                     .child(first_elem),
                             )
                             .child(
+                                div()
+                                    .h_full()
+                                    .overflow_hidden()
+                                    .flex()
+                                    .flex_col()
+                                    .flex_1()
+                                    .min_w(px(0.0))
+                                    .min_h(px(0.0))
+                                    .child(second_elem),
+                            )
+                            .child(
                                 splitype_layout::interaction::splitter_bar_h(
                                     ("inner-splitter-bar-h", split_id),
+                                    r,
+                                    bar_active,
                                     &overlay_style,
                                 )
                                 .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
@@ -461,22 +514,14 @@ impl Editor {
                                     },
                                 ),
                             )
-                            .child(
-                                div()
-                                    .h_full()
-                                    .overflow_hidden()
-                                    .flex()
-                                    .flex_col()
-                                    .flex_1()
-                                    .min_w(px(0.0))
-                                    .min_h(px(0.0))
-                                    .child(second_elem),
-                            )
                             .into_any_element()
                     }
                     Axis::Vertical => {
                         let bar_editor = inner_editor.clone();
                         let menu_editor = inner_editor.clone();
+                        let bar_active = self
+                            .active_editor_inner_panel_splitter_drag
+                            .is_some_and(|(_, drag)| drag.split_id == split_id);
                         div()
                             .w_full()
                             .h_full()
@@ -484,6 +529,7 @@ impl Editor {
                             .flex_col()
                             .min_w(px(0.0))
                             .min_h(px(0.0))
+                            .relative()
                             .child(
                                 div()
                                     .h(relative(r))
@@ -497,8 +543,21 @@ impl Editor {
                                     .child(first_elem),
                             )
                             .child(
+                                div()
+                                    .w_full()
+                                    .overflow_hidden()
+                                    .flex()
+                                    .flex_col()
+                                    .flex_1()
+                                    .min_w(px(0.0))
+                                    .min_h(px(0.0))
+                                    .child(second_elem),
+                            )
+                            .child(
                                 splitype_layout::interaction::splitter_bar_v(
                                     ("inner-splitter-bar-v", split_id),
+                                    r,
+                                    bar_active,
                                     &overlay_style,
                                 )
                                 .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
@@ -532,17 +591,6 @@ impl Editor {
                                         });
                                     },
                                 ),
-                            )
-                            .child(
-                                div()
-                                    .w_full()
-                                    .overflow_hidden()
-                                    .flex()
-                                    .flex_col()
-                                    .flex_1()
-                                    .min_w(px(0.0))
-                                    .min_h(px(0.0))
-                                    .child(second_elem),
                             )
                             .into_any_element()
                     }

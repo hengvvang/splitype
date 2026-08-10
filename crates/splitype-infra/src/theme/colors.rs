@@ -150,6 +150,9 @@ pub struct ThemeColors {
     pub cursor: Hsla,
     /// Text-selection highlight colour.
     pub selection: Hsla,
+    /// Focus/active accent — window-area focus border and splitter drag
+    /// highlight (#72cffe sky blue).
+    pub focus_accent: Hsla,
     /// Split-preview indicator colour (drag-to-split lines and highlights).
     pub split_indicator: Hsla,
     /// Semi-transparent backdrop behind the unsaved-changes dialog.
@@ -274,6 +277,7 @@ struct ThemeColorsDe {
     scrollbar_thumb: Hsla,
     cursor: Hsla,
     selection: Hsla,
+    focus_accent: Option<Hsla>,
     split_indicator: Option<Hsla>,
     dialog_backdrop: Hsla,
     dialog_surface: Hsla,
@@ -489,6 +493,9 @@ impl<'de> Deserialize<'de> for ThemeColors {
             scrollbar_thumb: raw.scrollbar_thumb,
             cursor: raw.cursor,
             selection: raw.selection,
+            focus_accent: raw
+                .focus_accent
+                .unwrap_or_else(|| Hsla::from(rgba(0x72cfefff))),
             split_indicator: raw
                 .split_indicator
                 .unwrap_or_else(|| Hsla::from(rgba(0x60a5faff))),

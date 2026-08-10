@@ -286,6 +286,7 @@ impl Editor {
             tile_radius: theme.dimensions.area_tile_radius,
             border: theme.colors.dialog_border,
             selection: theme.colors.selection,
+            active: theme.colors.focus_accent,
             ..Default::default()
         };
         let preview_overlay = self
@@ -294,8 +295,14 @@ impl Editor {
             .active_window_area_corner_drag
             .as_ref()
             .and_then(|drag| {
-                let viewport = window.viewport_size();
-                let rects = self.panels.layout.window_area_rects(viewport);
+                // Normalized rects: the preview positions itself with
+                // `relative()` against the tiled-layout container, so it
+                // tracks the area tree geometry exactly.
+                let mut rects = Vec::new();
+                self.panels
+                    .layout
+                    .window_area_tree
+                    .collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
                 splitype_layout::interaction::render_corner_drag_preview(
                     drag,
                     &rects,
@@ -303,27 +310,6 @@ impl Editor {
                 )
             });
         let container = container.children(preview_overlay);
-
-        let inner_preview_overlay = self
-            .active_editor_inner_panel_corner_drag
-            .as_ref()
-            .and_then(|(area_id, drag)| {
-                let viewport = window.viewport_size();
-                let outer_rects = self.panels.layout.window_area_rects(viewport);
-                let outer_rect = self
-                    .panels
-                    .layout
-                    .window_area_rect(*area_id, &outer_rects)?;
-                let inner_size = size(px(outer_rect.width), px(outer_rect.height));
-                let inner_rects = self.editor_inner_panel_rects(*area_id, inner_size);
-                splitype_layout::interaction::render_inner_corner_drag_preview(
-                    drag,
-                    &outer_rect,
-                    &inner_rects,
-                    &overlay_style,
-                )
-            });
-        let container = container.children(inner_preview_overlay);
 
         if let Some(border_menu) = self.panels.layout.active_window_area_border_menu {
             let menu_overlay = self.render_window_area_border_menu(border_menu, theme, cx);
@@ -347,6 +333,7 @@ impl Editor {
             tile_radius: theme.dimensions.area_tile_radius,
             border: c.dialog_border,
             selection: c.selection,
+            active: c.focus_accent,
             ..Default::default()
         };
         let editor = cx.entity().downgrade();
@@ -374,7 +361,14 @@ impl Editor {
                     Axis::Horizontal => {
                         let bar_editor = editor.clone();
                         let menu_editor = editor.clone();
+                        let bar_active = self
+                            .panels
+                            .layout
+                            .active_window_area_splitter_drag
+                            .is_some_and(|drag| drag.split_id == split_id);
 
+                        // The split areas tile seamlessly; the splitter bar
+                        // floats as an overlay on the boundary at `r`.
                         div()
                             .id(("tiled-split-h", split_id))
                             .w_full()
@@ -383,6 +377,7 @@ impl Editor {
                             .flex_row()
                             .min_w(px(0.0))
                             .min_h(px(0.0))
+                            .relative()
                             .child(
                                 div()
                                     .w(relative(r))
@@ -396,9 +391,22 @@ impl Editor {
                                     .child(first_elem),
                             )
                             .child(
-                                // Splitter bar between the two padded tiles.
+                                div()
+                                    .h_full()
+                                    .overflow_hidden()
+                                    .flex()
+                                    .flex_col()
+                                    .flex_1()
+                                    .min_w(px(0.0))
+                                    .min_h(px(0.0))
+                                    .child(second_elem),
+                            )
+                            .child(
+                                // Splitter bar between the two seamless areas.
                                 splitype_layout::interaction::splitter_bar_h(
                                     ("tiled-splitter-bar-h", split_id),
+                                    r,
+                                    bar_active,
                                     &overlay_style,
                                 )
                                 .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
@@ -430,22 +438,16 @@ impl Editor {
                                     },
                                 ),
                             )
-                            .child(
-                                div()
-                                    .h_full()
-                                    .overflow_hidden()
-                                    .flex()
-                                    .flex_col()
-                                    .flex_1()
-                                    .min_w(px(0.0))
-                                    .min_h(px(0.0))
-                                    .child(second_elem),
-                            )
                             .into_any_element()
                     }
                     Axis::Vertical => {
                         let bar_editor = editor.clone();
                         let menu_editor = editor.clone();
+                        let bar_active = self
+                            .panels
+                            .layout
+                            .active_window_area_splitter_drag
+                            .is_some_and(|drag| drag.split_id == split_id);
 
                         div()
                             .id(("tiled-split-v", split_id))
@@ -455,6 +457,7 @@ impl Editor {
                             .flex_col()
                             .min_w(px(0.0))
                             .min_h(px(0.0))
+                            .relative()
                             .child(
                                 div()
                                     .h(relative(r))
@@ -468,9 +471,22 @@ impl Editor {
                                     .child(first_elem),
                             )
                             .child(
-                                // Splitter bar between the two padded tiles.
+                                div()
+                                    .w_full()
+                                    .overflow_hidden()
+                                    .flex()
+                                    .flex_col()
+                                    .flex_1()
+                                    .min_w(px(0.0))
+                                    .min_h(px(0.0))
+                                    .child(second_elem),
+                            )
+                            .child(
+                                // Splitter bar between the two seamless areas.
                                 splitype_layout::interaction::splitter_bar_v(
                                     ("tiled-splitter-bar-v", split_id),
+                                    r,
+                                    bar_active,
                                     &overlay_style,
                                 )
                                 .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
@@ -501,17 +517,6 @@ impl Editor {
                                         });
                                     },
                                 ),
-                            )
-                            .child(
-                                div()
-                                    .w_full()
-                                    .overflow_hidden()
-                                    .flex()
-                                    .flex_col()
-                                    .flex_1()
-                                    .min_w(px(0.0))
-                                    .min_h(px(0.0))
-                                    .child(second_elem),
                             )
                             .into_any_element()
                     }
@@ -595,7 +600,7 @@ impl Editor {
                 d.dialog_border_width
             }))
             .border_color(if is_focused_area {
-                c.selection
+                c.focus_accent
             } else {
                 c.dialog_border
             })

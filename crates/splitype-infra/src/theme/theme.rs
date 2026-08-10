@@ -114,6 +114,7 @@ impl Theme {
                 scrollbar_thumb: Hsla::from(rgba(0xd1d5dbd8)),
                 cursor: Hsla::from(rgba(0xf0efedff)),
                 selection: Hsla::from(rgba(0x1c3651ff)),
+                focus_accent: Hsla::from(rgba(0x72cfefff)),
                 split_indicator: Hsla::from(rgba(0x60a5faff)),
                 dialog_backdrop: Hsla::from(rgba(0x09090bcc)),
                 dialog_surface: Hsla::from(rgba(0x18181bff)),
@@ -256,6 +257,7 @@ impl Theme {
                 bottombar_item_gap: 12.0,
                 bottombar_text_size: 11.0,
                 area_tile_gap: 6.0,
+                inner_panel_gap: 3.0,
                 area_tile_radius: 3.0,
             },
             typography: ThemeTypography {
@@ -368,6 +370,7 @@ impl Theme {
                 scrollbar_thumb: Hsla::from(rgba(0x64748bb8)),
                 cursor: Hsla::from(rgba(0x111827ff)),
                 selection: Hsla::from(rgba(0xbfdbfecc)),
+                focus_accent: Hsla::from(rgba(0x0284c7ff)),
                 split_indicator: Hsla::from(rgba(0x2563ebff)),
                 dialog_backdrop: Hsla::from(rgba(0x0f172a66)),
                 dialog_surface: Hsla::from(rgba(0xffffffff)),
