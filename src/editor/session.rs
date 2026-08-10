@@ -1,11 +1,15 @@
 //! Editor session types — the per-area tab list, the inner panel split
-//! container, and the panel-kind vocabulary of an Editor area.
+//! root, and the panel-kind vocabulary of an Editor area.
 //!
-//! The inner panel layout is a [`SplitterContainer`] — the same generic
-//! container the window-level area layout uses — so both levels share one
+//! The inner panel layout is a [`SplitterRoot`] — the same generic split
+//! root the window-level area layout uses — so both levels share one
 //! split model and one set of interactions (see `splitype-splitter`).
 
-use splitype_splitter::state::SplitterContainer;
+use gpui::{App, Pixels, Size};
+use splitype_splitter::container::SplitterContainer;
+use splitype_splitter::policy::DragPolicy;
+use splitype_splitter::root::SplitterRoot;
+use splitype_splitter::sessions::CornerDragSession;
 
 /// The document tabs owned by one Editor area.
 ///
@@ -40,9 +44,23 @@ impl<T> EditorTabList<T> {
 /// or activation logic until its area is back in the foreground.
 pub struct EditorSession {
     pub(crate) tab_list: EditorTabList<crate::editor::controller::DocumentTab>,
-    /// The midcontainer's split container: the inner panel tree, its
+    /// The midcontainer's split root: the inner panel tree, its
     /// operations, and the active drag sessions.
-    pub(crate) splitter: SplitterContainer<EditorInnerPanelKind>,
+    pub(crate) splitter: SplitterRoot<EditorInnerPanelKind>,
+}
+
+/// Inner-panel containers override the Shift-drag default (which clones
+/// the window): dragging an inner panel's corner with Shift is a no-op.
+/// Plain drags, Ctrl swaps, and Alt keep the shared defaults.
+impl DragPolicy<EditorInnerPanelKind> for SplitterContainer<EditorInnerPanelKind> {
+    fn on_shift_drag(
+        _root: &mut SplitterRoot<EditorInnerPanelKind>,
+        _facts: &CornerDragSession,
+        _container_size: Size<Pixels>,
+        _cx: &mut App,
+    ) {
+        // Empty override: Shift + drag on an inner panel does nothing.
+    }
 }
 
 /// Welcome 模式下的面板类型。目前唯一的欢迎面板携带它退出编辑前的

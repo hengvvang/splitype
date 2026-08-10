@@ -8,8 +8,8 @@
 use gpui::*;
 
 use splitype_splitter::interaction::{OverlayStyle, overlay_container};
+use splitype_splitter::root::SplitterRoot;
 use splitype_splitter::sessions::CornerDragSession;
-use splitype_splitter::state::SplitterContainer;
 use splitype_splitter::tree::{AreaRect, Axis, Direction};
 
 /// Render the corner-drag indicator, or `None` when there is nothing to
@@ -20,15 +20,13 @@ use splitype_splitter::tree::{AreaRect, Axis, Direction};
 /// positions with `relative()` against the container, so the indicator
 /// tracks the tree geometry exactly.
 pub fn render_corner_drag_preview<T: Copy + PartialEq>(
-    container: &SplitterContainer<T>,
+    root: &SplitterRoot<T>,
     drag: &CornerDragSession,
     container_size: Size<Pixels>,
     style: &OverlayStyle,
 ) -> Option<AnyElement> {
     let mut rects = Vec::new();
-    container
-        .tree
-        .collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
+    root.tree.collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
     let target_rect = rect_by_id(&rects, drag.target_id)?;
     match drag.hover_leaf {
         Some(hover) if hover != drag.target_id => {
@@ -37,7 +35,7 @@ pub fn render_corner_drag_preview<T: Copy + PartialEq>(
             Some(join_preview_overlay(target, dir, style))
         }
         _ => {
-            let (axis, ratio) = container.corner_split_facts(drag, container_size)?;
+            let (axis, ratio) = root.corner_split_facts(drag, container_size)?;
             Some(split_preview_overlay(target_rect, axis, ratio, style))
         }
     }

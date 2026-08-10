@@ -1,12 +1,14 @@
-//! Window-area kinds and the window-level splitter container.
+//! Window-area kinds and the window-level split root.
 //!
-//! The splitter engine stays kind-agnostic: it stores whatever kind tag
-//! the application defines and never interprets it. The application
-//! defines its own area kinds here, implements its own taxonomy (which
-//! kinds are editors, how each kind seeds a split), and seeds the
-//! default layout (Explorer + Editor).
+//! The splitter engine stays kind-agnostic: the application defines its
+//! own area kinds here, implements its own taxonomy (which kinds are
+//! editors, how each kind seeds a split), registers the default drag
+//! policy for its panel type, and seeds the default layout
+//! (Explorer + Editor).
 
-use splitype_splitter::state::SplitterContainer;
+use splitype_splitter::container::SplitterContainer;
+use splitype_splitter::policy::DragPolicy;
+use splitype_splitter::root::SplitterRoot;
 use splitype_splitter::types::NodeId;
 
 /// Top-level area types in the tiled split layout.
@@ -63,8 +65,13 @@ impl EditorAreaMode {
     }
 }
 
-/// The window-level split container: the outer area layout.
-pub type WindowLayout = SplitterContainer<WindowAreaKind>;
+/// Window-level panel containers use the engine's default drag policy:
+/// plain drags split with a content seed, Shift drags clone the window,
+/// Ctrl swaps, Alt does nothing.
+impl DragPolicy<WindowAreaKind> for SplitterContainer<WindowAreaKind> {}
+
+/// The window-level split root: the outer area layout.
+pub type WindowLayout = SplitterRoot<WindowAreaKind>;
 
 /// The id of the root area created by the default layout.
 pub const ROOT_AREA_ID: NodeId = 1;
@@ -78,30 +85,27 @@ pub const DEFAULT_EDITOR_AREA_ID: NodeId = 2;
 ///
 /// A constructor instead of a `Default` impl because the orphan rule
 /// forbids implementing a foreign trait (std `Default`) for the foreign
-/// `SplitterContainer<WindowAreaKind>` even with the local kind.
+/// `SplitterRoot<WindowAreaKind>` even with the local kind.
 pub fn default_layout() -> WindowLayout {
-    SplitterContainer {
+    SplitterRoot {
         tree: splitype_splitter::tree::SplitTree::Split {
             id: DEFAULT_EDITOR_AREA_ID,
             direction: splitype_splitter::tree::Axis::Horizontal,
             ratio: 0.3,
-            first: Box::new(splitype_splitter::tree::SplitTree::Leaf {
-                id: ROOT_AREA_ID,
-                kind: WindowAreaKind::Explorer,
-            }),
-            second: Box::new(splitype_splitter::tree::SplitTree::Leaf {
-                id: DEFAULT_EDITOR_AREA_ID,
-                kind: WindowAreaKind::Editor,
-            }),
+            first: Box::new(splitype_splitter::tree::SplitTree::Leaf(
+                SplitterContainer::new(ROOT_AREA_ID, WindowAreaKind::Explorer),
+            )),
+            second: Box::new(splitype_splitter::tree::SplitTree::Leaf(
+                SplitterContainer::new(DEFAULT_EDITOR_AREA_ID, WindowAreaKind::Editor),
+            )),
         },
         next_node_id: 3,
-        open_dropdown: None,
-        maximized_area: None,
         active_splitter_drag: None,
-        active_corner_drag: None,
         active_border_menu: None,
         active_area: None,
         activation_history: Vec::new(),
         focused_area: None,
+        seed_split: None,
+        open_clone_window: None,
     }
 }

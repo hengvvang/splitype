@@ -21,7 +21,6 @@ pub(crate) use crate::app::window_area::EditorAreaMode;
 pub(crate) use crate::app::window_area::WindowAreaKind;
 pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
 pub(crate) use crate::editor::bottombar::state::BottombarState;
-pub(crate) use crate::editor::drag_policy::WindowDragPolicy;
 pub(crate) use crate::editor::menu_bar::MenuBarState;
 pub(crate) use crate::editor::session::{
     EditingPanelKind, EditorInnerPanelKind, EditorSession, EditorTabList, InnerPanelLocation,
@@ -51,7 +50,7 @@ pub(crate) use crate::model::syntax::table::{
 };
 pub(crate) use crate::splitter::types::NodeId;
 pub(crate) use splitype_splitter::policy::ClonedContainer;
-pub(crate) use splitype_splitter::state::SplitterContainer;
+pub(crate) use splitype_splitter::root::SplitterRoot;
 
 /// Link navigation request deferred until a `Window` is available.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -238,9 +237,6 @@ pub struct Editor {
     /// Owned here for now; the Shell entity delegates rendering to this
     /// editor and reads this state incrementally.
     pub(crate) panels: WindowPanels,
-    /// The drag policy for the outer layout: what a finished corner drag
-    /// means (Shift = clone window, plain = split with content seed).
-    pub(crate) drag_policy: WindowDragPolicy,
     /// Per-Editor-area sessions (tab list + inner panel split container),
     /// keyed by outer area id. Retained for areas that left Editor with
     /// tabs. The inner-panel drag sessions live inside each session's
@@ -413,7 +409,7 @@ impl Editor {
         area_id: crate::splitter::NodeId,
         cx: &mut Context<Self>,
     ) -> Self {
-        Self {
+        let mut this = Self {
             current_tab_area: None,
             bottombar_state: BottombarState::default(),
             menu_bar: MenuBarState::default(),
@@ -426,12 +422,32 @@ impl Editor {
             shell,
             area_id,
             panels: WindowPanels::default(),
-            drag_policy: WindowDragPolicy::new(cx.entity().downgrade()),
             editor_sessions: HashMap::new(),
             focused_editor_inner_panel: None,
             source_code_panel_runtimes: HashMap::new(),
-        }
-        .with_seeded_editor()
+        };
+        this.install_drag_policy_hooks(cx);
+        this.with_seeded_editor()
+    }
+
+    /// Inject the outer root's content hooks: a plain-drag split seeds the
+    /// fresh sibling leaf with a deep copy of the source editor's content,
+    /// and a Shift-drag clone opens a new window showing the whole cloned
+    /// container. The engine only defines the geometry; these hooks carry
+    /// the host's content steps.
+    fn install_drag_policy_hooks(&mut self, cx: &mut Context<Self>) {
+        let seed_editor = cx.entity().downgrade();
+        let open_editor = cx.entity().downgrade();
+        self.panels.layout.seed_split = Some(Box::new(move |root, src, dst, cx| {
+            let _ = seed_editor.update(cx, |ed, cx| {
+                ed.seed_split_content(root, src, dst, cx);
+            });
+        }));
+        self.panels.layout.open_clone_window = Some(Box::new(move |cloned, cx| {
+            let _ = open_editor.update(cx, |ed, cx| {
+                ed.clone_window_into_new_window(cloned, cx);
+            });
+        }));
     }
 
     /// Seed the default layout's Editor area as the (empty) active editor.
@@ -483,11 +499,11 @@ impl Editor {
             shell,
             area_id,
             panels: WindowPanels::default(),
-            drag_policy: WindowDragPolicy::new(cx.entity().downgrade()),
             editor_sessions: HashMap::new(),
             focused_editor_inner_panel: None,
             source_code_panel_runtimes: HashMap::new(),
         };
+        editor.install_drag_policy_hooks(cx);
         // Seed the default Editor area with the initial tab, migrating the
         // default welcome panel into its editing panel.
         editor
@@ -1001,7 +1017,7 @@ impl Editor {
             // Deep-copy the inner panel tree with fresh ids from the
             // window-wide pool, so the new area's panels are independent
             // and never collide with existing ones.
-            let mut splitter = SplitterContainer::single_leaf(
+            let mut splitter = SplitterRoot::single_leaf(
                 dst_id,
                 EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
             );
@@ -1018,15 +1034,13 @@ impl Editor {
                 },
             );
         } else {
-            editor_sessions
-                .entry(dst_id)
-                .or_insert_with(|| EditorSession {
-                    tab_list: EditorTabList::empty(),
-                    splitter: SplitterContainer::single_leaf(
-                        dst_id,
-                        EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
-                    ),
-                });
+            editor_sessions.entry(dst_id).or_insert_with(|| EditorSession {
+                tab_list: EditorTabList::empty(),
+                splitter: SplitterRoot::single_leaf(
+                    dst_id,
+                    EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
+                ),
+            });
         }
     }
 
@@ -1065,7 +1079,7 @@ impl Editor {
     ) -> EditorSession {
         let root_id = *next_id;
         *next_id += 1;
-        let mut splitter = SplitterContainer::single_leaf(
+        let mut splitter = SplitterRoot::single_leaf(
             root_id,
             EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
         );

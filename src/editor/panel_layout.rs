@@ -94,11 +94,18 @@ impl Editor {
         self.current_tab_area = previous;
 
         let dropdown = {
-            let open_panel = self.ensure_editor_session(area_id).splitter.open_dropdown;
+            let splitter = &self.ensure_editor_session(area_id).splitter;
+            // The open dropdown lives on its panel (panel-level state).
+            let mut ids = Vec::new();
+            splitter.tree.leaf_ids(&mut ids);
+            let open_panel = ids.into_iter().find(|id| {
+                splitter
+                    .tree
+                    .find_leaf(*id)
+                    .is_some_and(|p| p.open_dropdown)
+            });
             if let Some(panel_id) = open_panel {
-                let current_type = self
-                    .ensure_editor_session(area_id)
-                    .splitter
+                let current_type = splitter
                     .tree
                     .find_leaf_kind(panel_id)
                     .unwrap_or(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(
@@ -149,11 +156,17 @@ impl Editor {
                 .map(|rect| size(px(rect.width), px(rect.height)))
                 .unwrap_or(viewport)
         };
-        if let Some(drag) = self
-            .ensure_editor_session(area_id)
-            .splitter
-            .active_corner_drag
-        {
+        // The corner-drag session lives on the dragging panel itself;
+        // find it via the root.
+        if let Some(drag_panel) = self.ensure_editor_session(area_id).splitter.corner_drag_panel() {
+            let drag = self
+                .ensure_editor_session(area_id)
+                .splitter
+                .tree
+                .find_leaf(drag_panel)
+                .unwrap()
+                .active_corner_drag
+                .unwrap();
             if drag.modifier == splitype_splitter::sessions::CornerDragModifier::None {
                 if let Some(preview) =
                     crate::editor::corner_drag_preview::render_corner_drag_preview(
@@ -363,9 +376,9 @@ impl Editor {
         };
 
         match node {
-            SplitTree::Leaf { id: panel_id, kind } => {
-                let panel_id = *panel_id;
-                let kind = *kind;
+            SplitTree::Leaf(container) => {
+                let panel_id = container.id;
+                let kind = container.kind;
                 let inner_editor = cx.entity().downgrade();
 
                 // The panel kind carries the mode: welcome panels render

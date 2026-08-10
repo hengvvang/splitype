@@ -1,10 +1,10 @@
 //! Inner panel layout state and operations of an Editor window.
 //!
 //! The per-area editor sessions (document tab list + inner panel split
-//! container) and all inner-panel operations. The split container is the
-//! same [`SplitterContainer`] the outer window tree uses, so inner-panel
-//! splits, joins, swaps, and drags go through the shared container API
-//! instead of a copied state machine.
+//! root) and all inner-panel operations. The split root is the same
+//! [`SplitterRoot`] the outer window tree uses, so inner-panel splits,
+//! joins, swaps, and drags go through the shared root API instead of a
+//! copied state machine.
 
 use crate::app::window_area::EditorAreaMode;
 use crate::app::window_area::WindowAreaKind;
@@ -13,15 +13,14 @@ use crate::editor::session::{
     EditingPanelKind, EditorInnerPanelKind, EditorSession, EditorTabList, WelcomePanelKind,
 };
 use crate::splitter::NodeId;
-use splitype_splitter::state::SplitterContainer;
+use splitype_splitter::root::SplitterRoot;
 use splitype_splitter::tree::Axis;
 
-/// Create a fresh session: one welcome panel. The inner container is
-/// fully self-contained — it numbers its own nodes from 1, so nested
-/// containers never share state with the outer layout (hosts key their
-/// own maps by (area, panel) pairs).
+/// Create a fresh session: one welcome panel. The inner root is fully
+/// self-contained — it numbers its own nodes from 1, so nested roots
+/// never share state with the outer layout.
 fn new_inner_session() -> EditorSession {
-    let splitter = SplitterContainer::single_leaf(
+    let splitter = SplitterRoot::single_leaf(
         1,
         EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
     );
@@ -134,7 +133,7 @@ impl Editor {
             self.focused_editor_inner_panel = None;
         }
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
-            session.splitter.open_dropdown = None;
+            session.splitter.clear_dropdowns();
         }
     }
     /// Get or create the editor session for an area. New sessions start
@@ -241,13 +240,9 @@ impl Editor {
 
     pub fn toggle_editor_inner_panel_dropdown(&mut self, area_id: NodeId, panel_id: NodeId) {
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
-            let splitter = &mut session.splitter;
-            if splitter.open_dropdown == Some(panel_id) {
-                splitter.open_dropdown = None;
-            } else {
-                splitter.open_dropdown = Some(panel_id);
-                self.panels.layout.open_dropdown = None;
-            }
+            session.splitter.toggle_dropdown(panel_id);
+            // Opening an inner dropdown closes any outer dropdown.
+            self.panels.layout.clear_dropdowns();
         }
     }
 

@@ -14,6 +14,7 @@
 
 use gpui::*;
 
+use crate::root::SplitterRoot;
 use crate::sessions::{CornerDragModifier, CornerDragSession};
 use crate::tree::Axis;
 
@@ -165,7 +166,7 @@ pub fn splitter_bar_v(
 /// `current_ratio` is the split ratio at drag start; the real span is
 /// refreshed on the first move event.
 pub fn start_splitter_drag<T: Copy + PartialEq>(
-    container: &mut crate::state::SplitterContainer<T>,
+    container: &mut SplitterRoot<T>,
     split_id: usize,
     direction: Axis,
     start_pointer_pos: f32,
@@ -182,7 +183,7 @@ pub fn start_splitter_drag<T: Copy + PartialEq>(
 
 /// Open the border context menu on a split bar (right click).
 pub fn open_border_menu<T: Copy + PartialEq>(
-    container: &mut crate::state::SplitterContainer<T>,
+    container: &mut SplitterRoot<T>,
     split_id: usize,
     direction: Axis,
     position: Point<Pixels>,
@@ -194,16 +195,16 @@ pub fn open_border_menu<T: Copy + PartialEq>(
     });
 }
 
-/// Progress the active drag gesture (splitter or corner) of a container.
+/// Progress the active drag gesture (splitter or corner) of a root.
 ///
-/// Generic over the layout level: the outer window container passes the
+/// Generic over the layout level: the outer window root passes the
 /// pointer and viewport in window coordinates; an editor midcontainer
 /// passes them in its local space. Returns whether a gesture was active
-/// (the host should repaint). The host reads the container's drag
-/// sessions to apply its own policy; `finish_window_drag` returns the
-/// corner-drag facts on release.
+/// (the host should repaint). The host reads the root's drag sessions to
+/// apply its own policy; `finish_window_drag` returns the corner-drag
+/// facts on release.
 pub fn update_window_drag<T: Copy + PartialEq>(
-    container: &mut crate::state::SplitterContainer<T>,
+    container: &mut SplitterRoot<T>,
     pos: Point<Pixels>,
     viewport: Size<Pixels>,
 ) -> bool {
@@ -225,7 +226,7 @@ pub fn update_window_drag<T: Copy + PartialEq>(
         }
         container.update_splitter_drag(current_pos);
         true
-    } else if container.active_corner_drag.is_some() {
+    } else if container.corner_drag_panel().is_some() {
         container.update_corner_drag(pos, viewport);
         true
     } else {
@@ -233,15 +234,15 @@ pub fn update_window_drag<T: Copy + PartialEq>(
     }
 }
 
-/// End the active drag gesture of a container; returns the final corner-
+/// End the active drag gesture of a root; returns the final corner-
 /// drag facts (splitter-bar drags just end).
 pub fn finish_window_drag<T: Copy + PartialEq>(
-    container: &mut crate::state::SplitterContainer<T>,
+    container: &mut SplitterRoot<T>,
 ) -> Option<CornerDragSession> {
     if container.active_splitter_drag.is_some() {
         container.end_splitter_drag();
         None
-    } else if container.active_corner_drag.is_some() {
+    } else if container.corner_drag_panel().is_some() {
         container.finish_corner_drag()
     } else {
         None

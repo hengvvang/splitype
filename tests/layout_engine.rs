@@ -145,9 +145,15 @@ fn maximize_toggles_single_area() {
         .expect("split");
 
     state.toggle_maximize(new_id);
-    assert_eq!(state.maximized_area, Some(new_id));
+    assert!(state
+        .tree
+        .find_leaf(new_id)
+        .is_some_and(|p| p.maximized));
     state.toggle_maximize(new_id);
-    assert_eq!(state.maximized_area, None);
+    assert!(state
+        .tree
+        .find_leaf(new_id)
+        .is_some_and(|p| !p.maximized));
 }
 
 /// Activation history records the most recent editor area.

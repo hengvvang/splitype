@@ -31,7 +31,6 @@ pub(crate) mod bottombar;
 pub mod commands;
 pub mod controller;
 pub(crate) mod corner_drag_preview;
-pub(crate) mod drag_policy;
 pub mod editing;
 pub(crate) mod explorer;
 pub mod file;
