@@ -7,7 +7,7 @@ use gpui::*;
 use crate::editor::block_protocol::BlockAction;
 use crate::editor::controller::Editor;
 use crate::editor::tree::block::Block;
-use crate::splitter::types::AreaId;
+use crate::splitter::types::NodeId;
 use crate::model::block::BlockData;
 
 /// The standalone raw-source block backing ONE source-code panel.
@@ -36,7 +36,7 @@ impl Editor {
     /// subscription that only syncs Changed events back to the document.
     pub(crate) fn sync_source_code_panel(
         &mut self,
-        area_id: AreaId,
+        area_id: NodeId,
         panel_id: usize,
         cx: &mut Context<Self>,
     ) {
@@ -45,7 +45,7 @@ impl Editor {
 
         let runtime = self
             .source_code_panel_runtimes
-            .entry(panel_id)
+            .entry((area_id, panel_id))
             .or_insert_with(|| SourceCodePanelRuntime {
                 block: None,
                 synced_doc_hash: 0,
@@ -58,7 +58,7 @@ impl Editor {
             let panel = panel_id;
             cx.subscribe(&block, move |this, block, event, cx| {
                 this.with_current_tab_area(area, |editor| {
-                    editor.on_source_code_panel_changed(panel, block, event, cx);
+                    editor.on_source_code_panel_changed(area, panel, block, event, cx);
                 });
             })
             .detach();
@@ -72,6 +72,7 @@ impl Editor {
     /// processing. Routed to the owning area by the subscription closure.
     pub(crate) fn on_source_code_panel_changed(
         &mut self,
+        area_id: usize,
         panel_id: usize,
         block: Entity<Block>,
         event: &BlockAction,
@@ -99,7 +100,7 @@ impl Editor {
         // block and drop the user's trailing newline. The block keeps the
         // user's bytes; the document is the parsed form.
         let synced_hash = Self::hash_str(&self.doc().to_markdown(cx));
-        if let Some(runtime) = self.source_code_panel_runtimes.get_mut(&panel_id) {
+        if let Some(runtime) = self.source_code_panel_runtimes.get_mut(&(area_id, panel_id)) {
             runtime.synced_doc_hash = synced_hash;
         }
         self.mark_dirty(cx);

@@ -18,7 +18,7 @@ impl Editor {
 
         let content: AnyElement = if let Some(block) = self
             .source_code_panel_runtimes
-            .get(&panel_id)
+            .get(&(area_id, panel_id))
             .and_then(|runtime| runtime.block.clone())
         {
             div()

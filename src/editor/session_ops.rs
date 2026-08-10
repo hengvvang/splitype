@@ -6,25 +6,25 @@
 //! splits, joins, swaps, and drags go through the shared container API
 //! instead of a copied state machine.
 
+use crate::app::window_area::EditorAreaMode;
+use crate::app::window_area::WindowAreaKind;
 use crate::editor::controller::Editor;
 use crate::editor::session::{
     EditingPanelKind, EditorInnerPanelKind, EditorSession, EditorTabList, WelcomePanelKind,
 };
+use crate::splitter::{AreaSplitMode, NodeId};
 use splitype_splitter::state::SplitterContainer;
 use splitype_splitter::tree::Axis;
-use splitype_splitter::types::{AreaId, AreaSplitMode, EditorAreaMode, PanelId, SplitId, WindowAreaKind};
 
-/// Create a fresh session: one welcome panel, its id allocated from the
-/// window-wide id pool so panel ids never collide with outer areas or
-/// other sessions. The container's own pool continues from the global one.
-fn new_inner_session(global_pool: &mut usize) -> EditorSession {
-    let panel_id = *global_pool;
-    *global_pool += 1;
-    let mut splitter = SplitterContainer::single_leaf(
-        panel_id,
+/// Create a fresh session: one welcome panel. The inner container is
+/// fully self-contained — it numbers its own nodes from 1, so nested
+/// containers never share state with the outer layout (hosts key their
+/// own maps by (area, panel) pairs).
+fn new_inner_session() -> EditorSession {
+    let splitter = SplitterContainer::single_leaf(
+        1,
         EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
     );
-    splitter.next_node_id = *global_pool;
     EditorSession {
         tab_list: EditorTabList::empty(),
         splitter,
@@ -39,11 +39,11 @@ impl Editor {
     /// area's id.
     pub fn split_window_area(
         &mut self,
-        area_id: AreaId,
+        area_id: NodeId,
         direction: Axis,
         ratio: f32,
         mode: AreaSplitMode,
-    ) -> Option<AreaId> {
+    ) -> Option<NodeId> {
         let new_id = self.panels.layout.split_leaf(area_id, direction, ratio)?;
         let kind = self.panels.layout.tree.find_leaf_kind(area_id);
         if kind == Some(WindowAreaKind::Editor) {
@@ -82,14 +82,14 @@ impl Editor {
     }
 
     /// Close an area and clean up its editor session.
-    pub fn close_window_area(&mut self, area_id: AreaId) {
+    pub fn close_window_area(&mut self, area_id: NodeId) {
         self.panels.layout.close_leaf(area_id);
         self.editor_sessions.remove(&area_id);
         self.clear_inner_panel_focus(area_id);
     }
 
     /// Join `removed` into `into`, cleaning up the removed area's session.
-    pub fn join_window_area(&mut self, into: AreaId, removed: AreaId) -> bool {
+    pub fn join_window_area(&mut self, into: NodeId, removed: NodeId) -> bool {
         let ok = self.panels.layout.join_leaves(into, removed);
         if ok {
             self.editor_sessions.remove(&removed);
@@ -101,7 +101,7 @@ impl Editor {
     /// Swap the area kind of area `a` and area `b`. Editor sessions move
     /// along with the Editor kind so the new Editor area inherits the
     /// swapped-in tabs and panel layout.
-    pub fn swap_window_area_kinds(&mut self, a: AreaId, b: AreaId) {
+    pub fn swap_window_area_kinds(&mut self, a: NodeId, b: NodeId) {
         let type_a = self.panels.layout.tree.find_leaf_kind(a);
         let type_b = self.panels.layout.tree.find_leaf_kind(b);
         self.panels.layout.swap_kinds(a, b);
@@ -129,7 +129,7 @@ impl Editor {
     /// Change an area's kind. Leaving Editor keeps the session while it
     /// still holds tabs (background editing — switching back restores it)
     /// and drops it once empty.
-    pub fn change_window_area_kind(&mut self, area_id: AreaId, kind: WindowAreaKind) {
+    pub fn change_window_area_kind(&mut self, area_id: NodeId, kind: WindowAreaKind) {
         let previous = self.panels.layout.tree.find_leaf_kind(area_id);
         self.panels.layout.set_kind(area_id, kind);
         if previous == Some(WindowAreaKind::Editor) && kind != WindowAreaKind::Editor {
@@ -150,7 +150,7 @@ impl Editor {
         }
     }
 
-    fn clear_inner_panel_focus(&mut self, area_id: AreaId) {
+    fn clear_inner_panel_focus(&mut self, area_id: NodeId) {
         if self
             .focused_editor_inner_panel
             .is_some_and(|loc| loc.area_id == area_id)
@@ -163,15 +163,14 @@ impl Editor {
     }
     /// Get or create the editor session for an area. New sessions start
     /// with no tabs and a single default `Welcome` panel.
-    pub fn ensure_editor_session(&mut self, area_id: AreaId) -> &mut EditorSession {
-        let global_pool = &mut self.panels.layout.next_node_id;
+    pub fn ensure_editor_session(&mut self, area_id: NodeId) -> &mut EditorSession {
         self.editor_sessions
             .entry(area_id)
-            .or_insert_with(|| new_inner_session(global_pool))
+            .or_insert_with(new_inner_session)
     }
 
     /// The editor session for `area_id`, if one exists.
-    pub fn editor_session(&self, area_id: AreaId) -> Option<&EditorSession> {
+    pub fn editor_session(&self, area_id: NodeId) -> Option<&EditorSession> {
         self.editor_sessions.get(&area_id)
     }
 
@@ -186,7 +185,7 @@ impl Editor {
     /// The editor area's working mode, derived from whether its session
     /// holds tabs. Renderers and editor-internal operations always run on
     /// a foreground area and only consult this dimension.
-    pub fn editor_area_mode(&self, area_id: AreaId) -> EditorAreaMode {
+    pub fn editor_area_mode(&self, area_id: NodeId) -> EditorAreaMode {
         let has_tabs = self
             .editor_sessions
             .get(&area_id)
@@ -200,7 +199,7 @@ impl Editor {
     /// Welcome → Editing: every welcome panel migrates to the editing
     /// panel it remembers (or `SourceCode` if it never edited before).
     /// The split structure is preserved. Idempotent.
-    pub fn enter_editing(&mut self, area_id: AreaId) {
+    pub fn enter_editing(&mut self, area_id: NodeId) {
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
             let mut rects = Vec::new();
             session
@@ -226,7 +225,7 @@ impl Editor {
     /// remembers its editing panel type, so entering editing again
     /// restores the previous layout. The split structure is preserved.
     /// Idempotent.
-    pub fn exit_editing(&mut self, area_id: AreaId) {
+    pub fn exit_editing(&mut self, area_id: NodeId) {
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
             let mut rects = Vec::new();
             session
@@ -254,22 +253,17 @@ impl Editor {
     /// Splits an inner panel via the status-bar buttons. The new panel
     /// inherits the target panel's kind so the split keeps the same view
     /// style.
-    pub fn split_editor_inner_panel(
-        &mut self,
-        area_id: AreaId,
-        panel_id: PanelId,
-        direction: Axis,
-    ) {
+    pub fn split_editor_inner_panel(&mut self, area_id: NodeId, panel_id: NodeId, direction: Axis) {
         self.split_editor_inner_panel_with_ratio(area_id, panel_id, direction, 0.5);
     }
 
-    pub fn close_editor_inner_panel(&mut self, area_id: AreaId, panel_id: PanelId) {
+    pub fn close_editor_inner_panel(&mut self, area_id: NodeId, panel_id: NodeId) {
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
             session.splitter.close_leaf(panel_id);
         }
     }
 
-    pub fn toggle_editor_inner_panel_dropdown(&mut self, area_id: AreaId, panel_id: PanelId) {
+    pub fn toggle_editor_inner_panel_dropdown(&mut self, area_id: NodeId, panel_id: NodeId) {
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
             let splitter = &mut session.splitter;
             if splitter.open_dropdown == Some(panel_id) {
@@ -283,8 +277,8 @@ impl Editor {
 
     pub fn change_editor_inner_panel_kind(
         &mut self,
-        area_id: AreaId,
-        panel_id: PanelId,
+        area_id: NodeId,
+        panel_id: NodeId,
         kind: EditingPanelKind,
     ) {
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
@@ -298,29 +292,24 @@ impl Editor {
     /// dragged panel's kind so both sides keep the same view style.
     pub fn split_editor_inner_panel_with_ratio(
         &mut self,
-        area_id: AreaId,
-        panel_id: PanelId,
+        area_id: NodeId,
+        panel_id: NodeId,
         direction: Axis,
         ratio: f32,
     ) {
-        // Sync the container's id pool with the window-wide pool so new
-        // panel ids never collide with outer areas or other sessions.
-        let global_pool = &mut self.panels.layout.next_node_id;
         let session = self
             .editor_sessions
             .entry(area_id)
-            .or_insert_with(|| new_inner_session(global_pool));
-        session.splitter.next_node_id = *global_pool;
+            .or_insert_with(new_inner_session);
         session.splitter.split_leaf(panel_id, direction, ratio);
-        *global_pool = session.splitter.next_node_id;
     }
 
     /// Join an inner panel into another within the same inner tree.
     pub fn join_editor_inner_panel(
         &mut self,
-        area_id: AreaId,
-        into: PanelId,
-        removed: PanelId,
+        area_id: NodeId,
+        into: NodeId,
+        removed: NodeId,
     ) -> bool {
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
             session.splitter.join_leaves(into, removed)
@@ -330,14 +319,14 @@ impl Editor {
     }
 
     /// Swap area types between two inner panels.
-    pub fn swap_editor_inner_panel_kinds(&mut self, area_id: AreaId, a: PanelId, b: PanelId) {
+    pub fn swap_editor_inner_panel_kinds(&mut self, area_id: NodeId, a: NodeId, b: NodeId) {
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
             session.splitter.swap_kinds(a, b);
         }
     }
 
     /// Swap the two sides of an inner split node (border-menu action).
-    pub fn swap_editor_inner_panel_split_sides(&mut self, area_id: AreaId, split_id: SplitId) {
+    pub fn swap_editor_inner_panel_split_sides(&mut self, area_id: NodeId, split_id: NodeId) {
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
             session.splitter.swap_split_sides(split_id);
         }

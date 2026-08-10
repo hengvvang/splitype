@@ -14,7 +14,7 @@ impl crate::editor::controller::Editor {
     pub(crate) fn render_settings_topbar(
         &self,
         leaf_id: usize,
-        kind: crate::splitter::WindowAreaKind,
+        kind: crate::app::window_area::WindowAreaKind,
         theme: &Theme,
         leaf_count: usize,
         is_maximized: bool,

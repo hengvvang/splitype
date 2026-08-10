@@ -113,8 +113,8 @@ pub enum CornerDragAction {
 pub const MODIFIER_THRESHOLD_PX: f32 = 4.0;
 
 /// Return the id of the element that contains `pos`, given pixel-space rects.
-/// Generic over layout level: the id is an `AreaId` when called with outer
-/// rects and a `PanelId` when called with inner rects.
+/// Generic over layout level: the id is an `NodeId` when called with outer
+/// rects and a `NodeId` when called with inner rects.
 pub fn id_at_point(rects: &[AreaRect], pos: Point<Pixels>) -> Option<usize> {
     let px = f32::from(pos.x);
     let py = f32::from(pos.y);

@@ -9,7 +9,7 @@ use crate::app::menus::install_menus;
 use crate::app::shell::{AreaContent, Shell};
 use crate::editor::controller::Editor;
 use crate::infra::config::recent::record_recent_file;
-use crate::splitter::DEFAULT_EDITOR_AREA_ID;
+use crate::app::window_area::DEFAULT_EDITOR_AREA_ID;
 use crate::ui::custom_titlebar::splitype_window_options;
 
 fn window_title(file_path: Option<&Path>) -> SharedString {

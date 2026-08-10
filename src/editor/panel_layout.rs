@@ -41,8 +41,9 @@ impl Editor {
         let inner_tree = self.ensure_editor_session(area_id).splitter.tree.clone();
 
         // Drop runtimes of panels that were closed or joined.
-        self.source_code_panel_runtimes
-            .retain(|panel_id, _| inner_tree.contains_leaf(*panel_id));
+        self.source_code_panel_runtimes.retain(|(area, panel), _| {
+            *area == area_id && inner_tree.contains_leaf(*panel)
+        });
 
         let previous = self.current_tab_area;
         self.current_tab_area = Some(area_id);
@@ -56,12 +57,13 @@ impl Editor {
             && self.area_mode(area_id).is_editing()
             && let Some(target_id) = self.focused_edit_target_entity_id(window, cx)
         {
-            if let Some((panel_id, _)) =
-                self.source_code_panel_runtimes.iter().find(|(_, runtime)| {
-                    runtime
-                        .block
-                        .as_ref()
-                        .is_some_and(|block| block.entity_id() == target_id)
+            if let Some(((_, panel_id), _)) =
+                self.source_code_panel_runtimes.iter().find(|((area, _), runtime)| {
+                    *area == area_id
+                        && runtime
+                            .block
+                            .as_ref()
+                            .is_some_and(|block| block.entity_id() == target_id)
                 })
             {
                 // Keyboard focus sits in a source panel's own block.

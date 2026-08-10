@@ -6,7 +6,8 @@ use gpui::*;
 
 use crate::editor::window_layout::area_topbar_icon;
 use crate::infra::theme::Theme;
-use crate::splitter::{AreaSplitMode, Axis, WindowAreaKind};
+use crate::splitter::{AreaSplitMode, Axis};
+use crate::app::window_area::WindowAreaKind;
 use crate::ui::button::{icon_chip_button, small_pill_button};
 use crate::ui::topbar::topbar_container;
 
@@ -16,7 +17,7 @@ impl crate::editor::controller::Editor {
     pub(crate) fn render_editor_topbar(
         &mut self,
         leaf_id: usize,
-        kind: crate::splitter::WindowAreaKind,
+        kind: crate::app::window_area::WindowAreaKind,
         theme: &Theme,
         leaf_count: usize,
         is_maximized: bool,
@@ -30,7 +31,7 @@ impl crate::editor::controller::Editor {
         // The active editor (the target for explorer file opens) shows a
         // link icon after its name; other kinds and inactive editors stay
         // plain text.
-        let is_active_editor = kind == crate::splitter::WindowAreaKind::Editor
+        let is_active_editor = kind == crate::app::window_area::WindowAreaKind::Editor
             && self.panels.layout.active_area == Some(leaf_id);
         let type_button = small_pill_button(c, d)
             .id(("area-topbar-type", leaf_id))

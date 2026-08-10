@@ -135,6 +135,6 @@ impl EditingPanelKind {
 /// Locates an editor inner panel: which outer area, and which panel in it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct InnerPanelLocation {
-    pub area_id: splitype_splitter::types::AreaId,
-    pub panel_id: splitype_splitter::types::PanelId,
+    pub area_id: splitype_splitter::types::NodeId,
+    pub panel_id: splitype_splitter::types::NodeId,
 }

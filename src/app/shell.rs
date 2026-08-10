@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use gpui::*;
 
 use crate::editor::controller::Editor;
-use crate::splitter::AreaId;
+use crate::splitter::NodeId;
 
 /// Weak handle to the window shell, held by content entities to reach
 /// layout operations without creating a reference cycle.
@@ -26,7 +26,7 @@ pub enum AreaContent {
 /// The OS window's root entity: content areas + window lifecycle.
 pub struct Shell {
     /// Content entity per outer area id.
-    pub(crate) areas: HashMap<AreaId, AreaContent>,
+    pub(crate) areas: HashMap<NodeId, AreaContent>,
 }
 
 impl Shell {

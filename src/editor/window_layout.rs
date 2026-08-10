@@ -16,7 +16,9 @@ use crate::editor::outline::state::OutlinePanelState;
 use crate::editor::settings::SettingsUiState;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
-use crate::splitter::{AreaSplitMode, Axis, CornerDragAction, WindowAreaKind, WindowLayout};
+use crate::splitter::{AreaSplitMode, Axis, CornerDragAction};
+use crate::app::window_area::WindowAreaKind;
+use crate::app::window_area::WindowLayout;
 use splitype_splitter::tree::SplitTree;
 
 use super::controller::*;
@@ -135,7 +137,7 @@ impl Editor {
                                     if session.modifier
                                         == crate::splitter::CornerDragModifier::Duplicate
                                         && ed.panels.layout.tree.find_leaf_kind(session.target_id)
-                                            == Some(crate::splitter::WindowAreaKind::Settings)
+                                            == Some(crate::app::window_area::WindowAreaKind::Settings)
                                     {
                                         crate::settings::open_settings_window(cx);
                                     }
@@ -341,7 +343,7 @@ impl Editor {
     }
     pub(crate) fn render_window_area_node(
         &mut self,
-        node: &crate::splitter::SplitTree<crate::splitter::WindowAreaKind>,
+        node: &crate::splitter::SplitTree<crate::app::window_area::WindowAreaKind>,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -548,7 +550,7 @@ impl Editor {
     pub(crate) fn render_window_area_tile(
         &mut self,
         leaf_id: usize,
-        kind: crate::splitter::WindowAreaKind,
+        kind: crate::app::window_area::WindowAreaKind,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -619,7 +621,7 @@ impl Editor {
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                 let _ = tile_focus.update(cx, |ed, cx| {
                     ed.panels.layout.focused_area = Some(leaf_id);
-                    if kind == crate::splitter::WindowAreaKind::Editor {
+                    if kind == crate::app::window_area::WindowAreaKind::Editor {
                         ed.panels.layout.activate_area(leaf_id);
                     }
                     cx.notify();
@@ -673,7 +675,7 @@ impl Editor {
     pub(crate) fn render_area_type_dropdown_menu(
         &mut self,
         leaf_id: usize,
-        current_type: crate::splitter::WindowAreaKind,
+        current_type: crate::app::window_area::WindowAreaKind,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -809,10 +811,20 @@ impl Editor {
 /// (outer layout), `crate::explorer`, and `crate::settings`. The per-area
 /// editor sessions and inner-panel operations live on the `Editor` entity
 /// (see `crate::editor::session_ops`).
-#[derive(Default)]
 pub struct WindowPanels {
     pub(crate) explorer: ExplorerState,
     pub(crate) layout: WindowLayout,
     pub(crate) outline: OutlinePanelState,
     pub(crate) settings: SettingsUiState,
+}
+
+impl Default for WindowPanels {
+    fn default() -> Self {
+        Self {
+            explorer: ExplorerState::default(),
+            layout: crate::app::window_area::default_layout(),
+            outline: OutlinePanelState::default(),
+            settings: SettingsUiState::default(),
+        }
+    }
 }

@@ -9,12 +9,12 @@
 use gpui::{Size, px};
 
 use splitype_splitter::Axis;
-use splitype_splitter::state::{DEFAULT_EDITOR_AREA_ID, ROOT_AREA_ID, WindowLayout};
+use splitype::app::window_area::{DEFAULT_EDITOR_AREA_ID, ROOT_AREA_ID, WindowLayout};
 use splitype_splitter::tree::AreaRect;
-use splitype_splitter::types::WindowAreaKind;
+use splitype::app::window_area::WindowAreaKind;
 
 fn layout() -> WindowLayout {
-    WindowLayout::default()
+    splitype::app::window_area::default_layout()
 }
 
 fn root_rects(state: &WindowLayout) -> Vec<AreaRect> {
