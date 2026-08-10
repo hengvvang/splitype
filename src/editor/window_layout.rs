@@ -170,9 +170,9 @@ impl Editor {
                     if let Some((area_id, session)) = ed
                         .editor_sessions
                         .iter_mut()
-                        .find(|(_, s)| s.splitter.active_splitter_drag.is_some())
+                        .find(|(_, s)| s.root.active_splitter_drag.is_some())
                     {
-                        let drag = session.splitter.active_splitter_drag.unwrap();
+                        let drag = session.root.active_splitter_drag.unwrap();
                         let viewport = window.viewport_size();
                         let outer_rects = ed.panels.layout.leaf_rects(viewport);
                         if let Some(outer_rect) = ed.panels.layout.leaf_rect(*area_id, &outer_rects)
@@ -183,7 +183,7 @@ impl Editor {
                             };
                             let inner_size = size(px(outer_rect.width), px(outer_rect.height));
                             let span = session
-                                .splitter
+                                .root
                                 .split_pixel_span(drag.split_id, inner_size)
                                 .unwrap_or_else(|| match drag.direction {
                                     Axis::Horizontal => outer_rect.width,
@@ -192,20 +192,20 @@ impl Editor {
                             if span > 1.0 {
                                 let mut refreshed = drag;
                                 refreshed.total_span = span;
-                                session.splitter.active_splitter_drag = Some(refreshed);
+                                session.root.active_splitter_drag = Some(refreshed);
                             }
-                            session.splitter.update_splitter_drag(current_pos);
+                            session.root.update_splitter_drag(current_pos);
                             changed = true;
                         }
                     } else if let Some((area_id, session)) = ed
                         .editor_sessions
                         .iter_mut()
-                        .find(|(_, s)| s.splitter.corner_drag_panel().is_some())
+                        .find(|(_, s)| s.root.corner_drag_panel().is_some())
                     {
                         let area_id = *area_id;
-                        let drag_panel = session.splitter.corner_drag_panel().unwrap();
+                        let drag_panel = session.root.corner_drag_panel().unwrap();
                         let drag = session
-                            .splitter
+                            .root
                             .tree
                             .find_leaf(drag_panel)
                             .and_then(|p| p.active_corner_drag)
@@ -231,11 +231,11 @@ impl Editor {
                             // panel's own session, then let the root
                             // update the facts (hover, direction).
                             if let Some(panel) =
-                                session.splitter.tree.find_leaf_mut(drag_panel)
+                                session.root.tree.find_leaf_mut(drag_panel)
                             {
                                 panel.active_corner_drag = Some(updated);
                             }
-                            session.splitter.update_corner_drag(inner_pos, inner_size);
+                            session.root.update_corner_drag(inner_pos, inner_size);
                             // Inner gesture shortcuts (host-owned,
                             // immediate): Ctrl past the threshold swaps
                             // the dragged panel with the hovered one;
@@ -243,7 +243,7 @@ impl Editor {
                             // a no-op. Plain drags defer to the inner drag
                             // policy on mouse-up.
                             let drag = session
-                                .splitter
+                                .root
                                 .tree
                                 .find_leaf(drag_panel)
                                 .and_then(|p| p.active_corner_drag);
@@ -254,16 +254,16 @@ impl Editor {
                                 if dist >= MODIFIER_THRESHOLD_PX {
                                     match drag.modifier {
                                         CornerDragModifier::Ctrl => {
-                                            let rects = session.splitter.leaf_rects(inner_size);
+                                            let rects = session.root.leaf_rects(inner_size);
                                             if let Some(over) = id_at_point(&rects, inner_pos) {
                                                 if over != drag.target_id {
                                                     pending_swap = Some((drag.target_id, over));
                                                 }
                                             }
-                                            session.splitter.end_corner_drag();
+                                            session.root.end_corner_drag();
                                         }
                                         CornerDragModifier::Shift => {
-                                            session.splitter.end_corner_drag();
+                                            session.root.end_corner_drag();
                                         }
                                         CornerDragModifier::None | CornerDragModifier::Alt => {}
                                     }
@@ -318,9 +318,9 @@ impl Editor {
                     let splitter_pending = ed
                         .editor_sessions
                         .iter_mut()
-                        .find(|(_, s)| s.splitter.active_splitter_drag.is_some());
+                        .find(|(_, s)| s.root.active_splitter_drag.is_some());
                     if let Some((_, session)) = splitter_pending {
-                        session.splitter.end_splitter_drag();
+                        session.root.end_splitter_drag();
                         cx.notify();
                     }
                     // Inner corner drag end: finish the gesture through the
@@ -329,9 +329,9 @@ impl Editor {
                     let corner_pending = ed
                         .editor_sessions
                         .iter_mut()
-                        .find(|(_, s)| s.splitter.corner_drag_panel().is_some())
+                        .find(|(_, s)| s.root.corner_drag_panel().is_some())
                         .map(|(area_id, session)| {
-                            let facts = session.splitter.finish_corner_drag();
+                            let facts = session.root.finish_corner_drag();
                             (*area_id, facts)
                         });
                     if let Some((area_id, Some(facts))) = corner_pending {
@@ -348,22 +348,22 @@ impl Editor {
                             match facts.modifier {
                                 CornerDragModifier::None => {
                                     <SplitterContainer<EditorInnerPanelKind> as DragPolicy<EditorInnerPanelKind>>::on_plain_drag(
-                                        &mut session.splitter, &facts, inner_size, cx,
+                                        &mut session.root, &facts, inner_size, cx,
                                     )
                                 }
                                 CornerDragModifier::Shift => {
                                     <SplitterContainer<EditorInnerPanelKind> as DragPolicy<EditorInnerPanelKind>>::on_shift_drag(
-                                        &mut session.splitter, &facts, inner_size, cx,
+                                        &mut session.root, &facts, inner_size, cx,
                                     )
                                 }
                                 CornerDragModifier::Ctrl => {
                                     <SplitterContainer<EditorInnerPanelKind> as DragPolicy<EditorInnerPanelKind>>::on_ctrl_drag(
-                                        &mut session.splitter, &facts, inner_size, cx,
+                                        &mut session.root, &facts, inner_size, cx,
                                     )
                                 }
                                 CornerDragModifier::Alt => {
                                     <SplitterContainer<EditorInnerPanelKind> as DragPolicy<EditorInnerPanelKind>>::on_alt_drag(
-                                        &mut session.splitter, &facts, inner_size, cx,
+                                        &mut session.root, &facts, inner_size, cx,
                                     )
                                 }
                             }
@@ -505,7 +505,7 @@ impl Editor {
                             .child(
                                 // Splitter bar between the two seamless areas.
                                 splitype_splitter::interaction::splitter_bar_h(
-                                    ("tiled-splitter-bar-h", split_id),
+                                    ("tiled-root-bar-h", split_id),
                                     r,
                                     bar_active,
                                     &overlay_style,
@@ -585,7 +585,7 @@ impl Editor {
                             .child(
                                 // Splitter bar between the two seamless areas.
                                 splitype_splitter::interaction::splitter_bar_v(
-                                    ("tiled-splitter-bar-v", split_id),
+                                    ("tiled-root-bar-v", split_id),
                                     r,
                                     bar_active,
                                     &overlay_style,

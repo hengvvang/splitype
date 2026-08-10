@@ -50,15 +50,9 @@ pub(crate) fn open_editor_window(
                 let editor = cx.new(|cx| {
                     // No content and no path → welcome state with zero tabs.
                     if markdown.is_empty() && file_path.is_none() {
-                        Editor::empty_in_shell(None, DEFAULT_EDITOR_AREA_ID, cx)
+                        Editor::empty_in_shell(None, cx)
                     } else {
-                        Editor::from_markdown_in_shell(
-                            None,
-                            DEFAULT_EDITOR_AREA_ID,
-                            cx,
-                            markdown,
-                            file_path,
-                        )
+                        Editor::from_markdown_in_shell(None, cx, markdown, file_path)
                     }
                 });
                 cx.new(move |_cx| Shell {
@@ -102,7 +96,7 @@ pub(crate) fn open_cloned_window(
             splitype_window_options(SharedString::new("Splitype"), bounds),
             move |_window, cx| {
                 let editor = cx.new(|cx| {
-                    let mut ed = Editor::empty_in_shell(None, DEFAULT_EDITOR_AREA_ID, cx);
+                    let mut ed = Editor::empty_in_shell(None, cx);
                     ed.panels.layout.tree = tree;
                     ed.panels.layout.next_node_id = next_node_id;
                     ed.editor_sessions = sessions;

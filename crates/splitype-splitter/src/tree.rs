@@ -7,6 +7,10 @@ use std::collections::HashMap;
 
 use crate::container::SplitterContainer;
 
+/// The one id concept of the engine: every node of every container
+/// (leaves and split nodes alike) is numbered from this single space.
+pub type NodeId = usize;
+
 /// Split orientation between adjacent areas.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Axis {
@@ -237,18 +241,6 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                 }
             }
         }
-    }
-
-    /// Split a leaf at 50% ratio with the given `next_type` for the new side.
-    #[allow(dead_code)] // used by tests
-    pub fn split_leaf(
-        &mut self,
-        target_id: usize,
-        new_id: usize,
-        direction: Axis,
-        next_type: T,
-    ) -> bool {
-        self.split_leaf_with_ratio(target_id, new_id, direction, 0.5, next_type)
     }
 
     /// Split a leaf at a specific ratio (clamped to [0.15, 0.85]).

@@ -23,11 +23,9 @@ pub mod policy;
 pub mod root;
 pub mod sessions;
 pub mod tree;
-pub mod types;
 
 pub use container::*;
 pub use policy::*;
 pub use root::*;
 pub use sessions::*;
 pub use tree::*;
-pub use types::*;

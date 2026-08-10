@@ -1,12 +1,11 @@
 //! Content-independent split interaction rendering.
 //!
-//! The draggable splitter bars between areas, the corner-drag handles and
-//! their preview overlays, and the splitter-bar context menu are pure
-//! window-management UI: they depend on the layout tree geometry and a
-//! small set of visual parameters, never on what the areas contain.
-//! Rendering and gesture state machines live here so any host (window
-//! shell, editor panel layout) can reuse them without reimplementing the
-//! interaction visuals.
+//! The draggable splitter bars between panels, the corner-drag handles and
+//! the splitter-bar context menu are pure window-management UI: they depend
+//! on the layout tree geometry and a small set of visual parameters, never
+//! on what the panels contain. Rendering and gesture state machines live
+//! here so any host (window shell, editor panel layout) can reuse them
+//! without reimplementing the interaction visuals.
 //!
 //! Visual parameters are injected via [`OverlayStyle`] and [`MenuStyle`]
 //! so this crate stays free of any concrete theme; menu actions are

@@ -9,7 +9,7 @@
 use splitype_splitter::container::SplitterContainer;
 use splitype_splitter::policy::DragPolicy;
 use splitype_splitter::root::SplitterRoot;
-use splitype_splitter::types::NodeId;
+use splitype_splitter::tree::NodeId;
 
 /// Top-level area types in the tiled split layout.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

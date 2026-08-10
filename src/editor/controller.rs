@@ -48,7 +48,7 @@ pub(crate) use crate::model::syntax::table::{
     TableAxisHighlight, TableAxisKind, TableAxisMarker, TableColumnAlignment, TableData,
     serialize_table_cell_markdown,
 };
-pub(crate) use crate::splitter::types::NodeId;
+pub(crate) use crate::splitter::tree::NodeId;
 pub(crate) use splitype_splitter::policy::ClonedContainer;
 pub(crate) use splitype_splitter::root::SplitterRoot;
 
@@ -229,10 +229,6 @@ pub struct Editor {
     pub(crate) welcome_last_click: Option<Instant>,
     /// Weak handle to the owning window shell (set at construction).
     pub(crate) shell: Option<crate::app::shell::WeakShell>,
-    /// The outer area this editor renders as content for. Read once the
-    /// editor renders its own area frame instead of the whole window.
-    #[allow(dead_code)] // read by the upcoming area-frame rendering split
-    pub(crate) area_id: crate::splitter::NodeId,
     /// Window-level panel state (outer layout, explorer, outline, settings).
     /// Owned here for now; the Shell entity delegates rendering to this
     /// editor and reads this state incrementally.
@@ -240,7 +236,7 @@ pub struct Editor {
     /// Per-Editor-area sessions (tab list + inner panel split container),
     /// keyed by outer area id. Retained for areas that left Editor with
     /// tabs. The inner-panel drag sessions live inside each session's
-    /// `splitter` container.
+    /// `root` container.
     pub(crate) editor_sessions: HashMap<NodeId, EditorSession>,
     /// Currently focused inner panel — the status-bar action target.
     pub(crate) focused_editor_inner_panel: Option<InnerPanelLocation>,
@@ -399,14 +395,13 @@ impl Editor {
     /// before any file is opened or an Untitled tab is started. The default
     /// layout seeds a left Explorer area and a right Editor area with an
     /// empty tab bar.
-    pub fn empty(_cx: &mut Context<Self>) -> Self {
-        Self::empty_in_shell(None, crate::app::window_area::DEFAULT_EDITOR_AREA_ID, _cx)
+    pub fn empty(cx: &mut Context<Self>) -> Self {
+        Self::empty_in_shell(None, cx)
     }
 
     /// Creates an editor with no document tabs, bound to a window shell.
     pub(crate) fn empty_in_shell(
         shell: Option<crate::app::shell::WeakShell>,
-        area_id: crate::splitter::NodeId,
         cx: &mut Context<Self>,
     ) -> Self {
         let mut this = Self {
@@ -420,7 +415,6 @@ impl Editor {
             update_check_in_progress: false,
             welcome_last_click: None,
             shell,
-            area_id,
             panels: WindowPanels::default(),
             editor_sessions: HashMap::new(),
             focused_editor_inner_panel: None,
@@ -468,19 +462,12 @@ impl Editor {
         markdown: String,
         file_path: Option<PathBuf>,
     ) -> Self {
-        Self::from_markdown_in_shell(
-            None,
-            crate::app::window_area::DEFAULT_EDITOR_AREA_ID,
-            cx,
-            markdown,
-            file_path,
-        )
+        Self::from_markdown_in_shell(None, cx, markdown, file_path)
     }
 
     /// Creates an editor from markdown, bound to a window shell.
     pub(crate) fn from_markdown_in_shell(
         shell: Option<crate::app::shell::WeakShell>,
-        area_id: crate::splitter::NodeId,
         cx: &mut Context<Self>,
         markdown: String,
         file_path: Option<PathBuf>,
@@ -497,7 +484,6 @@ impl Editor {
             update_check_in_progress: false,
             welcome_last_click: None,
             shell,
-            area_id,
             panels: WindowPanels::default(),
             editor_sessions: HashMap::new(),
             focused_editor_inner_panel: None,
@@ -763,7 +749,7 @@ impl Editor {
         self.with_current_tab_area(area_id, |editor| {
             let kind = editor
                 .editor_session(area_id)
-                .and_then(|session| session.splitter.tree.find_leaf_kind(panel_id));
+                .and_then(|session| session.root.tree.find_leaf_kind(panel_id));
             match kind {
                 // The source panel's own block becomes the edit target.
                 Some(EditorInnerPanelKind::Editing(EditingPanelKind::SourceCode)) => {
@@ -1017,26 +1003,26 @@ impl Editor {
             // Deep-copy the inner panel tree with fresh ids from the
             // window-wide pool, so the new area's panels are independent
             // and never collide with existing ones.
-            let mut splitter = SplitterRoot::single_leaf(
+            let mut root = SplitterRoot::single_leaf(
                 dst_id,
                 EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
             );
-            splitter.tree = source
-                .splitter
+            root.tree = source
+                .root
                 .tree
                 .clone_with_new_ids(&mut container.next_node_id);
-            splitter.next_node_id = container.next_node_id;
+            root.next_node_id = container.next_node_id;
             editor_sessions.insert(
                 dst_id,
                 EditorSession {
                     tab_list: EditorTabList::empty(),
-                    splitter,
+                    root,
                 },
             );
         } else {
             editor_sessions.entry(dst_id).or_insert_with(|| EditorSession {
                 tab_list: EditorTabList::empty(),
-                splitter: SplitterRoot::single_leaf(
+                root: SplitterRoot::single_leaf(
                     dst_id,
                     EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
                 ),
@@ -1079,12 +1065,12 @@ impl Editor {
     ) -> EditorSession {
         let root_id = *next_id;
         *next_id += 1;
-        let mut splitter = SplitterRoot::single_leaf(
+        let mut root = SplitterRoot::single_leaf(
             root_id,
             EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
         );
-        splitter.tree = source.splitter.tree.clone_with_new_ids(next_id);
-        splitter.next_node_id = *next_id;
+        root.tree = source.root.tree.clone_with_new_ids(next_id);
+        root.next_node_id = *next_id;
 
         let mut tabs = Vec::with_capacity(source.tab_list.tabs.len());
         for tab in &source.tab_list.tabs {
@@ -1103,7 +1089,7 @@ impl Editor {
                 active_tab: source.tab_list.active_tab.min(tabs.len().saturating_sub(1)),
                 tabs,
             },
-            splitter,
+            root,
         }
     }
 }

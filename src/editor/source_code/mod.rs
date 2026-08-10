@@ -7,7 +7,7 @@ use gpui::*;
 use crate::editor::block_protocol::BlockAction;
 use crate::editor::controller::Editor;
 use crate::editor::tree::block::Block;
-use crate::splitter::types::NodeId;
+use crate::splitter::tree::NodeId;
 use crate::model::block::BlockData;
 
 /// The standalone raw-source block backing ONE source-code panel.

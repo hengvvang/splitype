@@ -64,12 +64,12 @@ fn ensure_wysiwyg_editing_panel(editor: &gpui::Entity<Editor>, cx: &mut gpui::Ap
         let mut ids = Vec::new();
         editor
             .ensure_editor_session(area)
-            .splitter.tree
+            .root.tree
             .leaf_ids(&mut ids);
         for id in ids {
             editor
                 .ensure_editor_session(area)
-                .splitter.tree
+                .root.tree
                 .set_leaf_kind(
                     id,
                     crate::editor::session::EditorInnerPanelKind::Editing(

@@ -19,8 +19,7 @@ use gpui::{App, Pixels, Size};
 
 use crate::root::SplitterRoot;
 use crate::sessions::{CornerDragSession, MODIFIER_THRESHOLD_PX};
-use crate::tree::SplitTree;
-use crate::types::NodeId;
+use crate::tree::{NodeId, SplitTree};
 
 /// A whole container cloned for a Shift-drag "open clone window" gesture:
 /// the new tree, the id pool it was assigned from, and the mapping from

@@ -38,7 +38,7 @@ impl Editor {
     ) -> AnyElement {
         let c = &theme.colors;
         self.tab_list_mut_for(area_id);
-        let inner_tree = self.ensure_editor_session(area_id).splitter.tree.clone();
+        let inner_tree = self.ensure_editor_session(area_id).root.tree.clone();
 
         // Drop runtimes of panels that were closed or joined.
         self.source_code_panel_runtimes
@@ -94,18 +94,18 @@ impl Editor {
         self.current_tab_area = previous;
 
         let dropdown = {
-            let splitter = &self.ensure_editor_session(area_id).splitter;
+            let root = &self.ensure_editor_session(area_id).root;
             // The open dropdown lives on its panel (panel-level state).
             let mut ids = Vec::new();
-            splitter.tree.leaf_ids(&mut ids);
+            root.tree.leaf_ids(&mut ids);
             let open_panel = ids.into_iter().find(|id| {
-                splitter
+                root
                     .tree
                     .find_leaf(*id)
                     .is_some_and(|p| p.open_dropdown)
             });
             if let Some(panel_id) = open_panel {
-                let current_type = splitter
+                let current_type = root
                     .tree
                     .find_leaf_kind(panel_id)
                     .unwrap_or(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(
@@ -158,10 +158,10 @@ impl Editor {
         };
         // The corner-drag session lives on the dragging panel itself;
         // find it via the root.
-        if let Some(drag_panel) = self.ensure_editor_session(area_id).splitter.corner_drag_panel() {
+        if let Some(drag_panel) = self.ensure_editor_session(area_id).root.corner_drag_panel() {
             let drag = self
                 .ensure_editor_session(area_id)
-                .splitter
+                .root
                 .tree
                 .find_leaf(drag_panel)
                 .unwrap()
@@ -170,7 +170,7 @@ impl Editor {
             if drag.modifier == splitype_splitter::sessions::CornerDragModifier::None {
                 if let Some(preview) =
                     crate::editor::corner_drag_preview::render_corner_drag_preview(
-                        &self.ensure_editor_session(area_id).splitter,
+                        &self.ensure_editor_session(area_id).root,
                         &drag,
                         inner_size,
                         &overlay_style,
@@ -188,7 +188,7 @@ impl Editor {
         // semantics: Split/Close act on that side, Swap flips the sides.
         if let Some(border_menu) = self
             .ensure_editor_session(area_id)
-            .splitter
+            .root
             .active_border_menu
         {
             let menu_overlay =
@@ -217,7 +217,7 @@ impl Editor {
                 ed.editor_sessions
                     .get_mut(&area_id)
                     .unwrap()
-                    .splitter
+                    .root
                     .active_border_menu = None;
                 cx.notify();
             });
@@ -229,7 +229,7 @@ impl Editor {
                 ed.editor_sessions
                     .get_mut(&area_id)
                     .unwrap()
-                    .splitter
+                    .root
                     .active_border_menu = None;
                 cx.notify();
             });
@@ -248,7 +248,7 @@ impl Editor {
                 ed.editor_sessions
                     .get_mut(&area_id)
                     .unwrap()
-                    .splitter
+                    .root
                     .active_border_menu = None;
                 cx.notify();
             });
@@ -259,7 +259,7 @@ impl Editor {
                 ed.editor_sessions
                     .get_mut(&area_id)
                     .unwrap()
-                    .splitter
+                    .root
                     .active_border_menu = None;
                 cx.notify();
             });
@@ -420,7 +420,7 @@ impl Editor {
                             ed.editor_sessions
                                 .get_mut(&area_id)
                                 .unwrap()
-                                .splitter
+                                .root
                                 .start_corner_drag(panel_id, pos, modifier);
                             cx.notify();
                         });
@@ -495,7 +495,7 @@ impl Editor {
                         let bar_active =
                             self.editor_sessions.get(&area_id).is_some_and(|session| {
                                 session
-                                    .splitter
+                                    .root
                                     .active_splitter_drag
                                     .is_some_and(|drag| drag.split_id == split_id)
                             });
@@ -532,7 +532,7 @@ impl Editor {
                             )
                             .child(
                                 splitype_splitter::interaction::splitter_bar_h(
-                                    ("inner-splitter-bar-h", split_id),
+                                    ("inner-root-bar-h", split_id),
                                     r,
                                     bar_active,
                                     &overlay_style,
@@ -557,7 +557,7 @@ impl Editor {
                                                 .map(|rect| start_pos - rect.x)
                                                 .unwrap_or(start_pos);
                                             splitype_splitter::interaction::start_splitter_drag(
-                                                &mut session.splitter,
+                                                &mut session.root,
                                                 split_id,
                                                 Axis::Horizontal,
                                                 local_start,
@@ -576,7 +576,7 @@ impl Editor {
                                                 ed.editor_sessions.get_mut(&area_id)
                                             {
                                                 splitype_splitter::interaction::open_border_menu(
-                                                    &mut session.splitter,
+                                                    &mut session.root,
                                                     split_id,
                                                     dir,
                                                     pos,
@@ -595,7 +595,7 @@ impl Editor {
                         let bar_active =
                             self.editor_sessions.get(&area_id).is_some_and(|session| {
                                 session
-                                    .splitter
+                                    .root
                                     .active_splitter_drag
                                     .is_some_and(|drag| drag.split_id == split_id)
                             });
@@ -632,7 +632,7 @@ impl Editor {
                             )
                             .child(
                                 splitype_splitter::interaction::splitter_bar_v(
-                                    ("inner-splitter-bar-v", split_id),
+                                    ("inner-root-bar-v", split_id),
                                     r,
                                     bar_active,
                                     &overlay_style,
@@ -656,7 +656,7 @@ impl Editor {
                                                 .map(|rect| start_pos - rect.y)
                                                 .unwrap_or(start_pos);
                                             splitype_splitter::interaction::start_splitter_drag(
-                                                &mut session.splitter,
+                                                &mut session.root,
                                                 split_id,
                                                 Axis::Vertical,
                                                 local_start,
@@ -675,7 +675,7 @@ impl Editor {
                                                 ed.editor_sessions.get_mut(&area_id)
                                             {
                                                 splitype_splitter::interaction::open_border_menu(
-                                                    &mut session.splitter,
+                                                    &mut session.root,
                                                     split_id,
                                                     dir,
                                                     pos,

@@ -11,7 +11,7 @@
 use gpui::{Pixels, Point};
 
 use crate::sessions::{CornerDragModifier, CornerDragSession};
-use crate::types::NodeId;
+use crate::tree::NodeId;
 
 /// A panel container: one leaf of the split tree, holding the panel type
 /// `T` and its own interaction state.

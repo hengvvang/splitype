@@ -20,13 +20,13 @@ use splitype_splitter::tree::Axis;
 /// self-contained — it numbers its own nodes from 1, so nested roots
 /// never share state with the outer layout.
 fn new_inner_session() -> EditorSession {
-    let splitter = SplitterRoot::single_leaf(
+    let root = SplitterRoot::single_leaf(
         1,
         EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
     );
     EditorSession {
         tab_list: EditorTabList::empty(),
-        splitter,
+        root,
     }
 }
 
@@ -133,7 +133,7 @@ impl Editor {
             self.focused_editor_inner_panel = None;
         }
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
-            session.splitter.clear_dropdowns();
+            session.root.clear_dropdowns();
         }
     }
     /// Get or create the editor session for an area. New sessions start
@@ -178,17 +178,17 @@ impl Editor {
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
             let mut rects = Vec::new();
             session
-                .splitter
+                .root
                 .tree
                 .collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
             let ids: Vec<usize> = rects.iter().map(|rect| rect.id).collect();
             for id in ids {
                 let Some(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(previous))) =
-                    session.splitter.tree.find_leaf_kind(id)
+                    session.root.tree.find_leaf_kind(id)
                 else {
                     continue;
                 };
-                session.splitter.tree.set_leaf_kind(
+                session.root.tree.set_leaf_kind(
                     id,
                     EditorInnerPanelKind::Editing(previous.unwrap_or(EditingPanelKind::SourceCode)),
                 );
@@ -204,17 +204,17 @@ impl Editor {
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
             let mut rects = Vec::new();
             session
-                .splitter
+                .root
                 .tree
                 .collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
             let ids: Vec<usize> = rects.iter().map(|rect| rect.id).collect();
             for id in ids {
                 let Some(EditorInnerPanelKind::Editing(panel)) =
-                    session.splitter.tree.find_leaf_kind(id)
+                    session.root.tree.find_leaf_kind(id)
                 else {
                     continue;
                 };
-                session.splitter.tree.set_leaf_kind(
+                session.root.tree.set_leaf_kind(
                     id,
                     EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(Some(panel))),
                 );
@@ -222,7 +222,7 @@ impl Editor {
         }
     }
     // ------------------------------------------------------------------
-    // Inner panel layout (via the session's splitter container)
+    // Inner panel layout (via the session's root container)
     // ------------------------------------------------------------------
 
     /// Splits an inner panel via the status-bar buttons. The new panel
@@ -234,13 +234,13 @@ impl Editor {
 
     pub fn close_editor_inner_panel(&mut self, area_id: NodeId, panel_id: NodeId) {
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
-            session.splitter.close_leaf(panel_id);
+            session.root.close_leaf(panel_id);
         }
     }
 
     pub fn toggle_editor_inner_panel_dropdown(&mut self, area_id: NodeId, panel_id: NodeId) {
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
-            session.splitter.toggle_dropdown(panel_id);
+            session.root.toggle_dropdown(panel_id);
             // Opening an inner dropdown closes any outer dropdown.
             self.panels.layout.clear_dropdowns();
         }
@@ -254,7 +254,7 @@ impl Editor {
     ) {
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
             session
-                .splitter
+                .root
                 .set_kind(panel_id, EditorInnerPanelKind::Editing(kind));
         }
     }
@@ -272,7 +272,7 @@ impl Editor {
             .editor_sessions
             .entry(area_id)
             .or_insert_with(new_inner_session);
-        session.splitter.split_leaf(panel_id, direction, ratio);
+        session.root.split_leaf(panel_id, direction, ratio);
     }
 
     /// Join an inner panel into another within the same inner tree.
@@ -283,7 +283,7 @@ impl Editor {
         removed: NodeId,
     ) -> bool {
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
-            session.splitter.join_leaves(into, removed)
+            session.root.join_leaves(into, removed)
         } else {
             false
         }
@@ -292,14 +292,14 @@ impl Editor {
     /// Swap area types between two inner panels.
     pub fn swap_editor_inner_panel_kinds(&mut self, area_id: NodeId, a: NodeId, b: NodeId) {
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
-            session.splitter.swap_kinds(a, b);
+            session.root.swap_kinds(a, b);
         }
     }
 
     /// Swap the two sides of an inner split node (border-menu action).
     pub fn swap_editor_inner_panel_split_sides(&mut self, area_id: NodeId, split_id: NodeId) {
         if let Some(session) = self.editor_sessions.get_mut(&area_id) {
-            session.splitter.swap_split_sides(split_id);
+            session.root.swap_split_sides(split_id);
         }
     }
 }

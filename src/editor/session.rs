@@ -46,7 +46,7 @@ pub struct EditorSession {
     pub(crate) tab_list: EditorTabList<crate::editor::controller::DocumentTab>,
     /// The midcontainer's split root: the inner panel tree, its
     /// operations, and the active drag sessions.
-    pub(crate) splitter: SplitterRoot<EditorInnerPanelKind>,
+    pub(crate) root: SplitterRoot<EditorInnerPanelKind>,
 }
 
 /// Inner-panel containers override the Shift-drag default (which clones
@@ -141,6 +141,6 @@ impl EditingPanelKind {
 /// Locates an editor inner panel: which outer area, and which panel in it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct InnerPanelLocation {
-    pub area_id: splitype_splitter::types::NodeId,
-    pub panel_id: splitype_splitter::types::NodeId,
+    pub area_id: crate::splitter::tree::NodeId,
+    pub panel_id: crate::splitter::tree::NodeId,
 }

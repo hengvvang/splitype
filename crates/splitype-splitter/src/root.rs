@@ -16,8 +16,7 @@ use crate::policy::ClonedContainer;
 use crate::sessions::{
     BorderMenuState, CornerDragModifier, CornerDragSession, SplitterDragSession, id_at_point,
 };
-use crate::tree::{AreaRect, Axis, Direction, SplitTree};
-use crate::types::NodeId;
+use crate::tree::{AreaRect, Axis, Direction, NodeId, SplitTree};
 
 /// One initialized split region: the panel tree plus tree-level state.
 ///
