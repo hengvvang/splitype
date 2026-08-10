@@ -106,15 +106,21 @@ impl Block {
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
+        let t = &theme.typography;
         let toolbar_height = 28.0;
+        // Center the toolbar vertically on the code block's first text line
+        // (content starts below `code_block_padding_y`) and keep it at the
+        // line's right edge.
+        let line_height = t.code_size * t.text_line_height;
+        let top = d.code_block_padding_y + (line_height - toolbar_height) * 0.5;
 
         div()
             .id(ElementId::Name(
                 format!("code-toolbar-{}", self.record.id).into(),
             ))
             .absolute()
-            .top(relative(0.02))
-            .right(relative(0.02))
+            .top(px(top))
+            .right(px(6.0))
             .opacity(if show_toolbar { 1.0 } else { 0.0 })
             .flex()
             .items_center()
@@ -123,7 +129,10 @@ impl Block {
             .h(px(toolbar_height))
             .rounded(px(d.menu_item_radius))
             .border_1()
-            .border_color(c.table_border)
+            // The toolbar hugs the code-block background's top-right corner
+            // with equal insets; its border follows the editor background so
+            // it is black on dark themes and white on light themes.
+            .border_color(c.editor_background)
             .bg(gpui::transparent_black())
             .text_size(px(11.5))
             .text_color(c.code_language_input_text)

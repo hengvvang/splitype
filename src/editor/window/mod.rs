@@ -478,7 +478,18 @@ impl Editor {
         self.current_tab_area = Some(area_id);
 
         let viewport_bounds = self.tab().scroll.handle.bounds();
-        let viewport_size = viewport_bounds.size;
+        // A tab that has never been rendered has an unbound scroll handle
+        // (0×0 bounds). Window the first frame against the window viewport
+        // instead of a 1px sliver, so the switch shows a full screen of rows
+        // immediately; `track_scroll` binds the real bounds during layout
+        // and later frames use them.
+        let viewport_size = if viewport_bounds.size.width == px(0.0)
+            || viewport_bounds.size.height == px(0.0)
+        {
+            window.viewport_size()
+        } else {
+            viewport_bounds.size
+        };
         self.apply_pending_focus(window, cx);
         self.apply_pending_scroll_into_view(window, cx);
         self.sync_scroll_viewport(viewport_size, cx);

@@ -240,6 +240,65 @@ impl Editor {
         full_text.len()
     }
 
+    /// Pushes the source mapping for a fenced block (math or Mermaid). The
+    /// stored block text is the bare body, while the serialized document
+    /// wraps it in `$$` / fence markers, so the mapping composes body offsets
+    /// through the rebuilt fence lines to the full source text.
+    pub(crate) fn push_fenced_block_mapping(
+        &self,
+        block: &Entity<Block>,
+        quote_depth: usize,
+        absolute_start: usize,
+        mappings: &mut Vec<SourceTargetMapping>,
+        cx: &App,
+    ) -> usize {
+        let (body_len, indentation, serialized, body_range) = {
+            let block_ref = block.read(cx);
+            let body = block_ref.display_text().to_string();
+            let indentation = if block_ref.render_depth == 0 {
+                String::new()
+            } else {
+                "  ".repeat(block_ref.render_depth)
+            };
+            let (serialized, body_range) = match block_ref.kind() {
+                BlockKind::MathBlock => {
+                    crate::model::syntax::math::serialize_display_math_source(&body)
+                }
+                BlockKind::MermaidBlock => {
+                    crate::model::syntax::mermaid::serialize_mermaid_source(&body)
+                }
+                _ => (body, 0..0),
+            };
+            (body_range.len(), indentation, serialized, body_range)
+        };
+
+        let (full_text, serialized_to_full, full_to_serialized) =
+            Self::build_prefixed_content_mapping(&serialized, &indentation, &indentation);
+        // Map the body region (inside the fences) onto the full source text;
+        // fence characters snap to the nearest body boundary.
+        let content_to_source: Vec<usize> = (0..=body_len)
+            .map(|offset| serialized_to_full[body_range.start + offset])
+            .collect();
+        let source_to_content: Vec<usize> = full_to_serialized
+            .iter()
+            .map(|offset| offset.saturating_sub(body_range.start).min(body_len))
+            .collect();
+        let (full_text, content_to_source, source_to_content) =
+            Self::wrap_source_mapping_with_quotes(
+                full_text,
+                content_to_source,
+                source_to_content,
+                quote_depth,
+            );
+        mappings.push(SourceTargetMapping {
+            entity: block.clone(),
+            full_source_range: absolute_start..absolute_start + full_text.len(),
+            content_to_source,
+            source_to_content,
+        });
+        full_text.len()
+    }
+
     pub(crate) fn push_code_block_mapping(
         &self,
         block: &Entity<Block>,
@@ -432,12 +491,11 @@ impl Editor {
             BlockKind::CodeBlock { .. } => {
                 self.push_code_block_mapping(block, quote_depth, absolute_start, mappings, cx)
             }
-            BlockKind::RawMarkdown
-            | BlockKind::HtmlComment
-            | BlockKind::HtmlBlock
-            | BlockKind::MathBlock
-            | BlockKind::MermaidBlock => {
+            BlockKind::RawMarkdown | BlockKind::HtmlComment | BlockKind::HtmlBlock => {
                 self.push_raw_block_mapping(block, quote_depth, absolute_start, mappings, cx)
+            }
+            BlockKind::MathBlock | BlockKind::MermaidBlock => {
+                self.push_fenced_block_mapping(block, quote_depth, absolute_start, mappings, cx)
             }
             BlockKind::ThematicBreak => {
                 let line = block

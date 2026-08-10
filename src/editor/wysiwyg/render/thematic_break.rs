@@ -6,7 +6,9 @@ use gpui::*;
 use crate::editor::tree::block::Block;
 use crate::infra::theme::Theme;
 
-/// Render a thematic break (horizontal rule) when the block is not focused.
+/// Render a thematic break (horizontal rule) when the block is not focused:
+/// a full-width line (matching the editing column), vertically centered on
+/// the row.
 pub(crate) fn render_thematic_break_unfocused(
     focused_base: Stateful<Div>,
     theme: &Theme,
@@ -34,8 +36,8 @@ pub(crate) fn render_thematic_break_unfocused(
         .into_any_element()
 }
 
-/// Render a thematic break when the block is focused (shows editable text
-/// alongside the separator line).
+/// Render a thematic break when the block is focused: the raw Markdown
+/// source (`---` / `***` / `___`) becomes directly editable text.
 pub(crate) fn render_thematic_break_focused(
     block: &mut Block,
     focused: bool,
@@ -45,15 +47,9 @@ pub(crate) fn render_thematic_break_focused(
     cx: &mut Context<Block>,
 ) -> AnyElement {
     let c = &theme.colors;
-    let d = &theme.dimensions;
     let t = &theme.typography;
 
     let line_slot_height = px(t.text_size * t.text_line_height);
-    let line = div()
-        .w_full()
-        .border_b(px(d.separator_thickness))
-        .border_color(c.separator_color);
-
     let text_input = block.render_text_or_mixed_inline_visuals(
         theme,
         focused,
@@ -72,18 +68,6 @@ pub(crate) fn render_thematic_break_focused(
         .text_size(px(t.text_size))
         .text_color(c.text_default)
         .line_height(rems(t.text_line_height))
-        .flex()
-        .flex_row()
-        .items_center()
-        .justify_between()
-        .child(div().flex_none().child(text_input))
-        .child(
-            div()
-                .w(relative(0.70))
-                .h_full()
-                .flex()
-                .items_center()
-                .child(line),
-        )
+        .child(text_input)
         .into_any_element()
 }

@@ -58,16 +58,5 @@ pub(crate) fn render_preview_callout(
             .into_any_element()
     };
 
-    base.w_full()
-        .flex()
-        .flex_row()
-        .items_center()
-        .child(
-            svg()
-                .path(variant.icon_path())
-                .size(px(14.0))
-                .text_color(accent),
-        )
-        .child(header_text)
-        .into_any_element()
+    base.w_full().child(header_text).into_any_element()
 }

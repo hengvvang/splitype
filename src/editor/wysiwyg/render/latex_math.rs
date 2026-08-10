@@ -49,8 +49,9 @@ pub(crate) fn render_latex_math(
             .w_full()
             .flex()
             .flex_col()
+            .child(editor_section)
             .child(
-                // Top: rendered preview image inside
+                // Bottom: rendered preview image inside
                 div()
                     .w_full()
                     .p(relative(0.005))
@@ -58,8 +59,7 @@ pub(crate) fn render_latex_math(
                     .items_center()
                     .justify_center()
                     .child(math_preview),
-            )
-            .child(editor_section);
+            );
 
         focused_base
             .relative()

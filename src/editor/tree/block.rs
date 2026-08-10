@@ -762,21 +762,18 @@ impl Block {
         cx.notify();
     }
 
-    /// Convert the current paragraph into a display-math block. `body` becomes
-    /// the formula source between the fences (empty for a fresh `$$` block), and
-    /// the caret lands at the start of that body line.
+    /// Convert the current paragraph into a display-math block. `body` is
+    /// stored as the formula source (the `$$` delimiters are rebuilt on
+    /// serialization), and the caret lands at the start of the body.
     pub(crate) fn enter_math_block(&mut self, body: &str, cx: &mut Context<Self>) {
-        let source = format!("$$\n{body}\n$$");
-        let cursor = "$$\n".len();
-
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.clear_inline_projection();
         self.record.kind = BlockKind::MathBlock;
-        self.record.set_text(RichText::plain(source));
+        self.record.set_text(RichText::plain(body.to_string()));
         self.quote_reparse_requested = false;
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
-        self.assign_collapsed_selection_offset(cursor, CollapsedCaretAffinity::Default, None);
+        self.assign_collapsed_selection_offset(0, CollapsedCaretAffinity::Default, None);
         self.marked_range = None;
         self.cursor_blink_epoch = Instant::now();
         self.clear_vertical_motion();

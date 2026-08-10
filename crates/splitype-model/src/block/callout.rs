@@ -34,16 +34,6 @@ impl CalloutKind {
         self.marker()
     }
 
-    pub fn icon_path(self) -> &'static str {
-        match self {
-            Self::Note => "icons/editor/wysiwyg/callout/note.svg",
-            Self::Tip => "icons/editor/wysiwyg/callout/tip.svg",
-            Self::Important => "icons/editor/wysiwyg/callout/important.svg",
-            Self::Warning => "icons/editor/wysiwyg/callout/warning.svg",
-            Self::Caution => "icons/editor/wysiwyg/callout/caution.svg",
-        }
-    }
-
     /// Parse a `[!TYPE]` header line, returning the kind and trailing title text.
     pub fn parse_header_line(line: &str) -> Option<(Self, String)> {
         let trimmed = line.trim_start();

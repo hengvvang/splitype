@@ -393,7 +393,7 @@ impl<'de> Deserialize<'de> for ThemeColors {
                 .unwrap_or_else(|| Hsla::from(rgba(0x18181bff))),
             separator_color: raw
                 .separator_color
-                .unwrap_or_else(|| Hsla::from(rgba(0x71717aff))),
+                .unwrap_or_else(|| Hsla::from(rgba(0xd1d1d8ff))),
             code_bg: raw.code_bg.unwrap_or_else(|| Hsla::from(rgba(0x111827ff))),
             code_text: raw.code_text,
             code_language_input_bg: raw

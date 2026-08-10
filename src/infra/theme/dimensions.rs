@@ -391,7 +391,7 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             footnote_radius: raw.footnote_radius.unwrap_or(6.0),
             footnote_badge_padding_x: raw.footnote_badge_padding_x.unwrap_or(4.0),
             footnote_badge_padding_y: raw.footnote_badge_padding_y.unwrap_or(1.0),
-            separator_thickness: raw.separator_thickness.unwrap_or(1.0),
+            separator_thickness: raw.separator_thickness.unwrap_or(4.0),
             separator_inset_x: raw.separator_inset_x.unwrap_or(40.0),
             separator_margin_y: raw.separator_margin_y.unwrap_or(10.0),
             code_block_padding_y: raw.code_block_padding_y,

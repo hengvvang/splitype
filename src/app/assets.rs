@@ -219,21 +219,6 @@ impl AssetSource for SplitypeAssets {
             "icons/editor/wysiwyg/table/plus.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/wysiwyg/table/plus.svg"
             )))),
-            "icons/editor/wysiwyg/callout/tip.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/editor/wysiwyg/callout/tip.svg"
-            )))),
-            "icons/editor/wysiwyg/callout/note.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/editor/wysiwyg/callout/note.svg"
-            )))),
-            "icons/editor/wysiwyg/callout/important.svg" => Ok(Some(Cow::Borrowed(
-                include_bytes!("../../assets/icons/editor/wysiwyg/callout/important.svg"),
-            ))),
-            "icons/editor/wysiwyg/callout/warning.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/editor/wysiwyg/callout/warning.svg"
-            )))),
-            "icons/editor/wysiwyg/callout/caution.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
-                "../../assets/icons/editor/wysiwyg/callout/caution.svg"
-            )))),
             "icons/editor/wysiwyg/codeblock/line-numbers.svg" => Ok(Some(Cow::Borrowed(
                 include_bytes!("../../assets/icons/editor/wysiwyg/codeblock/line-numbers.svg"),
             ))),

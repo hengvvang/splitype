@@ -49,8 +49,9 @@ pub(crate) fn render_mermaid_diagram(
             .w_full()
             .flex()
             .flex_col()
+            .child(editor_section)
             .child(
-                // Top: rendered diagram inside
+                // Bottom: rendered diagram inside
                 div()
                     .w_full()
                     .p(relative(0.005))
@@ -58,8 +59,7 @@ pub(crate) fn render_mermaid_diagram(
                     .items_center()
                     .justify_center()
                     .child(mermaid_preview),
-            )
-            .child(editor_section);
+            );
 
         focused_base
             .relative()

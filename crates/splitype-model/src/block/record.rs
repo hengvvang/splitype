@@ -11,6 +11,8 @@ use super::kind::BlockKind;
 use crate::inline::text::RichText;
 use crate::syntax::html::{HtmlDocument, parse_html_document};
 use crate::syntax::image::parse_standalone_image;
+use crate::syntax::math::parse_display_math_source;
+use crate::syntax::mermaid::parse_mermaid_fence_source;
 use crate::syntax::table::TableData;
 
 /// Persistent data of a single block in the document tree.
@@ -87,20 +89,24 @@ impl BlockData {
         data
     }
 
-    /// Create a LaTeX math block.
+    /// Create a LaTeX math block. The stored text is the formula body between
+    /// the display delimiters; the `$$` fences are rebuilt on serialization.
     pub fn latex_math(markdown: impl Into<String>) -> Self {
         let markdown = markdown.into();
-        let mut data = Self::with_plain_text(BlockKind::MathBlock, markdown.clone());
-        data.raw_source = Some(markdown);
-        data
+        let body = parse_display_math_source(&markdown)
+            .map(|source| source.body)
+            .unwrap_or(markdown);
+        Self::with_plain_text(BlockKind::MathBlock, body)
     }
 
-    /// Create a Mermaid diagram block.
+    /// Create a Mermaid diagram block. The stored text is the diagram source
+    /// between the fences; the fences are rebuilt on serialization.
     pub fn mermaid_diagram(markdown: impl Into<String>) -> Self {
         let markdown = markdown.into();
-        let mut data = Self::with_plain_text(BlockKind::MermaidBlock, markdown.clone());
-        data.raw_source = Some(markdown);
-        data
+        let body = parse_mermaid_fence_source(&markdown)
+            .map(|source| source.body)
+            .unwrap_or(markdown);
+        Self::with_plain_text(BlockKind::MermaidBlock, body)
     }
 
     /// Create a table block from existing table data.
@@ -122,8 +128,10 @@ impl BlockData {
         self.text.serialize_markdown()
     }
 
-    /// Returns true for block kinds that keep their original source text
-    /// in `raw_source` because they are preserved as opaque Markdown.
+    /// Returns true for block kinds that keep their source text in
+    /// `raw_source` because they are preserved as opaque Markdown. Math and
+    /// Mermaid blocks store their bare body here and rebuild the `$$` / fence
+    /// markers on serialization; the other kinds keep the full source verbatim.
     pub fn preserves_raw_source(&self) -> bool {
         matches!(
             self.kind,
@@ -139,20 +147,23 @@ impl BlockData {
     /// Serialize this block back to a single Markdown line, including
     /// indentation for nested blocks and list ordinal for numbered items.
     /// Raw-preserved blocks produce their fallback text when at depth 0.
+    /// Math and Mermaid blocks rebuild their fences around the stored body.
     pub fn markdown_line(&self, depth: usize, list_ordinal: Option<usize>) -> String {
         let indentation = "  ".repeat(depth);
         let text_markdown = self.text_markdown_for_output();
         match self.kind {
             BlockKind::Paragraph => indent_multiline(&text_markdown, &indentation),
             BlockKind::ThematicBreak => {
-                if let Some(raw) = &self.raw_source {
-                    if !raw.trim().is_empty() {
-                        return raw.clone();
-                    }
-                }
+                // Prefer the edited visible text so focused editing of the
+                // separator round-trips; the raw source only preserves the
+                // original marker style (e.g. `***`) when the text is emptied.
                 let visible = self.text.visible_text();
                 if !visible.trim().is_empty() {
                     visible.to_string()
+                } else if let Some(raw) = &self.raw_source
+                    && !raw.trim().is_empty()
+                {
+                    raw.clone()
                 } else {
                     "---".to_string()
                 }
@@ -194,11 +205,21 @@ impl BlockData {
             }
             BlockKind::Table => String::new(),
             BlockKind::CodeBlock { .. } => text_markdown,
-            BlockKind::RawMarkdown
-            | BlockKind::HtmlComment
-            | BlockKind::HtmlBlock
-            | BlockKind::MathBlock
-            | BlockKind::MermaidBlock => {
+            BlockKind::MathBlock | BlockKind::MermaidBlock => {
+                let body = self.raw_source.clone().unwrap_or(text_markdown);
+                let (source, _) = match self.kind {
+                    BlockKind::MathBlock => {
+                        crate::syntax::math::serialize_display_math_source(&body)
+                    }
+                    _ => crate::syntax::mermaid::serialize_mermaid_source(&body),
+                };
+                if depth == 0 {
+                    source
+                } else {
+                    indent_multiline(&source, &indentation)
+                }
+            }
+            BlockKind::RawMarkdown | BlockKind::HtmlComment | BlockKind::HtmlBlock => {
                 if depth == 0 {
                     self.raw_source.clone().unwrap_or(text_markdown)
                 } else {
@@ -348,5 +369,29 @@ mod tests {
             RichText::plain("todo"),
         );
         assert_eq!(record.markdown_line(0, None), "- [ ] todo");
+    }
+
+    #[test]
+    fn math_block_stores_body_and_rebuilds_fences() {
+        let record = BlockData::latex_math("$$x^2$$");
+        assert_eq!(record.text.visible_text(), "x^2");
+        assert_eq!(record.raw_source.as_deref(), Some("x^2"));
+        assert_eq!(record.markdown_line(0, None), "$$x^2$$");
+
+        let record = BlockData::latex_math("$$\n\\int_0^1 x^2 dx\n$$");
+        assert_eq!(record.text.visible_text(), "\\int_0^1 x^2 dx");
+        assert_eq!(record.markdown_line(2, None), "    $$\\int_0^1 x^2 dx$$");
+    }
+
+    #[test]
+    fn mermaid_block_stores_body_and_rebuilds_fences() {
+        let record = BlockData::mermaid_diagram("```mermaid\ngraph LR\nA-->B\n```");
+        assert_eq!(record.text.visible_text(), "graph LR\nA-->B");
+        assert_eq!(record.raw_source.as_deref(), Some("graph LR\nA-->B"));
+        assert_eq!(record.markdown_line(0, None), "```mermaid\ngraph LR\nA-->B\n```");
+        assert_eq!(
+            record.markdown_line(1, None),
+            "  ```mermaid\n  graph LR\n  A-->B\n  ```"
+        );
     }
 }

@@ -799,7 +799,7 @@ async fn math_block_exit_shortcut_creates_plain_text_block(cx: &mut TestAppConte
         let visible = editor.doc().blocks();
         assert_eq!(visible.len(), 2);
         assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MathBlock);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "$$n^2$$");
+        assert_eq!(visible[0].entity.read(cx).display_text(), "n^2");
         assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(visible[1].entity.read(cx).display_text(), "");
         assert_eq!(editor.doc().to_markdown(cx), "$$n^2$$\n\n");
@@ -833,8 +833,9 @@ async fn dollar_dollar_enter_creates_editable_math_block(cx: &mut TestAppContext
         assert_eq!(visible.len(), 1);
         let block = visible[0].entity.read(cx);
         assert_eq!(block.kind(), BlockKind::MathBlock);
-        assert_eq!(block.display_text(), "$$\n\n$$");
-        assert_eq!(block.selected_range, 3..3);
+        // The delimiters are stripped; only the formula body is stored.
+        assert_eq!(block.display_text(), "");
+        assert_eq!(block.selected_range, 0..0);
         assert!(block.uses_raw_text_editing());
         assert_eq!(editor.doc().to_markdown(cx), "$$\n\n$$");
     });
@@ -864,9 +865,9 @@ async fn dollar_dollar_prefix_then_enter_wraps_existing_line(cx: &mut TestAppCon
         let block = visible[0].entity.read(cx);
         assert_eq!(block.kind(), BlockKind::MathBlock);
         // The pre-existing text is kept as the formula body.
-        assert_eq!(block.display_text(), "$$\nE = mc^2\n$$");
-        assert_eq!(block.selected_range, "$$\n".len().."$$\n".len());
-        assert_eq!(editor.doc().to_markdown(cx), "$$\nE = mc^2\n$$");
+        assert_eq!(block.display_text(), "E = mc^2");
+        assert_eq!(block.selected_range, 0..0);
+        assert_eq!(editor.doc().to_markdown(cx), "$$E = mc^2$$");
     });
 }
 
@@ -879,7 +880,8 @@ async fn enter_inside_math_block_keeps_local_formula_editing(cx: &mut TestAppCon
         editor.update(cx, |editor, cx| {
             let block = editor.doc().blocks()[0].entity.clone();
             block.update(cx, |block, block_cx| {
-                block.move_to(3, block_cx);
+                // Body text is "n^2"; the caret sits between "n" and "^".
+                block.move_to(1, block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -889,8 +891,8 @@ async fn enter_inside_math_block_keeps_local_formula_editing(cx: &mut TestAppCon
         let visible = editor.doc().blocks();
         assert_eq!(visible.len(), 1);
         assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MathBlock);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "$$n\n^2$$");
-        assert_eq!(editor.doc().to_markdown(cx), "$$n\n^2$$");
+        assert_eq!(visible[0].entity.read(cx).display_text(), "n\n^2");
+        assert_eq!(editor.doc().to_markdown(cx), "$$\nn\n^2\n$$");
     });
 }
 
@@ -921,7 +923,7 @@ async fn auto_created_math_block_exit_shortcut_creates_plain_text_block(cx: &mut
         let visible = editor.doc().blocks();
         assert_eq!(visible.len(), 2);
         assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MathBlock);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "$$\n\n$$");
+        assert_eq!(visible[0].entity.read(cx).display_text(), "");
         assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(visible[1].entity.read(cx).display_text(), "");
         assert_eq!(editor.doc().to_markdown(cx), "$$\n\n$$\n\n");

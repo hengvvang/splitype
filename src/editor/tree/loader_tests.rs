@@ -1089,8 +1089,13 @@ mod tests {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MathBlock);
-            assert_eq!(visible[0].entity.read(cx).display_text(), markdown);
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            // Only the formula body is stored; newline-free bodies serialize
+            // back in the canonical single-line `$$...$$` form.
+            assert_eq!(
+                visible[0].entity.read(cx).display_text(),
+                "\\int_0^1 x^2 dx"
+            );
+            assert_eq!(editor.doc().to_markdown(cx), "$$\\int_0^1 x^2 dx$$");
         });
     }
 
@@ -1104,7 +1109,7 @@ mod tests {
             assert_eq!(visible.len(), 3);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::MathBlock);
-            assert_eq!(visible[1].entity.read(cx).display_text(), "$$x^2$$");
+            assert_eq!(visible[1].entity.read(cx).display_text(), "x^2");
             assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(editor.doc().to_markdown(cx), "before\n\n$$x^2$$\n\nafter");
         });
@@ -1135,7 +1140,7 @@ mod tests {
             assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::MermaidBlock);
             assert_eq!(
                 visible[1].entity.read(cx).display_text(),
-                "```mermaid\nflowchart LR\nA --> B\n```"
+                "flowchart LR\nA --> B"
             );
             assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(
@@ -1154,7 +1159,15 @@ mod tests {
             let visible = editor.doc().blocks();
             assert_eq!(visible.len(), 1);
             assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MermaidBlock);
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            // Tilde/`MMD` fences normalize to the canonical backtick form.
+            assert_eq!(
+                visible[0].entity.read(cx).display_text(),
+                "flowchart LR\nA --> B"
+            );
+            assert_eq!(
+                editor.doc().to_markdown(cx),
+                "```mermaid\nflowchart LR\nA --> B\n```"
+            );
         });
     }
 

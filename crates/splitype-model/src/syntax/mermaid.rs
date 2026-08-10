@@ -1,4 +1,6 @@
-//! Mermaid fenced-block parsing helpers.
+//! Mermaid fenced-block parsing and serialization helpers.
+
+use std::ops::Range;
 
 /// Opening fence metadata for a Mermaid fenced code block.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -84,6 +86,22 @@ pub fn parse_mermaid_fence_source(raw: &str) -> Option<MermaidSource> {
     Some(MermaidSource { raw, body, info })
 }
 
+/// Serialize a Mermaid block body back to canonical fenced Markdown,
+/// returning the serialized source and the byte range of the diagram body
+/// within it.
+///
+/// A body that already forms a complete fenced source is preserved verbatim
+/// (defensive round-trip for legacy data); otherwise it is wrapped in a
+/// ` ```mermaid ` fence.
+pub fn serialize_mermaid_source(body: &str) -> (String, Range<usize>) {
+    if let Some(source) = parse_mermaid_fence_source(body) {
+        let start = source.raw.find(&source.body).unwrap_or(0);
+        return (source.raw, start..start + source.body.len());
+    }
+    let wrapped = format!("```mermaid\n{body}\n```");
+    (wrapped, "```mermaid\n".len().."```mermaid\n".len() + body.len())
+}
+
 fn strip_fence_indent(line: &str) -> Option<&str> {
     let indent = line.bytes().take_while(|b| *b == b' ').count();
     (indent <= 3).then_some(&line[indent..])
@@ -91,7 +109,10 @@ fn strip_fence_indent(line: &str) -> Option<&str> {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_mermaid_info_string, parse_mermaid_fence_source, parse_mermaid_fence_start};
+    use super::{
+        is_mermaid_info_string, parse_mermaid_fence_source, parse_mermaid_fence_start,
+        serialize_mermaid_source,
+    };
 
     #[test]
     fn detects_mermaid_info_string() {
@@ -120,5 +141,19 @@ mod tests {
     fn rejects_unclosed_mermaid_fence() {
         let source = "```mermaid\ngraph LR\n";
         assert!(parse_mermaid_fence_source(source).is_none());
+    }
+
+    #[test]
+    fn serializes_body_with_canonical_fence() {
+        let (source, body_range) = serialize_mermaid_source("graph LR\nA-->B");
+        assert_eq!(source, "```mermaid\ngraph LR\nA-->B\n```");
+        assert_eq!(body_range, 11..25);
+    }
+
+    #[test]
+    fn serialization_preserves_already_fenced_body() {
+        let (source, body_range) = serialize_mermaid_source("~~~mmd\ngraph LR\n~~~");
+        assert_eq!(source, "~~~mmd\ngraph LR\n~~~");
+        assert_eq!(body_range, 7..15);
     }
 }

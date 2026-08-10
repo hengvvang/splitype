@@ -499,7 +499,7 @@ impl Element for BlockTextElement {
         };
 
         let runs: Vec<TextRun> = if !is_placeholder {
-            if input.kind().is_code_block() {
+            if input.kind().uses_code_highlighting() {
                 build_code_text_runs(
                     input,
                     &display_text,

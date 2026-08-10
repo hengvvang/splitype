@@ -23,6 +23,12 @@ impl Block {
                 language.as_deref().map(|value| &**value),
                 self.render_cache.visible_text(),
             ),
+            BlockKind::MathBlock => {
+                highlight_code_block(Some("math"), self.render_cache.visible_text())
+            }
+            BlockKind::MermaidBlock => {
+                highlight_code_block(Some("mermaid"), self.render_cache.visible_text())
+            }
             _ => None,
         };
     }

@@ -616,11 +616,7 @@ impl Document {
                     Self::collect_markdown_lines(&block_ref.children, 2, cx, lines, true);
                 }
             }
-            BlockKind::RawMarkdown
-            | BlockKind::HtmlComment
-            | BlockKind::HtmlBlock
-            | BlockKind::MathBlock
-            | BlockKind::MermaidBlock => {
+            BlockKind::RawMarkdown | BlockKind::HtmlComment | BlockKind::HtmlBlock => {
                 let indentation = "  ".repeat(list_depth);
                 let raw_markdown = block_ref
                     .record

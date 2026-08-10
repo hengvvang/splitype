@@ -71,6 +71,15 @@ impl BlockKind {
         matches!(self, Self::CodeBlock { .. })
     }
 
+    /// Block kinds whose text is edited and displayed as highlighted code:
+    /// code blocks plus math and diagram blocks share the code editor UI.
+    pub fn uses_code_highlighting(&self) -> bool {
+        matches!(
+            self,
+            Self::CodeBlock { .. } | Self::MathBlock | Self::MermaidBlock
+        )
+    }
+
     /// Whether the right-click "Insert Table" affordance makes sense when a
     /// block of this kind is the target. Atomic/structural blocks (tables,
     /// code, math, etc.) render as self-contained widgets where inserting a

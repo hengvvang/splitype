@@ -57,6 +57,8 @@ pub(crate) enum CodeLanguageKey {
     Toml,
     /// Mermaid diagram source.
     Mermaid,
+    /// LaTeX math source (no grammar available; plain-text fallback).
+    Latex,
     /// Plain text or unknown language fallback.
     PlainText,
 }
@@ -198,6 +200,10 @@ const LANGUAGE_DESCRIPTORS: &[LanguageDescriptor] = &[
     LanguageDescriptor {
         key: CodeLanguageKey::Mermaid,
         aliases: &["mermaid"],
+    },
+    LanguageDescriptor {
+        key: CodeLanguageKey::Latex,
+        aliases: &["latex", "math", "tex"],
     },
 ];
 
@@ -778,6 +784,11 @@ mod tests {
             .expect("known plain fallback should still produce a result");
         assert_eq!(mermaid.language, CodeLanguageKey::Mermaid);
         assert!(mermaid.spans.is_empty());
+
+        let latex = highlight_code_block(Some("math"), "\\int_0^1 x^2 dx")
+            .expect("known plain fallback should still produce a result");
+        assert_eq!(latex.language, CodeLanguageKey::Latex);
+        assert!(latex.spans.is_empty());
 
         let text = highlight_code_block(Some("text"), "just text")
             .expect("plain text should still produce a result");

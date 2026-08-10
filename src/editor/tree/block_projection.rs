@@ -1081,10 +1081,6 @@ impl Block {
         mark_inserted_text: bool,
         cx: &mut Context<Self>,
     ) {
-        if self.kind().is_thematic_break() && !self.uses_raw_text_editing() {
-            return;
-        }
-
         if self.apply_heading_prefix_edit(
             visible_range.clone(),
             new_text,
