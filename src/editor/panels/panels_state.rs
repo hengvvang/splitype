@@ -348,6 +348,14 @@ impl Editor {
         }
     }
 
+    /// Swap the two sides of an inner split node (border-menu action).
+    pub fn swap_editor_inner_panel_split_sides(&mut self, area_id: AreaId, split_id: SplitId) {
+        if let Some(session) = self.editor_sessions.get_mut(&area_id) {
+            session.inner_panel_tree.swap_sibling_leaves(split_id);
+        }
+        self.active_editor_inner_panel_border_menu = None;
+    }
+
     // ------------------------------------------------------------------
     // Inner splitter drag
     // ------------------------------------------------------------------

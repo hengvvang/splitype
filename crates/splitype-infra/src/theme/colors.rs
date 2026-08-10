@@ -150,6 +150,8 @@ pub struct ThemeColors {
     pub cursor: Hsla,
     /// Text-selection highlight colour.
     pub selection: Hsla,
+    /// Split-preview indicator colour (drag-to-split lines and highlights).
+    pub split_indicator: Hsla,
     /// Semi-transparent backdrop behind the unsaved-changes dialog.
     pub dialog_backdrop: Hsla,
     /// Background of the unsaved-changes dialog.
@@ -272,6 +274,7 @@ struct ThemeColorsDe {
     scrollbar_thumb: Hsla,
     cursor: Hsla,
     selection: Hsla,
+    split_indicator: Option<Hsla>,
     dialog_backdrop: Hsla,
     dialog_surface: Hsla,
     dialog_border: Hsla,
@@ -486,6 +489,9 @@ impl<'de> Deserialize<'de> for ThemeColors {
             scrollbar_thumb: raw.scrollbar_thumb,
             cursor: raw.cursor,
             selection: raw.selection,
+            split_indicator: raw
+                .split_indicator
+                .unwrap_or_else(|| Hsla::from(rgba(0x60a5faff))),
             dialog_backdrop: raw.dialog_backdrop,
             dialog_surface: raw.dialog_surface,
             dialog_border: raw.dialog_border,

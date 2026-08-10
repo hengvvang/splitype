@@ -39,6 +39,35 @@ pub(crate) fn area_topbar_icon(kind: WindowAreaKind, name: &str) -> SharedString
     };
     format!("icons/{dir}/topbar/{name}.svg").into()
 }
+
+/// Map a theme to the layout crate's border-menu style parameters.
+///
+/// Shared by the outer window-area border menu and the editor's inner-panel
+/// border menu so both render identically.
+pub(crate) fn border_menu_style(theme: &Theme) -> crate::layout::interaction::MenuStyle {
+    let c = &theme.colors;
+    let d = &theme.dimensions;
+    let t = &theme.typography;
+    crate::layout::interaction::MenuStyle {
+        surface: c.dialog_surface,
+        border: c.dialog_border,
+        border_width: d.dialog_border_width,
+        radius: d.menu_panel_radius,
+        width: d.menu_panel_width,
+        padding: d.menu_panel_padding,
+        gap: d.menu_panel_gap,
+        text: c.dialog_secondary_button_text,
+        text_size: d.menu_text_size,
+        text_weight: t.dialog_body_weight.to_font_weight(),
+        item_height: d.menu_item_height,
+        item_padding_x: d.menu_item_padding_x,
+        item_radius: d.menu_item_radius,
+        item_hover: c.panel_row_hover,
+        separator_margin_x: d.menu_separator_margin_x,
+        separator_margin_y: d.menu_separator_margin_y,
+        separator_height: d.menu_separator_height,
+    }
+}
 impl Editor {
     pub(crate) fn render_tiled_layout(
         &mut self,
@@ -253,6 +282,7 @@ impl Editor {
         // Build the preview overlay for corner drag gestures (content-independent
         // rendering lives in splitype_layout::interaction).
         let overlay_style = splitype_layout::interaction::OverlayStyle {
+            accent: theme.colors.split_indicator,
             tile_radius: theme.dimensions.area_tile_radius,
             border: theme.colors.dialog_border,
             selection: theme.colors.selection,
@@ -313,6 +343,7 @@ impl Editor {
     ) -> AnyElement {
         let c = &theme.colors;
         let overlay_style = splitype_layout::interaction::OverlayStyle {
+            accent: c.split_indicator,
             tile_radius: theme.dimensions.area_tile_radius,
             border: c.dialog_border,
             selection: c.selection,
@@ -687,31 +718,10 @@ impl Editor {
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let c = &theme.colors;
-        let d = &theme.dimensions;
-        let t = &theme.typography;
         let editor = cx.entity().downgrade();
         let split_id = border_menu.split_id;
 
-        let menu_style = crate::layout::interaction::MenuStyle {
-            surface: c.dialog_surface,
-            border: c.dialog_border,
-            border_width: d.dialog_border_width,
-            radius: d.menu_panel_radius,
-            width: d.menu_panel_width,
-            padding: d.menu_panel_padding,
-            gap: d.menu_panel_gap,
-            text: c.dialog_secondary_button_text,
-            text_size: d.menu_text_size,
-            text_weight: t.dialog_body_weight.to_font_weight(),
-            item_height: d.menu_item_height,
-            item_padding_x: d.menu_item_padding_x,
-            item_radius: d.menu_item_radius,
-            item_hover: c.panel_row_hover,
-            separator_margin_x: d.menu_separator_margin_x,
-            separator_margin_y: d.menu_separator_margin_y,
-            separator_height: d.menu_separator_height,
-        };
+        let menu_style = border_menu_style(theme);
 
         let split_h_ed = editor.clone();
         let split_h: Box<dyn Fn(&mut App)> = Box::new(move |app| {

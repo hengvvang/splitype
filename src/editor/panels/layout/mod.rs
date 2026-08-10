@@ -125,7 +125,93 @@ impl Editor {
             container = container.child(dropdown);
         }
 
+        // Inner-panel border menu: same context menu as the outer window
+        // areas, rendered by the layout crate and wired to the per-area
+        // inner-panel operations. The split node id doubles as the id of
+        // its second (right/bottom) leaf, matching the outer tree's
+        // semantics: Split/Close act on that side, Swap flips the sides.
+        if let Some(border_menu) = self.active_editor_inner_panel_border_menu {
+            let menu_overlay =
+                self.render_editor_inner_panel_border_menu(border_menu, area_id, theme, cx);
+            container = container.child(menu_overlay);
+        }
+
         container.into_any_element()
+    }
+
+    pub(crate) fn render_editor_inner_panel_border_menu(
+        &mut self,
+        border_menu: crate::layout::BorderMenuState,
+        area_id: usize,
+        theme: &Theme,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let editor = cx.entity().downgrade();
+        let split_id = border_menu.split_id;
+        let menu_style = crate::editor::window_layout::border_menu_style(theme);
+
+        let split_h_ed = editor.clone();
+        let split_h: Box<dyn Fn(&mut App)> = Box::new(move |app| {
+            let _ = split_h_ed.update(app, |ed, cx| {
+                ed.split_editor_inner_panel_with_ratio(area_id, split_id, Axis::Horizontal, 0.5);
+                ed.active_editor_inner_panel_border_menu = None;
+                cx.notify();
+            });
+        });
+        let split_v_ed = editor.clone();
+        let split_v: Box<dyn Fn(&mut App)> = Box::new(move |app| {
+            let _ = split_v_ed.update(app, |ed, cx| {
+                ed.split_editor_inner_panel_with_ratio(area_id, split_id, Axis::Vertical, 0.5);
+                ed.active_editor_inner_panel_border_menu = None;
+                cx.notify();
+            });
+        });
+        let swap_ed = editor.clone();
+        let swap: Box<dyn Fn(&mut App)> = Box::new(move |app| {
+            let _ = swap_ed.update(app, |ed, cx| {
+                ed.swap_editor_inner_panel_split_sides(area_id, split_id);
+                cx.notify();
+            });
+        });
+        let close_ed = editor.clone();
+        let close: Box<dyn Fn(&mut App)> = Box::new(move |app| {
+            let _ = close_ed.update(app, |ed, cx| {
+                ed.close_editor_inner_panel(area_id, split_id);
+                ed.active_editor_inner_panel_border_menu = None;
+                cx.notify();
+            });
+        });
+        let dismiss_ed = editor.clone();
+        let dismiss: Box<dyn Fn(&mut App)> = Box::new(move |app| {
+            let _ = dismiss_ed.update(app, |ed, cx| {
+                ed.active_editor_inner_panel_border_menu = None;
+                cx.notify();
+            });
+        });
+
+        crate::layout::interaction::render_border_menu(
+            border_menu.position,
+            vec![
+                crate::layout::interaction::BorderMenuItem {
+                    label: "Split Horizontally",
+                    on_activate: split_h,
+                },
+                crate::layout::interaction::BorderMenuItem {
+                    label: "Split Vertically",
+                    on_activate: split_v,
+                },
+                crate::layout::interaction::BorderMenuItem {
+                    label: "Swap Panels",
+                    on_activate: swap,
+                },
+                crate::layout::interaction::BorderMenuItem {
+                    label: "Close Panel",
+                    on_activate: close,
+                },
+            ],
+            &menu_style,
+            dismiss,
+        )
     }
     /// Welcome prompt shown when the explorer is empty: double-click to
     /// start temporary editing in an Untitled tab, or open a file from the
@@ -207,6 +293,7 @@ impl Editor {
         let c = &theme.colors;
         let d = &theme.dimensions;
         let overlay_style = splitype_layout::interaction::OverlayStyle {
+            accent: c.split_indicator,
             tile_radius: d.area_tile_radius,
             border: c.dialog_border,
             selection: c.selection,

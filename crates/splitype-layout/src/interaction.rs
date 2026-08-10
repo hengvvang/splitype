@@ -33,7 +33,8 @@ pub struct OverlayStyle {
 impl Default for OverlayStyle {
     fn default() -> Self {
         Self {
-            accent: hsla(0.36, 0.73, 0.57, 0.8),
+            // Professional blue used by IDE split previews (≈ #60a5fa).
+            accent: hsla(0.592, 0.94, 0.68, 0.9),
             tile_radius: 8.0,
             border: hsla(0.0, 0.0, 0.0, 0.2),
             selection: hsla(0.58, 0.6, 0.6, 0.8),
@@ -239,25 +240,27 @@ where
 }
 
 /// The split preview line for a horizontal split (left|right): a vertical
-/// divider at `ratio` of the target rect's width.
+/// divider at `ratio` of the target rect's width. Deliberately thin (1px)
+/// like IDE split guides.
 fn split_line_horizontal(rect: &AreaRect, ratio: f32, accent: Hsla) -> Div {
     div()
         .absolute()
         .left(px(rect.x + rect.width * ratio))
         .top(px(rect.y))
-        .w(px(3.0))
+        .w(px(1.0))
         .h(px(rect.height))
         .bg(accent)
 }
 
 /// The split preview line for a vertical split (top|bottom): a horizontal
-/// divider at `ratio` of the target rect's height.
+/// divider at `ratio` of the target rect's height. Deliberately thin (1px)
+/// like IDE split guides.
 fn split_line_vertical(rect: &AreaRect, ratio: f32, accent: Hsla) -> Div {
     div()
         .absolute()
         .top(px(rect.y + rect.height * ratio))
         .left(px(rect.x))
-        .h(px(3.0))
+        .h(px(1.0))
         .w(px(rect.width))
         .bg(accent)
 }
