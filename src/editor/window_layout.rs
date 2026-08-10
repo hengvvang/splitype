@@ -6,8 +6,6 @@
 //! `crate::editor::panels::layout`. This module also aggregates the editor
 //! window's panel state ([`WindowPanels`]).
 
-use crate::ui::popover::overlay;
-
 use crate::ui::menu_item::menu_item;
 use crate::ui::popover::menu_panel;
 
@@ -695,122 +693,85 @@ impl Editor {
         let editor = cx.entity().downgrade();
         let split_id = border_menu.split_id;
 
-        let left_pos = f32::from(border_menu.position.x);
-        let top_pos = f32::from(border_menu.position.y);
+        let menu_style = crate::layout::interaction::MenuStyle {
+            surface: c.dialog_surface,
+            border: c.dialog_border,
+            border_width: d.dialog_border_width,
+            radius: d.menu_panel_radius,
+            width: d.menu_panel_width,
+            padding: d.menu_panel_padding,
+            gap: d.menu_panel_gap,
+            text: c.dialog_secondary_button_text,
+            text_size: d.menu_text_size,
+            text_weight: t.dialog_body_weight.to_font_weight(),
+            item_height: d.menu_item_height,
+            item_padding_x: d.menu_item_padding_x,
+            item_radius: d.menu_item_radius,
+            item_hover: c.panel_row_hover,
+            separator_margin_x: d.menu_separator_margin_x,
+            separator_margin_y: d.menu_separator_margin_y,
+            separator_height: d.menu_separator_height,
+        };
 
         let split_h_ed = editor.clone();
+        let split_h: Box<dyn Fn(&mut App)> = Box::new(move |app| {
+            let _ = split_h_ed.update(app, |ed, cx| {
+                ed.split_area(split_id, Axis::Horizontal, 0.5, AreaSplitMode::Copy, cx);
+                cx.notify();
+            });
+        });
         let split_v_ed = editor.clone();
+        let split_v: Box<dyn Fn(&mut App)> = Box::new(move |app| {
+            let _ = split_v_ed.update(app, |ed, cx| {
+                ed.split_area(split_id, Axis::Vertical, 0.5, AreaSplitMode::Copy, cx);
+                cx.notify();
+            });
+        });
         let swap_ed = editor.clone();
+        let swap: Box<dyn Fn(&mut App)> = Box::new(move |app| {
+            let _ = swap_ed.update(app, |ed, cx| {
+                ed.panels.layout.swap_window_area_split_sides(split_id);
+                cx.notify();
+            });
+        });
         let close_ed = editor.clone();
+        let close: Box<dyn Fn(&mut App)> = Box::new(move |app| {
+            let _ = close_ed.update(app, |ed, cx| {
+                ed.close_window_area(split_id);
+                cx.notify();
+            });
+        });
         let dismiss_ed = editor.clone();
+        let dismiss: Box<dyn Fn(&mut App)> = Box::new(move |app| {
+            let _ = dismiss_ed.update(app, |ed, cx| {
+                ed.panels.layout.active_window_area_border_menu = None;
+                cx.notify();
+            });
+        });
 
-        overlay()
-            .id("tiled-border-context-menu-wrapper")
-            .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                let _ = dismiss_ed.update(cx, |ed, cx| {
-                    ed.panels.layout.active_window_area_border_menu = None;
-                    cx.notify();
-                });
-            })
-            .child(
-                div()
-                    .id("tiled-border-context-menu")
-                    .absolute()
-                    .occlude()
-                    .top(px(top_pos))
-                    .left(px(left_pos))
-                    .w(px(d.menu_panel_width))
-                    .p(px(d.menu_panel_padding))
-                    .flex()
-                    .flex_col()
-                    .gap(px(d.menu_panel_gap))
-                    .bg(c.dialog_surface)
-                    .border(px(d.dialog_border_width))
-                    .border_color(c.dialog_border)
-                    .rounded(px(d.menu_panel_radius))
-                    .shadow_lg()
-                    .child(
-                        menu_item("border-menu-split-h", c, d)
-                            .text_size(px(d.menu_text_size))
-                            .font_weight(t.dialog_body_weight.to_font_weight())
-                            .text_color(c.dialog_secondary_button_text)
-                            .child("Split Horizontally")
-                            .on_click(move |_event, _window, cx| {
-                                let _ = split_h_ed.update(cx, |ed, cx| {
-                                    ed.split_area(
-                                        split_id,
-                                        Axis::Horizontal,
-                                        0.5,
-                                        AreaSplitMode::Copy,
-                                        cx,
-                                    );
-                                    cx.notify();
-                                });
-                            }),
-                    )
-                    .child(
-                        menu_item("border-menu-split-v", c, d)
-                            .text_size(px(d.menu_text_size))
-                            .font_weight(t.dialog_body_weight.to_font_weight())
-                            .text_color(c.dialog_secondary_button_text)
-                            .child("Split Vertically")
-                            .on_click(move |_event, _window, cx| {
-                                let _ = split_v_ed.update(cx, |ed, cx| {
-                                    ed.split_area(
-                                        split_id,
-                                        Axis::Vertical,
-                                        0.5,
-                                        AreaSplitMode::Copy,
-                                        cx,
-                                    );
-                                    cx.notify();
-                                });
-                            }),
-                    )
-                    .child(
-                        div()
-                            .id("border-menu-sep-1")
-                            .mx(px(d.menu_separator_margin_x))
-                            .my(px(d.menu_separator_margin_y))
-                            .h(px(d.menu_separator_height))
-                            .bg(c.dialog_border),
-                    )
-                    .child(
-                        menu_item("border-menu-swap", c, d)
-                            .text_size(px(d.menu_text_size))
-                            .font_weight(t.dialog_body_weight.to_font_weight())
-                            .text_color(c.dialog_secondary_button_text)
-                            .child("Swap Panels")
-                            .on_click(move |_event, _window, cx| {
-                                let _ = swap_ed.update(cx, |ed, cx| {
-                                    ed.panels.layout.swap_window_area_split_sides(split_id);
-                                    cx.notify();
-                                });
-                            }),
-                    )
-                    .child(
-                        div()
-                            .id("border-menu-sep-2")
-                            .mx(px(d.menu_separator_margin_x))
-                            .my(px(d.menu_separator_margin_y))
-                            .h(px(d.menu_separator_height))
-                            .bg(c.dialog_border),
-                    )
-                    .child(
-                        menu_item("border-menu-close", c, d)
-                            .text_size(px(d.menu_text_size))
-                            .font_weight(t.dialog_body_weight.to_font_weight())
-                            .text_color(c.dialog_secondary_button_text)
-                            .child("Close Area")
-                            .on_click(move |_event, _window, cx| {
-                                let _ = close_ed.update(cx, |ed, cx| {
-                                    ed.close_window_area(split_id);
-                                    cx.notify();
-                                });
-                            }),
-                    ),
-            )
-            .into_any_element()
+        crate::layout::interaction::render_border_menu(
+            border_menu.position,
+            vec![
+                crate::layout::interaction::BorderMenuItem {
+                    label: "Split Horizontally",
+                    on_activate: split_h,
+                },
+                crate::layout::interaction::BorderMenuItem {
+                    label: "Split Vertically",
+                    on_activate: split_v,
+                },
+                crate::layout::interaction::BorderMenuItem {
+                    label: "Swap Panels",
+                    on_activate: swap,
+                },
+                crate::layout::interaction::BorderMenuItem {
+                    label: "Close Area",
+                    on_activate: close,
+                },
+            ],
+            &menu_style,
+            dismiss,
+        )
     }
 }
 

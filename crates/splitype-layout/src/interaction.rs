@@ -408,3 +408,112 @@ pub fn render_inner_corner_drag_preview(
         CornerDragPreview::Dragging => None,
     }
 }
+
+/// Visual parameters for floating menu panels (border context menus).
+///
+/// Kept separate from [`OverlayStyle`] because menus need far more knobs
+/// (panel surface, item rows, separators, text) than the drag overlays.
+#[derive(Clone, Copy, Debug)]
+pub struct MenuStyle {
+    /// Menu panel surface.
+    pub surface: Hsla,
+    /// Panel border and separator color.
+    pub border: Hsla,
+    pub border_width: f32,
+    pub radius: f32,
+    pub width: f32,
+    pub padding: f32,
+    pub gap: f32,
+    /// Item label text.
+    pub text: Hsla,
+    pub text_size: f32,
+    pub text_weight: FontWeight,
+    pub item_height: f32,
+    pub item_padding_x: f32,
+    pub item_radius: f32,
+    /// Item hover highlight.
+    pub item_hover: Hsla,
+    pub separator_margin_x: f32,
+    pub separator_margin_y: f32,
+    pub separator_height: f32,
+}
+
+/// One entry of a border context menu: label plus activation callback.
+pub struct BorderMenuItem<F> {
+    pub label: &'static str,
+    pub on_activate: F,
+}
+
+/// Render the border context menu (right click on a splitter bar).
+///
+/// `items` appear in order, each separated by a divider line; `on_dismiss`
+/// runs when the user clicks the full-window overlay outside the menu. Each
+/// action is invoked exactly once, so callbacks are moved in without a
+/// `Clone` bound.
+pub fn render_border_menu<F>(
+    position: Point<Pixels>,
+    items: Vec<BorderMenuItem<F>>,
+    style: &MenuStyle,
+    on_dismiss: F,
+) -> AnyElement
+where
+    F: Fn(&mut App) + 'static,
+{
+    let panel = div()
+        .id("tiled-border-context-menu")
+        .absolute()
+        .occlude()
+        .top(px(f32::from(position.y)))
+        .left(px(f32::from(position.x)))
+        .w(px(style.width))
+        .p(px(style.padding))
+        .flex()
+        .flex_col()
+        .gap(px(style.gap))
+        .bg(style.surface)
+        .border(px(style.border_width))
+        .border_color(style.border)
+        .rounded(px(style.radius))
+        .shadow_lg()
+        .children(items.into_iter().enumerate().flat_map(|(idx, item)| {
+            let mut elements: Vec<AnyElement> = Vec::with_capacity(2);
+            if idx > 0 {
+                elements.push(
+                    div()
+                        .id(("tiled-border-menu-sep", idx))
+                        .mx(px(style.separator_margin_x))
+                        .my(px(style.separator_margin_y))
+                        .h(px(style.separator_height))
+                        .bg(style.border)
+                        .into_any_element(),
+                );
+            }
+            let on_activate = item.on_activate;
+            elements.push(
+                div()
+                    .id(("tiled-border-menu-item", idx))
+                    .h(px(style.item_height))
+                    .px(px(style.item_padding_x))
+                    .flex()
+                    .items_center()
+                    .rounded(px(style.item_radius))
+                    .bg(style.surface)
+                    .hover(|this| this.bg(style.item_hover))
+                    .active(|this| this.opacity(0.92))
+                    .cursor_pointer()
+                    .text_size(px(style.text_size))
+                    .font_weight(style.text_weight)
+                    .text_color(style.text)
+                    .child(item.label)
+                    .on_click(move |_event, _window, cx| on_activate(cx))
+                    .into_any_element(),
+            );
+            elements
+        }));
+
+    overlay_container()
+        .id("tiled-border-context-menu-wrapper")
+        .on_mouse_down(MouseButton::Left, move |_event, _window, cx| on_dismiss(cx))
+        .child(panel)
+        .into_any_element()
+}
