@@ -50,11 +50,6 @@ impl ContainerKind for EditorInnerPanelKind {
         // Shift + corner drag on an inner panel is a no-op duplicate.
         ShiftBehavior::Duplicate
     }
-
-    fn is_editor(&self) -> bool {
-        // Inner panels never participate in window-level activation.
-        false
-    }
 }
 
 /// Welcome 模式下的面板类型。目前唯一的欢迎面板携带它退出编辑前的

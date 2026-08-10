@@ -32,11 +32,13 @@ pub enum ShiftBehavior {
 }
 
 /// Behaviors a leaf kind contributes to the generic container.
+///
+/// The engine only asks for *operation* semantics (what Shift + corner
+/// drag does). Application taxonomy — which kinds are "editors", which
+/// participate in routing — stays on the host side.
 pub trait ContainerKind: Copy + PartialEq {
     /// How Shift + corner drag behaves on this kind.
     fn shift_behavior(&self) -> ShiftBehavior;
-    /// Whether this kind participates in activation tracking (Editor).
-    fn is_editor(&self) -> bool;
 }
 
 /// The generic tiled split container: the split tree, its operations, the
@@ -55,11 +57,13 @@ pub struct SplitterContainer<T: ContainerKind> {
     pub active_splitter_drag: Option<SplitterDragSession>,
     pub active_corner_drag: Option<CornerDragSession>,
     pub active_border_menu: Option<BorderMenuState>,
-    /// The most recently activated editor-kind leaf; hosts route global
-    /// actions to it. `None` when no editor-kind leaf exists.
+    /// The most recently activated leaf; hosts route global actions to
+    /// it. Kind-agnostic: the host only ever activates the kinds it wants
+    /// to route to. `None` when no leaf was activated yet.
     pub active_area: Option<usize>,
     /// Activated leaf ids in activation-recency order (most recent last).
     /// Used to pick the fallback active area when the current one closes.
+    /// A leaf whose kind changed is dropped from the history.
     pub activation_history: Vec<usize>,
     /// The leaf the mouse is currently operating on.
     pub focused_area: Option<usize>,
@@ -125,44 +129,41 @@ impl<T: ContainerKind> SplitterContainer<T> {
         self.active_area = Some(area_id);
     }
 
-    /// Whether the leaf's current kind is an editor kind.
-    pub fn is_editor_area(&self, area_id: usize) -> bool {
-        self.tree
-            .find_leaf_kind(area_id)
-            .is_some_and(|kind| kind.is_editor())
-    }
-
     /// Recompute the active area after the layout changed: the most
-    /// recently activated editor-kind leaf still present, or `None`.
+    /// recently activated leaf still present, or `None`.
     fn recompute_active_area(&mut self) {
-        if let Some(active) = self.active_area {
-            if self.is_editor_area(active) {
-                return;
-            }
+        if self
+            .active_area
+            .is_some_and(|id| self.tree.find_leaf_kind(id).is_some())
+        {
+            return;
         }
         self.active_area = self
             .activation_history
             .iter()
             .rev()
             .copied()
-            .find(|id| self.is_editor_area(*id));
+            .find(|id| self.tree.find_leaf_kind(*id).is_some());
     }
 
     /// Drop a leaf from activation tracking and recompute the active area.
     fn retire_area(&mut self, removed: usize) {
         self.activation_history.retain(|id| *id != removed);
+        if self.active_area == Some(removed) {
+            self.active_area = None;
+        }
         self.recompute_active_area();
     }
 
-    /// Change a leaf's kind. Leaving an editor kind retires the leaf from
-    /// activation tracking; entering one activates it.
+    /// Change a leaf's kind. A changed kind drops the leaf from the
+    /// activation history — the host re-activates it when the new kind
+    /// should be the active one. (Kind-agnostic rule: any kind mutation
+    /// retires, no matter which kinds are involved.)
     pub fn set_kind(&mut self, area_id: usize, kind: T) {
         let previous = self.tree.find_leaf_kind(area_id);
         self.tree.set_leaf_kind(area_id, kind);
-        if previous.is_some_and(|k| k.is_editor()) && !kind.is_editor() {
+        if previous != Some(kind) {
             self.retire_area(area_id);
-        } else if kind.is_editor() && !previous.is_some_and(|k| k.is_editor()) {
-            self.activate_area(area_id);
         }
         self.open_dropdown = None;
     }
@@ -186,14 +187,16 @@ impl<T: ContainerKind> SplitterContainer<T> {
         ok
     }
 
-    /// Swap the kind of leaf `a` and leaf `b`.
+    /// Swap the kind of leaf `a` and leaf `b`. Both leaves leave the
+    /// activation history (same rule as [`Self::set_kind`]).
     pub fn swap_kinds(&mut self, a: usize, b: usize) {
         let type_a = self.tree.find_leaf_kind(a);
         let type_b = self.tree.find_leaf_kind(b);
         if let (Some(ta), Some(tb)) = (type_a, type_b) {
             self.tree.set_leaf_kind(a, tb);
             self.tree.set_leaf_kind(b, ta);
-            self.recompute_active_area();
+            self.retire_area(a);
+            self.retire_area(b);
         }
     }
 
@@ -522,10 +525,6 @@ mod tests {
                 Self::B => ShiftBehavior::Duplicate,
             }
         }
-
-        fn is_editor(&self) -> bool {
-            matches!(self, Self::A)
-        }
     }
 
     fn test_layout() -> SplitterContainer<TestKind> {
@@ -587,9 +586,8 @@ mod tests {
     }
 
     #[test]
-    fn test_active_editor_falls_back_to_last_focused() {
+    fn test_active_area_falls_back_to_last_focused() {
         let mut layout = test_layout();
-        // A is the editor-like kind.
         layout.activate_area(1);
         let a = layout.split_leaf(1, Axis::Horizontal, 0.5).unwrap();
         let b = layout.split_leaf(1, Axis::Vertical, 0.5).unwrap();
@@ -598,14 +596,38 @@ mod tests {
         layout.activate_area(b);
         assert_eq!(layout.active_area, Some(b));
 
-        // Close the active editor → falls back to the previous focus (a).
+        // Close the active leaf → falls back to the previous focus (a).
         layout.close_leaf(b);
         assert_eq!(layout.active_area, Some(a));
 
-        // Closing the second-to-last editor falls back to the remaining
-        // root area (the last editor is never closable).
+        // Closing the second-to-last leaf falls back to the remaining
+        // root area (the last leaf is never closable).
         layout.close_leaf(a);
         assert_eq!(layout.active_area, Some(1));
+    }
+
+    #[test]
+    fn test_kind_change_retires_activation() {
+        let mut layout = test_layout();
+        layout.activate_area(1);
+        let a = layout.split_leaf(1, Axis::Horizontal, 0.5).unwrap();
+        layout.activate_area(a);
+
+        // Changing an inactive leaf's kind leaves the active one alone.
+        layout.set_kind(1, TestKind::B);
+        assert_eq!(layout.active_area, Some(a));
+
+        // Changing the active leaf's kind retires it: no fallback left.
+        layout.set_kind(a, TestKind::B);
+        assert_eq!(layout.active_area, None);
+
+        // Re-activating restores it.
+        layout.activate_area(a);
+        assert_eq!(layout.active_area, Some(a));
+
+        // A no-op kind change keeps the activation.
+        layout.set_kind(a, TestKind::B);
+        assert_eq!(layout.active_area, Some(a));
     }
 
     #[test]

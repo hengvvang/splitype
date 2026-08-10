@@ -9,12 +9,12 @@ use crate::ui::button::{compact_danger_button, compact_primary_button, compact_s
 
 use gpui::*;
 
+use crate::app::window_area::WindowAreaKind;
 use crate::editor::controller::{Editor, InfoDialogKind};
 use crate::editor::window::context_menu::TableInsertTarget;
 use crate::editor::window::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::infra::theme::Theme;
-use crate::app::window_area::WindowAreaKind;
 
 /// State for the table insertion dialog opened from the context menu.
 pub(crate) struct TableInsertDialogState {
@@ -82,10 +82,8 @@ impl Editor {
         // have been switched away (background editing): bring it back to
         // the foreground first, so the active-editor invariant (active is
         // always a foreground Editor) holds.
-        if !self.panels.layout.is_editor_area(area) {
-            self.panels
-                .layout
-                .set_kind(area, WindowAreaKind::Editor);
+        if !self.is_editor_window_area(area) {
+            self.panels.layout.set_kind(area, WindowAreaKind::Editor);
         }
         self.panels.layout.activate_area(area);
         let set = self
@@ -114,10 +112,8 @@ impl Editor {
         };
         // The dirty area may be in the background (switched away): bring it
         // back to the foreground so the active-editor invariant holds.
-        if !self.panels.layout.is_editor_area(area) {
-            self.panels
-                .layout
-                .set_kind(area, WindowAreaKind::Editor);
+        if !self.is_editor_window_area(area) {
+            self.panels.layout.set_kind(area, WindowAreaKind::Editor);
         }
         self.panels.layout.activate_area(area);
         let set = self

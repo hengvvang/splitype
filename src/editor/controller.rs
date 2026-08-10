@@ -18,6 +18,7 @@ pub(crate) use gpui::*;
 
 pub(crate) use crate::app::window_area::DEFAULT_EDITOR_AREA_ID;
 pub(crate) use crate::app::window_area::EditorAreaMode;
+pub(crate) use crate::app::window_area::WindowAreaKind;
 pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
 pub(crate) use crate::editor::bottombar::state::BottombarState;
 pub(crate) use crate::editor::menu_bar::MenuBarState;
@@ -612,6 +613,13 @@ impl Editor {
         crate::app::menus::record_recent_file_from_editor(path, cx);
     }
 
+    /// Whether `area_id` currently holds an Editor kind. Host-side
+    /// taxonomy: the splitter engine stays kind-agnostic, so the host
+    /// answers this question with its own kind enum.
+    pub(crate) fn is_editor_window_area(&self, area_id: NodeId) -> bool {
+        self.panels.layout.tree.find_leaf_kind(area_id) == Some(WindowAreaKind::Editor)
+    }
+
     /// Opens a file in the ACTIVE editor's tab bar. Returns `false` when no
     /// Editor area exists (the caller decides how to handle that case).
     pub(crate) fn open_file_in_active_editor(
@@ -620,7 +628,11 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        if let Some(area) = self.panels.layout.active_area {
+        // The engine's active-area tracking is kind-agnostic; only an
+        // Editor area can receive a file (host-owned invariant).
+        if let Some(area) = self.panels.layout.active_area
+            && self.is_editor_window_area(area)
+        {
             self.open_file_in_area(area, path, window, cx);
             true
         } else {
