@@ -5,9 +5,9 @@
 //! root the window-level area layout uses — so both levels share one
 //! split model and one set of interactions (see `splitype-splitter`).
 
-use gpui::{App, Pixels, Size};
+use gpui::{Pixels, Size};
 use splitype_splitter::container::SplitterContainer;
-use splitype_splitter::policy::DragPolicy;
+use splitype_splitter::policy::{ClonedContainer, DragPolicy};
 use splitype_splitter::root::SplitterRoot;
 use splitype_splitter::sessions::CornerDragSession;
 
@@ -49,17 +49,18 @@ pub struct EditorSession {
     pub(crate) root: SplitterRoot<EditorInnerPanelKind>,
 }
 
-/// Inner-panel containers override the Shift-drag default (which clones
-/// the window): dragging an inner panel's corner with Shift is a no-op.
+/// Inner-panel containers override the Shift-drag default (which opens
+/// the dragged panel in a new window): dragging an inner panel's corner
+/// with Shift is a no-op.
 /// Plain drags, Ctrl swaps, and Alt keep the shared defaults.
 impl DragPolicy<EditorInnerPanelKind> for SplitterContainer<EditorInnerPanelKind> {
     fn on_shift_drag(
         _root: &mut SplitterRoot<EditorInnerPanelKind>,
         _facts: &CornerDragSession,
         _container_size: Size<Pixels>,
-        _cx: &mut App,
-    ) {
+    ) -> Option<ClonedContainer<EditorInnerPanelKind>> {
         // Empty override: Shift + drag on an inner panel does nothing.
+        None
     }
 }
 

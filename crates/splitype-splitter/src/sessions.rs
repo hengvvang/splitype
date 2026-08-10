@@ -2,8 +2,9 @@
 //!
 //! These are pure state records; the gesture handling that drives them
 //! and every policy decision (what a drag means, whether to render an
-//! indicator) lives in the hosts' render layers (`src/editor/window_layout`
-//! for the outer layout, `src/editor/panel_layout` for the inner one).
+//! indicator) lives in the hosts' render layer (`src/editor/window_layout`
+//! drives the mouse gestures for both the outer areas and the inner
+//! editor panels; `src/editor/panel_layout` renders the inner panels).
 
 use gpui::{Pixels, Point};
 
@@ -16,7 +17,8 @@ pub enum CornerDragModifier {
     None,
     /// Ctrl + drag — the host decides (default: swap area contents).
     Ctrl,
-    /// Shift + drag — the host decides (default: clone the window).
+    /// Shift + drag — the host decides (default: open the dragged panel
+    /// in a new window).
     Shift,
     /// Alt + drag — the host decides (default: no-op).
     Alt,
@@ -78,6 +80,19 @@ pub struct BorderMenuState {
 
 /// Minimum drag distance before a host's modifier-based shortcut fires.
 pub const MODIFIER_THRESHOLD_PX: f32 = 4.0;
+
+/// Whether a corner drag has moved far enough from its start for a
+/// modifier-based shortcut to fire (see [`MODIFIER_THRESHOLD_PX`]).
+/// Pure over the session facts; hosts and the drag policy share it so
+/// the threshold is checked in exactly one place.
+pub fn past_shortcut_threshold(facts: &CornerDragSession) -> bool {
+    let Some(pos) = facts.pointer_pos else {
+        return false;
+    };
+    let dx = f32::from(pos.x - facts.start_pos.x);
+    let dy = f32::from(pos.y - facts.start_pos.y);
+    (dx * dx + dy * dy).sqrt() >= MODIFIER_THRESHOLD_PX
+}
 
 /// Return the id of the element that contains `pos`, given pixel-space rects.
 /// Generic over layout level: the id is an `NodeId` when called with outer

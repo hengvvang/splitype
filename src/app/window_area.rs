@@ -66,8 +66,8 @@ impl EditorAreaMode {
 }
 
 /// Window-level panel containers use the engine's default drag policy:
-/// plain drags split with a content seed, Shift drags clone the window,
-/// Ctrl swaps, Alt does nothing.
+/// plain drags split with a content seed, Shift drags open the dragged
+/// area in a new window, Ctrl swaps, Alt does nothing.
 impl DragPolicy<WindowAreaKind> for SplitterContainer<WindowAreaKind> {}
 
 /// The window-level split root: the outer area layout.
@@ -105,7 +105,5 @@ pub fn default_layout() -> WindowLayout {
         active_area: None,
         activation_history: Vec::new(),
         focused_area: None,
-        seed_split: None,
-        open_clone_window: None,
     }
 }

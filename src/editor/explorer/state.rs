@@ -345,6 +345,41 @@ impl Default for ExplorerState {
     }
 }
 
+impl ExplorerState {
+    /// Deep-copy the explorer content into a fresh window's state
+    /// (Shift-drag on an Explorer area). The worktree models are shared
+    /// entity handles and the entry-id allocator stays shared, so both
+    /// windows see the same file tree and keep allocating unique ids;
+    /// per-window interaction state (drag in flight, inline edit, scroll
+    /// position, hover tasks, a pending rename aimed at the source
+    /// window) starts fresh.
+    pub(crate) fn clone_for_new_window(&self) -> Self {
+        Self {
+            is_open: self.is_open,
+            worktrees: self.worktrees.clone(),
+            next_entry_id: self.next_entry_id.clone(),
+            expanded: self.expanded.clone(),
+            trees_cache: self.trees_cache.clone(),
+            file_error: self.file_error.clone(),
+            entries: self.entries.clone(),
+            selected: self.selected.clone(),
+            marked: self.marked.clone(),
+            clipboard: self.clipboard.clone(),
+            undo_history: self.undo_history.clone(),
+            drag_target: None,
+            hover_expand_task: None,
+            hover_scroll_task: None,
+            hover_scroll_generation: 0,
+            previous_drag_position: None,
+            pending_select: self.pending_select.clone(),
+            pending_rename: None,
+            edit: None,
+            scroll_handle: UniformListScrollHandle::new(),
+            rendered_rows: 0,
+        }
+    }
+}
+
 // ── Filesystem helpers ──────────────────────────────────────────────────
 
 /// Stable numeric hash of an id, for use as a DOM element id suffix.
@@ -610,5 +645,82 @@ pub fn collect_descendant_dir_ids(
         if child.kind == ExplorerEntryKind::Directory {
             collect_descendant_dir_ids(child, out);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::editor::explorer::undo::ExplorerChange;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_clone_for_new_window_copies_content_resets_interaction() {
+        let mut state = ExplorerState::default();
+        state.is_open = true;
+        let entry_id = ExplorerEntryId::for_path(Path::new("/project/src"));
+        let mut expanded = BTreeSet::new();
+        expanded.insert(entry_id);
+        state.expanded.insert(0, expanded);
+        state.file_error = Some("boom".into());
+        state.entries.push(ExplorerRow::Entry(VisibleExplorerEntry {
+            root: 0,
+            id: entry_id,
+            parent_id: None,
+            path: PathBuf::from("/project/src"),
+            label: "src".into(),
+            depth: 0,
+            kind: ExplorerEntryKind::Directory,
+            is_expanded: true,
+            has_children: true,
+        }));
+        state.selected = Some(ExplorerSelection::File {
+            root: 0,
+            entry: entry_id,
+        });
+        state.clipboard = Some(ExplorerClipboard::Copied(vec![ExplorerSelection::File {
+            root: 0,
+            entry: entry_id,
+        }]));
+        state.undo_history.undo_stack.push(ExplorerChange::Created(
+            PathBuf::from("/project/new.md"),
+        ));
+        state.drag_target = Some(DragExplorerTarget::Background);
+        state.edit = Some(ExplorerEditState {
+            root: 0,
+            parent_id: None,
+            target_id: None,
+            is_dir: false,
+            depth: 0,
+            path: PathBuf::from("/project"),
+            validation: None,
+            filename: ExplorerFilenameEditor::default(),
+            previously_selected: None,
+            processing: false,
+        });
+        state.rendered_rows = 12;
+
+        let cloned = state.clone_for_new_window();
+
+        // Content carries over.
+        assert!(cloned.is_open);
+        assert_eq!(cloned.expanded, state.expanded);
+        assert_eq!(cloned.file_error, Some("boom".into()));
+        assert_eq!(cloned.entries, state.entries);
+        assert_eq!(cloned.selected, state.selected);
+        assert_eq!(cloned.clipboard, state.clipboard);
+        assert_eq!(cloned.undo_history.undo_stack, state.undo_history.undo_stack);
+        // The shared allocator is shared, not re-seeded.
+        assert!(Arc::ptr_eq(&cloned.next_entry_id, &state.next_entry_id));
+
+        // Per-window interaction state starts fresh.
+        assert!(cloned.drag_target.is_none());
+        assert!(cloned.hover_expand_task.is_none());
+        assert!(cloned.hover_scroll_task.is_none());
+        assert_eq!(cloned.hover_scroll_generation, 0);
+        assert!(cloned.previous_drag_position.is_none());
+        assert!(cloned.pending_rename.is_none());
+        assert!(cloned.edit.is_none());
+        assert_eq!(cloned.rendered_rows, 0);
     }
 }

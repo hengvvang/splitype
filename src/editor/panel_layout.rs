@@ -1,6 +1,6 @@
-//! Editor inner panel layout — rendering for the `EditorInnerPanelKind`
-//! split tree (welcome panel + Wysiwyg / Source Code / Preview / Outline
-//! editing panels) inside each Edit area.
+//! Editor inner panel layout — rendering and gesture driving for the
+//! `EditorInnerPanelKind` split tree (welcome panel + Wysiwyg / Source
+//! Code / Preview / Outline editing panels) inside each Edit area.
 //!
 //! The inner-panel state and operations live in
 //! `crate::editor::session_ops`; the window-level area layout
@@ -9,8 +9,11 @@
 use crate::editor::session::{
     EditingPanelKind, EditorInnerPanelKind, InnerPanelLocation, WelcomePanelKind,
 };
-use crate::splitter::Axis;
+use crate::splitter::{Axis, CornerDragModifier};
 use crate::ui::popover::menu_panel;
+use splitype_splitter::container::SplitterContainer;
+use splitype_splitter::policy::DragPolicy;
+use splitype_splitter::sessions::{id_at_point, past_shortcut_threshold};
 use splitype_splitter::tree::SplitTree;
 
 use gpui::*;
@@ -197,6 +200,184 @@ impl Editor {
         }
 
         container.into_any_element()
+    }
+
+    /// Drive the inner-level drag gesture of the area whose session holds
+    /// an active splitter-bar or corner drag, from a window-coordinate
+    /// pointer move. Returns whether a gesture was active (the host should
+    /// repaint).
+    pub(crate) fn update_inner_drag(&mut self, pos: Point<Pixels>, window: &Window) -> bool {
+        // Inner splitter drag: locate the session whose container holds
+        // the active drag, and drive it through the shared container API.
+        if let Some((area_id, session)) = self
+            .editor_sessions
+            .iter_mut()
+            .find(|(_, s)| s.root.active_splitter_drag.is_some())
+        {
+            let drag = session.root.active_splitter_drag.unwrap();
+            let viewport = window.viewport_size();
+            let outer_rects = self.panels.layout.leaf_rects(viewport);
+            if let Some(outer_rect) = self.panels.layout.leaf_rect(*area_id, &outer_rects) {
+                let current_pos = match drag.direction {
+                    Axis::Horizontal => f32::from(pos.x) - outer_rect.x,
+                    Axis::Vertical => f32::from(pos.y) - outer_rect.y,
+                };
+                let inner_size = size(px(outer_rect.width), px(outer_rect.height));
+                let span = session
+                    .root
+                    .split_pixel_span(drag.split_id, inner_size)
+                    .unwrap_or_else(|| match drag.direction {
+                        Axis::Horizontal => outer_rect.width,
+                        Axis::Vertical => outer_rect.height,
+                    });
+                if span > 1.0 {
+                    let mut refreshed = drag;
+                    refreshed.total_span = span;
+                    session.root.active_splitter_drag = Some(refreshed);
+                }
+                session.root.update_splitter_drag(current_pos);
+                return true;
+            }
+            return false;
+        }
+
+        // Inner corner drag: translate the pointer into the dragging
+        // area's local space (fixing up the recorded start position),
+        // refresh the facts, then apply the host's immediate shortcuts:
+        // Ctrl past the threshold swaps the dragged panel with the
+        // hovered one, Shift ends the gesture as a no-op. Plain drags
+        // defer to the inner drag policy on mouse-up.
+        if let Some((area_id, session)) = self
+            .editor_sessions
+            .iter_mut()
+            .find(|(_, s)| s.root.corner_drag_panel().is_some())
+        {
+            let area_id = *area_id;
+            let drag_panel = session.root.corner_drag_panel().unwrap();
+            let drag = session
+                .root
+                .tree
+                .find_leaf(drag_panel)
+                .and_then(|p| p.active_corner_drag)
+                .unwrap();
+            let viewport = window.viewport_size();
+            let outer_rects = self.panels.layout.leaf_rects(viewport);
+            let mut pending_swap: Option<(usize, usize)> = None;
+            let mut handled = false;
+            if let Some(outer_rect) = self.panels.layout.leaf_rect(area_id, &outer_rects) {
+                let mut updated = drag;
+                let inner_pos = point(
+                    px(f32::from(pos.x) - outer_rect.x),
+                    px(f32::from(pos.y) - outer_rect.y),
+                );
+                let inner_size = size(px(outer_rect.width), px(outer_rect.height));
+                let start_x = f32::from(updated.start_pos.x);
+                let start_y = f32::from(updated.start_pos.y);
+                if start_x > outer_rect.width || start_y > outer_rect.height {
+                    updated.start_pos =
+                        point(px(start_x - outer_rect.x), px(start_y - outer_rect.y));
+                }
+                // Write the corrected start pos back onto the panel's own
+                // session, then let the root update the facts (hover,
+                // direction).
+                if let Some(panel) = session.root.tree.find_leaf_mut(drag_panel) {
+                    panel.active_corner_drag = Some(updated);
+                }
+                session.root.update_corner_drag(inner_pos, inner_size);
+                let drag = session
+                    .root
+                    .tree
+                    .find_leaf(drag_panel)
+                    .and_then(|p| p.active_corner_drag);
+                if let Some(drag) = drag {
+                    if past_shortcut_threshold(&drag) {
+                        match drag.modifier {
+                            CornerDragModifier::Ctrl => {
+                                let rects = session.root.leaf_rects(inner_size);
+                                if let Some(over) = id_at_point(&rects, inner_pos) {
+                                    if over != drag.target_id {
+                                        pending_swap = Some((drag.target_id, over));
+                                    }
+                                }
+                                session.root.end_corner_drag();
+                            }
+                            CornerDragModifier::Shift => {
+                                session.root.end_corner_drag();
+                            }
+                            CornerDragModifier::None | CornerDragModifier::Alt => {}
+                        }
+                    }
+                }
+                handled = true;
+            }
+            if let Some((from, to)) = pending_swap {
+                self.swap_editor_inner_panel_kinds(area_id, from, to);
+            }
+            return handled;
+        }
+        false
+    }
+
+    /// End the inner-level drag gesture of the area currently dragging on
+    /// mouse release: finish splitter-bar drags, and run the inner-panel
+    /// drag policy for corner drags.
+    pub(crate) fn finish_inner_drag(&mut self, window: &Window, cx: &mut Context<Self>) {
+        // Inner splitter bar drag end.
+        let splitter_pending = self
+            .editor_sessions
+            .iter_mut()
+            .find(|(_, s)| s.root.active_splitter_drag.is_some());
+        if let Some((_, session)) = splitter_pending {
+            session.root.end_splitter_drag();
+            cx.notify();
+        }
+        // Inner corner drag end: finish the gesture through the shared
+        // container, then let the inner-panel policy interpret the facts
+        // (Shift is a no-op override).
+        let corner_pending = self
+            .editor_sessions
+            .iter_mut()
+            .find(|(_, s)| s.root.corner_drag_panel().is_some())
+            .map(|(area_id, session)| {
+                let facts = session.root.finish_corner_drag();
+                (*area_id, facts)
+            });
+        if let Some((area_id, Some(facts))) = corner_pending {
+            let viewport = window.viewport_size();
+            let inner_size = {
+                let outer_rects = self.panels.layout.leaf_rects(viewport);
+                self.panels
+                    .layout
+                    .leaf_rect(area_id, &outer_rects)
+                    .map(|rect| size(px(rect.width), px(rect.height)))
+                    .unwrap_or(viewport)
+            };
+            if let Some(session) = self.editor_sessions.get_mut(&area_id) {
+                match facts.modifier {
+                    CornerDragModifier::None => {
+                        let _ = <SplitterContainer<EditorInnerPanelKind> as DragPolicy<EditorInnerPanelKind>>::on_plain_drag(
+                            &mut session.root, &facts, inner_size,
+                        );
+                    }
+                    CornerDragModifier::Shift => {
+                        let _ = <SplitterContainer<EditorInnerPanelKind> as DragPolicy<EditorInnerPanelKind>>::on_shift_drag(
+                            &mut session.root, &facts, inner_size,
+                        );
+                    }
+                    CornerDragModifier::Ctrl => {
+                        <SplitterContainer<EditorInnerPanelKind> as DragPolicy<EditorInnerPanelKind>>::on_ctrl_drag(
+                            &mut session.root, &facts, inner_size,
+                        )
+                    }
+                    CornerDragModifier::Alt => {
+                        <SplitterContainer<EditorInnerPanelKind> as DragPolicy<EditorInnerPanelKind>>::on_alt_drag(
+                            &mut session.root, &facts, inner_size,
+                        )
+                    }
+                }
+            }
+            cx.notify();
+        }
     }
 
     pub(crate) fn render_editor_inner_panel_border_menu(

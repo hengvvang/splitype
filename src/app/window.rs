@@ -10,6 +10,7 @@ use crate::app::menus::install_menus;
 use crate::app::shell::{AreaContent, Shell};
 use crate::app::window_area::{DEFAULT_EDITOR_AREA_ID, WindowAreaKind};
 use crate::editor::controller::Editor;
+use crate::editor::explorer::state::ExplorerState;
 use crate::editor::session::EditorSession;
 use crate::infra::config::recent::record_recent_file;
 use crate::splitter::NodeId;
@@ -80,14 +81,16 @@ pub(crate) fn open_editor_window(
     handle
 }
 
-/// Opens a new independent window showing a whole cloned container
-/// (Shift-drag default): the outer tree keeps its shape with fresh ids,
-/// and every Editor area's session (inner layout + tab list) is
-/// deep-copied by the caller.
+/// Opens a new independent window hosting a cloned container (Shift-drag
+/// default): the caller supplies the fresh tree (a single-leaf layout of
+/// the dragged panel when produced by the default Shift policy), the
+/// deep-copied sessions of its Editor areas, and — for an Explorer area —
+/// the deep-copied file-tree state.
 pub(crate) fn open_cloned_window(
     tree: SplitTree<WindowAreaKind>,
     next_node_id: usize,
     sessions: HashMap<NodeId, EditorSession>,
+    explorer: Option<ExplorerState>,
     cx: &mut App,
 ) -> WindowHandle<Shell> {
     let bounds = Bounds::centered(None, size(px(1080.), px(720.)), cx);
@@ -100,6 +103,9 @@ pub(crate) fn open_cloned_window(
                     ed.panels.layout.tree = tree;
                     ed.panels.layout.next_node_id = next_node_id;
                     ed.editor_sessions = sessions;
+                    if let Some(explorer) = explorer {
+                        ed.panels.explorer = explorer;
+                    }
                     // Activate the first Editor leaf of the cloned layout
                     // (the empty constructor seeds the default area id,
                     // which the clone may not contain).

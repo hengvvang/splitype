@@ -31,10 +31,11 @@ fn new_inner_session() -> EditorSession {
 }
 
 impl Editor {
-    /// Split `area_id` at `ratio` with a sibling of the SAME kind, and seed
-    /// the new Editor area's session per `copy_content`: `true` clones the
-    /// source inner panel layout (the host then deep-copies the tab list);
-    /// `false` starts blank. Returns the new area's id.
+    /// Split `area_id` at `ratio` with a sibling of the SAME kind. With
+    /// `copy_content = false` the new Editor area starts with a fresh
+    /// blank session; with `true` the caller runs the shared content
+    /// steps ([`Editor::seed_split_content`]) right after this call.
+    /// Returns the new area's id.
     pub fn split_window_area(
         &mut self,
         area_id: NodeId,
@@ -43,14 +44,9 @@ impl Editor {
         copy_content: bool,
     ) -> Option<NodeId> {
         let new_id = self.panels.layout.split_leaf(area_id, direction, ratio)?;
-        if copy_content {
-            Self::clone_inner_layout(
-                &mut self.editor_sessions,
-                &mut self.panels.layout,
-                area_id,
-                new_id,
-            );
-        } else if self.panels.layout.tree.find_leaf_kind(area_id) == Some(WindowAreaKind::Editor) {
+        if !copy_content
+            && self.panels.layout.tree.find_leaf_kind(area_id) == Some(WindowAreaKind::Editor)
+        {
             self.ensure_editor_session(new_id);
         }
         Some(new_id)

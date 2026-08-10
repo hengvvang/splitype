@@ -3,8 +3,6 @@
 //! Generic over the area type `T` so that the outer layout uses `WindowAreaKind`
 //! while inner (Edit sub-panel) layouts use `EditorInnerPanelKind`.
 
-use std::collections::HashMap;
-
 use crate::container::SplitterContainer;
 
 /// The one id concept of the engine: every node of every container
@@ -400,49 +398,6 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                     ratio: *ratio,
                     first: Box::new(first.clone_with_new_ids(next_id)),
                     second: Box::new(second.clone_with_new_ids(next_id)),
-                }
-            }
-        }
-    }
-
-    /// Deep-clone this subtree with fresh node ids, additionally returning
-    /// a mapping from each old node id to its new id. Used to clone a whole
-    /// container into a new window: the host walks the map to clone the
-    /// per-leaf content of the matching leaves.
-    pub fn clone_with_id_map(&self, next_id: &mut usize) -> (SplitTree<T>, HashMap<usize, usize>) {
-        let mut map = HashMap::new();
-        let tree = self.clone_with_id_map_inner(next_id, &mut map);
-        (tree, map)
-    }
-
-    fn clone_with_id_map_inner(
-        &self,
-        next_id: &mut usize,
-        map: &mut HashMap<usize, usize>,
-    ) -> SplitTree<T> {
-        match self {
-            Self::Leaf(container) => {
-                let new_id = *next_id;
-                *next_id += 1;
-                map.insert(container.id, new_id);
-                Self::Leaf(SplitterContainer::new(new_id, container.kind))
-            }
-            Self::Split {
-                id,
-                direction,
-                ratio,
-                first,
-                second,
-            } => {
-                let new_id = *next_id;
-                *next_id += 1;
-                map.insert(*id, new_id);
-                Self::Split {
-                    id: new_id,
-                    direction: *direction,
-                    ratio: *ratio,
-                    first: Box::new(first.clone_with_id_map_inner(next_id, map)),
-                    second: Box::new(second.clone_with_id_map_inner(next_id, map)),
                 }
             }
         }

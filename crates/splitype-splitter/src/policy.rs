@@ -1,24 +1,26 @@
 //! Drag policies — what a finished corner drag means.
 //!
 //! The engine reports only gesture facts ([`CornerDragSession`]); the
-//! policy turns them into operations. The default implementations live on
-//! the [`DragPolicy`] trait, which is implemented per panel type on
-//! [`SplitterContainer`] — so every panel shares the same defaults and a
-//! specific panel type can override one behavior (the editor's inner
+//! policy turns them into tree operations. The default implementations
+//! live on the [`DragPolicy`] trait, which is implemented per panel type
+//! on [`SplitterContainer`] — so every panel shares the same defaults and
+//! a specific panel type can override one behavior (the editor's inner
 //! panels override Shift to a no-op).
 //!
-//! Defaults: plain drag splits with a content seed (or joins), Shift
-//! drags clone the whole container into a new window, Ctrl swaps, Alt
-//! does nothing. The host-dependent content steps run through the root's
-//! injected hooks ([`SplitterRoot::seed_split`],
-//! [`SplitterRoot::open_clone_window`]).
+//! Defaults: plain drag splits (or joins), Shift drags clone the dragged
+//! panel's container into a new window, Ctrl swaps, Alt does nothing.
+//! Policies only perform the content-free tree geometry and return what
+//! happened; the host performs the content steps itself (seeding a new
+//! leaf, opening the cloned window). Policies are always invoked from
+//! inside the host's own entity update, so they never re-enter the host.
 
 use std::collections::HashMap;
 
-use gpui::{App, Pixels, Size};
+use gpui::{Pixels, Size};
 
+use crate::container::SplitterContainer;
 use crate::root::SplitterRoot;
-use crate::sessions::{CornerDragSession, MODIFIER_THRESHOLD_PX};
+use crate::sessions::{CornerDragSession, past_shortcut_threshold};
 use crate::tree::{NodeId, SplitTree};
 
 /// A whole container cloned for a Shift-drag "open clone window" gesture:
@@ -42,44 +44,36 @@ pub struct ClonedContainer<T: Copy + PartialEq> {
 /// identified by `facts.target_id`), so the tree-level operations — split,
 /// join, swap, clone — stay borrow-clean.
 pub trait DragPolicy<T: Copy + PartialEq> {
-    /// Plain drag finished. Default: split (with the root's content seed
-    /// hook) or join the dragged panel with the hovered one.
+    /// Plain drag finished. Default: split or join the dragged panel with
+    /// the hovered one. Returns the id of the leaf a split created, so the
+    /// host can seed its content (`None` = joined, or nothing happened).
     fn on_plain_drag(
         root: &mut SplitterRoot<T>,
         facts: &CornerDragSession,
         container_size: Size<Pixels>,
-        cx: &mut App,
-    ) {
-        if let Some(new_id) = split_or_join(root, facts, container_size) {
-            if let Some(mut seed) = root.seed_split.take() {
-                seed(root, facts.target_id, new_id, cx);
-                root.seed_split = Some(seed);
-            }
-        }
+    ) -> Option<NodeId> {
+        split_or_join(root, facts, container_size)
     }
 
-    /// Shift drag finished. Default: clone the whole container into a new
-    /// window (via the root's open-clone-window hook). Shift drags never
-    /// show the visual indicator.
+    /// Shift drag finished. Default: clone the DRAGGED panel's container
+    /// into a fresh single-leaf tree, returning it for the host to open
+    /// in a new window — not the whole window layout. Shift drags never
+    /// show the visual indicator. `None` = the gesture is a no-op (inner
+    /// panels).
     fn on_shift_drag(
         root: &mut SplitterRoot<T>,
-        _facts: &CornerDragSession,
+        facts: &CornerDragSession,
         _container_size: Size<Pixels>,
-        cx: &mut App,
-    ) {
-        let mut next_id = root.next_node_id;
-        let (tree, id_map) = root.tree.clone_with_id_map(&mut next_id);
-        if let Some(mut open) = root.open_clone_window.take() {
-            open(
-                ClonedContainer {
-                    tree,
-                    next_node_id: next_id,
-                    id_map,
-                },
-                cx,
-            );
-            root.open_clone_window = Some(open);
-        }
+    ) -> Option<ClonedContainer<T>> {
+        let kind = root.tree.find_leaf_kind(facts.target_id)?;
+        let new_id = root.next_node_id;
+        let mut id_map = HashMap::new();
+        id_map.insert(facts.target_id, new_id);
+        Some(ClonedContainer {
+            tree: SplitTree::Leaf(SplitterContainer::new(new_id, kind)),
+            next_node_id: new_id + 1,
+            id_map,
+        })
     }
 
     /// Ctrl drag finished. Default: swap the dragged panel's kind with the
@@ -88,9 +82,8 @@ pub trait DragPolicy<T: Copy + PartialEq> {
         root: &mut SplitterRoot<T>,
         facts: &CornerDragSession,
         _container_size: Size<Pixels>,
-        _cx: &mut App,
     ) {
-        if drag_distance(facts) < MODIFIER_THRESHOLD_PX {
+        if !past_shortcut_threshold(facts) {
             return;
         }
         if let Some(hover) = facts.hover_leaf {
@@ -105,7 +98,6 @@ pub trait DragPolicy<T: Copy + PartialEq> {
         _root: &mut SplitterRoot<T>,
         _facts: &CornerDragSession,
         _container_size: Size<Pixels>,
-        _cx: &mut App,
     ) {
     }
 }
@@ -129,11 +121,55 @@ fn split_or_join<T: Copy + PartialEq>(
     }
 }
 
-fn drag_distance(facts: &CornerDragSession) -> f32 {
-    let Some(pos) = facts.pointer_pos else {
-        return 0.0;
-    };
-    let dx = f32::from(pos.x - facts.start_pos.x);
-    let dy = f32::from(pos.y - facts.start_pos.y);
-    (dx * dx + dy * dy).sqrt()
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sessions::CornerDragModifier;
+    use gpui::{point, px, size};
+
+    /// A stand-in panel type: the policy must not know any concrete
+    /// application kind.
+    #[derive(Clone, Copy, Debug, PartialEq)]
+    enum TestKind {
+        A,
+    }
+
+    /// Policies are implemented per panel type; the test registers its own
+    /// kind with the shared defaults.
+    impl DragPolicy<TestKind> for SplitterContainer<TestKind> {}
+
+    #[test]
+    fn test_shift_drag_clones_only_the_dragged_leaf() {
+        let mut root = SplitterRoot::single_leaf(1, TestKind::A);
+        let split_id = root.split_leaf(1, crate::tree::Axis::Horizontal, 0.5).unwrap();
+        let pool = root.next_node_id;
+        let facts = CornerDragSession {
+            target_id: split_id,
+            start_pos: point(px(0.0), px(0.0)),
+            gesture_dir: None,
+            modifier: CornerDragModifier::Shift,
+            pointer_pos: None,
+            hover_leaf: None,
+        };
+        let cloned = <SplitterContainer<TestKind> as DragPolicy<TestKind>>::on_shift_drag(
+            &mut root,
+            &facts,
+            size(px(100.0), px(100.0)),
+        )
+        .expect("shift drag should clone the dragged leaf");
+
+        // The clone is a single-leaf tree of the dragged panel's kind
+        // with a fresh id from the root's pool.
+        let mut ids = Vec::new();
+        cloned.tree.leaf_ids(&mut ids);
+        assert_eq!(ids, vec![pool]);
+        assert_eq!(cloned.tree.find_leaf_kind(pool), Some(TestKind::A));
+        assert_eq!(cloned.id_map.len(), 1);
+        assert_eq!(cloned.id_map.get(&split_id), Some(&pool));
+        assert_eq!(cloned.next_node_id, pool + 1);
+
+        // The source root is untouched by the gesture.
+        assert_eq!(root.tree.count_leaves(), 2);
+        assert_eq!(root.next_node_id, pool);
+    }
 }

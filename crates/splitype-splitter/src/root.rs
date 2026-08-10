@@ -9,20 +9,15 @@
 //! maximized) lives on each container; root-level state (id pool, splitter
 //! drags, activation) lives here.
 
-use gpui::{App, Pixels, Point, Size};
+use gpui::{Pixels, Point, Size};
 
 use crate::container::SplitterContainer;
-use crate::policy::ClonedContainer;
 use crate::sessions::{
     BorderMenuState, CornerDragModifier, CornerDragSession, SplitterDragSession, id_at_point,
 };
 use crate::tree::{AreaRect, Axis, Direction, NodeId, SplitTree};
 
 /// One initialized split region: the panel tree plus tree-level state.
-///
-/// Host hooks ([`Self::seed_split`], [`Self::open_clone_window`]) let the
-/// host supply the content steps of the default drag policies without the
-/// engine knowing any content type.
 pub struct SplitterRoot<T: Copy + PartialEq> {
     /// The tree of panel containers hanging on this root.
     pub tree: SplitTree<T>,
@@ -40,13 +35,6 @@ pub struct SplitterRoot<T: Copy + PartialEq> {
     pub activation_history: Vec<NodeId>,
     /// The leaf the mouse is currently operating on.
     pub focused_area: Option<NodeId>,
-    /// Host hook: seed the fresh sibling leaf's content after a plain-drag
-    /// split (the editor deep-copies its tab list and inner panel layout).
-    /// `None` = no content to seed (e.g. inner panels).
-    pub seed_split: Option<Box<dyn FnMut(&mut SplitterRoot<T>, NodeId, NodeId, &mut App)>>,
-    /// Host hook: open a new window showing a whole cloned container
-    /// (Shift-drag default). `None` = not supported.
-    pub open_clone_window: Option<Box<dyn FnMut(ClonedContainer<T>, &mut App)>>,
 }
 
 impl<T: Copy + PartialEq> SplitterRoot<T> {
@@ -61,8 +49,6 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
             active_area: None,
             activation_history: Vec::new(),
             focused_area: None,
-            seed_split: None,
-            open_clone_window: None,
         }
     }
 

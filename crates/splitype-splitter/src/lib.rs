@@ -10,8 +10,7 @@
 //!   [`SplitterContainer`], so splitting a leaf creates a second container
 //!   and both hang on the same tree.
 //! - [`SplitterRoot`] — one initialized split region: the tree plus the
-//!   tree-level state (id pool, activation, splitter drags) and the host
-//!   content hooks used by the default drag policies.
+//!   tree-level state (id pool, activation, splitter drags).
 //! - The drag-session records and the [`DragPolicy`] defaults.
 //!
 //! It depends only on gpui's geometry types (`Point`/`Size`/`Pixels`);
