@@ -1,13 +1,16 @@
 //! Content-independent split interaction rendering.
 //!
-//! The draggable splitter bars between areas and the corner-drag preview
-//! overlays are pure window-management UI: they depend on the layout tree
-//! geometry and a small set of visual parameters, never on what the areas
-//! contain. Rendering lives here so any host (window shell, editor panel
-//! layout) can reuse it without reimplementing the gesture visuals.
+//! The draggable splitter bars between areas, the corner-drag handles and
+//! their preview overlays, and the splitter-bar context menu are pure
+//! window-management UI: they depend on the layout tree geometry and a
+//! small set of visual parameters, never on what the areas contain.
+//! Rendering and gesture state machines live here so any host (window
+//! shell, editor panel layout) can reuse them without reimplementing the
+//! interaction visuals.
 //!
-//! Visual parameters are injected via [`OverlayStyle`] so this crate stays
-//! free of any concrete theme.
+//! Visual parameters are injected via [`OverlayStyle`] and [`MenuStyle`]
+//! so this crate stays free of any concrete theme; menu actions are
+//! injected as callbacks.
 
 use gpui::*;
 
