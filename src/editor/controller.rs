@@ -31,9 +31,9 @@ pub(crate) use crate::editor::window::context_menu::ContextMenuState;
 pub(crate) use crate::editor::window::dialogs::TableInsertDialogState;
 pub(crate) use crate::editor::window_layout::WindowPanels;
 pub(crate) use crate::editor::{PreviewState, SourceCodePanelRuntime};
-pub(crate) use crate::layout::sessions::{BorderMenuState, CornerDragSession, SplitterDragSession};
-pub(crate) use crate::layout::state::ROOT_AREA_ID;
-pub(crate) use crate::layout::types::{AreaId, AreaSplitMode, EditorAreaMode, PanelId};
+pub(crate) use crate::splitter::sessions::{BorderMenuState, CornerDragSession, SplitterDragSession};
+pub(crate) use crate::splitter::state::ROOT_AREA_ID;
+pub(crate) use crate::splitter::types::{AreaId, AreaSplitMode, EditorAreaMode, PanelId};
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::model::inline::text::RichText;
 pub(crate) use crate::model::syntax::image::{
@@ -228,7 +228,7 @@ pub struct Editor {
     /// The outer area this editor renders as content for. Read once the
     /// editor renders its own area frame instead of the whole window.
     #[allow(dead_code)] // read by the upcoming area-frame rendering split
-    pub(crate) area_id: crate::layout::AreaId,
+    pub(crate) area_id: crate::splitter::AreaId,
     /// Window-level panel state (outer layout, explorer, outline, settings).
     /// Owned here for now; the Shell entity delegates rendering to this
     /// editor and reads this state incrementally.
@@ -397,13 +397,13 @@ impl Editor {
     /// before any file is opened or an Untitled tab is started. The default
     /// layout seeds one root Editor area with an empty tab bar.
     pub fn empty(_cx: &mut Context<Self>) -> Self {
-        Self::empty_in_shell(None, crate::layout::ROOT_AREA_ID, _cx)
+        Self::empty_in_shell(None, crate::splitter::ROOT_AREA_ID, _cx)
     }
 
     /// Creates an editor with no document tabs, bound to a window shell.
     pub(crate) fn empty_in_shell(
         shell: Option<crate::app::shell::WeakShell>,
-        area_id: crate::layout::AreaId,
+        area_id: crate::splitter::AreaId,
         _cx: &mut Context<Self>,
     ) -> Self {
         Self {
@@ -448,13 +448,13 @@ impl Editor {
         markdown: String,
         file_path: Option<PathBuf>,
     ) -> Self {
-        Self::from_markdown_in_shell(None, crate::layout::ROOT_AREA_ID, cx, markdown, file_path)
+        Self::from_markdown_in_shell(None, crate::splitter::ROOT_AREA_ID, cx, markdown, file_path)
     }
 
     /// Creates an editor from markdown, bound to a window shell.
     pub(crate) fn from_markdown_in_shell(
         shell: Option<crate::app::shell::WeakShell>,
-        area_id: crate::layout::AreaId,
+        area_id: crate::splitter::AreaId,
         cx: &mut Context<Self>,
         markdown: String,
         file_path: Option<PathBuf>,
@@ -874,7 +874,7 @@ impl Editor {
     pub(crate) fn split_area(
         &mut self,
         area_id: AreaId,
-        direction: crate::layout::Axis,
+        direction: crate::splitter::Axis,
         ratio: f32,
         mode: AreaSplitMode,
         cx: &mut Context<Self>,

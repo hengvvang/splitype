@@ -14,7 +14,7 @@ use crate::editor::window::context_menu::TableInsertTarget;
 use crate::editor::window::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::infra::theme::Theme;
-use crate::layout::WindowAreaKind;
+use crate::splitter::WindowAreaKind;
 
 /// State for the table insertion dialog opened from the context menu.
 pub(crate) struct TableInsertDialogState {

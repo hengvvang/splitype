@@ -5945,8 +5945,8 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
- "splitype-layout",
  "splitype-model",
+ "splitype-splitter",
  "sys-locale",
  "tokio",
  "toml 1.1.2+spec-1.1.0",
@@ -5977,13 +5977,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "splitype-layout"
-version = "0.0.1"
-dependencies = [
- "gpui",
-]
-
-[[package]]
 name = "splitype-model"
 version = "0.0.1"
 dependencies = [
@@ -5992,6 +5985,13 @@ dependencies = [
  "tree-sitter",
  "tree-sitter-html",
  "uuid",
+]
+
+[[package]]
+name = "splitype-splitter"
+version = "0.0.1"
+dependencies = [
+ "gpui",
 ]
 
 [[package]]

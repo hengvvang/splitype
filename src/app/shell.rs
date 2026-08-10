@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use gpui::*;
 
 use crate::editor::controller::Editor;
-use crate::layout::AreaId;
+use crate::splitter::AreaId;
 
 /// Weak handle to the window shell, held by content entities to reach
 /// layout operations without creating a reference cycle.

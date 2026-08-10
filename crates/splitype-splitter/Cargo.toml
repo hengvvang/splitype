@@ -1,5 +1,5 @@
 [package]
-name = "splitype-layout"
+name = "splitype-splitter"
 version = "0.0.1"
 edition = "2024"
 license = "Apache-2.0"

@@ -1,12 +1,12 @@
 //! Editor panel types — the inner-panel vocabulary of an Editor area.
 //!
-//! Split out of `splitype-layout` when the inner panel layout moved back to
+//! Split out of `splitype-splitter` when the inner panel layout moved back to
 //! the editor layer: the layout crate now owns only the outer window tree,
 //! while the editor owns its own panel kinds, tab list, and panel split
 //! tree. `SplitTree` itself stays generic and is reused from the layout
 //! crate.
 
-use splitype_layout::tree::SplitTree;
+use splitype_splitter::tree::SplitTree;
 
 /// The document tabs owned by one Editor area.
 ///
@@ -122,8 +122,8 @@ impl EditingPanelKind {
 /// Locates an editor inner panel: which outer area, and which panel in it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct InnerPanelLocation {
-    pub area_id: splitype_layout::types::AreaId,
-    pub panel_id: splitype_layout::types::PanelId,
+    pub area_id: splitype_splitter::types::AreaId,
+    pub panel_id: splitype_splitter::types::PanelId,
 }
 
 /// The action produced by an editor inner-panel corner-drag gesture.
@@ -131,23 +131,23 @@ pub struct InnerPanelLocation {
 pub enum EditorInnerPanelDragAction {
     /// Split the dragged panel; the new panel inherits its kind.
     Split {
-        panel_id: splitype_layout::types::PanelId,
-        direction: splitype_layout::tree::Axis,
+        panel_id: splitype_splitter::types::PanelId,
+        direction: splitype_splitter::tree::Axis,
         ratio: f32,
     },
     /// Join the dragged panel into a neighbor (removes the dragged panel).
     Join {
-        from_panel: splitype_layout::types::PanelId,
-        into_panel: splitype_layout::types::PanelId,
+        from_panel: splitype_splitter::types::PanelId,
+        into_panel: splitype_splitter::types::PanelId,
     },
     /// Swap the kinds of two panels.
     Swap {
-        from: splitype_layout::types::PanelId,
-        to: splitype_layout::types::PanelId,
+        from: splitype_splitter::types::PanelId,
+        to: splitype_splitter::types::PanelId,
     },
     /// Shift + drag: currently a no-op in the host.
     Duplicate {
-        panel_id: splitype_layout::types::PanelId,
+        panel_id: splitype_splitter::types::PanelId,
     },
     /// Gesture was cancelled (e.g. dragged to an invalid target).
     Cancel,

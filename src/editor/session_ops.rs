@@ -1,7 +1,7 @@
 //! Inner panel layout state and operations of an Editor window.
 //!
 //! The per-area editor sessions (document tab list + inner panel split
-//! tree) and all inner-panel operations. Moved out of `splitype-layout`
+//! tree) and all inner-panel operations. Moved out of `splitype-splitter`
 //! when the layout crate was reduced to the outer window tree; the outer
 //! tree lives in `WindowPanels::layout`.
 
@@ -12,12 +12,12 @@ use crate::editor::session::{
     EditingPanelKind, EditorInnerPanelDragAction, EditorInnerPanelKind, EditorSession,
     EditorTabList, InnerPanelLocation, WelcomePanelKind,
 };
-use splitype_layout::sessions::{
+use splitype_splitter::sessions::{
     CornerDragModifier, CornerDragPreview, CornerDragSession, MODIFIER_THRESHOLD_PX, id_at_point,
 };
-use splitype_layout::tree::{AreaRect, Axis, Direction, SplitTree};
-use splitype_layout::types::EditorAreaMode;
-use splitype_layout::types::{AreaId, AreaSplitMode, PanelId, SplitId, WindowAreaKind};
+use splitype_splitter::tree::{AreaRect, Axis, Direction, SplitTree};
+use splitype_splitter::types::EditorAreaMode;
+use splitype_splitter::types::{AreaId, AreaSplitMode, PanelId, SplitId, WindowAreaKind};
 
 impl Editor {
     /// Split `area_id` at `ratio` with a sibling of the SAME kind, and seed

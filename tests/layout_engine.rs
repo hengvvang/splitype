@@ -1,6 +1,6 @@
 //! Cross-crate contract tests for the tiled layout engine.
 //!
-//! `splitype-layout` owns only the outer window tree; the inner panel
+//! `splitype-splitter` owns only the outer window tree; the inner panel
 //! layout moved to the editor layer and is covered by module tests there.
 //! These tests drive the outer tree through its public API as an external
 //! consumer would: split areas, close them, switch kinds, and verify the
@@ -8,10 +8,10 @@
 
 use gpui::{Size, px};
 
-use splitype_layout::Axis;
-use splitype_layout::state::{ROOT_AREA_ID, WindowLayout};
-use splitype_layout::tree::AreaRect;
-use splitype_layout::types::WindowAreaKind;
+use splitype_splitter::Axis;
+use splitype_splitter::state::{ROOT_AREA_ID, WindowLayout};
+use splitype_splitter::tree::AreaRect;
+use splitype_splitter::types::WindowAreaKind;
 
 fn layout() -> WindowLayout {
     WindowLayout::default()

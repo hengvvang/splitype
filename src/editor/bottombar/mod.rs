@@ -20,7 +20,7 @@ use crate::editor::session::InnerPanelLocation;
 use crate::infra::config::settings::{EditorSettings, StatusBarButton, StatusBarSettings};
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::{Theme, ThemeColors, ThemeDimensions};
-use crate::layout::Axis;
+use crate::splitter::Axis;
 
 use state::BottombarState;
 use words::count_words;

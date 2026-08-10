@@ -7,21 +7,21 @@
 //!
 //! - `model` — pure Markdown domain layer; lives in the `splitype-model`
 //!   crate and is re-exported here.
-//! - `layout` — pure tiled-layout engine; lives in `splitype-layout`.
+//! - `splitter` — the tiled split-screen engine; lives in `splitype-splitter`.
 //! - `infra` — system capabilities (config, i18n, net, theme).
 //! - `editor` — the editing runtime and window views.
 //! - `explorer` / `settings` / `titlebar` — top-level views over `editor`.
 //! - `app` — assembly: bootstrap, CLI, menus, window routing.
 //! - `ui` — reusable components; `platform` — OS adapters.
 //!
-//! The domain (`model`) and layout engine stay in separate crates because
+//! The domain (`model`) and the splitter engine stay in separate crates because
 //! they are reusable engines with no application coupling. Everything that
 //! is specific to this application (`infra`, `ui`, `platform`) lives here
 //! as plain modules so the boundary between engine and application stays
 //! obvious.
 
-pub use splitype_layout as layout;
 pub use splitype_model as model;
+pub use splitype_splitter as splitter;
 
 pub mod app;
 pub mod editor;

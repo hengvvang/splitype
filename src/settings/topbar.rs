@@ -5,7 +5,7 @@ use gpui::*;
 
 use crate::editor::window_layout::area_topbar_icon;
 use crate::infra::theme::Theme;
-use crate::layout::{AreaSplitMode, Axis};
+use crate::splitter::{AreaSplitMode, Axis};
 use crate::ui::button::{icon_chip_button, small_pill_button};
 use crate::ui::topbar::topbar_container;
 
@@ -14,7 +14,7 @@ impl crate::editor::controller::Editor {
     pub(crate) fn render_settings_topbar(
         &self,
         leaf_id: usize,
-        kind: crate::layout::WindowAreaKind,
+        kind: crate::splitter::WindowAreaKind,
         theme: &Theme,
         leaf_count: usize,
         is_maximized: bool,

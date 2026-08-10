@@ -9,9 +9,9 @@
 use crate::editor::session::{
     EditingPanelKind, EditorInnerPanelKind, InnerPanelLocation, WelcomePanelKind,
 };
-use crate::layout::{Axis, BorderMenuState, SplitterDragSession};
+use crate::splitter::{Axis, BorderMenuState, SplitterDragSession};
 use crate::ui::popover::menu_panel;
-use splitype_layout::tree::SplitTree;
+use splitype_splitter::tree::SplitTree;
 
 use gpui::*;
 
@@ -128,7 +128,7 @@ impl Editor {
         // the normalized rects position with `relative()` against the
         // layout's initialization region (topbar/bottombar excluded).
         let d = &theme.dimensions;
-        let overlay_style = splitype_layout::interaction::OverlayStyle {
+        let overlay_style = splitype_splitter::interaction::OverlayStyle {
             accent: c.split_indicator,
             tile_radius: d.area_tile_radius,
             border: c.dialog_border,
@@ -140,7 +140,7 @@ impl Editor {
             if drag_area_id == area_id {
                 let mut rects = Vec::new();
                 inner_tree.collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
-                if let Some(preview) = splitype_layout::interaction::render_corner_drag_preview(
+                if let Some(preview) = splitype_splitter::interaction::render_corner_drag_preview(
                     &drag,
                     &rects,
                     &overlay_style,
@@ -166,7 +166,7 @@ impl Editor {
 
     pub(crate) fn render_editor_inner_panel_border_menu(
         &mut self,
-        border_menu: crate::layout::BorderMenuState,
+        border_menu: crate::splitter::BorderMenuState,
         area_id: usize,
         theme: &Theme,
         cx: &mut Context<Self>,
@@ -214,22 +214,22 @@ impl Editor {
             });
         });
 
-        crate::layout::interaction::render_border_menu(
+        crate::splitter::interaction::render_border_menu(
             border_menu.position,
             vec![
-                crate::layout::interaction::BorderMenuItem {
+                crate::splitter::interaction::BorderMenuItem {
                     label: "Split Horizontally",
                     on_activate: split_h,
                 },
-                crate::layout::interaction::BorderMenuItem {
+                crate::splitter::interaction::BorderMenuItem {
                     label: "Split Vertically",
                     on_activate: split_v,
                 },
-                crate::layout::interaction::BorderMenuItem {
+                crate::splitter::interaction::BorderMenuItem {
                     label: "Swap Panels",
                     on_activate: swap,
                 },
-                crate::layout::interaction::BorderMenuItem {
+                crate::splitter::interaction::BorderMenuItem {
                     label: "Close Panel",
                     on_activate: close,
                 },
@@ -306,7 +306,7 @@ impl Editor {
 
     pub(crate) fn render_editor_inner_panel_node(
         &mut self,
-        node: &splitype_layout::tree::SplitTree<
+        node: &splitype_splitter::tree::SplitTree<
             crate::editor::session::EditorInnerPanelKind,
         >,
         area_id: usize,
@@ -317,7 +317,7 @@ impl Editor {
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let overlay_style = splitype_layout::interaction::OverlayStyle {
+        let overlay_style = splitype_splitter::interaction::OverlayStyle {
             accent: c.split_indicator,
             tile_radius: d.area_tile_radius,
             border: c.dialog_border,
@@ -359,7 +359,7 @@ impl Editor {
                     },
                 };
 
-                let corner_handles = splitype_layout::interaction::corner_drag_handles(
+                let corner_handles = splitype_splitter::interaction::corner_drag_handles(
                     "inner-corner",
                     panel_id,
                     d.inner_panel_gap,
@@ -476,7 +476,7 @@ impl Editor {
                                     .child(second_elem),
                             )
                             .child(
-                                splitype_layout::interaction::splitter_bar_h(
+                                splitype_splitter::interaction::splitter_bar_h(
                                     ("inner-splitter-bar-h", split_id),
                                     r,
                                     bar_active,
@@ -554,7 +554,7 @@ impl Editor {
                                     .child(second_elem),
                             )
                             .child(
-                                splitype_layout::interaction::splitter_bar_v(
+                                splitype_splitter::interaction::splitter_bar_v(
                                     ("inner-splitter-bar-v", split_id),
                                     r,
                                     bar_active,

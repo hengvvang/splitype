@@ -1,7 +1,7 @@
 //! Window-level tiled area layout — rendering and gestures for the outer
 //! `WindowAreaKind` split tree (ExplorerState / Settings / Editor areas).
 //!
-//! The layout engine (tree, sessions, operations) lives in `crate::layout`;
+//! The layout engine (tree, sessions, operations) lives in `crate::splitter`;
 //! the editor's inner panel layout rendering lives in
 //! `crate::editor::panel_layout`. This module also aggregates the editor
 //! window's panel state ([`WindowPanels`]).
@@ -17,8 +17,8 @@ use crate::editor::session::EditorInnerPanelDragAction;
 use crate::editor::settings::SettingsUiState;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
-use crate::layout::{AreaSplitMode, Axis, WindowAreaDragAction, WindowAreaKind, WindowLayout};
-use splitype_layout::tree::SplitTree;
+use crate::splitter::{AreaSplitMode, Axis, WindowAreaDragAction, WindowAreaKind, WindowLayout};
+use splitype_splitter::tree::SplitTree;
 
 use super::controller::*;
 
@@ -44,11 +44,11 @@ pub(crate) fn area_topbar_icon(kind: WindowAreaKind, name: &str) -> SharedString
 ///
 /// Shared by the outer window-area border menu and the editor's inner-panel
 /// border menu so both render identically.
-pub(crate) fn border_menu_style(theme: &Theme) -> crate::layout::interaction::MenuStyle {
+pub(crate) fn border_menu_style(theme: &Theme) -> crate::splitter::interaction::MenuStyle {
     let c = &theme.colors;
     let d = &theme.dimensions;
     let t = &theme.typography;
-    crate::layout::interaction::MenuStyle {
+    crate::splitter::interaction::MenuStyle {
         surface: c.dialog_surface,
         border: c.dialog_border,
         border_width: d.dialog_border_width,
@@ -115,7 +115,7 @@ impl Editor {
                     let mut changed = false;
                     let viewport = window.viewport_size();
                     let (gesture_active, immediate) =
-                        splitype_layout::interaction::update_window_drag(
+                        splitype_splitter::interaction::update_window_drag(
                             &mut ed.panels.layout,
                             pos,
                             viewport,
@@ -217,7 +217,7 @@ impl Editor {
             .on_mouse_up(MouseButton::Left, move |_event, _window, cx| {
                 let _ = root_editor_up.update(cx, |ed, cx| {
                     if let Some(action) =
-                        splitype_layout::interaction::finish_window_drag(&mut ed.panels.layout)
+                        splitype_splitter::interaction::finish_window_drag(&mut ed.panels.layout)
                     {
                         match action {
                             // Corner-drag split: same-kind area; Editor areas
@@ -280,8 +280,8 @@ impl Editor {
             .child(layout_tree);
 
         // Build the preview overlay for corner drag gestures (content-independent
-        // rendering lives in splitype_layout::interaction).
-        let overlay_style = splitype_layout::interaction::OverlayStyle {
+        // rendering lives in splitype_splitter::interaction).
+        let overlay_style = splitype_splitter::interaction::OverlayStyle {
             accent: theme.colors.split_indicator,
             tile_radius: theme.dimensions.area_tile_radius,
             border: theme.colors.dialog_border,
@@ -303,7 +303,7 @@ impl Editor {
                     .layout
                     .window_area_tree
                     .collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
-                splitype_layout::interaction::render_corner_drag_preview(
+                splitype_splitter::interaction::render_corner_drag_preview(
                     drag,
                     &rects,
                     &overlay_style,
@@ -320,7 +320,7 @@ impl Editor {
     }
     pub(crate) fn render_window_area_node(
         &mut self,
-        node: &crate::layout::SplitTree<crate::layout::WindowAreaKind>,
+        node: &crate::splitter::SplitTree<crate::splitter::WindowAreaKind>,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -328,7 +328,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
-        let overlay_style = splitype_layout::interaction::OverlayStyle {
+        let overlay_style = splitype_splitter::interaction::OverlayStyle {
             accent: c.split_indicator,
             tile_radius: theme.dimensions.area_tile_radius,
             border: c.dialog_border,
@@ -403,7 +403,7 @@ impl Editor {
                             )
                             .child(
                                 // Splitter bar between the two seamless areas.
-                                splitype_layout::interaction::splitter_bar_h(
+                                splitype_splitter::interaction::splitter_bar_h(
                                     ("tiled-splitter-bar-h", split_id),
                                     r,
                                     bar_active,
@@ -412,7 +412,7 @@ impl Editor {
                                 .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                     let start_pos = f32::from(event.position.x);
                                     let _ = bar_editor.update(cx, |ed, cx| {
-                                        splitype_layout::interaction::start_splitter_drag(
+                                        splitype_splitter::interaction::start_splitter_drag(
                                             &mut ed.panels.layout,
                                             split_id,
                                             Axis::Horizontal,
@@ -427,7 +427,7 @@ impl Editor {
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_editor.update(cx, |ed, cx| {
-                                            splitype_layout::interaction::open_border_menu(
+                                            splitype_splitter::interaction::open_border_menu(
                                                 &mut ed.panels.layout,
                                                 split_id,
                                                 dir,
@@ -483,7 +483,7 @@ impl Editor {
                             )
                             .child(
                                 // Splitter bar between the two seamless areas.
-                                splitype_layout::interaction::splitter_bar_v(
+                                splitype_splitter::interaction::splitter_bar_v(
                                     ("tiled-splitter-bar-v", split_id),
                                     r,
                                     bar_active,
@@ -492,7 +492,7 @@ impl Editor {
                                 .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                     let start_pos = f32::from(event.position.y);
                                     let _ = bar_editor.update(cx, |ed, cx| {
-                                        splitype_layout::interaction::start_splitter_drag(
+                                        splitype_splitter::interaction::start_splitter_drag(
                                             &mut ed.panels.layout,
                                             split_id,
                                             Axis::Vertical,
@@ -507,7 +507,7 @@ impl Editor {
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_editor.update(cx, |ed, cx| {
-                                            splitype_layout::interaction::open_border_menu(
+                                            splitype_splitter::interaction::open_border_menu(
                                                 &mut ed.panels.layout,
                                                 split_id,
                                                 dir,
@@ -527,7 +527,7 @@ impl Editor {
     pub(crate) fn render_window_area_tile(
         &mut self,
         leaf_id: usize,
-        kind: crate::layout::WindowAreaKind,
+        kind: crate::splitter::WindowAreaKind,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -608,7 +608,7 @@ impl Editor {
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                 let _ = tile_focus.update(cx, |ed, cx| {
                     ed.panels.layout.focused_window_area = Some(leaf_id);
-                    if kind == crate::layout::WindowAreaKind::Editor {
+                    if kind == crate::splitter::WindowAreaKind::Editor {
                         ed.panels.layout.activate_editor_area(leaf_id);
                     }
                     cx.notify();
@@ -623,7 +623,7 @@ impl Editor {
 
         // Corner drag handles positioned at the four outer corners of the tile card.
         let editor_corner = cx.entity().downgrade();
-        let corner_handles = splitype_layout::interaction::corner_drag_handles(
+        let corner_handles = splitype_splitter::interaction::corner_drag_handles(
             "area-corner",
             leaf_id,
             gap,
@@ -664,7 +664,7 @@ impl Editor {
     pub(crate) fn render_area_type_dropdown_menu(
         &mut self,
         leaf_id: usize,
-        current_type: crate::layout::WindowAreaKind,
+        current_type: crate::splitter::WindowAreaKind,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -719,7 +719,7 @@ impl Editor {
     }
     pub(crate) fn render_window_area_border_menu(
         &mut self,
-        border_menu: crate::layout::BorderMenuState,
+        border_menu: crate::splitter::BorderMenuState,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -764,22 +764,22 @@ impl Editor {
             });
         });
 
-        crate::layout::interaction::render_border_menu(
+        crate::splitter::interaction::render_border_menu(
             border_menu.position,
             vec![
-                crate::layout::interaction::BorderMenuItem {
+                crate::splitter::interaction::BorderMenuItem {
                     label: "Split Horizontally",
                     on_activate: split_h,
                 },
-                crate::layout::interaction::BorderMenuItem {
+                crate::splitter::interaction::BorderMenuItem {
                     label: "Split Vertically",
                     on_activate: split_v,
                 },
-                crate::layout::interaction::BorderMenuItem {
+                crate::splitter::interaction::BorderMenuItem {
                     label: "Swap Panels",
                     on_activate: swap,
                 },
-                crate::layout::interaction::BorderMenuItem {
+                crate::splitter::interaction::BorderMenuItem {
                     label: "Close Area",
                     on_activate: close,
                 },
