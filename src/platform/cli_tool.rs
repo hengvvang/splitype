@@ -61,3 +61,22 @@ pub fn applescript_string_literal(value: &str) -> String {
 pub fn run_osascript_script(script: &str) -> std::io::Result<Output> {
     Command::new("osascript").arg("-e").arg(script).output()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::applescript_string_literal;
+
+    #[test]
+    fn applescript_string_literal_escapes_special_characters() {
+        assert_eq!(
+            applescript_string_literal(
+                r#"/Applications/splitype "Test".app/Contents/MacOS/splitype"#
+            ),
+            r#""/Applications/splitype \"Test\".app/Contents/MacOS/splitype""#
+        );
+        assert_eq!(
+            applescript_string_literal(r#"/Applications/O'Brien\splitype.app"#),
+            r#""/Applications/O'Brien\\splitype.app""#
+        );
+    }
+}
