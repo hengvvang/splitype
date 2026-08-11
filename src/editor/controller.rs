@@ -69,7 +69,6 @@ pub(crate) struct FileState {
     pub(crate) pending_open_link: Option<PendingOpenLink>,
     pub(crate) pending_window_edited: bool,
     pub(crate) pending_window_title_refresh: bool,
-    pub(crate) close_guard_installed: bool,
     pub(crate) show_unsaved_changes_dialog: bool,
     pub(crate) pending_close_after_save: bool,
     pub(crate) close_dialog_restore_focus: Option<EntityId>,
@@ -237,10 +236,6 @@ pub struct Editor {
     pub(crate) context_menu_submenu_close_task: Option<Task<()>>,
     /// Table insertion dialog opened from the context menu.
     pub(crate) table_insert_dialog: Option<TableInsertDialogState>,
-    /// Informational dialog shown from the Help menu.
-    pub(crate) info_dialog: Option<InfoDialogKind>,
-    /// True while an online update check is running in the background.
-    pub(crate) update_check_in_progress: bool,
     /// Timestamp of the last welcome-prompt click, used to detect a
     /// double-click across repaints. GPUI rebuilds elements (and their
     /// closures) every frame, so the timestamp must live in editor state
@@ -434,8 +429,6 @@ impl Editor {
             context_menu: None,
             context_menu_submenu_close_task: None,
             table_insert_dialog: None,
-            info_dialog: None,
-            update_check_in_progress: false,
             welcome_last_click: None,
             focused_editor_inner_panel: None,
             source_code_panel_runtimes: HashMap::new(),
@@ -467,8 +460,6 @@ impl Editor {
             context_menu: None,
             context_menu_submenu_close_task: None,
             table_insert_dialog: None,
-            info_dialog: None,
-            update_check_in_progress: false,
             welcome_last_click: None,
             focused_editor_inner_panel: None,
             source_code_panel_runtimes: HashMap::new(),

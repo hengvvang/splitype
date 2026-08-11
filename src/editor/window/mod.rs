@@ -96,42 +96,6 @@ use crate::editor::wysiwyg::render::layout::{
 // ── Export methods ────────────────────────────────────────────────────────
 
 impl Editor {
-    pub(crate) fn install_close_guard(&mut self, cx: &mut Context<Self>, window: &mut Window) {
-        if self
-            .active_editor_tab()
-            .is_some_and(|tab| tab.file.close_guard_installed)
-        {
-            return;
-        }
-
-        self.force_install_close_guard(cx, window);
-    }
-
-    pub(crate) fn force_install_close_guard(
-        &mut self,
-        cx: &mut Context<Self>,
-        window: &mut Window,
-    ) {
-        let editor = cx.entity().downgrade();
-        window.on_window_should_close(cx, move |window, cx| {
-            editor
-                .update(cx, |this, cx| this.on_window_should_close(window, cx))
-                .unwrap_or(true)
-        });
-        // The guard callback is window-scoped and routes back to this
-        // editor, so the marker does not depend on the area-activation
-        // state (which is only pushed once the Shell renders — it is
-        // always false during window construction).
-        if let Some(tab) = self
-            .session
-            .tab_list
-            .tabs
-            .get_mut(self.session.tab_list.active_tab)
-        {
-            tab.file.close_guard_installed = true;
-        }
-    }
-
     fn apply_pending_focus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(entity_id) = self.tab_mut().focus.pending.take()
             && let Some(block) = self.focusable_entity_by_id(entity_id)
@@ -299,7 +263,6 @@ impl Render for Editor {
         // to this editor's own session.
 
         if self.has_active_tab() {
-            self.install_close_guard(cx, window);
             self.apply_pending_focus(window, cx);
             self.apply_pending_scroll_into_view(window, cx);
             self.tab_mut().undo.last_selection_snapshot =
@@ -369,7 +332,6 @@ impl Render for Editor {
                 .on_action(cx.listener(Self::on_export_html))
                 .on_action(cx.listener(Self::on_export_pdf))
                 .on_action(cx.listener(Self::on_quit_application))
-                .on_action(cx.listener(Self::on_close_window))
                 .on_action(cx.listener(Self::on_toggle_view_mode_action))
                 .on_action(cx.listener(Self::on_page_up))
                 .on_action(cx.listener(Self::on_page_down))
@@ -402,23 +364,9 @@ impl Render for Editor {
         } else {
             base
         };
-        // Dialog overlays read this editor's tab state.
-        if let Some(kind) = self.info_dialog {
-            base.child(self.render_info_dialog_overlay(&theme, kind, cx))
-        } else if self
-            .active_editor_tab()
-            .is_some_and(|tab| tab.file.show_drop_replace_dialog)
-        {
-            base.child(self.render_drop_replace_overlay(&theme, cx))
-        } else if self
-            .active_editor_tab()
-            .is_some_and(|tab| tab.file.show_unsaved_changes_dialog)
-        {
-            base.child(self.render_unsaved_changes_overlay(&theme, cx))
-        } else {
-            base
-        }
-        .into_any_element()
+        // Window-level dialogs (unsaved changes, drop-replace, Help-menu
+        // info) render on the Shell at the window root.
+        base.into_any_element()
     }
 }
 

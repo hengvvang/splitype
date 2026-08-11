@@ -14,7 +14,7 @@ use gpui::*;
 use crate::app::window_area::WindowAreaKind;
 use crate::app::window_chrome::MenuBarState;
 use crate::app::window_panels::WindowPanels;
-use crate::editor::controller::{DocumentTab, Editor};
+use crate::editor::controller::{DocumentTab, Editor, InfoDialogKind};
 use crate::editor::session::EditorSession;
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::ThemeManager;
@@ -56,6 +56,12 @@ pub struct Shell {
     pub(crate) last_viewport: Option<Size<Pixels>>,
     /// Explorer row right-click menu state (rendered at window level).
     pub(crate) explorer_file_menu: Option<ExplorerFileMenuState>,
+    /// Informational dialog shown from the Help menu (About / update check).
+    pub(crate) info_dialog: Option<InfoDialogKind>,
+    /// True while an online update check is running in the background.
+    pub(crate) update_check_in_progress: bool,
+    /// Whether the window-close guard callback is installed on the window.
+    pub(crate) close_guard_installed: bool,
 }
 
 impl Shell {
@@ -161,6 +167,34 @@ impl Shell {
     pub(crate) fn toggle_area_dropdown(&mut self, area_id: NodeId, cx: &mut Context<Self>) {
         self.panels.layout.toggle_dropdown(area_id);
         cx.notify();
+    }
+
+    /// Shows the Help-menu informational dialog (About / update check),
+    /// unless the unsaved-changes dialog is open.
+    pub(crate) fn show_info_dialog(&mut self, kind: InfoDialogKind, cx: &mut Context<Self>) {
+        if self.unsaved_dialog_open(cx) {
+            return;
+        }
+        self.info_dialog = Some(kind);
+        cx.notify();
+    }
+
+    /// Closes the Help-menu informational dialog, if open.
+    pub(crate) fn hide_info_dialog(&mut self, cx: &mut Context<Self>) {
+        if self.info_dialog.take().is_some() {
+            cx.notify();
+        }
+    }
+
+    /// True when any editor area's active tab shows the unsaved-changes
+    /// dialog (which must not overlap the info dialog).
+    pub(crate) fn unsaved_dialog_open(&self, cx: &App) -> bool {
+        self.areas.values().any(|area| match area {
+            AreaContent::Editor(entity) => entity
+                .read(cx)
+                .active_editor_tab()
+                .is_some_and(|tab| tab.file.show_unsaved_changes_dialog),
+        })
     }
 
     /// Toggles the maximized state of `area_id`'s tile (topbar click).
@@ -380,8 +414,7 @@ impl Shell {
 
     /// First dirty tab across every editor area (foreground entities and
     /// retained background sessions), if any. Consumed by the window-close
-    /// flow once it moves to the Shell.
-    #[allow(dead_code)]
+    /// flow on the Shell.
     pub(crate) fn first_dirty_tab(&mut self, cx: &mut Context<Self>) -> Option<(NodeId, usize)> {
         for (area_id, session) in &self.retained_editor_sessions {
             for (index, tab) in session.tab_list.tabs.iter().enumerate() {
@@ -452,8 +485,95 @@ impl Shell {
         }
     }
 
-    /// Close-button routing for the custom titlebar: delegate to the
-    /// primary editor's unsaved-changes-aware close flow.
+    /// Marks the dirty tab of `area_id` (from [`Self::first_dirty_tab`])
+    /// as showing the unsaved-changes dialog, restoring its focus on
+    /// cancel.
+    fn prompt_unsaved_changes_for(
+        &mut self,
+        area_id: NodeId,
+        index: usize,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(editor) = self.editor_for(area_id).cloned() else {
+            return;
+        };
+        let _ = editor.update(cx, |editor, cx| {
+            let tab = &mut editor.session.tab_list.tabs[index];
+            tab.file.show_unsaved_changes_dialog = true;
+            tab.file.close_dialog_restore_focus = tab.focus.active_entity;
+            cx.notify();
+        });
+    }
+
+    /// Installs the window-close guard once: the callback aggregates dirty
+    /// tabs across every editor area. Called on every render; idempotent.
+    pub(crate) fn install_close_guard(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.close_guard_installed {
+            return;
+        }
+        self.force_install_close_guard(window, cx);
+    }
+
+    /// Registers the window-close guard callback unconditionally (window
+    /// construction path).
+    pub(crate) fn force_install_close_guard(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let shell = cx.entity().downgrade();
+        window.on_window_should_close(cx, move |window, cx| {
+            shell
+                .update(cx, |shell, cx| shell.on_window_should_close(window, cx))
+                .unwrap_or(true)
+        });
+        self.close_guard_installed = true;
+    }
+
+    /// Called by the GPUI `Window::on_window_should_close` guard. Returns
+    /// `true` when the window is safe to close (no dirty tab anywhere);
+    /// otherwise marks the first dirty tab to show the unsaved-changes
+    /// dialog and returns `false`.
+    pub(crate) fn on_window_should_close(
+        &mut self,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let Some((area_id, index)) = self.first_dirty_tab(cx) else {
+            return true;
+        };
+        self.prompt_unsaved_changes_for(area_id, index, cx);
+        false
+    }
+
+    /// Initiate window-close flow, showing the unsaved-changes prompt when
+    /// any document is dirty.
+    pub(crate) fn request_close_current_window(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let Some((area_id, index)) = self.first_dirty_tab(cx) else {
+            window.remove_window();
+            return;
+        };
+        self.prompt_unsaved_changes_for(area_id, index, cx);
+    }
+
+    /// CloseWindow action handler on the window root: fires before the
+    /// global menu route and runs entirely on the Shell (no editor entity
+    /// is locked when the aggregated dirty check reads them).
+    pub(crate) fn on_close_window(
+        &mut self,
+        _: &crate::editor::actions::CloseWindow,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.request_close_current_window(window, cx);
+    }
+
+    /// Close-button routing for the custom titlebar: run the window-wide
+    /// unsaved-changes-aware close flow.
     pub(crate) fn on_titlebar_close(
         &mut self,
         event: &ClickEvent,
@@ -463,12 +583,7 @@ impl Shell {
         if !event.standard_click() {
             return;
         }
-        let Some(editor) = self.primary_editor().cloned() else {
-            return;
-        };
-        let _ = editor.update(cx, |editor, cx| {
-            editor.request_close_current_window(window, cx);
-        });
+        self.request_close_current_window(window, cx);
     }
 }
 
@@ -478,6 +593,7 @@ impl Render for Shell {
         // entities before their tiles render this frame.
         self.last_viewport = Some(window.viewport_size());
         self.sync_area_states(cx);
+        self.install_close_guard(window, cx);
 
         let theme = cx.global::<ThemeManager>().current_arc();
         let strings = cx.global::<I18nManager>().strings_arc();
@@ -490,6 +606,7 @@ impl Render for Shell {
             .flex_col()
             .relative()
             .bg(theme.colors.editor_background)
+            .on_action(cx.listener(Self::on_close_window))
             .on_action(cx.listener(Self::on_toggle_explorer_action))
             .on_action(cx.listener(Self::on_close_explorer_folder_action))
             // A mouse-down anywhere in the window body closes an open
@@ -523,6 +640,12 @@ impl Render for Shell {
         // area, so its window-coordinate position stays accurate.
         if let Some(menu) = self.render_explorer_file_context_menu(&theme, cx) {
             base = base.child(menu);
+        }
+
+        // Window-level dialogs (unsaved changes, drop-replace, Help-menu
+        // info) float above everything.
+        if let Some(dialog) = self.render_window_dialogs(&theme, cx) {
+            base = base.child(dialog);
         }
 
         base.into_any_element()

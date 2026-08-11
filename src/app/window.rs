@@ -67,6 +67,9 @@ pub(crate) fn open_editor_window(
                     panels: WindowPanels::default(),
                     last_viewport: None,
                     explorer_file_menu: None,
+                    info_dialog: None,
+                    update_check_in_progress: false,
+                    close_guard_installed: false,
                 });
                 // Wire the editor entity to its Shell.
                 let shell_weak = shell.downgrade();
@@ -89,11 +92,7 @@ pub(crate) fn open_editor_window(
     handle
         .update(cx, |shell, window, cx| {
             window.activate_window();
-            if let Some(editor) = shell.primary_editor() {
-                editor.update(cx, |editor, cx| {
-                    editor.force_install_close_guard(cx, window);
-                });
-            }
+            shell.force_install_close_guard(window, cx);
         })
         .expect("newly opened shell window should be updateable");
 
@@ -150,6 +149,9 @@ pub(crate) fn open_cloned_window(
                     panels,
                     last_viewport: None,
                     explorer_file_menu: None,
+                    info_dialog: None,
+                    update_check_in_progress: false,
+                    close_guard_installed: false,
                 });
                 // Wire every editor entity to its Shell.
                 let shell_weak = shell.downgrade();
@@ -172,11 +174,7 @@ pub(crate) fn open_cloned_window(
     handle
         .update(cx, |shell, window, cx| {
             window.activate_window();
-            if let Some(editor) = shell.primary_editor() {
-                editor.update(cx, |editor, cx| {
-                    editor.force_install_close_guard(cx, window);
-                });
-            }
+            shell.force_install_close_guard(window, cx);
         })
         .expect("newly opened shell window should be updateable");
 

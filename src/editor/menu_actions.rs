@@ -8,24 +8,6 @@
 use super::controller::*;
 
 impl Editor {
-    pub(crate) fn show_info_dialog(&mut self, kind: InfoDialogKind, cx: &mut Context<Self>) {
-        if self
-            .active_editor_tab()
-            .is_some_and(|tab| tab.file.show_unsaved_changes_dialog)
-        {
-            return;
-        }
-
-        self.info_dialog = Some(kind);
-        cx.notify();
-    }
-
-    pub(crate) fn hide_info_dialog(&mut self, cx: &mut Context<Self>) {
-        if self.info_dialog.take().is_some() {
-            cx.notify();
-        }
-    }
-
     pub(crate) fn request_save_document(&mut self, cx: &mut Context<Self>) {
         if !self.has_active_tab() {
             return;

@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use super::{install_menus, show_window_prompt, with_active_editor};
+use super::{install_menus, show_window_prompt, with_active_window};
 use crate::app::window::{open_file_in_new_window, record_recent_file_and_refresh};
 use crate::infra::config::recent::{read_recent_files, remove_recent_file};
 use crate::infra::config::settings::{
@@ -98,7 +98,7 @@ pub(super) fn prompt_and_open_files_with_error_window(
 /// focused; otherwise opens a brand-new editor window. Records the
 /// recent-file entry either way.
 pub(super) fn open_file_in_editor_or_new_window(cx: &mut App, path: &Path) {
-    let opened_in_editor = with_active_editor(cx, |editor, window, cx| {
+    let opened_in_editor = with_active_window(cx, |editor, window, cx| {
         editor.open_file_in_active_editor(path, window, cx)
     })
     .is_some_and(|opened| opened);

@@ -16,6 +16,7 @@ use gpui::*;
 use crate::app::cli_install::{install_cli_tool, uninstall_cli_tool};
 #[cfg(not(target_os = "macos"))]
 use crate::app::cli_install::{install_cli_tool, uninstall_cli_tool};
+use crate::app::shell::Shell;
 use crate::app::window::{open_editor_window, record_recent_file_and_refresh};
 use crate::editor::actions::{
     AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseExplorerFolder, CloseWindow,
@@ -61,23 +62,37 @@ fn show_window_prompt(window: Option<AnyWindowHandle>, title: &str, detail: &str
     }
 }
 
-fn with_active_editor<R>(
+fn with_active_window<R>(
     cx: &mut App,
-    update: impl FnOnce(&mut Editor, &mut Window, &mut Context<Editor>) -> R,
+    update: impl FnOnce(&mut Shell, &mut Window, &mut Context<Shell>) -> R,
 ) -> Option<R> {
-    let window = cx.active_window()?.downcast::<Editor>()?;
+    let window = cx.active_window()?.downcast::<Shell>()?;
     window.update(cx, update).ok()
 }
 
-fn show_info_dialog_on_active_editor(cx: &mut App, kind: InfoDialogKind) {
-    let _ = with_active_editor(cx, move |editor, _window, cx| {
-        editor.show_info_dialog(kind, cx);
+fn with_primary_editor<R>(
+    cx: &mut App,
+    update: impl FnOnce(&mut Editor, &mut Window, &mut Context<Editor>) -> R,
+) -> Option<R> {
+    let window = cx.active_window()?.downcast::<Shell>()?;
+    let result = window.update(cx, |shell, window, cx| {
+        let Some(editor) = shell.primary_editor().cloned() else {
+            return None;
+        };
+        Some(editor.update(cx, |editor, cx| update(editor, window, cx)))
+    });
+    result.ok().flatten()
+}
+
+fn show_info_dialog_on_active_window(cx: &mut App, kind: InfoDialogKind) {
+    let _ = with_active_window(cx, move |shell, _window, cx| {
+        shell.show_info_dialog(kind, cx);
     });
 }
 
-fn request_update_check_on_active_editor(cx: &mut App) {
-    let _ = with_active_editor(cx, |editor, window, cx| {
-        editor.request_check_updates(window, cx);
+fn request_update_check_on_active_window(cx: &mut App) {
+    let _ = with_active_window(cx, |shell, window, cx| {
+        shell.request_check_updates(window, cx);
     });
 }
 
@@ -136,28 +151,14 @@ fn current_window_candidates(cx: &mut App) -> Vec<AnyWindowHandle> {
 }
 
 fn request_close_editor_window(window: AnyWindowHandle, cx: &mut App) -> bool {
-    // Production windows are Shell-rooted; close through the primary editor.
-    if let Some(window) = window.clone().downcast::<crate::app::shell::Shell>() {
-        return window
-            .update(cx, |shell, window, cx| {
-                let Some(editor) = shell.primary_editor().cloned() else {
-                    return;
-                };
-                editor.update(cx, |editor, cx| {
-                    editor.request_close_current_window(window, cx);
-                });
-            })
-            .is_ok();
-    }
-    // Transitional Editor-rooted windows (tests).
-    if let Some(window) = window.downcast::<Editor>() {
-        return window
-            .update(cx, |editor, window, cx| {
-                editor.request_close_current_window(window, cx);
-            })
-            .is_ok();
-    }
-    false
+    let Some(window) = window.downcast::<crate::app::shell::Shell>() else {
+        return false;
+    };
+    window
+        .update(cx, |shell, window, cx| {
+            shell.request_close_current_window(window, cx);
+        })
+        .is_ok()
 }
 
 fn request_close_current_editor_window(cx: &mut App) {
@@ -182,13 +183,13 @@ pub(crate) fn request_quit_application(cx: &mut App) {
     }
 
     for window in candidates {
-        let Some(window) = window.downcast::<Editor>() else {
+        let Some(window) = window.downcast::<Shell>() else {
             continue;
         };
 
         let should_close = window
-            .update(cx, |editor, window, cx| {
-                editor.on_window_should_close(window, cx)
+            .update(cx, |shell, window, cx| {
+                shell.on_window_should_close(window, cx)
             })
             .unwrap_or(false);
         if !should_close {
@@ -215,15 +216,15 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
     } else if action.as_any().is::<AddThemeConfig>() {
         menu_prompts::prompt_and_import_theme_config(cx);
     } else if action.as_any().is::<SaveDocument>() {
-        let _ = with_active_editor(cx, |editor, window, cx| editor.save_document(window, cx));
+        let _ = with_primary_editor(cx, |editor, window, cx| editor.save_document(window, cx));
     } else if action.as_any().is::<SaveDocumentAs>() {
-        let _ = with_active_editor(cx, |editor, window, cx| editor.save_document_as(window, cx));
+        let _ = with_primary_editor(cx, |editor, window, cx| editor.save_document_as(window, cx));
     } else if action.as_any().is::<ExportHtml>() {
-        let _ = with_active_editor(cx, |editor, window, cx| {
+        let _ = with_primary_editor(cx, |editor, window, cx| {
             editor.export_document_via_prompt(ExportFormat::Html, window, cx)
         });
     } else if action.as_any().is::<ExportPdf>() {
-        let _ = with_active_editor(cx, |editor, window, cx| {
+        let _ = with_primary_editor(cx, |editor, window, cx| {
             editor.export_document_via_prompt(ExportFormat::Pdf, window, cx)
         });
     } else if let Some(action) = action.as_any().downcast_ref::<SelectTheme>() {
@@ -261,9 +262,9 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
             }
         }
     } else if action.as_any().is::<CheckForUpdates>() {
-        request_update_check_on_active_editor(cx);
+        request_update_check_on_active_window(cx);
     } else if action.as_any().is::<ShowAbout>() {
-        show_info_dialog_on_active_editor(cx, InfoDialogKind::About);
+        show_info_dialog_on_active_window(cx, InfoDialogKind::About);
     } else if action.as_any().is::<InstallCliTool>() {
         install_cli_tool(cx);
         install_menus(cx);
@@ -271,18 +272,12 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
         uninstall_cli_tool(cx);
         install_menus(cx);
     } else if action.as_any().is::<ToggleExplorer>() {
-        let _ = with_active_editor(cx, |editor, window, cx| {
-            if let Some(shell) = editor.shell.clone() {
-                let _ = shell.update(cx, |shell, cx| {
-                    shell.toggle_explorer_drawer(window, cx);
-                });
-            }
+        let _ = with_active_window(cx, |shell, window, cx| {
+            shell.toggle_explorer_drawer(window, cx);
         });
     } else if action.as_any().is::<CloseExplorerFolder>() {
-        let _ = with_active_editor(cx, |editor, _window, cx| {
-            if let Some(shell) = editor.shell.clone() {
-                let _ = shell.update(cx, |shell, cx| shell.close_explorer_folder(cx));
-            }
+        let _ = with_active_window(cx, |shell, _window, cx| {
+            shell.close_explorer_folder(cx);
         });
     } else if action.as_any().is::<QuitApplication>() {
         request_quit_application(cx);
@@ -365,16 +360,33 @@ pub(crate) fn dispatch_menu_action_for_editor(
     } else if action.as_any().is::<QuitApplication>() {
         request_quit_application(cx);
     } else if action.as_any().is::<CloseWindow>() {
-        let _ = target.update(cx, |editor, cx| {
-            editor.request_close_current_window(window, cx);
-        });
+        // Read the editor's shell handle instead of updating through it:
+        // the Shell's aggregated dirty check reads every editor entity,
+        // which would collide with an editor currently being updated.
+        let shell = target
+            .read_with(cx, |editor, _cx| editor.shell.clone())
+            .ok()
+            .flatten();
+        if let Some(shell) = shell {
+            let _ = shell.update(cx, |shell, cx| {
+                shell.request_close_current_window(window, cx);
+            });
+        }
     } else if action.as_any().is::<CheckForUpdates>() {
         let _ = target.update(cx, |editor, cx| {
-            editor.request_check_updates(window, cx);
+            if let Some(shell) = editor.shell.clone() {
+                let _ = shell.update(cx, |shell, cx| {
+                    shell.request_check_updates(window, cx);
+                });
+            }
         });
     } else if action.as_any().is::<ShowAbout>() {
         let _ = target.update(cx, |editor, cx| {
-            editor.show_info_dialog(InfoDialogKind::About, cx)
+            if let Some(shell) = editor.shell.clone() {
+                let _ = shell.update(cx, |shell, cx| {
+                    shell.show_info_dialog(InfoDialogKind::About, cx);
+                });
+            }
         });
     } else if action.as_any().is::<InstallCliTool>() {
         install_cli_tool(cx);

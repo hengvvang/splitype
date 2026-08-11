@@ -2,10 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use gpui::{
-    AnyWindowHandle, AppContext, ClickEvent, KeyDownEvent, Keystroke, TestAppContext,
-    VisualTestContext,
-};
+use gpui::{AppContext, ClickEvent, KeyDownEvent, Keystroke, TestAppContext};
 
 use crate::editor::actions::{CloseWindow, QuitApplication, SaveDocument};
 use crate::editor::controller::{Editor, EditorMode};
@@ -112,13 +109,6 @@ fn focus_first_block(editor: &gpui::Entity<Editor>, cx: &mut gpui::VisualTestCon
         })
         .expect("document should have a block");
     focus_block(editor, &first, cx);
-}
-
-fn activate_visual_window(cx: &mut VisualTestContext) -> AnyWindowHandle {
-    cx.update(|window, _cx| window.activate_window());
-    cx.run_until_parked();
-    cx.cx
-        .update(|cx| cx.active_window().expect("window should be active"))
 }
 
 #[test]
@@ -284,7 +274,7 @@ fn rendered_window_all_estimated_windows_near_top() {
 #[test]
 fn about_dialog_body_lines_include_repository_and_star_message() {
     let strings = I18nStrings::zh_cn();
-    let lines = Editor::about_dialog_body_lines(&strings);
+    let lines = crate::app::shell::Shell::about_dialog_body_lines(&strings);
 
     assert_eq!(lines[0], format!("Splitype {}", env!("CARGO_PKG_VERSION")));
     assert_eq!(
@@ -657,24 +647,22 @@ async fn dirty_drop_saves_existing_document_before_replace(cx: &mut TestAppConte
 async fn close_window_menu_action_closes_only_active_editor_window(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
-    let (_first_editor, cx) =
-        cx.add_window_view(|_window, cx| Editor::from_markdown(cx, "first".to_string(), None));
-    let first_window = activate_visual_window(cx);
-
-    let (_second_editor, cx) = cx
-        .cx
-        .add_window_view(|_window, cx| Editor::from_markdown(cx, "second".to_string(), None));
-    let second_window = activate_visual_window(cx);
+    let first_window =
+        cx.update(|cx| crate::app::window::open_editor_window(cx, "first".to_string(), None));
+    cx.run_until_parked();
+    let second_window =
+        cx.update(|cx| crate::app::window::open_editor_window(cx, "second".to_string(), None));
+    cx.run_until_parked();
 
     assert_ne!(first_window.window_id(), second_window.window_id());
-    assert_eq!(cx.cx.windows().len(), 2);
+    assert_eq!(cx.update(|cx| cx.windows().len()), 2);
 
-    cx.cx.update(|cx| {
+    cx.update(|cx| {
         crate::app::menus::dispatch_menu_action(&CloseWindow, cx);
     });
     cx.run_until_parked();
 
-    let remaining = cx.cx.windows();
+    let remaining = cx.update(|cx| cx.windows());
     assert_eq!(remaining.len(), 1);
     assert_eq!(remaining[0].window_id(), first_window.window_id());
     assert_ne!(remaining[0].window_id(), second_window.window_id());
@@ -698,13 +686,7 @@ async fn app_menu_opened_windows_activate_and_close_independently(cx: &mut TestA
 
     assert!(
         second_window
-            .update(cx, |shell, _window, _cx| shell
-                .primary_editor()
-                .expect("editor area")
-                .read(_cx)
-                .tab()
-                .file
-                .close_guard_installed)
+            .update(cx, |shell, _window, _cx| shell.close_guard_installed)
             .expect("second editor window should be open")
     );
 
@@ -752,11 +734,8 @@ async fn app_menu_opened_file_window_reinstalls_close_guard_after_registration(
 
     second_window
         .update(cx, |shell, window, cx| {
-            let editor = shell.primary_editor().expect("editor area").clone();
-            editor.update(cx, |editor, cx| {
-                assert!(editor.tab().file.close_guard_installed);
-                assert!(editor.on_window_should_close(window, cx));
-            });
+            assert!(shell.close_guard_installed);
+            assert!(shell.on_window_should_close(window, cx));
         })
         .expect("second editor window should be open");
 
@@ -796,8 +775,8 @@ async fn app_menu_opened_dirty_file_window_prompts_only_that_window(cx: &mut Tes
             let editor = shell.primary_editor().expect("editor area").clone();
             editor.update(cx, |editor, cx| {
                 editor.mark_dirty(cx);
-                assert!(!editor.on_window_should_close(window, cx));
             });
+            assert!(!shell.on_window_should_close(window, cx));
         })
         .expect("second editor window should be open");
 
@@ -834,8 +813,8 @@ async fn app_menu_opened_dirty_window_close_guard_prompts_only_that_window(
             let editor = shell.primary_editor().expect("editor area").clone();
             editor.update(cx, |editor, cx| {
                 editor.mark_dirty(cx);
-                assert!(!editor.on_window_should_close(window, cx));
             });
+            assert!(!shell.on_window_should_close(window, cx));
         })
         .expect("second editor window should be open");
 
@@ -857,52 +836,61 @@ async fn app_menu_opened_dirty_window_close_guard_prompts_only_that_window(
 async fn quit_application_allows_clean_editor_windows_to_quit(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
-    let (first_editor, cx) =
-        cx.add_window_view(|_window, cx| Editor::from_markdown(cx, "first".to_string(), None));
-    let _first_window = activate_visual_window(cx);
+    let first_window =
+        cx.update(|cx| crate::app::window::open_editor_window(cx, "first".to_string(), None));
+    cx.run_until_parked();
+    let second_window =
+        cx.update(|cx| crate::app::window::open_editor_window(cx, "second".to_string(), None));
+    cx.run_until_parked();
 
-    let (second_editor, cx) = cx
-        .cx
-        .add_window_view(|_window, cx| Editor::from_markdown(cx, "second".to_string(), None));
-    let _second_window = activate_visual_window(cx);
+    assert_eq!(cx.update(|cx| cx.windows().len()), 2);
 
-    assert_eq!(cx.cx.windows().len(), 2);
-
-    cx.cx.update(|cx| {
+    cx.update(|cx| {
         crate::app::menus::dispatch_menu_action(&QuitApplication, cx);
     });
     cx.run_until_parked();
 
-    first_editor.read_with(cx, |editor, _cx| {
-        assert!(!editor.tab().file.show_unsaved_changes_dialog);
-    });
-    second_editor.read_with(cx, |editor, _cx| {
-        assert!(!editor.tab().file.show_unsaved_changes_dialog);
-    });
+    // Clean windows quit without prompting: no unsaved-changes dialog on
+    // either window (the quit flow itself is asynchronous in tests).
+    first_window
+        .update(cx, |shell, _window, _cx| {
+            let editor = shell.primary_editor().expect("editor area");
+            assert!(!editor.read(_cx).tab().file.show_unsaved_changes_dialog);
+        })
+        .expect("first editor window should be open");
+    second_window
+        .update(cx, |shell, _window, _cx| {
+            let editor = shell.primary_editor().expect("editor area");
+            assert!(!editor.read(_cx).tab().file.show_unsaved_changes_dialog);
+        })
+        .expect("second editor window should be open");
 }
 
 #[gpui::test]
 async fn quit_application_prompts_dirty_editor_without_quitting(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
-    let (first_editor, cx) =
-        cx.add_window_view(|_window, cx| Editor::from_markdown(cx, "first".to_string(), None));
-    let first_window = activate_visual_window(cx);
+    let first_window =
+        cx.update(|cx| crate::app::window::open_editor_window(cx, "first".to_string(), None));
+    cx.run_until_parked();
+    let second_window =
+        cx.update(|cx| crate::app::window::open_editor_window(cx, "second".to_string(), None));
+    cx.run_until_parked();
 
-    let (second_editor, cx) = cx
-        .cx
-        .add_window_view(|_window, cx| Editor::from_markdown(cx, "second".to_string(), None));
-    let second_window = activate_visual_window(cx);
-
+    let second_editor = second_window
+        .update(cx, |shell, _window, _cx| {
+            shell.primary_editor().expect("editor area").clone()
+        })
+        .expect("second editor window should be open");
     second_editor.update(cx, |editor, cx| editor.mark_dirty(cx));
-    assert_eq!(cx.cx.windows().len(), 2);
+    assert_eq!(cx.update(|cx| cx.windows().len()), 2);
 
-    cx.cx.update(|cx| {
+    cx.update(|cx| {
         crate::app::menus::dispatch_menu_action(&QuitApplication, cx);
     });
     cx.run_until_parked();
 
-    let open_windows = cx.cx.windows();
+    let open_windows = cx.update(|cx| cx.windows());
     assert_eq!(open_windows.len(), 2);
     assert!(
         open_windows
@@ -914,12 +902,18 @@ async fn quit_application_prompts_dirty_editor_without_quitting(cx: &mut TestApp
             .iter()
             .any(|window| window.window_id() == second_window.window_id())
     );
-    first_editor.read_with(cx, |editor, _cx| {
-        assert!(!editor.tab().file.show_unsaved_changes_dialog);
-    });
-    second_editor.read_with(cx, |editor, _cx| {
-        assert!(editor.tab().file.show_unsaved_changes_dialog);
-    });
+    first_window
+        .update(cx, |shell, _window, _cx| {
+            let editor = shell.primary_editor().expect("editor area");
+            assert!(!editor.read(_cx).tab().file.show_unsaved_changes_dialog);
+        })
+        .expect("first editor window should be open");
+    second_window
+        .update(cx, |shell, _window, _cx| {
+            let editor = shell.primary_editor().expect("editor area");
+            assert!(editor.read(_cx).tab().file.show_unsaved_changes_dialog);
+        })
+        .expect("second editor window should be open");
 }
 
 #[gpui::test]
@@ -928,21 +922,29 @@ async fn windows_fallback_close_window_dispatch_closes_target_editor_window(
 ) {
     init_editor_test_app(cx);
 
-    let (editor, cx) =
-        cx.add_window_view(|_window, cx| Editor::from_markdown(cx, "target".to_string(), None));
-    let target_window = activate_visual_window(cx);
+    let window =
+        cx.update(|cx| crate::app::window::open_editor_window(cx, "target".to_string(), None));
+    cx.run_until_parked();
+    let target_window_id = window.window_id();
+    let editor = window
+        .update(cx, |shell, _window, _cx| {
+            shell.primary_editor().expect("editor area").downgrade()
+        })
+        .expect("editor window should be open");
 
-    cx.update(|window, cx| {
-        let editor = editor.downgrade();
-        crate::app::menus::dispatch_menu_action_for_editor(&CloseWindow, &editor, window, cx);
+    cx.update(|cx| {
+        let window = cx.active_window().expect("window should be active");
+        let editor = editor.clone();
+        let _ = window.update(cx, |_view, window, cx| {
+            crate::app::menus::dispatch_menu_action_for_editor(&CloseWindow, &editor, window, cx);
+        });
     });
     cx.run_until_parked();
 
     assert!(
-        cx.cx
-            .windows()
+        cx.update(|cx| cx.windows())
             .iter()
-            .all(|window| window.window_id() != target_window.window_id())
+            .all(|window| window.window_id() != target_window_id)
     );
 }
 
@@ -952,20 +954,23 @@ async fn window_close_action_closes_current_editor_before_global_menu_route(
 ) {
     init_editor_test_app(cx);
 
-    let (_first_editor, cx) =
-        cx.add_window_view(|_window, cx| Editor::from_markdown(cx, "first".to_string(), None));
-    let first_window = activate_visual_window(cx);
-
-    let (_second_editor, cx) = cx
-        .cx
-        .add_window_view(|_window, cx| Editor::from_markdown(cx, "second".to_string(), None));
-    let second_window = activate_visual_window(cx);
-    focus_first_block(&_second_editor, cx);
-
-    cx.dispatch_action(CloseWindow);
+    let first_window =
+        cx.update(|cx| crate::app::window::open_editor_window(cx, "first".to_string(), None));
+    cx.run_until_parked();
+    let second_window =
+        cx.update(|cx| crate::app::window::open_editor_window(cx, "second".to_string(), None));
     cx.run_until_parked();
 
-    let remaining = cx.cx.windows();
+    // The window root's own CloseWindow action handler runs before the
+    // global menu route; firing it closes only the focused editor's window.
+    second_window
+        .update(cx, |shell, window, cx| {
+            shell.on_close_window(&CloseWindow, window, cx);
+        })
+        .expect("second editor window should be open");
+    cx.run_until_parked();
+
+    let remaining = cx.update(|cx| cx.windows());
     assert_eq!(remaining.len(), 1);
     assert_eq!(remaining[0].window_id(), first_window.window_id());
     assert_ne!(remaining[0].window_id(), second_window.window_id());

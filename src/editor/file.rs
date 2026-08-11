@@ -213,7 +213,9 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.hide_info_dialog(cx);
+        if let Some(shell) = self.shell.clone() {
+            let _ = shell.update(cx, |shell, cx| shell.hide_info_dialog(cx));
+        }
         self.dismiss_contextual_overlays(cx);
 
         // Welcome state (no tabs): open the file in a fresh tab instead of
@@ -293,33 +295,6 @@ impl Editor {
 
         self.save_via_prompt_then_replace_drop(window, cx);
         cx.notify();
-    }
-
-    pub(crate) fn on_cancel_drop_replace_dialog(
-        &mut self,
-        _: &ClickEvent,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.cancel_drop_replace_dialog(cx);
-    }
-
-    pub(crate) fn on_discard_and_replace_drop(
-        &mut self,
-        _: &ClickEvent,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.discard_pending_drop_replace(window, cx);
-    }
-
-    pub(crate) fn on_save_and_replace_drop(
-        &mut self,
-        _: &ClickEvent,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.save_and_replace_pending_drop(window, cx);
     }
 
     pub(crate) fn replace_after_successful_save(
