@@ -1,4 +1,4 @@
-//! Image runtime installation and reference resolution across
+//! Image handle installation and reference resolution across
 //! lists, quotes, callouts, and table cells.
 
 use gpui::{AppContext, TestAppContext};
@@ -13,7 +13,7 @@ use std::path::PathBuf;
 
 
 #[gpui::test]
-async fn standalone_root_image_installs_runtime_and_resolves_relative_path(
+async fn standalone_root_image_installs_handle_and_resolves_relative_path(
     cx: &mut TestAppContext,
 ) {
     let markdown = "![diagram](./assets/diagram.png \"System diagram\")".to_string();
@@ -22,11 +22,11 @@ async fn standalone_root_image_installs_runtime_and_resolves_relative_path(
 
     editor.read_with(cx, |editor, cx| {
         let block = editor.doc().first_root().expect("root block").clone();
-        let runtime = block.read(cx).image_runtime().expect("image runtime");
-        assert_eq!(runtime.alt, "diagram");
-        assert_eq!(runtime.title.as_deref(), Some("System diagram"));
+        let handle = block.read(cx).image_handle().expect("image handle");
+        assert_eq!(handle.alt, "diagram");
+        assert_eq!(handle.title.as_deref(), Some("System diagram"));
         assert_eq!(
-            runtime.resolved_source,
+            handle.resolved_source,
             ImageResolvedSource::Local(
                 file_path
                     .parent()
@@ -38,7 +38,7 @@ async fn standalone_root_image_installs_runtime_and_resolves_relative_path(
 }
 
 #[gpui::test]
-async fn standalone_root_image_with_underscores_installs_runtime(cx: &mut TestAppContext) {
+async fn standalone_root_image_with_underscores_installs_handle(cx: &mut TestAppContext) {
     let markdown =
         "![1.1_进制转换例子](./NetworkEngineerSummer.assets/1.1_进制转换例子.jpg)".to_string();
     let file_path = PathBuf::from("D:/explorer/docs/note.md");
@@ -46,10 +46,10 @@ async fn standalone_root_image_with_underscores_installs_runtime(cx: &mut TestAp
 
     editor.read_with(cx, |editor, cx| {
         let block = editor.doc().first_root().expect("root block").clone();
-        let runtime = block.read(cx).image_runtime().expect("image runtime");
-        assert_eq!(runtime.alt, "1.1_进制转换例子");
+        let handle = block.read(cx).image_handle().expect("image handle");
+        assert_eq!(handle.alt, "1.1_进制转换例子");
         assert_eq!(
-            runtime.resolved_source,
+            handle.resolved_source,
             ImageResolvedSource::Local(
                 file_path
                     .parent()
@@ -62,7 +62,7 @@ async fn standalone_root_image_with_underscores_installs_runtime(cx: &mut TestAp
 }
 
 #[gpui::test]
-async fn indented_root_images_install_runtime_before_indented_code(cx: &mut TestAppContext) {
+async fn indented_root_images_install_handle_before_indented_code(cx: &mut TestAppContext) {
     let url1 = "https://gitee.com/jikeyang/typera_picgo/raw/master/sias/202508201435626.png";
     let url2 = "https://gitee.com/jikeyang/typera_picgo/raw/master/sias/202508201438742.png";
     let url3 = "https://gitee.com/jikeyang/typera_picgo/raw/master/sias/202508201439288.png";
@@ -91,8 +91,8 @@ async fn indented_root_images_install_runtime_before_indented_code(cx: &mut Test
             .filter_map(|block| {
                 block
                     .read(cx)
-                    .image_runtime()
-                    .map(|runtime| runtime.src.clone())
+                    .image_handle()
+                    .map(|handle| handle.src.clone())
             })
             .collect::<Vec<_>>();
         assert_eq!(image_sources, vec![url1, url2, url3, url4]);
@@ -105,18 +105,18 @@ async fn indented_root_images_install_runtime_before_indented_code(cx: &mut Test
 }
 
 #[gpui::test]
-async fn mixed_text_does_not_activate_image_runtime(cx: &mut TestAppContext) {
+async fn mixed_text_does_not_activate_image_handle(cx: &mut TestAppContext) {
     let markdown = "before ![diagram](./assets/diagram.png)".to_string();
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.read_with(cx, |editor, cx| {
         let block = editor.doc().first_root().expect("root block").clone();
-        assert!(block.read(cx).image_runtime().is_none());
+        assert!(block.read(cx).image_handle().is_none());
     });
 }
 
 #[gpui::test]
-async fn reference_style_root_image_installs_runtime(cx: &mut TestAppContext) {
+async fn reference_style_root_image_installs_handle(cx: &mut TestAppContext) {
     let markdown =
         "![reference image][ref-image]\n\n[ref-image]: ./assets/ref-image.png \"Caption\""
             .to_string();
@@ -125,12 +125,12 @@ async fn reference_style_root_image_installs_runtime(cx: &mut TestAppContext) {
 
     editor.read_with(cx, |editor, cx| {
         let block = editor.doc().first_root().expect("root block").clone();
-        let runtime = block.read(cx).image_runtime().expect("image runtime");
-        assert_eq!(runtime.alt, "reference image");
-        assert_eq!(runtime.src, "./assets/ref-image.png");
-        assert_eq!(runtime.title.as_deref(), Some("Caption"));
+        let handle = block.read(cx).image_handle().expect("image handle");
+        assert_eq!(handle.alt, "reference image");
+        assert_eq!(handle.src, "./assets/ref-image.png");
+        assert_eq!(handle.title.as_deref(), Some("Caption"));
         assert_eq!(
-            runtime.resolved_source,
+            handle.resolved_source,
             ImageResolvedSource::Local(
                 file_path
                     .parent()
@@ -142,7 +142,7 @@ async fn reference_style_root_image_installs_runtime(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-async fn quote_child_standalone_image_installs_runtime(cx: &mut TestAppContext) {
+async fn quote_child_standalone_image_installs_handle(cx: &mut TestAppContext) {
     let markdown = ">     ![diagram](./assets/diagram.png \"Caption\")".to_string();
     let file_path = PathBuf::from("D:/explorer/docs/note.md");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
@@ -155,12 +155,12 @@ async fn quote_child_standalone_image_installs_runtime(cx: &mut TestAppContext) 
             .first()
             .expect("quote image child")
             .clone();
-        let runtime = image_block.read(cx).image_runtime().expect("image runtime");
-        assert_eq!(runtime.alt, "diagram");
-        assert_eq!(runtime.src, "./assets/diagram.png");
-        assert_eq!(runtime.title.as_deref(), Some("Caption"));
+        let handle = image_block.read(cx).image_handle().expect("image handle");
+        assert_eq!(handle.alt, "diagram");
+        assert_eq!(handle.src, "./assets/diagram.png");
+        assert_eq!(handle.title.as_deref(), Some("Caption"));
         assert_eq!(
-            runtime.resolved_source,
+            handle.resolved_source,
             ImageResolvedSource::Local(
                 file_path
                     .parent()
@@ -172,19 +172,19 @@ async fn quote_child_standalone_image_installs_runtime(cx: &mut TestAppContext) 
 }
 
 #[gpui::test]
-async fn bulleted_list_item_standalone_image_installs_runtime(cx: &mut TestAppContext) {
+async fn bulleted_list_item_standalone_image_installs_handle(cx: &mut TestAppContext) {
     let markdown = "-     ![diagram](./assets/diagram.png \"Caption\")".to_string();
     let file_path = PathBuf::from("D:/explorer/docs/note.md");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
 
     editor.read_with(cx, |editor, cx| {
         let block = editor.doc().first_root().expect("list item root").clone();
-        let runtime = block.read(cx).image_runtime().expect("image runtime");
-        assert_eq!(runtime.alt, "diagram");
-        assert_eq!(runtime.src, "./assets/diagram.png");
-        assert_eq!(runtime.title.as_deref(), Some("Caption"));
+        let handle = block.read(cx).image_handle().expect("image handle");
+        assert_eq!(handle.alt, "diagram");
+        assert_eq!(handle.src, "./assets/diagram.png");
+        assert_eq!(handle.title.as_deref(), Some("Caption"));
         assert_eq!(
-            runtime.resolved_source,
+            handle.resolved_source,
             ImageResolvedSource::Local(
                 file_path
                     .parent()
@@ -221,10 +221,10 @@ async fn html_fallback_before_image_does_not_swallow_standalone_image(cx: &mut T
         }
 
         let image = editor.doc().root_blocks()[1].read(cx);
-        let runtime = image.image_runtime().expect("image runtime");
-        assert_eq!(runtime.alt, "image-20250820094109009");
-        assert_eq!(runtime.src, image_url);
-        match &runtime.resolved_source {
+        let handle = image.image_handle().expect("image handle");
+        assert_eq!(handle.alt, "image-20250820094109009");
+        assert_eq!(handle.src, image_url);
+        match &handle.resolved_source {
             ImageResolvedSource::Remote(uri) => assert_eq!(uri.to_string(), image_url),
             other => panic!("expected remote image, got {other:?}"),
         }
@@ -246,23 +246,23 @@ async fn unclosed_html_fallback_stops_before_standalone_image_without_blank(
             BlockKind::RawMarkdown
         );
         let image = editor.doc().root_blocks()[1].read(cx);
-        let runtime = image.image_runtime().expect("image runtime");
-        assert_eq!(runtime.alt, "image");
-        assert_eq!(runtime.src, image_url);
+        let handle = image.image_handle().expect("image handle");
+        assert_eq!(handle.alt, "image");
+        assert_eq!(handle.src, image_url);
     });
 }
 
 #[gpui::test]
-async fn numbered_list_item_standalone_image_installs_runtime(cx: &mut TestAppContext) {
+async fn numbered_list_item_standalone_image_installs_handle(cx: &mut TestAppContext) {
     let markdown = "1. ![diagram](https://example.com/diagram.gif \"Caption\")".to_string();
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.read_with(cx, |editor, cx| {
         let block = editor.doc().first_root().expect("list item root").clone();
-        let runtime = block.read(cx).image_runtime().expect("image runtime");
-        assert_eq!(runtime.alt, "diagram");
-        assert_eq!(runtime.title.as_deref(), Some("Caption"));
-        match &runtime.resolved_source {
+        let handle = block.read(cx).image_handle().expect("image handle");
+        assert_eq!(handle.alt, "diagram");
+        assert_eq!(handle.title.as_deref(), Some("Caption"));
+        match &handle.resolved_source {
             ImageResolvedSource::Remote(uri) => {
                 assert_eq!(uri.to_string(), "https://example.com/diagram.gif");
             }
@@ -272,7 +272,7 @@ async fn numbered_list_item_standalone_image_installs_runtime(cx: &mut TestAppCo
 }
 
 #[gpui::test]
-async fn task_list_item_reference_style_image_installs_runtime(cx: &mut TestAppContext) {
+async fn task_list_item_reference_style_image_installs_handle(cx: &mut TestAppContext) {
     let markdown = "- [ ] ![diagram][cover]\n\n[cover]: ./assets/diagram.png \"Cover\"".to_string();
     let file_path = PathBuf::from("D:/explorer/docs/note.md");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
@@ -283,12 +283,12 @@ async fn task_list_item_reference_style_image_installs_runtime(cx: &mut TestAppC
             .first_root()
             .expect("task list item root")
             .clone();
-        let runtime = block.read(cx).image_runtime().expect("image runtime");
-        assert_eq!(runtime.alt, "diagram");
-        assert_eq!(runtime.src, "./assets/diagram.png");
-        assert_eq!(runtime.title.as_deref(), Some("Cover"));
+        let handle = block.read(cx).image_handle().expect("image handle");
+        assert_eq!(handle.alt, "diagram");
+        assert_eq!(handle.src, "./assets/diagram.png");
+        assert_eq!(handle.title.as_deref(), Some("Cover"));
         assert_eq!(
-            runtime.resolved_source,
+            handle.resolved_source,
             ImageResolvedSource::Local(
                 file_path
                     .parent()
@@ -300,18 +300,18 @@ async fn task_list_item_reference_style_image_installs_runtime(cx: &mut TestAppC
 }
 
 #[gpui::test]
-async fn mixed_list_item_title_does_not_activate_image_runtime(cx: &mut TestAppContext) {
+async fn mixed_list_item_title_does_not_activate_image_handle(cx: &mut TestAppContext) {
     let markdown = "- text ![diagram](./assets/diagram.png)".to_string();
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.read_with(cx, |editor, cx| {
         let block = editor.doc().first_root().expect("list item root").clone();
-        assert!(block.read(cx).image_runtime().is_none());
+        assert!(block.read(cx).image_handle().is_none());
     });
 }
 
 #[gpui::test]
-async fn list_child_reference_style_image_installs_runtime(cx: &mut TestAppContext) {
+async fn list_child_reference_style_image_installs_handle(cx: &mut TestAppContext) {
     let markdown = [
         "- item",
         "  ![diagram][cover]",
@@ -330,12 +330,12 @@ async fn list_child_reference_style_image_installs_runtime(cx: &mut TestAppConte
             .first()
             .expect("list child image")
             .clone();
-        let runtime = image_block.read(cx).image_runtime().expect("image runtime");
-        assert_eq!(runtime.alt, "diagram");
-        assert_eq!(runtime.src, "./assets/diagram.png");
-        assert_eq!(runtime.title.as_deref(), Some("Cover"));
+        let handle = image_block.read(cx).image_handle().expect("image handle");
+        assert_eq!(handle.alt, "diagram");
+        assert_eq!(handle.src, "./assets/diagram.png");
+        assert_eq!(handle.title.as_deref(), Some("Cover"));
         assert_eq!(
-            runtime.resolved_source,
+            handle.resolved_source,
             ImageResolvedSource::Local(
                 file_path
                     .parent()
@@ -347,7 +347,7 @@ async fn list_child_reference_style_image_installs_runtime(cx: &mut TestAppConte
 }
 
 #[gpui::test]
-async fn list_scoped_reference_definition_supports_list_item_image_runtime(
+async fn list_scoped_reference_definition_supports_list_item_image_handle(
     cx: &mut TestAppContext,
 ) {
     let markdown = [
@@ -360,12 +360,12 @@ async fn list_scoped_reference_definition_supports_list_item_image_runtime(
 
     editor.read_with(cx, |editor, cx| {
         let list_item = editor.doc().first_root().expect("list item root").clone();
-        let runtime = list_item.read(cx).image_runtime().expect("image runtime");
-        assert_eq!(runtime.alt, "diagram");
-        assert_eq!(runtime.src, "./assets/diagram.png");
-        assert_eq!(runtime.title.as_deref(), Some("Cover"));
+        let handle = list_item.read(cx).image_handle().expect("image handle");
+        assert_eq!(handle.alt, "diagram");
+        assert_eq!(handle.src, "./assets/diagram.png");
+        assert_eq!(handle.title.as_deref(), Some("Cover"));
         assert_eq!(
-            runtime.resolved_source,
+            handle.resolved_source,
             ImageResolvedSource::Local(
                 file_path
                     .parent()
@@ -387,7 +387,7 @@ async fn list_scoped_reference_definition_supports_list_item_image_runtime(
 }
 
 #[gpui::test]
-async fn quote_list_item_standalone_image_installs_runtime(cx: &mut TestAppContext) {
+async fn quote_list_item_standalone_image_installs_handle(cx: &mut TestAppContext) {
     let markdown = "> - ![diagram](./assets/diagram.png)".to_string();
     let file_path = PathBuf::from("D:/explorer/docs/note.md");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
@@ -400,10 +400,10 @@ async fn quote_list_item_standalone_image_installs_runtime(cx: &mut TestAppConte
             .first()
             .expect("quote list child")
             .clone();
-        let runtime = list_item.read(cx).image_runtime().expect("image runtime");
-        assert_eq!(runtime.alt, "diagram");
+        let handle = list_item.read(cx).image_handle().expect("image handle");
+        assert_eq!(handle.alt, "diagram");
         assert_eq!(
-            runtime.resolved_source,
+            handle.resolved_source,
             ImageResolvedSource::Local(
                 file_path
                     .parent()
@@ -436,12 +436,12 @@ async fn callout_task_list_reference_style_image_uses_container_scoped_definitio
             .first()
             .expect("callout list child")
             .clone();
-        let runtime = list_item.read(cx).image_runtime().expect("image runtime");
-        assert_eq!(runtime.alt, "diagram");
-        assert_eq!(runtime.src, "./assets/diagram.png");
-        assert_eq!(runtime.title.as_deref(), Some("Cover"));
+        let handle = list_item.read(cx).image_handle().expect("image handle");
+        assert_eq!(handle.alt, "diagram");
+        assert_eq!(handle.src, "./assets/diagram.png");
+        assert_eq!(handle.title.as_deref(), Some("Cover"));
         assert_eq!(
-            runtime.resolved_source,
+            handle.resolved_source,
             ImageResolvedSource::Local(
                 file_path
                     .parent()
@@ -453,7 +453,7 @@ async fn callout_task_list_reference_style_image_uses_container_scoped_definitio
 }
 
 #[gpui::test]
-async fn callout_list_child_image_installs_runtime(cx: &mut TestAppContext) {
+async fn callout_list_child_image_installs_handle(cx: &mut TestAppContext) {
     let markdown = [
         "> [!NOTE]",
         "> - item",
@@ -477,10 +477,10 @@ async fn callout_list_child_image_installs_runtime(cx: &mut TestAppContext) {
             .first()
             .expect("list child image")
             .clone();
-        let runtime = image_block.read(cx).image_runtime().expect("image runtime");
-        assert_eq!(runtime.alt, "diagram");
+        let handle = image_block.read(cx).image_handle().expect("image handle");
+        assert_eq!(handle.alt, "diagram");
         assert_eq!(
-            runtime.resolved_source,
+            handle.resolved_source,
             ImageResolvedSource::Local(
                 file_path
                     .parent()
@@ -513,16 +513,16 @@ async fn callout_child_reference_style_image_uses_container_scoped_definition(
             .iter()
             .find(|child| {
                 child.read(cx).kind() == BlockKind::Paragraph
-                    && child.read(cx).image_runtime().is_some()
+                    && child.read(cx).image_handle().is_some()
             })
             .expect("callout image child")
             .clone();
-        let runtime = image_block.read(cx).image_runtime().expect("image runtime");
-        assert_eq!(runtime.alt, "diagram");
-        assert_eq!(runtime.src, "./assets/diagram.png");
-        assert_eq!(runtime.title.as_deref(), Some("Animated"));
+        let handle = image_block.read(cx).image_handle().expect("image handle");
+        assert_eq!(handle.alt, "diagram");
+        assert_eq!(handle.src, "./assets/diagram.png");
+        assert_eq!(handle.title.as_deref(), Some("Animated"));
         assert_eq!(
-            runtime.resolved_source,
+            handle.resolved_source,
             ImageResolvedSource::Local(
                 file_path
                     .parent()
@@ -534,7 +534,7 @@ async fn callout_child_reference_style_image_uses_container_scoped_definition(
 }
 
 #[gpui::test]
-async fn table_cell_with_standalone_image_installs_runtime(cx: &mut TestAppContext) {
+async fn table_cell_with_standalone_image_installs_handle(cx: &mut TestAppContext) {
     let markdown = [
         "| Preview |",
         "| --- |",
@@ -545,15 +545,15 @@ async fn table_cell_with_standalone_image_installs_runtime(cx: &mut TestAppConte
 
     editor.read_with(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
-        let runtime = table
+        let handle = table
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("table runtime");
-        let cell_runtime = runtime.rows[0][0]
+            .expect("table grid");
+        let cell_runtime = handle.rows[0][0]
             .read(cx)
-            .image_runtime()
-            .expect("cell image runtime");
+            .image_handle()
+            .expect("cell image handle");
         assert_eq!(cell_runtime.alt, "diagram");
         assert_eq!(cell_runtime.title.as_deref(), Some("Animated"));
         match &cell_runtime.resolved_source {
@@ -577,13 +577,13 @@ async fn table_cell_with_mixed_inline_image_uses_inline_image_segments(cx: &mut 
 
     editor.read_with(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
-        let runtime = table
+        let handle = table
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("table runtime");
-        let cell = runtime.rows[0][0].read(cx);
-        assert!(cell.image_runtime().is_none());
+            .expect("table grid");
+        let cell = handle.rows[0][0].read(cx);
+        assert!(cell.image_handle().is_none());
 
         let segments = parse_table_cell_inline_images(&cell.record.text_markdown());
         assert_eq!(segments.len(), 2);
@@ -603,7 +603,7 @@ async fn table_cell_with_mixed_inline_image_uses_inline_image_segments(cx: &mut 
 }
 
 #[gpui::test]
-async fn table_cell_with_reference_style_image_installs_runtime(cx: &mut TestAppContext) {
+async fn table_cell_with_reference_style_image_installs_handle(cx: &mut TestAppContext) {
     let markdown = [
         "| Preview |",
         "| --- |",
@@ -616,15 +616,15 @@ async fn table_cell_with_reference_style_image_installs_runtime(cx: &mut TestApp
 
     editor.read_with(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
-        let runtime = table
+        let handle = table
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("table runtime");
-        let cell_runtime = runtime.rows[0][0]
+            .expect("table grid");
+        let cell_runtime = handle.rows[0][0]
             .read(cx)
-            .image_runtime()
-            .expect("cell image runtime");
+            .image_handle()
+            .expect("cell image handle");
         assert_eq!(cell_runtime.alt, "diagram");
         assert_eq!(cell_runtime.title.as_deref(), Some("Animated"));
         match &cell_runtime.resolved_source {
@@ -670,12 +670,12 @@ async fn reference_style_link_in_table_cell_resolves_document_wide(cx: &mut Test
 
     editor.read_with(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
-        let runtime = table
+        let handle = table
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("table runtime");
-        let cell = runtime.rows[0][0].clone();
+            .expect("table grid");
+        let cell = handle.rows[0][0].clone();
         assert_eq!(cell.read(cx).display_text(), "reference link");
         assert_eq!(cell.read(cx).inline_link_at(0), Some("https://example.com"));
     });

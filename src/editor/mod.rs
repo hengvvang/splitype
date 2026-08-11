@@ -10,7 +10,7 @@
 //!   code-language input split into sibling files.
 //! - `editing/` — editing behaviors: `input/` (keyboard, focus, typing,
 //!   paste, IME, block-event routing), history, projection, selection,
-//!   source mapping, and the table runtime.
+//!   source mapping, and the table grid.
 //! - `wysiwyg/` / `source_code/` / `preview/` / `outline/` — the four
 //!   editor panes (each owns its rendering and behavior).
 //! - `session.rs` / `session_ops.rs` / `pane_layout.rs` — the per-panel
@@ -45,7 +45,7 @@ pub(crate) mod view;
 pub mod wysiwyg;
 
 pub(crate) use preview::PreviewState;
-pub(crate) use source_code::SourceCodePanelRuntime;
+pub(crate) use source_code::SourceCodePaneState;
 
 #[cfg(test)]
 mod tests;

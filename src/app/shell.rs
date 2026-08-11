@@ -314,8 +314,9 @@ impl Shell {
         true
     }
     /// Creates a fresh Editor entity serving `panel_id` and registers it in
-    /// the panel_contents map. The new entity is wired to this Shell and its runtime
-    /// registries are rebuilt for the (possibly cloned) document tabs.
+    /// the panel_contents map. The new entity is wired to this Shell and its
+    /// reference registries are rebuilt for the (possibly cloned) document
+    /// tabs.
     pub(crate) fn add_editor_panel(
         &mut self,
         panel_id: NodeId,
@@ -327,8 +328,8 @@ impl Shell {
         editor.update(cx, |editor, cx| {
             editor.shell = Some(shell);
             if !editor.session.tab_list.tabs.is_empty() {
-                editor.rebuild_table_runtimes(cx);
-                editor.rebuild_image_runtimes(cx);
+                editor.rebuild_table_grids(cx);
+                editor.rebuild_reference_registries(cx);
                 editor.refresh_preview_blocks(cx);
                 editor.refresh_stable_document_snapshot(cx);
             }

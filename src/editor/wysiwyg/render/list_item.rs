@@ -48,7 +48,7 @@ pub(crate) fn render_bulleted_list_item(
             if showing_rendered_image {
                 let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
                 let max_width = px(effective_list_item_image_width(block, viewport_width, d));
-                if let Some(runtime) = block.image_runtime() {
+                if let Some(runtime) = block.image_handle() {
                     div().flex_grow().child(block.render_image_content(
                         runtime,
                         max_width.into(),
@@ -160,7 +160,7 @@ pub(crate) fn render_task_list_item(
             if showing_rendered_image {
                 let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
                 let max_width = px(effective_list_item_image_width(block, viewport_width, d));
-                if let Some(runtime) = block.image_runtime() {
+                if let Some(runtime) = block.image_handle() {
                     div().flex_grow().child(block.render_image_content(
                         runtime,
                         max_width.into(),
@@ -238,7 +238,7 @@ pub(crate) fn render_numbered_list_item(
             if showing_rendered_image {
                 let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
                 let max_width = px(effective_list_item_image_width(block, viewport_width, d));
-                if let Some(runtime) = block.image_runtime() {
+                if let Some(runtime) = block.image_handle() {
                     div().flex_grow().child(block.render_image_content(
                         runtime,
                         max_width.into(),

@@ -1,4 +1,4 @@
-//! Table runtime installation and table manipulation actions.
+//! Table grid installation and table manipulation actions.
 
 use gpui::{AppContext, TestAppContext};
 
@@ -6,9 +6,8 @@ use crate::editor::controller::Editor;
 use crate::model::block::BlockKind;
 use crate::model::syntax::table::TableColumnAlignment;
 
-
 #[gpui::test]
-async fn parsed_table_runtime_installs_column_alignment_on_cells(cx: &mut TestAppContext) {
+async fn parsed_table_grid_installs_column_alignment_on_cells(cx: &mut TestAppContext) {
     let markdown = [
         "| Left | Center | Right |",
         "| :--- | :---: | ---: |",
@@ -20,21 +19,17 @@ async fn parsed_table_runtime_installs_column_alignment_on_cells(cx: &mut TestAp
     editor.read_with(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
         assert_eq!(table.read(cx).kind(), BlockKind::Table);
-        let runtime = table
-            .read(cx)
-            .table_runtime
-            .as_ref()
-            .expect("table runtime");
+        let grid = table.read(cx).table_grid.as_ref().expect("table grid");
         assert_eq!(
-            runtime.header[0].read(cx).table_cell_alignment(),
+            grid.header[0].read(cx).table_cell_alignment(),
             Some(TableColumnAlignment::Left)
         );
         assert_eq!(
-            runtime.header[1].read(cx).table_cell_alignment(),
+            grid.header[1].read(cx).table_cell_alignment(),
             Some(TableColumnAlignment::Center)
         );
         assert_eq!(
-            runtime.rows[0][2].read(cx).table_cell_alignment(),
+            grid.rows[0][2].read(cx).table_cell_alignment(),
             Some(TableColumnAlignment::Right)
         );
     });
@@ -66,12 +61,8 @@ async fn append_column_updates_table_and_focuses_new_header_cell(cx: &mut TestAp
             ]
         );
 
-        let runtime = table
-            .read(cx)
-            .table_runtime
-            .as_ref()
-            .expect("rebuilt runtime");
-        let focused = runtime.header[2].entity_id();
+        let grid = table.read(cx).table_grid.as_ref().expect("rebuilt grid");
+        let focused = grid.header[2].entity_id();
         assert_eq!(editor.tab().focus.pending, Some(focused));
     });
 }
@@ -99,12 +90,8 @@ async fn append_row_updates_table_and_focuses_first_cell_of_new_row(cx: &mut Tes
                 .all(|cell| cell.serialize_markdown().is_empty())
         );
 
-        let runtime = table
-            .read(cx)
-            .table_runtime
-            .as_ref()
-            .expect("rebuilt runtime");
-        let focused = runtime.rows[1][0].entity_id();
+        let grid = table.read(cx).table_grid.as_ref().expect("rebuilt grid");
+        let focused = grid.rows[1][0].entity_id();
         assert_eq!(editor.tab().focus.pending, Some(focused));
     });
 }
@@ -155,14 +142,10 @@ async fn moving_table_row_updates_focus_and_selection(cx: &mut TestAppContext) {
             })
         );
 
-        let runtime = table
-            .read(cx)
-            .table_runtime
-            .as_ref()
-            .expect("rebuilt runtime");
+        let grid = table.read(cx).table_grid.as_ref().expect("rebuilt grid");
         assert_eq!(
             editor.tab().focus.pending,
-            Some(runtime.rows[0][0].entity_id())
+            Some(grid.rows[0][0].entity_id())
         );
     });
 }
@@ -226,21 +209,21 @@ async fn selecting_first_body_row_does_not_highlight_header(cx: &mut TestAppCont
         // Visual row 1 is the first body row; the header (row 0) must stay clear.
         editor.select_table_axis(table.entity_id(), TableAxisKind::Row, 1, cx);
 
-        let runtime = table.read(cx).table_runtime.clone().expect("runtime");
-        for cell in &runtime.header {
+        let grid = table.read(cx).table_grid.clone().expect("grid");
+        for cell in &grid.header {
             assert_eq!(
                 cell.read(cx).table_axis_highlight,
                 TableAxisHighlight::None,
                 "header should not be highlighted"
             );
         }
-        for cell in &runtime.rows[0] {
+        for cell in &grid.rows[0] {
             assert_eq!(
                 cell.read(cx).table_axis_highlight,
                 TableAxisHighlight::Selected
             );
         }
-        for cell in &runtime.rows[1] {
+        for cell in &grid.rows[1] {
             assert_eq!(cell.read(cx).table_axis_highlight, TableAxisHighlight::None);
         }
     });
@@ -256,14 +239,14 @@ async fn selecting_header_row_highlights_only_header(cx: &mut TestAppContext) {
         let table = editor.doc().first_root().expect("table root").clone();
         editor.select_table_axis(table.entity_id(), TableAxisKind::Row, 0, cx);
 
-        let runtime = table.read(cx).table_runtime.clone().expect("runtime");
-        for cell in &runtime.header {
+        let grid = table.read(cx).table_grid.clone().expect("grid");
+        for cell in &grid.header {
             assert_eq!(
                 cell.read(cx).table_axis_highlight,
                 TableAxisHighlight::Selected
             );
         }
-        for cell in &runtime.rows[0] {
+        for cell in &grid.rows[0] {
             assert_eq!(cell.read(cx).table_axis_highlight, TableAxisHighlight::None);
         }
     });
@@ -336,15 +319,8 @@ async fn deleting_table_header_promotes_next_row(cx: &mut TestAppContext) {
         assert_eq!(record.header[1].serialize_markdown(), "2");
         assert!(record.rows.is_empty());
 
-        let runtime = table
-            .read(cx)
-            .table_runtime
-            .as_ref()
-            .expect("rebuilt runtime");
-        assert_eq!(
-            editor.tab().focus.pending,
-            Some(runtime.header[0].entity_id())
-        );
+        let grid = table.read(cx).table_grid.as_ref().expect("rebuilt grid");
+        assert_eq!(editor.tab().focus.pending, Some(grid.header[0].entity_id()));
     });
 }
 
@@ -411,4 +387,3 @@ async fn removing_the_only_table_leaves_one_empty_paragraph(cx: &mut TestAppCont
         assert_eq!(roots[0].read(cx).display_text(), "");
     });
 }
-

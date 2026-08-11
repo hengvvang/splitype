@@ -551,14 +551,14 @@ async fn tab_key_keeps_table_cell_navigation(cx: &mut TestAppContext) {
 
     let (second_cell_id, first) = editor.update(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
-        let runtime = table
+        let grid = table
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("table runtime")
+            .expect("table grid")
             .clone();
-        let first = runtime.rows[0][0].clone();
-        let second = runtime.rows[0][1].clone();
+        let first = grid.rows[0][0].clone();
+        let second = grid.rows[0][1].clone();
         first.update(cx, |block, block_cx| {
             block.move_to(block.display_len(), block_cx);
         });
@@ -583,14 +583,14 @@ async fn right_arrow_at_cell_end_moves_to_next_cell(cx: &mut TestAppContext) {
 
     let (second_cell_id, first) = editor.update(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
-        let runtime = table
+        let grid = table
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("table runtime")
+            .expect("table grid")
             .clone();
-        let first = runtime.rows[0][0].clone();
-        let second = runtime.rows[0][1].clone();
+        let first = grid.rows[0][0].clone();
+        let second = grid.rows[0][1].clone();
         first.update(cx, |block, block_cx| {
             block.move_to(block.display_len(), block_cx);
         });
@@ -615,14 +615,14 @@ async fn left_arrow_at_cell_start_moves_to_previous_cell(cx: &mut TestAppContext
 
     let (first_cell_id, second) = editor.update(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
-        let runtime = table
+        let grid = table
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("table runtime")
+            .expect("table grid")
             .clone();
-        let first = runtime.rows[0][0].clone();
-        let second = runtime.rows[0][1].clone();
+        let first = grid.rows[0][0].clone();
+        let second = grid.rows[0][1].clone();
         second.update(cx, |block, block_cx| {
             block.move_to(0, block_cx);
         });
@@ -712,9 +712,9 @@ async fn ctrl_enter_exits_focused_table_cell(cx: &mut TestAppContext) {
         let table = editor.doc().first_root().expect("table root").clone();
         let cell = table
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("table runtime")
+            .expect("table grid")
             .rows[0][0]
             .clone();
         cell.update(cx, |block, block_cx| {
@@ -774,9 +774,9 @@ async fn toggle_view_mode_preserves_table_cell_position(cx: &mut TestAppContext)
         let table = editor.doc().first_root().expect("table root").clone();
         let cell = table
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("table runtime")
+            .expect("table grid")
             .rows[0][1]
             .clone();
         cell.update(cx, |block, _cx| {
@@ -792,9 +792,9 @@ async fn toggle_view_mode_preserves_table_cell_position(cx: &mut TestAppContext)
         let restored_table = editor.doc().first_root().expect("restored table").clone();
         let restored_cell = restored_table
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("restored runtime")
+            .expect("restored grid")
             .rows[0][1]
             .clone();
         assert_eq!(restored_cell.read(cx).display_text(), "beta");
@@ -825,9 +825,9 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
             .clone();
         let cell = table
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("table runtime")
+            .expect("table grid")
             .rows[0][1]
             .clone();
         cell.update(cx, |block, _cx| {
@@ -850,9 +850,9 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
             .clone();
         let restored_cell = restored_table
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("restored runtime")
+            .expect("restored grid")
             .rows[0][1]
             .clone();
         assert_eq!(restored_cell.read(cx).display_text(), "beta");

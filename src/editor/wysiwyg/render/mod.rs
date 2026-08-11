@@ -845,7 +845,7 @@ impl Render for Block {
                 cell_base
             };
 
-            let cell_content = if showing_rendered_image && let Some(runtime) = self.image_runtime()
+            let cell_content = if showing_rendered_image && let Some(runtime) = self.image_handle()
             {
                 self.render_image_content(
                     runtime,
@@ -1015,7 +1015,7 @@ impl Render for Block {
         if showing_rendered_image && self.kind() == BlockKind::Paragraph {
             let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
             let max_width = px(effective_image_width(self, viewport_width, d));
-            if let Some(runtime) = self.image_runtime() {
+            if let Some(runtime) = self.image_handle() {
                 let image_preview = self.render_image_content(
                     runtime,
                     max_width.into(),

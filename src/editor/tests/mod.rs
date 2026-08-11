@@ -18,7 +18,7 @@ mod drop;
 mod editing;
 mod footnotes;
 mod geometry;
-mod image_runtimes;
+mod image_handles;
 mod multi_panel;
 mod save_export;
 mod table_ops;

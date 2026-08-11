@@ -378,7 +378,7 @@ impl Editor {
         let Some(table) = block.read(cx).record.table.clone() else {
             return 0;
         };
-        let Some(runtime) = block.read(cx).table_runtime.clone() else {
+        let Some(grid) = block.read(cx).table_grid.clone() else {
             return 0;
         };
 
@@ -390,7 +390,7 @@ impl Editor {
 
         if let Some(header_line) = lines.first() {
             let mut line_cursor = line_prefix_len + 2usize;
-            for (column, cell) in runtime.header.iter().enumerate() {
+            for (column, cell) in grid.header.iter().enumerate() {
                 let Some(tree) = table.header.get(column) else {
                     continue;
                 };
@@ -412,7 +412,7 @@ impl Editor {
             line_start += line_prefix_len + lines[1].len() + 1;
         }
 
-        for (body_row_index, row) in runtime.rows.iter().enumerate() {
+        for (body_row_index, row) in grid.rows.iter().enumerate() {
             let Some(row_line) = lines.get(body_row_index + 2) else {
                 break;
             };

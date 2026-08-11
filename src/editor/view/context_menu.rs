@@ -385,10 +385,10 @@ impl Editor {
         // Add a trailing empty paragraph to land on when nothing follows it.
         self.ensure_trailing_paragraph_after_structural(&new_block, cx);
 
-        self.rebuild_table_runtimes(cx);
+        self.rebuild_table_grids(cx);
         if let Some(first_cell) = new_block
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
             .and_then(|runtime| runtime.header.first())
         {

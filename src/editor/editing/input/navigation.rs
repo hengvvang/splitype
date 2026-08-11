@@ -89,9 +89,9 @@ impl Editor {
     ) -> bool {
         let Some(cell) = table_block
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .and_then(|runtime| runtime.cell(position))
+            .and_then(|grid| grid.cell(position))
         else {
             return false;
         };
@@ -110,18 +110,17 @@ impl Editor {
         from_top: bool,
         cx: &mut Context<Self>,
     ) -> bool {
-        let Some(runtime) = table_block.read(cx).table_runtime.clone() else {
+        let Some(grid) = table_block.read(cx).table_grid.clone() else {
             return false;
         };
         let cell = if from_top {
-            runtime.header.first().cloned()
+            grid.header.first().cloned()
         } else {
-            runtime
-                .rows
+            grid.rows
                 .last()
                 .and_then(|row| row.first())
                 .cloned()
-                .or_else(|| runtime.header.first().cloned())
+                .or_else(|| grid.header.first().cloned())
         };
         let Some(cell) = cell else {
             return false;
@@ -190,11 +189,11 @@ impl Editor {
         delta: i32,
         cx: &mut Context<Self>,
     ) {
-        let Some(runtime) = table_block.read(cx).table_runtime.clone() else {
+        let Some(grid) = table_block.read(cx).table_grid.clone() else {
             return;
         };
-        let columns = runtime.header.len();
-        let total_rows = 1 + runtime.rows.len();
+        let columns = grid.header.len();
+        let total_rows = 1 + grid.rows.len();
         if columns == 0 || total_rows == 0 {
             return;
         }
@@ -226,10 +225,10 @@ impl Editor {
         delta: i32,
         cx: &mut Context<Self>,
     ) {
-        let Some(runtime) = table_block.read(cx).table_runtime.clone() else {
+        let Some(grid) = table_block.read(cx).table_grid.clone() else {
             return;
         };
-        let max_row = runtime.rows.len();
+        let max_row = grid.rows.len();
         let next_row = if delta < 0 {
             position.row.checked_sub(delta.unsigned_abs() as usize)
         } else {
@@ -244,7 +243,7 @@ impl Editor {
 
         let next_position = TableCellPosition {
             row: next_row,
-            column: position.column.min(runtime.header.len().saturating_sub(1)),
+            column: position.column.min(grid.header.len().saturating_sub(1)),
         };
         let _ = self.focus_table_cell_position(table_block, next_position, cx);
     }
@@ -262,8 +261,8 @@ impl Editor {
 
         match event {
             BlockAction::Changed => {
-                self.sync_table_record_from_runtime(&binding.table_block, cx);
-                self.sync_runtime_after_block_change(&binding.cell, cx);
+                self.sync_table_record_from_grid(&binding.table_block, cx);
+                self.sync_references_after_block_change(&binding.cell, cx);
                 self.mark_dirty(cx);
                 self.request_active_block_scroll_into_view(cx);
                 self.finalize_pending_undo_capture(cx);
@@ -305,7 +304,7 @@ impl Editor {
                 };
                 self.clear_table_axis_preview(cx);
                 self.clear_table_axis_selection(cx);
-                self.sync_table_record_from_runtime(&binding.table_block, cx);
+                self.sync_table_record_from_grid(&binding.table_block, cx);
                 self.prepare_undo_capture(
                     crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
@@ -317,7 +316,7 @@ impl Editor {
                     vec![new_block.clone()],
                     cx,
                 );
-                self.rebuild_image_runtimes(cx);
+                self.rebuild_reference_registries(cx);
                 self.focus_block(new_block.entity_id());
                 self.mark_dirty(cx);
                 self.request_active_block_scroll_into_view(cx);
@@ -521,7 +520,7 @@ impl Editor {
             });
         });
         self.focus_block(parent.entity_id());
-        self.rebuild_image_runtimes(cx);
+        self.rebuild_reference_registries(cx);
         self.mark_dirty(cx);
         self.finalize_pending_undo_capture(cx);
         cx.notify();

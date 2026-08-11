@@ -80,7 +80,7 @@ layout, panes belong to an Editor session.
 | Block edit mode | `RenderedRich` / `Verbatim` / `CodeBlockRaw` | done — `SourceRaw` → `Verbatim`; the mode enum carries the behavior, "raw" stays for content. |
 | Opaque passthrough content | **raw** | kept for content: `BlockKind::RawMarkdown`, `raw_source` (unparsed original text). |
 | Marker-free editing of raw content | **verbatim** | done — `BlockEditMode::Verbatim` (was `SourceRaw`), `edits_verbatim_text` (was `uses_raw_text_editing`), `is_verbatim_mode`/`set_verbatim_mode` (was `is_/set_source_raw_mode`), `replace_plain_range_verbatim` (was `replace_visible_range_raw`). `set_source_document_mode` stays: it means SourceCode-view document mode. |
-| Derived view state | — | planned: `TableRuntimes` → `TableGrids`, `rebuild_table_runtimes` → `rebuild_table_grids`, `SourceCodePanelRuntime` → `SourceCodePaneState`, field `image_runtime` → `image_handle`. "Runtime" no longer names editor state; it is reserved for background execution. |
+| Derived view state | — | done — "Runtime" no longer names editor state; it is reserved for background execution (`tokio::runtime`, `SyncRuntime`). `TableRuntimes` → `TableGrids`, `rebuild_table_runtimes` → `rebuild_table_grids`, `Block.table_runtime` → `table_grid`, `install_table_runtime_for_block` → `install_table_grid_for_block`, `sync_table_record_from_runtime` → `sync_table_record_from_grid`, `table_runtime.rs` → `table_grid.rs`; `SourceCodePanelRuntime` → `SourceCodePaneState`, `source_pane_runtimes` → `source_pane_states`; `image_runtime` → `image_handle`; `rebuild_image_runtimes` → `rebuild_reference_registries` (it rebuilds the image/link/footnote registries), `sync_runtime_after_block_change` → `sync_references_after_block_change`, `sync_runtime_context_for_block` → `sync_reference_context_for_block`, `set_runtime_context` → `set_reference_context`. "Runtime-only blocks" prose stays: table cells exist only in the runtime tree. |
 | Document serialization | `serialize_*` | planned: `to_markdown` → `serialize_markdown`, `to_raw_source` → `serialize_source_text`, `current_document_source` → `serialize_document_for_mode`, `markdown_line` → `serialize_markdown_line`. |
 
 ## Architecture invariants
@@ -93,7 +93,7 @@ layout, panes belong to an Editor session.
   is bumped by `mark_dirty` and the few mutation paths that bypass it;
   preview and source panes compare their `synced_revision` against it and
   skip whole-document serialization on unchanged frames.
-- **Per-keystroke registry sync is incremental**: `sync_runtime_after_block_change`
+- **Per-keystroke registry sync is incremental**: `sync_references_after_block_change`
   skips the document-wide image/link/footnote rebuild when the edited block
   is not a registry candidate (`ReferenceRegistries.candidate_blocks`).
 - **Two edit routes**: in-block edits mutate the fragment tree directly;

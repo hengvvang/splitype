@@ -263,10 +263,10 @@ impl Editor {
         });
         Self::set_block_text_and_kind(block, kind, text, cursor, cx);
         if let Some(binding) = self.table_cell_binding(block.entity_id()) {
-            self.sync_table_record_from_runtime(&binding.table_block, cx);
+            self.sync_table_record_from_grid(&binding.table_block, cx);
         }
         self.focus_block(block.entity_id());
-        self.rebuild_image_runtimes(cx);
+        self.rebuild_reference_registries(cx);
     }
 
     pub(crate) fn insert_image_block_after_paragraph(
@@ -303,7 +303,7 @@ impl Editor {
                 );
             }
             self.focus_block(image_block.entity_id());
-            self.rebuild_image_runtimes(cx);
+            self.rebuild_reference_registries(cx);
             return;
         }
 
@@ -325,7 +325,7 @@ impl Editor {
         self.doc_mut()
             .insert_blocks_at(location.parent, location.index + 1, inserted, cx);
         self.focus_block(image_block.entity_id());
-        self.rebuild_image_runtimes(cx);
+        self.rebuild_reference_registries(cx);
     }
 
     pub(crate) fn handle_paste_image_request(

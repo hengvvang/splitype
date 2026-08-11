@@ -25,7 +25,7 @@ pub(crate) fn render_preview_image(
         return paragraph::render_preview_paragraph(block, base, theme);
     };
     let alt = syntax.alt.clone();
-    let Some(runtime) = block.image_runtime_for_syntax(syntax) else {
+    let Some(handle) = block.image_handle_for_syntax(syntax) else {
         return render_preview_image_placeholder(&alt, &plain, base, theme);
     };
 
@@ -33,7 +33,7 @@ pub(crate) fn render_preview_image(
     let max_width =
         (preview_centered_column_width(viewport_width, d) - d.block_padding_x * 2.0).max(160.0);
 
-    let source = runtime.resolved_source.clone();
+    let source = handle.resolved_source.clone();
     let image = match source {
         ImageResolvedSource::Local(path) => img(path),
         ImageResolvedSource::Remote(uri) => img(uri),
@@ -51,7 +51,7 @@ pub(crate) fn render_preview_image(
         .gap(px(d.image_caption_gap))
         .child(image);
 
-    if let Some(title) = runtime
+    if let Some(title) = handle
         .title
         .as_ref()
         .filter(|title| !title.trim().is_empty())

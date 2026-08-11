@@ -1,4 +1,4 @@
-//! Multi-panel isolation: per-panel source runtimes and tab
+//! Multi-panel isolation: per-panel source pane states and tab
 //! switching renders the active document.
 
 use gpui::{AppContext, TestAppContext};
@@ -53,15 +53,15 @@ async fn rendering_one_editor_panel_keeps_other_panels_source_block(cx: &mut Tes
     ) -> Option<gpui::EntityId> {
         editor.read_with(cx, |editor, _cx| {
             editor
-                .source_pane_runtimes
+                .source_pane_states
                 .get(&1)
-                .and_then(|runtime| runtime.block.as_ref().map(|block| block.entity_id()))
+                .and_then(|state| state.block.as_ref().map(|block| block.entity_id()))
         })
     }
 
     // The first frame materializes the panel's block; every following
     // frame must keep it alive (rendering used to drop other panels'
-    // source runtimes, rebuilding the block entity every frame).
+    // source pane states, rebuilding the block entity every frame).
     redraw(cx);
     let before = source_block_id(&editor, cx, DEFAULT_EDITOR_PANEL_ID);
     assert!(before.is_some(), "first area source block should exist");
@@ -74,14 +74,14 @@ async fn rendering_one_editor_panel_keeps_other_panels_source_block(cx: &mut Tes
         );
     }
 
-    // The second area's entity owns its own runtime, fully independent of
-    // the first area's entity.
+    // The second area's entity owns its own pane state, fully independent
+    // of the first area's entity.
     second.update(&mut cx.cx, |second, cx| second.sync_source_pane(1, cx));
     let second_id = second.read_with(&mut cx.cx, |second, _cx| {
         second
-            .source_pane_runtimes
+            .source_pane_states
             .get(&1)
-            .and_then(|runtime| runtime.block.as_ref().map(|block| block.entity_id()))
+            .and_then(|state| state.block.as_ref().map(|block| block.entity_id()))
     });
     assert!(second_id.is_some(), "second area source block should exist");
     assert_ne!(before, second_id, "each area owns its own source block");

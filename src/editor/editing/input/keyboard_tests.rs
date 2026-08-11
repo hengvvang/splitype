@@ -129,7 +129,7 @@ async fn image_block_insert_preserves_surrounding_paragraph_text(cx: &mut TestAp
             entries[1].entity.read(cx).display_text(),
             "![image](./assets/image.png)"
         );
-        assert!(entries[1].entity.read(cx).image_runtime().is_some());
+        assert!(entries[1].entity.read(cx).image_handle().is_some());
         assert_eq!(entries[2].entity.read(cx).display_text(), "after");
     });
 }
@@ -1008,8 +1008,8 @@ async fn table_cell_enter_still_moves_to_next_row(cx: &mut TestAppContext) {
             let table = editor.doc().first_root().expect("table root").clone();
             let (cell, expected_next_cell_id) = {
                 let table = table.read(cx);
-                let runtime = table.table_runtime.as_ref().expect("table runtime");
-                (runtime.rows[0][0].clone(), runtime.rows[1][0].entity_id())
+                let grid = table.table_grid.as_ref().expect("table grid");
+                (grid.rows[0][0].clone(), grid.rows[1][0].entity_id())
             };
             next_cell_id = Some(expected_next_cell_id);
             cell.update(cx, |block, block_cx| {
@@ -1042,9 +1042,9 @@ async fn table_cell_exit_shortcut_inserts_sibling_after_table(cx: &mut TestAppCo
                 .clone();
             let cell = table
                 .read(cx)
-                .table_runtime
+                .table_grid
                 .as_ref()
-                .expect("table runtime")
+                .expect("table grid")
                 .rows[0][0]
                 .clone();
             cell.update(cx, |block, block_cx| {
@@ -1083,9 +1083,9 @@ async fn arrow_down_from_last_row_exits_table_to_following_block(cx: &mut TestAp
         let table = table_root(editor, cx);
         let cell = table
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("table runtime")
+            .expect("table grid")
             .rows
             .last()
             .and_then(|row| row.first())
@@ -1112,9 +1112,9 @@ async fn arrow_up_from_header_exits_table_to_preceding_block(cx: &mut TestAppCon
         let table = table_root(editor, cx);
         let cell = table
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("table runtime")
+            .expect("table grid")
             .header
             .first()
             .cloned()
@@ -1146,9 +1146,9 @@ async fn arrow_down_into_table_focuses_header_cell(cx: &mut TestAppContext) {
 
         let header_cell = table_root(editor, cx)
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("table runtime")
+            .expect("table grid")
             .header
             .first()
             .map(|cell| cell.entity_id());
@@ -1172,9 +1172,9 @@ async fn arrow_up_into_table_focuses_last_row_cell(cx: &mut TestAppContext) {
 
         let last_row_cell = table_root(editor, cx)
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("table runtime")
+            .expect("table grid")
             .rows
             .last()
             .and_then(|row| row.first())
@@ -1193,9 +1193,9 @@ async fn block_up_from_table_cell_exits_to_preceding_block(cx: &mut TestAppConte
         // the whole table instead of stepping to the cell above.
         let cell = table_root(editor, cx)
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("table runtime")
+            .expect("table grid")
             .rows
             .last()
             .and_then(|row| row.first())
@@ -1220,9 +1220,9 @@ async fn block_down_into_table_focuses_header_cell(cx: &mut TestAppContext) {
 
         let header_cell = table_root(editor, cx)
             .read(cx)
-            .table_runtime
+            .table_grid
             .as_ref()
-            .expect("table runtime")
+            .expect("table grid")
             .header
             .first()
             .map(|cell| cell.entity_id());

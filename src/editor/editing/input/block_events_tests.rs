@@ -132,7 +132,7 @@ mod tests {
                 entries[1].entity.read(cx).display_text(),
                 "![image](./assets/image.png)"
             );
-            assert!(entries[1].entity.read(cx).image_runtime().is_some());
+            assert!(entries[1].entity.read(cx).image_handle().is_some());
             assert_eq!(entries[2].entity.read(cx).display_text(), "after");
         });
     }
@@ -1028,8 +1028,8 @@ mod tests {
                 let table = editor.doc().first_root().expect("table root").clone();
                 let (cell, expected_next_cell_id) = {
                     let table = table.read(cx);
-                    let runtime = table.table_runtime.as_ref().expect("table runtime");
-                    (runtime.rows[0][0].clone(), runtime.rows[1][0].entity_id())
+                    let grid = table.table_grid.as_ref().expect("table grid");
+                    (grid.rows[0][0].clone(), grid.rows[1][0].entity_id())
                 };
                 next_cell_id = Some(expected_next_cell_id);
                 cell.update(cx, |block, block_cx| {
@@ -1062,9 +1062,9 @@ mod tests {
                     .clone();
                 let cell = table
                     .read(cx)
-                    .table_runtime
+                    .table_grid
                     .as_ref()
-                    .expect("table runtime")
+                    .expect("table grid")
                     .rows[0][0]
                     .clone();
                 cell.update(cx, |block, block_cx| {

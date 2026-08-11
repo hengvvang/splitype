@@ -56,9 +56,10 @@ pub(crate) struct Document {
     roots: Vec<Entity<Block>>,
     snapshot: BlockIndex,
     /// Incremented on every structural change (insert/remove/replace).
-    /// Runtime-context syncs use it to detect newly-created blocks that have
-    /// never received a context, so unchanged registries can still skip the
-    /// per-block loop when the block set is identical to the last sync.
+    /// Reference-context syncs use it to detect newly-created blocks that
+    /// have never received a context, so unchanged registries can still
+    /// skip the per-block loop when the block set is identical to the last
+    /// sync.
     structure_version: u64,
     /// The structure version the tree metadata (quote depths, anchors,
     /// ordinals, entries snapshot) was last rebuilt for. Text-only edits do
@@ -89,7 +90,7 @@ impl Document {
     }
 
     /// Records that runtime-only blocks (e.g. table cells) were recreated,
-    /// so the next runtime-context sync refreshes them even when the
+    /// so the next reference-context sync refreshes them even when the
     /// document registries are unchanged.
     pub(crate) fn mark_structure_changed(&mut self) {
         self.structure_version += 1;

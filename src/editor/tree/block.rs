@@ -10,7 +10,7 @@ use unicode_segmentation::*;
 
 use crate::editor::block_protocol::{BlockAction, UndoCaptureKind};
 use crate::editor::editing::projection::ExpandedInlineProjection;
-use crate::editor::editing::table_runtime::TableGrid;
+use crate::editor::editing::table_grid::TableGrid;
 use crate::editor::geometry::text_layout as element;
 use crate::editor::render::code_highlight::highlight::CodeHighlightResult;
 use crate::editor::render::mermaid_render::MermaidSvgRender;
@@ -128,7 +128,7 @@ pub struct Block {
     pub(crate) edit_mode: BlockEditMode,
     show_source_line_numbers: bool,
     pub(crate) show_code_line_numbers: bool,
-    pub(crate) table_runtime: Option<TableGrid>,
+    pub(crate) table_grid: Option<TableGrid>,
     pub(crate) table_cell_position: Option<TableCellPosition>,
     pub(crate) table_cell_alignment: Option<TableColumnAlignment>,
     pub(crate) table_axis_preview: Option<TableAxisMarker>,
@@ -148,7 +148,7 @@ pub struct Block {
     pub(crate) table_hovered_row: Option<usize>,
     /// Which column is being hovered (for Anytype-style handle visibility).
     pub(crate) table_hovered_column: Option<usize>,
-    pub(crate) image_runtime: Option<ImageHandle>,
+    pub(crate) image_handle: Option<ImageHandle>,
     pub(crate) html_details_open: bool,
     pub(crate) image_base_dir: Option<PathBuf>,
     pub(crate) image_reference_definitions: Arc<ImageReferenceDefinitions>,
@@ -217,7 +217,7 @@ impl Block {
             edit_mode,
             show_source_line_numbers: false,
             show_code_line_numbers: false,
-            table_runtime: None,
+            table_grid: None,
             table_cell_position: None,
             table_cell_alignment: None,
             table_axis_preview: None,
@@ -235,7 +235,7 @@ impl Block {
             table_append_row_close_task: None,
             table_hovered_row: None,
             table_hovered_column: None,
-            image_runtime: None,
+            image_handle: None,
             html_details_open: false,
             image_base_dir: None,
             image_reference_definitions: Arc::default(),
@@ -264,7 +264,7 @@ impl Block {
         self.show_source_line_numbers
     }
 
-    pub(crate) fn set_runtime_context(
+    pub(crate) fn set_reference_context(
         &mut self,
         base_dir: Option<PathBuf>,
         image_reference_definitions: Arc<ImageReferenceDefinitions>,
@@ -282,7 +282,7 @@ impl Block {
         }
         changed |= self.sync_link_reference_definitions(link_reference_definitions);
         changed |= self.sync_footnote_registry(footnote_registry);
-        changed |= self.sync_image_runtime();
+        changed |= self.sync_image_handle();
         changed
     }
 
@@ -461,7 +461,7 @@ impl Block {
             self.projection.is_some() && self.edit_mode.supports_inline_projection();
         self.render_cache = self.record.text.render_cache();
         self.sync_code_highlight();
-        self.sync_image_runtime();
+        self.sync_image_handle();
         self.projection = None;
         self.projection_cache_key = None;
         if keep_projection {

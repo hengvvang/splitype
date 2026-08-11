@@ -434,7 +434,7 @@ impl Block {
                     ));
                 }
                 TableCellInlineImageSegment::Image { markdown, syntax } => {
-                    if let Some(runtime) = self.image_runtime_for_syntax(syntax) {
+                    if let Some(runtime) = self.image_handle_for_syntax(syntax) {
                         children.push(self.render_inline_image_content(&runtime, theme, strings));
                     } else {
                         let tree = crate::model::inline::text::RichText::plain(markdown);

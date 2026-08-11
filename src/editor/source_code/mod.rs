@@ -11,12 +11,12 @@ use crate::model::block::BlockData;
 
 /// The standalone raw-source block backing ONE source-code panel.
 ///
-/// Every `Editing(SourceCode)` panel owns its own runtime (its own block
+/// Every `Editing(SourceCode)` panel owns its own pane state (its own block
 /// entity, cursor, and subscription) so multiple source panels edit
 /// independently; the document content itself stays shared. The owning
 /// area is captured by the subscription closure, so it is not stored here.
 #[derive(Default)]
-pub(crate) struct SourceCodePanelRuntime {
+pub(crate) struct SourceCodePaneState {
     /// The panel's own raw-source block entity.
     pub(crate) block: Option<Entity<Block>>,
     /// Fingerprint of the document at the last sync: when the document is
@@ -38,8 +38,8 @@ impl Editor {
     /// subscription that only syncs Changed events back to the document.
     pub(crate) fn sync_source_pane(&mut self, pane_id: usize, cx: &mut Context<Self>) {
         let revision = self.tab().document_revision;
-        let needs_sync = match self.source_pane_runtimes.get(&pane_id) {
-            Some(runtime) => runtime.synced_revision != Some(revision) || runtime.block.is_none(),
+        let needs_sync = match self.source_pane_states.get(&pane_id) {
+            Some(state) => state.synced_revision != Some(revision) || state.block.is_none(),
             None => true,
         };
         if !needs_sync {
@@ -48,16 +48,16 @@ impl Editor {
         let doc_text = self.doc().to_markdown(cx);
         let doc_hash = Self::hash_str(&doc_text);
 
-        let runtime =
-            self.source_pane_runtimes
-                .entry(pane_id)
-                .or_insert_with(|| SourceCodePanelRuntime {
-                    block: None,
-                    synced_doc_hash: 0,
-                    synced_revision: None,
-                });
-        if runtime.block.is_none() || doc_hash != runtime.synced_doc_hash {
-            runtime.block = None;
+        let state = self
+            .source_pane_states
+            .entry(pane_id)
+            .or_insert_with(|| SourceCodePaneState {
+                block: None,
+                synced_doc_hash: 0,
+                synced_revision: None,
+            });
+        if state.block.is_none() || doc_hash != state.synced_doc_hash {
+            state.block = None;
             let block = Self::new_standalone_block(cx, BlockData::paragraph(doc_text));
             block.update(cx, |block, _cx| block.set_source_document_mode());
             let panel = pane_id;
@@ -65,10 +65,10 @@ impl Editor {
                 this.on_source_pane_changed(panel, block, event, cx);
             })
             .detach();
-            runtime.block = Some(block);
-            runtime.synced_doc_hash = doc_hash;
+            state.block = Some(block);
+            state.synced_doc_hash = doc_hash;
         }
-        runtime.synced_revision = Some(revision);
+        state.synced_revision = Some(revision);
     }
 
     /// Minimal event handler for a Source pane block. Only syncs text
@@ -99,9 +99,9 @@ impl Editor {
         let synced_hash = Self::hash_str(&self.doc().to_markdown(cx));
         let revision = self.tab().document_revision;
         self.mark_dirty(cx);
-        if let Some(runtime) = self.source_pane_runtimes.get_mut(&pane_id) {
-            runtime.synced_doc_hash = synced_hash;
-            runtime.synced_revision = Some(revision);
+        if let Some(state) = self.source_pane_states.get_mut(&pane_id) {
+            state.synced_doc_hash = synced_hash;
+            state.synced_revision = Some(revision);
         }
     }
 }

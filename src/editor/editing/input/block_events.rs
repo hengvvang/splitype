@@ -112,7 +112,7 @@ impl Editor {
                 if should_normalize_quote {
                     self.normalize_rendered_quote_structure(cx);
                 } else {
-                    self.sync_runtime_after_block_change(&block, cx);
+                    self.sync_references_after_block_change(&block, cx);
                 }
                 if let Some(focus_id) = callout_focus_target {
                     self.focus_block(focus_id);
@@ -159,7 +159,7 @@ impl Editor {
                     vec![new_block.clone()],
                     cx,
                 );
-                self.rebuild_image_runtimes(cx);
+                self.rebuild_reference_registries(cx);
                 self.focus_block(new_block.entity_id());
                 if current_kind.is_quote_container() {
                     self.normalize_rendered_quote_structure(cx);
@@ -189,7 +189,7 @@ impl Editor {
                     vec![new_block],
                     cx,
                 );
-                self.rebuild_image_runtimes(cx);
+                self.rebuild_reference_registries(cx);
                 self.focus_block(block.entity_id());
                 self.mark_dirty(cx);
                 self.finalize_pending_undo_capture(cx);
@@ -206,7 +206,7 @@ impl Editor {
                 let created = self.ensure_callout_body_entry(&block, cx);
                 if let Some(body) = created {
                     self.focus_block(body.entity_id());
-                    self.rebuild_image_runtimes(cx);
+                    self.rebuild_reference_registries(cx);
                     if needs_body {
                         self.mark_dirty(cx);
                         self.finalize_pending_undo_capture(cx);
@@ -269,7 +269,7 @@ impl Editor {
                 self.doc_mut()
                     .insert_blocks_at(parent, insert_index, blocks, cx);
                 self.focus_block(plain.entity_id());
-                self.rebuild_image_runtimes(cx);
+                self.rebuild_reference_registries(cx);
                 self.mark_dirty(cx);
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
@@ -316,7 +316,7 @@ impl Editor {
                 if quote_related {
                     self.normalize_rendered_quote_structure(cx);
                 } else {
-                    self.rebuild_image_runtimes(cx);
+                    self.rebuild_reference_registries(cx);
                 }
                 self.mark_dirty(cx);
                 self.finalize_pending_undo_capture(cx);
@@ -360,7 +360,7 @@ impl Editor {
                     if quote_related {
                         self.normalize_rendered_quote_structure(cx);
                     } else {
-                        self.rebuild_image_runtimes(cx);
+                        self.rebuild_reference_registries(cx);
                     }
                     self.mark_dirty(cx);
                     self.finalize_pending_undo_capture(cx);
@@ -393,7 +393,7 @@ impl Editor {
                     inserted_roots.clone(),
                     cx,
                 );
-                self.rebuild_table_runtimes(cx);
+                self.rebuild_table_grids(cx);
 
                 // A structural block pasted at the very end of the document leaves
                 // no line below it; remember that so a trailing paragraph can be
@@ -409,18 +409,13 @@ impl Editor {
 
                 if let Some(last_root) = inserted_roots.last() {
                     let focus_block = if last_root.read(cx).kind() == BlockKind::Table {
-                        last_root
-                            .read(cx)
-                            .table_runtime
-                            .as_ref()
-                            .and_then(|runtime| {
-                                runtime
-                                    .rows
-                                    .last()
-                                    .and_then(|row| row.last())
-                                    .cloned()
-                                    .or_else(|| runtime.header.last().cloned())
-                            })
+                        last_root.read(cx).table_grid.as_ref().and_then(|grid| {
+                            grid.rows
+                                .last()
+                                .and_then(|row| row.last())
+                                .cloned()
+                                .or_else(|| grid.header.last().cloned())
+                        })
                     } else {
                         self.doc().last_descendant(last_root.entity_id())
                     };
@@ -440,9 +435,9 @@ impl Editor {
                     });
                     let cursor = focus_block.read(cx).display_text().len();
                     Self::reset_block_cursor(&focus_block, cursor, cx);
-                    self.rebuild_image_runtimes(cx);
+                    self.rebuild_reference_registries(cx);
                     if let Some(binding) = self.table_cell_binding(focus_block.entity_id()) {
-                        self.sync_table_record_from_runtime(&binding.table_block, cx);
+                        self.sync_table_record_from_grid(&binding.table_block, cx);
                     }
                     self.focus_block(focus_block.entity_id());
                 }
@@ -599,7 +594,7 @@ impl Editor {
                 };
 
                 self.focus_block(downgraded.entity_id());
-                self.rebuild_image_runtimes(cx);
+                self.rebuild_reference_registries(cx);
                 self.mark_dirty(cx);
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();

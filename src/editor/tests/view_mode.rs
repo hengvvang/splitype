@@ -1,12 +1,11 @@
-//! View-mode toggling: preserved runtimes and positions.
+//! View-mode toggling: preserved image handles and positions.
 
 use gpui::{AppContext, TestAppContext};
 
 use crate::editor::controller::{Editor, EditorMode};
 
-
 #[gpui::test]
-async fn toggling_source_mode_preserves_root_image_runtime(cx: &mut TestAppContext) {
+async fn toggling_source_mode_preserves_root_image_handle(cx: &mut TestAppContext) {
     let markdown = "![diagram](./assets/diagram.png)".to_string();
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -19,14 +18,12 @@ async fn toggling_source_mode_preserves_root_image_runtime(cx: &mut TestAppConte
 
     editor.read_with(cx, |editor, cx| {
         let block = editor.doc().first_root().expect("root block").clone();
-        assert!(block.read(cx).image_runtime().is_some());
+        assert!(block.read(cx).image_handle().is_some());
     });
 }
 
 #[gpui::test]
-async fn toggling_source_mode_preserves_reference_style_root_image_runtime(
-    cx: &mut TestAppContext,
-) {
+async fn toggling_source_mode_preserves_reference_style_root_image_handle(cx: &mut TestAppContext) {
     let markdown = "![diagram][ref]\n\n[ref]: ./assets/diagram.png".to_string();
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -39,13 +36,13 @@ async fn toggling_source_mode_preserves_reference_style_root_image_runtime(
 
     editor.read_with(cx, |editor, cx| {
         let block = editor.doc().first_root().expect("root block").clone();
-        let runtime = block.read(cx).image_runtime().expect("image runtime");
-        assert_eq!(runtime.src, "./assets/diagram.png");
+        let handle = block.read(cx).image_handle().expect("image handle");
+        assert_eq!(handle.src, "./assets/diagram.png");
     });
 }
 
 #[gpui::test]
-async fn toggling_source_mode_preserves_quote_child_image_runtime(cx: &mut TestAppContext) {
+async fn toggling_source_mode_preserves_quote_child_image_handle(cx: &mut TestAppContext) {
     let markdown = "> ![diagram](./assets/diagram.png)".to_string();
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -64,12 +61,12 @@ async fn toggling_source_mode_preserves_quote_child_image_runtime(cx: &mut TestA
             .first()
             .expect("quote image child")
             .clone();
-        assert!(image_block.read(cx).image_runtime().is_some());
+        assert!(image_block.read(cx).image_handle().is_some());
     });
 }
 
 #[gpui::test]
-async fn toggling_source_mode_preserves_list_item_image_runtime(cx: &mut TestAppContext) {
+async fn toggling_source_mode_preserves_list_item_image_handle(cx: &mut TestAppContext) {
     let markdown = "- ![diagram](./assets/diagram.png)".to_string();
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -82,12 +79,12 @@ async fn toggling_source_mode_preserves_list_item_image_runtime(cx: &mut TestApp
 
     editor.read_with(cx, |editor, cx| {
         let block = editor.doc().first_root().expect("list item root").clone();
-        assert!(block.read(cx).image_runtime().is_some());
+        assert!(block.read(cx).image_handle().is_some());
     });
 }
 
 #[gpui::test]
-async fn toggling_source_mode_preserves_list_child_image_runtime(cx: &mut TestAppContext) {
+async fn toggling_source_mode_preserves_list_child_image_handle(cx: &mut TestAppContext) {
     let markdown = "- item\n  ![diagram](./assets/diagram.png)".to_string();
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -106,7 +103,6 @@ async fn toggling_source_mode_preserves_list_child_image_runtime(cx: &mut TestAp
             .first()
             .expect("list child image")
             .clone();
-        assert!(image_block.read(cx).image_runtime().is_some());
+        assert!(image_block.read(cx).image_handle().is_some());
     });
 }
-

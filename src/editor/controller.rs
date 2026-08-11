@@ -2,8 +2,9 @@
 //!
 //! [`Editor`] aggregates the editor's own state: the runtime block tree
 //! (`Document`), view mode, scroll state, focus deferral, undo, and the
-//! editor's panes (preview, outline, source-code runtime). State is grouped
-//! into cohesive sub-records (`file`, `focus`, `undo`, `scroll`, `tables`,
+//! editor's panes (preview, outline, source-code pane states). State is
+//! grouped into cohesive sub-records (`file`, `focus`, `undo`, `scroll`,
+//! `tables`,
 //! `preview`, `references`, `menu_bar`, `overlays`) plus the session
 //! aggregate defined in `super::session_ops` / `super::session`.
 
@@ -28,7 +29,7 @@ pub(crate) use crate::editor::tree::footnotes::{
 };
 pub(crate) use crate::editor::view::context_menu::ContextMenuState;
 pub(crate) use crate::editor::view::dialogs::TableInsertDialogState;
-pub(crate) use crate::editor::{PreviewState, SourceCodePanelRuntime};
+pub(crate) use crate::editor::{PreviewState, SourceCodePaneState};
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::model::inline::text::RichText;
 pub(crate) use crate::model::syntax::image::{
@@ -111,8 +112,8 @@ pub(crate) struct ReferenceRegistries {
     /// re-resolve image sources whenever this changes.
     pub(crate) base_dir: Option<PathBuf>,
     /// Document structure version at the time every current block last
-    /// received its runtime context. A mismatch means blocks were added or
-    /// replaced since, so the per-block sync cannot be skipped.
+    /// received its reference context. A mismatch means blocks were added
+    /// or replaced since, so the per-block sync cannot be skipped.
     pub(crate) synced_structure_version: u64,
     /// Blocks and table cells that could contribute reference definitions,
     /// footnote content, or standalone-image syntax, cached at the last full
@@ -123,7 +124,7 @@ pub(crate) struct ReferenceRegistries {
 
 /// Native table cell bindings and axis selections.
 #[derive(Default)]
-pub(crate) struct TableRuntimes {
+pub(crate) struct TableGrids {
     pub(crate) cells: HashMap<EntityId, TableCellBinding>,
     pub(crate) axis_preview: Option<TableAxisSelection>,
     pub(crate) axis_selection: Option<TableAxisSelection>,
@@ -188,7 +189,7 @@ pub(crate) struct DocumentTab {
     pub(crate) selection: SelectionState,
     pub(crate) undo: UndoHistory,
     pub(crate) references: ReferenceRegistries,
-    pub(crate) tables: TableRuntimes,
+    pub(crate) tables: TableGrids,
     pub(crate) preview: PreviewState,
     pub(crate) scroll: ScrollState,
 }
@@ -248,13 +249,13 @@ pub struct Editor {
     /// One Editor entity serves one area, so the area (panel) id alone
     /// identifies it.
     pub(crate) focused_pane: Option<usize>,
-    /// Per-SourceCode-pane editing runtimes, keyed by the pane id. Each
+    /// Per-SourceCode-pane editing states, keyed by the pane id. Each
     /// source pane owns its own block entity so multiple source panels edit
-    /// independently; see `SourceCodePanelRuntime`.
-    pub(crate) source_pane_runtimes: HashMap<usize, SourceCodePanelRuntime>,
+    /// independently; see `SourceCodePaneState`.
+    pub(crate) source_pane_states: HashMap<usize, SourceCodePaneState>,
 }
 
-/// Runtime binding between a table block and one cell editor.
+/// Binding between a table block and one cell editor.
 #[derive(Clone)]
 pub(crate) struct TableCellBinding {
     pub(crate) table_block: Entity<Block>,
@@ -436,7 +437,7 @@ impl Editor {
             table_insert_dialog: None,
             welcome_last_click: None,
             focused_pane: None,
-            source_pane_runtimes: HashMap::new(),
+            source_pane_states: HashMap::new(),
         };
         this
     }
@@ -466,11 +467,11 @@ impl Editor {
             table_insert_dialog: None,
             welcome_last_click: None,
             focused_pane: None,
-            source_pane_runtimes: HashMap::new(),
+            source_pane_states: HashMap::new(),
         };
         editor.session.tab_list.tabs.push(tab);
-        editor.rebuild_table_runtimes(cx);
-        editor.rebuild_image_runtimes(cx);
+        editor.rebuild_table_grids(cx);
+        editor.rebuild_reference_registries(cx);
         editor.refresh_preview_blocks(cx);
         editor.tab_mut().focus.pending = editor.first_focusable_entity_id(cx);
         editor.tab_mut().focus.active_entity = editor.tab().focus.pending;
@@ -517,7 +518,7 @@ impl Editor {
                 ..UndoHistory::default()
             },
             references: ReferenceRegistries::default(),
-            tables: TableRuntimes::default(),
+            tables: TableGrids::default(),
             preview: PreviewState::default(),
             scroll: ScrollState::default(),
         }
@@ -705,9 +706,9 @@ impl Editor {
                 Some(EditorPaneKind::SourceCode) => {
                     self.sync_source_pane(pane_id, cx);
                     if let Some(block) = self
-                        .source_pane_runtimes
+                        .source_pane_states
                         .get(&pane_id)
-                        .and_then(|runtime| runtime.block.clone())
+                        .and_then(|state| state.block.clone())
                     {
                         block.read(cx).focus_handle.focus(window);
                     }

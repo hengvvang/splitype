@@ -108,7 +108,7 @@ impl Editor {
             .or_else(|| std::env::current_dir().ok())
     }
 
-    pub(crate) fn sync_runtime_context_for_block(
+    pub(crate) fn sync_reference_context_for_block(
         &self,
         block: &Entity<Block>,
         base_dir: Option<&Path>,
@@ -119,10 +119,10 @@ impl Editor {
         let link_reference_definitions = self.tab().references.link.clone();
         let footnote_registry = self.tab().references.footnotes.clone();
         block.update(cx, move |block, cx| {
-            // Only repaint blocks whose runtime context actually changed;
+            // Only repaint blocks whose reference context actually changed;
             // with the registries now reused by value comparison, most blocks
             // keep their old context on any given edit.
-            if block.set_runtime_context(
+            if block.set_reference_context(
                 next_base_dir.clone(),
                 image_reference_definitions.clone(),
                 link_reference_definitions.clone(),
@@ -228,7 +228,7 @@ impl Editor {
     /// kinds or in text containing `]:`; footnote bindings need `[^` markers;
     /// standalone images start with `![`. Code-block text is fence-suppressed
     /// by the scanners, so it is excluded.
-    fn block_has_runtime_sync_candidates(block: &Block) -> bool {
+    fn block_has_registry_candidates(block: &Block) -> bool {
         if block.record.preserves_raw_source() || block.kind() == BlockKind::FootnoteDefinition {
             return true;
         }
@@ -242,15 +242,15 @@ impl Editor {
     /// Entity ids of every block and table cell whose text could contribute
     /// reference definitions, footnote content, or standalone-image syntax to
     /// the document-wide registries.
-    fn collect_runtime_sync_candidates(&self, cx: &App) -> HashSet<EntityId> {
+    fn collect_registry_candidates(&self, cx: &App) -> HashSet<EntityId> {
         let mut candidates = HashSet::new();
         for entries in self.doc().blocks() {
-            if Self::block_has_runtime_sync_candidates(entries.entity.read(cx)) {
+            if Self::block_has_registry_candidates(entries.entity.read(cx)) {
                 candidates.insert(entries.entity.entity_id());
             }
         }
         for binding in self.tab().tables.cells.values() {
-            if Self::block_has_runtime_sync_candidates(binding.cell.read(cx)) {
+            if Self::block_has_registry_candidates(binding.cell.read(cx)) {
                 candidates.insert(binding.cell.entity_id());
             }
         }
@@ -260,8 +260,8 @@ impl Editor {
     /// Per-edit entry point: run the document-wide registry rebuild only
     /// when the edited block could have contributed reference definitions,
     /// footnote content, or standalone images to it. The block's own image
-    /// runtime is already refreshed by `sync_render_cache` during the edit.
-    pub(crate) fn sync_runtime_after_block_change(
+    /// handle is already refreshed by `sync_render_cache` during the edit.
+    pub(crate) fn sync_references_after_block_change(
         &mut self,
         block: &Entity<Block>,
         cx: &mut Context<Self>,
@@ -271,25 +271,25 @@ impl Editor {
             .references
             .candidate_blocks
             .contains(&block.entity_id());
-        let now_candidate = Self::block_has_runtime_sync_candidates(&block.read(cx));
+        let now_candidate = Self::block_has_registry_candidates(&block.read(cx));
         if !was_candidate
             && !now_candidate
             && self.tab().references.base_dir == self.image_base_dir()
         {
             return;
         }
-        self.rebuild_image_runtimes(cx);
+        self.rebuild_reference_registries(cx);
     }
 
-    pub(crate) fn rebuild_image_runtimes(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn rebuild_reference_registries(&mut self, cx: &mut Context<Self>) {
         use std::sync::Arc;
 
         let base_dir = self.image_base_dir();
 
         // Cache which blocks/cells could contribute to the registries so the
-        // per-edit path (`sync_runtime_after_block_change`) can skip the
+        // per-edit path (`sync_references_after_block_change`) can skip the
         // rebuild when an unrelated block changed.
-        let candidate_blocks = self.collect_runtime_sync_candidates(cx);
+        let candidate_blocks = self.collect_registry_candidates(cx);
         self.tab_mut().references.candidate_blocks = candidate_blocks.clone();
 
         // Fast path: when no block can contribute reference definitions or
@@ -308,7 +308,7 @@ impl Editor {
             && registries_empty
             && self.tab().references.base_dir == base_dir
         {
-            // No block needs a runtime context, so the (empty) context is
+            // No block needs a reference context, so the (empty) context is
             // already correct for every block in the document.
             self.tab_mut().references.synced_structure_version = self.doc().structure_version();
             return;
@@ -344,19 +344,19 @@ impl Editor {
         let base_dir = self.tab().references.base_dir.clone();
         let entries = self.doc().blocks().to_vec();
         for entry in entries {
-            self.sync_runtime_context_for_block(&entry.entity, base_dir.as_deref(), cx);
+            self.sync_reference_context_for_block(&entry.entity, base_dir.as_deref(), cx);
             if entry.entity.read(cx).kind() != BlockKind::Table {
                 continue;
             }
-            let Some(runtime) = entry.entity.read(cx).table_runtime.clone() else {
+            let Some(grid) = entry.entity.read(cx).table_grid.clone() else {
                 continue;
             };
-            for cell in runtime.header {
-                self.sync_runtime_context_for_block(&cell, base_dir.as_deref(), cx);
+            for cell in grid.header {
+                self.sync_reference_context_for_block(&cell, base_dir.as_deref(), cx);
             }
-            for row in runtime.rows {
+            for row in grid.rows {
                 for cell in row {
-                    self.sync_runtime_context_for_block(&cell, base_dir.as_deref(), cx);
+                    self.sync_reference_context_for_block(&cell, base_dir.as_deref(), cx);
                 }
             }
         }
@@ -377,9 +377,9 @@ impl Editor {
         if first_root.read(cx).kind() == BlockKind::Table {
             return first_root
                 .read(cx)
-                .table_runtime
+                .table_grid
                 .as_ref()
-                .and_then(|runtime| runtime.header.first())
+                .and_then(|grid| grid.header.first())
                 .map(|cell| cell.entity_id())
                 .or_else(|| Some(first_root.entity_id()));
         }

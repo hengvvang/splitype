@@ -1,4 +1,4 @@
-//! Rendered standalone image runtime state.
+//! Rendered standalone image handle state.
 
 use std::path::Path;
 
@@ -7,8 +7,8 @@ use crate::model::block::BlockKind;
 use crate::model::syntax::image::{ImageSyntax, parse_standalone_image, resolve_image_source};
 
 impl Block {
-    pub(crate) fn image_runtime(&self) -> Option<&ImageHandle> {
-        self.image_runtime.as_ref()
+    pub(crate) fn image_handle(&self) -> Option<&ImageHandle> {
+        self.image_handle.as_ref()
     }
 
     pub(super) fn can_present_as_image(&self) -> bool {
@@ -24,13 +24,13 @@ impl Block {
 
     /// Whether this block's text is a lone image that renders as a
     /// self-contained image widget. Unlike `showing_rendered_image`, this is
-    /// derived from the block text rather than the computed runtime, so it is
-    /// valid before image runtimes are (re)built.
+    /// derived from the block text rather than the computed handle, so it is
+    /// valid before image handles are (re)built.
     pub(crate) fn is_standalone_image(&self) -> bool {
-        self.can_present_as_image() && self.standalone_image_markdown_for_runtime().is_some()
+        self.can_present_as_image() && self.standalone_image_markdown_for_handle().is_some()
     }
 
-    pub(super) fn compute_image_runtime(
+    pub(super) fn compute_image_handle(
         &self,
         base_dir: Option<&Path>,
         syntax: ImageSyntax,
@@ -44,33 +44,33 @@ impl Block {
         })
     }
 
-    pub(crate) fn image_runtime_for_syntax(&self, syntax: ImageSyntax) -> Option<ImageHandle> {
-        self.compute_image_runtime(self.image_base_dir.as_deref(), syntax)
+    pub(crate) fn image_handle_for_syntax(&self, syntax: ImageSyntax) -> Option<ImageHandle> {
+        self.compute_image_handle(self.image_base_dir.as_deref(), syntax)
     }
 
     pub(crate) fn image_base_dir(&self) -> Option<&Path> {
         self.image_base_dir.as_deref()
     }
 
-    pub(crate) fn sync_image_runtime(&mut self) -> bool {
+    pub(crate) fn sync_image_handle(&mut self) -> bool {
         let next_runtime = if self.can_present_as_image() {
-            self.standalone_image_markdown_for_runtime()
+            self.standalone_image_markdown_for_handle()
                 .and_then(|markdown| parse_standalone_image(&markdown))
                 .and_then(|syntax| {
-                    self.compute_image_runtime(self.image_base_dir.as_deref(), syntax)
+                    self.compute_image_handle(self.image_base_dir.as_deref(), syntax)
                 })
         } else {
             None
         };
 
-        if self.image_runtime == next_runtime {
+        if self.image_handle == next_runtime {
             return false;
         }
-        self.image_runtime = next_runtime;
+        self.image_handle = next_runtime;
         true
     }
 
-    fn standalone_image_markdown_for_runtime(&self) -> Option<String> {
+    fn standalone_image_markdown_for_handle(&self) -> Option<String> {
         let visible = self.record.text.plain_text();
         if parse_standalone_image(&visible).is_some() {
             return Some(visible);
@@ -87,6 +87,6 @@ impl Block {
     }
 
     pub(crate) fn showing_rendered_image(&self) -> bool {
-        self.image_runtime.is_some() && !self.is_verbatim_mode()
+        self.image_handle.is_some() && !self.is_verbatim_mode()
     }
 }

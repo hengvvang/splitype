@@ -42,7 +42,7 @@ impl Editor {
         // Drop runtimes of panes that were closed or joined. (One Editor
         // entity serves one panel, so all runtimes here belong to this
         // render pass.)
-        self.source_pane_runtimes
+        self.source_pane_states
             .retain(|pane, _| self.session.root.tree.contains_leaf(*pane));
 
         // Derive the focused pane from the keyboard focus when nothing is
@@ -54,8 +54,8 @@ impl Editor {
             && self.panel_mode().is_editing()
             && let Some(target_id) = self.focused_edit_target_entity_id(window, cx)
         {
-            if let Some((pane_id, _)) = self.source_pane_runtimes.iter().find(|(_, runtime)| {
-                runtime
+            if let Some((pane_id, _)) = self.source_pane_states.iter().find(|(_, state)| {
+                state
                     .block
                     .as_ref()
                     .is_some_and(|block| block.entity_id() == target_id)

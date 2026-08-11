@@ -173,7 +173,7 @@ impl Editor {
             self.focus_block(new_paragraph.entity_id());
         }
 
-        self.rebuild_image_runtimes(cx);
+        self.rebuild_reference_registries(cx);
         self.mark_dirty(cx);
         self.finalize_pending_undo_capture(cx);
         cx.notify();
@@ -243,7 +243,7 @@ impl Editor {
             vec![table_block.clone(), new_paragraph.clone()],
             cx,
         );
-        self.rebuild_table_runtimes(cx);
+        self.rebuild_table_grids(cx);
         self.focus_block(new_paragraph.entity_id());
         self.mark_dirty(cx);
         self.finalize_pending_undo_capture(cx);
@@ -259,7 +259,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) -> bool {
         // Capture any in-progress cell edits before mutating the record.
-        self.sync_table_record_from_runtime(table_block, cx);
+        self.sync_table_record_from_grid(table_block, cx);
         let Some(mut table) = table_block.read(cx).record.table.clone() else {
             return false;
         };
@@ -290,7 +290,7 @@ impl Editor {
                 cx,
             );
         }
-        self.rebuild_table_runtimes(cx);
+        self.rebuild_table_grids(cx);
         self.focus_block(new_paragraph.entity_id());
         self.mark_dirty(cx);
         self.finalize_pending_undo_capture(cx);

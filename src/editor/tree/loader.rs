@@ -32,7 +32,7 @@ impl Editor {
         records_to_entity_blocks(records, cx)
     }
     /// Replace the whole document with a fresh parse of `markdown`,
-    /// rebuilding table/image runtimes and bumping the document revision.
+    /// rebuilding table/image handles and bumping the document revision.
     ///
     /// Mode-dependent: Wysiwyg parses blocks; SourceCode rebuilds a single
     /// raw block (the tab's mode must be set by the caller beforehand).
@@ -48,8 +48,8 @@ impl Editor {
                     roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
                 }
                 self.doc_mut().replace_blocks(roots, cx);
-                self.rebuild_table_runtimes(cx);
-                self.rebuild_image_runtimes(cx);
+                self.rebuild_table_grids(cx);
+                self.rebuild_reference_registries(cx);
             }
             EditorMode::SourceCode => {
                 let block = Self::new_block(cx, BlockData::paragraph(markdown.to_string()));

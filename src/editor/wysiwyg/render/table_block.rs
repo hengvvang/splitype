@@ -4,7 +4,7 @@
 use gpui::*;
 
 use crate::editor::block_protocol::BlockAction;
-use crate::editor::editing::table_runtime::TableGrid;
+use crate::editor::editing::table_grid::TableGrid;
 use crate::editor::geometry::table_measure::measure_table_column_layout;
 use crate::editor::wysiwyg::render::effective_table_width;
 use crate::editor::tree::block::Block;
@@ -29,7 +29,7 @@ pub(crate) fn render_table(
     let d = &theme.dimensions;
     let t = &theme.typography;
 
-    let Some(runtime) = block.table_runtime.clone() else {
+    let Some(runtime) = block.table_grid.clone() else {
         return focused_base
             .text_size(px(t.text_size))
             .text_color(c.text_default)
@@ -594,12 +594,12 @@ impl Block {
         self.sync_render_cache();
     }
 
-    pub(crate) fn set_table_runtime(&mut self, runtime: TableGrid) {
-        self.table_runtime = Some(runtime);
+    pub(crate) fn set_table_grid(&mut self, runtime: TableGrid) {
+        self.table_grid = Some(runtime);
     }
 
-    pub(crate) fn clear_table_runtime(&mut self) {
-        self.table_runtime = None;
+    pub(crate) fn clear_table_grid(&mut self) {
+        self.table_grid = None;
         self.table_axis_preview = None;
         self.table_axis_selection = None;
         self.table_axis_highlight = TableAxisHighlight::None;
