@@ -34,18 +34,18 @@ impl Editor {
     ///
     /// The block is created as a standalone entity with a minimal
     /// subscription that only syncs Changed events back to the document.
-    pub(crate) fn sync_source_code_panel(
+    pub(crate) fn sync_source_pane(
         &mut self,
-        area_id: NodeId,
-        panel_id: usize,
+        panel_id: NodeId,
+        pane_id: usize,
         cx: &mut Context<Self>,
     ) {
         let doc_text = self.doc().to_markdown(cx);
         let doc_hash = Self::hash_str(&doc_text);
 
         let runtime = self
-            .source_code_panel_runtimes
-            .entry(panel_id)
+            .source_pane_runtimes
+            .entry(pane_id)
             .or_insert_with(|| SourceCodePanelRuntime {
                 block: None,
                 synced_doc_hash: 0,
@@ -54,8 +54,8 @@ impl Editor {
             runtime.block = None;
             let block = Self::new_standalone_block(cx, BlockData::paragraph(doc_text));
             block.update(cx, |block, _cx| block.set_source_document_mode());
-            let area = area_id;
-            let panel = panel_id;
+            let area = panel_id;
+            let panel = pane_id;
             cx.subscribe(&block, move |this, block, event, cx| {
                 this.on_source_code_panel_changed(area, panel, block, event, cx);
             })
@@ -70,8 +70,8 @@ impl Editor {
     /// processing. Routed to the owning area by the subscription closure.
     pub(crate) fn on_source_code_panel_changed(
         &mut self,
-        _area_id: usize,
-        panel_id: usize,
+        _panel_id: usize,
+        pane_id: usize,
         block: Entity<Block>,
         event: &BlockAction,
         cx: &mut Context<Self>,
@@ -98,7 +98,7 @@ impl Editor {
         // block and drop the user's trailing newline. The block keeps the
         // user's bytes; the document is the parsed form.
         let synced_hash = Self::hash_str(&self.doc().to_markdown(cx));
-        if let Some(runtime) = self.source_code_panel_runtimes.get_mut(&panel_id) {
+        if let Some(runtime) = self.source_pane_runtimes.get_mut(&pane_id) {
             runtime.synced_doc_hash = synced_hash;
         }
         self.mark_dirty(cx);

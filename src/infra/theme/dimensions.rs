@@ -228,8 +228,8 @@ pub struct ThemeDimensions {
     /// Font size for status bar text.
     pub bottombar_text_size: f32,
     pub area_tile_gap: f32,
-    /// Uniform inset of an editor inner panel inside its split area.
-    pub inner_panel_gap: f32,
+    /// Uniform inset of a pane inside its split panel.
+    pub pane_gap: f32,
     pub area_tile_radius: f32,
 }
 
@@ -348,7 +348,7 @@ struct ThemeDimensionsDe {
     bottombar_item_gap: Option<f32>,
     bottombar_text_size: Option<f32>,
     area_tile_gap: Option<f32>,
-    inner_panel_gap: Option<f32>,
+    pane_gap: Option<f32>,
     area_tile_radius: Option<f32>,
 }
 
@@ -475,7 +475,7 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             bottombar_item_gap: raw.bottombar_item_gap.unwrap_or(12.0),
             bottombar_text_size: raw.bottombar_text_size.unwrap_or(11.0),
             area_tile_gap: raw.area_tile_gap.unwrap_or(6.0),
-            inner_panel_gap: raw.inner_panel_gap.unwrap_or(3.0),
+            pane_gap: raw.pane_gap.unwrap_or(3.0),
             area_tile_radius: raw.area_tile_radius.unwrap_or(3.0),
         })
     }

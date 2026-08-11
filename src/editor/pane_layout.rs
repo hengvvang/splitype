@@ -1,12 +1,12 @@
-//! Editor inner panel layout — rendering and gesture driving for the
-//! `EditorInnerPanelKind` split tree (welcome panel + Wysiwyg / Source
-//! Code / Preview / Outline editing panels) inside each Edit area.
+//! Editor pane layout — rendering and gesture driving for the
+//! `EditorPaneKind` split tree (Wysiwyg / Source Code / Preview /
+//! Outline panes) inside each Editor panel.
 //!
-//! The inner-panel state and operations live in
-//! `crate::editor::session_ops`; the window-level area layout
-//! rendering lives in `crate::editor::window_layout`.
+//! The pane state and operations live in `crate::editor::session_ops`;
+//! the window-level panel layout rendering lives in
+//! `crate::editor::window_layout`.
 
-use crate::editor::session::{EditingPanelKind, EditorInnerPanelKind, WelcomePanelKind};
+use crate::editor::session::EditorPaneKind;
 use crate::splitter::{Axis, CornerDragModifier};
 use crate::ui::popover::menu_panel;
 use splitype_splitter::container::SplitterContainer;
@@ -21,29 +21,29 @@ use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 
 impl Editor {
-    /// Render one Editor area's inner panel layout. One Editor entity serves
+    /// Render one Editor area's pane layout. One Editor entity serves
     /// exactly one area, so `tab()`/`doc()` always read this editor's session.
     ///
     /// Side effects before rendering the tree:
     /// - drop runtimes of panels that were closed or joined;
-    /// - derive `focused_editor_inner_panel` from the keyboard focus when
+    /// - derive `focused_pane` from the keyboard focus when
     ///   nothing was explicitly selected (projection fallback).
     pub(crate) fn render_editor_midcontainer(
         &mut self,
-        area_id: usize,
+        panel_id: usize,
         theme: &Theme,
         strings: &I18nStrings,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
-        self.tab_list_mut_for(area_id);
-        let inner_tree = self.ensure_editor_session(area_id).root.tree.clone();
+        self.tab_list_mut_for(panel_id);
+        let inner_tree = self.ensure_editor_session(panel_id).root.tree.clone();
 
         // Drop runtimes of panels that were closed or joined. (One Editor
         // entity serves one area, so all runtimes here belong to this
         // render pass.)
-        self.source_code_panel_runtimes
+        self.source_pane_runtimes
             .retain(|panel, _| self.session.root.tree.contains_leaf(*panel));
 
         // Derive the focused panel from the keyboard focus when nothing is
@@ -51,63 +51,61 @@ impl Editor {
         // reaches the panel div. Explicit clicks take precedence. Only runs
         // for editing areas: a welcome area has no tabs, hence no edit
         // targets to derive from.
-        if self.focused_editor_inner_panel.is_none()
-            && self.area_mode(area_id).is_editing()
+        if self.focused_pane.is_none()
+            && self.area_mode(panel_id).is_editing()
             && let Some(target_id) = self.focused_edit_target_entity_id(window, cx)
         {
-            if let Some((panel_id, _)) =
-                self.source_code_panel_runtimes.iter().find(|(_, runtime)| {
-                    runtime
-                        .block
-                        .as_ref()
-                        .is_some_and(|block| block.entity_id() == target_id)
-                })
-            {
+            if let Some((pane_id, _)) = self.source_pane_runtimes.iter().find(|(_, runtime)| {
+                runtime
+                    .block
+                    .as_ref()
+                    .is_some_and(|block| block.entity_id() == target_id)
+            }) {
                 // Keyboard focus sits in a source panel's own block.
-                if inner_tree.contains_leaf(*panel_id) {
-                    self.focused_editor_inner_panel = Some(*panel_id);
+                if inner_tree.contains_leaf(*pane_id) {
+                    self.focused_pane = Some(*pane_id);
                 }
             } else if self.doc().block_entity_by_id(target_id).is_some() {
                 // Keyboard focus sits in the shared document: point at the
                 // area's first Wysiwyg panel.
                 let mut ids = Vec::new();
                 inner_tree.leaf_ids(&mut ids);
-                if let Some(panel_id) = ids.into_iter().find(|id| {
-                    inner_tree.find_leaf_kind(*id)
-                        == Some(EditorInnerPanelKind::Editing(EditingPanelKind::Wysiwyg))
-                }) {
-                    self.focused_editor_inner_panel = Some(panel_id);
+                if let Some(pane_id) = ids
+                    .into_iter()
+                    .find(|id| inner_tree.find_leaf_kind(*id) == Some(EditorPaneKind::Wysiwyg))
+                {
+                    self.focused_pane = Some(pane_id);
                 }
             }
         }
 
         let inner_rendered =
-            self.render_editor_inner_panel_node(&inner_tree, area_id, theme, strings, window, cx);
+            self.render_editor_pane_node(&inner_tree, panel_id, theme, strings, window, cx);
 
-        let dropdown =
-            {
-                let root = &self.ensure_editor_session(area_id).root;
-                // The open dropdown lives on its panel (panel-level state).
-                let mut ids = Vec::new();
-                root.tree.leaf_ids(&mut ids);
-                let open_panel = ids
-                    .into_iter()
-                    .find(|id| root.tree.find_leaf(*id).is_some_and(|p| p.open_dropdown));
-                if let Some(panel_id) = open_panel {
-                    let current_kind = root.tree.find_leaf_kind(panel_id).unwrap_or(
-                        EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
-                    );
-                    Some(self.render_editor_inner_panel_dropdown_menu(
-                        area_id,
-                        panel_id,
-                        current_kind,
-                        theme,
-                        cx,
-                    ))
-                } else {
-                    None
-                }
-            };
+        let dropdown = {
+            let root = &self.ensure_editor_session(panel_id).root;
+            // The open dropdown lives on its panel (panel-level state).
+            let mut ids = Vec::new();
+            root.tree.leaf_ids(&mut ids);
+            let open_panel = ids
+                .into_iter()
+                .find(|id| root.tree.find_leaf(*id).is_some_and(|p| p.open_dropdown));
+            if let Some(pane_id) = open_panel {
+                let current_kind = root
+                    .tree
+                    .find_leaf_kind(pane_id)
+                    .unwrap_or(EditorPaneKind::SourceCode);
+                Some(self.render_editor_pane_dropdown_menu(
+                    panel_id,
+                    pane_id,
+                    current_kind,
+                    theme,
+                    cx,
+                ))
+            } else {
+                None
+            }
+        };
 
         let mut container = div()
             .w_full()
@@ -134,14 +132,18 @@ impl Editor {
             ..Default::default()
         };
         let inner_size = self
-            .area_rect
+            .panel_rect
             .map(|rect| size(rect.size.width, rect.size.height))
             .unwrap_or_else(|| window.viewport_size());
         // The corner-drag session lives on the dragging panel itself;
         // find it via the root.
-        if let Some(drag_panel) = self.ensure_editor_session(area_id).root.corner_drag_panel() {
+        if let Some(drag_panel) = self
+            .ensure_editor_session(panel_id)
+            .root
+            .corner_drag_panel()
+        {
             let drag = self
-                .ensure_editor_session(area_id)
+                .ensure_editor_session(panel_id)
                 .root
                 .tree
                 .find_leaf(drag_panel)
@@ -151,7 +153,7 @@ impl Editor {
             if drag.modifier == splitype_splitter::sessions::CornerDragModifier::None {
                 if let Some(preview) =
                     crate::editor::corner_drag_preview::render_corner_drag_preview(
-                        &self.ensure_editor_session(area_id).root,
+                        &self.ensure_editor_session(panel_id).root,
                         &drag,
                         inner_size,
                         &overlay_style,
@@ -162,14 +164,14 @@ impl Editor {
             }
         }
 
-        // Inner-panel border menu: same context menu as the outer window
+        // Pane border menu: same context menu as the outer window
         // areas, rendered by the layout crate and wired to the per-area
-        // inner-panel operations. The split node id doubles as the id of
+        // pane operations. The split node id doubles as the id of
         // its second (right/bottom) leaf, matching the outer tree's
         // semantics: Split/Close act on that side, Swap flips the sides.
-        if let Some(border_menu) = self.ensure_editor_session(area_id).root.active_border_menu {
+        if let Some(border_menu) = self.ensure_editor_session(panel_id).root.active_border_menu {
             let menu_overlay =
-                self.render_editor_inner_panel_border_menu(border_menu, area_id, theme, cx);
+                self.render_editor_pane_border_menu(border_menu, panel_id, theme, cx);
             container = container.child(menu_overlay);
         }
 
@@ -186,7 +188,7 @@ impl Editor {
         if self.session.root.active_splitter_drag.is_some() {
             let session = &mut self.session;
             let drag = session.root.active_splitter_drag.unwrap();
-            let Some(outer_rect) = self.area_rect else {
+            let Some(outer_rect) = self.panel_rect else {
                 return false;
             };
             let origin = outer_rect.origin;
@@ -219,7 +221,7 @@ impl Editor {
         // hovered one, Shift ends the gesture as a no-op. Plain drags
         // defer to the inner drag policy on mouse-up.
         if self.session.root.corner_drag_panel().is_some() {
-            let area_id = self.area_id;
+            let panel_id = self.panel_id;
             let session = &mut self.session;
             let drag_panel = session.root.corner_drag_panel().unwrap();
             let drag = session
@@ -230,7 +232,7 @@ impl Editor {
                 .unwrap();
             let mut pending_swap: Option<(usize, usize)> = None;
             let mut handled = false;
-            if let Some(outer_rect) = self.area_rect {
+            if let Some(outer_rect) = self.panel_rect {
                 let origin = outer_rect.origin;
                 let rect_size = outer_rect.size;
                 let mut updated = drag;
@@ -281,7 +283,7 @@ impl Editor {
                 handled = true;
             }
             if let Some((from, to)) = pending_swap {
-                self.swap_editor_inner_panel_kinds(area_id, from, to);
+                self.swap_pane_kinds(panel_id, from, to);
             }
             return handled;
         }
@@ -289,7 +291,7 @@ impl Editor {
     }
 
     /// End the inner-level drag gesture of the area currently dragging on
-    /// mouse release: finish splitter-bar drags, and run the inner-panel
+    /// mouse release: finish splitter-bar drags, and run the pane
     /// drag policy for corner drags.
     pub(crate) fn finish_inner_drag(&mut self, window: &Window, cx: &mut Context<Self>) {
         // Inner splitter bar drag end.
@@ -298,7 +300,7 @@ impl Editor {
             cx.notify();
         }
         // Inner corner drag end: finish the gesture through the shared
-        // container, then let the inner-panel policy interpret the facts
+        // container, then let the pane policy interpret the facts
         // (Shift is a no-op override).
         let facts = if self.session.root.corner_drag_panel().is_some() {
             self.session.root.finish_corner_drag()
@@ -307,46 +309,42 @@ impl Editor {
         };
         if let Some(facts) = facts {
             let viewport = window.viewport_size();
-            let inner_size = self.area_rect.map(|rect| rect.size).unwrap_or(viewport);
+            let inner_size = self.panel_rect.map(|rect| rect.size).unwrap_or(viewport);
             let session = &mut self.session;
             match facts.modifier {
-                    CornerDragModifier::None => {
-                        let _ = <SplitterContainer<EditorInnerPanelKind> as DragPolicy<
-                            EditorInnerPanelKind,
+                CornerDragModifier::None => {
+                    let _ = <SplitterContainer<EditorPaneKind> as DragPolicy<
+                            EditorPaneKind,
                         >>::on_plain_drag(
                             &mut session.root, &facts, inner_size
                         );
-                    }
-                    CornerDragModifier::Shift => {
-                        let _ = <SplitterContainer<EditorInnerPanelKind> as DragPolicy<
-                            EditorInnerPanelKind,
+                }
+                CornerDragModifier::Shift => {
+                    let _ = <SplitterContainer<EditorPaneKind> as DragPolicy<
+                            EditorPaneKind,
                         >>::on_shift_drag(
                             &mut session.root, &facts, inner_size
                         );
-                    }
-                    CornerDragModifier::Ctrl => {
-                        <SplitterContainer<EditorInnerPanelKind> as DragPolicy<
-                            EditorInnerPanelKind,
-                        >>::on_ctrl_drag(
-                            &mut session.root, &facts, inner_size
-                        )
-                    }
-                    CornerDragModifier::Alt => {
-                        <SplitterContainer<EditorInnerPanelKind> as DragPolicy<
-                            EditorInnerPanelKind,
-                        >>::on_alt_drag(
-                            &mut session.root, &facts, inner_size
-                        )
-                    }
                 }
+                CornerDragModifier::Ctrl => <SplitterContainer<EditorPaneKind> as DragPolicy<
+                    EditorPaneKind,
+                >>::on_ctrl_drag(
+                    &mut session.root, &facts, inner_size
+                ),
+                CornerDragModifier::Alt => <SplitterContainer<EditorPaneKind> as DragPolicy<
+                    EditorPaneKind,
+                >>::on_alt_drag(
+                    &mut session.root, &facts, inner_size
+                ),
+            }
             cx.notify();
         }
     }
 
-    pub(crate) fn render_editor_inner_panel_border_menu(
+    pub(crate) fn render_editor_pane_border_menu(
         &mut self,
         border_menu: crate::splitter::BorderMenuState,
-        area_id: usize,
+        panel_id: usize,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -357,38 +355,38 @@ impl Editor {
         let split_h_ed = editor.clone();
         let split_h: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = split_h_ed.update(app, |ed, cx| {
-                ed.split_editor_inner_panel_with_ratio(area_id, split_id, Axis::Horizontal, 0.5);
-                ed.ensure_editor_session(area_id).root.active_border_menu = None;
+                ed.split_pane_with_ratio(panel_id, split_id, Axis::Horizontal, 0.5);
+                ed.ensure_editor_session(panel_id).root.active_border_menu = None;
                 cx.notify();
             });
         });
         let split_v_ed = editor.clone();
         let split_v: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = split_v_ed.update(app, |ed, cx| {
-                ed.split_editor_inner_panel_with_ratio(area_id, split_id, Axis::Vertical, 0.5);
-                ed.ensure_editor_session(area_id).root.active_border_menu = None;
+                ed.split_pane_with_ratio(panel_id, split_id, Axis::Vertical, 0.5);
+                ed.ensure_editor_session(panel_id).root.active_border_menu = None;
                 cx.notify();
             });
         });
         let swap_ed = editor.clone();
         let swap: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = swap_ed.update(app, |ed, cx| {
-                ed.swap_editor_inner_panel_split_sides(area_id, split_id);
+                ed.swap_pane_split_sides(panel_id, split_id);
                 cx.notify();
             });
         });
         let close_ed = editor.clone();
         let close: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = close_ed.update(app, |ed, cx| {
-                ed.close_editor_inner_panel(area_id, split_id);
-                ed.ensure_editor_session(area_id).root.active_border_menu = None;
+                ed.close_pane(panel_id, split_id);
+                ed.ensure_editor_session(panel_id).root.active_border_menu = None;
                 cx.notify();
             });
         });
         let dismiss_ed = editor.clone();
         let dismiss: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = dismiss_ed.update(app, |ed, cx| {
-                ed.ensure_editor_session(area_id).root.active_border_menu = None;
+                ed.ensure_editor_session(panel_id).root.active_border_menu = None;
                 cx.notify();
             });
         });
@@ -419,12 +417,12 @@ impl Editor {
     }
     /// Welcome prompt shown when the explorer is empty: double-click to
     /// start temporary editing in an Untitled tab, or open a file from the
-    /// menus. `panel_id` scopes the element id so multiple split panels can
+    /// menus. `pane_id` scopes the element id so multiple split panels can
     /// each host their own prompt.
     pub(crate) fn render_welcome_prompt(
         &mut self,
-        area_id: usize,
         panel_id: usize,
+        pane_id: usize,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -434,7 +432,7 @@ impl Editor {
 
         div()
             .id(ElementId::Name(
-                format!("welcome-prompt-{area_id}-{panel_id}").into(),
+                format!("welcome-prompt-{panel_id}-{pane_id}").into(),
             ))
             .w_full()
             .h_full()
@@ -458,13 +456,13 @@ impl Editor {
                         // The clicked editor becomes the active editor.
                         if let Some(shell) = ed.shell.clone() {
                             let _ = shell.update(cx, |shell, cx| {
-                                shell.activate_area(area_id, cx);
+                                shell.activate_panel(panel_id, cx);
                             });
                         }
-                        ed.new_untitled_tab(area_id, cx);
+                        ed.new_untitled_tab(panel_id, cx);
                         // Focus the new source panel so typing works
                         // immediately after entering editing.
-                        ed.focus_editor_inner_panel(area_id, panel_id, window, cx);
+                        ed.focus_pane(panel_id, pane_id, window, cx);
                     }
                 });
             })
@@ -484,10 +482,10 @@ impl Editor {
             .into_any_element()
     }
 
-    pub(crate) fn render_editor_inner_panel_node(
+    pub(crate) fn render_editor_pane_node(
         &mut self,
-        node: &splitype_splitter::tree::SplitTree<crate::editor::session::EditorInnerPanelKind>,
-        area_id: usize,
+        node: &splitype_splitter::tree::SplitTree<crate::editor::session::EditorPaneKind>,
+        panel_id: usize,
         theme: &Theme,
         strings: &I18nStrings,
         window: &mut Window,
@@ -506,65 +504,66 @@ impl Editor {
 
         match node {
             SplitTree::Leaf(container) => {
-                let panel_id = container.id;
+                let pane_id = container.id;
                 let kind = container.kind;
                 let inner_editor = cx.entity().downgrade();
 
-                // The panel kind carries the mode: welcome panels render
-                // the guidance prompt, editing panels render their view.
-                let inner_body: AnyElement = match kind {
-                    EditorInnerPanelKind::Welcome(_) => {
-                        self.render_welcome_prompt(area_id, panel_id, theme, cx)
-                    }
-                    EditorInnerPanelKind::Editing(kind) => match kind {
+                // The pane kind is the view type; in the welcome mode
+                // (no tabs) every pane renders the guidance prompt instead
+                // of its view, so the split layout stays visible.
+                let inner_body: AnyElement = if self.area_mode(panel_id).is_editing() {
+                    match kind {
                         // WYSIWYG — this editor's own block editor view.
-                        EditingPanelKind::Wysiwyg => {
-                            self.render_document_view(area_id, panel_id, window, cx)
+                        EditorPaneKind::Wysiwyg => {
+                            self.render_document_view(panel_id, pane_id, window, cx)
                         }
                         // Source — interactive source code editor. Uses a
-                        // cached block in source-document mode; edits sync to
-                        // the shared document via the block's Changed event.
-                        EditingPanelKind::SourceCode => {
-                            self.sync_source_code_panel(area_id, panel_id, cx);
-                            self.render_source_code_panel(area_id, panel_id, theme, cx)
+                        // cached block in source-document mode; edits sync
+                        // to the shared document via the block's Changed
+                        // event.
+                        EditorPaneKind::SourceCode => {
+                            self.sync_source_pane(panel_id, pane_id, cx);
+                            self.render_source_pane(panel_id, pane_id, theme, cx)
                         }
-                        EditingPanelKind::Preview => self.render_tiled_preview_panel(
-                            area_id, panel_id, theme, strings, window, cx,
-                        ),
-                        EditingPanelKind::Outline => {
-                            self.render_tiled_outline_panel(area_id, panel_id, theme, strings, cx)
+                        EditorPaneKind::Preview => {
+                            self.render_preview_pane(panel_id, pane_id, theme, strings, window, cx)
                         }
-                    },
+                        EditorPaneKind::Outline => {
+                            self.render_outline_pane(panel_id, pane_id, theme, strings, cx)
+                        }
+                    }
+                } else {
+                    self.render_welcome_prompt(panel_id, pane_id, theme, cx)
                 };
 
                 let corner_handles = splitype_splitter::interaction::corner_drag_handles(
                     "inner-corner",
-                    panel_id,
-                    d.inner_panel_gap,
+                    pane_id,
+                    d.pane_gap,
                     20.0,
                     false,
                     false,
                     move |modifier, pos, cx| {
                         let _ = inner_editor.update(cx, |ed, cx| {
-                            ed.ensure_editor_session(area_id)
+                            ed.ensure_editor_session(panel_id)
                                 .root
-                                .start_corner_drag(panel_id, pos, modifier);
+                                .start_corner_drag(pane_id, pos, modifier);
                             cx.notify();
                         });
                     },
                 );
 
-                // Auto-focus first inner panel if none is focused. The
+                // Auto-focus first pane if none is focused. The
                 // area activation happens on user interaction (panel
                 // click / focus) — a Shell update from inside this
-                // editor's own render would re-enter `sync_area_states`
+                // editor's own render would re-enter `sync_panel_states`
                 // and try to update this very entity while it renders.
-                if self.focused_editor_inner_panel.is_none() {
-                    self.focused_editor_inner_panel = Some(panel_id);
+                if self.focused_pane.is_none() {
+                    self.focused_pane = Some(pane_id);
                 }
 
                 let focus_editor = cx.entity().downgrade();
-                let panel_gap = d.inner_panel_gap;
+                let panel_gap = d.pane_gap;
 
                 // The leaf container is the split-out area: unadorned and
                 // seamless, it only partitions the initialized region. The
@@ -591,7 +590,7 @@ impl Editor {
                                     // Select this panel and move the keyboard edit
                                     // focus to its editing target (source block or
                                     // the shared document block).
-                                    ed.focus_editor_inner_panel(area_id, panel_id, window, cx);
+                                    ed.focus_pane(panel_id, pane_id, window, cx);
                                     cx.notify();
                                 });
                             }),
@@ -610,9 +609,9 @@ impl Editor {
                 let dir = *direction;
                 let r = *ratio;
                 let first_elem =
-                    self.render_editor_inner_panel_node(first, area_id, theme, strings, window, cx);
-                let second_elem = self
-                    .render_editor_inner_panel_node(second, area_id, theme, strings, window, cx);
+                    self.render_editor_pane_node(first, panel_id, theme, strings, window, cx);
+                let second_elem =
+                    self.render_editor_pane_node(second, panel_id, theme, strings, window, cx);
 
                 let inner_editor = cx.entity().downgrade();
 
@@ -670,10 +669,10 @@ impl Editor {
                                         // area's local space, so rebase the start
                                         // position the same way.
                                         let local_start = ed
-                                            .area_rect
+                                            .panel_rect
                                             .map(|rect| start_pos - f32::from(rect.origin.x))
                                             .unwrap_or(start_pos);
-                                        let session = ed.ensure_editor_session(area_id);
+                                        let session = ed.ensure_editor_session(panel_id);
                                         splitype_splitter::interaction::start_splitter_drag(
                                             &mut session.root,
                                             split_id,
@@ -689,7 +688,7 @@ impl Editor {
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_editor.update(cx, |ed, cx| {
-                                            let session = ed.ensure_editor_session(area_id);
+                                            let session = ed.ensure_editor_session(panel_id);
                                             splitype_splitter::interaction::open_border_menu(
                                                 &mut session.root,
                                                 split_id,
@@ -755,10 +754,10 @@ impl Editor {
                                         // Rebase the start position into the area's
                                         // local space, matching the move handler.
                                         let local_start = ed
-                                            .area_rect
+                                            .panel_rect
                                             .map(|rect| start_pos - f32::from(rect.origin.y))
                                             .unwrap_or(start_pos);
-                                        let session = ed.ensure_editor_session(area_id);
+                                        let session = ed.ensure_editor_session(panel_id);
                                         splitype_splitter::interaction::start_splitter_drag(
                                             &mut session.root,
                                             split_id,
@@ -774,7 +773,7 @@ impl Editor {
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_editor.update(cx, |ed, cx| {
-                                            let session = ed.ensure_editor_session(area_id);
+                                            let session = ed.ensure_editor_session(panel_id);
                                             splitype_splitter::interaction::open_border_menu(
                                                 &mut session.root,
                                                 split_id,
@@ -792,11 +791,11 @@ impl Editor {
             }
         }
     }
-    pub(crate) fn render_editor_inner_panel_dropdown_menu(
+    pub(crate) fn render_editor_pane_dropdown_menu(
         &mut self,
-        area_id: usize,
         panel_id: usize,
-        current_kind: crate::editor::session::EditorInnerPanelKind,
+        pane_id: usize,
+        current_kind: crate::editor::session::EditorPaneKind,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -805,10 +804,10 @@ impl Editor {
         let t = &theme.typography;
         let editor = cx.entity().downgrade();
 
-        let available_kinds = EditingPanelKind::all();
+        let available_kinds = EditorPaneKind::all();
 
         menu_panel(c, d)
-            .id(("inner-area-dropdown-overlay", panel_id))
+            .id(("inner-area-dropdown-overlay", pane_id))
             .absolute()
             .occlude()
             .left(px(0.0))
@@ -819,7 +818,7 @@ impl Editor {
             .w(px(d.menu_panel_width))
             .children(available_kinds.iter().enumerate().map(|(idx, kind)| {
                 let kind = *kind;
-                let is_current = kind == current_kind.editing_kind();
+                let is_current = kind == current_kind;
                 let option_editor = editor.clone();
                 div()
                     .id(("inner-area-type-opt", idx))
@@ -852,7 +851,7 @@ impl Editor {
                     })
                     .on_click(move |_event, _window, cx| {
                         let _ = option_editor.update(cx, |ed, cx| {
-                            ed.change_editor_inner_panel_kind(area_id, panel_id, kind);
+                            ed.change_pane_kind(panel_id, pane_id, kind);
                             cx.notify();
                         });
                     })

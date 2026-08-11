@@ -6,10 +6,10 @@ use crate::editor::controller::*;
 use crate::infra::theme::Theme;
 
 impl Editor {
-    pub(crate) fn render_source_code_panel(
+    pub(crate) fn render_source_pane(
         &mut self,
-        area_id: usize,
         panel_id: usize,
+        pane_id: usize,
         theme: &Theme,
         _cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -17,8 +17,8 @@ impl Editor {
         let d = &theme.dimensions;
 
         let content: AnyElement = if let Some(block) = self
-            .source_code_panel_runtimes
-            .get(&panel_id)
+            .source_pane_runtimes
+            .get(&pane_id)
             .and_then(|runtime| runtime.block.clone())
         {
             div()
@@ -32,7 +32,7 @@ impl Editor {
 
         div()
             .id(ElementId::Name(
-                format!("tiled-source-editor-{area_id}-{panel_id}").into(),
+                format!("tiled-source-editor-{panel_id}-{pane_id}").into(),
             ))
             .w_full()
             .h_full()
@@ -41,7 +41,7 @@ impl Editor {
             .child(
                 div()
                     .id(ElementId::Name(
-                        format!("tiled-source-scroll-{area_id}-{panel_id}").into(),
+                        format!("tiled-source-scroll-{panel_id}-{pane_id}").into(),
                     ))
                     .w_full()
                     .h_full()

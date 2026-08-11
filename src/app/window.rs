@@ -8,7 +8,7 @@ use gpui::*;
 
 use crate::app::menus::install_menus;
 use crate::app::shell::{AreaContent, Shell};
-use crate::app::window_area::{DEFAULT_EDITOR_AREA_ID, WindowAreaKind};
+use crate::app::window_area::{DEFAULT_EDITOR_PANEL_ID, WindowPanelKind};
 use crate::app::window_chrome::MenuBarState;
 use crate::app::window_panels::WindowPanels;
 use crate::editor::controller::Editor;
@@ -61,7 +61,7 @@ pub(crate) fn open_editor_window(
                 let shell = cx.new(move |_cx| Shell {
                     // The default layout is Explorer (left) + Editor (right);
                     // only Editor areas carry content entities.
-                    areas: [(DEFAULT_EDITOR_AREA_ID, AreaContent::Editor(editor))].into(),
+                    areas: [(DEFAULT_EDITOR_PANEL_ID, AreaContent::Editor(editor))].into(),
                     retained_editor_sessions: HashMap::new(),
                     menu_bar: MenuBarState::default(),
                     panels: WindowPanels::default(),
@@ -105,7 +105,7 @@ pub(crate) fn open_editor_window(
 /// deep-copied sessions of its Editor areas, and — for an Explorer area —
 /// the deep-copied file-tree state.
 pub(crate) fn open_cloned_window(
-    tree: SplitTree<WindowAreaKind>,
+    tree: SplitTree<WindowPanelKind>,
     next_node_id: usize,
     sessions: HashMap<NodeId, EditorSession>,
     explorer: Option<ExplorerState>,
@@ -118,9 +118,9 @@ pub(crate) fn open_cloned_window(
             move |_window, cx| {
                 // Materialize one Editor entity per cloned session.
                 let mut areas = HashMap::new();
-                for (area_id, session) in sessions {
-                    let editor = cx.new(|cx| Editor::with_session(area_id, session, cx));
-                    areas.insert(area_id, AreaContent::Editor(editor));
+                for (panel_id, session) in sessions {
+                    let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
+                    areas.insert(panel_id, AreaContent::Editor(editor));
                 }
                 // The Shell owns the cloned outer layout and explorer state.
                 let mut panels = WindowPanels::default();
@@ -135,11 +135,11 @@ pub(crate) fn open_cloned_window(
                 let mut ids = Vec::new();
                 panels.layout.tree.leaf_ids(&mut ids);
                 if let Some(id) = ids.into_iter().find(|id| {
-                    panels.layout.tree.find_leaf_kind(*id) == Some(WindowAreaKind::Editor)
+                    panels.layout.tree.find_leaf_kind(*id) == Some(WindowPanelKind::Editor)
                 }) {
-                    panels.layout.activate_area(id);
+                    panels.layout.activate_leaf(id);
                 } else {
-                    panels.layout.active_area = None;
+                    panels.layout.active_leaf = None;
                     panels.layout.activation_history.clear();
                 }
                 let shell = cx.new(move |_cx| Shell {

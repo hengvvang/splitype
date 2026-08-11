@@ -59,7 +59,7 @@ impl AssetSource for SplitypeAssets {
                 "../../assets/icons/explorer/worktree/collapse-all.svg"
             )))),
 
-            // ── Explorer: area top bar (window area header) ──────────────
+            // ── Explorer: panel top bar (panel header) ──────────────
             "icons/explorer/topbar/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/explorer/topbar/check.svg"
             )))),
@@ -141,7 +141,7 @@ impl AssetSource for SplitypeAssets {
                 "../../assets/icons/settings/moon.svg"
             )))),
 
-            // ── Settings: area top bar (window area header) ──────────────
+            // ── Settings: panel top bar (panel header) ──────────────
             "icons/settings/topbar/check.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/settings/topbar/check.svg"
             )))),
@@ -161,7 +161,7 @@ impl AssetSource for SplitypeAssets {
                 "../../assets/icons/settings/topbar/restore.svg"
             )))),
 
-            // ── Editor: window area header ────────────────────────────────
+            // ── Editor: panel header ────────────────────────────────
             "icons/editor/topbar/active.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/topbar/active.svg"
             )))),

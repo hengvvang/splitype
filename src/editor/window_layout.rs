@@ -1,8 +1,8 @@
 //! Window-level tiled area layout — rendering and gestures for the outer
-//! `WindowAreaKind` split tree (ExplorerState / Settings / Editor areas).
+//! `WindowPanelKind` split tree (ExplorerState / Settings / Editor areas).
 //!
 //! The layout engine (tree, sessions, operations) lives in `crate::splitter`;
-//! the editor's inner panel layout rendering lives in
+//! the editor.s pane layout rendering lives in
 //! `crate::editor::panel_layout`. The window panel state aggregate lives in
 //! `crate::app::window_panels`.
 
@@ -13,7 +13,7 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 
-use crate::app::window_area::WindowAreaKind;
+use crate::app::window_area::WindowPanelKind;
 use crate::editor::corner_drag_preview::render_corner_drag_preview;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
@@ -24,23 +24,23 @@ use splitype_splitter::sessions::{id_at_point, past_shortcut_threshold};
 use splitype_splitter::tree::SplitTree;
 
 
-/// Icon path for a window-area top-bar button, per area kind.
+/// Icon path for a window-panel top-bar button, per panel kind.
 ///
-/// Every `WindowAreaKind` owns its own copies of the top-bar icons
+/// Every `WindowPanelKind` owns its own copies of the top-bar icons
 /// (decoupling — see `assets/icons/README.md`), so a button's asset
 /// path depends on the kind of the area it renders in.
-pub(crate) fn area_topbar_icon(kind: WindowAreaKind, name: &str) -> SharedString {
+pub(crate) fn panel_topbar_icon(kind: WindowPanelKind, name: &str) -> SharedString {
     let dir = match kind {
-        WindowAreaKind::Explorer => "explorer",
-        WindowAreaKind::Editor => "editor",
-        WindowAreaKind::Settings => "settings",
+        WindowPanelKind::Explorer => "explorer",
+        WindowPanelKind::Editor => "editor",
+        WindowPanelKind::Settings => "settings",
     };
     format!("icons/{dir}/topbar/{name}.svg").into()
 }
 
 /// Map a theme to the layout crate's border-menu style parameters.
 ///
-/// Shared by the outer window-area border menu and the editor's inner-panel
+/// Shared by the outer window-panel border menu and the editor.s pane
 /// border menu so both render identically.
 pub(crate) fn border_menu_style(theme: &Theme) -> crate::splitter::interaction::MenuStyle {
     let c = &theme.colors;
@@ -86,7 +86,7 @@ impl Shell {
         };
         let layout_tree = if let Some(maximized_id) = maximized_id {
             if let Some(kind) = root.find_leaf_kind(maximized_id) {
-                self.render_window_area_tile(
+                self.render_window_panel_tile(
                     maximized_id,
                     kind,
                     theme,
@@ -97,10 +97,10 @@ impl Shell {
                     cx,
                 )
             } else {
-                self.render_window_area_node(&root, theme, strings, leaf_count, window, cx)
+                self.render_window_panel_node(&root, theme, strings, leaf_count, window, cx)
             }
         } else {
-            self.render_window_area_node(&root, theme, strings, leaf_count, window, cx)
+            self.render_window_panel_node(&root, theme, strings, leaf_count, window, cx)
         };
 
         let root_editor_move = cx.entity().downgrade();
@@ -148,7 +148,7 @@ impl Shell {
                                 let rects = ed.panels.layout.leaf_rects(viewport);
                                 if let Some(over) = id_at_point(&rects, pos) {
                                     if over != drag.target_id {
-                                        ed.swap_window_area_kinds(drag.target_id, over, cx);
+                                        ed.swap_panel_kinds(drag.target_id, over, cx);
                                     }
                                 }
                                 ed.panels.layout.end_corner_drag();
@@ -193,19 +193,19 @@ impl Shell {
                         match facts.modifier {
                                 CornerDragModifier::None => {
                                     if let Some(new_id) =
-                                        <SplitterContainer<WindowAreaKind> as DragPolicy<
-                                            WindowAreaKind,
+                                        <SplitterContainer<WindowPanelKind> as DragPolicy<
+                                            WindowPanelKind,
                                         >>::on_plain_drag(
                                             &mut ed.panels.layout, &facts, viewport
                                         )
                                     {
-                                        ed.seed_split_area(new_id, cx);
+                                        ed.seed_split_panel(new_id, cx);
                                     }
                                 }
                                 CornerDragModifier::Shift => {
                                     if let Some(cloned) =
-                                        <SplitterContainer<WindowAreaKind> as DragPolicy<
-                                            WindowAreaKind,
+                                        <SplitterContainer<WindowPanelKind> as DragPolicy<
+                                            WindowPanelKind,
                                         >>::on_shift_drag(
                                             &mut ed.panels.layout, &facts, viewport
                                         )
@@ -214,15 +214,15 @@ impl Shell {
                                     }
                                 }
                                 CornerDragModifier::Ctrl => {
-                                    <SplitterContainer<WindowAreaKind> as DragPolicy<
-                                        WindowAreaKind,
+                                    <SplitterContainer<WindowPanelKind> as DragPolicy<
+                                        WindowPanelKind,
                                     >>::on_ctrl_drag(
                                         &mut ed.panels.layout, &facts, viewport
                                     )
                                 }
                                 CornerDragModifier::Alt => {
-                                    <SplitterContainer<WindowAreaKind> as DragPolicy<
-                                        WindowAreaKind,
+                                    <SplitterContainer<WindowPanelKind> as DragPolicy<
+                                        WindowPanelKind,
                                     >>::on_alt_drag(
                                         &mut ed.panels.layout, &facts, viewport
                                     )
@@ -278,15 +278,15 @@ impl Shell {
         let container = container.children(preview_overlay);
 
         if let Some(border_menu) = self.panels.layout.active_border_menu {
-            let menu_overlay = self.render_window_area_border_menu(border_menu, theme, cx);
+            let menu_overlay = self.render_window_panel_border_menu(border_menu, theme, cx);
             container.child(menu_overlay).into_any_element()
         } else {
             container.into_any_element()
         }
     }
-    pub(crate) fn render_window_area_node(
+    pub(crate) fn render_window_panel_node(
         &mut self,
-        node: &crate::splitter::SplitTree<crate::app::window_area::WindowAreaKind>,
+        node: &crate::splitter::SplitTree<crate::app::window_area::WindowPanelKind>,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -305,7 +305,7 @@ impl Shell {
         let editor = cx.entity().downgrade();
 
         match node {
-            SplitTree::Leaf(container) => self.render_window_area_tile(
+            SplitTree::Leaf(container) => self.render_window_panel_tile(
                 container.id,
                 container.kind,
                 theme,
@@ -327,9 +327,9 @@ impl Shell {
                 let r = *ratio;
 
                 let first_elem =
-                    self.render_window_area_node(first, theme, strings, leaf_count, window, cx);
+                    self.render_window_panel_node(first, theme, strings, leaf_count, window, cx);
                 let second_elem =
-                    self.render_window_area_node(second, theme, strings, leaf_count, window, cx);
+                    self.render_window_panel_node(second, theme, strings, leaf_count, window, cx);
 
                 match direction {
                     Axis::Horizontal => {
@@ -498,10 +498,10 @@ impl Shell {
             }
         }
     }
-    pub(crate) fn render_window_area_tile(
+    pub(crate) fn render_window_panel_tile(
         &mut self,
         leaf_id: usize,
-        kind: crate::app::window_area::WindowAreaKind,
+        kind: crate::app::window_area::WindowPanelKind,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -509,10 +509,10 @@ impl Shell {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        // An Editor leaf renders its own tile (top bar, inner panels,
+        // An Editor leaf renders its own tile (top bar, panes,
         // status bar) via its content entity; only Explorer / Settings
         // leaves are rendered by the Shell.
-        if kind == crate::app::window_area::WindowAreaKind::Editor {
+        if kind == crate::app::window_area::WindowPanelKind::Editor {
             if let Some(entity) = self.editor_for(leaf_id) {
                 return entity.clone().into_any_element();
             }
@@ -524,35 +524,35 @@ impl Shell {
         let radius = d.area_tile_radius;
 
         let topbar = match kind {
-            WindowAreaKind::Editor => {
+            WindowPanelKind::Editor => {
                 unreachable!("editor leaf without an entity is rendered by its entity")
             }
-            WindowAreaKind::Explorer => {
+            WindowPanelKind::Explorer => {
                 self.render_explorer_topbar(leaf_id, kind, theme, leaf_count, is_maximized, cx)
             }
-            WindowAreaKind::Settings => {
+            WindowPanelKind::Settings => {
                 self.render_settings_topbar(leaf_id, kind, theme, leaf_count, is_maximized, cx)
             }
         };
 
         let midcontainer: AnyElement = match kind {
-            WindowAreaKind::Editor => {
+            WindowPanelKind::Editor => {
                 unreachable!("editor leaf without an entity is rendered by its entity")
             }
-            WindowAreaKind::Explorer => {
+            WindowPanelKind::Explorer => {
                 self.render_explorer_midcontainer(leaf_id, theme, strings, cx)
             }
-            WindowAreaKind::Settings => {
+            WindowPanelKind::Settings => {
                 self.render_settings_midcontainer(leaf_id, theme, strings, cx)
             }
         };
 
         let bottombar = match kind {
-            WindowAreaKind::Editor => {
+            WindowPanelKind::Editor => {
                 unreachable!("editor leaf without an entity is rendered by its entity")
             }
-            WindowAreaKind::Explorer => Some(self.render_explorer_bottombar(leaf_id, theme, cx)),
-            WindowAreaKind::Settings => Some(self.render_settings_bottombar(leaf_id, theme, cx)),
+            WindowPanelKind::Explorer => Some(self.render_explorer_bottombar(leaf_id, theme, cx)),
+            WindowPanelKind::Settings => Some(self.render_settings_bottombar(leaf_id, theme, cx)),
         };
 
         let midcontainer_container = div()
@@ -564,7 +564,7 @@ impl Shell {
 
         // Tile card with overflow hidden (no corner handles inside, to avoid clipping).
         // Mouse interaction with any part of the tile marks it as the focused
-        // window area and, for Editor tiles, the active editor.
+        // window panel and, for Editor tiles, the active editor.
         let tile_focus = cx.entity().downgrade();
         let mut tile_card = div()
             .id(("tiled-area-card", leaf_id))
@@ -581,8 +581,8 @@ impl Shell {
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                 let _ = tile_focus.update(cx, |ed, cx| {
                     ed.panels.layout.focused_area = Some(leaf_id);
-                    if kind == crate::app::window_area::WindowAreaKind::Editor {
-                        ed.panels.layout.activate_area(leaf_id);
+                    if kind == crate::app::window_area::WindowPanelKind::Editor {
+                        ed.panels.layout.activate_leaf(leaf_id);
                     }
                     cx.notify();
                 });
@@ -631,17 +631,17 @@ impl Shell {
             .find_leaf(leaf_id)
             .is_some_and(|p| p.open_dropdown);
         if dropdown_open {
-            let menu = self.render_area_type_dropdown_menu(leaf_id, kind, theme, cx);
+            let menu = self.render_panel_type_dropdown_menu(leaf_id, kind, theme, cx);
             wrapped = wrapped.child(menu);
         }
 
         wrapped.into_any_element()
     }
 
-    pub(crate) fn render_area_type_dropdown_menu(
+    pub(crate) fn render_panel_type_dropdown_menu(
         &mut self,
         leaf_id: usize,
-        current_kind: crate::app::window_area::WindowAreaKind,
+        current_kind: crate::app::window_area::WindowPanelKind,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -650,7 +650,7 @@ impl Shell {
         let t = &theme.typography;
         let editor = cx.entity().downgrade();
 
-        let available_kinds = WindowAreaKind::all();
+        let available_kinds = WindowPanelKind::all();
 
         menu_panel(c, d)
             .id(("area-dropdown-overlay", leaf_id))
@@ -677,7 +677,7 @@ impl Shell {
                     .child(kind.name())
                     .child(if is_current {
                         svg()
-                            .path(area_topbar_icon(current_kind, "check"))
+                            .path(panel_topbar_icon(current_kind, "check"))
                             .size(px(13.0))
                             .text_color(c.dialog_primary_button_bg)
                             .into_any_element()
@@ -686,7 +686,7 @@ impl Shell {
                     })
                     .on_click(move |_event, _window, cx| {
                         let _ = option_editor.update(cx, |ed, cx| {
-                            ed.change_window_area_kind(leaf_id, kind, cx);
+                            ed.change_panel_kind(leaf_id, kind, cx);
                             cx.notify();
                         });
                     })
@@ -694,7 +694,7 @@ impl Shell {
             }))
             .into_any_element()
     }
-    pub(crate) fn render_window_area_border_menu(
+    pub(crate) fn render_window_panel_border_menu(
         &mut self,
         border_menu: crate::splitter::BorderMenuState,
         theme: &Theme,
@@ -708,14 +708,14 @@ impl Shell {
         let split_h_ed = editor.clone();
         let split_h: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = split_h_ed.update(app, |ed, cx| {
-                ed.split_area(split_id, Axis::Horizontal, 0.5, true, cx);
+                ed.split_panel(split_id, Axis::Horizontal, 0.5, true, cx);
                 cx.notify();
             });
         });
         let split_v_ed = editor.clone();
         let split_v: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = split_v_ed.update(app, |ed, cx| {
-                ed.split_area(split_id, Axis::Vertical, 0.5, true, cx);
+                ed.split_panel(split_id, Axis::Vertical, 0.5, true, cx);
                 cx.notify();
             });
         });
@@ -729,7 +729,7 @@ impl Shell {
         let close_ed = editor.clone();
         let close: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = close_ed.update(app, |ed, cx| {
-                ed.close_window_area(split_id, cx);
+                ed.close_panel(split_id, cx);
                 cx.notify();
             });
         });

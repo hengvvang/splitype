@@ -29,7 +29,7 @@ pub struct SplitterRoot<T: Copy + PartialEq> {
     pub active_border_menu: Option<BorderMenuState>,
     /// The most recently activated leaf; hosts route global actions to
     /// it. `None` when no leaf was activated yet.
-    pub active_area: Option<NodeId>,
+    pub active_leaf: Option<NodeId>,
     /// Activated leaf ids in activation-recency order (most recent last).
     /// A leaf whose kind changed is dropped from the history.
     pub activation_history: Vec<NodeId>,
@@ -46,7 +46,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
             next_node_id: initial_id + 1,
             active_splitter_drag: None,
             active_border_menu: None,
-            active_area: None,
+            active_leaf: None,
             activation_history: Vec::new(),
             focused_area: None,
         }
@@ -81,22 +81,22 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
 
     /// Mark `area_id` as the active area (the last leaf that received
     /// focus). Records the activation for fallback ordering.
-    pub fn activate_area(&mut self, area_id: usize) {
+    pub fn activate_leaf(&mut self, area_id: usize) {
         self.activation_history.retain(|id| *id != area_id);
         self.activation_history.push(area_id);
-        self.active_area = Some(area_id);
+        self.active_leaf = Some(area_id);
     }
 
     /// Recompute the active area after the layout changed: the most
     /// recently activated leaf still present, or `None`.
-    fn recompute_active_area(&mut self) {
+    fn recompute_active_leaf(&mut self) {
         if self
-            .active_area
+            .active_leaf
             .is_some_and(|id| self.tree.find_leaf_kind(id).is_some())
         {
             return;
         }
-        self.active_area = self
+        self.active_leaf = self
             .activation_history
             .iter()
             .rev()
@@ -107,10 +107,10 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     /// Drop a leaf from activation tracking and recompute the active area.
     fn retire_area(&mut self, removed: usize) {
         self.activation_history.retain(|id| *id != removed);
-        if self.active_area == Some(removed) {
-            self.active_area = None;
+        if self.active_leaf == Some(removed) {
+            self.active_leaf = None;
         }
-        self.recompute_active_area();
+        self.recompute_active_leaf();
     }
 
     /// Change a leaf's kind. A changed kind drops the leaf from the
@@ -493,48 +493,48 @@ mod tests {
     }
 
     #[test]
-    fn test_active_area_falls_back_to_last_focused() {
+    fn test_active_leaf_falls_back_to_last_focused() {
         let mut root = test_root();
-        root.activate_area(1);
+        root.activate_leaf(1);
         let a = root.split_leaf(1, Axis::Horizontal, 0.5).unwrap();
         let b = root.split_leaf(1, Axis::Vertical, 0.5).unwrap();
         // Activation order: 1, a, b → active is b.
-        root.activate_area(a);
-        root.activate_area(b);
-        assert_eq!(root.active_area, Some(b));
+        root.activate_leaf(a);
+        root.activate_leaf(b);
+        assert_eq!(root.active_leaf, Some(b));
 
         // Close the active leaf → falls back to the previous focus (a).
         root.close_leaf(b);
-        assert_eq!(root.active_area, Some(a));
+        assert_eq!(root.active_leaf, Some(a));
 
         // Closing the second-to-last leaf falls back to the remaining
         // root area (the last leaf is never closable).
         root.close_leaf(a);
-        assert_eq!(root.active_area, Some(1));
+        assert_eq!(root.active_leaf, Some(1));
     }
 
     #[test]
     fn test_kind_change_retires_activation() {
         let mut root = test_root();
-        root.activate_area(1);
+        root.activate_leaf(1);
         let a = root.split_leaf(1, Axis::Horizontal, 0.5).unwrap();
-        root.activate_area(a);
+        root.activate_leaf(a);
 
         // Changing an inactive leaf's kind leaves the active one alone.
         root.set_kind(1, TestKind::B);
-        assert_eq!(root.active_area, Some(a));
+        assert_eq!(root.active_leaf, Some(a));
 
         // Changing the active leaf's kind retires it: no fallback left.
         root.set_kind(a, TestKind::B);
-        assert_eq!(root.active_area, None);
+        assert_eq!(root.active_leaf, None);
 
         // Re-activating restores it.
-        root.activate_area(a);
-        assert_eq!(root.active_area, Some(a));
+        root.activate_leaf(a);
+        assert_eq!(root.active_leaf, Some(a));
 
         // A no-op kind change keeps the activation.
         root.set_kind(a, TestKind::B);
-        assert_eq!(root.active_area, Some(a));
+        assert_eq!(root.active_leaf, Some(a));
     }
 
     #[test]

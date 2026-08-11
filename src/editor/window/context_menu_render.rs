@@ -70,10 +70,10 @@ impl Editor {
         let s = cx.global::<I18nManager>().strings().clone();
         // Mouse positions arrive in window coordinates, but this editor's
         // overlays position inside its own tile (which starts at
-        // `area_rect.origin`); translate once, and paint the menu in a
+        // `panel_rect.origin`); translate once, and paint the menu in a
         // deferred layer so panels at tile edges escape the split
         // containers' overflow clipping.
-        let origin = self.area_rect.map(|rect| rect.origin).unwrap_or_default();
+        let origin = self.panel_rect.map(|rect| rect.origin).unwrap_or_default();
 
         match menu {
             ContextMenuState::Insert {

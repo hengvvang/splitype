@@ -1,9 +1,9 @@
-//! Editor session types — the per-area tab list, the inner panel split
-//! root, and the panel-kind vocabulary of an Editor area.
+//! Editor session types — the per-panel tab list, the pane split root,
+//! and the pane-kind vocabulary of an Editor area.
 //!
-//! The inner panel layout is a [`SplitterRoot`] — the same generic split
-//! root the window-level area layout uses — so both levels share one
-//! split model and one set of interactions (see `splitype-splitter`).
+//! The pane layout is a [`SplitterRoot`] — the same generic split root
+//! the window-level panel layout uses — so both levels share one split
+//! model and one set of interactions (see `splitype-splitter`).
 
 use gpui::{Pixels, Size};
 use splitype_splitter::container::SplitterContainer;
@@ -44,87 +44,45 @@ impl<T> EditorTabList<T> {
 /// or activation logic until its area is back in the foreground.
 pub struct EditorSession {
     pub(crate) tab_list: EditorTabList<crate::editor::controller::DocumentTab>,
-    /// The midcontainer's split root: the inner panel tree, its
+    /// The midcontainer's split root: the pane tree, its
     /// operations, and the active drag sessions.
-    pub(crate) root: SplitterRoot<EditorInnerPanelKind>,
+    pub(crate) root: SplitterRoot<EditorPaneKind>,
 }
 
 impl EditorSession {
-    /// A fresh session: no tabs and a single default welcome panel. The
-    /// inner root is fully self-contained — it numbers its own nodes from
-    /// 1, so nested roots never share state with the outer layout.
+    /// A fresh session: no tabs and a single default panel. The inner root
+    /// is fully self-contained — it numbers its own nodes from 1, so
+    /// nested roots never share state with the outer layout.
     pub(crate) fn welcome() -> Self {
         Self {
             tab_list: EditorTabList::empty(),
-            root: SplitterRoot::single_leaf(
-                1,
-                EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
-            ),
+            root: SplitterRoot::single_leaf(1, EditorPaneKind::SourceCode),
         }
     }
 }
 
-/// Inner-panel containers override the Shift-drag default (which opens
-/// the dragged panel in a new window): dragging an inner panel's corner
+/// Pane containers override the Shift-drag default (which opens
+/// the dragged panel in a new window): dragging a pane.s corner
 /// with Shift is a no-op.
 /// Plain drags, Ctrl swaps, and Alt keep the shared defaults.
-impl DragPolicy<EditorInnerPanelKind> for SplitterContainer<EditorInnerPanelKind> {
+impl DragPolicy<EditorPaneKind> for SplitterContainer<EditorPaneKind> {
     fn on_shift_drag(
-        _root: &mut SplitterRoot<EditorInnerPanelKind>,
+        _root: &mut SplitterRoot<EditorPaneKind>,
         _facts: &CornerDragSession,
         _container_size: Size<Pixels>,
-    ) -> Option<ClonedContainer<EditorInnerPanelKind>> {
-        // Empty override: Shift + drag on an inner panel does nothing.
+    ) -> Option<ClonedContainer<EditorPaneKind>> {
+        // Empty override: Shift + drag on a pane does nothing.
         None
     }
 }
 
-/// Panel kinds for welcome mode. The only welcome panel carries the
-/// editing panel kind it had before leaving editing (`None` = never
-/// edited), which is restored when the area re-enters editing; welcome
-/// mode may grow more panel types (e.g. recent files) later.
+/// The pane kinds an Editor panel can host: the document views
+/// inside its split tree. The tree holds only real views — the welcome
+/// state is the area's mode (`EditorPanelMode`), not a panel kind — so the
+/// split structure survives tab open/close cycles unchanged and the
+/// remembered panel layout needs no migration.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum WelcomePanelKind {
-    Welcome(Option<EditingPanelKind>),
-}
-
-/// Sub-panel types available inside an Editor container: the outer variant
-/// is the mode, the inner variant is the panel type within that mode. The
-/// tree always tells the truth — a welcome-mode area holds `Welcome`
-/// panels, an editing-mode area holds `Editing` panels — so rendering
-/// matches on the panel kind directly.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EditorInnerPanelKind {
-    /// The unified welcome-mode panel: renders the guidance prompt
-    /// (double-click to start editing).
-    Welcome(WelcomePanelKind),
-    /// An editing-mode panel: renders its editing view.
-    Editing(EditingPanelKind),
-}
-
-impl EditorInnerPanelKind {
-    /// The editing panel this panel becomes when the area enters editing:
-    /// restores the remembered type, defaulting to `SourceCode` for a
-    /// welcome panel that was never edited before.
-    pub fn editing_kind(self) -> EditingPanelKind {
-        match self {
-            Self::Welcome(WelcomePanelKind::Welcome(Some(kind))) => kind,
-            Self::Welcome(WelcomePanelKind::Welcome(None)) => EditingPanelKind::SourceCode,
-            Self::Editing(kind) => kind,
-        }
-    }
-
-    pub fn name(&self) -> &'static str {
-        match self {
-            Self::Welcome(_) => "Welcome",
-            Self::Editing(kind) => kind.name(),
-        }
-    }
-}
-
-/// Editing-mode panel types (WYSIWYG / source code / preview / outline).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EditingPanelKind {
+pub enum EditorPaneKind {
     /// Raw Markdown source code editor.
     SourceCode,
     /// Visual block editor (WYSIWYG rendered view).
@@ -135,7 +93,7 @@ pub enum EditingPanelKind {
     Outline,
 }
 
-impl EditingPanelKind {
+impl EditorPaneKind {
     pub fn name(&self) -> &'static str {
         match self {
             Self::SourceCode => "Source Code",
@@ -145,8 +103,8 @@ impl EditingPanelKind {
         }
     }
 
-    /// All editing-mode panel types (status-bar dropdown options).
-    pub fn all() -> &'static [EditingPanelKind] {
+    /// All editor pane types (status-bar dropdown options).
+    pub fn all() -> &'static [EditorPaneKind] {
         &[
             Self::Wysiwyg,
             Self::Preview,

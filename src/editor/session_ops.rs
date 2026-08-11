@@ -1,27 +1,25 @@
-//! Inner panel layout state and operations of an Editor window.
+//! Editor pane operations of an Editor window.
 //!
-//! The per-area editor sessions (document tab list + inner panel split
-//! root) and all inner-panel operations. The split root is the same
-//! [`SplitterRoot`] the outer window tree uses, so inner-panel splits,
+//! The per-area editor sessions (document tab list +  pane split
+//! root) and all pane operations. The split root is the same
+//! [`SplitterRoot`] the outer window tree uses, so pane splits,
 //! joins, swaps, and drags go through the shared root API instead of a
 //! copied state machine.
 
-use crate::app::window_area::EditorAreaMode;
+use crate::app::window_area::EditorPanelMode;
 use crate::editor::controller::Editor;
-use crate::editor::session::{
-    EditingPanelKind, EditorInnerPanelKind, EditorSession, WelcomePanelKind,
-};
+use crate::editor::session::{EditorPaneKind, EditorSession};
 use crate::splitter::NodeId;
 use gpui::Context;
 use splitype_splitter::tree::Axis;
 
 impl Editor {
-    pub fn ensure_editor_session(&mut self, _area_id: NodeId) -> &mut EditorSession {
+    pub fn ensure_editor_session(&mut self, _panel_id: NodeId) -> &mut EditorSession {
         &mut self.session
     }
 
-    /// The editor session for `area_id`, if one exists.
-    pub fn editor_session(&self, _area_id: NodeId) -> Option<&EditorSession> {
+    /// The editor session for `panel_id`, if one exists.
+    pub fn editor_session(&self, _panel_id: NodeId) -> Option<&EditorSession> {
         Some(&self.session)
     }
 
@@ -33,125 +31,76 @@ impl Editor {
     /// The editor area's working mode, derived from whether its session
     /// holds tabs. Renderers and editor-internal operations always run on
     /// a foreground area and only consult this dimension.
-    pub fn editor_area_mode(&self, _area_id: NodeId) -> EditorAreaMode {
+    pub fn panel_mode(&self, _panel_id: NodeId) -> EditorPanelMode {
         let has_tabs = !self.session.tab_list.tabs.is_empty();
         if has_tabs {
-            EditorAreaMode::Editing
+            EditorPanelMode::Editing
         } else {
-            EditorAreaMode::Welcome
-        }
-    }
-    /// Welcome → Editing: every welcome panel migrates to the editing
-    /// panel it remembers (or `SourceCode` if it never edited before).
-    /// The split structure is preserved. Idempotent.
-    pub fn enter_editing(&mut self, area_id: NodeId) {
-        let session = self.ensure_editor_session(area_id);
-        let mut rects = Vec::new();
-        session
-            .root
-            .tree
-            .collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
-        let ids: Vec<usize> = rects.iter().map(|rect| rect.id).collect();
-        for id in ids {
-            let Some(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(previous))) =
-                session.root.tree.find_leaf_kind(id)
-            else {
-                continue;
-            };
-            session.root.tree.set_leaf_kind(
-                id,
-                EditorInnerPanelKind::Editing(previous.unwrap_or(EditingPanelKind::SourceCode)),
-            );
-        }
-    }
-
-    /// Editing → Welcome: every panel becomes a welcome panel that
-    /// remembers its editing panel type, so entering editing again
-    /// restores the previous layout. The split structure is preserved.
-    /// Idempotent.
-    pub fn exit_editing(&mut self, area_id: NodeId) {
-        let session = self.ensure_editor_session(area_id);
-        let mut rects = Vec::new();
-        session
-            .root
-            .tree
-            .collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
-        let ids: Vec<usize> = rects.iter().map(|rect| rect.id).collect();
-        for id in ids {
-            let Some(EditorInnerPanelKind::Editing(panel)) = session.root.tree.find_leaf_kind(id)
-            else {
-                continue;
-            };
-            session.root.tree.set_leaf_kind(
-                id,
-                EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(Some(panel))),
-            );
+            EditorPanelMode::Welcome
         }
     }
     // ------------------------------------------------------------------
-    // Inner panel layout (via the session's root container)
+    // Pane layout (via the session's root container)
     // ------------------------------------------------------------------
 
-    /// Splits an inner panel via the status-bar buttons. The new panel
+    /// Splits a pane via the status-bar buttons. The new pane
     /// inherits the target panel's kind so the split keeps the same view
     /// style.
-    pub fn split_editor_inner_panel(&mut self, area_id: NodeId, panel_id: NodeId, direction: Axis) {
-        self.split_editor_inner_panel_with_ratio(area_id, panel_id, direction, 0.5);
+    pub fn split_pane(&mut self, panel_id: NodeId, pane_id: NodeId, direction: Axis) {
+        self.split_pane_with_ratio(panel_id, pane_id, direction, 0.5);
     }
 
-    pub fn close_editor_inner_panel(&mut self, area_id: NodeId, panel_id: NodeId) {
-        let session = self.ensure_editor_session(area_id);
-        session.root.close_leaf(panel_id);
+    pub fn close_pane(&mut self, panel_id: NodeId, pane_id: NodeId) {
+        let session = self.ensure_editor_session(panel_id);
+        session.root.close_leaf(pane_id);
     }
 
-    pub fn toggle_editor_inner_panel_dropdown(
+    pub fn toggle_pane_dropdown(
         &mut self,
-        area_id: NodeId,
         panel_id: NodeId,
+        pane_id: NodeId,
         cx: &mut Context<Self>,
     ) {
-        let session = self.ensure_editor_session(area_id);
-        session.root.toggle_dropdown(panel_id);
+        let session = self.ensure_editor_session(panel_id);
+        session.root.toggle_dropdown(pane_id);
         // Opening an inner dropdown closes any outer dropdown.
         if let Some(shell) = self.shell.clone() {
             let _ = shell.update(cx, |shell, _cx| shell.panels.layout.clear_dropdowns());
         }
     }
 
-    pub fn change_editor_inner_panel_kind(
+    pub fn change_pane_kind(
         &mut self,
-        area_id: NodeId,
         panel_id: NodeId,
-        kind: EditingPanelKind,
+        pane_id: NodeId,
+        kind: EditorPaneKind,
     ) {
-        let session = self.ensure_editor_session(area_id);
-        session
-            .root
-            .set_kind(panel_id, EditorInnerPanelKind::Editing(kind));
+        let session = self.ensure_editor_session(panel_id);
+        session.root.set_kind(pane_id, kind);
     }
 
     /// Inner split created via corner drag. The new panel inherits the
     /// dragged panel's kind so both sides keep the same view style.
-    pub fn split_editor_inner_panel_with_ratio(
+    pub fn split_pane_with_ratio(
         &mut self,
-        area_id: NodeId,
         panel_id: NodeId,
+        pane_id: NodeId,
         direction: Axis,
         ratio: f32,
     ) {
-        let session = self.ensure_editor_session(area_id);
-        session.root.split_leaf(panel_id, direction, ratio);
+        let session = self.ensure_editor_session(panel_id);
+        session.root.split_leaf(pane_id, direction, ratio);
     }
 
-    /// Swap area types between two inner panels.
-    pub fn swap_editor_inner_panel_kinds(&mut self, area_id: NodeId, a: NodeId, b: NodeId) {
-        let session = self.ensure_editor_session(area_id);
+    /// Swap pane kinds between two panes.
+    pub fn swap_pane_kinds(&mut self, panel_id: NodeId, a: NodeId, b: NodeId) {
+        let session = self.ensure_editor_session(panel_id);
         session.root.swap_kinds(a, b);
     }
 
     /// Swap the two sides of an inner split node (border-menu action).
-    pub fn swap_editor_inner_panel_split_sides(&mut self, area_id: NodeId, split_id: NodeId) {
-        let session = self.ensure_editor_session(area_id);
+    pub fn swap_pane_split_sides(&mut self, panel_id: NodeId, split_id: NodeId) {
+        let session = self.ensure_editor_session(panel_id);
         session.root.swap_split_sides(split_id);
     }
 }

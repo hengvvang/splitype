@@ -9,9 +9,9 @@
 use gpui::{Size, px};
 
 use splitype_splitter::Axis;
-use splitype::app::window_area::{DEFAULT_EDITOR_AREA_ID, ROOT_AREA_ID, WindowLayout};
+use splitype::app::window_area::{DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowLayout};
 use splitype_splitter::tree::AreaRect;
-use splitype::app::window_area::WindowAreaKind;
+use splitype::app::window_area::WindowPanelKind;
 
 fn layout() -> WindowLayout {
     splitype::app::window_area::default_layout()
@@ -31,16 +31,16 @@ fn default_layout_is_explorer_editor_split() {
     let state = layout();
     let mut leaves = Vec::new();
     state.tree.leaf_ids(&mut leaves);
-    assert_eq!(leaves, vec![ROOT_AREA_ID, DEFAULT_EDITOR_AREA_ID]);
+    assert_eq!(leaves, vec![ROOT_PANEL_ID, DEFAULT_EDITOR_PANEL_ID]);
     assert_eq!(
-        state.tree.find_leaf_kind(ROOT_AREA_ID),
-        Some(WindowAreaKind::Explorer)
+        state.tree.find_leaf_kind(ROOT_PANEL_ID),
+        Some(WindowPanelKind::Explorer)
     );
     assert_eq!(
         state
             .tree
-            .find_leaf_kind(DEFAULT_EDITOR_AREA_ID),
-        Some(WindowAreaKind::Editor)
+            .find_leaf_kind(DEFAULT_EDITOR_PANEL_ID),
+        Some(WindowPanelKind::Editor)
     );
     let rects = root_rects(&state);
     assert_eq!(rects.len(), 2);
@@ -53,7 +53,7 @@ fn default_layout_is_explorer_editor_split() {
 fn split_window_area_creates_two_leaves() {
     let mut state = layout();
     let new_id = state
-        .split_leaf(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5)
+        .split_leaf(DEFAULT_EDITOR_PANEL_ID, Axis::Horizontal, 0.5)
         .expect("split");
 
     let mut leaves = Vec::new();
@@ -77,32 +77,32 @@ fn split_window_area_creates_two_leaves() {
 fn closing_area_joins_back_to_default_split() {
     let mut state = layout();
     let new_id = state
-        .split_leaf(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5)
+        .split_leaf(DEFAULT_EDITOR_PANEL_ID, Axis::Horizontal, 0.5)
         .expect("split");
 
     state.close_leaf(new_id);
     let mut leaves = Vec::new();
     state.tree.leaf_ids(&mut leaves);
-    assert_eq!(leaves, vec![ROOT_AREA_ID, DEFAULT_EDITOR_AREA_ID]);
+    assert_eq!(leaves, vec![ROOT_PANEL_ID, DEFAULT_EDITOR_PANEL_ID]);
 }
 
 /// Area kinds switch on the tree leaves.
 #[test]
 fn area_kinds_switch_on_leaves() {
     let mut state = layout();
-    state.set_kind(DEFAULT_EDITOR_AREA_ID, WindowAreaKind::Settings);
+    state.set_kind(DEFAULT_EDITOR_PANEL_ID, WindowPanelKind::Settings);
     assert_eq!(
         state
             .tree
-            .find_leaf_kind(DEFAULT_EDITOR_AREA_ID),
-        Some(WindowAreaKind::Settings)
+            .find_leaf_kind(DEFAULT_EDITOR_PANEL_ID),
+        Some(WindowPanelKind::Settings)
     );
-    state.set_kind(DEFAULT_EDITOR_AREA_ID, WindowAreaKind::Editor);
+    state.set_kind(DEFAULT_EDITOR_PANEL_ID, WindowPanelKind::Editor);
     assert_eq!(
         state
             .tree
-            .find_leaf_kind(DEFAULT_EDITOR_AREA_ID),
-        Some(WindowAreaKind::Editor)
+            .find_leaf_kind(DEFAULT_EDITOR_PANEL_ID),
+        Some(WindowPanelKind::Editor)
     );
 }
 
@@ -110,14 +110,14 @@ fn area_kinds_switch_on_leaves() {
 #[test]
 fn split_ratio_affects_rect_widths() {
     let mut state = layout();
-    state.split_leaf(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.25);
+    state.split_leaf(DEFAULT_EDITOR_PANEL_ID, Axis::Horizontal, 0.25);
 
     let rects = root_rects(&state);
     assert_eq!(rects.len(), 3);
     // Editor side splits at 25%: the first Editor pane is 70% * 25% = 17.5.
     let left = rects
         .iter()
-        .find(|rect| rect.id == DEFAULT_EDITOR_AREA_ID)
+        .find(|rect| rect.id == DEFAULT_EDITOR_PANEL_ID)
         .expect("left editor rect");
     assert!((left.width - 17.5).abs() < 0.001);
 }
@@ -126,7 +126,7 @@ fn split_ratio_affects_rect_widths() {
 #[test]
 fn window_area_rects_scale_to_container() {
     let mut state = layout();
-    state.split_leaf(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5);
+    state.split_leaf(DEFAULT_EDITOR_PANEL_ID, Axis::Horizontal, 0.5);
 
     let rects = state.leaf_rects(Size::new(px(1000.0), px(800.0)));
     assert_eq!(rects.len(), 3);
@@ -141,7 +141,7 @@ fn window_area_rects_scale_to_container() {
 fn maximize_toggles_single_area() {
     let mut state = layout();
     let new_id = state
-        .split_leaf(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5)
+        .split_leaf(DEFAULT_EDITOR_PANEL_ID, Axis::Horizontal, 0.5)
         .expect("split");
 
     state.toggle_maximize(new_id);
@@ -160,10 +160,10 @@ fn maximize_toggles_single_area() {
 #[test]
 fn activation_history_tracks_editors() {
     let mut state = layout();
-    state.activate_area(DEFAULT_EDITOR_AREA_ID);
-    assert_eq!(state.active_area, Some(DEFAULT_EDITOR_AREA_ID));
+    state.activate_leaf(DEFAULT_EDITOR_PANEL_ID);
+    assert_eq!(state.active_leaf, Some(DEFAULT_EDITOR_PANEL_ID));
     assert_eq!(
         state.activation_history,
-        vec![DEFAULT_EDITOR_AREA_ID]
+        vec![DEFAULT_EDITOR_PANEL_ID]
     );
 }

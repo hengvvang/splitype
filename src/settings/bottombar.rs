@@ -17,7 +17,7 @@ impl Shell {
     /// content yet, so the area keeps the same layout as Editor / Explorer.
     pub(crate) fn render_settings_bottombar(
         &self,
-        area_id: usize,
+        panel_id: usize,
         theme: &Theme,
         _cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -25,7 +25,7 @@ impl Shell {
         let d = &theme.dimensions;
 
         bottombar_container(c, d.bottombar_height, d.bottombar_padding_x)
-            .id(("settings-bottombar", area_id))
+            .id(("settings-bottombar", panel_id))
             .into_any_element()
     }
 }

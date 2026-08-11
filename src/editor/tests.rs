@@ -50,13 +50,13 @@ fn redraw(cx: &mut gpui::VisualTestContext) {
     cx.run_until_parked();
 }
 
-/// Switch the root area's inner panel to the WYSIWYG editing panel.
-/// New sessions start with a Welcome panel that `enter_editing` migrates
-/// to `SourceCode`, so without this the document's blocks are never
-/// mounted and keyboard simulation never reaches them.
+/// Switch the root area's pane to the WYSIWYG editing pane.
+/// New sessions start with a SourceCode pane, so without this the
+/// document's blocks are never mounted and keyboard simulation never
+/// reaches them.
 fn ensure_wysiwyg_editing_panel(editor: &gpui::Entity<Editor>, cx: &mut gpui::App) {
     editor.update(cx, |editor, _cx| {
-        let area = crate::app::window_area::DEFAULT_EDITOR_AREA_ID;
+        let area = crate::app::window_area::DEFAULT_EDITOR_PANEL_ID;
         let mut ids = Vec::new();
         editor
             .ensure_editor_session(area)
@@ -64,12 +64,11 @@ fn ensure_wysiwyg_editing_panel(editor: &gpui::Entity<Editor>, cx: &mut gpui::Ap
             .tree
             .leaf_ids(&mut ids);
         for id in ids {
-            editor.ensure_editor_session(area).root.tree.set_leaf_kind(
-                id,
-                crate::editor::session::EditorInnerPanelKind::Editing(
-                    crate::editor::session::EditingPanelKind::Wysiwyg,
-                ),
-            );
+            editor
+                .ensure_editor_session(area)
+                .root
+                .tree
+                .set_leaf_kind(id, crate::editor::session::EditorPaneKind::Wysiwyg);
         }
     });
 }
@@ -3367,8 +3366,8 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
 async fn rendering_one_editor_area_keeps_other_areas_source_block(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
-    use crate::app::window_area::DEFAULT_EDITOR_AREA_ID;
-    use crate::editor::session::{EditingPanelKind, EditorInnerPanelKind, EditorSession};
+    use crate::app::window_area::DEFAULT_EDITOR_PANEL_ID;
+    use crate::editor::session::{EditorPaneKind, EditorSession};
 
     let (editor, cx) = cx.add_window_view({
         move |_window, cx| Editor::from_markdown(cx, "alpha\nbeta".to_string(), None)
@@ -3377,10 +3376,11 @@ async fn rendering_one_editor_area_keeps_other_areas_source_block(cx: &mut TestA
     // Two Editor areas in one window: each area is its own entity holding
     // a SourceCode panel (the Shell materializes one entity per area).
     let second_entity = editor.update(cx, |editor, cx| {
-        editor.session.root.tree.set_leaf_kind(
-            1,
-            EditorInnerPanelKind::Editing(EditingPanelKind::SourceCode),
-        );
+        editor
+            .session
+            .root
+            .tree
+            .set_leaf_kind(1, EditorPaneKind::SourceCode);
         let mut second = Editor::with_session(2, EditorSession::welcome(), cx);
         second
             .session
@@ -3391,11 +3391,11 @@ async fn rendering_one_editor_area_keeps_other_areas_source_block(cx: &mut TestA
                 "gamma\ndelta".to_string(),
                 None,
             ));
-        second.enter_editing(2);
-        second.session.root.tree.set_leaf_kind(
-            1,
-            EditorInnerPanelKind::Editing(EditingPanelKind::SourceCode),
-        );
+        second
+            .session
+            .root
+            .tree
+            .set_leaf_kind(1, EditorPaneKind::SourceCode);
         second
     });
     let second = cx.cx.new(|_cx| second_entity);
@@ -3403,11 +3403,11 @@ async fn rendering_one_editor_area_keeps_other_areas_source_block(cx: &mut TestA
     fn source_block_id(
         editor: &gpui::Entity<Editor>,
         cx: &mut gpui::VisualTestContext,
-        _area_id: usize,
+        _panel_id: usize,
     ) -> Option<gpui::EntityId> {
         editor.read_with(cx, |editor, _cx| {
             editor
-                .source_code_panel_runtimes
+                .source_pane_runtimes
                 .get(&1)
                 .and_then(|runtime| runtime.block.as_ref().map(|block| block.entity_id()))
         })
@@ -3417,13 +3417,13 @@ async fn rendering_one_editor_area_keeps_other_areas_source_block(cx: &mut TestA
     // frame must keep it alive (rendering used to drop other areas'
     // source runtimes, rebuilding the block entity every frame).
     redraw(cx);
-    let before = source_block_id(&editor, cx, DEFAULT_EDITOR_AREA_ID);
+    let before = source_block_id(&editor, cx, DEFAULT_EDITOR_PANEL_ID);
     assert!(before.is_some(), "first area source block should exist");
     for _ in 0..3 {
         redraw(cx);
         assert_eq!(
             before,
-            source_block_id(&editor, cx, DEFAULT_EDITOR_AREA_ID),
+            source_block_id(&editor, cx, DEFAULT_EDITOR_PANEL_ID),
             "source block entity must survive other render passes"
         );
     }
@@ -3431,11 +3431,11 @@ async fn rendering_one_editor_area_keeps_other_areas_source_block(cx: &mut TestA
     // The second area's entity owns its own runtime, fully independent of
     // the first area's entity.
     second.update(&mut cx.cx, |second, cx| {
-        second.sync_source_code_panel(2, 1, cx)
+        second.sync_source_pane(2, 1, cx)
     });
     let second_id = second.read_with(&mut cx.cx, |second, _cx| {
         second
-            .source_code_panel_runtimes
+            .source_pane_runtimes
             .get(&1)
             .and_then(|runtime| runtime.block.as_ref().map(|block| block.entity_id()))
     });
@@ -3447,12 +3447,12 @@ async fn rendering_one_editor_area_keeps_other_areas_source_block(cx: &mut TestA
 async fn switching_tabs_renders_the_new_document_immediately(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
-    use crate::app::window_area::DEFAULT_EDITOR_AREA_ID;
+    use crate::app::window_area::DEFAULT_EDITOR_PANEL_ID;
 
     let (editor, cx) = cx.add_window_view({
         move |_window, cx| Editor::from_markdown(cx, "alpha\nbeta".to_string(), None)
     });
-    let area = DEFAULT_EDITOR_AREA_ID;
+    let area = DEFAULT_EDITOR_PANEL_ID;
     editor.update(cx, |editor, cx| {
         let list = &mut editor.ensure_editor_session(area).tab_list;
         list.tabs.push(Editor::new_tab_from_markdown(
@@ -3517,12 +3517,12 @@ async fn switching_tabs_renders_the_new_document_immediately(cx: &mut TestAppCon
 async fn switching_to_an_unrendered_tab_mounts_a_full_viewport(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
-    use crate::app::window_area::DEFAULT_EDITOR_AREA_ID;
+    use crate::app::window_area::DEFAULT_EDITOR_PANEL_ID;
 
     let (editor, cx) = cx.add_window_view({
         move |_window, cx| Editor::from_markdown(cx, "alpha\n\nbeta".to_string(), None)
     });
-    let area = DEFAULT_EDITOR_AREA_ID;
+    let area = DEFAULT_EDITOR_PANEL_ID;
     cx.cx
         .update(|app| ensure_wysiwyg_editing_panel(&editor, app));
 

@@ -1,6 +1,6 @@
 //! Outline panel — heading tree navigation.
 //!
-//! The outline is an Editor inner panel: its state lives on each Editor
+//! The outline is an Editor pane: its state lives on each Editor
 //! entity (derived from that editor's own active document), so every area's
 //! Outline panel shows its own document's headings.
 
@@ -38,7 +38,7 @@ impl Editor {
     }
     pub(crate) fn render_outline_tree(
         &self,
-        area_id: usize,
+        panel_id: usize,
         theme: &Theme,
         strings: &I18nStrings,
         editor: &WeakEntity<Editor>,
@@ -51,7 +51,7 @@ impl Editor {
             .w_full()
             .flex()
             .flex_col()
-            .children(self.render_outline_nodes(&self.outline.tree, 0, area_id, theme, editor))
+            .children(self.render_outline_nodes(&self.outline.tree, 0, panel_id, theme, editor))
             .into_any_element()
     }
 
@@ -85,9 +85,9 @@ impl Editor {
             )
             .into_any_element()
     }
-    pub(crate) fn render_tiled_outline_panel(
+    pub(crate) fn render_outline_pane(
         &mut self,
-        area_id: usize,
+        panel_id: usize,
         _panel_id: usize,
         theme: &Theme,
         strings: &I18nStrings,
@@ -95,7 +95,7 @@ impl Editor {
     ) -> AnyElement {
         self.sync_editor_outline(cx);
         let editor = cx.entity().downgrade();
-        self.render_outline_tree(area_id, theme, strings, &editor)
+        self.render_outline_tree(panel_id, theme, strings, &editor)
     }
 
     pub(crate) fn toggle_outline_node(&mut self, id: &str, cx: &mut Context<Self>) {
@@ -111,18 +111,18 @@ impl Editor {
         &self,
         nodes: &[OutlineNode],
         depth: usize,
-        area_id: usize,
+        panel_id: usize,
         theme: &Theme,
         editor: &WeakEntity<Editor>,
     ) -> Vec<AnyElement> {
         let mut elements = Vec::new();
         for node in nodes {
-            elements.push(self.render_outline_node(node, depth, area_id, theme, editor));
+            elements.push(self.render_outline_node(node, depth, panel_id, theme, editor));
             if !node.children.is_empty() && self.outline.expanded.contains(&node.id) {
                 elements.extend(self.render_outline_nodes(
                     &node.children,
                     depth + 1,
-                    area_id,
+                    panel_id,
                     theme,
                     editor,
                 ));
@@ -134,7 +134,7 @@ impl Editor {
         &self,
         node: &OutlineNode,
         depth: usize,
-        area_id: usize,
+        panel_id: usize,
         theme: &Theme,
         editor: &WeakEntity<Editor>,
     ) -> AnyElement {
@@ -210,7 +210,7 @@ impl Editor {
 
         div()
             .id(ElementId::Name(
-                format!("explorer-node-{area_id}-{}", stable_node_hash(&node.id)).into(),
+                format!("explorer-node-{panel_id}-{}", stable_node_hash(&node.id)).into(),
             ))
             .h(px(EXPLORER_NODE_HEIGHT))
             .w_full()

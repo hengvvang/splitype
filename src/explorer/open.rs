@@ -28,7 +28,7 @@ impl Shell {
         self.autoscroll_explorer_selection();
         // Explorer interacts with the ACTIVE editor: the file opens in its
         // tab bar. With no Editor area present the click is ignored.
-        if self.panels.layout.active_area.is_none() {
+        if self.panels.layout.active_leaf.is_none() {
             return;
         }
         self.open_file_in_active_editor(&path, window, cx);
@@ -45,17 +45,14 @@ impl Shell {
     ) {
         self.open_explorer_file(path, window, cx);
         if focus_editor {
-            let area = self.panels.layout.active_area;
-            let focused_panel = self.primary_editor().and_then(|editor| {
-                editor
-                    .read(cx)
-                    .focused_editor_inner_panel
-                    .filter(|_| area.is_some())
-            });
-            if let (Some(area), Some(panel_id)) = (area, focused_panel) {
+            let area = self.panels.layout.active_leaf;
+            let focused_panel = self
+                .primary_editor()
+                .and_then(|editor| editor.read(cx).focused_pane.filter(|_| area.is_some()));
+            if let (Some(area), Some(pane_id)) = (area, focused_panel) {
                 if let Some(editor) = self.primary_editor() {
                     let _ = editor.update(cx, |editor, cx| {
-                        editor.focus_editor_inner_panel(area, panel_id, window, cx);
+                        editor.focus_pane(area, pane_id, window, cx);
                     });
                 }
             }
@@ -70,18 +67,18 @@ impl Shell {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(area_id) = self.panels.layout.active_area else {
+        let Some(panel_id) = self.panels.layout.active_leaf else {
             return;
         };
         let Some(new_id) =
-            self.split_window_area(area_id, crate::splitter::Axis::Horizontal, 0.5, false, cx)
+            self.split_panel(panel_id, crate::splitter::Axis::Horizontal, 0.5, false, cx)
         else {
             return;
         };
-        self.panels.layout.activate_area(new_id);
+        self.panels.layout.activate_leaf(new_id);
         if let Some(editor) = self.editor_for(new_id) {
             let _ = editor.update(cx, |editor, cx| {
-                editor.open_file_in_area(new_id, &path, window, cx);
+                editor.open_file_in_panel(new_id, &path, window, cx);
             });
         }
         cx.notify();

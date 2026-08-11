@@ -22,7 +22,7 @@ use crate::ui::empty_state::empty_state_container;
 impl Shell {
     pub(crate) fn render_explorer_files_tree(
         &mut self,
-        area_id: usize,
+        panel_id: usize,
         theme: &Theme,
         strings: &I18nStrings,
         cx: &mut Context<Self>,
@@ -46,7 +46,7 @@ impl Shell {
             return self.render_explorer_empty_state(
                 "Explorer is empty now",
                 "",
-                area_id,
+                panel_id,
                 theme,
                 strings,
                 &recent_folders,
@@ -59,7 +59,7 @@ impl Shell {
             return self.render_explorer_empty_state(
                 "Explorer is empty now",
                 error,
-                area_id,
+                panel_id,
                 theme,
                 strings,
                 &recent_folders,
@@ -72,7 +72,7 @@ impl Shell {
             return self.render_explorer_empty_state(
                 "Explorer is empty now",
                 "",
-                area_id,
+                panel_id,
                 theme,
                 strings,
                 &recent_folders,
@@ -92,7 +92,7 @@ impl Shell {
         let row_theme = theme.clone();
         let row_editor = cx.entity().downgrade();
         let list = uniform_list(
-            ("explorer-tree", area_id),
+            ("explorer-tree", panel_id),
             entries_len,
             cx.processor(move |this: &mut Shell, range: Range<usize>, _window, cx| {
                 this.panels.explorer.rendered_rows = range.len();
@@ -104,7 +104,7 @@ impl Shell {
                     if let Some(row) = this.panels.explorer.entries.get(index) {
                         items.push(this.render_explorer_row(
                             row,
-                            area_id,
+                            panel_id,
                             drag_highlight.as_deref(),
                             &row_theme,
                             &row_editor,
@@ -121,7 +121,7 @@ impl Shell {
         .py(px(4.0));
 
         div()
-            .id(("explorer-root", area_id))
+            .id(("explorer-root", panel_id))
             .key_context("ExplorerPanel")
             .w_full()
             .h_full()
@@ -222,7 +222,7 @@ impl Shell {
     pub(crate) fn render_explorer_row(
         &self,
         row: &ExplorerRow,
-        area_id: usize,
+        panel_id: usize,
         drag_highlight: Option<&Path>,
         theme: &Theme,
         editor: &WeakEntity<Shell>,
@@ -230,12 +230,12 @@ impl Shell {
     ) -> AnyElement {
         match row {
             ExplorerRow::Entry(entry) if entry.parent_id.is_none() => {
-                self.render_explorer_root_row(entry, area_id, drag_highlight, theme, editor, cx)
+                self.render_explorer_root_row(entry, panel_id, drag_highlight, theme, editor, cx)
             }
             ExplorerRow::Entry(entry) => {
-                self.render_explorer_entry_row(entry, area_id, drag_highlight, theme, editor, cx)
+                self.render_explorer_entry_row(entry, panel_id, drag_highlight, theme, editor, cx)
             }
-            ExplorerRow::Edit { .. } => self.render_explorer_edit_row(area_id, theme, editor, cx),
+            ExplorerRow::Edit { .. } => self.render_explorer_edit_row(panel_id, theme, editor, cx),
         }
     }
 
@@ -247,7 +247,7 @@ impl Shell {
     pub(crate) fn render_explorer_root_row(
         &self,
         entry: &VisibleExplorerEntry,
-        area_id: usize,
+        panel_id: usize,
         drag_highlight: Option<&Path>,
         theme: &Theme,
         editor: &WeakEntity<Shell>,
@@ -346,7 +346,7 @@ impl Shell {
                 .gap(px(2.0))
                 .child(
                     icon_chip_button(c, &theme.dimensions)
-                        .id(("ws-tb-replace", area_id))
+                        .id(("ws-tb-replace", panel_id))
                         .child(
                             svg()
                                 .path("icons/explorer/worktree/replace_folder.svg")
@@ -362,7 +362,7 @@ impl Shell {
                 )
                 .child(
                     icon_chip_button(c, &theme.dimensions)
-                        .id(("ws-tb-hidden", area_id))
+                        .id(("ws-tb-hidden", panel_id))
                         .child(
                             svg()
                                 .path(if hide_hidden {
@@ -386,7 +386,7 @@ impl Shell {
                 )
                 .child(
                     icon_chip_button(c, &theme.dimensions)
-                        .id(("ws-tb-refresh", area_id))
+                        .id(("ws-tb-refresh", panel_id))
                         .child(
                             svg()
                                 .path("icons/explorer/worktree/sync_folder.svg")
@@ -402,7 +402,7 @@ impl Shell {
                 )
                 .child(
                     icon_chip_button(c, &theme.dimensions)
-                        .id(("ws-tb-collapse", area_id))
+                        .id(("ws-tb-collapse", panel_id))
                         .child(
                             svg()
                                 .path("icons/explorer/worktree/collapse-all.svg")
@@ -423,7 +423,7 @@ impl Shell {
 
         div()
             .id(ElementId::Name(
-                format!("explorer-root-row-{area_id}-{}", entry.root).into(),
+                format!("explorer-root-row-{panel_id}-{}", entry.root).into(),
             ))
             .h(px(EXPLORER_NODE_HEIGHT))
             .w_full()
@@ -555,7 +555,7 @@ impl Shell {
     pub(crate) fn render_explorer_entry_row(
         &self,
         entry: &VisibleExplorerEntry,
-        area_id: usize,
+        panel_id: usize,
         drag_highlight: Option<&Path>,
         theme: &Theme,
         editor: &WeakEntity<Shell>,
@@ -656,7 +656,7 @@ impl Shell {
 
         div()
             .id(ElementId::Name(
-                format!("explorer-node-{area_id}-{}", node_id.0).into(),
+                format!("explorer-node-{panel_id}-{}", node_id.0).into(),
             ))
             .h(px(EXPLORER_NODE_HEIGHT))
             .w_full()
@@ -805,7 +805,7 @@ impl Shell {
     /// handling, IME bridge, and live validation feedback.
     pub(crate) fn render_explorer_edit_row(
         &self,
-        area_id: usize,
+        panel_id: usize,
         theme: &Theme,
         _editor: &WeakEntity<Shell>,
         cx: &mut Context<Self>,
@@ -833,7 +833,7 @@ impl Shell {
         };
 
         div()
-            .id(ElementId::Name(format!("explorer-edit-{area_id}").into()))
+            .id(ElementId::Name(format!("explorer-edit-{panel_id}").into()))
             .h(px(EXPLORER_NODE_HEIGHT))
             .w_full()
             .overflow_hidden()
@@ -866,7 +866,7 @@ impl Shell {
             )
             .child(
                 div()
-                    .id(("explorer-filename-input-box", area_id))
+                    .id(("explorer-filename-input-box", panel_id))
                     .key_context("ExplorerFilenameInput")
                     .track_focus(&focus_handle)
                     .flex_1()
@@ -903,7 +903,7 @@ impl Shell {
         &self,
         title: &str,
         message: &str,
-        area_id: usize,
+        panel_id: usize,
         theme: &Theme,
         strings: &I18nStrings,
         recent_folders: &[PathBuf],
@@ -966,7 +966,7 @@ impl Shell {
             })
             .child(
                 div()
-                    .id(("explorer-empty-open-btn", area_id))
+                    .id(("explorer-empty-open-btn", panel_id))
                     .cursor_pointer()
                     .mt(px(4.0))
                     .h(px(28.0))
@@ -1033,7 +1033,7 @@ impl Shell {
                                 .id(ElementId::Name(
                                     format!(
                                         "explorer-recent-folder-{}-{}",
-                                        area_id,
+                                        panel_id,
                                         path.display()
                                     )
                                     .into(),
@@ -1076,7 +1076,7 @@ impl Shell {
                             let path = path.clone();
                             div()
                                 .id(ElementId::Name(
-                                    format!("explorer-recent-{}-{}", area_id, path.display())
+                                    format!("explorer-recent-{}-{}", panel_id, path.display())
                                         .into(),
                                 ))
                                 .cursor_pointer()
@@ -1115,12 +1115,12 @@ impl Shell {
 
     pub(crate) fn render_explorer_midcontainer(
         &mut self,
-        area_id: usize,
+        panel_id: usize,
         theme: &Theme,
         strings: &I18nStrings,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         self.sync_explorer_models(cx);
-        self.render_explorer_files_tree(area_id, theme, strings, cx)
+        self.render_explorer_files_tree(panel_id, theme, strings, cx)
     }
 }

@@ -18,7 +18,7 @@ use crate::ui::switch::Switch;
 impl Shell {
     pub(crate) fn render_settings_midcontainer(
         &mut self,
-        area_id: usize,
+        panel_id: usize,
         theme: &Theme,
         _strings: &I18nStrings,
         cx: &mut Context<Self>,
@@ -39,12 +39,12 @@ impl Shell {
 
             left_nav_items.push(
                 nav_tab(
-                    ElementId::Name(format!("pref-tab-{area_id}-{tab_idx}").into()),
+                    ElementId::Name(format!("pref-tab-{panel_id}-{tab_idx}").into()),
                     c,
                     d,
                 )
                 .id(ElementId::Name(
-                    format!("pref-tab-{area_id}-{tab_idx}").into(),
+                    format!("pref-tab-{panel_id}-{tab_idx}").into(),
                 ))
                 .cursor_pointer()
                 .flex()
@@ -143,7 +143,7 @@ impl Shell {
 
                 let mut center_box = stepper_value()
                     .id(ElementId::Name(
-                        format!("{}-center-{}", id_dec, area_id).into(),
+                        format!("{}-center-{}", id_dec, panel_id).into(),
                     ))
                     .bg(if is_editing {
                         tc.dialog_surface
@@ -179,7 +179,7 @@ impl Shell {
                 stepper_container(tc, td)
                     .child(
                         stepper_step_button(id_dec, tc)
-                            .id((id_dec, area_id))
+                            .id((id_dec, panel_id))
                             .child(
                                 svg()
                                     .path("icons/settings/minus.svg")
@@ -193,7 +193,7 @@ impl Shell {
                     .child(stepper_divider(tc))
                     .child(
                         stepper_step_button(id_inc, tc)
-                            .id((id_inc, area_id))
+                            .id((id_inc, panel_id))
                             .child(
                                 svg()
                                     .path("icons/settings/plus.svg")
@@ -216,7 +216,7 @@ impl Shell {
             let td = &theme.dimensions;
 
             let header = section_header()
-                .id((sec_id, area_id))
+                .id((sec_id, panel_id))
                 .child(
                     svg()
                         .path(if is_expanded {
@@ -1113,7 +1113,7 @@ impl Shell {
         }
 
         let right_content = div()
-            .id(("pref-right-content", area_id))
+            .id(("pref-right-content", panel_id))
             .relative()
             .flex_1()
             .h_full()

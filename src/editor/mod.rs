@@ -13,9 +13,9 @@
 //!   source mapping, and the table runtime.
 //! - `wysiwyg/` / `source_code/` / `preview/` / `outline/` — the four
 //!   editor display modes (each owns its rendering and behavior).
-//! - `session.rs` / `session_ops.rs` — the per-area `EditorSession`
-//!   aggregate (tab list + panel split tree) and its operations;
-//!   `panel_layout.rs` renders that split tree.
+//! - `session.rs` / `session_ops.rs` — the per-panel `EditorSession`
+//!   aggregate (tab list + pane split tree) and its operations;
+//!   `pane_layout.rs` renders that split tree.
 //! - `explorer_state/` / `settings_state.rs` — sidebar state owned by the
 //!   window (`WindowPanels`); the views live in the top-level `src/explorer` /
 //!   `src/settings` and depend on these one-way.
@@ -38,7 +38,7 @@ pub mod geometry;
 pub mod keybindings;
 pub(crate) mod menu_actions;
 pub(crate) mod outline;
-pub(crate) mod panel_layout;
+pub(crate) mod pane_layout;
 pub mod preview;
 pub mod render;
 pub(crate) mod session;

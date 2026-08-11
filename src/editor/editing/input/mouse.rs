@@ -15,7 +15,7 @@ impl Editor {
         // One Editor entity serves one area; the scrollbar belongs to this
         // editor's own document view. The fade task captures the area id so
         // it clears the right fade task later.
-        let area = self.area_id;
+        let area = self.panel_id;
         let duration = Duration::from_millis(900);
         self.tab_mut_for(area).scroll.scrollbar_visible_until = Instant::now() + duration;
 

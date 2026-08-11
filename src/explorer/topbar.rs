@@ -5,7 +5,7 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 
-use crate::editor::window_layout::area_topbar_icon;
+use crate::editor::window_layout::panel_topbar_icon;
 use crate::infra::theme::Theme;
 use crate::splitter::Axis;
 use crate::ui::button::{icon_chip_button, small_pill_button};
@@ -16,7 +16,7 @@ impl Shell {
     pub(crate) fn render_explorer_topbar(
         &self,
         leaf_id: usize,
-        kind: crate::app::window_area::WindowAreaKind,
+        kind: crate::app::window_area::WindowPanelKind,
         theme: &Theme,
         leaf_count: usize,
         is_maximized: bool,
@@ -44,14 +44,14 @@ impl Shell {
             .id(("area-topbar-split-h", leaf_id))
             .child(
                 svg()
-                    .path(area_topbar_icon(kind, "split-h"))
+                    .path(panel_topbar_icon(kind, "split-h"))
                     .size(px(d.topbar_height * 0.5 + 2.0))
                     .text_color(c.dialog_muted),
             )
             .on_click(move |_event, _window, cx| {
                 let _ = split_h_editor.update(cx, |ed, cx| {
                     // Same-kind split; Editor areas deep-copy their tabs.
-                    ed.split_area(leaf_id, Axis::Horizontal, 0.5, true, cx);
+                    ed.split_panel(leaf_id, Axis::Horizontal, 0.5, true, cx);
                     cx.notify();
                 });
             });
@@ -61,14 +61,14 @@ impl Shell {
             .id(("area-topbar-split-v", leaf_id))
             .child(
                 svg()
-                    .path(area_topbar_icon(kind, "split-v"))
+                    .path(panel_topbar_icon(kind, "split-v"))
                     .size(px(d.topbar_height * 0.5 + 2.0))
                     .text_color(c.dialog_muted),
             )
             .on_click(move |_event, _window, cx| {
                 let _ = split_v_editor.update(cx, |ed, cx| {
                     // Same-kind split; Editor areas deep-copy their tabs.
-                    ed.split_area(leaf_id, Axis::Vertical, 0.5, true, cx);
+                    ed.split_panel(leaf_id, Axis::Vertical, 0.5, true, cx);
                     cx.notify();
                 });
             });
@@ -87,9 +87,9 @@ impl Shell {
                 .child(
                     svg()
                         .path(if is_maximized {
-                            area_topbar_icon(kind, "restore")
+                            panel_topbar_icon(kind, "restore")
                         } else {
-                            area_topbar_icon(kind, "maximize")
+                            panel_topbar_icon(kind, "maximize")
                         })
                         .size(px(d.topbar_height * 0.5 - 2.0))
                         .text_color(c.dialog_muted),
@@ -106,13 +106,13 @@ impl Shell {
                 .id(("area-topbar-close", leaf_id))
                 .child(
                     svg()
-                        .path(area_topbar_icon(kind, "close"))
+                        .path(panel_topbar_icon(kind, "close"))
                         .size(px(d.topbar_height * 0.5 - 2.0))
                         .text_color(c.dialog_muted),
                 )
                 .on_click(move |_event, _window, cx| {
                     let _ = close_editor.update(cx, |ed, cx| {
-                        ed.close_window_area(leaf_id, cx);
+                        ed.close_panel(leaf_id, cx);
                         cx.notify();
                     });
                 });

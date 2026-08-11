@@ -291,19 +291,19 @@ impl Render for Editor {
 
         let d = &theme.dimensions;
         let c = &theme.colors;
-        let area_id = self.area_id;
+        let panel_id = self.panel_id;
         // Pushed by the Shell every frame: how many areas the outer layout
         // holds (maximize/close controls hide for a single area) and
         // whether this tile is maximized.
         let leaf_count = self.leaf_count;
         let is_maximized = self.is_maximized;
 
-        // One Editor entity renders its own area tile: top bar, inner panel
+        // One Editor entity renders its own panel tile: top bar, panes
         // layout, and bottom status bar. The outer split tree (rendered by
         // the Shell) embeds this tile as one leaf.
         let base =
             div()
-                .id(("editor-area-tile", area_id))
+                .id(("editor-area-tile", panel_id))
                 .w_full()
                 .h_full()
                 .flex()
@@ -341,8 +341,8 @@ impl Render for Editor {
                 .on_action(cx.listener(Self::on_install_cli_tool))
                 .on_action(cx.listener(Self::on_uninstall_cli_tool))
                 .child(self.render_editor_topbar(
-                    area_id,
-                    WindowAreaKind::Editor,
+                    panel_id,
+                    WindowPanelKind::Editor,
                     &theme,
                     leaf_count,
                     is_maximized,
@@ -350,10 +350,10 @@ impl Render for Editor {
                 ))
                 .child(
                     div().w_full().flex_1().min_h(px(0.0)).relative().child(
-                        self.render_editor_midcontainer(area_id, &theme, &strings, window, cx),
+                        self.render_editor_midcontainer(panel_id, &theme, &strings, window, cx),
                     ),
                 )
-                .child(self.render_editor_bottombar(area_id, &theme, &strings, cx));
+                .child(self.render_editor_bottombar(panel_id, &theme, &strings, cx));
         let base = if let Some(context_menu) = self.render_context_menu_overlay(&theme, cx) {
             base.child(context_menu)
         } else {
@@ -376,8 +376,8 @@ impl Editor {
     /// access hits this editor's own tab set.
     pub(crate) fn render_document_view(
         &mut self,
-        area_id: usize,
         panel_id: usize,
+        pane_id: usize,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -668,7 +668,7 @@ impl Editor {
                 plan,
                 &blocks,
                 editor.clone(),
-                area_id,
+                panel_id,
                 centered_width,
                 &theme,
                 d,
@@ -686,7 +686,7 @@ impl Editor {
 
         let scroll_content = div()
             .id(ElementId::Name(
-                format!("editor-scroll-inner-{area_id}-{panel_id}").into(),
+                format!("editor-scroll-inner-{panel_id}-{pane_id}").into(),
             ))
             .flex()
             .flex_col()
@@ -703,57 +703,43 @@ impl Editor {
                 // replace flow to ITS tab set.
                 {
                     if let Some(shell) = this.shell.clone() {
-                        let _ = shell.update(cx, |shell, cx| shell.activate_area(area_id, cx));
+                        let _ = shell.update(cx, |shell, cx| shell.activate_panel(panel_id, cx));
                     }
                     this.on_external_paths_drop(paths, window, cx);
                 }
             }))
             .on_hover(cx.listener(move |this, hovered, window, cx| {
-                {
-                    this.on_editor_hover(hovered, window, cx);
-                }
+                this.on_editor_hover(hovered, window, cx);
             }))
             .capture_any_mouse_down(cx.listener(move |this, event, window, cx| {
-                {
-                    this.on_editor_capture_mouse_down(event, window, cx);
-                }
+                this.on_editor_capture_mouse_down(event, window, cx);
             }))
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(move |this, event, window, cx| {
-                    {
-                        if let Some(shell) = this.shell.clone() {
-                            let _ = shell.update(cx, |shell, cx| shell.activate_area(area_id, cx));
-                        }
-                        this.on_editor_mouse_down(event, window, cx);
+                    if let Some(shell) = this.shell.clone() {
+                        let _ = shell.update(cx, |shell, cx| shell.activate_panel(panel_id, cx));
                     }
+                    this.on_editor_mouse_down(event, window, cx);
                 }),
             )
             .on_mouse_move(cx.listener(move |this, event, window, cx| {
-                {
-                    this.on_editor_mouse_move(event, window, cx);
-                }
+                this.on_editor_mouse_move(event, window, cx);
             }))
             .on_mouse_up(
                 MouseButton::Left,
                 cx.listener(move |this, event, window, cx| {
-                    {
-                        this.on_editor_mouse_up(event, window, cx);
-                    }
+                    this.on_editor_mouse_up(event, window, cx);
                 }),
             )
             .on_mouse_up_out(
                 MouseButton::Left,
                 cx.listener(move |this, event, window, cx| {
-                    {
-                        this.on_editor_mouse_up(event, window, cx);
-                    }
+                    this.on_editor_mouse_up(event, window, cx);
                 }),
             )
             .on_scroll_wheel(cx.listener(move |this, event, window, cx| {
-                {
-                    this.on_editor_scroll_wheel(event, window, cx);
-                }
+                this.on_editor_scroll_wheel(event, window, cx);
             }))
             .p(px(d.editor_padding))
             .pb(px(d.editor_padding
@@ -764,12 +750,10 @@ impl Editor {
             scroll_content.on_mouse_down(
                 MouseButton::Right,
                 cx.listener(move |this, event, window, cx| {
-                    {
-                        if let Some(shell) = this.shell.clone() {
-                            let _ = shell.update(cx, |shell, cx| shell.activate_area(area_id, cx));
-                        }
-                        this.on_editor_context_menu_mouse_down(event, window, cx);
+                    if let Some(shell) = this.shell.clone() {
+                        let _ = shell.update(cx, |shell, cx| shell.activate_panel(panel_id, cx));
                     }
+                    this.on_editor_context_menu_mouse_down(event, window, cx);
                 }),
             )
         } else {
@@ -778,7 +762,7 @@ impl Editor {
 
         let content_area = div()
             .id(ElementId::Name(
-                format!("editor-scroll-{area_id}-{panel_id}").into(),
+                format!("editor-scroll-{panel_id}-{pane_id}").into(),
             ))
             .w_full()
             .h_full()
@@ -794,7 +778,7 @@ impl Editor {
             content_area.child(
                 div()
                     .id(ElementId::Name(
-                        format!("editor-scrollbar-thumb-{area_id}-{panel_id}").into(),
+                        format!("editor-scrollbar-thumb-{panel_id}-{pane_id}").into(),
                     ))
                     .absolute()
                     .occlude()
@@ -806,9 +790,7 @@ impl Editor {
                     .bg(theme.colors.scrollbar_thumb)
                     .cursor_pointer()
                     .on_hover(cx.listener(move |this, hovered, window, cx| {
-                        {
-                            this.on_editor_hover(hovered, window, cx);
-                        }
+                        this.on_editor_hover(hovered, window, cx);
                     }))
                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                         let pointer_offset_y =
@@ -818,7 +800,7 @@ impl Editor {
                             {
                                 if let Some(shell) = editor.shell.clone() {
                                     let _ = shell
-                                        .update(cx, |shell, cx| shell.activate_area(area_id, cx));
+                                        .update(cx, |shell, cx| shell.activate_panel(panel_id, cx));
                                 }
                                 editor.start_scrollbar_drag(
                                     pointer_offset_y,
@@ -841,9 +823,7 @@ impl Editor {
                                             return;
                                         }
                                         let _ = editor.update(cx, |editor, cx| {
-                                            {
-                                                editor.end_scrollbar_drag(cx);
-                                            }
+                                            editor.end_scrollbar_drag(cx);
                                         });
                                     }
                                 });
@@ -858,10 +838,7 @@ impl Editor {
                                         let pointer_y_in_track =
                                             f32::from(event.position.y) - track_origin_y;
                                         let _ = editor.update(cx, |editor, cx| {
-                                            {
-                                                editor
-                                                    .update_scrollbar_drag(pointer_y_in_track, cx);
-                                            }
+                                            editor.update_scrollbar_drag(pointer_y_in_track, cx);
                                         });
                                     }
                                 });
@@ -885,7 +862,7 @@ impl Editor {
         plan: &PlannedRow,
         blocks: &[RenderedBlock],
         editor: WeakEntity<Self>,
-        area_id: usize,
+        panel_id: usize,
         centered_width: f32,
         theme: &Theme,
         d: &ThemeDimensions,
@@ -915,13 +892,11 @@ impl Editor {
                 let row_editor = editor.clone();
                 row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
                     let _ = row_editor.update(cx, |editor, cx| {
-                        {
-                            if let Some(shell) = editor.shell.clone() {
-                                let _ =
-                                    shell.update(cx, |shell, cx| shell.activate_area(area_id, cx));
-                            }
-                            editor.on_block_context_menu_mouse_down(entity_id, event, window, cx);
+                        if let Some(shell) = editor.shell.clone() {
+                            let _ =
+                                shell.update(cx, |shell, cx| shell.activate_panel(panel_id, cx));
                         }
+                        editor.on_block_context_menu_mouse_down(entity_id, event, window, cx);
                     });
                 })
             } else {

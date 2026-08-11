@@ -4,8 +4,8 @@
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
-use crate::app::window_area::WindowAreaKind;
-use crate::editor::window_layout::area_topbar_icon;
+use crate::app::window_area::WindowPanelKind;
+use crate::editor::window_layout::panel_topbar_icon;
 use crate::infra::theme::Theme;
 use crate::splitter::Axis;
 use crate::ui::button::{icon_chip_button, small_pill_button};
@@ -17,7 +17,7 @@ impl crate::editor::controller::Editor {
     pub(crate) fn render_editor_topbar(
         &mut self,
         leaf_id: usize,
-        kind: crate::app::window_area::WindowAreaKind,
+        kind: crate::app::window_area::WindowPanelKind,
         theme: &Theme,
         leaf_count: usize,
         is_maximized: bool,
@@ -31,7 +31,7 @@ impl crate::editor::controller::Editor {
         // The active editor (the target for explorer file opens) shows a
         // link icon after its name; other kinds and inactive editors stay
         // plain text.
-        let is_active_editor = self.is_active_area;
+        let is_active_editor = self.is_active_panel;
         let type_button = small_pill_button(c, d)
             .id(("area-topbar-type", leaf_id))
             .text_size(px(12.0))
@@ -40,7 +40,7 @@ impl crate::editor::controller::Editor {
             .when(is_active_editor, |this| {
                 this.child(
                     svg()
-                        .path(area_topbar_icon(kind, "active"))
+                        .path(panel_topbar_icon(kind, "active"))
                         .size(px(d.topbar_height * 0.5))
                         .text_color(c.app_menu_active),
                 )
@@ -49,7 +49,7 @@ impl crate::editor::controller::Editor {
                 let _ = type_editor.update(cx, |ed, cx| {
                     if let Some(shell) = ed.shell.clone() {
                         let _ = shell.update(cx, |shell, cx| {
-                            shell.toggle_area_dropdown(leaf_id, cx);
+                            shell.toggle_panel_dropdown(leaf_id, cx);
                         });
                     }
                     cx.notify();
@@ -61,7 +61,7 @@ impl crate::editor::controller::Editor {
             .id(("area-topbar-split-h", leaf_id))
             .child(
                 svg()
-                    .path(area_topbar_icon(kind, "split-h"))
+                    .path(panel_topbar_icon(kind, "split-h"))
                     .size(px(d.topbar_height * 0.5 + 2.0))
                     .text_color(c.dialog_muted),
             )
@@ -70,7 +70,7 @@ impl crate::editor::controller::Editor {
                     // Same-kind split; Editor areas deep-copy their tabs.
                     if let Some(shell) = ed.shell.clone() {
                         let _ = shell.update(cx, |shell, cx| {
-                            shell.split_area(leaf_id, Axis::Horizontal, 0.5, true, cx);
+                            shell.split_panel(leaf_id, Axis::Horizontal, 0.5, true, cx);
                         });
                     }
                     cx.notify();
@@ -82,7 +82,7 @@ impl crate::editor::controller::Editor {
             .id(("area-topbar-split-v", leaf_id))
             .child(
                 svg()
-                    .path(area_topbar_icon(kind, "split-v"))
+                    .path(panel_topbar_icon(kind, "split-v"))
                     .size(px(d.topbar_height * 0.5 + 2.0))
                     .text_color(c.dialog_muted),
             )
@@ -91,7 +91,7 @@ impl crate::editor::controller::Editor {
                     // Same-kind split; Editor areas deep-copy their tabs.
                     if let Some(shell) = ed.shell.clone() {
                         let _ = shell.update(cx, |shell, cx| {
-                            shell.split_area(leaf_id, Axis::Vertical, 0.5, true, cx);
+                            shell.split_panel(leaf_id, Axis::Vertical, 0.5, true, cx);
                         });
                     }
                     cx.notify();
@@ -112,9 +112,9 @@ impl crate::editor::controller::Editor {
                 .child(
                     svg()
                         .path(if is_maximized {
-                            area_topbar_icon(kind, "restore")
+                            panel_topbar_icon(kind, "restore")
                         } else {
-                            area_topbar_icon(kind, "maximize")
+                            panel_topbar_icon(kind, "maximize")
                         })
                         .size(px(d.topbar_height * 0.5 - 2.0))
                         .text_color(c.dialog_muted),
@@ -123,7 +123,7 @@ impl crate::editor::controller::Editor {
                     let _ = max_editor.update(cx, |ed, cx| {
                         if let Some(shell) = ed.shell.clone() {
                             let _ = shell.update(cx, |shell, cx| {
-                                shell.toggle_area_maximize(leaf_id, cx);
+                                shell.toggle_panel_maximize(leaf_id, cx);
                             });
                         }
                         cx.notify();
@@ -135,7 +135,7 @@ impl crate::editor::controller::Editor {
                 .id(("area-topbar-close", leaf_id))
                 .child(
                     svg()
-                        .path(area_topbar_icon(kind, "close"))
+                        .path(panel_topbar_icon(kind, "close"))
                         .size(px(d.topbar_height * 0.5 - 2.0))
                         .text_color(c.dialog_muted),
                 )
@@ -143,7 +143,7 @@ impl crate::editor::controller::Editor {
                     let _ = close_editor.update(cx, |ed, cx| {
                         if let Some(shell) = ed.shell.clone() {
                             let _ = shell.update(cx, |shell, cx| {
-                                shell.close_window_area(leaf_id, cx);
+                                shell.close_panel(leaf_id, cx);
                             });
                         }
                         cx.notify();
@@ -156,7 +156,7 @@ impl crate::editor::controller::Editor {
         // Build tab bar for Edit areas from THAT editor's own tab set.
         let mut left_section = div().flex().items_center().gap(px(8.0)).child(type_button);
 
-        if kind == WindowAreaKind::Editor {
+        if kind == WindowPanelKind::Editor {
             // Ensure the session exists: an Editor area may have had its
             // (empty) session dropped while switched to another kind and
             // switched back, or may be brand new — rendering must never
@@ -207,7 +207,7 @@ impl crate::editor::controller::Editor {
                                     let _ = tab_editor.update(cx, |ed, cx| {
                                         if let Some(shell) = ed.shell.clone() {
                                             let _ = shell.update(cx, |shell, cx| {
-                                                shell.activate_area(leaf_id, cx);
+                                                shell.activate_panel(leaf_id, cx);
                                             });
                                         }
                                         ed.activate_tab(leaf_id, index, cx);
@@ -227,7 +227,7 @@ impl crate::editor::controller::Editor {
                                 .cursor_pointer()
                                 .child(
                                     svg()
-                                        .path(area_topbar_icon(kind, "close"))
+                                        .path(panel_topbar_icon(kind, "close"))
                                         .size(px(8.0))
                                         .text_color(c.dialog_muted),
                                 )
@@ -235,7 +235,7 @@ impl crate::editor::controller::Editor {
                                     let _ = close_editor.update(cx, |ed, cx| {
                                         if let Some(shell) = ed.shell.clone() {
                                             let _ = shell.update(cx, |shell, cx| {
-                                                shell.activate_area(leaf_id, cx);
+                                                shell.activate_panel(leaf_id, cx);
                                             });
                                         }
                                         ed.close_tab(leaf_id, index, cx);
@@ -269,7 +269,7 @@ impl crate::editor::controller::Editor {
                         let _ = add_editor.update(cx, |ed, cx| {
                             if let Some(shell) = ed.shell.clone() {
                                 let _ = shell.update(cx, |shell, cx| {
-                                    shell.activate_area(leaf_id, cx);
+                                    shell.activate_panel(leaf_id, cx);
                                 });
                             }
                             ed.new_untitled_tab(leaf_id, cx);

@@ -65,11 +65,11 @@ pub fn render_word_count(
 // ── Editor methods ────────────────────────────────────────────────────────
 
 impl Editor {
-    /// Bottom bar of an Editor area: inner-panel switch, split/close
+    /// Bottom bar of an Editor area: pane switch, split/close
     /// controls, cursor position and word count.
     pub(crate) fn render_editor_bottombar(
         &mut self,
-        area_id: usize,
+        panel_id: usize,
         theme: &Theme,
         strings: &I18nStrings,
         cx: &mut Context<Self>,
@@ -78,14 +78,18 @@ impl Editor {
         let d = &theme.dimensions;
         let prefs = self.bottombar_settings(cx);
 
-        let inner_leaf_count = self.ensure_editor_session(area_id).root.tree.count_leaves();
+        let inner_leaf_count = self
+            .ensure_editor_session(panel_id)
+            .root
+            .tree
+            .count_leaves();
 
-        let focused_panel_id = self.focused_editor_inner_panel;
-        let focused_kind = focused_panel_id.and_then(|panel_id| {
-            self.ensure_editor_session(area_id)
+        let focused_pane_id = self.focused_pane;
+        let focused_kind = focused_pane_id.and_then(|pane_id| {
+            self.ensure_editor_session(panel_id)
                 .root
                 .tree
-                .find_leaf_kind(panel_id)
+                .find_leaf_kind(pane_id)
         });
 
         let mut left_items: Vec<AnyElement> = Vec::new();
@@ -96,8 +100,8 @@ impl Editor {
         // displays the outer mode itself ("Welcome") and is disabled; in the
         // editing state it displays the focused panel kind and opens the
         // panel-type dropdown.
-        if let (Some(panel_id), Some(focused_kind)) = (focused_panel_id, focused_kind) {
-            let editing = self.area_mode(area_id).is_editing();
+        if let (Some(pane_id), Some(focused_kind)) = (focused_pane_id, focused_kind) {
+            let editing = self.area_mode(panel_id).is_editing();
             let toggle_editor = cx.entity().downgrade();
             let label = focused_kind.name().to_string();
             let mut mode_pill = small_pill_button(c, d)
@@ -113,7 +117,7 @@ impl Editor {
                 mode_pill =
                     mode_pill.on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = toggle_editor.update(cx, |ed, cx| {
-                            ed.toggle_editor_inner_panel_dropdown(area_id, panel_id, cx);
+                            ed.toggle_pane_dropdown(panel_id, pane_id, cx);
                             cx.notify();
                         });
                     });
@@ -121,7 +125,7 @@ impl Editor {
             left_items.push(mode_pill.into_any_element());
         }
 
-        if self.area_has_tabs(area_id) && prefs.show_cursor_position {
+        if self.has_tabs(panel_id) && prefs.show_cursor_position {
             left_items.push(
                 div()
                     .text_size(px(11.0))
@@ -135,8 +139,8 @@ impl Editor {
             ));
         }
 
-        if self.area_has_tabs(area_id) && prefs.show_word_count {
-            let text = self.serialized_document_text_for(area_id, cx);
+        if self.has_tabs(panel_id) && prefs.show_word_count {
+            let text = self.serialized_document_text_for(panel_id, cx);
             let total_count = count_words(&text);
             let selection_count = self.selected_markdown_text(cx).as_deref().map(count_words);
             right_items.push(render_word_count(
@@ -150,7 +154,7 @@ impl Editor {
         // Split / close buttons on the far right of the status bar. Available
         // even in the welcome state so the panels can be split before any
         // document is opened.
-        if let (Some(panel_id), Some(_)) = (focused_panel_id, focused_kind) {
+        if let (Some(pane_id), Some(_)) = (focused_pane_id, focused_kind) {
             let editor = cx.entity().downgrade();
 
             // Split H button.
@@ -165,7 +169,7 @@ impl Editor {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = split_h_editor.update(cx, |ed, cx| {
-                            ed.split_editor_inner_panel(area_id, panel_id, Axis::Horizontal);
+                            ed.split_pane(panel_id, pane_id, Axis::Horizontal);
                             cx.notify();
                         });
                     })
@@ -184,7 +188,7 @@ impl Editor {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = split_v_editor.update(cx, |ed, cx| {
-                            ed.split_editor_inner_panel(area_id, panel_id, Axis::Vertical);
+                            ed.split_pane(panel_id, pane_id, Axis::Vertical);
                             cx.notify();
                         });
                     })
@@ -204,9 +208,9 @@ impl Editor {
                         )
                         .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                             let _ = close_editor.update(cx, |ed, cx| {
-                                ed.close_editor_inner_panel(area_id, panel_id);
-                                if ed.focused_editor_inner_panel == Some(panel_id) {
-                                    ed.focused_editor_inner_panel = None;
+                                ed.close_pane(panel_id, pane_id);
+                                if ed.focused_pane == Some(pane_id) {
+                                    ed.focused_pane = None;
                                 }
                                 cx.notify();
                             });
@@ -217,7 +221,9 @@ impl Editor {
         }
 
         let bar = bottombar_container(c, d.bottombar_height, d.bottombar_padding_x)
-            .id(ElementId::Name(format!("panel-bottombar-{area_id}").into()))
+            .id(ElementId::Name(
+                format!("panel-bottombar-{panel_id}").into(),
+            ))
             .child(
                 div()
                     .flex()

@@ -3,7 +3,7 @@
 //!
 //! Pure state records; rendering lives in `crate::app::window_area_layout`
 //! (outer layout), `crate::explorer`, and `crate::settings`. The per-area
-//! editor sessions and inner-panel operations live on each `Editor` entity
+//! editor sessions and pane operations live on each `Editor` entity
 //! (see `crate::editor::session_ops`).
 
 use crate::app::window_area::WindowLayout;

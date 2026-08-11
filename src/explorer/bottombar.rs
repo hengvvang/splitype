@@ -16,7 +16,7 @@ impl Shell {
     /// minus the replace semantics).
     pub(crate) fn render_explorer_bottombar(
         &self,
-        area_id: usize,
+        panel_id: usize,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -26,7 +26,7 @@ impl Shell {
         let worktree_count = self.panels.explorer.worktrees.len();
 
         bottombar_container(c, d.bottombar_height, d.bottombar_padding_x)
-            .id(("explorer-bottombar", area_id))
+            .id(("explorer-bottombar", panel_id))
             .child(
                 div()
                     .flex()
@@ -34,7 +34,7 @@ impl Shell {
                     .gap(px(6.0))
                     .child(
                         icon_chip_button(c, d)
-                            .id(("ws-bottombar-add-folder", area_id))
+                            .id(("ws-bottombar-add-folder", panel_id))
                             .child(
                                 svg()
                                     .path("icons/explorer/bottombar/new_folder.svg")
