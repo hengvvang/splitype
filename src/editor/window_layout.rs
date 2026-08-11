@@ -14,9 +14,9 @@ use gpui::*;
 use crate::app::window_area::WindowAreaKind;
 use crate::app::window_area::WindowLayout;
 use crate::editor::corner_drag_preview::render_corner_drag_preview;
-use crate::editor::explorer::state::ExplorerState;
+use crate::editor::explorer_state::state::ExplorerState;
 use crate::editor::outline::state::OutlinePanelState;
-use crate::editor::settings::SettingsUiState;
+use crate::editor::settings_state::SettingsUiState;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 use crate::splitter::{Axis, CornerDragModifier};
@@ -170,54 +170,63 @@ impl Editor {
                 });
             })
             .on_mouse_up(MouseButton::Left, move |_event, window, cx| {
-                let _ = root_editor_up.update(cx, |ed, cx| {
-                    // Outer corner drag end: the window-level drag policy
-                    // interprets the raw facts (plain = split/join, Shift =
-                    // open the dragged area in a new window, Ctrl = swap,
-                    // Alt = nothing), then the host runs the content steps
-                    // directly (seeding the new leaf, opening the cloned
-                    // window) — still inside this same update, never
-                    // re-entering the editor entity.
-                    if let Some(facts) =
-                        splitype_splitter::interaction::finish_window_drag(&mut ed.panels.layout)
-                    {
-                        let viewport = window.viewport_size();
-                        match facts.modifier {
-                            CornerDragModifier::None => {
-                                if let Some(new_id) =
-                                    <SplitterContainer<WindowAreaKind> as DragPolicy<WindowAreaKind>>::on_plain_drag(
-                                        &mut ed.panels.layout, &facts, viewport,
+                let _ =
+                    root_editor_up.update(cx, |ed, cx| {
+                        // Outer corner drag end: the window-level drag policy
+                        // interprets the raw facts (plain = split/join, Shift =
+                        // open the dragged area in a new window, Ctrl = swap,
+                        // Alt = nothing), then the host runs the content steps
+                        // directly (seeding the new leaf, opening the cloned
+                        // window) — still inside this same update, never
+                        // re-entering the editor entity.
+                        if let Some(facts) = splitype_splitter::interaction::finish_window_drag(
+                            &mut ed.panels.layout,
+                        ) {
+                            let viewport = window.viewport_size();
+                            match facts.modifier {
+                                CornerDragModifier::None => {
+                                    if let Some(new_id) =
+                                        <SplitterContainer<WindowAreaKind> as DragPolicy<
+                                            WindowAreaKind,
+                                        >>::on_plain_drag(
+                                            &mut ed.panels.layout, &facts, viewport
+                                        )
+                                    {
+                                        ed.seed_split_content(facts.target_id, new_id, cx);
+                                    }
+                                }
+                                CornerDragModifier::Shift => {
+                                    if let Some(cloned) =
+                                        <SplitterContainer<WindowAreaKind> as DragPolicy<
+                                            WindowAreaKind,
+                                        >>::on_shift_drag(
+                                            &mut ed.panels.layout, &facts, viewport
+                                        )
+                                    {
+                                        ed.clone_container_into_new_window(cloned, cx);
+                                    }
+                                }
+                                CornerDragModifier::Ctrl => {
+                                    <SplitterContainer<WindowAreaKind> as DragPolicy<
+                                        WindowAreaKind,
+                                    >>::on_ctrl_drag(
+                                        &mut ed.panels.layout, &facts, viewport
                                     )
-                                {
-                                    ed.seed_split_content(facts.target_id, new_id, cx);
+                                }
+                                CornerDragModifier::Alt => {
+                                    <SplitterContainer<WindowAreaKind> as DragPolicy<
+                                        WindowAreaKind,
+                                    >>::on_alt_drag(
+                                        &mut ed.panels.layout, &facts, viewport
+                                    )
                                 }
                             }
-                            CornerDragModifier::Shift => {
-                                if let Some(cloned) =
-                                    <SplitterContainer<WindowAreaKind> as DragPolicy<WindowAreaKind>>::on_shift_drag(
-                                        &mut ed.panels.layout, &facts, viewport,
-                                    )
-                                {
-                                    ed.clone_container_into_new_window(cloned, cx);
-                                }
-                            }
-                            CornerDragModifier::Ctrl => {
-                                <SplitterContainer<WindowAreaKind> as DragPolicy<WindowAreaKind>>::on_ctrl_drag(
-                                    &mut ed.panels.layout, &facts, viewport,
-                                )
-                            }
-                            CornerDragModifier::Alt => {
-                                <SplitterContainer<WindowAreaKind> as DragPolicy<WindowAreaKind>>::on_alt_drag(
-                                    &mut ed.panels.layout, &facts, viewport,
-                                )
-                            }
+                            cx.notify();
                         }
-                        cx.notify();
-                    }
-                    // Inner-level drag end (splitter bars and panel corner
-                    // drags); the handling lives in `panel_layout`.
-                    ed.finish_inner_drag(window, cx);
-                });
+                        // Inner-level drag end (splitter bars and panel corner
+                        // drags); the handling lives in `panel_layout`.
+                        ed.finish_inner_drag(window, cx);
+                    });
             })
             .child(layout_tree);
 

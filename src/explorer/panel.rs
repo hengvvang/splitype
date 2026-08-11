@@ -8,8 +8,8 @@ use gpui::*;
 
 use crate::editor::actions::{CloseExplorerFolder, ToggleExplorer};
 use crate::editor::controller::Editor;
-use crate::editor::explorer::state::*;
-use crate::editor::explorer::worktree::Worktree;
+use crate::editor::explorer_state::state::*;
+use crate::editor::explorer_state::worktree::Worktree;
 use crate::editor::outline::state::OutlinePanelState;
 use crate::infra::config::settings::ExplorerSettingsStore;
 

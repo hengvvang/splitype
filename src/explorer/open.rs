@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use gpui::*;
 
 use crate::editor::controller::Editor;
-use crate::editor::explorer::state::*;
+use crate::editor::explorer_state::state::*;
 
 impl Editor {
     pub(crate) fn open_explorer_file(

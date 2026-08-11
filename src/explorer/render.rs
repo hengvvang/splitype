@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use crate::editor::explorer::state::*;
+use crate::editor::explorer_state::state::*;
 use crate::explorer::drag_and_drop::DraggedExplorerEntryView;
 use crate::explorer::filename_editor::ExplorerFilenameInputElement;
 use crate::infra::config::recent::{read_recent_files, read_recent_folders};

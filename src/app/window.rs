@@ -10,7 +10,7 @@ use crate::app::menus::install_menus;
 use crate::app::shell::{AreaContent, Shell};
 use crate::app::window_area::{DEFAULT_EDITOR_AREA_ID, WindowAreaKind};
 use crate::editor::controller::Editor;
-use crate::editor::explorer::state::ExplorerState;
+use crate::editor::explorer_state::state::ExplorerState;
 use crate::editor::session::EditorSession;
 use crate::infra::config::recent::record_recent_file;
 use crate::splitter::NodeId;

@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::controller::*;
-use crate::editor::explorer::state::{
+use crate::editor::explorer_state::state::{
     EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, stable_node_hash,
 };
 use crate::editor::outline::state::{OutlineNode, OutlineNodeKind};

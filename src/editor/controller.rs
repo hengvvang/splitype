@@ -6,7 +6,7 @@
 //! order metadata. State is grouped into cohesive sub-records (`file`,
 //! `focus`, `undo`, `scroll`, `tables`, `preview`, `references`, `menu_bar`,
 //! `overlays`) plus the panel state defined in
-//! `super::session_ops` / `super::explorer`.
+//! `super::session_ops` / `super::explorer_state`.
 
 pub(crate) use std::time::{Duration, Instant};
 
@@ -968,13 +968,15 @@ impl Editor {
                 },
             );
         } else {
-            editor_sessions.entry(dst_id).or_insert_with(|| EditorSession {
-                tab_list: EditorTabList::empty(),
-                root: SplitterRoot::single_leaf(
-                    1,
-                    EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
-                ),
-            });
+            editor_sessions
+                .entry(dst_id)
+                .or_insert_with(|| EditorSession {
+                    tab_list: EditorTabList::empty(),
+                    root: SplitterRoot::single_leaf(
+                        1,
+                        EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
+                    ),
+                });
         }
     }
 
@@ -1018,10 +1020,7 @@ impl Editor {
     /// from the area-local space (root leaf 1 plus a fresh local pool), and
     /// every tab is re-materialized from its serialized document (so undo,
     /// focus, scroll, and dirty state start fresh but content is identical).
-    fn clone_editor_session(
-        source: &EditorSession,
-        cx: &mut Context<Self>,
-    ) -> EditorSession {
+    fn clone_editor_session(source: &EditorSession, cx: &mut Context<Self>) -> EditorSession {
         let mut root = SplitterRoot::single_leaf(
             1,
             EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),

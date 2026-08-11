@@ -16,8 +16,8 @@
 //! - `session.rs` / `session_ops.rs` — the per-area `EditorSession`
 //!   aggregate (tab list + panel split tree) and its operations;
 //!   `panel_layout.rs` renders that split tree.
-//! - `explorer/` / `settings.rs` — sidebar state owned by the window
-//!   (`WindowPanels`); the views live in the top-level `src/explorer` /
+//! - `explorer_state/` / `settings_state.rs` — sidebar state owned by the
+//!   window (`WindowPanels`); the views live in the top-level `src/explorer` /
 //!   `src/settings` and depend on these one-way.
 //! - `topbar/` / `bottombar/` — per-area chrome of an Editor area.
 //! - `window/` — the window-level render flow and floating overlays
@@ -32,7 +32,7 @@ pub mod commands;
 pub mod controller;
 pub(crate) mod corner_drag_preview;
 pub mod editing;
-pub(crate) mod explorer;
+pub(crate) mod explorer_state;
 pub mod file;
 pub mod geometry;
 pub mod keybindings;
@@ -43,7 +43,7 @@ pub mod preview;
 pub mod render;
 pub(crate) mod session;
 pub(crate) mod session_ops;
-pub mod settings;
+pub mod settings_state;
 pub(crate) mod source_code;
 pub(crate) mod topbar;
 pub mod tree;

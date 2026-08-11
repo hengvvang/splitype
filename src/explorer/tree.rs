@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use gpui::*;
 
 use crate::editor::controller::Editor;
-use crate::editor::explorer::state::*;
+use crate::editor::explorer_state::state::*;
 
 impl Editor {
     // ── Expand / collapse ────────────────────────────────────────────────
