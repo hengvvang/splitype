@@ -55,7 +55,7 @@ async fn dropped_markdown_replaces_clean_editor_in_current_window(cx: &mut TestA
                 .kind(),
             BlockKind::Table
         );
-        assert!(editor.doc().to_markdown(cx).contains("# Dropped"));
+        assert!(editor.doc().serialize_markdown(cx).contains("# Dropped"));
     });
     assert_eq!(cx.cx.windows().len(), 1);
 }
@@ -111,7 +111,7 @@ async fn dirty_drop_waits_for_replace_decision_and_cancel_preserves_document(
     editor.read_with(cx, |editor, cx| {
         assert!(editor.tab().file.dirty);
         assert!(editor.tab().file.show_drop_replace_dialog);
-        assert_eq!(editor.doc().to_markdown(cx), "current");
+        assert_eq!(editor.doc().serialize_markdown(cx), "current");
         assert!(editor.tab().file.pending_drop_replace_path.is_some());
     });
 
@@ -121,7 +121,7 @@ async fn dirty_drop_waits_for_replace_decision_and_cancel_preserves_document(
         assert!(editor.tab().file.dirty);
         assert!(!editor.tab().file.show_drop_replace_dialog);
         assert!(editor.tab().file.pending_drop_replace_path.is_none());
-        assert_eq!(editor.doc().to_markdown(cx), "current");
+        assert_eq!(editor.doc().serialize_markdown(cx), "current");
     });
 }
 
@@ -150,7 +150,7 @@ async fn dirty_drop_can_replace_without_saving(cx: &mut TestAppContext) {
 
     editor.read_with(cx, |editor, cx| {
         assert_eq!(editor.tab().file.path.as_ref(), Some(&dropped_path));
-        assert_eq!(editor.doc().to_markdown(cx), "dropped");
+        assert_eq!(editor.doc().serialize_markdown(cx), "dropped");
         assert!(!editor.tab().file.dirty);
         assert!(!editor.tab().file.show_drop_replace_dialog);
     });
@@ -199,7 +199,7 @@ async fn dirty_drop_saves_existing_document_before_replace(cx: &mut TestAppConte
     );
     editor.read_with(cx, |editor, cx| {
         assert_eq!(editor.tab().file.path.as_ref(), Some(&dropped_path));
-        assert_eq!(editor.doc().to_markdown(cx), "dropped");
+        assert_eq!(editor.doc().serialize_markdown(cx), "dropped");
         assert!(!editor.tab().file.dirty);
         assert!(!editor.tab().file.pending_drop_replace_after_save);
     });

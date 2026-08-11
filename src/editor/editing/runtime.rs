@@ -314,7 +314,7 @@ impl Editor {
             return;
         }
 
-        let markdown = self.doc().to_markdown(cx);
+        let markdown = self.doc().serialize_markdown(cx);
         let next_image = Arc::new(parse_image_reference_definitions(&markdown));
         let next_link = Arc::new(parse_link_reference_definitions(&markdown));
         let next_footnotes = Arc::new(self.rebuild_footnote_registry(cx));

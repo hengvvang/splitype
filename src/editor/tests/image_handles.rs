@@ -57,7 +57,7 @@ async fn standalone_root_image_with_underscores_installs_handle(cx: &mut TestApp
                     .join("NetworkEngineerSummer.assets/1.1_进制转换例子.jpg")
             )
         );
-        assert_eq!(editor.doc().to_markdown(cx), markdown);
+        assert_eq!(editor.doc().serialize_markdown(cx), markdown);
     });
 }
 

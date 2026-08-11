@@ -300,7 +300,7 @@ async fn tab_key_inserts_tab_in_focused_paragraph(cx: &mut TestAppContext) {
     editor.update(cx, |editor, cx| {
         let block = editor.doc().blocks()[0].entity.clone();
         assert_eq!(block.read(cx).display_text(), "a    b");
-        assert_eq!(editor.doc().to_markdown(cx), "a    b");
+        assert_eq!(editor.doc().serialize_markdown(cx), "a    b");
     });
 }
 
@@ -326,7 +326,7 @@ async fn tab_key_inserts_tab_in_focused_code_block(cx: &mut TestAppContext) {
     editor.update(cx, |editor, cx| {
         let block = editor.doc().blocks()[0].entity.clone();
         assert_eq!(block.read(cx).display_text(), "a    b");
-        assert_eq!(editor.doc().to_markdown(cx), "```rust\na    b\n```");
+        assert_eq!(editor.doc().serialize_markdown(cx), "```rust\na    b\n```");
     });
 }
 
@@ -538,7 +538,7 @@ async fn tab_key_keeps_list_indent_semantics(cx: &mut TestAppContext) {
         let entries = editor.doc().blocks();
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[1].entity.read(cx).render_depth, 1);
-        assert_eq!(editor.doc().to_markdown(cx), "- a\n  - b");
+        assert_eq!(editor.doc().serialize_markdown(cx), "- a\n  - b");
     });
 }
 
@@ -697,7 +697,7 @@ async fn ctrl_enter_exits_focused_math_block(cx: &mut TestAppContext) {
         assert_eq!(entries[0].entity.read(cx).display_text(), "n^2");
         assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(entries[1].entity.read(cx).display_text(), "");
-        assert_eq!(editor.doc().to_markdown(cx), "$$n^2$$\n\n");
+        assert_eq!(editor.doc().serialize_markdown(cx), "$$n^2$$\n\n");
     });
 }
 

@@ -28,7 +28,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
             assert_eq!(entries[1].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), "> first\n\n> ");
+            assert_eq!(editor.doc().serialize_markdown(cx), "> first\n\n> ");
             assert_eq!(
                 editor.tab().focus.pending,
                 Some(entries[1].entity.entity_id())
@@ -59,7 +59,7 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(entries[0].entity.read(cx).display_text(), "");
             assert_eq!(entries[0].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), "> ");
+            assert_eq!(editor.doc().serialize_markdown(cx), "> ");
         });
     }
 
@@ -190,7 +190,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
             assert_eq!(entries[1].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), "> [!NOTE]\n> ");
+            assert_eq!(editor.doc().serialize_markdown(cx), "> [!NOTE]\n> ");
             assert_eq!(
                 editor.tab().focus.pending,
                 Some(entries[1].entity.entity_id())
@@ -244,7 +244,7 @@ mod tests {
             );
             assert_eq!(entries[4].entity.read(cx).display_text(), "");
             assert_eq!(entries[4].entity.read(cx).list_ordinal, Some(1));
-            assert_eq!(editor.doc().to_markdown(cx), "1. aa\n2. bb\n3. cc\n\n1. ");
+            assert_eq!(editor.doc().serialize_markdown(cx), "1. aa\n2. bb\n3. cc\n\n1. ");
         });
     }
 
@@ -261,7 +261,7 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(entries[1].entity.read(cx).render_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), "- a\n  - b");
+            assert_eq!(editor.doc().serialize_markdown(cx), "- a\n  - b");
         });
     }
 
@@ -285,7 +285,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).display_text(), "child text");
             assert_eq!(entries[1].entity.read(cx).render_depth, 0);
             assert_eq!(entries[1].entity.entity_id(), child_id);
-            assert_eq!(editor.doc().to_markdown(cx), "- item\n\nchild text");
+            assert_eq!(editor.doc().serialize_markdown(cx), "- item\n\nchild text");
         });
     }
 
@@ -327,7 +327,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
             assert_eq!(entries[1].entity.entity_id(), child_id);
             assert_eq!(entries[1].entity.read(cx).render_depth, 0);
-            assert_eq!(editor.doc().to_markdown(cx), "- item\n\n");
+            assert_eq!(editor.doc().serialize_markdown(cx), "- item\n\n");
         });
     }
 
@@ -369,7 +369,7 @@ mod tests {
             assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[2].entity.read(cx).display_text(), "");
             assert_eq!(entries[2].entity.read(cx).render_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), "- item\n  \n  ");
+            assert_eq!(editor.doc().serialize_markdown(cx), "- item\n  \n  ");
         });
     }
 
@@ -394,7 +394,7 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "H2O");
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
-            assert_eq!(editor.doc().to_markdown(cx), "H~2~O\n\n");
+            assert_eq!(editor.doc().serialize_markdown(cx), "H~2~O\n\n");
         });
     }
 
@@ -421,7 +421,7 @@ mod tests {
             assert!(!entries[0].entity.read(cx).edits_verbatim_text());
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
-            assert_eq!(editor.doc().to_markdown(cx), "$n^2$\n\n");
+            assert_eq!(editor.doc().serialize_markdown(cx), "$n^2$\n\n");
         });
     }
 
@@ -456,7 +456,7 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "let x = 1;");
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
-            assert_eq!(editor.doc().to_markdown(cx), "```rust\nlet x = 1;\n```\n\n");
+            assert_eq!(editor.doc().serialize_markdown(cx), "```rust\nlet x = 1;\n```\n\n");
         });
     }
 
@@ -487,13 +487,13 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "Title");
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
-            assert_eq!(editor.doc().to_markdown(cx), "# Title\n\n");
+            assert_eq!(editor.doc().serialize_markdown(cx), "# Title\n\n");
         });
 
         // Reversible: undo restores the two original paragraphs.
         editor.update(cx, |editor, cx| {
             editor.undo_document(cx);
-            assert_eq!(editor.doc().to_markdown(cx), "Title\n\n=====");
+            assert_eq!(editor.doc().serialize_markdown(cx), "Title\n\n=====");
         });
     }
 
@@ -525,7 +525,7 @@ mod tests {
                 BlockKind::Heading { level: 2 }
             );
             assert_eq!(entries[0].entity.read(cx).display_text(), "Title");
-            assert_eq!(editor.doc().to_markdown(cx), "## Title\n\n");
+            assert_eq!(editor.doc().serialize_markdown(cx), "## Title\n\n");
         });
     }
 
@@ -601,7 +601,7 @@ mod tests {
             assert!(table.rows.is_empty());
             assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "| Name | Score |\n| --- | --- |\n\n"
             );
         });
@@ -610,7 +610,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             editor.undo_document(cx);
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "| Name | Score |\n\n| --- | --- |"
             );
         });
@@ -820,7 +820,7 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "n^2");
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
-            assert_eq!(editor.doc().to_markdown(cx), "$$n^2$$\n\n");
+            assert_eq!(editor.doc().serialize_markdown(cx), "$$n^2$$\n\n");
         });
     }
 
@@ -855,7 +855,7 @@ mod tests {
             assert_eq!(block.display_text(), "");
             assert_eq!(block.selected_range, 0..0);
             assert!(block.edits_verbatim_text());
-            assert_eq!(editor.doc().to_markdown(cx), "$$\n\n$$");
+            assert_eq!(editor.doc().serialize_markdown(cx), "$$\n\n$$");
         });
     }
 
@@ -885,7 +885,7 @@ mod tests {
             // The pre-existing text is kept as the formula body.
             assert_eq!(block.display_text(), "E = mc^2");
             assert_eq!(block.selected_range, 0..0);
-            assert_eq!(editor.doc().to_markdown(cx), "$$E = mc^2$$");
+            assert_eq!(editor.doc().serialize_markdown(cx), "$$E = mc^2$$");
         });
     }
 
@@ -910,7 +910,7 @@ mod tests {
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::MathBlock);
             assert_eq!(entries[0].entity.read(cx).display_text(), "n\n^2");
-            assert_eq!(editor.doc().to_markdown(cx), "$$\nn\n^2\n$$");
+            assert_eq!(editor.doc().serialize_markdown(cx), "$$\nn\n^2\n$$");
         });
     }
 
@@ -946,7 +946,7 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "");
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
-            assert_eq!(editor.doc().to_markdown(cx), "$$\n\n$$\n\n");
+            assert_eq!(editor.doc().serialize_markdown(cx), "$$\n\n$$\n\n");
         });
     }
 

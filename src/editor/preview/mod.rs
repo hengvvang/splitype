@@ -31,7 +31,7 @@ impl Editor {
         if synced == Some(revision) && !blocks_empty {
             return;
         }
-        let source = self.doc().to_markdown(cx);
+        let source = self.doc().serialize_markdown(cx);
         let hash = Self::hash_str(&source);
         if hash != self.tab().preview.source_hash || self.tab().preview.blocks.is_empty() {
             let mut roots = Self::parse_document(cx, &source);

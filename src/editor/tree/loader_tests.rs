@@ -35,7 +35,7 @@ mod tests {
                 "first line\nsecond line"
             );
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "## Heading\n\nfirst line\nsecond line"
             );
         });
@@ -60,7 +60,7 @@ mod tests {
                 "let x = 1;\nprintln!(\"hi\");"
             );
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "```\nlet x = 1;\nprintln!(\"hi\");\n```"
             );
         });
@@ -97,14 +97,14 @@ mod tests {
             let entries = editor.doc().blocks();
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].entity.read(cx).display_text(), "alpha  \nbeta");
-            assert_eq!(editor.doc().to_markdown(cx), "alpha  \nbeta");
+            assert_eq!(editor.doc().serialize_markdown(cx), "alpha  \nbeta");
 
             editor.toggle_view_mode(cx);
             editor.toggle_view_mode(cx);
 
             let entries = editor.doc().blocks();
             assert_eq!(entries[0].entity.read(cx).display_text(), "alpha  \nbeta");
-            assert_eq!(editor.doc().to_markdown(cx), "alpha  \nbeta");
+            assert_eq!(editor.doc().serialize_markdown(cx), "alpha  \nbeta");
         });
     }
 
@@ -119,14 +119,14 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), tibetan);
             assert!(entries[0].entity.read(cx).display_text().contains("།། བདག"));
             assert!(entries[0].entity.read(cx).display_text().ends_with(' '));
-            assert_eq!(editor.doc().to_markdown(cx), tibetan);
+            assert_eq!(editor.doc().serialize_markdown(cx), tibetan);
 
             editor.toggle_view_mode(cx);
             editor.toggle_view_mode(cx);
 
             let entries = editor.doc().blocks();
             assert_eq!(entries[0].entity.read(cx).display_text(), tibetan);
-            assert_eq!(editor.doc().to_markdown(cx), tibetan);
+            assert_eq!(editor.doc().serialize_markdown(cx), tibetan);
         });
     }
 
@@ -139,7 +139,7 @@ mod tests {
             let entries = editor.doc().blocks();
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].entity.read(cx).display_text(), chinese);
-            assert_eq!(editor.doc().to_markdown(cx), chinese);
+            assert_eq!(editor.doc().serialize_markdown(cx), chinese);
         });
     }
 
@@ -152,7 +152,7 @@ mod tests {
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(entries[0].entity.read(cx).display_text(), "alpha  \nbeta");
-            assert_eq!(editor.doc().to_markdown(cx), "> alpha  \n> beta");
+            assert_eq!(editor.doc().serialize_markdown(cx), "> alpha  \n> beta");
         });
     }
 
@@ -165,7 +165,7 @@ mod tests {
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert_eq!(entries[0].entity.read(cx).display_text(), "alpha  \nbeta");
-            assert_eq!(editor.doc().to_markdown(cx), "- alpha  \n  beta");
+            assert_eq!(editor.doc().serialize_markdown(cx), "- alpha  \n  beta");
         });
     }
 
@@ -217,7 +217,7 @@ mod tests {
                 "let x = 1;\nlet y = 2;"
             );
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "- item with code block\n  ```\n  let x = 1;\n  let y = 2;\n  ```"
             );
 
@@ -289,7 +289,7 @@ mod tests {
                 "quoted text\n\nquoted paragraph two"
             );
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "1. item with nested quote\n  > quoted text\n  > \n  > quoted paragraph two"
             );
 
@@ -333,7 +333,7 @@ mod tests {
             );
             assert_eq!(entries[4].entity.read(cx).display_text(), "dd");
             assert_eq!(entries[4].entity.read(cx).list_ordinal, Some(1));
-            assert_eq!(editor.doc().to_markdown(cx), "1. aa\n2. bb\n3. cc\n\n1. dd");
+            assert_eq!(editor.doc().serialize_markdown(cx), "1. aa\n2. bb\n3. cc\n\n1. dd");
         });
     }
 
@@ -358,7 +358,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).display_text(), "two");
             assert_eq!(entries[0].entity.read(cx).list_ordinal, Some(1));
             assert_eq!(entries[1].entity.read(cx).list_ordinal, Some(2));
-            assert_eq!(editor.doc().to_markdown(cx), "1. one\n2. two");
+            assert_eq!(editor.doc().serialize_markdown(cx), "1. one\n2. two");
         });
     }
 
@@ -381,7 +381,7 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "parent");
             assert_eq!(entries[1].entity.read(cx).display_text(), "child");
             assert_eq!(entries[1].entity.read(cx).render_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), "1. parent\n  1. child");
+            assert_eq!(editor.doc().serialize_markdown(cx), "1. parent\n  1. child");
         });
     }
 
@@ -404,7 +404,7 @@ mod tests {
             assert_eq!(entries[2].entity.read(cx).display_text(), "level3");
             assert_eq!(entries[2].entity.read(cx).quote_depth, 3);
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "> level1\n> > level2\n> > > level3"
             );
         });
@@ -424,7 +424,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(entries[1].entity.read(cx).display_text(), "second");
             assert_eq!(entries[1].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), "> first\n\n> second");
+            assert_eq!(editor.doc().serialize_markdown(cx), "> first\n\n> second");
         });
     }
 
@@ -438,7 +438,7 @@ mod tests {
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(entries[0].entity.read(cx).display_text(), "first\n\nsecond");
-            assert_eq!(editor.doc().to_markdown(cx), "> first\n> \n> second");
+            assert_eq!(editor.doc().serialize_markdown(cx), "> first\n> \n> second");
         });
     }
 
@@ -469,7 +469,7 @@ mod tests {
             );
             assert_eq!(entries[2].entity.read(cx).quote_depth, 1);
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "> Quote with list:\n> - item 1\n> - [ ] task item"
             );
         });
@@ -507,7 +507,7 @@ mod tests {
                 "fn main() {\n    println!(\"hi\");\n}"
             );
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "> Quote with code block:\n> \n> ```\n> fn main() {\n>     println!(\"hi\");\n> }\n> ```"
             );
         });
@@ -525,7 +525,7 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "");
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), markdown);
         });
     }
 
@@ -539,7 +539,7 @@ mod tests {
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::BulletListItem);
             assert!(entries[0].entity.read(cx).children.is_empty());
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), markdown);
         });
     }
 
@@ -555,7 +555,7 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "item");
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).render_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), markdown);
         });
     }
 
@@ -572,7 +572,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "child text");
             assert_eq!(entries[1].entity.read(cx).render_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), canonical_markdown);
         });
     }
 
@@ -590,7 +590,7 @@ mod tests {
                 BlockKind::NumberedListItem
             );
             assert_eq!(entries[1].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), markdown);
         });
     }
 
@@ -616,7 +616,7 @@ mod tests {
             assert_eq!(entries[2].entity.read(cx).render_depth, 1);
             assert_eq!(entries[2].entity.read(cx).quote_depth, 1);
             assert_eq!(entries[2].entity.read(cx).callout_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), canonical_markdown);
         });
     }
 
@@ -634,7 +634,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).quote_depth, 1);
             assert_eq!(entries[1].entity.read(cx).callout_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), markdown);
         });
     }
 
@@ -654,7 +654,7 @@ mod tests {
             assert_eq!(entries[2].entity.read(cx).display_text(), "child text");
             assert_eq!(entries[2].entity.read(cx).render_depth, 1);
             assert_eq!(entries[2].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), canonical_markdown);
         });
     }
 
@@ -678,7 +678,7 @@ mod tests {
             assert_eq!(entries[2].entity.read(cx).render_depth, 1);
             assert_eq!(entries[2].entity.read(cx).quote_depth, 1);
             assert_eq!(entries[2].entity.read(cx).callout_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), canonical_markdown);
         });
     }
 
@@ -691,7 +691,7 @@ mod tests {
             let entries = editor.doc().blocks();
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), markdown);
         });
     }
 
@@ -709,7 +709,7 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "");
             assert!(entries[0].entity.read(cx).children.is_empty());
             assert_eq!(entries[0].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), "> [!NOTE]");
+            assert_eq!(editor.doc().serialize_markdown(cx), "> [!NOTE]");
         });
     }
 
@@ -727,7 +727,7 @@ mod tests {
             );
             assert_eq!(entries[0].entity.read(cx).display_text(), "Optional title");
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "> [!IMPORTANT] Optional title"
             );
         });
@@ -757,7 +757,7 @@ mod tests {
             assert_eq!(entries[2].entity.read(cx).display_text(), "nested");
             assert_eq!(entries[2].entity.read(cx).quote_depth, 2);
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "> [!WARNING] Custom title\n> body\n> > nested"
             );
         });
@@ -817,7 +817,7 @@ mod tests {
                     .visible_quote_group_anchor
                     .is_none()
             );
-            assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), canonical_markdown);
         });
     }
 
@@ -830,7 +830,7 @@ mod tests {
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(entries[0].entity.read(cx).display_text(), "[!UNKNOWN]");
-            assert_eq!(editor.doc().to_markdown(cx), "> [!UNKNOWN]");
+            assert_eq!(editor.doc().serialize_markdown(cx), "> [!UNKNOWN]");
         });
     }
 
@@ -850,7 +850,7 @@ mod tests {
             assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(entries[2].entity.read(cx).display_text(), "inner");
             assert_eq!(entries[2].entity.read(cx).quote_depth, 2);
-            assert_eq!(editor.doc().to_markdown(cx), "> outer\n> \n> > inner");
+            assert_eq!(editor.doc().serialize_markdown(cx), "> outer\n> \n> > inner");
         });
     }
 
@@ -879,7 +879,7 @@ mod tests {
             assert_eq!(table.header.len(), 2);
             assert_eq!(table.rows.len(), 1);
             assert_eq!(table.rows[0].len(), 2);
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), markdown);
         });
     }
 
@@ -904,7 +904,7 @@ mod tests {
                 "| A |\n| --- | --- |\n| 1 |"
             );
             assert_eq!(entries[1].entity.read(cx).quote_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), markdown);
         });
     }
 
@@ -976,7 +976,7 @@ mod tests {
                     .count()
                     >= 2
             );
-            assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), canonical_markdown);
         });
     }
 
@@ -1030,7 +1030,7 @@ mod tests {
                 BlockKind::TaskListItem { checked: true }
             );
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "- [ ] todo\n- [x] done\n- [x] shipped"
             );
         });
@@ -1055,7 +1055,7 @@ mod tests {
             assert_eq!(table.header.len(), 2);
             assert_eq!(table.rows.len(), 1);
             assert_eq!(table.rows[0].len(), 2);
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), markdown);
         });
     }
 
@@ -1074,7 +1074,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).display_text(), "| nope | --- |");
             assert_eq!(entries[2].entity.read(cx).display_text(), "| 1 | 2 |");
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "| A | B |\n\n| nope | --- |\n\n| 1 | 2 |"
             );
         });
@@ -1095,7 +1095,7 @@ mod tests {
                 entries[0].entity.read(cx).display_text(),
                 "\\int_0^1 x^2 dx"
             );
-            assert_eq!(editor.doc().to_markdown(cx), "$$\\int_0^1 x^2 dx$$");
+            assert_eq!(editor.doc().serialize_markdown(cx), "$$\\int_0^1 x^2 dx$$");
         });
     }
 
@@ -1111,7 +1111,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::MathBlock);
             assert_eq!(entries[1].entity.read(cx).display_text(), "x^2");
             assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Paragraph);
-            assert_eq!(editor.doc().to_markdown(cx), "before\n\n$$x^2$$\n\nafter");
+            assert_eq!(editor.doc().serialize_markdown(cx), "before\n\n$$x^2$$\n\nafter");
         });
     }
 
@@ -1124,7 +1124,7 @@ mod tests {
             let entries = editor.doc().blocks();
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::RawMarkdown);
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), markdown);
         });
     }
 
@@ -1144,7 +1144,7 @@ mod tests {
             );
             assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "before\n\n```mermaid\nflowchart LR\nA --> B\n```\n\nafter"
             );
         });
@@ -1165,7 +1165,7 @@ mod tests {
                 "flowchart LR\nA --> B"
             );
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "```mermaid\nflowchart LR\nA --> B\n```"
             );
         });
@@ -1209,7 +1209,7 @@ mod tests {
                     .as_ref()
                     .is_some_and(|html| html.is_semantic())
             );
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), markdown);
         });
     }
 
@@ -1224,7 +1224,7 @@ mod tests {
             let block = entries[0].entity.read(cx);
             assert_eq!(block.kind(), BlockKind::HtmlBlock);
             assert_eq!(block.display_text(), markdown);
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), markdown);
         });
     }
 
@@ -1240,7 +1240,7 @@ mod tests {
             let block = entries[0].entity.read(cx);
             assert_eq!(block.kind(), BlockKind::HtmlBlock);
             assert_eq!(block.display_text(), markdown);
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), markdown);
         });
     }
 
@@ -1294,7 +1294,7 @@ mod tests {
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::RawMarkdown);
             assert_eq!(entries[0].entity.read(cx).display_text(), markdown);
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), markdown);
         });
     }
 
@@ -1317,7 +1317,7 @@ mod tests {
                     .as_ref()
                     .is_some_and(|html| html.is_semantic())
             );
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), markdown);
         });
     }
 
@@ -1331,7 +1331,7 @@ mod tests {
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::HtmlComment);
             assert_eq!(entries[0].entity.read(cx).display_text(), markdown);
-            assert_eq!(editor.doc().to_markdown(cx), markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), markdown);
         });
     }
 
@@ -1357,7 +1357,7 @@ mod tests {
             );
             assert_eq!(entries[2].entity.read(cx).display_text(), "after");
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "before\n\n<!--\na\n--> trailing\n\n# after"
             );
         });
@@ -1377,7 +1377,7 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "<!--\na");
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "paragraph");
-            assert_eq!(editor.doc().to_markdown(cx), "<!--\na\n\nparagraph");
+            assert_eq!(editor.doc().serialize_markdown(cx), "<!--\na\n\nparagraph");
         });
     }
 
@@ -1393,7 +1393,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).display_text(), "<!--\nlist\n-->");
             assert_eq!(entries[1].entity.read(cx).render_depth, 1);
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "- item\n  <!--\n  list\n  -->"
             );
         });
@@ -1412,7 +1412,7 @@ mod tests {
             );
             assert_eq!(entries[2].entity.read(cx).quote_depth, 1);
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "> quote\n> \n> <!--\n> quoted\n> -->"
             );
         });
@@ -1438,7 +1438,7 @@ mod tests {
             );
             assert_eq!(entries[2].entity.read(cx).callout_depth, 1);
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "> [!NOTE] Title\n> \n> <!--\n> callout\n> -->"
             );
         });
@@ -1472,7 +1472,7 @@ mod tests {
                 entries[4].entity.read(cx).display_text(),
                 "Second paragraph."
             );
-            assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), canonical_markdown);
         });
     }
 
@@ -1500,7 +1500,7 @@ mod tests {
             assert_eq!(entries[3].entity.read(cx).display_text(), "nested footnote");
             assert_eq!(entries[3].entity.read(cx).quote_depth, 1);
             assert!(entries[3].entity.read(cx).footnote_anchor.is_some());
-            assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
+            assert_eq!(editor.doc().serialize_markdown(cx), canonical_markdown);
         });
     }
 
@@ -1706,7 +1706,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "child text");
             assert_eq!(entries[1].entity.read(cx).render_depth, 1);
-            assert_eq!(editor.doc().to_markdown(cx), "- item\n\n  child text");
+            assert_eq!(editor.doc().serialize_markdown(cx), "- item\n\n  child text");
         });
     }
 
@@ -1726,7 +1726,7 @@ mod tests {
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::RawMarkdown);
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "[id]: http://example.com/\n    \"Title\""
             );
         });
@@ -1740,7 +1740,7 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "quoted");
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "continued");
-            assert_eq!(editor.doc().to_markdown(cx), "> quoted\n\ncontinued");
+            assert_eq!(editor.doc().serialize_markdown(cx), "> quoted\n\ncontinued");
         });
     }
 
@@ -1806,7 +1806,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
             assert_eq!(entries[2].entity.read(cx).display_text(), "beta");
             assert_eq!(entries[3].entity.read(cx).display_text(), "");
-            assert_eq!(editor.doc().to_markdown(cx), "alpha\n\n\nbeta\n\n");
+            assert_eq!(editor.doc().serialize_markdown(cx), "alpha\n\n\nbeta\n\n");
         });
 
         editor.update(cx, |editor, cx| {
@@ -1847,7 +1847,7 @@ mod tests {
                     .iter()
                     .any(|span| { span.style.code && span.range == (0..text.len()) })
             );
-            assert_eq!(editor.doc().to_markdown(cx), "`line 1\n\nline 2`");
+            assert_eq!(editor.doc().serialize_markdown(cx), "`line 1\n\nline 2`");
         });
     }
 
@@ -1875,7 +1875,7 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "");
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
             assert_eq!(entries[2].entity.read(cx).display_text(), "alpha");
-            assert_eq!(editor.doc().to_markdown(cx), "\n\nalpha");
+            assert_eq!(editor.doc().serialize_markdown(cx), "\n\nalpha");
         });
     }
 
@@ -1889,7 +1889,7 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "alpha");
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
             assert_eq!(entries[2].entity.read(cx).display_text(), "");
-            assert_eq!(editor.doc().to_markdown(cx), "alpha\n\n\n");
+            assert_eq!(editor.doc().serialize_markdown(cx), "alpha\n\n\n");
         });
     }
 
@@ -1901,7 +1901,7 @@ mod tests {
             let entries = editor.doc().blocks();
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].entity.read(cx).display_text(), "alpha");
-            assert_eq!(editor.doc().to_markdown(cx), "alpha");
+            assert_eq!(editor.doc().serialize_markdown(cx), "alpha");
         });
     }
 
@@ -1914,7 +1914,7 @@ mod tests {
             assert_eq!(entries.len(), 1);
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[0].entity.read(cx).display_text(), "");
-            assert_eq!(editor.doc().to_markdown(cx), "");
+            assert_eq!(editor.doc().serialize_markdown(cx), "");
         });
     }
 }

@@ -114,7 +114,7 @@ async fn switching_tabs_renders_the_new_document_immediately(cx: &mut TestAppCon
                 .iter()
                 .map(|entries| entries.entity.entity_id())
                 .collect();
-            let text = editor.doc().to_markdown(cx);
+            let text = editor.doc().serialize_markdown(cx);
             (ids, text)
         })
     }
@@ -259,7 +259,7 @@ async fn focused_thematic_break_accepts_typing(cx: &mut TestAppContext) {
     );
 
     // Serialization must round-trip the edited separator text.
-    let markdown = editor.read_with(cx, |editor, cx| editor.doc().to_markdown(cx));
+    let markdown = editor.read_with(cx, |editor, cx| editor.doc().serialize_markdown(cx));
     assert!(
         markdown.contains(&text),
         "edited separator must serialize its new text, got {markdown:?}"

@@ -133,12 +133,12 @@ impl Editor {
         self.tab_mut().selection.select_all_cycle = None;
         match self.tab().mode {
             EditorMode::Wysiwyg => {
-                let markdown = self.doc().to_markdown(cx);
+                let markdown = self.doc().serialize_markdown(cx);
                 self.tab_mut().mode = EditorMode::SourceCode;
                 self.rebuild_document_from_markdown(&markdown, cx);
             }
             EditorMode::SourceCode => {
-                let source = self.doc().to_raw_source(cx);
+                let source = self.doc().serialize_source_text(cx);
                 self.tab_mut().mode = EditorMode::Wysiwyg;
                 self.rebuild_document_from_markdown(&source, cx);
             }

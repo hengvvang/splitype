@@ -45,7 +45,7 @@ impl Editor {
         if !needs_sync {
             return;
         }
-        let doc_text = self.doc().to_markdown(cx);
+        let doc_text = self.doc().serialize_markdown(cx);
         let doc_hash = Self::hash_str(&doc_text);
 
         let state = self
@@ -85,7 +85,7 @@ impl Editor {
             return;
         }
         let text = block.read(cx).display_text().to_string();
-        let doc = self.doc().to_markdown(cx);
+        let doc = self.doc().serialize_markdown(cx);
         if text == doc {
             return;
         }
@@ -96,7 +96,7 @@ impl Editor {
         // hashing the raw bytes here would make the next render rebuild the
         // block and drop the user's trailing newline. The block keeps the
         // user's bytes; the document is the parsed form.
-        let synced_hash = Self::hash_str(&self.doc().to_markdown(cx));
+        let synced_hash = Self::hash_str(&self.doc().serialize_markdown(cx));
         let revision = self.tab().document_revision;
         self.mark_dirty(cx);
         if let Some(state) = self.source_pane_states.get_mut(&pane_id) {

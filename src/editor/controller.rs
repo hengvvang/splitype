@@ -780,9 +780,9 @@ impl Editor {
     pub(crate) fn active_editor_serialized_text(&self, cx: &App) -> Option<String> {
         let tab = self.active_editor_tab()?;
         Some(if tab.mode == EditorMode::SourceCode {
-            tab.document.to_raw_source(cx)
+            tab.document.serialize_source_text(cx)
         } else {
-            tab.document.to_markdown(cx)
+            tab.document.serialize_markdown(cx)
         })
     }
 
@@ -808,9 +808,9 @@ impl Editor {
         };
         for tab in &self.session.tab_list.tabs {
             let text = if tab.mode == EditorMode::SourceCode {
-                tab.document.to_raw_source(cx)
+                tab.document.serialize_source_text(cx)
             } else {
-                tab.document.to_markdown(cx)
+                tab.document.serialize_markdown(cx)
             };
             let mut copy = Self::new_tab_from_markdown(cx, text, tab.file.path.clone());
             copy.mode = tab.mode;

@@ -32,7 +32,7 @@ async fn ctrl_s_saves_rendered_mode_edit_to_existing_file(cx: &mut TestAppContex
     let expected = editor.read_with(cx, |editor, cx| {
         assert!(editor.tab().file.dirty);
         assert!(!editor.tab().file.pending_save);
-        editor.doc().to_markdown(cx)
+        editor.doc().serialize_markdown(cx)
     });
     assert_ne!(expected, "alpha");
 
@@ -72,7 +72,7 @@ async fn window_save_action_saves_current_editor_without_global_menu_route(
     redraw(cx);
     let expected = editor.read_with(cx, |editor, cx| {
         assert!(editor.tab().file.dirty);
-        editor.doc().to_markdown(cx)
+        editor.doc().serialize_markdown(cx)
     });
     assert_ne!(expected, "alpha");
 

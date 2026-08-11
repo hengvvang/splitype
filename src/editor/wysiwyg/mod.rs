@@ -22,7 +22,7 @@ impl Editor {
         // The tree is rebuilt from scratch below, so a structural anchor may
         // no longer fit; capture a global source range instead.
         let selection_snapshot = self.capture_source_selection_snapshot_global(cx);
-        let source = self.doc().to_markdown(cx);
+        let source = self.doc().serialize_markdown(cx);
         self.rebuild_document_from_markdown(&source, cx);
         self.apply_selection_snapshot_in_current_mode(&selection_snapshot, cx);
         self.tab_mut().focus.pending_scroll_active_block_into_view = true;

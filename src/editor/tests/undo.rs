@@ -22,10 +22,10 @@ async fn undo_reverts_recent_rendered_typing(cx: &mut TestAppContext) {
     });
 
     editor.update(cx, |editor, cx| {
-        assert_eq!(editor.doc().to_markdown(cx), "alpha beta");
+        assert_eq!(editor.doc().serialize_markdown(cx), "alpha beta");
         assert_eq!(editor.tab().undo.undo_entries.len(), 1);
         editor.undo_document(cx);
-        assert_eq!(editor.doc().to_markdown(cx), "alpha");
+        assert_eq!(editor.doc().serialize_markdown(cx), "alpha");
     });
 }
 
@@ -54,11 +54,11 @@ async fn consecutive_text_edits_within_window_coalesce_into_one_undo(cx: &mut Te
     });
 
     editor.update(cx, |editor, cx| {
-        assert_eq!(editor.doc().to_markdown(cx), "abc");
+        assert_eq!(editor.doc().serialize_markdown(cx), "abc");
         assert_eq!(editor.tab().undo.undo_entries.len(), 1);
 
         editor.undo_document(cx);
-        assert_eq!(editor.doc().to_markdown(cx), "a");
+        assert_eq!(editor.doc().serialize_markdown(cx), "a");
     });
 }
 
@@ -80,11 +80,11 @@ async fn redo_restores_text_reverted_by_undo(cx: &mut TestAppContext) {
 
     editor.update(cx, |editor, cx| {
         editor.undo_document(cx);
-        assert_eq!(editor.doc().to_markdown(cx), "alpha");
+        assert_eq!(editor.doc().serialize_markdown(cx), "alpha");
         assert_eq!(editor.tab().undo.redo_entries.len(), 1);
 
         editor.redo_document(cx);
-        assert_eq!(editor.doc().to_markdown(cx), "alpha beta");
+        assert_eq!(editor.doc().serialize_markdown(cx), "alpha beta");
         assert!(editor.tab().undo.redo_entries.is_empty());
     });
 }
@@ -125,7 +125,7 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
         assert!(editor.tab().undo.redo_entries.is_empty());
 
         editor.redo_document(cx);
-        assert_eq!(editor.doc().to_markdown(cx), "alpha gamma");
+        assert_eq!(editor.doc().serialize_markdown(cx), "alpha gamma");
     });
 }
 

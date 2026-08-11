@@ -6,10 +6,10 @@ use std::ops::Range;
 use crate::editor::controller::*;
 
 impl Editor {
-    pub(crate) fn current_document_source(&self, cx: &App) -> String {
+    pub(crate) fn serialize_document_for_mode(&self, cx: &App) -> String {
         match self.tab().mode {
-            EditorMode::Wysiwyg => self.doc().to_markdown(cx),
-            EditorMode::SourceCode => self.doc().to_raw_source(cx),
+            EditorMode::Wysiwyg => self.doc().serialize_markdown(cx),
+            EditorMode::SourceCode => self.doc().serialize_source_text(cx),
         }
     }
 
@@ -501,7 +501,7 @@ impl Editor {
                 let line = block
                     .read(cx)
                     .record
-                    .markdown_line(list_depth, list_ordinal);
+                    .serialize_markdown_line(list_depth, list_ordinal);
                 if quote_depth == 0 {
                     line.len()
                 } else {

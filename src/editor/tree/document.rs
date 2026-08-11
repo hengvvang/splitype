@@ -164,13 +164,13 @@ impl Document {
         self.rebuild_metadata_and_snapshot(cx);
     }
 
-    pub(crate) fn to_markdown(&self, cx: &App) -> String {
+    pub(crate) fn serialize_markdown(&self, cx: &App) -> String {
         let mut lines = Vec::new();
         Self::collect_root_markdown_lines(&self.roots, cx, &mut lines);
         lines.join("\n")
     }
 
-    pub(crate) fn to_raw_source(&self, cx: &App) -> String {
+    pub(crate) fn serialize_source_text(&self, cx: &App) -> String {
         self.snapshot
             .entries
             .iter()
@@ -633,7 +633,7 @@ impl Document {
                 lines.push(
                     block_ref
                         .record
-                        .markdown_line(list_depth, block_ref.list_ordinal),
+                        .serialize_markdown_line(list_depth, block_ref.list_ordinal),
                 );
                 let child_list_depth = list_depth + 1;
                 for child in &block_ref.children {
@@ -653,7 +653,7 @@ impl Document {
                 lines.push(
                     block_ref
                         .record
-                        .markdown_line(list_depth, block_ref.list_ordinal),
+                        .serialize_markdown_line(list_depth, block_ref.list_ordinal),
                 );
                 let child_list_depth = list_depth + usize::from(block_ref.kind().is_list_item());
                 Self::collect_markdown_lines(
@@ -795,7 +795,7 @@ mod tests {
             });
 
             assert_eq!(
-                editor.doc().to_markdown(cx),
+                editor.doc().serialize_markdown(cx),
                 "```unknown-lang\nfn main() {}\n```"
             );
         });
@@ -813,7 +813,7 @@ mod tests {
                 let range = 0..block.code_language_text().len();
                 block.replace_code_language_text_in_range(range, "we`rd", None, false, cx);
             });
-            editor.doc().to_markdown(cx)
+            editor.doc().serialize_markdown(cx)
         });
 
         assert_eq!(markdown, "~~~we`rd\nbody\n~~~");

@@ -124,11 +124,11 @@ fn raw_html_block_keeps_source() {
 
 /// A constructed block serializes its text back to markdown.
 #[test]
-fn block_text_serializes_to_markdown() {
+fn block_text_serializes_serialize_markdown() {
     let block = BlockData::new(
         BlockKind::Paragraph,
         RichText::from_markdown("hello **world**"),
     );
     assert_eq!(block.text_markdown(), "hello **world**");
-    assert_eq!(block.markdown_line(0, None), "hello **world**");
+    assert_eq!(block.serialize_markdown_line(0, None), "hello **world**");
 }

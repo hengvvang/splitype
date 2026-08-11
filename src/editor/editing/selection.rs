@@ -663,7 +663,7 @@ impl Editor {
         };
 
         self.prepare_undo_capture(undo_kind, cx);
-        let mut source = self.current_document_source(cx);
+        let mut source = self.serialize_document_for_mode(cx);
         let start = source_range.start.min(source.len());
         let end = source_range.end.min(source.len());
         source.replace_range(start..end, new_text);
@@ -705,7 +705,7 @@ impl Editor {
 
     pub(crate) fn cross_block_selected_markdown(&self, cx: &App) -> Option<String> {
         let selection = self.normalized_cross_block_selection(cx)?;
-        let source = self.current_document_source(cx);
+        let source = self.serialize_document_for_mode(cx);
         let mappings = self.source_mapping_by_entity_id(cx);
         let entries = self.doc().blocks();
 
@@ -828,7 +828,7 @@ impl Editor {
                     .unwrap_or_default(),
                 _ => block
                     .record
-                    .markdown_line(block.render_depth, block.list_ordinal),
+                    .serialize_markdown_line(block.render_depth, block.list_ordinal),
             };
         }
 
@@ -852,7 +852,7 @@ impl Editor {
         }
 
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
-        let mut source = self.current_document_source(cx);
+        let mut source = self.serialize_document_for_mode(cx);
         let start = source_range.start.min(source.len());
         let end = source_range.end.min(source.len());
         source.replace_range(start..end, "");
@@ -1028,7 +1028,7 @@ mod tests {
                 cx
             ));
 
-            assert_eq!(editor.doc().to_markdown(cx), "alXmma");
+            assert_eq!(editor.doc().serialize_markdown(cx), "alXmma");
             assert!(editor.tab().selection.cross_block.is_none());
             assert!(editor.tab().selection.cross_block_drag.is_none());
             let block = editor.doc().blocks()[0].entity.read(cx);
@@ -1055,7 +1055,7 @@ mod tests {
                 cx
             ));
 
-            assert_eq!(editor.doc().to_markdown(cx), "alnimma");
+            assert_eq!(editor.doc().serialize_markdown(cx), "alnimma");
             let block = editor.doc().blocks()[0].entity.read(cx);
             assert_eq!(block.selected_range, 4..4);
             assert_eq!(block.marked_range, Some(2..4));
@@ -1131,7 +1131,7 @@ mod tests {
             Some("pha\n\nbeta\n\nga")
         );
         assert_eq!(
-            editor.read_with(cx, |editor, cx| editor.doc().to_markdown(cx)),
+            editor.read_with(cx, |editor, cx| editor.doc().serialize_markdown(cx)),
             "almma"
         );
 
@@ -1143,7 +1143,7 @@ mod tests {
         redraw(cx);
 
         assert_eq!(
-            editor.read_with(cx, |editor, cx| editor.doc().to_markdown(cx)),
+            editor.read_with(cx, |editor, cx| editor.doc().serialize_markdown(cx)),
             original
         );
         editor.read_with(cx, |editor, cx| {
@@ -1171,7 +1171,7 @@ mod tests {
             set_selection(editor, 0, 0, 2, end_len, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
-            let text = editor.doc().to_markdown(cx);
+            let text = editor.doc().serialize_markdown(cx);
             assert!(!text.contains('|'), "table should be gone: {text:?}");
             assert!(!text.contains("alpha"));
             assert!(!text.contains("gamma"));
@@ -1195,7 +1195,7 @@ mod tests {
             // The table is removed in full; only `gamma` survives (deleting from
             // the document start leaves the table's trailing blank line, which
             // reparses to leading empty paragraphs, harmless and trimmable).
-            let text = editor.doc().to_markdown(cx);
+            let text = editor.doc().serialize_markdown(cx);
             assert!(
                 !text.contains('|'),
                 "trailing table should be gone: {text:?}"
@@ -1220,7 +1220,7 @@ mod tests {
             set_selection(editor, 0, alpha_len, 1, 0, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
-            assert_eq!(editor.doc().to_markdown(cx), "alpha\n\ngamma");
+            assert_eq!(editor.doc().serialize_markdown(cx), "alpha\n\ngamma");
         });
         cx.quit();
     }
@@ -1249,7 +1249,7 @@ mod tests {
 
             assert!(editor.delete_cross_block_selection(cx));
             assert!(
-                !editor.doc().to_markdown(cx).contains('|'),
+                !editor.doc().serialize_markdown(cx).contains('|'),
                 "document should no longer contain the table"
             );
         });
@@ -1272,7 +1272,7 @@ mod tests {
             set_selection(editor, 0, 0, 2, end_len, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
-            let text = editor.doc().to_markdown(cx);
+            let text = editor.doc().serialize_markdown(cx);
             assert!(
                 !text.contains("code"),
                 "code block should be gone: {text:?}"
@@ -1306,7 +1306,7 @@ mod tests {
             set_selection(editor, 0, alpha_len, 2, 0, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
-            let text = editor.doc().to_markdown(cx);
+            let text = editor.doc().serialize_markdown(cx);
             assert!(!text.contains('|'), "table should be gone: {text:?}");
             assert_eq!(text.trim(), "alpha");
         });
@@ -1334,7 +1334,7 @@ mod tests {
             set_selection(editor, 0, 0, 2, 0, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
-            let text = editor.doc().to_markdown(cx);
+            let text = editor.doc().serialize_markdown(cx);
             assert!(!text.contains('|'), "table should be gone: {text:?}");
             assert_eq!(text.trim(), "gamma");
         });

@@ -105,7 +105,7 @@ async fn root_level_footnotes_number_by_first_reference_and_render_in_place(
             Some(2)
         );
 
-        assert_eq!(editor.doc().to_markdown(cx), canonical_markdown);
+        assert_eq!(editor.doc().serialize_markdown(cx), canonical_markdown);
     });
 }
 
@@ -150,7 +150,7 @@ async fn callout_footnotes_number_and_render_in_place(cx: &mut TestAppContext) {
         assert_eq!(definition.read(cx).display_text(), "final");
         assert_eq!(definition.read(cx).quote_depth, 1);
         assert_eq!(definition.read(cx).footnote_definition_ordinal(), Some(1));
-        assert_eq!(editor.doc().to_markdown(cx), markdown);
+        assert_eq!(editor.doc().serialize_markdown(cx), markdown);
     });
 }
 
@@ -182,7 +182,7 @@ async fn root_reference_binds_to_nested_quote_footnote_definition(cx: &mut TestA
         assert_eq!(definition.read(cx).display_text(), "note");
         assert_eq!(definition.read(cx).quote_depth, 1);
         assert_eq!(definition.read(cx).footnote_definition_ordinal(), Some(1));
-        assert_eq!(editor.doc().to_markdown(cx), markdown);
+        assert_eq!(editor.doc().serialize_markdown(cx), markdown);
     });
 }
 
@@ -208,7 +208,7 @@ async fn unresolved_footnote_reference_stays_literal_and_unlinked(cx: &mut TestA
                 .binding("missing")
                 .is_none()
         );
-        assert_eq!(editor.doc().to_markdown(cx), markdown);
+        assert_eq!(editor.doc().serialize_markdown(cx), markdown);
     });
 }
 

@@ -281,7 +281,7 @@ impl Editor {
         // Cross-block selections and runtime-only blocks (table cells) fall
         // back to the global source-range path.
         let cursor_offset = snapshot.range.end;
-        let text = self.doc().to_raw_source(cx);
+        let text = self.doc().serialize_source_text(cx);
         // Snap to valid UTF-8 char boundary to avoid panics on multi-byte chars.
         let clamped = cursor_offset.min(text.len());
         let safe = if text.is_char_boundary(clamped) {
