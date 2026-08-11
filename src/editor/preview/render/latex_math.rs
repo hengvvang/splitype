@@ -29,7 +29,7 @@ pub(crate) fn render_preview_latex_math(block: &Block, base: Div, theme: &Theme)
             .trim()
             .to_string();
         crate::model::syntax::math::DisplayMathSource {
-            raw: raw.to_string(),
+            source: raw.to_string(),
             body,
         }
     });

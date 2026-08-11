@@ -776,7 +776,7 @@ impl Block {
 
         if self.projection.is_some() {
             return self
-                .projected_replacement_attributes_for_visible_range(display_range)
+                .projected_replacement_attributes_for_display_range(display_range)
                 .unwrap_or_default();
         }
 
@@ -784,7 +784,7 @@ impl Block {
             .unwrap_or_default()
     }
 
-    pub(crate) fn projected_replacement_attributes_for_visible_range(
+    pub(crate) fn projected_replacement_attributes_for_display_range(
         &self,
         display_range: &Range<usize>,
     ) -> Option<InlineInsertionAttributes> {

@@ -6,7 +6,7 @@ use std::ops::Range;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DisplayMathSource {
     /// Full Markdown source, including `$$` delimiters.
-    pub raw: String,
+    pub source: String,
     /// LaTeX body between the display delimiters.
     pub body: String,
 }
@@ -24,7 +24,7 @@ pub fn parse_display_math_source(raw: &str) -> Option<DisplayMathSource> {
         let body_and_close = line.strip_prefix("$$")?;
         let close = body_and_close.find("$$")?;
         let body = body_and_close[..close].trim().to_string();
-        return Some(DisplayMathSource { raw, body });
+        return Some(DisplayMathSource { source: raw, body });
     }
 
     let opener = strip_display_indent(lines[0])?.trim_end();
@@ -34,7 +34,7 @@ pub fn parse_display_math_source(raw: &str) -> Option<DisplayMathSource> {
     }
 
     let body = lines[1..lines.len() - 1].join("\n");
-    Some(DisplayMathSource { raw, body })
+    Some(DisplayMathSource { source: raw, body })
 }
 
 /// Serialize a display-math block body back to canonical Markdown, returning
@@ -46,8 +46,8 @@ pub fn parse_display_math_source(raw: &str) -> Option<DisplayMathSource> {
 /// empty or multi-line ones.
 pub fn serialize_display_math_source(body: &str) -> (String, Range<usize>) {
     if let Some(source) = parse_display_math_source(body) {
-        let start = source.raw.find(&source.body).unwrap_or(0);
-        return (source.raw, start..start + source.body.len());
+        let start = source.source.find(&source.body).unwrap_or(0);
+        return (source.source, start..start + source.body.len());
     }
     if body.is_empty() || body.contains('\n') {
         let wrapped = format!("$$\n{body}\n$$");
@@ -70,7 +70,7 @@ mod tests {
     fn parses_single_line_display_math() {
         let parsed = parse_display_math_source("$$x^2$$").expect("display math");
         assert_eq!(parsed.body, "x^2");
-        assert_eq!(parsed.raw, "$$x^2$$");
+        assert_eq!(parsed.source, "$$x^2$$");
     }
 
     #[test]

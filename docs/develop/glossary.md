@@ -69,6 +69,7 @@ layout, panes belong to an Editor session.
 | --- | --- | --- |
 | Model text unit | **fragment** | `InlineFragment`, `BlockText.fragments`. |
 | Styled range over text | **span** | `InlineSpan` (render cache), `ExpandedLinkSpan`/`ExpandedFootnoteSpan` (projection, was `ExpandedLinkRun`/`ExpandedFootnoteRun`). |
+| Parsed special-syntax structure | *`Source` / `Syntax` coexist | `DisplayMathSource`/`MermaidSource`/`InlineLatex` parse a fenced/delimited Markdown fragment into `source` (full original text, was `raw` on math/mermaid) + `body`. `ImageSyntax` keeps its historical `Syntax` name; do not unify the two suffixes — "Source" matches the codebase's markdown-source vocabulary, "Syntax" is the image expression's own term. |
 | Rendered/syntax run | **run** | GPUI `TextRun`, backtick run, `RowBand.run_start/run_end` (a run of rows). External or generic vocabulary. |
 | Role-bearing piece | **segment** | `ExpandedInlineSegment`, `PlannedInnerSegment`, `TableCellInlineImageSegment`. |
 

@@ -11,7 +11,7 @@ use super::serialize::{
     has_closing_delimiter, match_open_delimiter,
 };
 use super::style::InlineStyle;
-use super::text::{InlineFragment, BlockText};
+use super::text::{BlockText, InlineFragment};
 use crate::inline::footnote::{InlineFootnoteReference, parse_inline_footnote_reference};
 use crate::syntax::html::{
     HtmlAttr, HtmlInlineStyle, HtmlNode, HtmlNodeKind, has_dangerous_attrs, is_inline_tag,

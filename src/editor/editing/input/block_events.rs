@@ -437,7 +437,7 @@ impl Editor {
                     Self::reset_block_cursor(&focus_block, cursor, cx);
                     self.rebuild_reference_registries(cx);
                     if let Some(binding) = self.table_cell_binding(focus_block.entity_id()) {
-                        self.sync_table_record_from_grid(&binding.table_block, cx);
+                        self.sync_table_data_from_grid(&binding.table_block, cx);
                     }
                     self.focus_block(focus_block.entity_id());
                 }

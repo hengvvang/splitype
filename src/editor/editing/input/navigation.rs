@@ -261,7 +261,7 @@ impl Editor {
 
         match event {
             BlockAction::Changed => {
-                self.sync_table_record_from_grid(&binding.table_block, cx);
+                self.sync_table_data_from_grid(&binding.table_block, cx);
                 self.sync_references_after_block_change(&binding.cell, cx);
                 self.mark_dirty(cx);
                 self.request_active_block_scroll_into_view(cx);
@@ -304,7 +304,7 @@ impl Editor {
                 };
                 self.clear_table_axis_preview(cx);
                 self.clear_table_axis_selection(cx);
-                self.sync_table_record_from_grid(&binding.table_block, cx);
+                self.sync_table_data_from_grid(&binding.table_block, cx);
                 self.prepare_undo_capture(
                     crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,

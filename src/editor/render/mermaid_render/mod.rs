@@ -540,7 +540,7 @@ mod tests {
 
     fn unique_mermaid_source(label: &str) -> MermaidSource {
         MermaidSource {
-            raw: format!("```mermaid\nflowchart LR\nA[{}] --> B\n```", label),
+            source: format!("```mermaid\nflowchart LR\nA[{}] --> B\n```", label),
             body: format!("flowchart LR\nA[{}] --> B", label),
             info: "mermaid".to_string(),
         }

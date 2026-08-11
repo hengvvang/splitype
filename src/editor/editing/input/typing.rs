@@ -259,7 +259,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) -> bool {
         // Capture any in-progress cell edits before mutating the table data.
-        self.sync_table_record_from_grid(table_block, cx);
+        self.sync_table_data_from_grid(table_block, cx);
         let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return false;
         };

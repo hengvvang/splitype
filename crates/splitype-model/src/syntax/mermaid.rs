@@ -15,7 +15,7 @@ pub struct MermaidFence {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MermaidSource {
     /// Full Markdown source, including the opening and closing fences.
-    pub raw: String,
+    pub source: String,
     /// Mermaid diagram source between the fences.
     pub body: String,
     /// The full info string after the opening fence.
@@ -83,7 +83,7 @@ pub fn parse_mermaid_fence_source(raw: &str) -> Option<MermaidSource> {
     }
 
     let body = lines[1..lines.len() - 1].join("\n");
-    Some(MermaidSource { raw, body, info })
+    Some(MermaidSource { source: raw, body, info })
 }
 
 /// Serialize a Mermaid block body back to canonical fenced Markdown,
@@ -95,8 +95,8 @@ pub fn parse_mermaid_fence_source(raw: &str) -> Option<MermaidSource> {
 /// ` ```mermaid ` fence.
 pub fn serialize_mermaid_source(body: &str) -> (String, Range<usize>) {
     if let Some(source) = parse_mermaid_fence_source(body) {
-        let start = source.raw.find(&source.body).unwrap_or(0);
-        return (source.raw, start..start + source.body.len());
+        let start = source.source.find(&source.body).unwrap_or(0);
+        return (source.source, start..start + source.body.len());
     }
     let wrapped = format!("```mermaid\n{body}\n```");
     (wrapped, "```mermaid\n".len().."```mermaid\n".len() + body.len())

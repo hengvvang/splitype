@@ -36,7 +36,7 @@ pub(crate) fn render_preview_mermaid_diagram(
             trimmed.to_string()
         };
         crate::model::syntax::mermaid::MermaidSource {
-            raw: raw.to_string(),
+            source: raw.to_string(),
             body,
             info: "mermaid".to_string(),
         }

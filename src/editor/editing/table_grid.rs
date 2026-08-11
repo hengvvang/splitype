@@ -125,7 +125,7 @@ impl Editor {
         self.sync_table_axis_visuals(cx);
     }
 
-    pub(crate) fn sync_table_record_from_grid(
+    pub(crate) fn sync_table_data_from_grid(
         &mut self,
         table_block: &Entity<Block>,
         cx: &mut Context<Self>,
@@ -168,7 +168,7 @@ impl Editor {
         table_block: &Entity<Block>,
         cx: &mut Context<Self>,
     ) {
-        self.sync_table_record_from_grid(table_block, cx);
+        self.sync_table_data_from_grid(table_block, cx);
 
         let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
@@ -207,7 +207,7 @@ impl Editor {
     }
 
     pub(crate) fn append_table_row(&mut self, table_block: &Entity<Block>, cx: &mut Context<Self>) {
-        self.sync_table_record_from_grid(table_block, cx);
+        self.sync_table_data_from_grid(table_block, cx);
 
         let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
@@ -302,7 +302,7 @@ impl Editor {
         alignment: TableColumnAlignment,
         cx: &mut Context<Self>,
     ) {
-        self.sync_table_record_from_grid(table_block, cx);
+        self.sync_table_data_from_grid(table_block, cx);
         let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
@@ -339,7 +339,7 @@ impl Editor {
         delta: i32,
         cx: &mut Context<Self>,
     ) {
-        self.sync_table_record_from_grid(table_block, cx);
+        self.sync_table_data_from_grid(table_block, cx);
         let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
@@ -396,7 +396,7 @@ impl Editor {
         delta: i32,
         cx: &mut Context<Self>,
     ) {
-        self.sync_table_record_from_grid(table_block, cx);
+        self.sync_table_data_from_grid(table_block, cx);
         let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
@@ -450,7 +450,7 @@ impl Editor {
         row_index: usize,
         cx: &mut Context<Self>,
     ) {
-        self.sync_table_record_from_grid(table_block, cx);
+        self.sync_table_data_from_grid(table_block, cx);
         let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
@@ -510,7 +510,7 @@ impl Editor {
         table_block: &Entity<Block>,
         cx: &mut Context<Self>,
     ) {
-        self.sync_table_record_from_grid(table_block, cx);
+        self.sync_table_data_from_grid(table_block, cx);
         let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
@@ -546,7 +546,7 @@ impl Editor {
         column: usize,
         cx: &mut Context<Self>,
     ) {
-        self.sync_table_record_from_grid(table_block, cx);
+        self.sync_table_data_from_grid(table_block, cx);
         let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
@@ -786,7 +786,7 @@ impl Editor {
         column: usize,
         cx: &mut Context<Self>,
     ) {
-        self.sync_table_record_from_grid(table_block, cx);
+        self.sync_table_data_from_grid(table_block, cx);
         let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
@@ -814,7 +814,7 @@ impl Editor {
         visual_row: usize,
         cx: &mut Context<Self>,
     ) {
-        self.sync_table_record_from_grid(table_block, cx);
+        self.sync_table_data_from_grid(table_block, cx);
         let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
@@ -842,7 +842,7 @@ impl Editor {
         column: usize,
         cx: &mut Context<Self>,
     ) {
-        self.sync_table_record_from_grid(table_block, cx);
+        self.sync_table_data_from_grid(table_block, cx);
         let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
@@ -870,7 +870,7 @@ impl Editor {
         visual_row: usize,
         cx: &mut Context<Self>,
     ) {
-        self.sync_table_record_from_grid(table_block, cx);
+        self.sync_table_data_from_grid(table_block, cx);
         let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
@@ -897,7 +897,7 @@ impl Editor {
         table_block: &Entity<Block>,
         cx: &mut Context<Self>,
     ) {
-        self.sync_table_record_from_grid(table_block, cx);
+        self.sync_table_data_from_grid(table_block, cx);
         let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };

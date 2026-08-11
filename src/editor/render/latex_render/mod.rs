@@ -185,7 +185,7 @@ mod tests {
     fn parses_single_line_display_math() {
         let parsed = parse_display_math_source("$$x^2$$").expect("display math");
         assert_eq!(parsed.body, "x^2");
-        assert_eq!(parsed.raw, "$$x^2$$");
+        assert_eq!(parsed.source, "$$x^2$$");
     }
 
     #[test]
