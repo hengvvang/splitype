@@ -23,7 +23,6 @@ use splitype_splitter::policy::DragPolicy;
 use splitype_splitter::sessions::{id_at_point, past_shortcut_threshold};
 use splitype_splitter::tree::SplitTree;
 
-
 /// Icon path for a window-panel top-bar button, per panel kind.
 ///
 /// Every `WindowPanelKind` owns its own copies of the top-bar icons
@@ -191,43 +190,43 @@ impl Shell {
                     {
                         let viewport = window.viewport_size();
                         match facts.modifier {
-                                CornerDragModifier::None => {
-                                    if let Some(new_id) =
-                                        <SplitterContainer<WindowPanelKind> as DragPolicy<
-                                            WindowPanelKind,
-                                        >>::on_plain_drag(
-                                            &mut ed.panels.layout, &facts, viewport
-                                        )
-                                    {
-                                        ed.seed_split_panel(new_id, cx);
-                                    }
-                                }
-                                CornerDragModifier::Shift => {
-                                    if let Some(cloned) =
-                                        <SplitterContainer<WindowPanelKind> as DragPolicy<
-                                            WindowPanelKind,
-                                        >>::on_shift_drag(
-                                            &mut ed.panels.layout, &facts, viewport
-                                        )
-                                    {
-                                        ed.clone_container_into_new_window(cloned, cx);
-                                    }
-                                }
-                                CornerDragModifier::Ctrl => {
+                            CornerDragModifier::None => {
+                                if let Some(new_id) =
                                     <SplitterContainer<WindowPanelKind> as DragPolicy<
                                         WindowPanelKind,
-                                    >>::on_ctrl_drag(
+                                    >>::on_plain_drag(
                                         &mut ed.panels.layout, &facts, viewport
                                     )
-                                }
-                                CornerDragModifier::Alt => {
-                                    <SplitterContainer<WindowPanelKind> as DragPolicy<
-                                        WindowPanelKind,
-                                    >>::on_alt_drag(
-                                        &mut ed.panels.layout, &facts, viewport
-                                    )
+                                {
+                                    ed.seed_split_panel(new_id, cx);
                                 }
                             }
+                            CornerDragModifier::Shift => {
+                                if let Some(cloned) =
+                                    <SplitterContainer<WindowPanelKind> as DragPolicy<
+                                        WindowPanelKind,
+                                    >>::on_shift_drag(
+                                        &mut ed.panels.layout, &facts, viewport
+                                    )
+                                {
+                                    ed.clone_container_into_new_window(cloned, cx);
+                                }
+                            }
+                            CornerDragModifier::Ctrl => {
+                                <SplitterContainer<WindowPanelKind> as DragPolicy<
+                                    WindowPanelKind,
+                                >>::on_ctrl_drag(
+                                    &mut ed.panels.layout, &facts, viewport
+                                )
+                            }
+                            CornerDragModifier::Alt => {
+                                <SplitterContainer<WindowPanelKind> as DragPolicy<
+                                    WindowPanelKind,
+                                >>::on_alt_drag(
+                                    &mut ed.panels.layout, &facts, viewport
+                                )
+                            }
+                        }
                         cx.notify();
                     }
                     // Inner-level drag end (splitter bars and panel corner
@@ -509,75 +508,100 @@ impl Shell {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        // An Editor leaf renders its own tile (top bar, panes,
-        // status bar) via its content entity; only Explorer / Settings
-        // leaves are rendered by the Shell.
-        if kind == crate::app::window_panels::WindowPanelKind::Editor {
-            if let Some(entity) = self.editor_for(leaf_id) {
-                return entity.clone().into_any_element();
-            }
-        }
-
         let c = &theme.colors;
         let d = &theme.dimensions;
         let gap = d.area_tile_gap;
         let radius = d.panel_tile_radius;
 
-        let topbar = match kind {
-            WindowPanelKind::Editor => {
+        // Tile card: an Editor leaf renders its own card (top bar, panes,
+        // status bar) via its content entity; Explorer / Settings leaves
+        // are assembled by the Shell. Either way the tile gets the same
+        // wrapper below — uniform gap padding, corner drag handles, and
+        // the type dropdown.
+        let tile_card: AnyElement = if kind == crate::app::window_panels::WindowPanelKind::Editor {
+            let Some(entity) = self.editor_for(leaf_id) else {
                 unreachable!("editor leaf without an entity is rendered by its entity")
+            };
+            entity.clone().into_any_element()
+        } else {
+            let topbar = match kind {
+                WindowPanelKind::Editor => {
+                    unreachable!("editor leaf without an entity is rendered by its entity")
+                }
+                WindowPanelKind::Explorer => {
+                    self.render_explorer_topbar(leaf_id, kind, theme, leaf_count, is_maximized, cx)
+                }
+                WindowPanelKind::Settings => {
+                    self.render_settings_topbar(leaf_id, kind, theme, leaf_count, is_maximized, cx)
+                }
+            };
+
+            let midcontainer: AnyElement = match kind {
+                WindowPanelKind::Editor => {
+                    unreachable!("editor leaf without an entity is rendered by its entity")
+                }
+                WindowPanelKind::Explorer => {
+                    self.render_explorer_midcontainer(leaf_id, theme, strings, cx)
+                }
+                WindowPanelKind::Settings => {
+                    self.render_settings_midcontainer(leaf_id, theme, strings, cx)
+                }
+            };
+
+            let bottombar = match kind {
+                WindowPanelKind::Editor => {
+                    unreachable!("editor leaf without an entity is rendered by its entity")
+                }
+                WindowPanelKind::Explorer => {
+                    Some(self.render_explorer_bottombar(leaf_id, theme, cx))
+                }
+                WindowPanelKind::Settings => {
+                    Some(self.render_settings_bottombar(leaf_id, theme, cx))
+                }
+            };
+
+            let midcontainer_container = div()
+                .w_full()
+                .flex_1()
+                .min_h(px(0.0))
+                .relative()
+                .child(midcontainer);
+
+            // Tile card with overflow hidden (no corner handles inside, to avoid clipping).
+            let mut tile_card = div()
+                .id(("tiled-area-card", leaf_id))
+                .w_full()
+                .h_full()
+                .flex()
+                .flex_col()
+                .relative()
+                .rounded(px(radius))
+                .bg(c.dialog_surface)
+                .border(px(d.dialog_border_width))
+                .border_color(c.dialog_border)
+                .shadow_lg()
+                .child(topbar)
+                .child(midcontainer_container);
+
+            if let Some(bb) = bottombar {
+                tile_card = tile_card.child(bb);
             }
-            WindowPanelKind::Explorer => {
-                self.render_explorer_topbar(leaf_id, kind, theme, leaf_count, is_maximized, cx)
-            }
-            WindowPanelKind::Settings => {
-                self.render_settings_topbar(leaf_id, kind, theme, leaf_count, is_maximized, cx)
-            }
+
+            tile_card.into_any_element()
         };
 
-        let midcontainer: AnyElement = match kind {
-            WindowPanelKind::Editor => {
-                unreachable!("editor leaf without an entity is rendered by its entity")
-            }
-            WindowPanelKind::Explorer => {
-                self.render_explorer_midcontainer(leaf_id, theme, strings, cx)
-            }
-            WindowPanelKind::Settings => {
-                self.render_settings_midcontainer(leaf_id, theme, strings, cx)
-            }
-        };
-
-        let bottombar = match kind {
-            WindowPanelKind::Editor => {
-                unreachable!("editor leaf without an entity is rendered by its entity")
-            }
-            WindowPanelKind::Explorer => Some(self.render_explorer_bottombar(leaf_id, theme, cx)),
-            WindowPanelKind::Settings => Some(self.render_settings_bottombar(leaf_id, theme, cx)),
-        };
-
-        let midcontainer_container = div()
-            .w_full()
-            .flex_1()
-            .min_h(px(0.0))
-            .relative()
-            .child(midcontainer);
-
-        // Tile card with overflow hidden (no corner handles inside, to avoid clipping).
         // Mouse interaction with any part of the tile marks it as the focused
         // window panel and, for Editor tiles, the active editor.
         let tile_focus = cx.entity().downgrade();
-        let mut tile_card = div()
-            .id(("tiled-area-card", leaf_id))
+        // Wrap in a padded container so the gap is uniform.
+        let mut wrapped = div()
+            .id(("tiled-area-wrapper", leaf_id))
             .w_full()
             .h_full()
-            .flex()
-            .flex_col()
+            .min_w(px(0.0))
+            .min_h(px(0.0))
+            .p(px(gap))
             .relative()
-            .rounded(px(radius))
-            .bg(c.dialog_surface)
-            .border(px(d.dialog_border_width))
-            .border_color(c.dialog_border)
-            .shadow_lg()
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                 let _ = tile_focus.update(cx, |ed, cx| {
                     ed.panels.layout.focused_leaf = Some(leaf_id);
@@ -587,12 +611,7 @@ impl Shell {
                     cx.notify();
                 });
             })
-            .child(topbar)
-            .child(midcontainer_container);
-
-        if let Some(bb) = bottombar {
-            tile_card = tile_card.child(bb);
-        }
+            .child(tile_card);
 
         // Corner drag handles positioned at the four outer corners of the tile card.
         let editor_corner = cx.entity().downgrade();
@@ -610,18 +629,7 @@ impl Shell {
                 });
             },
         );
-
-        // Wrap in a padded container so the gap is uniform.
-        let mut wrapped = div()
-            .id(("tiled-area-wrapper", leaf_id))
-            .w_full()
-            .h_full()
-            .min_w(px(0.0))
-            .min_h(px(0.0))
-            .p(px(gap))
-            .relative()
-            .child(tile_card)
-            .child(corner_handles);
+        wrapped = wrapped.child(corner_handles);
 
         // The dropdown flag lives on the panel itself.
         let dropdown_open = self

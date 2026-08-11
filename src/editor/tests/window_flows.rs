@@ -3,9 +3,10 @@
 
 use std::fs;
 
-use gpui::{AppContext, TestAppContext};
+use gpui::{AppContext, MouseButton, TestAppContext};
 
 use crate::app::actions::{CloseWindow, QuitApplication};
+use crate::app::window_panels::{DEFAULT_EDITOR_PANEL_ID, WindowPanelKind};
 use crate::editor::controller::Editor;
 
 use super::*;
@@ -464,3 +465,139 @@ async fn starting_and_ending_scrollbar_drag_updates_editor_state(cx: &mut TestAp
     });
 }
 
+#[gpui::test]
+async fn editor_tile_corner_drag_starts_outer_split(cx: &mut TestAppContext) {
+    init_editor_test_app(cx);
+
+    let window = cx.update(|cx| crate::app::window::open_editor_window(cx, String::new(), None));
+    cx.run_until_parked();
+    let window_any: gpui::AnyWindowHandle = window.clone().into();
+    let mut cx = gpui::VisualTestContext::from_window(window_any, cx);
+    cx.update(|window, cx| window.draw(cx).clear());
+    cx.run_until_parked();
+
+    // The default layout is Explorer (left) + Editor (right). The Editor
+    // tile must carry the same outer corner handles as Explorer/Settings:
+    // a mouse-down on its top-left corner starts a window-level corner
+    // drag on the outer layout.
+    let editor_rect = window
+        .update(&mut cx.cx, |shell, window, _cx| {
+            let viewport = window.viewport_size();
+            let mut rects = Vec::new();
+            shell.panels.layout.tree.collect_leaf_rects(
+                0.0,
+                0.0,
+                f32::from(viewport.width),
+                f32::from(viewport.height),
+                &mut rects,
+            );
+            rects
+                .into_iter()
+                .find(|r| r.id == DEFAULT_EDITOR_PANEL_ID)
+                .expect("editor leaf rect")
+        })
+        .expect("window update");
+    // The tiled layout sits below the custom titlebar; leaf rects are
+    // layout-local, so hit-test coordinates need the titlebar offset.
+    let titlebar_height = window
+        .update(&mut cx.cx, |shell, window, _cx| {
+            let theme = _cx
+                .global::<crate::infra::theme::ThemeManager>()
+                .current_arc();
+            crate::ui::custom_titlebar::custom_titlebar_height(window, &theme.dimensions)
+        })
+        .expect("window update");
+
+    let corner = gpui::Point {
+        x: gpui::px(editor_rect.x + 10.0),
+        y: gpui::px(editor_rect.y + titlebar_height + 10.0),
+    };
+    cx.simulate_mouse_down(corner, MouseButton::Left, gpui::Modifiers::none());
+    cx.run_until_parked();
+
+    let drag_panel = window
+        .update(&mut cx.cx, |shell, _window, _cx| {
+            shell.panels.layout.corner_drag_panel()
+        })
+        .expect("window update");
+    assert_eq!(drag_panel, Some(DEFAULT_EDITOR_PANEL_ID));
+}
+
+#[gpui::test]
+async fn editor_type_dropdown_switches_panel_kind(cx: &mut TestAppContext) {
+    init_editor_test_app(cx);
+
+    let window = cx.update(|cx| crate::app::window::open_editor_window(cx, String::new(), None));
+    cx.run_until_parked();
+    let window_any: gpui::AnyWindowHandle = window.clone().into();
+    let mut cx = gpui::VisualTestContext::from_window(window_any, cx);
+    cx.update(|window, cx| window.draw(cx).clear());
+    cx.run_until_parked();
+
+    // Open the Editor tile's type dropdown (the flag lives on the panel).
+    window
+        .update(&mut cx.cx, |shell, _window, cx| {
+            shell.panels.layout.toggle_dropdown(DEFAULT_EDITOR_PANEL_ID);
+            cx.notify();
+        })
+        .expect("window update");
+    cx.update(|window, cx| window.draw(cx).clear());
+    cx.run_until_parked();
+
+    // Click the "Settings" entry of the floating menu (all() order is
+    // [Editor, Explorer, Settings]). The menu renders inside the tile
+    // wrapper at top(28) left(8); each entry is menu_item_height tall.
+    let editor_rect = window
+        .update(&mut cx.cx, |shell, window, _cx| {
+            let viewport = window.viewport_size();
+            let mut rects = Vec::new();
+            shell.panels.layout.tree.collect_leaf_rects(
+                0.0,
+                0.0,
+                f32::from(viewport.width),
+                f32::from(viewport.height),
+                &mut rects,
+            );
+            rects
+                .into_iter()
+                .find(|r| r.id == DEFAULT_EDITOR_PANEL_ID)
+                .expect("editor leaf rect")
+        })
+        .expect("window update");
+    let dims = cx.cx.read(|cx| {
+        let theme = cx
+            .global::<crate::infra::theme::ThemeManager>()
+            .current_arc();
+        theme.dimensions.clone()
+    });
+    let titlebar_height = window
+        .update(&mut cx.cx, |shell, window, cx| {
+            let theme = cx
+                .global::<crate::infra::theme::ThemeManager>()
+                .current_arc();
+            crate::ui::custom_titlebar::custom_titlebar_height(window, &theme.dimensions)
+        })
+        .expect("window update");
+    let settings_y = titlebar_height
+        + 28.0
+        + dims.menu_panel_padding
+        + 2.0 * dims.menu_item_height
+        + dims.menu_item_height / 2.0;
+    let settings_point = gpui::Point {
+        x: gpui::px(editor_rect.x + 8.0 + dims.menu_panel_width / 2.0),
+        y: gpui::px(editor_rect.y + settings_y),
+    };
+    cx.simulate_click(settings_point, gpui::Modifiers::none());
+    cx.run_until_parked();
+
+    let kind = window
+        .update(&mut cx.cx, |shell, _window, _cx| {
+            shell
+                .panels
+                .layout
+                .tree
+                .find_leaf_kind(DEFAULT_EDITOR_PANEL_ID)
+        })
+        .expect("window update");
+    assert_eq!(kind, Some(WindowPanelKind::Settings));
+}
