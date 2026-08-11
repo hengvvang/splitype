@@ -9,9 +9,9 @@ mod tests {
     use crate::editor::controller::Editor;
     use crate::editor::editing::input::actions::ExitCodeBlock;
     use crate::editor::editing::input::actions::{DeleteBack, Newline};
-    use crate::model::parse::{BlockData, BlockKind};
-use crate::model::block::CalloutKind;
+    use crate::model::block::CalloutKind;
     use crate::model::inline::text::BlockText;
+    use crate::model::parse::{BlockData, BlockKind};
     use gpui::{AppContext, TestAppContext};
 
     #[gpui::test]
@@ -245,7 +245,10 @@ use crate::model::block::CalloutKind;
             );
             assert_eq!(entries[4].entity.read(cx).display_text(), "");
             assert_eq!(entries[4].entity.read(cx).list_ordinal, Some(1));
-            assert_eq!(editor.doc().serialize_markdown(cx), "1. aa\n2. bb\n3. cc\n\n1. ");
+            assert_eq!(
+                editor.doc().serialize_markdown(cx),
+                "1. aa\n2. bb\n3. cc\n\n1. "
+            );
         });
     }
 
@@ -457,7 +460,10 @@ use crate::model::block::CalloutKind;
             assert_eq!(entries[0].entity.read(cx).display_text(), "let x = 1;");
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
-            assert_eq!(editor.doc().serialize_markdown(cx), "```rust\nlet x = 1;\n```\n\n");
+            assert_eq!(
+                editor.doc().serialize_markdown(cx),
+                "```rust\nlet x = 1;\n```\n\n"
+            );
         });
     }
 
@@ -549,6 +555,83 @@ use crate::model::block::CalloutKind;
         editor.update(cx, |editor, cx| {
             let entries = editor.doc().blocks();
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::ThematicBreak);
+        });
+    }
+
+    #[gpui::test]
+    async fn deleting_separator_markers_downgrades_to_paragraph(cx: &mut TestAppContext) {
+        let cx = cx.add_empty_window();
+        let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
+
+        cx.update(|window, cx| {
+            editor.update(cx, |editor, cx| {
+                let block = editor.doc().blocks()[0].entity.clone();
+                block.update(cx, |block, block_cx| {
+                    block.replace_text_in_display_range(0..0, "---", None, false, block_cx);
+                    block.move_to(block.display_len(), block_cx);
+                    block.on_newline(&Newline, window, block_cx);
+                });
+            });
+        });
+
+        // Deleting one dash leaves `--`, which is no longer a valid thematic
+        // break; the block must fall back to a paragraph before Enter runs.
+        cx.update(|window, cx| {
+            editor.update(cx, |editor, cx| {
+                let block = editor.doc().blocks()[0].entity.clone();
+                block.update(cx, |block, block_cx| {
+                    assert_eq!(block.kind(), BlockKind::ThematicBreak);
+                    block.on_delete_back(&DeleteBack, window, block_cx);
+                    block.on_delete_back(&DeleteBack, window, block_cx);
+                    assert_eq!(block.kind(), BlockKind::Paragraph);
+                    assert_eq!(block.display_text(), "-");
+                });
+            });
+        });
+
+        // Enter on the downgraded paragraph splits it like normal text.
+        cx.update(|window, cx| {
+            editor.update(cx, |editor, cx| {
+                let block = editor.doc().blocks()[0].entity.clone();
+                block.update(cx, |block, block_cx| {
+                    block.move_to(block.display_len(), block_cx);
+                    block.on_newline(&Newline, window, block_cx);
+                });
+                let entries = editor.doc().blocks();
+                assert_eq!(entries.len(), 2);
+                assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Paragraph);
+                assert_eq!(entries[0].entity.read(cx).display_text(), "-");
+                assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+            });
+        });
+    }
+
+    #[gpui::test]
+    async fn deleting_one_separator_marker_keeps_a_still_valid_separator(cx: &mut TestAppContext) {
+        let cx = cx.add_empty_window();
+        let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
+
+        cx.update(|window, cx| {
+            editor.update(cx, |editor, cx| {
+                let block = editor.doc().blocks()[0].entity.clone();
+                block.update(cx, |block, block_cx| {
+                    block.replace_text_in_display_range(0..0, "----", None, false, block_cx);
+                    block.move_to(block.display_len(), block_cx);
+                    block.on_newline(&Newline, window, block_cx);
+                });
+            });
+        });
+
+        // `----` -> `---` is still a valid thematic break, so the block stays.
+        cx.update(|window, cx| {
+            editor.update(cx, |editor, cx| {
+                let block = editor.doc().blocks()[0].entity.clone();
+                block.update(cx, |block, block_cx| {
+                    block.on_delete_back(&DeleteBack, window, block_cx);
+                    assert_eq!(block.kind(), BlockKind::ThematicBreak);
+                    assert_eq!(block.display_text(), "---");
+                });
+            });
         });
     }
 
@@ -1061,13 +1144,8 @@ use crate::model::block::CalloutKind;
                     .find(|child| child.read(cx).kind() == BlockKind::Table)
                     .expect("nested table")
                     .clone();
-                let cell = table
-                    .read(cx)
-                    .table_grid
-                    .as_ref()
-                    .expect("table grid")
-                    .rows[0][0]
-                    .clone();
+                let cell =
+                    table.read(cx).table_grid.as_ref().expect("table grid").rows[0][0].clone();
                 cell.update(cx, |block, block_cx| {
                     block.on_exit_code_block(&ExitCodeBlock, window, block_cx);
                 });

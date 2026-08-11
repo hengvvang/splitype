@@ -17,10 +17,10 @@ use crate::editor::editing::projection::{
     ProjectedLinkSelectionSnapshot,
 };
 use crate::editor::tree::block::Block;
-use crate::model::parse::BlockKind;
 use crate::model::inline::render_cache::InlineRenderCache;
 use crate::model::inline::style::StyleFlag;
-use crate::model::inline::text::{InlineFragment, InlineInsertionAttributes, BlockText};
+use crate::model::inline::text::{BlockText, InlineFragment, InlineInsertionAttributes};
+use crate::model::parse::BlockKind;
 
 impl Block {
     pub(crate) fn display_cache(&self) -> &InlineRenderCache {
@@ -450,8 +450,7 @@ impl Block {
 
         if !self.edits_verbatim_text() && self.kind() == BlockKind::BulletListItem {
             let plain_text = next_text.plain_text();
-            if let Some((checked, prefix_len)) =
-                BlockKind::parse_task_list_item_prefix(&plain_text)
+            if let Some((checked, prefix_len)) = BlockKind::parse_task_list_item_prefix(&plain_text)
             {
                 next_text.remove_plain_prefix(prefix_len);
                 return (
@@ -460,6 +459,17 @@ impl Block {
                     cursor.saturating_sub(prefix_len),
                     prefix_len,
                 );
+            }
+        }
+
+        // A focused separator shows its marker text for editing; once the text
+        // no longer forms a valid thematic break (e.g. `--` after deleting one
+        // dash), the block falls back to a paragraph so Enter splits normally
+        // instead of leaving a phantom separator behind.
+        if !self.edits_verbatim_text() && self.kind().is_thematic_break() {
+            let plain_text = next_text.plain_text();
+            if !BlockKind::parse_thematic_break_line(&plain_text) {
+                return (BlockKind::Paragraph, next_text, cursor, 0);
             }
         }
 
@@ -574,10 +584,8 @@ impl Block {
         let replacement_fragments = local_result.tree.fragments.clone();
 
         let replacement_start = link_span.start_fragment_index;
-        let replacement_clean_start = Self::clean_offset_before_fragment_index(
-            &self.data.text.fragments,
-            replacement_start,
-        );
+        let replacement_clean_start =
+            Self::clean_offset_before_fragment_index(&self.data.text.fragments, replacement_start);
         let mut next_text = self.data.text.clone();
         next_text.replace_fragment_range(
             link_span.start_fragment_index..link_span.end_fragment_index,
@@ -1176,8 +1184,7 @@ impl Block {
 
         // A span was closed when re-parsing absorbed delimiters into a style,
         // leaving the plain text shorter than expected. Skip IME and deletions.
-        let expected_plain_len =
-            base_plain_len.saturating_sub(plain_range.len()) + new_text.len();
+        let expected_plain_len = base_plain_len.saturating_sub(plain_range.len()) + new_text.len();
         let caret_may_have_closed_span = !self.edits_verbatim_text()
             && !new_text.is_empty()
             && !mark_inserted_text
