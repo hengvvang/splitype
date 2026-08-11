@@ -68,8 +68,8 @@ layout, panes belong to an Editor session.
 | Concept | Term | Notes |
 | --- | --- | --- |
 | Model text unit | **fragment** | `InlineFragment`, `RichText.fragments`. |
-| Styled range over text | **span** | `InlineSpan` (render cache), `LinkSpan`/`FootnoteSpan` (projection, planned). |
-| Rendered/syntax run | **run** | GPUI `TextRun`, backtick run. External vocabulary. |
+| Styled range over text | **span** | `InlineSpan` (render cache), `ExpandedLinkSpan`/`ExpandedFootnoteSpan` (projection, was `ExpandedLinkRun`/`ExpandedFootnoteRun`). |
+| Rendered/syntax run | **run** | GPUI `TextRun`, backtick run, `RowBand.run_start/run_end` (a run of rows). External or generic vocabulary. |
 | Role-bearing piece | **segment** | `ExpandedInlineSegment`, `PlannedInnerSegment`, `TableCellInlineImageSegment`. |
 
 ## Editing semantics

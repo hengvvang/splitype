@@ -132,9 +132,9 @@ pub(crate) enum ExpandedInlineSegmentKind {
     ClosingDelimiter(ExpandedInlineKind),
 }
 
-/// One projected link run spanning one or more inline fragments.
+/// One projected link span spanning one or more inline fragments.
 #[derive(Clone, Debug)]
-pub(crate) struct ExpandedLinkRun {
+pub(crate) struct ExpandedLinkSpan {
     pub(crate) link: InlineLink,
     pub(crate) start_fragment_index: usize,
     pub(crate) end_fragment_index: usize,
@@ -143,9 +143,9 @@ pub(crate) struct ExpandedLinkRun {
     pub(crate) target_display_range: Range<usize>,
 }
 
-/// One projected footnote reference run.
+/// One projected footnote reference span.
 #[derive(Clone, Debug)]
-pub(crate) struct ExpandedFootnoteRun {
+pub(crate) struct ExpandedFootnoteSpan {
     pub(crate) footnote: InlineFootnoteReference,
     pub(crate) plain_range: Range<usize>,
     pub(crate) display_range: Range<usize>,
@@ -167,8 +167,8 @@ pub(crate) struct ExpandedInlineProjection {
     pub(crate) block_prefix_range: Option<Range<usize>>,
     pub(crate) plain_to_display_cursor: Vec<usize>,
     pub(crate) display_to_plain: Vec<usize>,
-    pub(crate) link_runs: Vec<ExpandedLinkRun>,
-    pub(crate) footnote_runs: Vec<ExpandedFootnoteRun>,
+    pub(crate) link_spans: Vec<ExpandedLinkSpan>,
+    pub(crate) footnote_spans: Vec<ExpandedFootnoteSpan>,
 }
 
 impl ExpandedInlineProjection {
@@ -190,8 +190,8 @@ impl ExpandedInlineProjection {
         let mut segments = Vec::new();
         let mut plain_to_display_cursor = vec![0; plain_len + 1];
         let mut display_to_plain = vec![0];
-        let mut link_runs = Vec::new();
-        let mut footnote_runs = Vec::new();
+        let mut link_spans = Vec::new();
+        let mut footnote_spans = Vec::new();
         let mut plain_cursor = 0usize;
         let mut display_cursor = 0usize;
         let mut any_expanded = false;
@@ -239,7 +239,7 @@ impl ExpandedInlineProjection {
                     &plain_selected,
                     plain_marked.as_ref(),
                 );
-                let run_display_start = display_cursor;
+                let span_display_start = display_cursor;
                 if expand_footnote {
                     any_expanded = true;
                     let open_marker = "[^".to_string();
@@ -321,10 +321,10 @@ impl ExpandedInlineProjection {
                     }
                     display_cursor += close_len;
 
-                    footnote_runs.push(ExpandedFootnoteRun {
+                    footnote_spans.push(ExpandedFootnoteSpan {
                         footnote: footnote.clone(),
                         plain_range: plain_range.clone(),
-                        display_range: run_display_start..display_cursor,
+                        display_range: span_display_start..display_cursor,
                     });
                 } else {
                     projected_fragments.push(fragment.clone());
@@ -351,27 +351,27 @@ impl ExpandedInlineProjection {
             }
 
             if let Some(link) = fragment.link.as_ref() {
-                let run_start = fragment_index;
-                let run_plain_start = plain_cursor;
-                let mut run_end = fragment_index;
-                let mut run_plain_end = plain_cursor;
-                while run_end < fragments.len() {
-                    let run_fragment = &fragments[run_end];
-                    if run_fragment.link.as_ref() != Some(link) {
+                let span_start = fragment_index;
+                let span_plain_start = plain_cursor;
+                let mut span_end = fragment_index;
+                let mut span_plain_end = plain_cursor;
+                while span_end < fragments.len() {
+                    let span_fragment = &fragments[span_end];
+                    if span_fragment.link.as_ref() != Some(link) {
                         break;
                     }
-                    run_plain_end += run_fragment.text.len();
-                    run_end += 1;
+                    span_plain_end += span_fragment.text.len();
+                    span_end += 1;
                 }
 
-                let run_plain_range = run_plain_start..run_plain_end;
+                let span_plain_range = span_plain_start..span_plain_end;
                 let expand_link = Self::fragment_is_touched(
-                    run_plain_range.clone(),
+                    span_plain_range.clone(),
                     &plain_selected,
                     plain_marked.as_ref(),
                 );
-                let link_group = expand_link.then_some(link_runs.len());
-                let run_display_start = display_cursor;
+                let link_group = expand_link.then_some(link_spans.len());
+                let span_display_start = display_cursor;
                 if expand_link {
                     any_expanded = true;
                     let open_marker = link.open_marker().to_string();
@@ -386,19 +386,19 @@ impl ExpandedInlineProjection {
                     });
                     segments.push(ExpandedInlineSegment {
                         display_range: display_cursor..display_cursor + open_len,
-                        plain_range: run_plain_start..run_plain_start,
-                        fragment_index: run_start,
+                        plain_range: span_plain_start..span_plain_start,
+                        fragment_index: span_start,
                         link_group,
                         kind: ExpandedInlineSegmentKind::OpeningDelimiter(ExpandedInlineKind::Link),
                     });
                     for _ in 0..open_len {
-                        display_to_plain.push(run_plain_start);
+                        display_to_plain.push(span_plain_start);
                     }
                     display_cursor += open_len;
                 }
 
-                let mut local_plain_cursor = run_plain_start;
-                for current_index in run_start..run_end {
+                let mut local_plain_cursor = span_plain_start;
+                for current_index in span_start..span_end {
                     let current_fragment = &fragments[current_index];
                     let current_len = current_fragment.text.len();
                     let current_plain_range = local_plain_cursor..local_plain_cursor + current_len;
@@ -445,15 +445,15 @@ impl ExpandedInlineProjection {
                         });
                         segments.push(ExpandedInlineSegment {
                             display_range: display_cursor..display_cursor + middle_len,
-                            plain_range: run_plain_end..run_plain_end,
-                            fragment_index: run_start,
+                            plain_range: span_plain_end..span_plain_end,
+                            fragment_index: span_start,
                             link_group,
                             kind: ExpandedInlineSegmentKind::MiddleDelimiter(
                                 ExpandedInlineKind::Link,
                             ),
                         });
                         for _ in 0..middle_len {
-                            display_to_plain.push(run_plain_end);
+                            display_to_plain.push(span_plain_end);
                         }
                         display_cursor += middle_len;
                     }
@@ -472,13 +472,13 @@ impl ExpandedInlineProjection {
                             });
                             segments.push(ExpandedInlineSegment {
                                 display_range: display_cursor..display_cursor + target_len,
-                                plain_range: run_plain_end..run_plain_end,
-                                fragment_index: run_start,
+                                plain_range: span_plain_end..span_plain_end,
+                                fragment_index: span_start,
                                 link_group,
                                 kind: ExpandedInlineSegmentKind::LinkTargetText,
                             });
                             for _ in 0..target_len {
-                                display_to_plain.push(run_plain_end);
+                                display_to_plain.push(span_plain_end);
                             }
                             display_cursor += target_len;
                         }
@@ -497,28 +497,28 @@ impl ExpandedInlineProjection {
                     });
                     segments.push(ExpandedInlineSegment {
                         display_range: display_cursor..display_cursor + close_len,
-                        plain_range: run_plain_end..run_plain_end,
-                        fragment_index: run_start,
+                        plain_range: span_plain_end..span_plain_end,
+                        fragment_index: span_start,
                         link_group,
                         kind: ExpandedInlineSegmentKind::ClosingDelimiter(ExpandedInlineKind::Link),
                     });
                     for _ in 0..close_len {
-                        display_to_plain.push(run_plain_end);
+                        display_to_plain.push(span_plain_end);
                     }
                     display_cursor += close_len;
 
-                    link_runs.push(ExpandedLinkRun {
+                    link_spans.push(ExpandedLinkSpan {
                         link: link.clone(),
-                        start_fragment_index: run_start,
-                        end_fragment_index: run_end,
-                        plain_range: run_plain_range.clone(),
-                        display_range: run_display_start..display_cursor,
+                        start_fragment_index: span_start,
+                        end_fragment_index: span_end,
+                        plain_range: span_plain_range.clone(),
+                        display_range: span_display_start..display_cursor,
                         target_display_range: target_display_start..target_display_end,
                     });
                 }
 
-                plain_cursor = run_plain_end;
-                fragment_index = run_end;
+                plain_cursor = span_plain_end;
+                fragment_index = span_end;
                 continue;
             }
 
@@ -603,8 +603,8 @@ impl ExpandedInlineProjection {
             block_prefix_range,
             plain_to_display_cursor,
             display_to_plain,
-            link_runs,
-            footnote_runs,
+            link_spans,
+            footnote_spans,
         })
     }
 
@@ -826,30 +826,30 @@ impl ExpandedInlineProjection {
         left.start < right.end && right.start < left.end
     }
 
-    pub(crate) fn link_run_fully_covering_range(
+    pub(crate) fn link_span_fully_covering_range(
         &self,
         range: &Range<usize>,
-    ) -> Option<&ExpandedLinkRun> {
-        self.link_runs.iter().find(|run| {
-            run.display_range.start <= range.start && range.end <= run.display_range.end
+    ) -> Option<&ExpandedLinkSpan> {
+        self.link_spans.iter().find(|span| {
+            span.display_range.start <= range.start && range.end <= span.display_range.end
         })
     }
 
-    pub(crate) fn link_run_for_plain_range(
+    pub(crate) fn link_span_for_plain_range(
         &self,
         plain_range: &Range<usize>,
-    ) -> Option<&ExpandedLinkRun> {
-        self.link_runs
+    ) -> Option<&ExpandedLinkSpan> {
+        self.link_spans
             .iter()
-            .find(|run| run.plain_range == *plain_range)
+            .find(|span| span.plain_range == *plain_range)
     }
 
-    pub(crate) fn footnote_run_fully_covering_range(
+    pub(crate) fn footnote_span_fully_covering_range(
         &self,
         range: &Range<usize>,
-    ) -> Option<&ExpandedFootnoteRun> {
-        self.footnote_runs.iter().find(|run| {
-            run.display_range.start <= range.start && range.end <= run.display_range.end
+    ) -> Option<&ExpandedFootnoteSpan> {
+        self.footnote_spans.iter().find(|span| {
+            span.display_range.start <= range.start && range.end <= span.display_range.end
         })
     }
 }
@@ -870,7 +870,7 @@ fn marker_style_for_projection(mut style: InlineStyle, kind: ExpandedInlineKind)
 /// Emit one inline fragment, wrapped in the projected emphasis delimiters for
 /// `kinds`. Shared by standalone and link-label fragments so anchor text reveals
 /// its bold/italic/code markers like ordinary text. `force_styled` keeps a
-/// marker-less fragment styled (link labels while a link run is expanded).
+/// marker-less fragment styled (link labels while a link span is expanded).
 #[allow(clippy::too_many_arguments)]
 fn push_projected_fragment(
     fragment: &InlineFragment,

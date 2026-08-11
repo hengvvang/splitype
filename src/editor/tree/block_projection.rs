@@ -13,7 +13,7 @@ use gpui::*;
 use super::block::CollapsedCaretAffinity;
 use crate::editor::block_protocol::{BlockAction, UndoCaptureKind};
 use crate::editor::editing::projection::{
-    ExpandedInlineProjection, ExpandedInlineSegment, ExpandedInlineSegmentKind, ExpandedLinkRun,
+    ExpandedInlineProjection, ExpandedInlineSegment, ExpandedInlineSegmentKind, ExpandedLinkSpan,
     ProjectedLinkSelectionSnapshot,
 };
 use crate::editor::tree::block::Block;
@@ -39,17 +39,17 @@ impl Block {
 
         let projected_link_selection = self.projection.as_ref().and_then(|projection| {
             projection
-                .link_run_fully_covering_range(&self.selected_range)
-                .map(|run| ProjectedLinkSelectionSnapshot {
-                    plain_range: run.plain_range.clone(),
+                .link_span_fully_covering_range(&self.selected_range)
+                .map(|span| ProjectedLinkSelectionSnapshot {
+                    plain_range: span.plain_range.clone(),
                     display_relative_range: self
                         .selected_range
                         .start
-                        .saturating_sub(run.display_range.start)
+                        .saturating_sub(span.display_range.start)
                         ..self
                             .selected_range
                             .end
-                            .saturating_sub(run.display_range.start),
+                            .saturating_sub(span.display_range.start),
                     selection_reversed: self.selection_reversed,
                 })
         });
@@ -77,21 +77,21 @@ impl Block {
         let collapsed_affinity = self.display_collapsed_caret_affinity();
         self.rebuild_inline_projection(plain_selected.clone(), plain_marked.clone());
         if let Some(snapshot) = projected_link_selection
-            && let Some(run) = self
+            && let Some(span) = self
                 .projection
                 .as_ref()
-                .and_then(|projection| projection.link_run_for_plain_range(&snapshot.plain_range))
+                .and_then(|projection| projection.link_span_for_plain_range(&snapshot.plain_range))
         {
-            let start = run.display_range.start
+            let start = span.display_range.start
                 + snapshot
                     .display_relative_range
                     .start
-                    .min(run.display_range.len());
-            let end = run.display_range.start
+                    .min(span.display_range.len());
+            let end = span.display_range.start
                 + snapshot
                     .display_relative_range
                     .end
-                    .min(run.display_range.len());
+                    .min(span.display_range.len());
             self.selected_range = start..end;
             self.selection_reversed = snapshot.selection_reversed;
             self.collapsed_caret_affinity = CollapsedCaretAffinity::Default;
@@ -164,13 +164,13 @@ impl Block {
             .unwrap_or(&[])
     }
 
-    pub(crate) fn projected_link_run_fully_covering_range(
+    pub(crate) fn projected_link_span_fully_covering_range(
         &self,
         range: &Range<usize>,
-    ) -> Option<&ExpandedLinkRun> {
+    ) -> Option<&ExpandedLinkSpan> {
         self.projection
             .as_ref()
-            .and_then(|projection| projection.link_run_fully_covering_range(range))
+            .and_then(|projection| projection.link_span_fully_covering_range(range))
     }
 
     pub(crate) fn collapsed_caret_affinity_for_display_offset(
@@ -312,44 +312,44 @@ impl Block {
             return range.start.min(self.display_len())..range.end.min(self.display_len());
         }
 
-        if let Some(link_run) = self.projected_link_run_fully_covering_range(&range) {
+        if let Some(link_span) = self.projected_link_span_fully_covering_range(&range) {
             let map = self.data.text.source_offset_map();
-            let label_source_start = map.plain_to_source_offset(link_run.plain_range.start);
-            let run_source_start =
-                label_source_start.saturating_sub(link_run.link.open_marker().len());
-            let start = run_source_start
+            let label_source_start = map.plain_to_source_offset(link_span.plain_range.start);
+            let span_source_start =
+                label_source_start.saturating_sub(link_span.link.open_marker().len());
+            let start = span_source_start
                 + range
                     .start
-                    .saturating_sub(link_run.display_range.start)
-                    .min(link_run.display_range.len());
-            let end = run_source_start
+                    .saturating_sub(link_span.display_range.start)
+                    .min(link_span.display_range.len());
+            let end = span_source_start
                 + range
                     .end
-                    .saturating_sub(link_run.display_range.start)
-                    .min(link_run.display_range.len());
+                    .saturating_sub(link_span.display_range.start)
+                    .min(link_span.display_range.len());
             return start..end;
         }
 
-        if let Some(footnote_run) = self
+        if let Some(footnote_span) = self
             .projection
             .as_ref()
-            .and_then(|projection| projection.footnote_run_fully_covering_range(&range))
+            .and_then(|projection| projection.footnote_span_fully_covering_range(&range))
         {
-            let raw = footnote_run.footnote.raw_markdown();
+            let raw = footnote_span.footnote.raw_markdown();
             let raw_len = raw.len();
             let local_start = range
                 .start
-                .saturating_sub(footnote_run.display_range.start)
-                .min(footnote_run.display_range.len());
+                .saturating_sub(footnote_span.display_range.start)
+                .min(footnote_span.display_range.len());
             let local_end = range
                 .end
-                .saturating_sub(footnote_run.display_range.start)
-                .min(footnote_run.display_range.len());
-            let mapped_start = (raw_len * local_start) / footnote_run.display_range.len().max(1);
-            let mapped_end = (raw_len * local_end) / footnote_run.display_range.len().max(1);
+                .saturating_sub(footnote_span.display_range.start)
+                .min(footnote_span.display_range.len());
+            let mapped_start = (raw_len * local_start) / footnote_span.display_range.len().max(1);
+            let mapped_end = (raw_len * local_end) / footnote_span.display_range.len().max(1);
             let map = self.data.text.source_offset_map();
-            let run_source_start = map.plain_to_source_offset(footnote_run.plain_range.start);
-            return run_source_start + mapped_start..run_source_start + mapped_end;
+            let span_source_start = map.plain_to_source_offset(footnote_span.plain_range.start);
+            return span_source_start + mapped_start..span_source_start + mapped_end;
         }
 
         let plain_range = self.display_to_plain_range(range);
@@ -539,7 +539,7 @@ impl Block {
             .sum()
     }
 
-    pub(crate) fn replacement_is_pure_link_run(fragments: &[InlineFragment]) -> bool {
+    pub(crate) fn replacement_is_pure_link_span(fragments: &[InlineFragment]) -> bool {
         let Some(first_link) = fragments
             .first()
             .and_then(|fragment| fragment.link.as_ref())
@@ -554,16 +554,16 @@ impl Block {
 
     pub(crate) fn apply_link_projection_edit(
         &mut self,
-        link_run: &ExpandedLinkRun,
+        link_span: &ExpandedLinkSpan,
         display_range: Range<usize>,
         new_text: &str,
         selected_range_relative: Option<Range<usize>>,
         mark_inserted_text: bool,
         cx: &mut Context<Self>,
     ) {
-        let local_visible_range = display_range.start - link_run.display_range.start
-            ..display_range.end - link_run.display_range.start;
-        let local_display_text = self.display_text()[link_run.display_range.clone()].to_string();
+        let local_visible_range = display_range.start - link_span.display_range.start
+            ..display_range.end - link_span.display_range.start;
+        let local_display_text = self.display_text()[link_span.display_range.clone()].to_string();
         let local_tree = RichText::plain(local_display_text);
         let local_result = local_tree.replace_plain_range_with_link_references(
             local_visible_range.clone(),
@@ -573,18 +573,18 @@ impl Block {
         );
         let replacement_fragments = local_result.tree.fragments.clone();
 
-        let replacement_start = link_run.start_fragment_index;
+        let replacement_start = link_span.start_fragment_index;
         let replacement_clean_start = Self::clean_offset_before_fragment_index(
             &self.data.text.fragments,
             replacement_start,
         );
         let mut next_text = self.data.text.clone();
         next_text.replace_fragment_range(
-            link_run.start_fragment_index..link_run.end_fragment_index,
+            link_span.start_fragment_index..link_span.end_fragment_index,
             replacement_fragments.clone(),
         );
 
-        if Self::replacement_is_pure_link_run(&replacement_fragments) {
+        if Self::replacement_is_pure_link_span(&replacement_fragments) {
             let old_kind = self.data.kind.clone();
             let old_text = self.data.text.clone();
             self.data.set_text(next_text.clone());
@@ -603,20 +603,20 @@ impl Block {
                 let cursor = local_visible_range.start + new_text.len();
                 cursor..cursor
             });
-            if let Some(projected_link_run) = self.projection.as_ref().and_then(|projection| {
+            if let Some(projected_link_span) = self.projection.as_ref().and_then(|projection| {
                 projection
-                    .link_runs
+                    .link_spans
                     .iter()
-                    .find(|run| run.plain_range == selected_plain)
+                    .find(|span| span.plain_range == selected_plain)
             }) {
-                let start = projected_link_run.display_range.start
+                let start = projected_link_span.display_range.start
                     + local_selected
                         .start
-                        .min(projected_link_run.display_range.len());
-                let end = projected_link_run.display_range.start
+                        .min(projected_link_span.display_range.len());
+                let end = projected_link_span.display_range.start
                     + local_selected
                         .end
-                        .min(projected_link_run.display_range.len());
+                        .min(projected_link_span.display_range.len());
                 self.selected_range = start..end;
                 self.selection_reversed = false;
                 self.marked_range = if mark_inserted_text && !new_text.is_empty() {
@@ -733,12 +733,12 @@ impl Block {
                 }
                 ExpandedInlineSegmentKind::LinkTargetText => {
                     if let Some(link_group) = segment.link_group
-                        && let Some(link_run) = self
+                        && let Some(link_span) = self
                             .projection
                             .as_ref()
-                            .and_then(|projection| projection.link_runs.get(link_group))
-                        && display_offset >= link_run.target_display_range.start
-                        && display_offset <= link_run.target_display_range.end
+                            .and_then(|projection| projection.link_spans.get(link_group))
+                        && display_offset >= link_span.target_display_range.start
+                        && display_offset <= link_span.target_display_range.end
                     {
                         return InlineInsertionAttributes::default();
                     }
@@ -1105,13 +1105,13 @@ impl Block {
         // autolink links stay on the markdown-space path below, which preserves
         // their original source spelling.
         if !self.edits_verbatim_text()
-            && let Some(link_run) = self
-                .projected_link_run_fully_covering_range(&display_range)
-                .filter(|run| !run.link.is_source_preserving())
+            && let Some(link_span) = self
+                .projected_link_span_fully_covering_range(&display_range)
+                .filter(|span| !span.link.is_source_preserving())
                 .cloned()
         {
             self.apply_link_projection_edit(
-                &link_run,
+                &link_span,
                 display_range,
                 new_text,
                 selected_range_relative,
@@ -1132,7 +1132,7 @@ impl Block {
             return;
         }
 
-        // Editing outside an inline link's run would otherwise re-derive the
+        // Editing outside an inline link span would otherwise re-derive the
         // inline tree from collapsed plain text, which no longer contains the
         // `[label](url)` markers and silently drops the link. Edit in markdown
         // space (as source-preserving links already do) so the link round-trips.
