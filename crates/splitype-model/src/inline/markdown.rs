@@ -1,4 +1,4 @@
-//! Markdown-to-`RichText` parser: tokenizes inline text, matches delimiter
+//! Markdown-to-`BlockText` parser: tokenizes inline text, matches delimiter
 //! pairs (bold, italic, links, footnotes, math, inline HTML), and rebuilds
 //! the styled fragment tree with an input-to-normalized offset map.
 
@@ -11,7 +11,7 @@ use super::serialize::{
     has_closing_delimiter, match_open_delimiter,
 };
 use super::style::InlineStyle;
-use super::text::{InlineFragment, RichText};
+use super::text::{InlineFragment, BlockText};
 use crate::inline::footnote::{InlineFootnoteReference, parse_inline_footnote_reference};
 use crate::syntax::html::{
     HtmlAttr, HtmlInlineStyle, HtmlNode, HtmlNodeKind, has_dangerous_attrs, is_inline_tag,
@@ -560,7 +560,7 @@ pub(crate) fn parse_inline_link(
     let label_end = located.label_end;
     let label_tokens = &tokens[index + 1..label_end];
     let label_markdown = tokens_to_string(label_tokens);
-    let mut label_result = RichText::plain(label_markdown)
+    let mut label_result = BlockText::plain(label_markdown)
         .normalize_inline_syntax_with_link_references(reference_definitions);
     apply_extra_style_to_fragments(
         &mut label_result.tree.fragments,

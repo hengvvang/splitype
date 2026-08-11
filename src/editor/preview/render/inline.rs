@@ -1,6 +1,6 @@
 //! Read-only inline rendering for the preview panel.
 //!
-//! Walks a [`RichText`] render cache and produces plain styled text runs —
+//! Walks a [`BlockText`] render cache and produces plain styled text runs —
 //! bold, italic, underline, strikethrough, script, inline code, links,
 //! footnotes, and inline math — with no caret, selection, or projection
 //! logic. Styles mirror the WYSIWYG inline rendering.
@@ -11,12 +11,12 @@ use crate::editor::render::latex_render::{inline_math_font_size, render_inline_m
 use crate::infra::theme::Theme;
 use crate::model::inline::render_cache::InlineSpan;
 use crate::model::inline::style::InlineScript;
-use crate::model::inline::text::RichText;
+use crate::model::inline::text::BlockText;
 
 /// Renders the inline content of `text` with `base_color` and `font_size`,
 /// mirroring the WYSIWYG inline segment styling without any editing state.
 pub(crate) fn render_preview_inline(
-    text: &RichText,
+    text: &BlockText,
     base_color: Hsla,
     font_size: f32,
     font_weight: FontWeight,

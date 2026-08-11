@@ -6,7 +6,7 @@ use std::fs;
 use crate::editor::actions::SaveDocument;
 use crate::editor::controller::Editor;
 use crate::editor::render::export::ExportFormat;
-use crate::model::inline::text::RichText;
+use crate::model::inline::text::BlockText;
 
 use super::*;
 
@@ -142,7 +142,7 @@ async fn export_html_uses_source_mode_raw_text(cx: &mut TestAppContext) {
             .expect("source mode should keep one root block")
             .clone();
         source_block.update(cx, |block, _cx| {
-            block.data.set_text(RichText::plain(
+            block.data.set_text(BlockText::plain(
                 "# Source\n\n<!--\n<strong>visible</strong>\n-->".to_string(),
             ));
             block.sync_render_cache();

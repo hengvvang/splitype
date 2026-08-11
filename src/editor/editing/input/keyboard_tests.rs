@@ -9,7 +9,7 @@ use crate::editor::editing::input::actions::ExitCodeBlock;
 use crate::editor::editing::input::actions::{Delete, DeleteBack, Newline};
 use crate::editor::tree::block::Block;
 use crate::model::block::{BlockData, BlockKind, CalloutKind};
-use crate::model::inline::text::RichText;
+use crate::model::inline::text::BlockText;
 use gpui::{App, AppContext, Entity, TestAppContext};
 
 #[gpui::test]
@@ -116,9 +116,9 @@ async fn image_block_insert_preserves_surrounding_paragraph_text(cx: &mut TestAp
         let paragraph = editor.doc().first_root().expect("paragraph").clone();
         editor.insert_image_block_after_paragraph(
             &paragraph,
-            &RichText::plain("before"),
+            &BlockText::plain("before"),
             "![image](./assets/image.png)",
-            &RichText::plain("after"),
+            &BlockText::plain("after"),
             cx,
         );
 
@@ -142,9 +142,9 @@ async fn image_paste_text_in_code_block_stays_inside_block(cx: &mut TestAppConte
         let block = editor.doc().first_root().expect("code block").clone();
         editor.replace_current_block_selection_with_image_text(
             &block,
-            &RichText::plain("before"),
+            &BlockText::plain("before"),
             "![image](./assets/image.png)",
-            &RichText::plain("after"),
+            &BlockText::plain("after"),
             cx,
         );
 
@@ -937,7 +937,7 @@ async fn raw_like_block_exit_shortcut_creates_plain_text_block(cx: &mut TestAppC
         (
             BlockData::new(
                 BlockKind::HtmlBlock,
-                RichText::plain("<div>\ncontent\n</div>".to_string()),
+                BlockText::plain("<div>\ncontent\n</div>".to_string()),
             ),
             BlockKind::HtmlBlock,
             "<div>\ncontent\n</div>",
@@ -945,7 +945,7 @@ async fn raw_like_block_exit_shortcut_creates_plain_text_block(cx: &mut TestAppC
         (
             BlockData::new(
                 BlockKind::MermaidBlock,
-                RichText::plain("```mermaid\nflowchart LR\nA-->B\n```".to_string()),
+                BlockText::plain("```mermaid\nflowchart LR\nA-->B\n```".to_string()),
             ),
             BlockKind::MermaidBlock,
             "```mermaid\nflowchart LR\nA-->B\n```",
@@ -953,7 +953,7 @@ async fn raw_like_block_exit_shortcut_creates_plain_text_block(cx: &mut TestAppC
         (
             BlockData::new(
                 BlockKind::RawMarkdown,
-                RichText::plain("::: custom\ncontent\n:::".to_string()),
+                BlockText::plain("::: custom\ncontent\n:::".to_string()),
             ),
             BlockKind::RawMarkdown,
             "::: custom\ncontent\n:::",
@@ -961,7 +961,7 @@ async fn raw_like_block_exit_shortcut_creates_plain_text_block(cx: &mut TestAppC
         (
             BlockData::new(
                 BlockKind::HtmlComment,
-                RichText::plain("<!--\ncomment\n-->".to_string()),
+                BlockText::plain("<!--\ncomment\n-->".to_string()),
             ),
             BlockKind::HtmlComment,
             "<!--\ncomment\n-->",
@@ -1322,13 +1322,13 @@ async fn plain_multiline_paste_with_scripts_splits_physical_lines(cx: &mut TestA
         editor.on_block_event(
             block,
             &BlockAction::RequestPasteMultiline {
-                leading: RichText::plain(String::new()),
+                leading: BlockText::plain(String::new()),
                 lines: vec![
                     "H~2~O".to_string(),
                     "CO<sub>2</sub>".to_string(),
                     "x<sup>n</sup>".to_string(),
                 ],
-                trailing: RichText::plain(String::new()),
+                trailing: BlockText::plain(String::new()),
                 split_physical_lines: true,
             },
             cx,
@@ -1352,13 +1352,13 @@ async fn structural_paste_of_table_renders_native_table(cx: &mut TestAppContext)
         editor.on_block_event(
             block,
             &BlockAction::RequestPasteMultiline {
-                leading: RichText::plain(String::new()),
+                leading: BlockText::plain(String::new()),
                 lines: vec![
                     "| A | B |".to_string(),
                     "| --- | --- |".to_string(),
                     "| 1 | 2 |".to_string(),
                 ],
-                trailing: RichText::plain(String::new()),
+                trailing: BlockText::plain(String::new()),
                 split_physical_lines: false,
             },
             cx,
@@ -1393,13 +1393,13 @@ async fn structural_paste_of_code_block_renders_native_code_block(cx: &mut TestA
         editor.on_block_event(
             block,
             &BlockAction::RequestPasteMultiline {
-                leading: RichText::plain(String::new()),
+                leading: BlockText::plain(String::new()),
                 lines: vec![
                     "```rust".to_string(),
                     "fn main() {}".to_string(),
                     "```".to_string(),
                 ],
-                trailing: RichText::plain(String::new()),
+                trailing: BlockText::plain(String::new()),
                 split_physical_lines: false,
             },
             cx,
@@ -1437,13 +1437,13 @@ async fn structural_paste_of_table_preserves_surrounding_text(cx: &mut TestAppCo
         editor.on_block_event(
             block,
             &BlockAction::RequestPasteMultiline {
-                leading: RichText::plain("before"),
+                leading: BlockText::plain("before"),
                 lines: vec![
                     "| A | B |".to_string(),
                     "| --- | --- |".to_string(),
                     "| 1 | 2 |".to_string(),
                 ],
-                trailing: RichText::plain("after"),
+                trailing: BlockText::plain("after"),
                 split_physical_lines: false,
             },
             cx,
@@ -1473,13 +1473,13 @@ async fn structural_paste_of_code_block_preserves_surrounding_text(cx: &mut Test
         editor.on_block_event(
             block,
             &BlockAction::RequestPasteMultiline {
-                leading: RichText::plain("before"),
+                leading: BlockText::plain("before"),
                 lines: vec![
                     "```rust".to_string(),
                     "fn main() {}".to_string(),
                     "```".to_string(),
                 ],
-                trailing: RichText::plain("after"),
+                trailing: BlockText::plain("after"),
                 split_physical_lines: false,
             },
             cx,
@@ -1514,9 +1514,9 @@ async fn structural_paste_at_document_end_adds_one_trailing_paragraph(cx: &mut T
         editor.on_block_event(
             block,
             &BlockAction::RequestPasteMultiline {
-                leading: RichText::plain("intro"),
+                leading: BlockText::plain("intro"),
                 lines: vec!["***".to_string()],
-                trailing: RichText::plain(String::new()),
+                trailing: BlockText::plain(String::new()),
                 split_physical_lines: false,
             },
             cx,
@@ -1545,9 +1545,9 @@ async fn structural_paste_of_quote_at_document_end_adds_trailing_paragraph(
         editor.on_block_event(
             block,
             &BlockAction::RequestPasteMultiline {
-                leading: RichText::plain("intro"),
+                leading: BlockText::plain("intro"),
                 lines: vec!["> quoted".to_string()],
-                trailing: RichText::plain(String::new()),
+                trailing: BlockText::plain(String::new()),
                 split_physical_lines: false,
             },
             cx,
@@ -1579,9 +1579,9 @@ async fn structural_paste_of_callout_at_document_end_adds_trailing_paragraph(
         editor.on_block_event(
             block,
             &BlockAction::RequestPasteMultiline {
-                leading: RichText::plain("intro"),
+                leading: BlockText::plain("intro"),
                 lines: vec!["> [!NOTE]".to_string(), "> body".to_string()],
-                trailing: RichText::plain(String::new()),
+                trailing: BlockText::plain(String::new()),
                 split_physical_lines: false,
             },
             cx,
@@ -1612,9 +1612,9 @@ async fn structural_paste_of_footnote_definition_at_document_end_adds_trailing_p
         editor.on_block_event(
             block,
             &BlockAction::RequestPasteMultiline {
-                leading: RichText::plain("intro"),
+                leading: BlockText::plain("intro"),
                 lines: vec!["[^note]: definition body".to_string()],
-                trailing: RichText::plain(String::new()),
+                trailing: BlockText::plain(String::new()),
                 split_physical_lines: false,
             },
             cx,
@@ -1642,9 +1642,9 @@ async fn structural_paste_of_standalone_image_at_document_end_adds_trailing_para
         editor.on_block_event(
             block,
             &BlockAction::RequestPasteMultiline {
-                leading: RichText::plain("intro"),
+                leading: BlockText::plain("intro"),
                 lines: vec!["![alt](pic.png)".to_string()],
-                trailing: RichText::plain(String::new()),
+                trailing: BlockText::plain(String::new()),
                 split_physical_lines: false,
             },
             cx,
@@ -1671,7 +1671,7 @@ async fn plain_multiline_paste_with_blank_script_lines_skips_separator_blanks(
         editor.on_block_event(
             block,
             &BlockAction::RequestPasteMultiline {
-                leading: RichText::plain(String::new()),
+                leading: BlockText::plain(String::new()),
                 lines: vec![
                     "H~2~O".to_string(),
                     String::new(),
@@ -1680,7 +1680,7 @@ async fn plain_multiline_paste_with_blank_script_lines_skips_separator_blanks(
                     "x<sup>n</sup>".to_string(),
                     String::new(),
                 ],
-                trailing: RichText::plain(String::new()),
+                trailing: BlockText::plain(String::new()),
                 split_physical_lines: true,
             },
             cx,
@@ -1705,13 +1705,13 @@ async fn plain_multiline_paste_with_leading_inline_html_splits_physical_lines(
         editor.on_block_event(
             block,
             &BlockAction::RequestPasteMultiline {
-                leading: RichText::plain(String::new()),
+                leading: BlockText::plain(String::new()),
                 lines: vec![
                     "<sub>2</sub>".to_string(),
                     "<sup>n</sup>".to_string(),
                     "<span style=\"color:red\">x</span>".to_string(),
                 ],
-                trailing: RichText::plain(String::new()),
+                trailing: BlockText::plain(String::new()),
                 split_physical_lines: true,
             },
             cx,
@@ -1739,9 +1739,9 @@ async fn plain_paste_preserves_tibetan_spaces(cx: &mut TestAppContext) {
         editor.on_block_event(
             block,
             &BlockAction::RequestPasteMultiline {
-                leading: RichText::plain(String::new()),
+                leading: BlockText::plain(String::new()),
                 lines: vec![tibetan.to_string()],
-                trailing: RichText::plain(String::new()),
+                trailing: BlockText::plain(String::new()),
                 split_physical_lines: true,
             },
             cx,

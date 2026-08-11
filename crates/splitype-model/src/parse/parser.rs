@@ -9,7 +9,7 @@ use crate::block::callout::CalloutKind;
 use crate::block::data::BlockData;
 use crate::block::fence::CodeFenceOpening;
 use crate::block::kind::BlockKind;
-use crate::inline::text::RichText;
+use crate::inline::text::BlockText;
 use crate::parse::indent::{
     collect_until_blank_line, dedent_lines, display_columns, is_quote_start,
     leading_indent_columns_and_bytes, strip_fence_indent, strip_indented_code_prefix,
@@ -612,7 +612,7 @@ fn attach_child_blocks(parent: &mut BlockData, children: &mut [BlockData]) {
 // ---------------------------------------------------------------------------
 
 fn native_block(kind: BlockKind, markdown: &str) -> BlockData {
-    BlockData::new(kind, RichText::from_markdown(markdown))
+    BlockData::new(kind, BlockText::from_markdown(markdown))
 }
 
 fn build_code_block(language: Option<gpui::SharedString>, content: String) -> BlockData {
@@ -679,9 +679,9 @@ fn append_markdown_to_block(block: &mut BlockData, separator: &str, markdown: &s
     if !separator.is_empty() {
         block
             .text
-            .append_tree(RichText::plain(separator.to_string()));
+            .append_tree(BlockText::plain(separator.to_string()));
     }
-    block.text.append_tree(RichText::from_markdown(markdown));
+    block.text.append_tree(BlockText::from_markdown(markdown));
 }
 
 fn append_separator_children(children: &mut Vec<BlockData>, count: usize) {
@@ -1191,7 +1191,7 @@ fn build_native_callout_block(
         append_separator_children(&mut child_blocks, pending_blank_lines);
     }
 
-    let mut block = BlockData::new(BlockKind::Callout(variant), RichText::from_markdown(&text));
+    let mut block = BlockData::new(BlockKind::Callout(variant), BlockText::from_markdown(&text));
     attach_child_blocks(&mut block, &mut child_blocks);
 
     let mut result = vec![block];

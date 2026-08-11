@@ -22,7 +22,7 @@ use crate::model::inline::footnote::InlineFootnoteHit;
 use crate::model::inline::render_cache::{InlineRenderCache, InlineSpan};
 #[cfg(test)]
 use crate::model::inline::style::InlineStyle;
-use crate::model::inline::text::RichText;
+use crate::model::inline::text::BlockText;
 use crate::model::syntax::image::ImageReferenceDefinitions;
 use crate::model::syntax::image::ImageResolvedSource;
 use crate::model::syntax::link::LinkReferenceDefinitions;
@@ -339,8 +339,8 @@ impl Block {
         }
     }
 
-    pub(crate) fn inline_tree_from_markdown_with_context(&self, markdown: &str) -> RichText {
-        RichText::from_markdown_with_link_references(markdown, &self.link_reference_definitions)
+    pub(crate) fn inline_tree_from_markdown_with_context(&self, markdown: &str) -> BlockText {
+        BlockText::from_markdown_with_link_references(markdown, &self.link_reference_definitions)
     }
 
     pub fn inline_spans(&self) -> &[InlineSpan] {
@@ -438,7 +438,7 @@ impl Block {
         self.display_cache().len()
     }
 
-    pub(crate) fn split_text(&self, offset: usize) -> (RichText, RichText) {
+    pub(crate) fn split_text(&self, offset: usize) -> (BlockText, BlockText) {
         self.data
             .text
             .split_at(self.display_to_plain_offset(offset))
@@ -517,7 +517,7 @@ impl Block {
         }
 
         let markdown = self.data.text.serialize_markdown();
-        let next_text = RichText::from_markdown_with_link_references(
+        let next_text = BlockText::from_markdown_with_link_references(
             &markdown,
             &self.link_reference_definitions,
         );
@@ -637,7 +637,7 @@ impl Block {
         let replaced_text = markdown[source_range.clone()].to_string();
         markdown.replace_range(source_range.clone(), new_text);
 
-        let next_text = RichText::from_markdown_with_link_references(
+        let next_text = BlockText::from_markdown_with_link_references(
             &markdown,
             &self.link_reference_definitions,
         );
@@ -730,7 +730,7 @@ impl Block {
         self.clear_inline_projection();
         self.data.kind = BlockKind::ThematicBreak;
         self.data.raw_source = Some(source_text.clone());
-        self.data.set_text(RichText::plain(source_text));
+        self.data.set_text(BlockText::plain(source_text));
         self.quote_reparse_requested = false;
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
@@ -749,7 +749,7 @@ impl Block {
         self.clear_inline_projection();
         self.data.kind = BlockKind::CodeBlock { language };
         self.data.raw_source = None;
-        self.data.set_text(RichText::plain(String::new()));
+        self.data.set_text(BlockText::plain(String::new()));
         self.quote_reparse_requested = false;
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
@@ -768,7 +768,7 @@ impl Block {
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.clear_inline_projection();
         self.data.kind = BlockKind::MathBlock;
-        self.data.set_text(RichText::plain(body.to_string()));
+        self.data.set_text(BlockText::plain(body.to_string()));
         self.quote_reparse_requested = false;
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();

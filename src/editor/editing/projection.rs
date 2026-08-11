@@ -7,7 +7,7 @@ use crate::model::inline::link::InlineLink;
 use crate::model::inline::render_cache::InlineRenderCache;
 use crate::model::inline::serialize::can_use_markdown_script_delimiters;
 use crate::model::inline::style::{InlineScript, InlineStyle, StyleFlag};
-use crate::model::inline::text::{InlineFragment, RichText};
+use crate::model::inline::text::{InlineFragment, BlockText};
 
 use crate::editor::tree::block::CollapsedCaretAffinity;
 
@@ -598,7 +598,7 @@ impl ExpandedInlineProjection {
         }
 
         any_expanded.then(|| Self {
-            cache: RichText::from_fragments(projected_fragments).render_cache(),
+            cache: BlockText::from_fragments(projected_fragments).render_cache(),
             segments,
             block_prefix_range,
             plain_to_display_cursor,

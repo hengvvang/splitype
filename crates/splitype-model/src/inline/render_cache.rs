@@ -1,4 +1,4 @@
-//! Pre-computed view of a [`RichText`] tree optimized for rendering.
+//! Pre-computed view of a [`BlockText`] tree optimized for rendering.
 //!
 //! The render cache flattens the fragment tree into a single text
 //! string plus a list of [`InlineSpan`]s.
@@ -9,7 +9,7 @@ use crate::inline::footnote::InlineFootnoteReference;
 use crate::inline::latex::InlineLatex;
 use crate::inline::link::InlineLink;
 use crate::inline::style::InlineStyle;
-use crate::inline::text::RichText;
+use crate::inline::text::BlockText;
 use crate::syntax::html::HtmlInlineStyle;
 
 /// A text range with its associated [`InlineStyle`], used by
@@ -24,7 +24,7 @@ pub struct InlineSpan {
     pub math: Option<InlineLatex>,
 }
 
-/// Pre-computed view of an [`RichText`] optimized for rendering.
+/// Pre-computed view of an [`BlockText`] optimized for rendering.
 ///
 /// Flattens the fragment tree into a text string plus a list of
 /// [`InlineSpan`]s.
@@ -35,7 +35,7 @@ pub struct InlineRenderCache {
 }
 
 impl InlineRenderCache {
-    pub fn from_tree(tree: &RichText) -> Self {
+    pub fn from_tree(tree: &BlockText) -> Self {
         let mut text = String::new();
         let mut spans = Vec::new();
         let mut plain_offset = 0;

@@ -460,7 +460,7 @@ impl Editor {
 
         block.update(cx, |block, cx| {
             block.data.kind = BlockKind::Callout(variant);
-            block.data.set_text(RichText::from_markdown(&text));
+            block.data.set_text(BlockText::from_markdown(&text));
             block.sync_edit_mode_from_kind();
             block.sync_render_cache();
             block.cursor_blink_epoch = Instant::now();
@@ -510,7 +510,7 @@ impl Editor {
                 parent.data.kind = BlockKind::Blockquote;
                 parent
                     .data
-                    .set_text(RichText::from_markdown(&header_markdown));
+                    .set_text(BlockText::from_markdown(&header_markdown));
                 parent.sync_edit_mode_from_kind();
                 parent.sync_render_cache();
                 parent.assign_collapsed_selection_offset(0, CollapsedCaretAffinity::Default, None);

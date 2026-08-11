@@ -69,7 +69,7 @@ impl Block {
 
     pub(crate) fn render_inline_tree_runs(
         &self,
-        tree: &crate::model::inline::text::RichText,
+        tree: &crate::model::inline::text::BlockText,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -98,7 +98,7 @@ impl Block {
 
     pub(crate) fn render_inline_tree_children(
         &self,
-        tree: &crate::model::inline::text::RichText,
+        tree: &crate::model::inline::text::BlockText,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -437,7 +437,7 @@ impl Block {
                     if let Some(runtime) = self.image_handle_for_syntax(syntax) {
                         children.push(self.render_inline_image_content(&runtime, theme, strings));
                     } else {
-                        let tree = crate::model::inline::text::RichText::plain(markdown);
+                        let tree = crate::model::inline::text::BlockText::plain(markdown);
                         children.extend(self.render_inline_tree_children(
                             &tree,
                             theme,

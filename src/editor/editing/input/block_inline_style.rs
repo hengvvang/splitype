@@ -8,7 +8,7 @@ use crate::editor::editing::input::actions::{
     BoldSelection, CodeSelection, ExitCodeBlock, ItalicSelection, UnderlineSelection,
 };
 use crate::editor::tree::block::{Block, InlineFormat};
-use crate::model::inline::text::RichText;
+use crate::model::inline::text::BlockText;
 impl Block {
     pub(crate) fn on_bold_selection(
         &mut self,
@@ -56,7 +56,7 @@ impl Block {
 
         if exits_multiline_block {
             cx.emit(BlockAction::RequestNewline {
-                trailing: RichText::plain(String::new()),
+                trailing: BlockText::plain(String::new()),
                 source_already_mutated: false,
             });
         } else if self.callout_depth > 0 {

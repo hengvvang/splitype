@@ -88,7 +88,7 @@ impl Editor {
 
     pub(crate) fn new_table_cell_block(
         cx: &mut Context<Self>,
-        text: RichText,
+        text: BlockText,
         position: TableCellPosition,
         alignment: TableColumnAlignment,
     ) -> Entity<Block> {

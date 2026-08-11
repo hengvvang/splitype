@@ -1,4 +1,4 @@
-//! Markdown serialization for `RichText`: reconstructs delimiter markers
+//! Markdown serialization for `BlockText`: reconstructs delimiter markers
 //! from fragment styles using a Viterbi-like DP that avoids ambiguous runs.
 
 use super::markdown::{

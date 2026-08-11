@@ -7,7 +7,7 @@ use crate::editor::block_protocol::{BlockAction, PastedImageSource, UndoCaptureK
 use crate::editor::editing::input::actions::{Copy, Cut, Paste};
 use crate::editor::editing::input::paste::should_split_plain_multiline_paste;
 use crate::editor::tree::block::Block;
-use crate::model::inline::text::RichText;
+use crate::model::inline::text::BlockText;
 impl Block {
     fn pasted_image_source_from_clipboard(item: &ClipboardItem) -> Option<PastedImageSource> {
         item.entries().iter().find_map(|entry| match entry {
@@ -66,7 +66,7 @@ impl Block {
         )
     }
 
-    fn paste_image_split(&self) -> (RichText, RichText) {
+    fn paste_image_split(&self) -> (BlockText, BlockText) {
         let plain_selected = self.selection_plain_range();
         let (leading, tail) = self.data.text.split_at(plain_selected.start);
         let (_, trailing) = tail.split_at(plain_selected.end.saturating_sub(plain_selected.start));

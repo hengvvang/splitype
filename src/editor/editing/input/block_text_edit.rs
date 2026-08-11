@@ -13,7 +13,7 @@ use crate::editor::editing::input::actions::{
 };
 use crate::editor::tree::block::{Block, CollapsedCaretAffinity};
 use crate::model::block::BlockKind;
-use crate::model::inline::text::RichText;
+use crate::model::inline::text::BlockText;
 impl Block {
     fn is_leaf_quote(&self) -> bool {
         self.kind() == BlockKind::Blockquote
@@ -40,7 +40,7 @@ impl Block {
         let header_markdown = variant.header_markdown(&self.data.text.serialize_markdown());
         self.data.kind = BlockKind::Blockquote;
         self.data
-            .set_text(RichText::from_markdown(&header_markdown));
+            .set_text(BlockText::from_markdown(&header_markdown));
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
         self.assign_collapsed_selection_offset(0, CollapsedCaretAffinity::Default, None);
@@ -108,7 +108,7 @@ impl Block {
         {
             self.convert_to_separator(cx);
             cx.emit(BlockAction::RequestNewline {
-                trailing: RichText::plain(String::new()),
+                trailing: BlockText::plain(String::new()),
                 source_already_mutated: true,
             });
             return;
@@ -140,7 +140,7 @@ impl Block {
 
         if self.kind().is_thematic_break() {
             cx.emit(BlockAction::RequestNewline {
-                trailing: RichText::plain(String::new()),
+                trailing: BlockText::plain(String::new()),
                 source_already_mutated: false,
             });
             return;
@@ -183,7 +183,7 @@ impl Block {
                 self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
                 self.replace_text_in_display_range(fence_start..fence_end, "", None, false, cx);
                 cx.emit(BlockAction::RequestNewline {
-                    trailing: RichText::plain(String::new()),
+                    trailing: BlockText::plain(String::new()),
                     source_already_mutated: true,
                 });
                 return;
@@ -459,7 +459,7 @@ impl Block {
 mod tests {
     use super::Block;
     use crate::model::block::{BlockData, BlockKind};
-    use crate::model::inline::text::RichText;
+    use crate::model::inline::text::BlockText;
     use gpui::{AppContext, TestAppContext};
 
     #[gpui::test]
@@ -468,7 +468,7 @@ mod tests {
 
         block.update(cx, |block, cx| {
             block.data.kind = BlockKind::Blockquote;
-            block.data.set_text(RichText::plain("first\n"));
+            block.data.set_text(BlockText::plain("first\n"));
             block.sync_edit_mode_from_kind();
             block.sync_render_cache();
             cx.notify();

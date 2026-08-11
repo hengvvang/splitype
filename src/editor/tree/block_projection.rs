@@ -20,7 +20,7 @@ use crate::editor::tree::block::Block;
 use crate::model::block::BlockKind;
 use crate::model::inline::render_cache::InlineRenderCache;
 use crate::model::inline::style::StyleFlag;
-use crate::model::inline::text::{InlineFragment, InlineInsertionAttributes, RichText};
+use crate::model::inline::text::{InlineFragment, InlineInsertionAttributes, BlockText};
 
 impl Block {
     pub(crate) fn display_cache(&self) -> &InlineRenderCache {
@@ -428,9 +428,9 @@ impl Block {
     /// the new cursor offset, and the number of prefix characters removed.
     pub(crate) fn normalize_after_text_edit(
         &self,
-        mut next_text: RichText,
+        mut next_text: BlockText,
         cursor: usize,
-    ) -> (BlockKind, RichText, usize, usize) {
+    ) -> (BlockKind, BlockText, usize, usize) {
         if self.is_table_cell() {
             return (self.kind(), next_text, cursor, 0);
         }
@@ -564,7 +564,7 @@ impl Block {
         let local_visible_range = display_range.start - link_span.display_range.start
             ..display_range.end - link_span.display_range.start;
         let local_display_text = self.display_text()[link_span.display_range.clone()].to_string();
-        let local_tree = RichText::plain(local_display_text);
+        let local_tree = BlockText::plain(local_display_text);
         let local_result = local_tree.replace_plain_range_with_link_references(
             local_visible_range.clone(),
             new_text,
@@ -838,7 +838,7 @@ impl Block {
     /// [`BlockAction::Changed`] if the kind or text actually changed.
     pub(crate) fn apply_text_edit(
         &mut self,
-        next_text: RichText,
+        next_text: BlockText,
         cursor_plain: usize,
         marked_range_clean: Option<Range<usize>>,
         selected_range_clean: Option<Range<usize>>,
@@ -937,7 +937,7 @@ impl Block {
     }
 
     pub(crate) fn source_range_to_plain_range(
-        text: &RichText,
+        text: &BlockText,
         content_source_start: usize,
         range: Range<usize>,
     ) -> Range<usize> {
@@ -1007,7 +1007,7 @@ impl Block {
             if let Some((level, content)) = BlockKind::parse_atx_heading_line(&source) {
                 (
                     BlockKind::Heading { level },
-                    RichText::from_markdown_with_link_references(
+                    BlockText::from_markdown_with_link_references(
                         &content,
                         &self.link_reference_definitions,
                     ),
@@ -1016,7 +1016,7 @@ impl Block {
             } else {
                 (
                     BlockKind::Paragraph,
-                    RichText::from_markdown_with_link_references(
+                    BlockText::from_markdown_with_link_references(
                         &source,
                         &self.link_reference_definitions,
                     ),

@@ -5,7 +5,7 @@
 //! are still outside the runtime-safe subset continue to use raw-Markdown
 //! fallback paths.
 
-use crate::inline::text::RichText;
+use crate::inline::text::BlockText;
 
 /// Horizontal alignment declared by the table's delimiter row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,8 +53,8 @@ pub enum TableAxisHighlight {
 /// Persistent cell contents for a native table block.
 #[derive(Debug, Clone)]
 pub struct TableData {
-    pub header: Vec<RichText>,
-    pub rows: Vec<Vec<RichText>>,
+    pub header: Vec<BlockText>,
+    pub rows: Vec<Vec<BlockText>>,
     pub alignments: Vec<TableColumnAlignment>,
 }
 
@@ -74,12 +74,12 @@ impl TableData {
     pub fn new_empty(body_rows: usize, columns: usize) -> Self {
         let columns = columns.max(1);
         let header = (0..columns)
-            .map(|_| RichText::plain(String::new()))
+            .map(|_| BlockText::plain(String::new()))
             .collect::<Vec<_>>();
         let rows = (0..body_rows.max(1))
             .map(|_| {
                 (0..columns)
-                    .map(|_| RichText::plain(String::new()))
+                    .map(|_| BlockText::plain(String::new()))
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
@@ -102,14 +102,14 @@ impl TableData {
     fn normalize_shape(&mut self) {
         let columns = self.column_count();
         while self.header.len() < columns {
-            self.header.push(RichText::plain(String::new()));
+            self.header.push(BlockText::plain(String::new()));
         }
         while self.alignments.len() < columns {
             self.alignments.push(TableColumnAlignment::Default);
         }
         for row in &mut self.rows {
             while row.len() < columns {
-                row.push(RichText::plain(String::new()));
+                row.push(BlockText::plain(String::new()));
             }
         }
     }
@@ -120,7 +120,7 @@ impl TableData {
         let columns = self.column_count();
         self.rows.push(
             (0..columns)
-                .map(|_| RichText::plain(String::new()))
+                .map(|_| BlockText::plain(String::new()))
                 .collect(),
         );
     }
@@ -128,10 +128,10 @@ impl TableData {
     /// Appends one empty column to the header and every body row.
     pub fn append_column(&mut self, alignment: TableColumnAlignment) {
         self.normalize_shape();
-        self.header.push(RichText::plain(String::new()));
+        self.header.push(BlockText::plain(String::new()));
         self.alignments.push(alignment);
         for row in &mut self.rows {
-            row.push(RichText::plain(String::new()));
+            row.push(BlockText::plain(String::new()));
         }
     }
 
@@ -219,10 +219,10 @@ impl TableData {
         self.normalize_shape();
         let columns = self.column_count();
         let idx = col_idx.min(columns);
-        self.header.insert(idx, RichText::plain(String::new()));
+        self.header.insert(idx, BlockText::plain(String::new()));
         self.alignments.insert(idx, alignment);
         for row in &mut self.rows {
-            row.insert(idx, RichText::plain(String::new()));
+            row.insert(idx, BlockText::plain(String::new()));
         }
     }
 
@@ -231,7 +231,7 @@ impl TableData {
         self.normalize_shape();
         let columns = self.column_count();
         let new_row = (0..columns)
-            .map(|_| RichText::plain(String::new()))
+            .map(|_| BlockText::plain(String::new()))
             .collect::<Vec<_>>();
         if visual_row == 0 {
             self.rows.insert(0, new_row);
@@ -469,14 +469,14 @@ fn serialize_alignment(alignment: TableColumnAlignment) -> &'static str {
     }
 }
 
-pub fn serialize_table_cell_markdown(tree: &RichText) -> String {
+pub fn serialize_table_cell_markdown(tree: &BlockText) -> String {
     tree.serialize_markdown()
         .replace('\\', "\\\\")
         .replace('|', "\\|")
         .replace('\n', " ")
 }
 
-fn serialize_row<'a>(cells: impl IntoIterator<Item = &'a RichText>) -> String {
+fn serialize_row<'a>(cells: impl IntoIterator<Item = &'a BlockText>) -> String {
     let rendered = cells
         .into_iter()
         .map(serialize_table_cell_markdown)
@@ -544,7 +544,7 @@ pub fn parse_table_region(lines: &[String]) -> Option<TableData> {
         rows.push(
             cells
                 .into_iter()
-                .map(|cell| RichText::from_markdown(&cell))
+                .map(|cell| BlockText::from_markdown(&cell))
                 .collect::<Vec<_>>(),
         );
     }
@@ -552,7 +552,7 @@ pub fn parse_table_region(lines: &[String]) -> Option<TableData> {
     Some(TableData {
         header: header
             .into_iter()
-            .map(|cell| RichText::from_markdown(&cell))
+            .map(|cell| BlockText::from_markdown(&cell))
             .collect(),
         rows,
         alignments,
@@ -610,13 +610,13 @@ pub fn parse_root_table_region(lines: &[String]) -> Option<TableData> {
 /// Parses a single table body row, normalized to `columns` cells (padded when
 /// short, truncated when long). Returns `None` when the line is not a table
 /// row at all.
-pub fn parse_table_body_row(line: &str, columns: usize) -> Option<Vec<RichText>> {
+pub fn parse_table_body_row(line: &str, columns: usize) -> Option<Vec<BlockText>> {
     let mut cells = split_table_cells(line)?;
     cells.resize(columns, String::new());
     Some(
         cells
             .into_iter()
-            .map(|cell| RichText::from_markdown(&cell))
+            .map(|cell| BlockText::from_markdown(&cell))
             .collect(),
     )
 }
@@ -645,7 +645,7 @@ mod tests {
         collect_root_table_candidate_region, is_root_table_candidate_line, parse_root_table_region,
         serialize_table_markdown_lines,
     };
-    use crate::inline::text::RichText;
+    use crate::inline::text::BlockText;
 
     fn assert_close(left: f32, right: f32) {
         assert!(
@@ -769,12 +769,12 @@ mod tests {
     fn serializes_canonical_pipe_table() {
         let table = TableData {
             header: vec![
-                RichText::from_markdown("**bold**"),
-                RichText::from_markdown("[link](https://example.com)"),
+                BlockText::from_markdown("**bold**"),
+                BlockText::from_markdown("[link](https://example.com)"),
             ],
             rows: vec![vec![
-                RichText::plain("A | B".to_string()),
-                RichText::plain("value".to_string()),
+                BlockText::plain("A | B".to_string()),
+                BlockText::plain("value".to_string()),
             ]],
             alignments: vec![TableColumnAlignment::Default, TableColumnAlignment::Right],
         };
@@ -860,17 +860,17 @@ mod tests {
     fn append_column_extends_every_row_and_uses_requested_alignment() {
         let mut table = TableData {
             header: vec![
-                RichText::plain("A".to_string()),
-                RichText::plain("B".to_string()),
+                BlockText::plain("A".to_string()),
+                BlockText::plain("B".to_string()),
             ],
             rows: vec![
                 vec![
-                    RichText::plain("1".to_string()),
-                    RichText::plain("2".to_string()),
+                    BlockText::plain("1".to_string()),
+                    BlockText::plain("2".to_string()),
                 ],
                 vec![
-                    RichText::plain("3".to_string()),
-                    RichText::plain("4".to_string()),
+                    BlockText::plain("3".to_string()),
+                    BlockText::plain("4".to_string()),
                 ],
             ],
             alignments: vec![TableColumnAlignment::Left, TableColumnAlignment::Right],
@@ -897,8 +897,8 @@ mod tests {
     #[test]
     fn append_column_pads_missing_alignments_with_default() {
         let mut table = TableData {
-            header: vec![RichText::plain("A".to_string())],
-            rows: vec![vec![RichText::plain("1".to_string())]],
+            header: vec![BlockText::plain("A".to_string())],
+            rows: vec![vec![BlockText::plain("1".to_string())]],
             alignments: Vec::new(),
         };
 
@@ -929,10 +929,10 @@ mod tests {
     #[test]
     fn swap_visual_rows_exchanges_header_with_first_body_row() {
         let mut table = TableData {
-            header: vec![RichText::plain("A".to_string())],
+            header: vec![BlockText::plain("A".to_string())],
             rows: vec![
-                vec![RichText::plain("1".to_string())],
-                vec![RichText::plain("2".to_string())],
+                vec![BlockText::plain("1".to_string())],
+                vec![BlockText::plain("2".to_string())],
             ],
             alignments: vec![TableColumnAlignment::Left],
         };
@@ -953,12 +953,12 @@ mod tests {
     fn swap_columns_exchanges_header_body_and_alignment() {
         let mut table = TableData {
             header: vec![
-                RichText::plain("A".to_string()),
-                RichText::plain("B".to_string()),
+                BlockText::plain("A".to_string()),
+                BlockText::plain("B".to_string()),
             ],
             rows: vec![vec![
-                RichText::plain("1".to_string()),
-                RichText::plain("2".to_string()),
+                BlockText::plain("1".to_string()),
+                BlockText::plain("2".to_string()),
             ]],
             alignments: vec![TableColumnAlignment::Left, TableColumnAlignment::Right],
         };

@@ -853,7 +853,7 @@ mod tests {
     };
     use crate::editor::tree::block::Block;
     use crate::model::block::{BlockData, BlockKind};
-    use crate::model::inline::text::RichText;
+    use crate::model::inline::text::BlockText;
     use crate::model::syntax::table::TableCellPosition;
     use gpui::{
         AppContext, Bounds, Hsla, Modifiers, MouseButton, MouseDownEvent, SharedString,
@@ -934,7 +934,7 @@ mod tests {
                 cx,
                 BlockData::new(
                     BlockKind::Paragraph,
-                    RichText::from_markdown("[link](https://example.com)"),
+                    BlockText::from_markdown("[link](https://example.com)"),
                 ),
             )
         });
@@ -977,7 +977,7 @@ mod tests {
                 cx,
                 BlockData::new(
                     BlockKind::Paragraph,
-                    RichText::from_markdown("a [link](https://example.com) bbbb"),
+                    BlockText::from_markdown("a [link](https://example.com) bbbb"),
                 ),
             )
         });
@@ -1046,7 +1046,7 @@ mod tests {
                 cx,
                 BlockData::new(
                     BlockKind::Paragraph,
-                    RichText::from_markdown("[link](https://example.com)"),
+                    BlockText::from_markdown("[link](https://example.com)"),
                 ),
             );
             block.set_table_cell_mode(
@@ -1095,7 +1095,7 @@ mod tests {
                 cx,
                 BlockData::new(
                     BlockKind::Paragraph,
-                    RichText::from_markdown(
+                    BlockText::from_markdown(
                         "before <span style='color:blue;background-color:#ff0'>marked</span>",
                     ),
                 ),
@@ -1169,7 +1169,7 @@ mod tests {
                 cx,
                 BlockData::new(
                     BlockKind::Paragraph,
-                    RichText::from_markdown(&format!("[{label}](https://example.com)")),
+                    BlockText::from_markdown(&format!("[{label}](https://example.com)")),
                 ),
             )
         });

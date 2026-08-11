@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use gpui::{Image, Pixels, Point};
 
-use crate::model::inline::text::RichText;
+use crate::model::inline::text::BlockText;
 use crate::model::syntax::table::TableAxisKind;
 
 /// Image payload extracted from GPUI's clipboard abstraction.
@@ -34,7 +34,7 @@ pub enum BlockAction {
     /// The user pressed Enter; a new block should be created after this
     /// one with the given trailing text.
     RequestNewline {
-        trailing: RichText,
+        trailing: BlockText,
         source_already_mutated: bool,
     },
     /// The user pressed Enter at offset 0 of a block; an empty paragraph should be inserted above this block.
@@ -52,22 +52,22 @@ pub enum BlockAction {
     RequestCalloutBreak,
     /// The user pressed Backspace at the start of this block; its entire
     /// content should be appended to the previous block.
-    RequestMergeIntoPrev { content: RichText },
+    RequestMergeIntoPrev { content: BlockText },
     /// A multi-line paste was detected; the editor must split the pasted
     /// lines into separate blocks and re-attach the leading/trailing text
     /// to the correct positions.
     RequestPasteMultiline {
-        leading: RichText,
+        leading: BlockText,
         lines: Vec<String>,
-        trailing: RichText,
+        trailing: BlockText,
         split_physical_lines: bool,
     },
     /// An image-like clipboard payload was pasted. The editor resolves
     /// storage preferences and inserts either an image block or image text.
     RequestPasteImage {
-        leading: RichText,
+        leading: BlockText,
         source: PastedImageSource,
-        trailing: RichText,
+        trailing: BlockText,
     },
     /// Replace the current editor-level cross-block selection with text
     /// submitted through the focused block input handler.

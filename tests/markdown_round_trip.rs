@@ -6,7 +6,7 @@
 
 use splitype_model::block::kind::BlockKind;
 use splitype_model::block::data::BlockData;
-use splitype_model::inline::text::RichText;
+use splitype_model::inline::text::BlockText;
 use splitype_model::parse::parser::parse_document;
 use splitype_model::syntax::table::TableData;
 
@@ -100,7 +100,7 @@ fn table_parses_into_native_table_data() {
 /// Inline formatting round-trips through markdown serialization.
 #[test]
 fn inline_formatting_round_trips() {
-    let text = RichText::from_markdown("**bold** and *italic* and `code`");
+    let text = BlockText::from_markdown("**bold** and *italic* and `code`");
     assert_eq!(
         text.serialize_markdown(),
         "**bold** and *italic* and `code`"
@@ -127,7 +127,7 @@ fn raw_html_block_keeps_source() {
 fn block_text_serializes_serialize_markdown() {
     let block = BlockData::new(
         BlockKind::Paragraph,
-        RichText::from_markdown("hello **world**"),
+        BlockText::from_markdown("hello **world**"),
     );
     assert_eq!(block.text_markdown(), "hello **world**");
     assert_eq!(block.serialize_markdown_line(0, None), "hello **world**");

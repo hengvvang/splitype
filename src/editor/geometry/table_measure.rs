@@ -12,7 +12,7 @@ use gpui::{FontStyle, FontWeight, Pixels, SharedString, TextRun, Window, px};
 
 use crate::infra::theme::Theme;
 use crate::model::inline::render_cache::InlineRenderCache;
-use crate::model::inline::text::RichText;
+use crate::model::inline::text::BlockText;
 use crate::model::syntax::table::{TableColumnLayout, TableData};
 
 /// Measure preferred column widths with the window's text system and
@@ -58,7 +58,7 @@ fn measure_preferred_column_widths(
 }
 
 fn measure_cell_preferred_width(
-    cell: &RichText,
+    cell: &BlockText,
     is_header: bool,
     window: &mut Window,
     theme: &Theme,

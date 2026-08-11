@@ -8,7 +8,7 @@
 
 use std::ops::Range;
 
-use crate::inline::text::RichText;
+use crate::inline::text::BlockText;
 
 /// Bidirectional offset map between plain inline text and source Markdown.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -50,7 +50,7 @@ impl SourceOffsetMap {
 /// a mapping from pre-edit text offsets to post-edit tree offsets.
 #[derive(Clone, Debug)]
 pub struct InlineEditResult {
-    pub tree: RichText,
+    pub tree: BlockText,
     pub(crate) visible_to_normalized: Vec<usize>,
 }
 

@@ -178,7 +178,7 @@ impl Editor {
                 );
                 let new_block = Self::new_block(
                     cx,
-                    BlockData::new(BlockKind::Paragraph, RichText::plain(String::new())),
+                    BlockData::new(BlockKind::Paragraph, BlockText::plain(String::new())),
                 );
                 if self.tab().mode == crate::editor::controller::EditorMode::SourceCode {
                     new_block.update(cx, |block, _cx| block.set_source_document_mode());
@@ -228,7 +228,7 @@ impl Editor {
 
                 let new_quote = Self::new_block(
                     cx,
-                    BlockData::new(BlockKind::Blockquote, RichText::plain(String::new())),
+                    BlockData::new(BlockKind::Blockquote, BlockText::plain(String::new())),
                 );
                 let blocks = if parent.is_none() {
                     vec![new_quote.clone()]
@@ -349,7 +349,7 @@ impl Editor {
                     (leading.clone(), lines.clone())
                 } else {
                     let mut first_text = leading.clone();
-                    first_text.append_tree(RichText::from_markdown(&lines[0]));
+                    first_text.append_tree(BlockText::from_markdown(&lines[0]));
                     (first_text, lines[1..].to_vec())
                 };
                 if tail_lines.is_empty() {

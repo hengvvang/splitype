@@ -31,7 +31,7 @@ pub(crate) use crate::editor::view::context_menu::ContextMenuState;
 pub(crate) use crate::editor::view::dialogs::TableInsertDialogState;
 pub(crate) use crate::editor::{PreviewState, SourceCodePaneState};
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
-pub(crate) use crate::model::inline::text::RichText;
+pub(crate) use crate::model::inline::text::BlockText;
 pub(crate) use crate::model::syntax::image::{
     ImageReferenceDefinitions, parse_image_reference_definitions,
 };

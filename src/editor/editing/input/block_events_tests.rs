@@ -10,7 +10,7 @@ mod tests {
     use crate::editor::editing::input::actions::ExitCodeBlock;
     use crate::editor::editing::input::actions::{DeleteBack, Newline};
     use crate::model::block::{BlockData, BlockKind, CalloutKind};
-    use crate::model::inline::text::RichText;
+    use crate::model::inline::text::BlockText;
     use gpui::{AppContext, TestAppContext};
 
     #[gpui::test]
@@ -119,9 +119,9 @@ mod tests {
             let paragraph = editor.doc().first_root().expect("paragraph").clone();
             editor.insert_image_block_after_paragraph(
                 &paragraph,
-                &RichText::plain("before"),
+                &BlockText::plain("before"),
                 "![image](./assets/image.png)",
-                &RichText::plain("after"),
+                &BlockText::plain("after"),
                 cx,
             );
 
@@ -146,9 +146,9 @@ mod tests {
             let block = editor.doc().first_root().expect("code block").clone();
             editor.replace_current_block_selection_with_image_text(
                 &block,
-                &RichText::plain("before"),
+                &BlockText::plain("before"),
                 "![image](./assets/image.png)",
-                &RichText::plain("after"),
+                &BlockText::plain("after"),
                 cx,
             );
 
@@ -957,7 +957,7 @@ mod tests {
             (
                 BlockData::new(
                     BlockKind::HtmlBlock,
-                    RichText::plain("<div>\ncontent\n</div>".to_string()),
+                    BlockText::plain("<div>\ncontent\n</div>".to_string()),
                 ),
                 BlockKind::HtmlBlock,
                 "<div>\ncontent\n</div>",
@@ -965,7 +965,7 @@ mod tests {
             (
                 BlockData::new(
                     BlockKind::MermaidBlock,
-                    RichText::plain("```mermaid\nflowchart LR\nA-->B\n```".to_string()),
+                    BlockText::plain("```mermaid\nflowchart LR\nA-->B\n```".to_string()),
                 ),
                 BlockKind::MermaidBlock,
                 "```mermaid\nflowchart LR\nA-->B\n```",
@@ -973,7 +973,7 @@ mod tests {
             (
                 BlockData::new(
                     BlockKind::RawMarkdown,
-                    RichText::plain("::: custom\ncontent\n:::".to_string()),
+                    BlockText::plain("::: custom\ncontent\n:::".to_string()),
                 ),
                 BlockKind::RawMarkdown,
                 "::: custom\ncontent\n:::",
@@ -981,7 +981,7 @@ mod tests {
             (
                 BlockData::new(
                     BlockKind::HtmlComment,
-                    RichText::plain("<!--\ncomment\n-->".to_string()),
+                    BlockText::plain("<!--\ncomment\n-->".to_string()),
                 ),
                 BlockKind::HtmlComment,
                 "<!--\ncomment\n-->",

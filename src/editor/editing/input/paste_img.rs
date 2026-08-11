@@ -238,20 +238,20 @@ impl Editor {
     pub(crate) fn inserted_image_tree_for_block(
         block: &crate::editor::tree::block::Block,
         markdown: &str,
-    ) -> RichText {
+    ) -> BlockText {
         if block.edits_verbatim_text() || block.kind().is_code_block() {
-            RichText::plain(markdown.to_string())
+            BlockText::plain(markdown.to_string())
         } else {
-            RichText::from_markdown(markdown)
+            BlockText::from_markdown(markdown)
         }
     }
 
     pub(crate) fn replace_current_block_selection_with_image_text(
         &mut self,
         block: &Entity<crate::editor::tree::block::Block>,
-        leading: &RichText,
+        leading: &BlockText,
         markdown: &str,
-        trailing: &RichText,
+        trailing: &BlockText,
         cx: &mut Context<Self>,
     ) {
         let (kind, text, cursor) = block.read_with(cx, |block, _cx| {
@@ -272,9 +272,9 @@ impl Editor {
     pub(crate) fn insert_image_block_after_paragraph(
         &mut self,
         block: &Entity<crate::editor::tree::block::Block>,
-        leading: &RichText,
+        leading: &BlockText,
         markdown: &str,
-        trailing: &RichText,
+        trailing: &BlockText,
         cx: &mut Context<Self>,
     ) {
         let Some(location) = self.doc().find_block_location(block.entity_id()) else {
@@ -287,7 +287,7 @@ impl Editor {
             Self::set_block_text_and_kind(
                 block,
                 BlockKind::Paragraph,
-                RichText::plain(markdown.to_string()),
+                BlockText::plain(markdown.to_string()),
                 markdown.len(),
                 cx,
             );
@@ -331,9 +331,9 @@ impl Editor {
     pub(crate) fn handle_paste_image_request(
         &mut self,
         block: Entity<crate::editor::tree::block::Block>,
-        leading: &RichText,
+        leading: &BlockText,
         source: &PastedImageSource,
-        trailing: &RichText,
+        trailing: &BlockText,
         cx: &mut Context<Self>,
     ) {
         let markdown = match self.pasted_image_markdown(source) {

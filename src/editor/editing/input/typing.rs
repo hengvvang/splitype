@@ -5,7 +5,7 @@ use gpui::*;
 
 use crate::editor::controller::*;
 use crate::model::block::BlockKind;
-use crate::model::inline::text::RichText;
+use crate::model::inline::text::BlockText;
 use crate::model::syntax::table::*;
 
 impl Editor {
@@ -56,7 +56,7 @@ impl Editor {
     pub(crate) fn set_block_text_and_kind(
         block: &Entity<crate::editor::tree::block::Block>,
         kind: BlockKind,
-        text: RichText,
+        text: BlockText,
         cursor: usize,
         cx: &mut Context<Self>,
     ) {
@@ -339,9 +339,9 @@ impl Editor {
 
     pub(crate) fn apply_paragraph_shortcuts(
         kind: BlockKind,
-        mut text: RichText,
+        mut text: BlockText,
         cursor: usize,
-    ) -> (BlockKind, RichText, usize) {
+    ) -> (BlockKind, BlockText, usize) {
         if kind == BlockKind::Paragraph {
             let plain_text = text.plain_text();
             if let Some((detected_kind, prefix_len)) =

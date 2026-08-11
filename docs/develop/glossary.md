@@ -14,16 +14,16 @@ space they live in (`source_range`, `plain_range`, `display_range`).
 | Space | Name | Meaning | Examples |
 | --- | --- | --- | --- |
 | Markdown text | **source** | The block's serialized Markdown (or the whole document's). Produced by serialization; consumed by parsing. | `SourceOffsetMap`, `source_offset_map()`, `display_range_to_source_range`, `apply_source_space_text_edit`, `source_range_to_display_range` |
-| Fragment-tree text | **plain** | The stored text: no markers, styles live on fragments. | `RichText`, `plain_to_source`, `display_to_plain_range`, `selection_plain_range`, `source_range_to_plain_range` |
+| Fragment-tree text | **plain** | The stored text: no markers, styles live on fragments. | `BlockText`, `plain_to_source`, `display_to_plain_range`, `selection_plain_range`, `source_range_to_plain_range` |
 | Projected text | **display** | What the caret moves through on a focused block: plain text with the touched delimiters expanded. | `display_cache`, `display_text`, `plain_to_display_range`, `replace_text_in_display_range` |
 
 Notes:
 
 - "visible" is **not** a coordinate name. It survives only as prose in
-  comments. Done: `RichText::visible_text/visible_len` → `plain_text`/
-  `plain_len`; `Block::visible_len` → `display_len`;
+  comments. Done: `BlockText::visible_text/visible_len` (was `RichText`) →
+  `plain_text`/`plain_len`; `Block::visible_len` → `display_len`;
   `InlineRenderCache::visible_text/visible_len` → `text()`/`len()`;
-  `RichText::remove_visible_prefix` → `remove_plain_prefix`;
+  `BlockText::remove_visible_prefix` → `remove_plain_prefix`;
   `replace_visible_range_with_link_references` →
   `replace_plain_range_with_link_references`;
   `replace_visible_range_raw` → `replace_plain_range_verbatim`.
@@ -42,7 +42,7 @@ Notes:
 | Block persistent data | **BlockData** | done — `Block.record` → `data`, `Block::with_record` → `with_data`, `record.rs` → `data.rs`. `ExplorerUndoHistory::record` keeps its verb (undo records). |
 | Kind of a block | **BlockKind** | done | `BlockKind::Callout(CalloutKind)` reads naturally. |
 | Flattened document sequence | **entries** | done | `BlockEntry` (was `RenderedBlock`), `flatten_entries()`, `index_for_entity_id()`, `last_descendant()`. "Visible order" survives only as prose. |
-| Block content text | **text** | done | Was "title". `apply_text_edit`, `set_block_text_and_kind`, `split_text`. |
+| Block content text | **text** | done — Was "title". `apply_text_edit`, `set_block_text_and_kind`, `split_text`. The content model is `BlockText` (was `RichText`): the fragment-sequence container that holds every block's text, inline-formatted or verbatim (code/math/html/raw). Renders through `BlockTextElement`. |
 | Markdown-syntax title | **title** | kept | Link/image title attributes (`InlineLink::title`, `ImageTarget::title`), window and dialog titles. |
 
 ## Containers and groups
@@ -67,7 +67,7 @@ layout, panes belong to an Editor session.
 
 | Concept | Term | Notes |
 | --- | --- | --- |
-| Model text unit | **fragment** | `InlineFragment`, `RichText.fragments`. |
+| Model text unit | **fragment** | `InlineFragment`, `BlockText.fragments`. |
 | Styled range over text | **span** | `InlineSpan` (render cache), `ExpandedLinkSpan`/`ExpandedFootnoteSpan` (projection, was `ExpandedLinkRun`/`ExpandedFootnoteRun`). |
 | Rendered/syntax run | **run** | GPUI `TextRun`, backtick run, `RowBand.run_start/run_end` (a run of rows). External or generic vocabulary. |
 | Role-bearing piece | **segment** | `ExpandedInlineSegment`, `PlannedInnerSegment`, `TableCellInlineImageSegment`. |

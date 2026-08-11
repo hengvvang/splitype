@@ -11,7 +11,7 @@ use gpui::Entity;
 use crate::editor::controller::Editor;
 use crate::editor::tree::block::Block;
 use crate::model::block::{BlockData, BlockKind};
-use crate::model::inline::text::RichText;
+use crate::model::inline::text::BlockText;
 use crate::model::syntax::html::is_inline_tag;
 use crate::model::syntax::table::collect_pipeless_table_region;
 
@@ -29,7 +29,7 @@ impl Editor {
             .map(|line| {
                 Self::new_block(
                     cx,
-                    BlockData::new(BlockKind::Paragraph, RichText::from_markdown(line)),
+                    BlockData::new(BlockKind::Paragraph, BlockText::from_markdown(line)),
                 )
             })
             .collect::<Vec<_>>();
@@ -37,7 +37,7 @@ impl Editor {
         if blocks.is_empty() && !lines.is_empty() {
             blocks.push(Self::new_block(
                 cx,
-                BlockData::new(BlockKind::Paragraph, RichText::plain(String::new())),
+                BlockData::new(BlockKind::Paragraph, BlockText::plain(String::new())),
             ));
         }
 

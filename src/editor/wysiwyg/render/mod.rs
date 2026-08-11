@@ -1295,7 +1295,7 @@ mod tests {
     use crate::infra::i18n::I18nManager;
     use crate::infra::theme::{Theme, ThemeManager};
     use crate::model::block::{BlockData, BlockKind};
-    use crate::model::inline::text::RichText;
+    use crate::model::inline::text::BlockText;
     use crate::model::syntax::html::parse_html_document;
     use gpui::{Hsla, Rgba, TestAppContext, px};
 
@@ -1389,7 +1389,7 @@ mod tests {
                     BlockKind::CodeBlock {
                         language: Some("rust".into()),
                     },
-                    RichText::plain("fn main() {}\n"),
+                    BlockText::plain("fn main() {}\n"),
                 ),
             )
         });

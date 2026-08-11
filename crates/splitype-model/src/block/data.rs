@@ -8,7 +8,7 @@
 
 use super::id::BlockId;
 use super::kind::BlockKind;
-use crate::inline::text::RichText;
+use crate::inline::text::BlockText;
 use crate::syntax::html::{HtmlDocument, parse_html_document};
 use crate::syntax::image::parse_standalone_image;
 use crate::syntax::math::parse_display_math_source;
@@ -23,7 +23,7 @@ pub struct BlockData {
     /// Semantic block kind.
     pub kind: BlockKind,
     /// Inline-formatted block content.
-    pub text: RichText,
+    pub text: BlockText,
     /// Native table data (only for `BlockKind::Table`).
     pub table: Option<TableData>,
     /// Parsed HTML document (only for `BlockKind::HtmlBlock`).
@@ -38,7 +38,7 @@ pub struct BlockData {
 
 impl BlockData {
     /// Create a new block with the given kind and text.
-    pub fn new(kind: BlockKind, text: RichText) -> Self {
+    pub fn new(kind: BlockKind, text: BlockText) -> Self {
         let mut data = Self {
             id: BlockId::new(),
             kind,
@@ -55,7 +55,7 @@ impl BlockData {
 
     /// Create a new block with plain text.
     pub fn with_plain_text(kind: BlockKind, text: impl Into<String>) -> Self {
-        Self::new(kind, RichText::plain(text.into()))
+        Self::new(kind, BlockText::plain(text.into()))
     }
 
     /// Convenience: create a paragraph block.
@@ -111,19 +111,19 @@ impl BlockData {
 
     /// Create a table block from existing table data.
     pub fn table(table: TableData) -> Self {
-        let mut data = Self::new(BlockKind::Table, RichText::plain(String::new()));
+        let mut data = Self::new(BlockKind::Table, BlockText::plain(String::new()));
         data.table = Some(table);
         data
     }
 
     /// Replace the block text.
-    pub fn set_text(&mut self, text: RichText) {
+    pub fn set_text(&mut self, text: BlockText) {
         self.text = text;
         self.sync_raw_source();
     }
 
     /// Export the block text as Markdown: fragment style flags are
-    /// serialized back to delimiter markers via [`RichText::serialize_markdown`].
+    /// serialized back to delimiter markers via [`BlockText::serialize_markdown`].
     pub fn text_markdown(&self) -> String {
         self.text.serialize_markdown()
     }
@@ -295,21 +295,21 @@ mod tests {
 
     #[test]
     fn serializes_supported_block_kinds() {
-        let list = BlockData::new(BlockKind::BulletListItem, RichText::from_markdown("*item*"));
-        let numbered = BlockData::new(BlockKind::NumberedListItem, RichText::from_markdown("step"));
+        let list = BlockData::new(BlockKind::BulletListItem, BlockText::from_markdown("*item*"));
+        let numbered = BlockData::new(BlockKind::NumberedListItem, BlockText::from_markdown("step"));
         let task = BlockData::new(
             BlockKind::TaskListItem { checked: true },
-            RichText::from_markdown("done"),
+            BlockText::from_markdown("done"),
         );
         let heading = BlockData::new(
             BlockKind::Heading { level: 2 },
-            RichText::from_markdown("**title**"),
+            BlockText::from_markdown("**title**"),
         );
-        let quote = BlockData::new(BlockKind::Blockquote, RichText::plain("quoted text"));
+        let quote = BlockData::new(BlockKind::Blockquote, BlockText::plain("quoted text"));
         let paragraph = BlockData::paragraph("plain");
         let comment = BlockData::new(
             BlockKind::HtmlComment,
-            RichText::plain("<!--\ncomment\n-->"),
+            BlockText::plain("<!--\ncomment\n-->"),
         );
 
         assert_eq!(list.serialize_markdown_line(0, None), "- *item*");
@@ -345,7 +345,7 @@ mod tests {
 
     #[test]
     fn quote_serializes_back_serialize_markdown() {
-        let data = BlockData::new(BlockKind::Blockquote, RichText::plain("text"));
+        let data = BlockData::new(BlockKind::Blockquote, BlockText::plain("text"));
         let line = data.serialize_markdown_line(0, None);
         assert_eq!(line, "> text");
     }
@@ -356,7 +356,7 @@ mod tests {
             BlockKind::CodeBlock {
                 language: Some("rust".into()),
             },
-            RichText::plain("let x = 1;\nprintln!(\"hi\");"),
+            BlockText::plain("let x = 1;\nprintln!(\"hi\");"),
         );
         // serialize_markdown_line returns bare content; fences are added by persistence layer.
         let line = data.serialize_markdown_line(0, None);
@@ -365,7 +365,7 @@ mod tests {
 
     #[test]
     fn thematic_break_serialize_markdown_line_round_trips() {
-        let data = BlockData::new(BlockKind::ThematicBreak, RichText::plain(String::new()));
+        let data = BlockData::new(BlockKind::ThematicBreak, BlockText::plain(String::new()));
         assert_eq!(data.serialize_markdown_line(0, None), "---");
         assert!(BlockKind::parse_thematic_break_line("---"));
     }
@@ -374,7 +374,7 @@ mod tests {
     fn task_list_serializes_canonical_markdown() {
         let data = BlockData::new(
             BlockKind::TaskListItem { checked: false },
-            RichText::plain("todo"),
+            BlockText::plain("todo"),
         );
         assert_eq!(data.serialize_markdown_line(0, None), "- [ ] todo");
     }
