@@ -1,4 +1,5 @@
-//! Block kind enumeration — the semantic type of every node in the document tree.
+//! Block kind enumeration — the semantic type of every block in the document
+//! tree.
 //!
 //! Each variant maps to a CommonMark / GFM block-level syntax element and
 //! determines both how the block is parsed from Markdown and how it is rendered.
@@ -8,7 +9,7 @@ use gpui::SharedString;
 use super::callout::CalloutKind;
 use super::fence::CodeFenceOpening;
 
-/// The semantic kind of a block-level node.
+/// The semantic kind of a block.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum BlockKind {
     /// Plain paragraph with inline formatting.

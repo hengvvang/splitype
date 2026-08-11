@@ -38,7 +38,7 @@ Notes:
 
 | Concept | Term | Status | Notes |
 | --- | --- | --- | --- |
-| A node in the document | **block** | done | The parser's old "node" vocabulary is being retired (`parser.rs`). |
+| A node in the document | **block** | done — the parser's "node" vocabulary is retired (`parser.rs`): `attach_child_node(s)` → `attach_child_block(s)`, `append_markdown_to_node` → `append_markdown_to_block`, `build_native_footnote_definition_node` → `build_native_footnote_definition_block`, `child_nodes`/`raw_node`/`*_nodes` locals → `child_blocks`/`raw_block`/`*_blocks`, "NodeTree" → "block tree". `HtmlNode` stays: it is an HTML DOM node, a different domain. `NodeId` stays: it is the splitter layout-tree id. |
 | Block persistent data | **BlockData** | done — `Block.record` → `data`, `Block::with_record` → `with_data`, `record.rs` → `data.rs`. `ExplorerUndoHistory::record` keeps its verb (undo records). |
 | Kind of a block | **BlockKind** | done | `BlockKind::Callout(CalloutKind)` reads naturally. |
 | Flattened document sequence | **entries** | done | `BlockEntry` (was `RenderedBlock`), `flatten_entries()`, `index_for_entity_id()`, `last_descendant()`. "Visible order" survives only as prose. |

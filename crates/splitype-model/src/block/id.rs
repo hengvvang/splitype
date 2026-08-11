@@ -1,4 +1,4 @@
-//! Strongly-typed unique identifier for document tree nodes.
+//! Strongly-typed unique identifier for document tree blocks.
 
 use std::fmt;
 

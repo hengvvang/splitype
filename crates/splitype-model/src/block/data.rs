@@ -1,6 +1,6 @@
 //! Persistent data of a block, independent of the editor runtime.
 //!
-//! `BlockData` is the pure data for one block-level node: identity,
+//! `BlockData` is the pure data for one block in the document tree: identity,
 //! semantic kind, inline-formatted text, optional payloads (table, HTML), and
 //! tree references (parent / children via [`BlockId`]). Raw-preserved
 //! Markdown keeps its original source in `raw_source` so it round-trips
