@@ -1,12 +1,11 @@
-//! Top-level editor controller and window state.
+//! Top-level editor controller.
 //!
-//! [`Editor`] owns window-level concerns such as view mode, save/close flow,
-//! scroll state, and focus deferral. The runtime block tree itself lives in
-//! [`Document`], which centralizes structural mutations and cached visible
-//! order metadata. State is grouped into cohesive sub-records (`file`,
-//! `focus`, `undo`, `scroll`, `tables`, `preview`, `references`, `menu_bar`,
-//! `overlays`) plus the panel state defined in
-//! `super::session_ops` / `super::explorer_state`.
+//! [`Editor`] aggregates the editor's own state: the runtime block tree
+//! (`Document`), view mode, scroll state, focus deferral, undo, and the
+//! editor's panes (preview, outline, source-code runtime). State is grouped
+//! into cohesive sub-records (`file`, `focus`, `undo`, `scroll`, `tables`,
+//! `preview`, `references`, `menu_bar`, `overlays`) plus the session
+//! aggregate defined in `super::session_ops` / `super::session`.
 
 pub(crate) use std::time::{Duration, Instant};
 
@@ -27,8 +26,8 @@ pub(crate) use crate::editor::tree::document::Document;
 pub(crate) use crate::editor::tree::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
-pub(crate) use crate::editor::window::context_menu::ContextMenuState;
-pub(crate) use crate::editor::window::dialogs::TableInsertDialogState;
+pub(crate) use crate::editor::view::context_menu::ContextMenuState;
+pub(crate) use crate::editor::view::dialogs::TableInsertDialogState;
 pub(crate) use crate::editor::{PreviewState, SourceCodePanelRuntime};
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::model::inline::text::RichText;

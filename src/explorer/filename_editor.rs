@@ -16,11 +16,11 @@ use gpui::*;
 use crate::app::shell::Shell;
 
 use crate::editor::editing::input::actions::{Copy, Cut, DismissTransientUi, Paste};
-use crate::editor::explorer_state::state::{
+use crate::explorer::state::state::{
     EXPLORER_NODE_HEIGHT, ExplorerEditState, ExplorerFilenameEditor, ExplorerRow,
     ExplorerValidation,
 };
-use crate::editor::explorer_state::undo::ExplorerChange;
+use crate::explorer::state::undo::ExplorerChange;
 use crate::infra::theme::ThemeManager;
 
 // ── UTF-8 / UTF-16 offset conversion ────────────────────────────────────
@@ -251,7 +251,7 @@ impl Shell {
             let parent = edit.path.parent()?;
             parent.join(filename)
         };
-        let existing = crate::editor::explorer_state::state::find_explorer_node(tree, &new_path);
+        let existing = crate::explorer::state::state::find_explorer_node(tree, &new_path);
         let is_self = edit
             .target_id
             .is_some_and(|id| existing.is_some_and(|node| node.id == id));
@@ -346,7 +346,7 @@ impl Shell {
             return;
         };
         let Some(node) =
-            crate::editor::explorer_state::state::find_explorer_node(&tree, &target_path)
+            crate::explorer::state::state::find_explorer_node(&tree, &target_path)
         else {
             return;
         };
@@ -366,7 +366,7 @@ impl Shell {
         // whole name for directories — mirrors Zed's rename UX.
         let file_name = node.label.clone();
         let selection_end =
-            if node.kind == crate::editor::explorer_state::state::ExplorerEntryKind::Directory {
+            if node.kind == crate::explorer::state::state::ExplorerEntryKind::Directory {
                 file_name.len()
             } else {
                 target_path
@@ -384,7 +384,7 @@ impl Shell {
                 parent_id: None,
                 target_id: Some(node.id),
                 is_dir: node.kind
-                    == crate::editor::explorer_state::state::ExplorerEntryKind::Directory,
+                    == crate::explorer::state::state::ExplorerEntryKind::Directory,
                 depth,
                 path: target_path,
                 validation: None,

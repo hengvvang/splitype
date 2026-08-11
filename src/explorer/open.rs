@@ -7,7 +7,7 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 
-use crate::editor::explorer_state::state::*;
+use crate::explorer::state::state::*;
 
 impl Shell {
     pub(crate) fn open_explorer_file(

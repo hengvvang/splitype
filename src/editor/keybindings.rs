@@ -9,10 +9,8 @@ use std::collections::BTreeMap;
 
 use gpui::*;
 
-use crate::editor::actions::{
-    CloseWindow, NewWindow, OpenFile, QuitApplication, SaveDocument, SaveDocumentAs,
-    ToggleExplorer, ToggleViewMode,
-};
+use crate::app::actions::{CloseWindow, NewWindow, OpenFile, QuitApplication, ToggleExplorer};
+use crate::editor::actions::{SaveDocument, SaveDocumentAs, ToggleViewMode};
 use crate::editor::editing::input::actions::{
     BlockDown, BlockUp, BoldSelection, CodeSelection, Copy, Cut, Delete, DeleteBack,
     DismissTransientUi, End, ExitCodeBlock, FocusNext, FocusPrev, Home, IndentBlock,

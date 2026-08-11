@@ -5,7 +5,7 @@ use gpui::prelude::FluentBuilder;
 use gpui::*;
 
 use crate::app::window_panels::WindowPanelKind;
-use crate::editor::window_layout::panel_topbar_icon;
+use crate::app::window_layout::panel_topbar_icon;
 use crate::infra::theme::Theme;
 use crate::splitter::Axis;
 use crate::ui::button::{icon_chip_button, small_pill_button};

@@ -7,10 +7,9 @@
 use gpui::*;
 
 use crate::editor::controller::Editor;
-use crate::editor::explorer_state::state::{
-    EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, stable_node_hash,
+use crate::editor::outline::state::{
+    OUTLINE_NODE_HEIGHT, OUTLINE_NODE_INDENT, OutlineNode, OutlineNodeKind, outline_node_hash,
 };
-use crate::editor::outline::state::{OutlineNode, OutlineNodeKind};
 use crate::editor::outline::{build_outline_tree, prune_outline_state};
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
@@ -208,15 +207,15 @@ impl Editor {
 
         div()
             .id(ElementId::Name(
-                format!("explorer-node-{panel_id}-{}", stable_node_hash(&node.id)).into(),
+                format!("outline-node-{panel_id}-{}", outline_node_hash(&node.id)).into(),
             ))
-            .h(px(EXPLORER_NODE_HEIGHT))
+            .h(px(OUTLINE_NODE_HEIGHT))
             .w_full()
             .overflow_hidden()
             .flex()
             .items_center()
             .gap(px(6.0))
-            .pl(px(6.0 + depth as f32 * EXPLORER_NODE_INDENT))
+            .pl(px(6.0 + depth as f32 * OUTLINE_NODE_INDENT))
             .pr(px(8.0))
             .bg(if selected {
                 c.panel_row_selected

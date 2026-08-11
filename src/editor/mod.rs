@@ -12,18 +12,14 @@
 //!   paste, IME, block-event routing), history, projection, selection,
 //!   source mapping, and the table runtime.
 //! - `wysiwyg/` / `source_code/` / `preview/` / `outline/` — the four
-//!   editor display modes (each owns its rendering and behavior).
-//! - `session.rs` / `session_ops.rs` — the per-panel `EditorSession`
-//!   aggregate (tab list + pane split tree) and its operations;
-//!   `pane_layout.rs` renders that split tree.
-//! - `explorer_state/` / `settings_state.rs` — sidebar state owned by the
-//!   window (`WindowPanels`); the views live in the top-level `src/explorer` /
-//!   `src/settings` and depend on these one-way.
-//! - `topbar/` / `bottombar/` — per-area chrome of an Editor area.
-//! - `window/` — the window-level render flow and floating overlays
-//!   (context menu, dialogs, export); `window_layout.rs` — outer tiled-area
-//!   rendering and the `WindowPanels` aggregate; `render/` and `geometry/`
-//!   are content pipelines and math.
+//!   editor panes (each owns its rendering and behavior).
+//! - `session.rs` / `session_ops.rs` / `pane_layout.rs` — the per-panel
+//!   `EditorSession` aggregate (tab list + pane split tree), its
+//!   operations, and its rendering.
+//! - `view/` — the editor's document-view render flow and its content-level
+//!   overlays (context menu, table-insert dialog); `render/` and
+//!   `geometry/` are content pipelines and math.
+//! - `topbar/` / `bottombar/` — the editor panel's chrome.
 
 pub mod actions;
 pub mod block_protocol;
@@ -32,7 +28,6 @@ pub mod commands;
 pub mod controller;
 pub(crate) mod corner_drag_preview;
 pub mod editing;
-pub(crate) mod explorer_state;
 pub mod file;
 pub mod geometry;
 pub mod keybindings;
@@ -43,12 +38,10 @@ pub mod preview;
 pub mod render;
 pub(crate) mod session;
 pub(crate) mod session_ops;
-pub mod settings_state;
 pub(crate) mod source_code;
 pub(crate) mod topbar;
 pub mod tree;
-pub(crate) mod window;
-pub(crate) mod window_layout;
+pub(crate) mod view;
 pub mod wysiwyg;
 
 pub(crate) use preview::PreviewState;

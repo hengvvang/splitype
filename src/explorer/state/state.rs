@@ -380,15 +380,6 @@ impl ExplorerState {
     }
 }
 
-// ── Filesystem helpers ──────────────────────────────────────────────────
-
-/// Stable numeric hash of an id, for use as a DOM element id suffix.
-pub fn stable_node_hash(id: &str) -> u64 {
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    id.hash(&mut hasher);
-    hasher.finish()
-}
-
 // ── Flat visible list derivation ────────────────────────────────────────
 
 /// Rebuild the tree model for one worktree from its flat snapshot. The
@@ -651,7 +642,7 @@ pub fn collect_descendant_dir_ids(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::editor::explorer_state::undo::ExplorerChange;
+    use crate::explorer::state::undo::ExplorerChange;
     use std::path::PathBuf;
 
     #[test]
@@ -682,9 +673,10 @@ mod tests {
             root: 0,
             entry: entry_id,
         }]));
-        state.undo_history.undo_stack.push(ExplorerChange::Created(
-            PathBuf::from("/project/new.md"),
-        ));
+        state
+            .undo_history
+            .undo_stack
+            .push(ExplorerChange::Created(PathBuf::from("/project/new.md")));
         state.drag_target = Some(DragExplorerTarget::Background);
         state.edit = Some(ExplorerEditState {
             root: 0,
@@ -709,7 +701,10 @@ mod tests {
         assert_eq!(cloned.entries, state.entries);
         assert_eq!(cloned.selected, state.selected);
         assert_eq!(cloned.clipboard, state.clipboard);
-        assert_eq!(cloned.undo_history.undo_stack, state.undo_history.undo_stack);
+        assert_eq!(
+            cloned.undo_history.undo_stack,
+            state.undo_history.undo_stack
+        );
         // The shared allocator is shared, not re-seeded.
         assert!(Arc::ptr_eq(&cloned.next_entry_id, &state.next_entry_id));
 

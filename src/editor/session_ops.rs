@@ -1,4 +1,4 @@
-//! Editor pane operations of an Editor window.
+//! Editor pane operations of an Editor panel.
 //!
 //! The per-area editor sessions (document tab list +  pane split
 //! root) and all pane operations. The split root is the same

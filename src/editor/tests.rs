@@ -4,12 +4,13 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use gpui::{AppContext, ClickEvent, KeyDownEvent, Keystroke, TestAppContext};
 
-use crate::editor::actions::{CloseWindow, QuitApplication, SaveDocument};
+use crate::app::actions::{CloseWindow, QuitApplication};
+use crate::editor::actions::SaveDocument;
 use crate::editor::controller::{Editor, EditorMode};
 use crate::editor::editing::input::actions::{FocusNext, Newline};
 use crate::editor::render::export::ExportFormat;
-use crate::editor::window::context_menu::TableInsertTarget;
-use crate::editor::window::dialogs::TableInsertDialogState;
+use crate::editor::view::context_menu::TableInsertTarget;
+use crate::editor::view::dialogs::TableInsertDialogState;
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::infra::theme::{Theme, ThemeManager};
 use crate::model::block::BlockKind;
@@ -273,7 +274,7 @@ fn about_dialog_body_lines_include_repository_and_star_message() {
     assert_eq!(lines[0], format!("Splitype {}", env!("CARGO_PKG_VERSION")));
     assert_eq!(
         lines[2],
-        format!("GitHub: {}", crate::editor::window::SPLITYPE_REPOSITORY_URL)
+        format!("GitHub: {}", crate::editor::view::SPLITYPE_REPOSITORY_URL)
     );
     assert_eq!(
         lines[3],
@@ -284,12 +285,12 @@ fn about_dialog_body_lines_include_repository_and_star_message() {
 #[gpui::test]
 async fn about_github_link_uses_gpui_url_opening(cx: &mut TestAppContext) {
     cx.update(|cx| {
-        crate::editor::window::open_splitype_repository(cx);
+        crate::editor::view::open_splitype_repository(cx);
     });
 
     assert_eq!(
         cx.opened_url(),
-        Some(crate::editor::window::SPLITYPE_REPOSITORY_URL.to_string())
+        Some(crate::editor::view::SPLITYPE_REPOSITORY_URL.to_string())
     );
 }
 

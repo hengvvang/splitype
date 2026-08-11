@@ -330,15 +330,12 @@ impl Render for Editor {
             .on_action(cx.listener(Self::on_save_document_as))
             .on_action(cx.listener(Self::on_export_html))
             .on_action(cx.listener(Self::on_export_pdf))
-            .on_action(cx.listener(Self::on_quit_application))
             .on_action(cx.listener(Self::on_toggle_view_mode_action))
             .on_action(cx.listener(Self::on_page_up))
             .on_action(cx.listener(Self::on_page_down))
             .on_action(cx.listener(Self::on_jump_to_top))
             .on_action(cx.listener(Self::on_jump_to_bottom))
             .on_action(cx.listener(Self::on_dismiss_transient_ui))
-            .on_action(cx.listener(Self::on_install_cli_tool))
-            .on_action(cx.listener(Self::on_uninstall_cli_tool))
             .child(self.render_editor_topbar(
                 WindowPanelKind::Editor,
                 &theme,

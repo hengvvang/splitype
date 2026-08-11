@@ -8,14 +8,15 @@ use std::path::PathBuf;
 
 use gpui::*;
 
-use crate::editor::actions::{
+use crate::app::actions::{
     AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseExplorerFolder, CloseWindow,
-    ExportHtml, ExportPdf, NewWindow, NoRecentFiles, OpenBugReport, OpenDiscussions,
-    OpenFeatureRequest, OpenFile, OpenRecentFile, OpenSettings, OpenSplitypeRepository,
-    QuitApplication, SaveDocument, SaveDocumentAs, SelectLanguage, SelectTheme, ShowAbout,
+    NewWindow, NoRecentFiles, OpenBugReport, OpenDiscussions, OpenFeatureRequest, OpenFile,
+    OpenRecentFile, OpenSettings, OpenSplitypeRepository, QuitApplication, SelectLanguage,
+    SelectTheme, ShowAbout,
 };
 #[cfg(target_os = "macos")]
-use crate::editor::actions::{InstallCliTool, UninstallCliTool};
+use crate::app::actions::{InstallCliTool, UninstallCliTool};
+use crate::editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::ThemeManager;
 #[cfg(target_os = "macos")]
@@ -176,11 +177,11 @@ pub(super) fn build_menus(
 #[cfg(test)]
 mod tests {
     use super::build_menus;
-    use crate::editor::actions::{
-        AddLanguageConfig, AddThemeConfig, ExportHtml, ExportPdf, NoRecentFiles, OpenBugReport,
-        OpenDiscussions, OpenFeatureRequest, OpenRecentFile, OpenSplitypeRepository,
-        SelectLanguage, SelectTheme,
+    use crate::app::actions::{
+        AddLanguageConfig, AddThemeConfig, NoRecentFiles, OpenBugReport, OpenDiscussions,
+        OpenFeatureRequest, OpenRecentFile, OpenSplitypeRepository, SelectLanguage, SelectTheme,
     };
+    use crate::editor::actions::{ExportHtml, ExportPdf};
     use crate::infra::i18n::I18nManager;
     use crate::infra::theme::ThemeManager;
     use gpui::{Action, MenuItem};

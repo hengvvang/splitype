@@ -11,8 +11,9 @@ use std::collections::HashMap;
 
 use gpui::*;
 
-use crate::app::window_panels::WindowPanelKind;
+use crate::app::actions::{InstallCliTool, QuitApplication, UninstallCliTool};
 use crate::app::window_chrome::MenuBarState;
+use crate::app::window_panels::WindowPanelKind;
 use crate::app::window_panels::WindowPanels;
 use crate::editor::controller::{DocumentTab, Editor, InfoDialogKind};
 use crate::editor::session::EditorSession;
@@ -75,9 +76,11 @@ impl Shell {
 
     /// The window's primary (first) editor area content, if any.
     pub(crate) fn primary_editor(&self) -> Option<&Entity<Editor>> {
-        self.panel_contents.values().find_map(|content| match content {
-            PanelContent::Editor(editor) => Some(editor),
-        })
+        self.panel_contents
+            .values()
+            .find_map(|content| match content {
+                PanelContent::Editor(editor) => Some(editor),
+            })
     }
 
     /// Recomputes every editor area's pushed state — the area rectangle,
@@ -307,9 +310,7 @@ impl Shell {
         let Some(editor) = self.editor_for(panel_id) else {
             return false;
         };
-        let _ = editor.update(cx, |editor, cx| {
-            editor.open_file_in_panel(path, window, cx)
-        });
+        let _ = editor.update(cx, |editor, cx| editor.open_file_in_panel(path, window, cx));
         true
     }
     /// Creates a fresh Editor entity serving `panel_id` and registers it in
@@ -434,7 +435,9 @@ impl Shell {
     /// (pane layout + tab list) and the explorer state is cloned.
     pub(crate) fn clone_container_into_new_window(
         &mut self,
-        cloned: crate::splitter::policy::ClonedContainer<crate::app::window_panels::WindowPanelKind>,
+        cloned: crate::splitter::policy::ClonedContainer<
+            crate::app::window_panels::WindowPanelKind,
+        >,
         cx: &mut Context<Self>,
     ) {
         let mut sessions = HashMap::new();
@@ -552,7 +555,7 @@ impl Shell {
     /// is locked when the aggregated dirty check reads them).
     pub(crate) fn on_close_window(
         &mut self,
-        _: &crate::editor::actions::CloseWindow,
+        _: &crate::app::actions::CloseWindow,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -571,6 +574,33 @@ impl Shell {
             return;
         }
         self.request_close_current_window(window, cx);
+    }
+
+    pub(crate) fn on_quit_application(
+        &mut self,
+        _: &QuitApplication,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        crate::app::menus::request_quit_application(cx);
+    }
+
+    pub(crate) fn on_install_cli_tool(
+        &mut self,
+        _: &InstallCliTool,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        crate::app::cli_install::install_cli_tool(cx);
+    }
+
+    pub(crate) fn on_uninstall_cli_tool(
+        &mut self,
+        _: &UninstallCliTool,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        crate::app::cli_install::uninstall_cli_tool(cx);
     }
 }
 
@@ -596,6 +626,9 @@ impl Render for Shell {
             .on_action(cx.listener(Self::on_close_window))
             .on_action(cx.listener(Self::on_toggle_explorer_action))
             .on_action(cx.listener(Self::on_close_explorer_folder_action))
+            .on_action(cx.listener(Self::on_quit_application))
+            .on_action(cx.listener(Self::on_install_cli_tool))
+            .on_action(cx.listener(Self::on_uninstall_cli_tool))
             // A mouse-down anywhere in the window body closes an open
             // menu; titlebar and menu panels are siblings of the body
             // container, so their clicks never reach this listener.

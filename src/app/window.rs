@@ -12,7 +12,7 @@ use crate::app::window_panels::{DEFAULT_EDITOR_PANEL_ID, WindowPanelKind};
 use crate::app::window_chrome::MenuBarState;
 use crate::app::window_panels::WindowPanels;
 use crate::editor::controller::Editor;
-use crate::editor::explorer_state::state::ExplorerState;
+use crate::explorer::state::state::ExplorerState;
 use crate::editor::session::EditorSession;
 use crate::infra::config::recent::record_recent_file;
 use crate::splitter::NodeId;

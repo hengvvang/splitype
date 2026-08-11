@@ -8,7 +8,7 @@ use crate::ui::popover::overlay;
 use gpui::*;
 
 use crate::editor::controller::Editor;
-use crate::editor::window::context_menu::ContextMenuState;
+use crate::editor::view::context_menu::ContextMenuState;
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::Theme;
 use crate::model::syntax::table::TableAxisKind;

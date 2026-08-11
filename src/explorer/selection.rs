@@ -8,7 +8,7 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 
-use crate::editor::explorer_state::state::*;
+use crate::explorer::state::state::*;
 
 // Explorer navigation actions. They intentionally carry no default key
 // bindings (keybinding design is out of scope); handlers are wired on the

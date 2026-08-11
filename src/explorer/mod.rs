@@ -2,11 +2,11 @@
 //!
 //! # Architecture (mirroring Zed's project panel)
 //!
-//! - **State & model** live in `crate::editor::explorer_state` (owned by
-//!   the Editor entity): the [`worktree`] scan entities, the [`state`]
+//! - **State & model** live in [`state`] (owned by `WindowPanels::explorer`
+//!   in `crate::app`): the [`worktree`] scan entities, the [`state`]
 //!   (file-tree nodes, visible rows, selection), the [`undo`] manager, and
 //!   the background [`utils`] helpers. This view module depends on them
-//!   one-way — the editor never imports `crate::explorer`.
+//!   one-way — the explorer never imports the editor, and vice versa.
 //! - **Tree state** ([`tree`]) caches one [`ExplorerFileNode`] per worktree
 //!   (indexed identically to `worktrees`, so expansion sets and selections
 //!   keyed by index never drift), holds the per-worktree expansion sets, and
@@ -29,7 +29,7 @@
 //!
 //! The outline panel (headings) keeps its own state in
 //! `crate::editor::outline`; the sidebar state and file-tree model
-//! live in `crate::editor::explorer_state`.
+//! live in [`state`].
 
 pub(crate) mod bottombar;
 pub(crate) mod context_menu;
@@ -40,6 +40,7 @@ pub(crate) mod open;
 pub(crate) mod panel;
 pub(crate) mod render;
 pub(crate) mod selection;
+pub(crate) mod state;
 pub(crate) mod topbar;
 pub(crate) mod tree;
 

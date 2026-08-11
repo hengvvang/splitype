@@ -1,7 +1,7 @@
 //! WYSIWYG panel — the rendered block view.
 //!
 //! Row layout and spacing helpers used by the main render pass; the render
-//! orchestration itself lives in `crate::editor::window`.
+//! orchestration itself lives in `crate::editor::view`.
 
 use gpui::*;
 

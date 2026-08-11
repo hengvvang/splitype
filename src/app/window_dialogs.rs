@@ -15,7 +15,7 @@ use futures::channel::oneshot;
 
 use crate::app::shell::{PanelContent, Shell};
 use crate::editor::controller::{Editor, InfoDialogKind};
-use crate::editor::window::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
+use crate::editor::view::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::infra::net::update_checker::{
     self as update_check, UpdateCheckResult, UpdateVersionInfo,

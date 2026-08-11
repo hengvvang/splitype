@@ -15,8 +15,8 @@ use splitype_splitter::policy::DragPolicy;
 use splitype_splitter::root::SplitterRoot;
 use splitype_splitter::tree::NodeId;
 
-use crate::editor::explorer_state::state::ExplorerState;
-use crate::editor::settings_state::SettingsUiState;
+use crate::explorer::state::state::ExplorerState;
+use crate::settings::state::SettingsUiState;
 
 /// Top-level panel types in the tiled split layout: the window-level
 /// panels (each a split-tree leaf). The editor's inner panes are a

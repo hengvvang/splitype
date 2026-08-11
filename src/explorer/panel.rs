@@ -8,9 +8,9 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 
-use crate::editor::actions::{CloseExplorerFolder, ToggleExplorer};
-use crate::editor::explorer_state::state::*;
-use crate::editor::explorer_state::worktree::Worktree;
+use crate::app::actions::{CloseExplorerFolder, ToggleExplorer};
+use crate::explorer::state::state::*;
+use crate::explorer::state::worktree::Worktree;
 use crate::infra::config::settings::ExplorerSettingsStore;
 
 /// Re-key a selection after a worktree removal: selections inside the

@@ -16,11 +16,11 @@ use std::time::Duration;
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
-use crate::app::menus::dispatch_menu_action_for_editor;
-use crate::app::shell::Shell;
-use crate::editor::actions::{
+use crate::app::actions::{
     AddLanguageConfig, AddThemeConfig, NoRecentFiles, SelectLanguage, SelectTheme,
 };
+use crate::app::menus::dispatch_menu_action_for_editor;
+use crate::app::shell::Shell;
 use crate::editor::controller::Editor;
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::{Theme, ThemeManager};
@@ -904,7 +904,7 @@ mod tests {
     // element builders (`render_in_window_menu_item`, …) push `#[test]`
     // expansion past the recursion limit on Windows.
     use super::import_menu_split_index;
-    use crate::editor::actions::{AddLanguageConfig, AddThemeConfig, NoRecentFiles};
+    use crate::app::actions::{AddLanguageConfig, AddThemeConfig, NoRecentFiles};
     use gpui::OwnedMenuItem;
 
     fn disabled_menu_action(name: &str) -> OwnedMenuItem {

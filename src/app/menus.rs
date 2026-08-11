@@ -12,22 +12,22 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
+use crate::app::actions::{
+    AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseExplorerFolder, CloseWindow,
+    InstallCliTool, NewWindow, NoRecentFiles, OpenBugReport, OpenDiscussions, OpenFeatureRequest,
+    OpenFile, OpenRecentFile, OpenSettings, OpenSplitypeRepository, QuitApplication,
+    SelectLanguage, SelectTheme, ShowAbout, ToggleExplorer, UninstallCliTool,
+};
 #[cfg(target_os = "macos")]
 use crate::app::cli_install::{install_cli_tool, uninstall_cli_tool};
 #[cfg(not(target_os = "macos"))]
 use crate::app::cli_install::{install_cli_tool, uninstall_cli_tool};
 use crate::app::shell::Shell;
 use crate::app::window::{open_editor_window, record_recent_file_and_refresh};
-use crate::editor::actions::{
-    AddLanguageConfig, AddThemeConfig, CheckForUpdates, CloseExplorerFolder, CloseWindow,
-    ExportHtml, ExportPdf, InstallCliTool, NewWindow, NoRecentFiles, OpenBugReport,
-    OpenDiscussions, OpenFeatureRequest, OpenFile, OpenRecentFile, OpenSettings,
-    OpenSplitypeRepository, QuitApplication, SaveDocument, SaveDocumentAs, SelectLanguage,
-    SelectTheme, ShowAbout, ToggleExplorer, UninstallCliTool,
-};
+use crate::editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
 use crate::editor::controller::{Editor, InfoDialogKind};
 use crate::editor::render::export::ExportFormat;
-use crate::editor::window::{
+use crate::editor::view::{
     open_bug_report, open_discussions, open_feature_request, open_splitype_repository,
 };
 use crate::infra::config::settings::{apply_configured_language, apply_configured_theme};
@@ -509,10 +509,11 @@ pub(crate) fn init(cx: &mut App) {
 
 #[cfg(test)]
 mod tests {
-    use crate::editor::actions::{
+    use crate::app::actions::{
         AddLanguageConfig, AddThemeConfig, CloseWindow, NewWindow, NoRecentFiles, OpenFile,
-        OpenRecentFile, OpenSettings, QuitApplication, SaveDocument, SelectLanguage, SelectTheme,
+        OpenRecentFile, OpenSettings, QuitApplication, SelectLanguage, SelectTheme,
     };
+    use crate::editor::actions::SaveDocument;
 
     #[test]
     fn fallback_menu_routes_window_context_actions_without_app_defer() {

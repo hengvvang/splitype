@@ -10,7 +10,7 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 
-use crate::editor::settings_state::SettingsTab;
+use crate::settings::state::SettingsTab;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::{Theme, ThemeManager};
 use crate::ui::switch::Switch;

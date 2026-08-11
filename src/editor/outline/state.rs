@@ -5,6 +5,20 @@
 //! state, so the editor never depends on the explorer module.
 
 use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
+
+/// Uniform row height for outline nodes (the virtualized list requires a
+/// fixed height).
+pub const OUTLINE_NODE_HEIGHT: f32 = 28.0;
+/// Horizontal indent per heading depth.
+pub const OUTLINE_NODE_INDENT: f32 = 14.0;
+
+/// Stable hash for outline node ids, used to build element ids.
+pub fn outline_node_hash(id: &str) -> u64 {
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    id.hash(&mut hasher);
+    hasher.finish()
+}
 
 /// A node in the outline tree (headings only).
 #[derive(Clone, Debug, PartialEq, Eq)]

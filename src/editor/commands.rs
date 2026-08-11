@@ -1,16 +1,13 @@
-//! Window commands — save/export/quit/close, CLI tooling, view-mode
-//! switching, and dirty tracking.
+//! Editor commands — save/export, view-mode switching, undo/redo, and
+//! dirty tracking.
 //!
-//! Action handlers wired in the editor's render flow (`src/editor/window/`)
-//! delegate to these methods. File prompts live in `crate::app::menus`; the
-//! in-window menu-bar state machine lives in `crate::app::window_chrome`.
+//! Action handlers wired in the editor's render flow
+//! (`src/editor/view/`) delegate to these methods. Window/app-level
+//! commands (quit, CLI tooling, explorer) live in `crate::app`.
 
 use std::path::Path;
 
-use crate::editor::actions::{
-    ExportHtml, ExportPdf, InstallCliTool, QuitApplication, SaveDocument, SaveDocumentAs,
-    ToggleViewMode, UninstallCliTool,
-};
+use crate::editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs, ToggleViewMode};
 use crate::editor::controller::*;
 use crate::editor::editing::input::actions::{Redo, Undo};
 
@@ -127,33 +124,6 @@ impl Editor {
             window,
             cx,
         );
-    }
-
-    pub(crate) fn on_quit_application(
-        &mut self,
-        _: &QuitApplication,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        crate::app::menus::request_quit_application(cx);
-    }
-
-    pub(crate) fn on_install_cli_tool(
-        &mut self,
-        _: &InstallCliTool,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        crate::app::cli_install::install_cli_tool(cx);
-    }
-
-    pub(crate) fn on_uninstall_cli_tool(
-        &mut self,
-        _: &UninstallCliTool,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        crate::app::cli_install::uninstall_cli_tool(cx);
     }
 
     pub(crate) fn toggle_view_mode(&mut self, cx: &mut Context<Self>) {

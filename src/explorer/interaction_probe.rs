@@ -22,7 +22,7 @@ use crate::app::window_panels::DEFAULT_EDITOR_PANEL_ID;
 use crate::app::window_chrome::MenuBarState;
 use crate::app::window_panels::WindowPanels;
 use crate::editor::controller::Editor;
-use crate::editor::explorer_state::state::*;
+use crate::explorer::state::state::*;
 
 fn init_explorer_test_app(cx: &mut TestAppContext) {
     cx.update(|cx| {

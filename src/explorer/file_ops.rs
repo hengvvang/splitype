@@ -8,12 +8,12 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 
-use crate::editor::explorer_state::state::*;
-use crate::editor::explorer_state::undo::{
+use crate::explorer::state::state::*;
+use crate::explorer::state::undo::{
     ExplorerChange, execute_explorer_change, execute_explorer_change_inverse,
     explorer_change_destination,
 };
-use crate::editor::explorer_state::utils::execute_entry_ops;
+use crate::explorer::state::utils::execute_entry_ops;
 
 impl Shell {
     /// Delete the effective selection with a confirmation prompt; after the

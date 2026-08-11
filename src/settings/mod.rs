@@ -3,6 +3,7 @@
 
 pub(crate) mod bottombar;
 pub(crate) mod panels;
+pub(crate) mod state;
 pub(crate) mod topbar;
 
 use crate::ui::section::{section_card, section_header, settings_row};
