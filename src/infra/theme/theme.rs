@@ -256,7 +256,7 @@ impl Theme {
                 bottombar_text_size: 11.0,
                 area_tile_gap: 6.0,
                 pane_gap: 3.0,
-                area_tile_radius: 3.0,
+                panel_tile_radius: 3.0,
             },
             typography: ThemeTypography {
                 text_size: 17.0,

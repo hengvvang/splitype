@@ -1,7 +1,7 @@
 //! Top bar container — the full-width bar at the top of every window panel.
 //!
 //! Shared by the editor / explorer / settings area top bars so all three
-//! areas render the same height, tint and separator (dashed bottom edge).
+//! panels render the same height, tint and separator (dashed bottom edge).
 
 use gpui::*;
 

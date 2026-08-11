@@ -1,23 +1,23 @@
 //! Cross-crate contract tests for the tiled layout engine.
 //!
-//! `splitype-splitter` owns only the outer window tree; the inner panel
+//! `splitype-splitter` owns only the outer window tree; the inner pane
 //! layout moved to the editor layer and is covered by module tests there.
 //! These tests drive the outer tree through its public API as an external
-//! consumer would: split areas, close them, switch kinds, and verify the
+//! consumer would: split panels, close them, switch kinds, and verify the
 //! resulting rectangles.
 
 use gpui::{Size, px};
 
+use splitype::app::window_panels::WindowPanelKind;
+use splitype::app::window_panels::{DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowLayout};
 use splitype_splitter::Axis;
-use splitype::app::window_area::{DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowLayout};
-use splitype_splitter::tree::AreaRect;
-use splitype::app::window_area::WindowPanelKind;
+use splitype_splitter::tree::LeafRect;
 
 fn layout() -> WindowLayout {
-    splitype::app::window_area::default_layout()
+    splitype::app::window_panels::default_layout()
 }
 
-fn root_rects(state: &WindowLayout) -> Vec<AreaRect> {
+fn root_rects(state: &WindowLayout) -> Vec<LeafRect> {
     let mut rects = Vec::new();
     state
         .tree
@@ -37,9 +37,7 @@ fn default_layout_is_explorer_editor_split() {
         Some(WindowPanelKind::Explorer)
     );
     assert_eq!(
-        state
-            .tree
-            .find_leaf_kind(DEFAULT_EDITOR_PANEL_ID),
+        state.tree.find_leaf_kind(DEFAULT_EDITOR_PANEL_ID),
         Some(WindowPanelKind::Editor)
     );
     let rects = root_rects(&state);
@@ -50,7 +48,7 @@ fn default_layout_is_explorer_editor_split() {
 
 /// Splitting an area adds a leaf and halves that side's rects.
 #[test]
-fn split_window_area_creates_two_leaves() {
+fn split_window_panel_creates_two_leaves() {
     let mut state = layout();
     let new_id = state
         .split_leaf(DEFAULT_EDITOR_PANEL_ID, Axis::Horizontal, 0.5)
@@ -92,16 +90,12 @@ fn area_kinds_switch_on_leaves() {
     let mut state = layout();
     state.set_kind(DEFAULT_EDITOR_PANEL_ID, WindowPanelKind::Settings);
     assert_eq!(
-        state
-            .tree
-            .find_leaf_kind(DEFAULT_EDITOR_PANEL_ID),
+        state.tree.find_leaf_kind(DEFAULT_EDITOR_PANEL_ID),
         Some(WindowPanelKind::Settings)
     );
     state.set_kind(DEFAULT_EDITOR_PANEL_ID, WindowPanelKind::Editor);
     assert_eq!(
-        state
-            .tree
-            .find_leaf_kind(DEFAULT_EDITOR_PANEL_ID),
+        state.tree.find_leaf_kind(DEFAULT_EDITOR_PANEL_ID),
         Some(WindowPanelKind::Editor)
     );
 }
@@ -122,9 +116,9 @@ fn split_ratio_affects_rect_widths() {
     assert!((left.width - 17.5).abs() < 0.001);
 }
 
-/// Window area rects scale to the container size.
+/// Window panel rects scale to the container size.
 #[test]
-fn window_area_rects_scale_to_container() {
+fn window_panel_rects_scale_to_container() {
     let mut state = layout();
     state.split_leaf(DEFAULT_EDITOR_PANEL_ID, Axis::Horizontal, 0.5);
 
@@ -145,15 +139,9 @@ fn maximize_toggles_single_area() {
         .expect("split");
 
     state.toggle_maximize(new_id);
-    assert!(state
-        .tree
-        .find_leaf(new_id)
-        .is_some_and(|p| p.maximized));
+    assert!(state.tree.find_leaf(new_id).is_some_and(|p| p.maximized));
     state.toggle_maximize(new_id);
-    assert!(state
-        .tree
-        .find_leaf(new_id)
-        .is_some_and(|p| !p.maximized));
+    assert!(state.tree.find_leaf(new_id).is_some_and(|p| !p.maximized));
 }
 
 /// Activation history records the most recent editor area.
@@ -162,8 +150,5 @@ fn activation_history_tracks_editors() {
     let mut state = layout();
     state.activate_leaf(DEFAULT_EDITOR_PANEL_ID);
     assert_eq!(state.active_leaf, Some(DEFAULT_EDITOR_PANEL_ID));
-    assert_eq!(
-        state.activation_history,
-        vec![DEFAULT_EDITOR_PANEL_ID]
-    );
+    assert_eq!(state.activation_history, vec![DEFAULT_EDITOR_PANEL_ID]);
 }

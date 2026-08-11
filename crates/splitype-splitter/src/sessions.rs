@@ -3,12 +3,12 @@
 //! These are pure state records; the gesture handling that drives them
 //! and every policy decision (what a drag means, whether to render an
 //! indicator) lives in the hosts' render layer (`src/editor/window_layout`
-//! drives the mouse gestures for both the outer areas and the inner
-//! editor panels; `src/editor/panel_layout` renders the inner panels).
+//! drives the mouse gestures for both the outer panels and the inner
+//! editor panes; `src/editor/pane_layout` renders the panes).
 
 use gpui::{Pixels, Point};
 
-use crate::tree::{AreaRect, Axis, Direction};
+use crate::tree::{LeafRect, Axis, Direction};
 
 /// Modifier key held during a corner drag — a raw gesture fact.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -66,7 +66,7 @@ pub struct CornerDragSession {
     pub hover_leaf: Option<usize>,
 }
 
-/// Context menu state for right-clicking a border divider bar between areas.
+/// Context menu state for right-clicking a border divider bar between leaves.
 ///
 /// `split_id` doubles as the target area id: by the split tree's convention
 /// a split node's id equals its second child leaf's id, so split/close (which
@@ -97,7 +97,7 @@ pub fn past_shortcut_threshold(facts: &CornerDragSession) -> bool {
 /// Return the id of the element that contains `pos`, given pixel-space rects.
 /// Generic over layout level: the id is an `NodeId` when called with outer
 /// rects and a `NodeId` when called with inner rects.
-pub fn id_at_point(rects: &[AreaRect], pos: Point<Pixels>) -> Option<usize> {
+pub fn id_at_point(rects: &[LeafRect], pos: Point<Pixels>) -> Option<usize> {
     let px = f32::from(pos.x);
     let py = f32::from(pos.y);
     for rect in rects {

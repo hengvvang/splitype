@@ -1,6 +1,6 @@
 //! Tiled layout engine — the pure layout core shared by the window-level
-//! area layout (`SplitterRoot<WindowAreaKind>`) and the editor's inner
-//! panel layout (`SplitterRoot<EditorInnerPanelKind>`).
+//! panel layout (`SplitterRoot<WindowPanelKind>`) and the editor's inner
+//! pane layout (`SplitterRoot<EditorPaneKind>`).
 //!
 //! This module owns:
 //! - [`SplitterContainer`] — the panel container (one leaf): the panel

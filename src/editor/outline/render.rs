@@ -87,15 +87,13 @@ impl Editor {
     }
     pub(crate) fn render_outline_pane(
         &mut self,
-        panel_id: usize,
-        _panel_id: usize,
         theme: &Theme,
         strings: &I18nStrings,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         self.sync_editor_outline(cx);
         let editor = cx.entity().downgrade();
-        self.render_outline_tree(panel_id, theme, strings, &editor)
+        self.render_outline_tree(self.panel_id, theme, strings, &editor)
     }
 
     pub(crate) fn toggle_outline_node(&mut self, id: &str, cx: &mut Context<Self>) {

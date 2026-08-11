@@ -1,5 +1,5 @@
 //! Window-level tiled area layout — rendering and gestures for the outer
-//! `WindowPanelKind` split tree (ExplorerState / Settings / Editor areas).
+//! `WindowPanelKind` split tree (ExplorerState / Settings / Editor panel_contents).
 //!
 //! The layout engine (tree, sessions, operations) lives in `crate::splitter`;
 //! the editor.s pane layout rendering lives in
@@ -13,7 +13,7 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 
-use crate::app::window_area::WindowPanelKind;
+use crate::app::window_panels::WindowPanelKind;
 use crate::editor::corner_drag_preview::render_corner_drag_preview;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
@@ -161,10 +161,10 @@ impl Shell {
                     // Forward to every editor entity — only the one with an
                     // active drag reports a change.
                     let editors: Vec<Entity<crate::editor::controller::Editor>> = ed
-                        .areas
+                        .panel_contents
                         .values()
                         .filter_map(|content| match content {
-                            crate::app::shell::AreaContent::Editor(entity) => Some(entity.clone()),
+                            crate::app::shell::PanelContent::Editor(entity) => Some(entity.clone()),
                         })
                         .collect();
                     for editor in editors {
@@ -233,10 +233,10 @@ impl Shell {
                     // Inner-level drag end (splitter bars and panel corner
                     // drags); the handling lives in `panel_layout`.
                     let editors: Vec<Entity<crate::editor::controller::Editor>> = ed
-                        .areas
+                        .panel_contents
                         .values()
                         .filter_map(|content| match content {
-                            crate::app::shell::AreaContent::Editor(entity) => Some(entity.clone()),
+                            crate::app::shell::PanelContent::Editor(entity) => Some(entity.clone()),
                         })
                         .collect();
                     for editor in editors {
@@ -252,7 +252,7 @@ impl Shell {
         // have their own immediate behaviors.
         let overlay_style = splitype_splitter::interaction::OverlayStyle {
             accent: theme.colors.split_indicator,
-            tile_radius: theme.dimensions.area_tile_radius,
+            tile_radius: theme.dimensions.panel_tile_radius,
             border: theme.colors.dialog_border,
             selection: theme.colors.selection,
             active: theme.colors.focus_accent,
@@ -286,7 +286,7 @@ impl Shell {
     }
     pub(crate) fn render_window_panel_node(
         &mut self,
-        node: &crate::splitter::SplitTree<crate::app::window_area::WindowPanelKind>,
+        node: &crate::splitter::SplitTree<crate::app::window_panels::WindowPanelKind>,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -296,7 +296,7 @@ impl Shell {
         let c = &theme.colors;
         let overlay_style = splitype_splitter::interaction::OverlayStyle {
             accent: c.split_indicator,
-            tile_radius: theme.dimensions.area_tile_radius,
+            tile_radius: theme.dimensions.panel_tile_radius,
             border: c.dialog_border,
             selection: c.selection,
             active: c.focus_accent,
@@ -341,7 +341,7 @@ impl Shell {
                             .active_splitter_drag
                             .is_some_and(|drag| drag.split_id == split_id);
 
-                        // The split areas tile seamlessly; the splitter bar
+                        // The split panel_contents tile seamlessly; the splitter bar
                         // floats as an overlay on the boundary at `r`.
                         div()
                             .id(("tiled-split-h", split_id))
@@ -376,7 +376,7 @@ impl Shell {
                                     .child(second_elem),
                             )
                             .child(
-                                // Splitter bar between the two seamless areas.
+                                // Splitter bar between the two seamless panel_contents.
                                 splitype_splitter::interaction::splitter_bar_h(
                                     ("tiled-root-bar-h", split_id),
                                     r,
@@ -456,7 +456,7 @@ impl Shell {
                                     .child(second_elem),
                             )
                             .child(
-                                // Splitter bar between the two seamless areas.
+                                // Splitter bar between the two seamless panel_contents.
                                 splitype_splitter::interaction::splitter_bar_v(
                                     ("tiled-root-bar-v", split_id),
                                     r,
@@ -501,7 +501,7 @@ impl Shell {
     pub(crate) fn render_window_panel_tile(
         &mut self,
         leaf_id: usize,
-        kind: crate::app::window_area::WindowPanelKind,
+        kind: crate::app::window_panels::WindowPanelKind,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -512,7 +512,7 @@ impl Shell {
         // An Editor leaf renders its own tile (top bar, panes,
         // status bar) via its content entity; only Explorer / Settings
         // leaves are rendered by the Shell.
-        if kind == crate::app::window_area::WindowPanelKind::Editor {
+        if kind == crate::app::window_panels::WindowPanelKind::Editor {
             if let Some(entity) = self.editor_for(leaf_id) {
                 return entity.clone().into_any_element();
             }
@@ -521,7 +521,7 @@ impl Shell {
         let c = &theme.colors;
         let d = &theme.dimensions;
         let gap = d.area_tile_gap;
-        let radius = d.area_tile_radius;
+        let radius = d.panel_tile_radius;
 
         let topbar = match kind {
             WindowPanelKind::Editor => {
@@ -580,8 +580,8 @@ impl Shell {
             .shadow_lg()
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                 let _ = tile_focus.update(cx, |ed, cx| {
-                    ed.panels.layout.focused_area = Some(leaf_id);
-                    if kind == crate::app::window_area::WindowPanelKind::Editor {
+                    ed.panels.layout.focused_leaf = Some(leaf_id);
+                    if kind == crate::app::window_panels::WindowPanelKind::Editor {
                         ed.panels.layout.activate_leaf(leaf_id);
                     }
                     cx.notify();
@@ -641,7 +641,7 @@ impl Shell {
     pub(crate) fn render_panel_type_dropdown_menu(
         &mut self,
         leaf_id: usize,
-        current_kind: crate::app::window_area::WindowPanelKind,
+        current_kind: crate::app::window_panels::WindowPanelKind,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {

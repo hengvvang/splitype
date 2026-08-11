@@ -38,7 +38,7 @@ pub struct ClonedContainer<T: Copy + PartialEq> {
 /// Strategy for a finished corner drag, implemented per panel type on
 /// [`SplitterContainer`]. The default implementations are shared by every
 /// panel type; a specific type overrides just what it needs (e.g. the
-/// editor's inner panels override Shift to a no-op).
+/// editor's inner panes override Shift to a no-op).
 ///
 /// Methods take the root plus the gesture facts (the dragged panel is
 /// identified by `facts.target_id`), so the tree-level operations — split,

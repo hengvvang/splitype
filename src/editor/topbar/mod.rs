@@ -4,7 +4,7 @@
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
-use crate::app::window_area::WindowPanelKind;
+use crate::app::window_panels::WindowPanelKind;
 use crate::editor::window_layout::panel_topbar_icon;
 use crate::infra::theme::Theme;
 use crate::splitter::Axis;
@@ -16,8 +16,7 @@ impl crate::editor::controller::Editor {
     /// plus the Editor-specific tab bar.
     pub(crate) fn render_editor_topbar(
         &mut self,
-        leaf_id: usize,
-        kind: crate::app::window_area::WindowPanelKind,
+        kind: crate::app::window_panels::WindowPanelKind,
         theme: &Theme,
         leaf_count: usize,
         is_maximized: bool,
@@ -25,6 +24,7 @@ impl crate::editor::controller::Editor {
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
+        let leaf_id = self.panel_id;
         let editor = cx.entity().downgrade();
 
         let type_editor = editor.clone();
@@ -67,7 +67,7 @@ impl crate::editor::controller::Editor {
             )
             .on_click(move |_event, _window, cx| {
                 let _ = split_h_editor.update(cx, |ed, cx| {
-                    // Same-kind split; Editor areas deep-copy their tabs.
+                    // Same-kind split; Editor panels deep-copy their tabs.
                     if let Some(shell) = ed.shell.clone() {
                         let _ = shell.update(cx, |shell, cx| {
                             shell.split_panel(leaf_id, Axis::Horizontal, 0.5, true, cx);
@@ -88,7 +88,7 @@ impl crate::editor::controller::Editor {
             )
             .on_click(move |_event, _window, cx| {
                 let _ = split_v_editor.update(cx, |ed, cx| {
-                    // Same-kind split; Editor areas deep-copy their tabs.
+                    // Same-kind split; Editor panels deep-copy their tabs.
                     if let Some(shell) = ed.shell.clone() {
                         let _ = shell.update(cx, |shell, cx| {
                             shell.split_panel(leaf_id, Axis::Vertical, 0.5, true, cx);
@@ -153,7 +153,7 @@ impl crate::editor::controller::Editor {
             actions = actions.child(max_button).child(close_button);
         }
 
-        // Build tab bar for Edit areas from THAT editor's own tab set.
+        // Build tab bar for Edit panels from THAT editor.s own tab set.
         let mut left_section = div().flex().items_center().gap(px(8.0)).child(type_button);
 
         if kind == WindowPanelKind::Editor {
@@ -161,7 +161,7 @@ impl crate::editor::controller::Editor {
             // (empty) session dropped while switched to another kind and
             // switched back, or may be brand new — rendering must never
             // panic on a missing session.
-            let list = self.tab_list_mut_for(leaf_id);
+            let list = self.tab_list_mut();
             let active_tab = list.active_tab;
             let tab_names: Vec<String> = list
                 .tabs
@@ -210,7 +210,7 @@ impl crate::editor::controller::Editor {
                                                 shell.activate_panel(leaf_id, cx);
                                             });
                                         }
-                                        ed.activate_tab(leaf_id, index, cx);
+                                        ed.activate_tab(index, cx);
                                         cx.notify();
                                     });
                                 }),
@@ -238,7 +238,7 @@ impl crate::editor::controller::Editor {
                                                 shell.activate_panel(leaf_id, cx);
                                             });
                                         }
-                                        ed.close_tab(leaf_id, index, cx);
+                                        ed.close_tab(index, cx);
                                         cx.notify();
                                     });
                                 }),
@@ -272,7 +272,7 @@ impl crate::editor::controller::Editor {
                                     shell.activate_panel(leaf_id, cx);
                                 });
                             }
-                            ed.new_untitled_tab(leaf_id, cx);
+                            ed.new_untitled_tab(cx);
                             cx.notify();
                         });
                     })

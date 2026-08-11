@@ -17,8 +17,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use gpui::{AppContext, TestAppContext};
 
-use crate::app::shell::{AreaContent, Shell};
-use crate::app::window_area::DEFAULT_EDITOR_PANEL_ID;
+use crate::app::shell::{PanelContent, Shell};
+use crate::app::window_panels::DEFAULT_EDITOR_PANEL_ID;
 use crate::app::window_chrome::MenuBarState;
 use crate::app::window_panels::WindowPanels;
 use crate::editor::controller::Editor;
@@ -56,7 +56,7 @@ fn new_test_shell<T: AppContext>(cx: &mut T) -> T::Result<gpui::Entity<Shell>> {
     cx.new(|cx| {
         let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
         Shell {
-            areas: [(DEFAULT_EDITOR_PANEL_ID, AreaContent::Editor(editor))].into(),
+            panel_contents: [(DEFAULT_EDITOR_PANEL_ID, PanelContent::Editor(editor))].into(),
             retained_editor_sessions: HashMap::new(),
             menu_bar: MenuBarState::default(),
             panels: WindowPanels::default(),

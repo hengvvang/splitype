@@ -16,7 +16,7 @@ impl Shell {
     pub(crate) fn render_explorer_topbar(
         &self,
         leaf_id: usize,
-        kind: crate::app::window_area::WindowPanelKind,
+        kind: crate::app::window_panels::WindowPanelKind,
         theme: &Theme,
         leaf_count: usize,
         is_maximized: bool,
@@ -50,7 +50,7 @@ impl Shell {
             )
             .on_click(move |_event, _window, cx| {
                 let _ = split_h_editor.update(cx, |ed, cx| {
-                    // Same-kind split; Editor areas deep-copy their tabs.
+                    // Same-kind split; Editor panels deep-copy their tabs.
                     ed.split_panel(leaf_id, Axis::Horizontal, 0.5, true, cx);
                     cx.notify();
                 });
@@ -67,7 +67,7 @@ impl Shell {
             )
             .on_click(move |_event, _window, cx| {
                 let _ = split_v_editor.update(cx, |ed, cx| {
-                    // Same-kind split; Editor areas deep-copy their tabs.
+                    // Same-kind split; Editor panels deep-copy their tabs.
                     ed.split_panel(leaf_id, Axis::Vertical, 0.5, true, cx);
                     cx.notify();
                 });

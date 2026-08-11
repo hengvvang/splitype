@@ -7,8 +7,8 @@ use anyhow::Context as _;
 use gpui::*;
 
 use crate::app::menus::install_menus;
-use crate::app::shell::{AreaContent, Shell};
-use crate::app::window_area::{DEFAULT_EDITOR_PANEL_ID, WindowPanelKind};
+use crate::app::shell::{PanelContent, Shell};
+use crate::app::window_panels::{DEFAULT_EDITOR_PANEL_ID, WindowPanelKind};
 use crate::app::window_chrome::MenuBarState;
 use crate::app::window_panels::WindowPanels;
 use crate::editor::controller::Editor;
@@ -60,8 +60,8 @@ pub(crate) fn open_editor_window(
                 });
                 let shell = cx.new(move |_cx| Shell {
                     // The default layout is Explorer (left) + Editor (right);
-                    // only Editor areas carry content entities.
-                    areas: [(DEFAULT_EDITOR_PANEL_ID, AreaContent::Editor(editor))].into(),
+                    // only Editor panel_contents carry content entities.
+                    panel_contents: [(DEFAULT_EDITOR_PANEL_ID, PanelContent::Editor(editor))].into(),
                     retained_editor_sessions: HashMap::new(),
                     menu_bar: MenuBarState::default(),
                     panels: WindowPanels::default(),
@@ -75,10 +75,10 @@ pub(crate) fn open_editor_window(
                 let shell_weak = shell.downgrade();
                 let editors: Vec<Entity<Editor>> = shell
                     .read(cx)
-                    .areas
+                    .panel_contents
                     .values()
                     .filter_map(|content| match content {
-                        AreaContent::Editor(entity) => Some(entity.clone()),
+                        PanelContent::Editor(entity) => Some(entity.clone()),
                     })
                     .collect();
                 for editor in editors {
@@ -102,7 +102,7 @@ pub(crate) fn open_editor_window(
 /// Opens a new independent window hosting a cloned container (Shift-drag
 /// default): the caller supplies the fresh tree (a single-leaf layout of
 /// the dragged panel when produced by the default Shift policy), the
-/// deep-copied sessions of its Editor areas, and — for an Explorer area —
+/// deep-copied sessions of its Editor panel_contents, and — for an Explorer area —
 /// the deep-copied file-tree state.
 pub(crate) fn open_cloned_window(
     tree: SplitTree<WindowPanelKind>,
@@ -117,10 +117,10 @@ pub(crate) fn open_cloned_window(
             splitype_window_options(SharedString::new("Splitype"), bounds),
             move |_window, cx| {
                 // Materialize one Editor entity per cloned session.
-                let mut areas = HashMap::new();
+                let mut panel_contents = HashMap::new();
                 for (panel_id, session) in sessions {
                     let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
-                    areas.insert(panel_id, AreaContent::Editor(editor));
+                    panel_contents.insert(panel_id, PanelContent::Editor(editor));
                 }
                 // The Shell owns the cloned outer layout and explorer state.
                 let mut panels = WindowPanels::default();
@@ -143,7 +143,7 @@ pub(crate) fn open_cloned_window(
                     panels.layout.activation_history.clear();
                 }
                 let shell = cx.new(move |_cx| Shell {
-                    areas,
+                    panel_contents,
                     retained_editor_sessions: HashMap::new(),
                     menu_bar: MenuBarState::default(),
                     panels,
@@ -157,10 +157,10 @@ pub(crate) fn open_cloned_window(
                 let shell_weak = shell.downgrade();
                 let editors: Vec<Entity<Editor>> = shell
                     .read(cx)
-                    .areas
+                    .panel_contents
                     .values()
                     .filter_map(|content| match content {
-                        AreaContent::Editor(entity) => Some(entity.clone()),
+                        PanelContent::Editor(entity) => Some(entity.clone()),
                     })
                     .collect();
                 for editor in editors {

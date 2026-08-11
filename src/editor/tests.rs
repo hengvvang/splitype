@@ -56,16 +56,11 @@ fn redraw(cx: &mut gpui::VisualTestContext) {
 /// reaches them.
 fn ensure_wysiwyg_editing_panel(editor: &gpui::Entity<Editor>, cx: &mut gpui::App) {
     editor.update(cx, |editor, _cx| {
-        let area = crate::app::window_area::DEFAULT_EDITOR_PANEL_ID;
         let mut ids = Vec::new();
-        editor
-            .ensure_editor_session(area)
-            .root
-            .tree
-            .leaf_ids(&mut ids);
+        editor.session_mut().root.tree.leaf_ids(&mut ids);
         for id in ids {
             editor
-                .ensure_editor_session(area)
+                .session_mut()
                 .root
                 .tree
                 .set_leaf_kind(id, crate::editor::session::EditorPaneKind::Wysiwyg);
@@ -771,7 +766,7 @@ async fn app_menu_opened_dirty_file_window_prompts_only_that_window(cx: &mut Tes
 
     second_window
         .update(cx, |shell, window, cx| {
-            let editor = shell.primary_editor().expect("editor area").clone();
+            let editor = shell.primary_editor().expect("editor panel").clone();
             editor.update(cx, |editor, cx| {
                 editor.mark_dirty(cx);
             });
@@ -781,13 +776,13 @@ async fn app_menu_opened_dirty_file_window_prompts_only_that_window(cx: &mut Tes
 
     first_window
         .update(cx, |shell, _window, cx| {
-            let editor = shell.primary_editor().expect("editor area");
+            let editor = shell.primary_editor().expect("editor panel");
             assert!(!editor.read(cx).tab().file.show_unsaved_changes_dialog);
         })
         .expect("first editor window should be open");
     second_window
         .update(cx, |shell, _window, cx| {
-            let editor = shell.primary_editor().expect("editor area");
+            let editor = shell.primary_editor().expect("editor panel");
             assert!(editor.read(cx).tab().file.show_unsaved_changes_dialog);
         })
         .expect("second editor window should be open");
@@ -809,7 +804,7 @@ async fn app_menu_opened_dirty_window_close_guard_prompts_only_that_window(
 
     second_window
         .update(cx, |shell, window, cx| {
-            let editor = shell.primary_editor().expect("editor area").clone();
+            let editor = shell.primary_editor().expect("editor panel").clone();
             editor.update(cx, |editor, cx| {
                 editor.mark_dirty(cx);
             });
@@ -819,13 +814,13 @@ async fn app_menu_opened_dirty_window_close_guard_prompts_only_that_window(
 
     first_window
         .update(cx, |shell, _window, cx| {
-            let editor = shell.primary_editor().expect("editor area");
+            let editor = shell.primary_editor().expect("editor panel");
             assert!(!editor.read(cx).tab().file.show_unsaved_changes_dialog);
         })
         .expect("first editor window should be open");
     second_window
         .update(cx, |shell, _window, cx| {
-            let editor = shell.primary_editor().expect("editor area");
+            let editor = shell.primary_editor().expect("editor panel");
             assert!(editor.read(cx).tab().file.show_unsaved_changes_dialog);
         })
         .expect("second editor window should be open");
@@ -853,13 +848,13 @@ async fn quit_application_allows_clean_editor_windows_to_quit(cx: &mut TestAppCo
     // either window (the quit flow itself is asynchronous in tests).
     first_window
         .update(cx, |shell, _window, _cx| {
-            let editor = shell.primary_editor().expect("editor area");
+            let editor = shell.primary_editor().expect("editor panel");
             assert!(!editor.read(_cx).tab().file.show_unsaved_changes_dialog);
         })
         .expect("first editor window should be open");
     second_window
         .update(cx, |shell, _window, _cx| {
-            let editor = shell.primary_editor().expect("editor area");
+            let editor = shell.primary_editor().expect("editor panel");
             assert!(!editor.read(_cx).tab().file.show_unsaved_changes_dialog);
         })
         .expect("second editor window should be open");
@@ -878,7 +873,7 @@ async fn quit_application_prompts_dirty_editor_without_quitting(cx: &mut TestApp
 
     let second_editor = second_window
         .update(cx, |shell, _window, _cx| {
-            shell.primary_editor().expect("editor area").clone()
+            shell.primary_editor().expect("editor panel").clone()
         })
         .expect("second editor window should be open");
     second_editor.update(cx, |editor, cx| editor.mark_dirty(cx));
@@ -903,13 +898,13 @@ async fn quit_application_prompts_dirty_editor_without_quitting(cx: &mut TestApp
     );
     first_window
         .update(cx, |shell, _window, _cx| {
-            let editor = shell.primary_editor().expect("editor area");
+            let editor = shell.primary_editor().expect("editor panel");
             assert!(!editor.read(_cx).tab().file.show_unsaved_changes_dialog);
         })
         .expect("first editor window should be open");
     second_window
         .update(cx, |shell, _window, _cx| {
-            let editor = shell.primary_editor().expect("editor area");
+            let editor = shell.primary_editor().expect("editor panel");
             assert!(editor.read(_cx).tab().file.show_unsaved_changes_dialog);
         })
         .expect("second editor window should be open");
@@ -927,7 +922,7 @@ async fn windows_fallback_close_window_dispatch_closes_target_editor_window(
     let target_window_id = window.window_id();
     let editor = window
         .update(cx, |shell, _window, _cx| {
-            shell.primary_editor().expect("editor area").downgrade()
+            shell.primary_editor().expect("editor panel").downgrade()
         })
         .expect("editor window should be open");
 
@@ -3363,17 +3358,17 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
 }
 
 #[gpui::test]
-async fn rendering_one_editor_area_keeps_other_areas_source_block(cx: &mut TestAppContext) {
+async fn rendering_one_editor_panel_keeps_other_panels_source_block(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
-    use crate::app::window_area::DEFAULT_EDITOR_PANEL_ID;
+    use crate::app::window_panels::DEFAULT_EDITOR_PANEL_ID;
     use crate::editor::session::{EditorPaneKind, EditorSession};
 
     let (editor, cx) = cx.add_window_view({
         move |_window, cx| Editor::from_markdown(cx, "alpha\nbeta".to_string(), None)
     });
 
-    // Two Editor areas in one window: each area is its own entity holding
+    // Two Editor panels in one window: each panel is its own entity holding
     // a SourceCode panel (the Shell materializes one entity per area).
     let second_entity = editor.update(cx, |editor, cx| {
         editor
@@ -3414,7 +3409,7 @@ async fn rendering_one_editor_area_keeps_other_areas_source_block(cx: &mut TestA
     }
 
     // The first frame materializes the panel's block; every following
-    // frame must keep it alive (rendering used to drop other areas'
+    // frame must keep it alive (rendering used to drop other panels'
     // source runtimes, rebuilding the block entity every frame).
     redraw(cx);
     let before = source_block_id(&editor, cx, DEFAULT_EDITOR_PANEL_ID);
@@ -3430,9 +3425,7 @@ async fn rendering_one_editor_area_keeps_other_areas_source_block(cx: &mut TestA
 
     // The second area's entity owns its own runtime, fully independent of
     // the first area's entity.
-    second.update(&mut cx.cx, |second, cx| {
-        second.sync_source_pane(2, 1, cx)
-    });
+    second.update(&mut cx.cx, |second, cx| second.sync_source_pane(1, cx));
     let second_id = second.read_with(&mut cx.cx, |second, _cx| {
         second
             .source_pane_runtimes
@@ -3447,20 +3440,17 @@ async fn rendering_one_editor_area_keeps_other_areas_source_block(cx: &mut TestA
 async fn switching_tabs_renders_the_new_document_immediately(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
-    use crate::app::window_area::DEFAULT_EDITOR_PANEL_ID;
-
     let (editor, cx) = cx.add_window_view({
         move |_window, cx| Editor::from_markdown(cx, "alpha\nbeta".to_string(), None)
     });
-    let area = DEFAULT_EDITOR_PANEL_ID;
     editor.update(cx, |editor, cx| {
-        let list = &mut editor.ensure_editor_session(area).tab_list;
+        let list = &mut editor.session_mut().tab_list;
         list.tabs.push(Editor::new_tab_from_markdown(
             cx,
             "gamma\n\ndelta".to_string(),
             None,
         ));
-        editor.activate_tab(area, 1, cx);
+        editor.activate_tab(1, cx);
     });
 
     fn active_blocks(
@@ -3487,7 +3477,7 @@ async fn switching_tabs_renders_the_new_document_immediately(cx: &mut TestAppCon
     // Switch back to tab 0 (alpha/beta): the very next frame must render
     // tab 0's blocks, not the previous tab's.
     editor.update(cx, |editor, cx| {
-        editor.activate_tab(area, 0, cx);
+        editor.activate_tab(0, cx);
     });
     redraw(cx);
     let (tab0_ids, tab0_text) = active_blocks(&editor, cx);
@@ -3499,7 +3489,7 @@ async fn switching_tabs_renders_the_new_document_immediately(cx: &mut TestAppCon
 
     // And back to tab 1 again.
     editor.update(cx, |editor, cx| {
-        editor.activate_tab(area, 1, cx);
+        editor.activate_tab(1, cx);
     });
     redraw(cx);
     let (ids_again, text_again) = active_blocks(&editor, cx);
@@ -3517,12 +3507,9 @@ async fn switching_tabs_renders_the_new_document_immediately(cx: &mut TestAppCon
 async fn switching_to_an_unrendered_tab_mounts_a_full_viewport(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
-    use crate::app::window_area::DEFAULT_EDITOR_PANEL_ID;
-
     let (editor, cx) = cx.add_window_view({
         move |_window, cx| Editor::from_markdown(cx, "alpha\n\nbeta".to_string(), None)
     });
-    let area = DEFAULT_EDITOR_PANEL_ID;
     cx.cx
         .update(|app| ensure_wysiwyg_editing_panel(&editor, app));
 
@@ -3536,15 +3523,15 @@ async fn switching_to_an_unrendered_tab_mounts_a_full_viewport(cx: &mut TestAppC
         .collect::<Vec<_>>()
         .join("\n\n");
     editor.update(cx, |editor, cx| {
-        let list = &mut editor.ensure_editor_session(area).tab_list;
+        let list = &mut editor.session_mut().tab_list;
         list.tabs
             .push(Editor::new_tab_from_markdown(cx, long_doc, None));
-        editor.activate_tab(area, 1, cx);
+        editor.activate_tab(1, cx);
     });
 
     // Sanity check: the two tabs must NOT share a ScrollHandle.
     editor.update(cx, |editor, _cx| {
-        let session = editor.ensure_editor_session(area);
+        let session = editor.session_mut();
         session.tab_list.tabs[0]
             .scroll
             .handle

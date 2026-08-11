@@ -1,6 +1,6 @@
 //! The window shell — the OS window's root entity.
 //!
-//! Owns the mapping from layout areas to content entities (`AreaContent`),
+//! Owns the mapping from layout panel_contents to content entities (`PanelContent`),
 //! the window-level chrome state (the in-window menu bar), and renders the
 //! window chrome (custom titlebar + menu bar) above the primary editor's
 //! content. Window-level state that currently lives on the Editor (panel
@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 use gpui::*;
 
-use crate::app::window_area::WindowPanelKind;
+use crate::app::window_panels::WindowPanelKind;
 use crate::app::window_chrome::MenuBarState;
 use crate::app::window_panels::WindowPanels;
 use crate::editor::controller::{DocumentTab, Editor, InfoDialogKind};
@@ -22,7 +22,7 @@ use crate::splitter::NodeId;
 use splitype_splitter::tree::Axis;
 
 /// The content of one area in the outer layout tree.
-pub enum AreaContent {
+pub enum PanelContent {
     /// An editor with its own tab list and pane layout.
     Editor(Entity<Editor>),
 }
@@ -36,13 +36,13 @@ pub(crate) struct ExplorerFileMenuState {
     pub(crate) is_dir: bool,
 }
 
-/// The OS window's root entity: content areas + window lifecycle.
+/// The OS window's root entity: content panel_contents + window lifecycle.
 pub struct Shell {
     /// Content entity per outer area id. An area holds a content entity
     /// only while its kind is `Editor`; switching kinds moves the entity
     /// away (its session is retained while it still holds tabs).
-    pub(crate) areas: HashMap<NodeId, AreaContent>,
-    /// Sessions of Editor areas that left the Editor kind with tabs
+    pub(crate) panel_contents: HashMap<NodeId, PanelContent>,
+    /// Sessions of Editor panel_contents that left the Editor kind with tabs
     /// (background editing): switching back recreates the entity with the
     /// retained session.
     pub(crate) retained_editor_sessions: HashMap<NodeId, EditorSession>,
@@ -68,15 +68,15 @@ impl Shell {
     /// The active editor area's active tab, if any. Reads through the
     /// editor content entity of the active area.
     pub(crate) fn active_editor_tab<'a>(&self, cx: &'a App) -> Option<&'a DocumentTab> {
-        let area = self.active_editor_panel()?;
-        let editor = self.editor_for(area)?;
+        let panel = self.active_editor_panel()?;
+        let editor = self.editor_for(panel)?;
         editor.read(cx).active_editor_tab()
     }
 
     /// The window's primary (first) editor area content, if any.
     pub(crate) fn primary_editor(&self) -> Option<&Entity<Editor>> {
-        self.areas.values().find_map(|area| match area {
-            AreaContent::Editor(editor) => Some(editor),
+        self.panel_contents.values().find_map(|content| match content {
+            PanelContent::Editor(editor) => Some(editor),
         })
     }
 
@@ -92,10 +92,10 @@ impl Shell {
         let active = self.panels.layout.active_leaf;
         let leaf_count = self.panels.layout.tree.count_leaves();
         let editors: Vec<(NodeId, Entity<Editor>)> = self
-            .areas
+            .panel_contents
             .iter()
             .filter_map(|(panel_id, content)| match content {
-                AreaContent::Editor(entity) => Some((*panel_id, entity.clone())),
+                PanelContent::Editor(entity) => Some((*panel_id, entity.clone())),
             })
             .collect();
         for (panel_id, entity) in editors {
@@ -189,8 +189,8 @@ impl Shell {
     /// True when any editor area's active tab shows the unsaved-changes
     /// dialog (which must not overlap the info dialog).
     pub(crate) fn unsaved_dialog_open(&self, cx: &App) -> bool {
-        self.areas.values().any(|area| match area {
-            AreaContent::Editor(entity) => entity
+        self.panel_contents.values().any(|content| match content {
+            PanelContent::Editor(entity) => entity
                 .read(cx)
                 .active_editor_tab()
                 .is_some_and(|tab| tab.file.show_unsaved_changes_dialog),
@@ -234,7 +234,7 @@ impl Shell {
 
     /// Materialize the fresh sibling leaf of a plain-drag split: for an
     /// Editor-kind leaf, deep-copy the primary editor's session into a new
-    /// entity. Non-Editor areas have no content to copy.
+    /// entity. Non-Editor panel_contents have no content to copy.
     pub(crate) fn seed_split_panel(&mut self, new_id: NodeId, cx: &mut Context<Self>) {
         if self.panels.layout.tree.find_leaf_kind(new_id) == Some(WindowPanelKind::Editor) {
             let session = self
@@ -288,9 +288,9 @@ impl Shell {
     /// The editor area that a file open should target: the active area
     /// when it is an Editor area.
     pub(crate) fn active_editor_panel(&self) -> Option<NodeId> {
-        let area = self.panels.layout.active_leaf?;
-        (self.panels.layout.tree.find_leaf_kind(area) == Some(WindowPanelKind::Editor))
-            .then_some(area)
+        let panel = self.panels.layout.active_leaf?;
+        (self.panels.layout.tree.find_leaf_kind(panel) == Some(WindowPanelKind::Editor))
+            .then_some(panel)
     }
 
     /// Opens `path` in the active editor's tab list, if an active editor
@@ -308,12 +308,12 @@ impl Shell {
             return false;
         };
         let _ = editor.update(cx, |editor, cx| {
-            editor.open_file_in_panel(panel_id, path, window, cx)
+            editor.open_file_in_panel(path, window, cx)
         });
         true
     }
     /// Creates a fresh Editor entity serving `panel_id` and registers it in
-    /// the areas map. The new entity is wired to this Shell and its runtime
+    /// the panel_contents map. The new entity is wired to this Shell and its runtime
     /// registries are rebuilt for the (possibly cloned) document tabs.
     pub(crate) fn add_editor_panel(
         &mut self,
@@ -332,8 +332,8 @@ impl Shell {
                 editor.refresh_stable_document_snapshot(cx);
             }
         });
-        self.areas
-            .insert(panel_id, AreaContent::Editor(editor.clone()));
+        self.panel_contents
+            .insert(panel_id, PanelContent::Editor(editor.clone()));
         editor
     }
 
@@ -344,24 +344,24 @@ impl Shell {
         panel_id: NodeId,
         cx: &mut Context<Self>,
     ) -> Option<EditorSession> {
-        let AreaContent::Editor(entity) = self.areas.remove(&panel_id)?;
+        let PanelContent::Editor(entity) = self.panel_contents.remove(&panel_id)?;
         Some(entity.update(cx, |editor, _cx| {
             std::mem::replace(&mut editor.session, EditorSession::welcome())
         }))
     }
 
-    /// Swaps the content entities of two areas so they follow the swapped
+    /// Swaps the content entities of two panel_contents so they follow the swapped
     /// area kinds; retained sessions swap along with them.
     pub(crate) fn swap_panel_contents(&mut self, a: NodeId, b: NodeId, cx: &mut Context<Self>) {
-        let content_a = self.areas.remove(&a);
-        let content_b = self.areas.remove(&b);
-        if let Some(AreaContent::Editor(entity)) = content_a {
+        let content_a = self.panel_contents.remove(&a);
+        let content_b = self.panel_contents.remove(&b);
+        if let Some(PanelContent::Editor(entity)) = content_a {
             entity.update(cx, |editor, _cx| editor.panel_id = b);
-            self.areas.insert(b, AreaContent::Editor(entity));
+            self.panel_contents.insert(b, PanelContent::Editor(entity));
         }
-        if let Some(AreaContent::Editor(entity)) = content_b {
+        if let Some(PanelContent::Editor(entity)) = content_b {
             entity.update(cx, |editor, _cx| editor.panel_id = a);
-            self.areas.insert(a, AreaContent::Editor(entity));
+            self.panel_contents.insert(a, PanelContent::Editor(entity));
         }
         let retained_a = self.retained_editor_sessions.remove(&a);
         let retained_b = self.retained_editor_sessions.remove(&b);
@@ -373,7 +373,7 @@ impl Shell {
         }
     }
 
-    /// Aligns the areas map with an area-kind change: entering Editor
+    /// Aligns the panel_contents map with an area-kind change: entering Editor
     /// recreates the entity (restoring a retained session when one exists);
     /// leaving Editor removes the entity, retaining its session while it
     /// still holds tabs (background editing).
@@ -384,7 +384,7 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         if is_editor {
-            if self.areas.contains_key(&panel_id) {
+            if self.panel_contents.contains_key(&panel_id) {
                 return;
             }
             let session = self
@@ -411,15 +411,15 @@ impl Shell {
             }
         }
         let ids: Vec<NodeId> = self
-            .areas
+            .panel_contents
             .iter()
-            .filter_map(|(id, area)| match area {
-                AreaContent::Editor(_) => Some(*id),
+            .filter_map(|(id, content)| match content {
+                PanelContent::Editor(_) => Some(*id),
             })
             .collect();
         for panel_id in ids {
-            let dirty = match &self.areas[&panel_id] {
-                AreaContent::Editor(entity) => entity.read(cx).first_dirty_tab(),
+            let dirty = match &self.panel_contents[&panel_id] {
+                PanelContent::Editor(entity) => entity.read(cx).first_dirty_tab(),
             };
             if let Some(dirty) = dirty {
                 return Some(dirty);
@@ -434,25 +434,25 @@ impl Shell {
     /// (pane layout + tab list) and the explorer state is cloned.
     pub(crate) fn clone_container_into_new_window(
         &mut self,
-        cloned: crate::splitter::policy::ClonedContainer<crate::app::window_area::WindowPanelKind>,
+        cloned: crate::splitter::policy::ClonedContainer<crate::app::window_panels::WindowPanelKind>,
         cx: &mut Context<Self>,
     ) {
         let mut sessions = HashMap::new();
         let mut cloned_explorer = None;
         for (old_id, new_id) in &cloned.id_map {
             match cloned.tree.find_leaf_kind(*new_id) {
-                Some(crate::app::window_area::WindowPanelKind::Editor) => {
+                Some(crate::app::window_panels::WindowPanelKind::Editor) => {
                     if let Some(editor) = self.editor_for(*old_id) {
                         let session = editor.update(cx, |editor, cx| editor.clone_session(cx));
                         sessions.insert(*new_id, session);
                     }
                 }
-                Some(crate::app::window_area::WindowPanelKind::Explorer) => {
+                Some(crate::app::window_panels::WindowPanelKind::Explorer) => {
                     // The explorer model is window-global: deep-copy it so
                     // the new window shows the same file tree.
                     cloned_explorer = Some(self.panels.explorer.clone_for_new_window());
                 }
-                Some(crate::app::window_area::WindowPanelKind::Settings) | None => {}
+                Some(crate::app::window_panels::WindowPanelKind::Settings) | None => {}
             }
         }
         crate::app::window::open_cloned_window(
@@ -466,8 +466,8 @@ impl Shell {
 
     /// The editor content entity of `panel_id`, if the area holds one.
     pub(crate) fn editor_for(&self, panel_id: NodeId) -> Option<&Entity<Editor>> {
-        match self.areas.get(&panel_id) {
-            Some(AreaContent::Editor(editor)) => Some(editor),
+        match self.panel_contents.get(&panel_id) {
+            Some(PanelContent::Editor(editor)) => Some(editor),
             _ => None,
         }
     }

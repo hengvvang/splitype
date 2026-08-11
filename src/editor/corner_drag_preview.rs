@@ -10,7 +10,7 @@ use gpui::*;
 use splitype_splitter::interaction::{OverlayStyle, overlay_container};
 use splitype_splitter::root::SplitterRoot;
 use splitype_splitter::sessions::CornerDragSession;
-use splitype_splitter::tree::{AreaRect, Axis, Direction};
+use splitype_splitter::tree::{LeafRect, Axis, Direction};
 
 /// Render the corner-drag indicator, or `None` when there is nothing to
 /// show yet (no gesture direction).
@@ -41,14 +41,14 @@ pub fn render_corner_drag_preview<T: Copy + PartialEq>(
     }
 }
 
-fn rect_by_id<'a>(rects: &'a [AreaRect], id: usize) -> Option<&'a AreaRect> {
+fn rect_by_id<'a>(rects: &'a [LeafRect], id: usize) -> Option<&'a LeafRect> {
     rects.iter().find(|rect| rect.id == id)
 }
 
 /// The split preview line for a horizontal split (left|right): a vertical
 /// divider at `ratio` of the target rect's width. Deliberately thin (1px)
 /// like IDE split guides. `rect` is normalized (0..1).
-fn split_line_horizontal(rect: &AreaRect, ratio: f32, accent: Hsla) -> Div {
+fn split_line_horizontal(rect: &LeafRect, ratio: f32, accent: Hsla) -> Div {
     div()
         .absolute()
         .left(relative(rect.x + rect.width * ratio))
@@ -61,7 +61,7 @@ fn split_line_horizontal(rect: &AreaRect, ratio: f32, accent: Hsla) -> Div {
 /// The split preview line for a vertical split (top|bottom): a horizontal
 /// divider at `ratio` of the target rect's height. Deliberately thin (1px)
 /// like IDE split guides. `rect` is normalized (0..1).
-fn split_line_vertical(rect: &AreaRect, ratio: f32, accent: Hsla) -> Div {
+fn split_line_vertical(rect: &LeafRect, ratio: f32, accent: Hsla) -> Div {
     div()
         .absolute()
         .top(relative(rect.y + rect.height * ratio))
@@ -74,7 +74,7 @@ fn split_line_vertical(rect: &AreaRect, ratio: f32, accent: Hsla) -> Div {
 /// A full-window overlay drawing the split line plus a faint highlight over
 /// the leaf being split. `rect` is normalized (0..1).
 fn split_preview_overlay(
-    rect: &AreaRect,
+    rect: &LeafRect,
     direction: Axis,
     ratio: f32,
     style: &OverlayStyle,
@@ -111,7 +111,7 @@ fn join_arrow(direction: Direction) -> &'static str {
 /// A full-window overlay highlighting the join target with an arrow badge.
 /// `target` is normalized (0..1).
 fn join_preview_overlay(
-    target: &AreaRect,
+    target: &LeafRect,
     direction: Direction,
     style: &OverlayStyle,
 ) -> AnyElement {
@@ -141,7 +141,7 @@ fn join_preview_overlay(
                         .text_color(hsla(0.0, 0.0, 1.0, 0.95))
                         .text_size(px(15.0))
                         .font_weight(FontWeight::BOLD)
-                        .child(format!("{arrow} Join Area")),
+                        .child(format!("{arrow} Join Panel")),
                 ),
         )
         .into_any_element()

@@ -26,7 +26,7 @@ pub struct SplitterContainer<T> {
     pub active_corner_drag: Option<CornerDragSession>,
     /// Whether this panel's dropdown menu is open.
     pub open_dropdown: bool,
-    /// Whether this panel is maximized (fills the whole root area).
+    /// Whether this leaf is maximized (fills the whole root).
     pub maximized: bool,
 }
 

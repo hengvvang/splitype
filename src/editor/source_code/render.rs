@@ -8,7 +8,6 @@ use crate::infra::theme::Theme;
 impl Editor {
     pub(crate) fn render_source_pane(
         &mut self,
-        panel_id: usize,
         pane_id: usize,
         theme: &Theme,
         _cx: &mut Context<Self>,
@@ -32,7 +31,7 @@ impl Editor {
 
         div()
             .id(ElementId::Name(
-                format!("tiled-source-editor-{panel_id}-{pane_id}").into(),
+                format!("tiled-source-editor-{pane_id}").into(),
             ))
             .w_full()
             .h_full()
@@ -41,7 +40,7 @@ impl Editor {
             .child(
                 div()
                     .id(ElementId::Name(
-                        format!("tiled-source-scroll-{panel_id}-{pane_id}").into(),
+                        format!("tiled-source-scroll-{pane_id}").into(),
                     ))
                     .w_full()
                     .h_full()

@@ -15,7 +15,7 @@ use crate::container::SplitterContainer;
 use crate::sessions::{
     BorderMenuState, CornerDragModifier, CornerDragSession, SplitterDragSession, id_at_point,
 };
-use crate::tree::{AreaRect, Axis, Direction, NodeId, SplitTree};
+use crate::tree::{LeafRect, Axis, Direction, NodeId, SplitTree};
 
 /// One initialized split region: the panel tree plus tree-level state.
 pub struct SplitterRoot<T: Copy + PartialEq> {
@@ -34,7 +34,7 @@ pub struct SplitterRoot<T: Copy + PartialEq> {
     /// A leaf whose kind changed is dropped from the history.
     pub activation_history: Vec<NodeId>,
     /// The leaf the mouse is currently operating on.
-    pub focused_area: Option<NodeId>,
+    pub focused_leaf: Option<NodeId>,
 }
 
 impl<T: Copy + PartialEq> SplitterRoot<T> {
@@ -48,7 +48,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
             active_border_menu: None,
             active_leaf: None,
             activation_history: Vec::new(),
-            focused_area: None,
+            focused_leaf: None,
         }
     }
 
@@ -74,20 +74,20 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     pub fn close_leaf(&mut self, target_id: usize) {
         if self.tree.count_leaves() > 1 {
             self.tree.remove_leaf(target_id);
-            self.retire_area(target_id);
+            self.retire_leaf(target_id);
         }
         self.active_border_menu = None;
     }
 
-    /// Mark `area_id` as the active area (the last leaf that received
+    /// Mark `leaf_id` as the active leaf (the last leaf that received
     /// focus). Records the activation for fallback ordering.
-    pub fn activate_leaf(&mut self, area_id: usize) {
-        self.activation_history.retain(|id| *id != area_id);
-        self.activation_history.push(area_id);
-        self.active_leaf = Some(area_id);
+    pub fn activate_leaf(&mut self, leaf_id: usize) {
+        self.activation_history.retain(|id| *id != leaf_id);
+        self.activation_history.push(leaf_id);
+        self.active_leaf = Some(leaf_id);
     }
 
-    /// Recompute the active area after the layout changed: the most
+    /// Recompute the active leaf after the layout changed: the most
     /// recently activated leaf still present, or `None`.
     fn recompute_active_leaf(&mut self) {
         if self
@@ -104,8 +104,8 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
             .find(|id| self.tree.find_leaf_kind(*id).is_some());
     }
 
-    /// Drop a leaf from activation tracking and recompute the active area.
-    fn retire_area(&mut self, removed: usize) {
+    /// Drop a leaf from activation tracking and recompute the active leaf.
+    fn retire_leaf(&mut self, removed: usize) {
         self.activation_history.retain(|id| *id != removed);
         if self.active_leaf == Some(removed) {
             self.active_leaf = None;
@@ -117,11 +117,11 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     /// activation history — the host re-activates it when the new kind
     /// should be the active one. (Kind-agnostic rule: any kind mutation
     /// retires, no matter which kinds are involved.)
-    pub fn set_kind(&mut self, area_id: usize, kind: T) {
-        let previous = self.tree.find_leaf_kind(area_id);
-        self.tree.set_leaf_kind(area_id, kind);
+    pub fn set_kind(&mut self, leaf_id: usize, kind: T) {
+        let previous = self.tree.find_leaf_kind(leaf_id);
+        self.tree.set_leaf_kind(leaf_id, kind);
         if previous != Some(kind) {
-            self.retire_area(area_id);
+            self.retire_leaf(leaf_id);
         }
         self.active_border_menu = None;
     }
@@ -135,7 +135,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
         }
         let ok = self.tree.join_leaf(into, removed);
         if ok {
-            self.retire_area(removed);
+            self.retire_leaf(removed);
         }
         self.active_border_menu = None;
         ok
@@ -149,8 +149,8 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
         if let (Some(ta), Some(tb)) = (kind_a, kind_b) {
             self.tree.set_leaf_kind(a, tb);
             self.tree.set_leaf_kind(b, ta);
-            self.retire_area(a);
-            self.retire_area(b);
+            self.retire_leaf(a);
+            self.retire_leaf(b);
         }
     }
 
@@ -158,21 +158,21 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     // Maximise / dropdown (panel-level flags)
     // ------------------------------------------------------------------
 
-    pub fn toggle_maximize(&mut self, area_id: usize) {
-        if let Some(panel) = self.tree.find_leaf_mut(area_id) {
+    pub fn toggle_maximize(&mut self, leaf_id: usize) {
+        if let Some(panel) = self.tree.find_leaf_mut(leaf_id) {
             panel.maximized = !panel.maximized;
         }
     }
 
-    /// Toggle the dropdown of `area_id`; opening one closes any other
+    /// Toggle the dropdown of `leaf_id`; opening one closes any other
     /// open dropdown in this root (only one dropdown at a time).
-    pub fn toggle_dropdown(&mut self, area_id: usize) {
+    pub fn toggle_dropdown(&mut self, leaf_id: usize) {
         let mut ids = Vec::new();
         self.tree.leaf_ids(&mut ids);
         let mut target_state = None;
         for id in ids {
             if let Some(panel) = self.tree.find_leaf_mut(id) {
-                if id == area_id {
+                if id == leaf_id {
                     target_state = Some(!panel.open_dropdown);
                 } else if panel.open_dropdown {
                     panel.open_dropdown = false;
@@ -180,7 +180,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
             }
         }
         if let Some(state) = target_state {
-            if let Some(panel) = self.tree.find_leaf_mut(area_id) {
+            if let Some(panel) = self.tree.find_leaf_mut(leaf_id) {
                 panel.open_dropdown = state;
             }
         }
@@ -229,7 +229,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     ) {
         if let Some(panel) = self.tree.find_leaf_mut(target_id) {
             panel.start_corner_drag(pos, modifier);
-            self.focused_area = Some(target_id);
+            self.focused_leaf = Some(target_id);
         }
     }
 
@@ -330,7 +330,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     // ------------------------------------------------------------------
 
     /// Collect all leaf rectangles in pixel coordinates.
-    pub fn leaf_rects(&self, container_size: Size<Pixels>) -> Vec<AreaRect> {
+    pub fn leaf_rects(&self, container_size: Size<Pixels>) -> Vec<LeafRect> {
         let w = f32::from(container_size.width);
         let h = f32::from(container_size.height);
         let mut rects = Vec::new();
@@ -338,7 +338,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
             let mut norm = Vec::new();
             self.tree.collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut norm);
             for rect in norm {
-                rects.push(AreaRect {
+                rects.push(LeafRect {
                     id: rect.id,
                     x: rect.x * w,
                     y: rect.y * h,
@@ -352,8 +352,8 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
 
     /// Get the pixel-space rectangle for a specific leaf, given
     /// pre-computed rects from [`Self::leaf_rects`].
-    pub fn leaf_rect(&self, area_id: usize, rects: &[AreaRect]) -> Option<AreaRect> {
-        rects.iter().find(|rect| rect.id == area_id).copied()
+    pub fn leaf_rect(&self, leaf_id: usize, rects: &[LeafRect]) -> Option<LeafRect> {
+        rects.iter().find(|rect| rect.id == leaf_id).copied()
     }
 
     /// Calculate the pixel span (width or height) of a split container.
@@ -508,7 +508,7 @@ mod tests {
         assert_eq!(root.active_leaf, Some(a));
 
         // Closing the second-to-last leaf falls back to the remaining
-        // root area (the last leaf is never closable).
+        // root leaf (the last leaf is never closable).
         root.close_leaf(a);
         assert_eq!(root.active_leaf, Some(1));
     }
@@ -565,7 +565,7 @@ mod tests {
     }
 
     #[test]
-    fn test_window_area_rects() {
+    fn test_window_panel_rects() {
         let mut root = test_root();
         root.split_leaf(1, Axis::Horizontal, 0.3); // ids: 1 (30%), 2 (70%)
         let rects = root.leaf_rects(size(px(1000.0), px(800.0)));

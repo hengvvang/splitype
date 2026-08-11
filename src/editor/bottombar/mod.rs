@@ -69,7 +69,6 @@ impl Editor {
     /// controls, cursor position and word count.
     pub(crate) fn render_editor_bottombar(
         &mut self,
-        panel_id: usize,
         theme: &Theme,
         strings: &I18nStrings,
         cx: &mut Context<Self>,
@@ -78,16 +77,14 @@ impl Editor {
         let d = &theme.dimensions;
         let prefs = self.bottombar_settings(cx);
 
-        let inner_leaf_count = self
-            .ensure_editor_session(panel_id)
-            .root
+        let panel_id = self.panel_id;
+        let inner_leaf_count = self.session().root
             .tree
             .count_leaves();
 
         let focused_pane_id = self.focused_pane;
         let focused_kind = focused_pane_id.and_then(|pane_id| {
-            self.ensure_editor_session(panel_id)
-                .root
+            self.session().root
                 .tree
                 .find_leaf_kind(pane_id)
         });
@@ -101,7 +98,7 @@ impl Editor {
         // editing state it displays the focused panel kind and opens the
         // panel-type dropdown.
         if let (Some(pane_id), Some(focused_kind)) = (focused_pane_id, focused_kind) {
-            let editing = self.area_mode(panel_id).is_editing();
+            let editing = self.panel_mode().is_editing();
             let toggle_editor = cx.entity().downgrade();
             let label = focused_kind.name().to_string();
             let mut mode_pill = small_pill_button(c, d)
@@ -117,7 +114,7 @@ impl Editor {
                 mode_pill =
                     mode_pill.on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = toggle_editor.update(cx, |ed, cx| {
-                            ed.toggle_pane_dropdown(panel_id, pane_id, cx);
+                            ed.toggle_pane_dropdown(pane_id, cx);
                             cx.notify();
                         });
                     });
@@ -125,7 +122,7 @@ impl Editor {
             left_items.push(mode_pill.into_any_element());
         }
 
-        if self.has_tabs(panel_id) && prefs.show_cursor_position {
+        if self.has_tabs() && prefs.show_cursor_position {
             left_items.push(
                 div()
                     .text_size(px(11.0))
@@ -139,8 +136,8 @@ impl Editor {
             ));
         }
 
-        if self.has_tabs(panel_id) && prefs.show_word_count {
-            let text = self.serialized_document_text_for(panel_id, cx);
+        if self.has_tabs() && prefs.show_word_count {
+            let text = self.serialized_document_text(cx);
             let total_count = count_words(&text);
             let selection_count = self.selected_markdown_text(cx).as_deref().map(count_words);
             right_items.push(render_word_count(
@@ -169,7 +166,7 @@ impl Editor {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = split_h_editor.update(cx, |ed, cx| {
-                            ed.split_pane(panel_id, pane_id, Axis::Horizontal);
+                            ed.split_pane(pane_id, Axis::Horizontal);
                             cx.notify();
                         });
                     })
@@ -188,7 +185,7 @@ impl Editor {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = split_v_editor.update(cx, |ed, cx| {
-                            ed.split_pane(panel_id, pane_id, Axis::Vertical);
+                            ed.split_pane(pane_id, Axis::Vertical);
                             cx.notify();
                         });
                     })
@@ -208,7 +205,7 @@ impl Editor {
                         )
                         .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                             let _ = close_editor.update(cx, |ed, cx| {
-                                ed.close_pane(panel_id, pane_id);
+                                ed.close_pane(pane_id);
                                 if ed.focused_pane == Some(pane_id) {
                                     ed.focused_pane = None;
                                 }

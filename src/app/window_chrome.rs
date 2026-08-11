@@ -790,9 +790,9 @@ impl Shell {
                 top_offset,
                 d,
             );
-            let scroll_area = (!scroll_items.is_empty()).then(|| {
+            let scroll_region = (!scroll_items.is_empty()).then(|| {
                 div()
-                    .id(("app-menu-scroll-area", open_index))
+                    .id(("app-menu-scroll-region", open_index))
                     .w_full()
                     .h(px(scroll_height))
                     .flex_shrink_0()
@@ -836,7 +836,7 @@ impl Shell {
                     });
 
             main_panel
-                .children(scroll_area)
+                .children(scroll_region)
                 .children(footer_elements)
                 .into_any_element()
         } else {

@@ -32,7 +32,6 @@ use crate::model::block::BlockKind;
 impl Editor {
     pub(crate) fn render_preview_pane(
         &mut self,
-        panel_id: usize,
         pane_id: usize,
         theme: &Theme,
         _strings: &I18nStrings,
@@ -63,7 +62,7 @@ impl Editor {
             .child(
                 div()
                     .id(ElementId::Name(
-                        format!("tiled-preview-scroll-{panel_id}-{pane_id}").into(),
+                        format!("tiled-preview-scroll-{pane_id}").into(),
                     ))
                     .w_full()
                     .h_full()

@@ -8,7 +8,6 @@ use crate::editor::block_protocol::BlockAction;
 use crate::editor::controller::Editor;
 use crate::editor::tree::block::Block;
 use crate::model::block::BlockData;
-use crate::splitter::tree::NodeId;
 
 /// The standalone raw-source block backing ONE source-code panel.
 ///
@@ -27,37 +26,31 @@ pub(crate) struct SourceCodePanelRuntime {
 }
 
 impl Editor {
-    /// Ensure the Source panel's interactive editor block exists. Only
+    /// Ensure the Source pane's interactive editor block exists. Only
     /// rebuilds when the document was changed by an external source
     /// (e.g. the Block panel), never when the user is actively editing
     /// the source block itself.
     ///
     /// The block is created as a standalone entity with a minimal
     /// subscription that only syncs Changed events back to the document.
-    pub(crate) fn sync_source_pane(
-        &mut self,
-        panel_id: NodeId,
-        pane_id: usize,
-        cx: &mut Context<Self>,
-    ) {
+    pub(crate) fn sync_source_pane(&mut self, pane_id: usize, cx: &mut Context<Self>) {
         let doc_text = self.doc().to_markdown(cx);
         let doc_hash = Self::hash_str(&doc_text);
 
-        let runtime = self
-            .source_pane_runtimes
-            .entry(pane_id)
-            .or_insert_with(|| SourceCodePanelRuntime {
-                block: None,
-                synced_doc_hash: 0,
-            });
+        let runtime =
+            self.source_pane_runtimes
+                .entry(pane_id)
+                .or_insert_with(|| SourceCodePanelRuntime {
+                    block: None,
+                    synced_doc_hash: 0,
+                });
         if runtime.block.is_none() || doc_hash != runtime.synced_doc_hash {
             runtime.block = None;
             let block = Self::new_standalone_block(cx, BlockData::paragraph(doc_text));
             block.update(cx, |block, _cx| block.set_source_document_mode());
-            let area = panel_id;
             let panel = pane_id;
             cx.subscribe(&block, move |this, block, event, cx| {
-                this.on_source_code_panel_changed(area, panel, block, event, cx);
+                this.on_source_pane_changed(panel, block, event, cx);
             })
             .detach();
             runtime.block = Some(block);
@@ -65,12 +58,11 @@ impl Editor {
         }
     }
 
-    /// Minimal event handler for a Source panel block. Only syncs text
+    /// Minimal event handler for a Source pane block. Only syncs text
     /// changes back to the shared document — no structural event
-    /// processing. Routed to the owning area by the subscription closure.
-    pub(crate) fn on_source_code_panel_changed(
+    /// processing.
+    pub(crate) fn on_source_pane_changed(
         &mut self,
-        _panel_id: usize,
         pane_id: usize,
         block: Entity<Block>,
         event: &BlockAction,

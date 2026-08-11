@@ -49,10 +49,10 @@ impl Shell {
             let focused_panel = self
                 .primary_editor()
                 .and_then(|editor| editor.read(cx).focused_pane.filter(|_| area.is_some()));
-            if let (Some(area), Some(pane_id)) = (area, focused_panel) {
+            if let (Some(_), Some(pane_id)) = (area, focused_panel) {
                 if let Some(editor) = self.primary_editor() {
                     let _ = editor.update(cx, |editor, cx| {
-                        editor.focus_pane(area, pane_id, window, cx);
+                        editor.focus_pane(pane_id, window, cx);
                     });
                 }
             }
@@ -78,7 +78,7 @@ impl Shell {
         self.panels.layout.activate_leaf(new_id);
         if let Some(editor) = self.editor_for(new_id) {
             let _ = editor.update(cx, |editor, cx| {
-                editor.open_file_in_panel(new_id, &path, window, cx);
+                editor.open_file_in_panel(&path, window, cx);
             });
         }
         cx.notify();

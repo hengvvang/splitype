@@ -22,7 +22,7 @@ use crate::tree::Axis;
 pub struct OverlayStyle {
     /// Accent color for split-preview lines and join highlights.
     pub accent: Hsla,
-    /// Corner radius of area tiles, used to round the highlight overlays.
+    /// Corner radius of panel tiles, used to round the highlight overlays.
     pub tile_radius: f32,
     /// Splitter bar base color.
     pub border: Hsla,
@@ -56,7 +56,7 @@ pub fn overlay_container() -> Div {
 
 /// Horizontal splitter bar (resizes rows).
 ///
-/// An overlay, not a flex child: the split areas tile seamlessly and the
+/// An overlay, not a flex child: the split leaves tile seamlessly and the
 /// bar floats on the boundary at `ratio` (a fraction of the container
 /// width). The 4px hit zone sits on the second side; a 1px guide line
 /// marks the boundary. `active` is the drag-in-progress state (driven by
@@ -263,7 +263,7 @@ fn corner_drag_modifier(event: &MouseDownEvent) -> CornerDragModifier {
 
 /// Build the four corner-drag handles of a tile.
 ///
-/// `id_prefix` names the handles ("area-corner" for window areas,
+/// `id_prefix` names the handles ("panel-corner" for window panels,
 /// "inner-corner" for editor panels) so ids stay unique per tree level;
 /// `target_id` is the leaf id embedded in each handle's id and passed to
 /// the drag callback. `on_start_drag` receives the decoded modifier, the

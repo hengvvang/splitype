@@ -292,7 +292,7 @@ impl Render for Editor {
         let d = &theme.dimensions;
         let c = &theme.colors;
         let panel_id = self.panel_id;
-        // Pushed by the Shell every frame: how many areas the outer layout
+        // Pushed by the Shell every frame: how many panels the outer layout
         // holds (maximize/close controls hide for a single area) and
         // whether this tile is maximized.
         let leaf_count = self.leaf_count;
@@ -301,59 +301,60 @@ impl Render for Editor {
         // One Editor entity renders its own panel tile: top bar, panes
         // layout, and bottom status bar. The outer split tree (rendered by
         // the Shell) embeds this tile as one leaf.
-        let base =
-            div()
-                .id(("editor-area-tile", panel_id))
-                .w_full()
-                .h_full()
-                .flex()
-                .flex_col()
-                .relative()
-                .rounded(px(d.area_tile_radius))
-                .bg(c.dialog_surface)
-                .border(px(d.dialog_border_width))
-                .border_color(c.dialog_border)
-                .shadow_lg()
-                .font(editor_text_font())
-                .on_modifiers_changed(move |event, window, _| {
-                    if event.modifiers.secondary() != follow_modifier_active {
-                        window.refresh();
-                    }
-                })
-                .capture_action(cx.listener(Self::on_copy_capture))
-                .capture_action(cx.listener(Self::on_cut_capture))
-                .capture_action(cx.listener(Self::on_delete_capture))
-                .capture_action(cx.listener(Self::on_delete_back_capture))
-                .capture_key_down(cx.listener(Self::on_editor_key_down_capture))
-                .on_action(cx.listener(Self::on_undo))
-                .on_action(cx.listener(Self::on_redo))
-                .on_action(cx.listener(Self::on_save_document))
-                .on_action(cx.listener(Self::on_save_document_as))
-                .on_action(cx.listener(Self::on_export_html))
-                .on_action(cx.listener(Self::on_export_pdf))
-                .on_action(cx.listener(Self::on_quit_application))
-                .on_action(cx.listener(Self::on_toggle_view_mode_action))
-                .on_action(cx.listener(Self::on_page_up))
-                .on_action(cx.listener(Self::on_page_down))
-                .on_action(cx.listener(Self::on_jump_to_top))
-                .on_action(cx.listener(Self::on_jump_to_bottom))
-                .on_action(cx.listener(Self::on_dismiss_transient_ui))
-                .on_action(cx.listener(Self::on_install_cli_tool))
-                .on_action(cx.listener(Self::on_uninstall_cli_tool))
-                .child(self.render_editor_topbar(
-                    panel_id,
-                    WindowPanelKind::Editor,
-                    &theme,
-                    leaf_count,
-                    is_maximized,
-                    cx,
-                ))
-                .child(
-                    div().w_full().flex_1().min_h(px(0.0)).relative().child(
-                        self.render_editor_midcontainer(panel_id, &theme, &strings, window, cx),
-                    ),
-                )
-                .child(self.render_editor_bottombar(panel_id, &theme, &strings, cx));
+        let base = div()
+            .id(("editor-area-tile", panel_id))
+            .w_full()
+            .h_full()
+            .flex()
+            .flex_col()
+            .relative()
+            .rounded(px(d.panel_tile_radius))
+            .bg(c.dialog_surface)
+            .border(px(d.dialog_border_width))
+            .border_color(c.dialog_border)
+            .shadow_lg()
+            .font(editor_text_font())
+            .on_modifiers_changed(move |event, window, _| {
+                if event.modifiers.secondary() != follow_modifier_active {
+                    window.refresh();
+                }
+            })
+            .capture_action(cx.listener(Self::on_copy_capture))
+            .capture_action(cx.listener(Self::on_cut_capture))
+            .capture_action(cx.listener(Self::on_delete_capture))
+            .capture_action(cx.listener(Self::on_delete_back_capture))
+            .capture_key_down(cx.listener(Self::on_editor_key_down_capture))
+            .on_action(cx.listener(Self::on_undo))
+            .on_action(cx.listener(Self::on_redo))
+            .on_action(cx.listener(Self::on_save_document))
+            .on_action(cx.listener(Self::on_save_document_as))
+            .on_action(cx.listener(Self::on_export_html))
+            .on_action(cx.listener(Self::on_export_pdf))
+            .on_action(cx.listener(Self::on_quit_application))
+            .on_action(cx.listener(Self::on_toggle_view_mode_action))
+            .on_action(cx.listener(Self::on_page_up))
+            .on_action(cx.listener(Self::on_page_down))
+            .on_action(cx.listener(Self::on_jump_to_top))
+            .on_action(cx.listener(Self::on_jump_to_bottom))
+            .on_action(cx.listener(Self::on_dismiss_transient_ui))
+            .on_action(cx.listener(Self::on_install_cli_tool))
+            .on_action(cx.listener(Self::on_uninstall_cli_tool))
+            .child(self.render_editor_topbar(
+                WindowPanelKind::Editor,
+                &theme,
+                leaf_count,
+                is_maximized,
+                cx,
+            ))
+            .child(
+                div()
+                    .w_full()
+                    .flex_1()
+                    .min_h(px(0.0))
+                    .relative()
+                    .child(self.render_editor_midcontainer(&theme, &strings, window, cx)),
+            )
+            .child(self.render_editor_bottombar(&theme, &strings, cx));
         let base = if let Some(context_menu) = self.render_context_menu_overlay(&theme, cx) {
             base.child(context_menu)
         } else {
@@ -376,11 +377,11 @@ impl Editor {
     /// access hits this editor's own tab set.
     pub(crate) fn render_document_view(
         &mut self,
-        panel_id: usize,
         pane_id: usize,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        let panel_id = self.panel_id;
         let viewport_bounds = self.tab().scroll.handle.bounds();
         // A tab that has never been rendered has an unbound scroll handle
         // (0×0 bounds). Window the first frame against the window viewport

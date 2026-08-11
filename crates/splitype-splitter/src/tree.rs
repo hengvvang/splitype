@@ -1,7 +1,7 @@
 //! The recursive binary split tree and its operations.
 //!
-//! Generic over the area type `T` so that the outer layout uses `WindowAreaKind`
-//! while inner (Edit sub-panel) layouts use `EditorInnerPanelKind`.
+//! Generic over the kind type `T` so that the outer layout uses `WindowPanelKind`
+//! while inner (Edit pane) layouts use `EditorPaneKind`.
 
 use crate::container::SplitterContainer;
 
@@ -9,7 +9,7 @@ use crate::container::SplitterContainer;
 /// (leaves and split nodes alike) is numbered from this single space.
 pub type NodeId = usize;
 
-/// Split orientation between adjacent areas.
+/// Split orientation between adjacent leaves.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Axis {
     Horizontal, // Splits left and right
@@ -34,7 +34,7 @@ impl Direction {
 /// A leaf's rectangle in layout space, normalized to 0..1 (or scaled to
 /// pixels by the host when collected from `WindowLayout`).
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct AreaRect {
+pub struct LeafRect {
     pub id: usize,
     pub x: f32,
     pub y: f32,
@@ -42,7 +42,7 @@ pub struct AreaRect {
     pub height: f32,
 }
 
-/// Recursive binary layout tree representing tiled areas and splitters.
+/// Recursive binary layout tree representing tiled leaves and splitters.
 ///
 /// Design is inspired by Blender's screen area action-zone system: each
 /// area exposes four corner hot-zones that, when dragged, produce either a
@@ -164,12 +164,12 @@ impl<T: Copy + PartialEq> SplitTree<T> {
         }
     }
 
-    /// Collect all leaf rectangles as [`AreaRect`]s. Coordinates are in
+    /// Collect all leaf rectangles as [`LeafRect`]s. Coordinates are in
     /// layout-space (normalized 0..1).
-    pub fn collect_leaf_rects(&self, x: f32, y: f32, w: f32, h: f32, out: &mut Vec<AreaRect>) {
+    pub fn collect_leaf_rects(&self, x: f32, y: f32, w: f32, h: f32, out: &mut Vec<LeafRect>) {
         match self {
             Self::Leaf(container) => {
-                out.push(AreaRect {
+                out.push(LeafRect {
                     id: container.id,
                     x,
                     y,
@@ -373,7 +373,7 @@ impl<T: Copy + PartialEq> SplitTree<T> {
 
     /// Deep-clone this subtree, assigning fresh node ids from a shared id
     /// pool (`next_node_id`). Used when an Editor area is split: the new
-    /// area's inner panel tree is an independent copy of the source area's.
+    /// panel's pane tree is an independent copy of the source panel's.
     pub fn clone_with_new_ids(&self, next_id: &mut usize) -> SplitTree<T> {
         match self {
             Self::Leaf(container) => {

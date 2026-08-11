@@ -7,7 +7,6 @@ pub(crate) mod cli_install;
 pub mod menus;
 pub(crate) mod shell;
 pub mod window;
-pub mod window_area;
 pub(crate) mod window_chrome;
 pub(crate) mod window_dialogs;
-pub(crate) mod window_panels;
+pub mod window_panels;

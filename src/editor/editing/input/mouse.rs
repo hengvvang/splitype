@@ -15,18 +15,17 @@ impl Editor {
         // One Editor entity serves one area; the scrollbar belongs to this
         // editor's own document view. The fade task captures the area id so
         // it clears the right fade task later.
-        let area = self.panel_id;
         let duration = Duration::from_millis(900);
-        self.tab_mut_for(area).scroll.scrollbar_visible_until = Instant::now() + duration;
+        self.tab_mut().scroll.scrollbar_visible_until = Instant::now() + duration;
 
         let weak_editor = cx.entity().downgrade();
-        self.tab_mut_for(area).scroll.scrollbar_fade_task = Some(cx.spawn(
+        self.tab_mut().scroll.scrollbar_fade_task = Some(cx.spawn(
             async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
                 cx.background_executor()
                     .timer(duration + Duration::from_millis(50))
                     .await;
                 let _ = weak_editor.update(cx, |this, cx| {
-                    this.tab_mut_for(area).scroll.scrollbar_fade_task = None;
+                    this.tab_mut().scroll.scrollbar_fade_task = None;
                     cx.notify();
                 });
             },

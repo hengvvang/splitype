@@ -13,7 +13,7 @@ use gpui::*;
 use futures::FutureExt;
 use futures::channel::oneshot;
 
-use crate::app::shell::{AreaContent, Shell};
+use crate::app::shell::{PanelContent, Shell};
 use crate::editor::controller::{Editor, InfoDialogKind};
 use crate::editor::window::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
 use crate::infra::i18n::{I18nManager, I18nStrings};
@@ -32,8 +32,8 @@ impl Shell {
         cx: &App,
         show: fn(&crate::editor::controller::FileState) -> bool,
     ) -> Option<Entity<Editor>> {
-        self.areas.values().find_map(|area| match area {
-            AreaContent::Editor(entity) => entity
+        self.panel_contents.values().find_map(|content| match content {
+            PanelContent::Editor(entity) => entity
                 .read(cx)
                 .active_editor_tab()
                 .filter(|tab| show(&tab.file))
@@ -578,7 +578,7 @@ impl Shell {
                             .w(px(d.dialog_width))
                             .border(px(d.dialog_border_width))
                             .border_color(c.dialog_border)
-                            .rounded(px(d.area_tile_radius))
+                            .rounded(px(d.panel_tile_radius))
                             .shadow_lg()
                             .occlude()
                             .on_click(|_, _, _| {})

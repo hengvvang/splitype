@@ -1,7 +1,7 @@
 //! Bottom bar container — the full-width bar at the bottom of every window
 //! area that has one (editor / explorer).
 //!
-//! Shared by the per-area bottom bars so all areas render the same height,
+//! Shared by the per-panel bottom bars so all panels render the same height,
 //! tint and separator (dashed top edge).
 
 use gpui::*;
