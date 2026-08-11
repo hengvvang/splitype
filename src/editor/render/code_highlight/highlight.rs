@@ -649,13 +649,150 @@ pub(crate) fn highlight_code_block(
         });
     }
 
+    // Languages without a tree-sitter grammar (LaTeX, Mermaid) fall back to
+    // lightweight rule-based spans so math and diagram blocks colorize while
+    // editing, mirroring the code-block experience.
+    if let Some(spans) = highlight_light_rules(key, source) {
+        return Some(CodeHighlightResult {
+            language: key,
+            spans,
+        });
+    }
+
     Some(CodeHighlightResult {
         language: key,
         spans: Vec::new(),
     })
 }
 
-#[cfg(feature = "code-highlight-core")]
+/// Lightweight rule-based highlighting for languages without a tree-sitter
+/// grammar. Returns `None` for languages that have no light rules either.
+fn highlight_light_rules(key: CodeLanguageKey, source: &str) -> Option<Vec<CodeHighlightSpan>> {
+    match key {
+        CodeLanguageKey::Latex => Some(highlight_latex_text(source)),
+        CodeLanguageKey::Mermaid => Some(highlight_mermaid_text(source)),
+        _ => None,
+    }
+}
+
+/// LaTeX light rules: `%` line comments, `\command` names, numeric literals.
+fn highlight_latex_text(source: &str) -> Vec<CodeHighlightSpan> {
+    let bytes = source.as_bytes();
+    let mut spans = Vec::new();
+    let mut i = 0;
+    while i < bytes.len() {
+        let byte = bytes[i];
+        if byte == b'%' {
+            let start = i;
+            while i < bytes.len() && bytes[i] != b'\n' {
+                i += 1;
+            }
+            push_highlight_span(&mut spans, start..i, CodeHighlightClass::Comment);
+            continue;
+        }
+        if byte == b'\\'
+            && bytes
+                .get(i + 1)
+                .is_some_and(|next| next.is_ascii_alphabetic())
+        {
+            let start = i;
+            i += 1;
+            while i < bytes.len() && bytes[i].is_ascii_alphabetic() {
+                i += 1;
+            }
+            push_highlight_span(&mut spans, start..i, CodeHighlightClass::Function);
+            continue;
+        }
+        if byte.is_ascii_digit() {
+            let start = i;
+            while i < bytes.len() && (bytes[i].is_ascii_digit() || bytes[i] == b'.') {
+                i += 1;
+            }
+            push_highlight_span(&mut spans, start..i, CodeHighlightClass::Number);
+            continue;
+        }
+        i += 1;
+    }
+    spans
+}
+
+/// Keywords recognized by the light Mermaid highlighter.
+const MERMAID_KEYWORDS: &[&str] = &[
+    "graph",
+    "flowchart",
+    "sequenceDiagram",
+    "classDiagram",
+    "stateDiagram",
+    "erDiagram",
+    "journey",
+    "pie",
+    "gantt",
+    "mindmap",
+    "timeline",
+    "gitGraph",
+    "subgraph",
+    "end",
+    "direction",
+    "TB",
+    "TD",
+    "LR",
+    "RL",
+    "BT",
+    "accTitle",
+    "accDescr",
+];
+
+/// Mermaid light rules: `%%` line comments, diagram keywords, edge arrows,
+/// and node bracket punctuation.
+fn highlight_mermaid_text(source: &str) -> Vec<CodeHighlightSpan> {
+    let bytes = source.as_bytes();
+    let mut spans = Vec::new();
+    let mut i = 0;
+    while i < bytes.len() {
+        let byte = bytes[i];
+        if byte == b'%' && bytes.get(i + 1) == Some(&b'%') {
+            let start = i;
+            while i < bytes.len() && bytes[i] != b'\n' {
+                i += 1;
+            }
+            push_highlight_span(&mut spans, start..i, CodeHighlightClass::Comment);
+            continue;
+        }
+        if byte.is_ascii_alphabetic() {
+            let start = i;
+            while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+                i += 1;
+            }
+            if MERMAID_KEYWORDS
+                .iter()
+                .any(|keyword| *keyword == &source[start..i])
+            {
+                push_highlight_span(&mut spans, start..i, CodeHighlightClass::Keyword);
+            }
+            continue;
+        }
+        if matches!(byte, b'-' | b'=' | b'~' | b'.') {
+            let start = i;
+            while i < bytes.len()
+                && matches!(bytes[i], b'-' | b'=' | b'~' | b'.' | b'>' | b'x' | b'o')
+            {
+                i += 1;
+            }
+            if i > start + 1 {
+                push_highlight_span(&mut spans, start..i, CodeHighlightClass::Operator);
+            }
+            continue;
+        }
+        if matches!(byte, b'[' | b']' | b'(' | b')' | b'{' | b'}') {
+            push_highlight_span(&mut spans, i..i + 1, CodeHighlightClass::Punctuation);
+            i += 1;
+            continue;
+        }
+        i += 1;
+    }
+    spans
+}
+
 fn push_highlight_span(
     spans: &mut Vec<CodeHighlightSpan>,
     range: Range<usize>,
@@ -715,7 +852,9 @@ pub(crate) fn code_highlight_color(colors: &ThemeColors, class: CodeHighlightCla
 
 #[cfg(test)]
 mod tests {
-    use super::{CodeLanguageKey, highlight_code_block, resolve_code_language_key};
+    use super::{
+        CodeHighlightClass, CodeLanguageKey, highlight_code_block, resolve_code_language_key,
+    };
 
     #[test]
     fn balanced_bundle_aliases_resolve_to_expected_keys() {
@@ -780,20 +919,54 @@ mod tests {
 
     #[test]
     fn plain_fallback_languages_produce_empty_spans() {
-        let mermaid = highlight_code_block(Some("mermaid"), "graph TD;\nA-->B")
-            .expect("known plain fallback should still produce a result");
-        assert_eq!(mermaid.language, CodeLanguageKey::Mermaid);
-        assert!(mermaid.spans.is_empty());
-
-        let latex = highlight_code_block(Some("math"), "\\int_0^1 x^2 dx")
-            .expect("known plain fallback should still produce a result");
-        assert_eq!(latex.language, CodeLanguageKey::Latex);
-        assert!(latex.spans.is_empty());
-
         let text = highlight_code_block(Some("text"), "just text")
             .expect("plain text should still produce a result");
         assert_eq!(text.language, CodeLanguageKey::PlainText);
         assert!(text.spans.is_empty());
+    }
+
+    #[test]
+    fn math_and_mermaid_fall_back_to_light_rules() {
+        let mermaid = highlight_code_block(Some("mermaid"), "graph TD;\nA-->B")
+            .expect("mermaid light highlighting should produce a result");
+        assert_eq!(mermaid.language, CodeLanguageKey::Mermaid);
+        assert!(
+            !mermaid.spans.is_empty(),
+            "mermaid should get keyword spans"
+        );
+        assert!(
+            mermaid
+                .spans
+                .iter()
+                .any(|span| span.class == CodeHighlightClass::Keyword),
+            "graph keyword should be highlighted"
+        );
+        assert!(
+            mermaid
+                .spans
+                .iter()
+                .any(|span| span.class == CodeHighlightClass::Operator),
+            "arrow should be highlighted"
+        );
+
+        let latex = highlight_code_block(Some("math"), "\\int_0^1 x^2 dx % comment")
+            .expect("latex light highlighting should produce a result");
+        assert_eq!(latex.language, CodeLanguageKey::Latex);
+        assert!(!latex.spans.is_empty(), "latex should get comment spans");
+        assert!(
+            latex
+                .spans
+                .iter()
+                .any(|span| span.class == CodeHighlightClass::Comment),
+            "% comment should be highlighted"
+        );
+        assert!(
+            latex
+                .spans
+                .iter()
+                .any(|span| span.class == CodeHighlightClass::Function),
+            "\\command should be highlighted"
+        );
     }
 
     #[cfg(all(feature = "code-highlight-core", feature = "code-highlight-official"))]

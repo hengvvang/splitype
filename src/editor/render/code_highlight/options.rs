@@ -55,7 +55,7 @@ pub(crate) const CODE_LANGUAGE_OPTIONS: &[CodeLanguageOption] = &[
     language!("JSX", "jsx"),
     language!("Julia", "julia", "jl"),
     language!("Kotlin", "kotlin", "kt"),
-    language!("LaTeX", "latex", "tex"),
+    language!("LaTeX", "latex", "tex", "math"),
     language!("Lua", "lua"),
     language!("Markdown", "markdown", "md"),
     language!("Mermaid", "mermaid"),
