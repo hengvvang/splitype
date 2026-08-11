@@ -700,9 +700,9 @@ impl Editor {
                 // Dropping into this editor activates it and routes the
                 // replace flow to ITS tab set.
                 {
-                    if let Some(shell) = this.shell.clone() {
-                        let _ = shell.update(cx, |shell, cx| shell.activate_panel(panel_id, cx));
-                    }
+                    this.defer_shell_action(cx, move |shell, cx| {
+                        shell.activate_panel(panel_id, cx)
+                    });
                     this.on_external_paths_drop(paths, window, cx);
                 }
             }))
@@ -715,9 +715,9 @@ impl Editor {
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(move |this, event, window, cx| {
-                    if let Some(shell) = this.shell.clone() {
-                        let _ = shell.update(cx, |shell, cx| shell.activate_panel(panel_id, cx));
-                    }
+                    this.defer_shell_action(cx, move |shell, cx| {
+                        shell.activate_panel(panel_id, cx)
+                    });
                     this.on_editor_mouse_down(event, window, cx);
                 }),
             )
@@ -748,9 +748,9 @@ impl Editor {
             scroll_content.on_mouse_down(
                 MouseButton::Right,
                 cx.listener(move |this, event, window, cx| {
-                    if let Some(shell) = this.shell.clone() {
-                        let _ = shell.update(cx, |shell, cx| shell.activate_panel(panel_id, cx));
-                    }
+                    this.defer_shell_action(cx, move |shell, cx| {
+                        shell.activate_panel(panel_id, cx)
+                    });
                     this.on_editor_context_menu_mouse_down(event, window, cx);
                 }),
             )
@@ -796,10 +796,9 @@ impl Editor {
                         let _ = scrollbar_editor.update(cx, |editor, cx| {
                             cx.stop_propagation();
                             {
-                                if let Some(shell) = editor.shell.clone() {
-                                    let _ = shell
-                                        .update(cx, |shell, cx| shell.activate_panel(panel_id, cx));
-                                }
+                                editor.defer_shell_action(cx, move |shell, cx| {
+                                    shell.activate_panel(panel_id, cx);
+                                });
                                 editor.start_scrollbar_drag(
                                     pointer_offset_y,
                                     track_height,

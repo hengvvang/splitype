@@ -972,6 +972,97 @@ async fn window_close_action_closes_current_editor_before_global_menu_route(
 }
 
 #[gpui::test]
+async fn welcome_pane_click_defers_panel_activation(cx: &mut TestAppContext) {
+    init_editor_test_app(cx);
+
+    let window = cx.update(|cx| crate::app::window::open_editor_window(cx, String::new(), None));
+    cx.run_until_parked();
+
+    // The pane-body mouse-down runs inside the editor's own update. The
+    // Shell activation it triggers must be deferred, otherwise
+    // `sync_panel_states` double-leases this very entity (gpui panic).
+    window
+        .update(cx, |shell, window, cx| {
+            let editor = shell
+                .primary_editor()
+                .expect("editor window has an editor")
+                .clone();
+            editor.update(cx, |ed, cx| {
+                let mut pane_ids = Vec::new();
+                ed.session().root.tree.leaf_ids(&mut pane_ids);
+                ed.focus_pane(pane_ids[0], window, cx);
+            });
+        })
+        .expect("window update");
+    cx.run_until_parked();
+
+    // The deferred activation ran: the clicked editor's panel became the
+    // active leaf of the outer layout, and the welcome-mode click did not
+    // create a tab.
+    let (active_leaf, panel_id, tab_count) = window
+        .update(cx, |shell, _window, cx| {
+            let editor = shell.primary_editor().expect("editor window has an editor");
+            let panel_id = editor.read(cx).panel_id;
+            let tab_count = editor.read(cx).session().tab_list.tabs.len();
+            (shell.panels.layout.active_leaf, panel_id, tab_count)
+        })
+        .expect("window update");
+    assert_eq!(active_leaf, Some(panel_id));
+    assert_eq!(tab_count, 0);
+}
+
+#[gpui::test]
+async fn editing_pane_click_defers_panel_activation_without_panic(cx: &mut TestAppContext) {
+    init_editor_test_app(cx);
+
+    let window = cx.update(|cx| crate::app::window::open_editor_window(cx, String::new(), None));
+    cx.run_until_parked();
+
+    // Enter editing (the welcome double-click flow creates a tab first).
+    window
+        .update(cx, |shell, _window, cx| {
+            let editor = shell
+                .primary_editor()
+                .expect("editor window has an editor")
+                .clone();
+            editor.update(cx, |ed, cx| ed.new_untitled_tab(cx));
+        })
+        .expect("window update");
+    cx.run_until_parked();
+
+    // A pane-body click now focuses the pane; the deferred panel
+    // activation must not double-lease the editor.
+    window
+        .update(cx, |shell, window, cx| {
+            let editor = shell
+                .primary_editor()
+                .expect("editor window has an editor")
+                .clone();
+            editor.update(cx, |ed, cx| {
+                let mut pane_ids = Vec::new();
+                ed.session().root.tree.leaf_ids(&mut pane_ids);
+                ed.focus_pane(pane_ids[0], window, cx);
+            });
+        })
+        .expect("window update");
+    cx.run_until_parked();
+
+    let (focused_pane, active_leaf, panel_id) = window
+        .update(cx, |shell, _window, cx| {
+            let editor = shell.primary_editor().expect("editor window has an editor");
+            let editor = editor.read(cx);
+            (
+                editor.focused_pane,
+                shell.panels.layout.active_leaf,
+                editor.panel_id,
+            )
+        })
+        .expect("window update");
+    assert!(focused_pane.is_some());
+    assert_eq!(active_leaf, Some(panel_id));
+}
+
+#[gpui::test]
 async fn starting_and_ending_scrollbar_drag_updates_editor_state(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, "alpha".to_string(), None));
 

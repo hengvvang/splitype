@@ -641,6 +641,28 @@ impl Editor {
 }
 
 impl Editor {
+    /// Runs `action` on the Shell after the current update cycle ends.
+    ///
+    /// Shell layout operations (`activate_panel`, `split_panel`,
+    /// `close_panel`, …) re-push state to every editor entity via
+    /// `sync_panel_states`. When such an operation is triggered from this
+    /// editor's own handler, the editor is already mid-update and the
+    /// re-push would double-lease it (gpui panics on nested
+    /// `Entity::update`). Deferring lets the current update finish before
+    /// the Shell touches any editor; the pushed flags still land before
+    /// the next frame renders.
+    pub(crate) fn defer_shell_action(
+        &self,
+        cx: &mut Context<Self>,
+        action: impl FnOnce(&mut Shell, &mut Context<Shell>) + 'static,
+    ) {
+        if let Some(shell) = self.shell.clone() {
+            cx.defer(move |cx| {
+                let _ = shell.update(cx, action);
+            });
+        }
+    }
+
     /// Select the pane at `pane_id` as the focused pane AND transfer the
     /// keyboard edit focus to that pane's editing target: a source pane
     /// focuses its own block, a Wysiwyg pane resumes editing the shared
@@ -660,8 +682,13 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.focused_pane = Some(pane_id);
-        if let Some(shell) = self.shell.clone() {
-            let _ = shell.update(cx, |shell, cx| shell.activate_panel(self.panel_id, cx));
+        let panel_id = self.panel_id;
+        self.defer_shell_action(cx, move |shell, cx| shell.activate_panel(panel_id, cx));
+        if !self.has_active_tab() {
+            // Welcome mode: no document to focus yet; the pane is still
+            // selected so the pane body click only marks the panel active.
+            cx.notify();
+            return;
         }
         {
             let kind = self.session.root.tree.find_leaf_kind(pane_id);

@@ -129,11 +129,7 @@ impl Editor {
             .unwrap_or_else(|| window.viewport_size());
         // The corner-drag session lives on the dragging panel itself;
         // find it via the root.
-        if let Some(drag_panel) = self
-            .session_mut()
-            .root
-            .corner_drag_panel()
-        {
+        if let Some(drag_panel) = self.session_mut().root.corner_drag_panel() {
             let drag = self
                 .session_mut()
                 .root
@@ -162,8 +158,7 @@ impl Editor {
         // its second (right/bottom) leaf, matching the outer tree's
         // semantics: Split/Close act on that side, Swap flips the sides.
         if let Some(border_menu) = self.session_mut().root.active_border_menu {
-            let menu_overlay =
-                self.render_editor_pane_border_menu(border_menu, theme, cx);
+            let menu_overlay = self.render_editor_pane_border_menu(border_menu, theme, cx);
             container = container.child(menu_overlay);
         }
 
@@ -443,12 +438,12 @@ impl Editor {
                     });
                     ed.welcome_last_click = Some(now);
                     if is_double {
-                        // The clicked editor becomes the active editor.
-                        if let Some(shell) = ed.shell.clone() {
-                            let _ = shell.update(cx, |shell, cx| {
-                                shell.activate_panel(panel_id, cx);
-                            });
-                        }
+                        // The clicked editor becomes the active editor
+                        // (deferred: the Shell re-pushes state to every
+                        // editor, and this one is mid-update).
+                        ed.defer_shell_action(cx, move |shell, cx| {
+                            shell.activate_panel(panel_id, cx);
+                        });
                         ed.new_untitled_tab(cx);
                         // Focus the new source panel so typing works
                         // immediately after entering editing.
@@ -503,9 +498,7 @@ impl Editor {
                 let inner_body: AnyElement = if self.panel_mode().is_editing() {
                     match kind {
                         // WYSIWYG — this editor's own block editor view.
-                        EditorPaneKind::Wysiwyg => {
-                            self.render_document_view(pane_id, window, cx)
-                        }
+                        EditorPaneKind::Wysiwyg => self.render_document_view(pane_id, window, cx),
                         // Source — interactive source code editor. Uses a
                         // cached block in source-document mode; edits sync
                         // to the shared document via the block's Changed
@@ -517,9 +510,7 @@ impl Editor {
                         EditorPaneKind::Preview => {
                             self.render_preview_pane(pane_id, theme, strings, window, cx)
                         }
-                        EditorPaneKind::Outline => {
-                            self.render_outline_pane(theme, strings, cx)
-                        }
+                        EditorPaneKind::Outline => self.render_outline_pane(theme, strings, cx),
                     }
                 } else {
                     self.render_welcome_prompt(pane_id, theme, cx)
@@ -597,10 +588,8 @@ impl Editor {
                 let split_id = *id;
                 let dir = *direction;
                 let r = *ratio;
-                let first_elem =
-                    self.render_editor_pane_node(first, theme, strings, window, cx);
-                let second_elem =
-                    self.render_editor_pane_node(second, theme, strings, window, cx);
+                let first_elem = self.render_editor_pane_node(first, theme, strings, window, cx);
+                let second_elem = self.render_editor_pane_node(second, theme, strings, window, cx);
 
                 let inner_editor = cx.entity().downgrade();
 

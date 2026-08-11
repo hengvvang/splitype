@@ -4,8 +4,8 @@
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
-use crate::app::window_panels::WindowPanelKind;
 use crate::app::window_layout::panel_topbar_icon;
+use crate::app::window_panels::WindowPanelKind;
 use crate::infra::theme::Theme;
 use crate::splitter::Axis;
 use crate::ui::button::{icon_chip_button, small_pill_button};
@@ -68,11 +68,9 @@ impl crate::editor::controller::Editor {
             .on_click(move |_event, _window, cx| {
                 let _ = split_h_editor.update(cx, |ed, cx| {
                     // Same-kind split; Editor panels deep-copy their tabs.
-                    if let Some(shell) = ed.shell.clone() {
-                        let _ = shell.update(cx, |shell, cx| {
-                            shell.split_panel(leaf_id, Axis::Horizontal, 0.5, true, cx);
-                        });
-                    }
+                    ed.defer_shell_action(cx, move |shell, cx| {
+                        shell.split_panel(leaf_id, Axis::Horizontal, 0.5, true, cx);
+                    });
                     cx.notify();
                 });
             });
@@ -89,11 +87,9 @@ impl crate::editor::controller::Editor {
             .on_click(move |_event, _window, cx| {
                 let _ = split_v_editor.update(cx, |ed, cx| {
                     // Same-kind split; Editor panels deep-copy their tabs.
-                    if let Some(shell) = ed.shell.clone() {
-                        let _ = shell.update(cx, |shell, cx| {
-                            shell.split_panel(leaf_id, Axis::Vertical, 0.5, true, cx);
-                        });
-                    }
+                    ed.defer_shell_action(cx, move |shell, cx| {
+                        shell.split_panel(leaf_id, Axis::Vertical, 0.5, true, cx);
+                    });
                     cx.notify();
                 });
             });
@@ -121,11 +117,9 @@ impl crate::editor::controller::Editor {
                 )
                 .on_click(move |_event, _window, cx| {
                     let _ = max_editor.update(cx, |ed, cx| {
-                        if let Some(shell) = ed.shell.clone() {
-                            let _ = shell.update(cx, |shell, cx| {
-                                shell.toggle_panel_maximize(leaf_id, cx);
-                            });
-                        }
+                        ed.defer_shell_action(cx, move |shell, cx| {
+                            shell.toggle_panel_maximize(leaf_id, cx);
+                        });
                         cx.notify();
                     });
                 });
@@ -141,11 +135,9 @@ impl crate::editor::controller::Editor {
                 )
                 .on_click(move |_event, _window, cx| {
                     let _ = close_editor.update(cx, |ed, cx| {
-                        if let Some(shell) = ed.shell.clone() {
-                            let _ = shell.update(cx, |shell, cx| {
-                                shell.close_panel(leaf_id, cx);
-                            });
-                        }
+                        ed.defer_shell_action(cx, move |shell, cx| {
+                            shell.close_panel(leaf_id, cx);
+                        });
                         cx.notify();
                     });
                 });
@@ -205,11 +197,9 @@ impl crate::editor::controller::Editor {
                                 .child(file_name.clone())
                                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                                     let _ = tab_editor.update(cx, |ed, cx| {
-                                        if let Some(shell) = ed.shell.clone() {
-                                            let _ = shell.update(cx, |shell, cx| {
-                                                shell.activate_panel(leaf_id, cx);
-                                            });
-                                        }
+                                        ed.defer_shell_action(cx, move |shell, cx| {
+                                            shell.activate_panel(leaf_id, cx);
+                                        });
                                         ed.activate_tab(index, cx);
                                         cx.notify();
                                     });
@@ -233,11 +223,9 @@ impl crate::editor::controller::Editor {
                                 )
                                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                                     let _ = close_editor.update(cx, |ed, cx| {
-                                        if let Some(shell) = ed.shell.clone() {
-                                            let _ = shell.update(cx, |shell, cx| {
-                                                shell.activate_panel(leaf_id, cx);
-                                            });
-                                        }
+                                        ed.defer_shell_action(cx, move |shell, cx| {
+                                            shell.activate_panel(leaf_id, cx);
+                                        });
                                         ed.close_tab(index, cx);
                                         cx.notify();
                                     });
@@ -267,11 +255,9 @@ impl crate::editor::controller::Editor {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = add_editor.update(cx, |ed, cx| {
-                            if let Some(shell) = ed.shell.clone() {
-                                let _ = shell.update(cx, |shell, cx| {
-                                    shell.activate_panel(leaf_id, cx);
-                                });
-                            }
+                            ed.defer_shell_action(cx, move |shell, cx| {
+                                shell.activate_panel(leaf_id, cx);
+                            });
                             ed.new_untitled_tab(cx);
                             cx.notify();
                         });
