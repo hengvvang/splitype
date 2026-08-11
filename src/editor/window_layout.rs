@@ -151,7 +151,7 @@ impl Editor {
                                 let rects = ed.panels.layout.leaf_rects(viewport);
                                 if let Some(over) = id_at_point(&rects, pos) {
                                     if over != drag.target_id {
-                                        ed.swap_window_area_kinds(drag.target_id, over);
+                                        ed.swap_window_area_kinds(drag.target_id, over, cx);
                                     }
                                 }
                                 ed.panels.layout.end_corner_drag();
@@ -170,20 +170,19 @@ impl Editor {
                 });
             })
             .on_mouse_up(MouseButton::Left, move |_event, window, cx| {
-                let _ =
-                    root_editor_up.update(cx, |ed, cx| {
-                        // Outer corner drag end: the window-level drag policy
-                        // interprets the raw facts (plain = split/join, Shift =
-                        // open the dragged area in a new window, Ctrl = swap,
-                        // Alt = nothing), then the host runs the content steps
-                        // directly (seeding the new leaf, opening the cloned
-                        // window) — still inside this same update, never
-                        // re-entering the editor entity.
-                        if let Some(facts) = splitype_splitter::interaction::finish_window_drag(
-                            &mut ed.panels.layout,
-                        ) {
-                            let viewport = window.viewport_size();
-                            match facts.modifier {
+                let _ = root_editor_up.update(cx, |ed, cx| {
+                    // Outer corner drag end: the window-level drag policy
+                    // interprets the raw facts (plain = split/join, Shift =
+                    // open the dragged area in a new window, Ctrl = swap,
+                    // Alt = nothing), then the host runs the content steps
+                    // directly (seeding the new leaf, opening the cloned
+                    // window) — still inside this same update, never
+                    // re-entering the editor entity.
+                    if let Some(facts) =
+                        splitype_splitter::interaction::finish_window_drag(&mut ed.panels.layout)
+                    {
+                        let viewport = window.viewport_size();
+                        match facts.modifier {
                                 CornerDragModifier::None => {
                                     if let Some(new_id) =
                                         <SplitterContainer<WindowAreaKind> as DragPolicy<
@@ -192,7 +191,7 @@ impl Editor {
                                             &mut ed.panels.layout, &facts, viewport
                                         )
                                     {
-                                        ed.seed_split_content(facts.target_id, new_id, cx);
+                                        ed.seed_split_area(new_id, cx);
                                     }
                                 }
                                 CornerDragModifier::Shift => {
@@ -203,7 +202,11 @@ impl Editor {
                                             &mut ed.panels.layout, &facts, viewport
                                         )
                                     {
-                                        ed.clone_container_into_new_window(cloned, cx);
+                                        if let Some(shell) = ed.shell.clone() {
+                                            let _ = shell.update(cx, |shell, cx| {
+                                                shell.clone_container_into_new_window(cloned, cx)
+                                            });
+                                        }
                                     }
                                 }
                                 CornerDragModifier::Ctrl => {
@@ -221,12 +224,12 @@ impl Editor {
                                     )
                                 }
                             }
-                            cx.notify();
-                        }
-                        // Inner-level drag end (splitter bars and panel corner
-                        // drags); the handling lives in `panel_layout`.
-                        ed.finish_inner_drag(window, cx);
-                    });
+                        cx.notify();
+                    }
+                    // Inner-level drag end (splitter bars and panel corner
+                    // drags); the handling lives in `panel_layout`.
+                    ed.finish_inner_drag(window, cx);
+                });
             })
             .child(layout_tree);
 
@@ -660,7 +663,7 @@ impl Editor {
                     })
                     .on_click(move |_event, _window, cx| {
                         let _ = option_editor.update(cx, |ed, cx| {
-                            ed.change_window_area_kind(leaf_id, kind);
+                            ed.change_window_area_kind(leaf_id, kind, cx);
                             cx.notify();
                         });
                     })
@@ -703,7 +706,7 @@ impl Editor {
         let close_ed = editor.clone();
         let close: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = close_ed.update(app, |ed, cx| {
-                ed.close_window_area(split_id);
+                ed.close_window_area(split_id, cx);
                 cx.notify();
             });
         });

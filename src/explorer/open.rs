@@ -68,7 +68,7 @@ impl Editor {
             return;
         };
         let Some(new_id) =
-            self.split_window_area(area_id, crate::splitter::Axis::Horizontal, 0.5, false)
+            self.split_window_area(area_id, crate::splitter::Axis::Horizontal, 0.5, false, cx)
         else {
             return;
         };

@@ -64,18 +64,16 @@ fn ensure_wysiwyg_editing_panel(editor: &gpui::Entity<Editor>, cx: &mut gpui::Ap
         let mut ids = Vec::new();
         editor
             .ensure_editor_session(area)
-            .root.tree
+            .root
+            .tree
             .leaf_ids(&mut ids);
         for id in ids {
-            editor
-                .ensure_editor_session(area)
-                .root.tree
-                .set_leaf_kind(
-                    id,
-                    crate::editor::session::EditorInnerPanelKind::Editing(
-                        crate::editor::session::EditingPanelKind::Wysiwyg,
-                    ),
-                );
+            editor.ensure_editor_session(area).root.tree.set_leaf_kind(
+                id,
+                crate::editor::session::EditorInnerPanelKind::Editing(
+                    crate::editor::session::EditingPanelKind::Wysiwyg,
+                ),
+            );
         }
     });
 }
@@ -3366,83 +3364,79 @@ async fn rendering_one_editor_area_keeps_other_areas_source_block(cx: &mut TestA
     init_editor_test_app(cx);
 
     use crate::app::window_area::DEFAULT_EDITOR_AREA_ID;
-    use crate::editor::session::{EditingPanelKind, EditorInnerPanelKind};
-    use crate::splitter::tree::Axis;
+    use crate::editor::session::{EditingPanelKind, EditorInnerPanelKind, EditorSession};
 
     let (editor, cx) = cx.add_window_view({
         move |_window, cx| Editor::from_markdown(cx, "alpha\nbeta".to_string(), None)
     });
 
-    // Two Editor areas in one window, each holding a SourceCode panel.
-    let second_area = editor.update(cx, |editor, cx| {
-        editor.panels.layout.activate_area(DEFAULT_EDITOR_AREA_ID);
-        let mut ids = Vec::new();
-        editor
-            .ensure_editor_session(DEFAULT_EDITOR_AREA_ID)
-            .root
-            .tree
-            .leaf_ids(&mut ids);
-        for id in ids {
-            editor.ensure_editor_session(DEFAULT_EDITOR_AREA_ID).root.tree.set_leaf_kind(
-                id,
-                EditorInnerPanelKind::Editing(EditingPanelKind::SourceCode),
-            );
-        }
-        let second = editor
-            .split_window_area(DEFAULT_EDITOR_AREA_ID, Axis::Horizontal, 0.5, false)
-            .expect("split first editor area");
-        editor.new_untitled_tab(second, cx);
-        let mut ids = Vec::new();
-        editor
-            .ensure_editor_session(second)
-            .root
-            .tree
-            .leaf_ids(&mut ids);
-        for id in ids {
-            editor.ensure_editor_session(second).root.tree.set_leaf_kind(
-                id,
-                EditorInnerPanelKind::Editing(EditingPanelKind::SourceCode),
-            );
-        }
+    // Two Editor areas in one window: each area is its own entity holding
+    // a SourceCode panel (the Shell materializes one entity per area).
+    let second_entity = editor.update(cx, |editor, cx| {
+        editor.session.root.tree.set_leaf_kind(
+            1,
+            EditorInnerPanelKind::Editing(EditingPanelKind::SourceCode),
+        );
+        let mut second = Editor::with_session(2, EditorSession::welcome(), cx);
+        second
+            .session
+            .tab_list
+            .tabs
+            .push(Editor::new_tab_from_markdown(
+                cx,
+                "gamma\ndelta".to_string(),
+                None,
+            ));
+        second.enter_editing(2);
+        second.session.root.tree.set_leaf_kind(
+            1,
+            EditorInnerPanelKind::Editing(EditingPanelKind::SourceCode),
+        );
         second
     });
+    let second = cx.cx.new(|_cx| second_entity);
 
-    fn source_block_ids(
+    fn source_block_id(
         editor: &gpui::Entity<Editor>,
         cx: &mut gpui::VisualTestContext,
-        second_area: usize,
-    ) -> (Option<gpui::EntityId>, Option<gpui::EntityId>) {
+        area_id: usize,
+    ) -> Option<gpui::EntityId> {
         editor.read_with(cx, |editor, _cx| {
-            (
-                editor
-                    .source_code_panel_runtimes
-                    .get(&(DEFAULT_EDITOR_AREA_ID, 1))
-                    .and_then(|runtime| runtime.block.as_ref().map(|block| block.entity_id())),
-                editor
-                    .source_code_panel_runtimes
-                    .get(&(second_area, 1))
-                    .and_then(|runtime| runtime.block.as_ref().map(|block| block.entity_id())),
-            )
+            editor
+                .source_code_panel_runtimes
+                .get(&(area_id, 1))
+                .and_then(|runtime| runtime.block.as_ref().map(|block| block.entity_id()))
         })
     }
 
-    // The first frame materializes both panels' blocks.
+    // The first frame materializes the panel's block; every following
+    // frame must keep it alive (rendering used to drop other areas'
+    // source runtimes, rebuilding the block entity every frame).
     redraw(cx);
-    let before = source_block_ids(&editor, cx, second_area);
-    assert!(before.0.is_some(), "first area source block should exist");
-    assert!(before.1.is_some(), "second area source block should exist");
-
-    // Every following frame must keep BOTH blocks alive: rendering one
-    // area used to drop the other area's source runtime, rebuilding its
-    // block entity every frame and killing keyboard editing.
+    let before = source_block_id(&editor, cx, DEFAULT_EDITOR_AREA_ID);
+    assert!(before.is_some(), "first area source block should exist");
     for _ in 0..3 {
         redraw(cx);
-        let after = source_block_ids(&editor, cx, second_area);
         assert_eq!(
-            before, after,
-            "source block entities must survive other areas' render passes"
+            before,
+            source_block_id(&editor, cx, DEFAULT_EDITOR_AREA_ID),
+            "source block entity must survive other render passes"
         );
     }
+
+    // The second area's entity owns its own runtime, fully independent of
+    // the first area's entity.
+    second.update(&mut cx.cx, |second, cx| {
+        second.sync_source_code_panel(2, 1, cx)
+    });
+    let second_id = second.read_with(&mut cx.cx, |second, _cx| {
+        second
+            .source_code_panel_runtimes
+            .get(&(2, 1))
+            .and_then(|runtime| runtime.block.as_ref().map(|block| block.entity_id()))
+    });
+    assert!(second_id.is_some(), "second area source block should exist");
+    assert_ne!(before, second_id, "each area owns its own source block");
 }
 
 #[gpui::test]
@@ -3505,8 +3499,14 @@ async fn switching_tabs_renders_the_new_document_immediately(cx: &mut TestAppCon
     });
     redraw(cx);
     let (ids_again, text_again) = active_blocks(&editor, cx);
-    assert_eq!(text_again, "gamma\n\ndelta", "tab 1 document must be active");
-    assert_eq!(ids_again, tab1_ids, "tab 1 blocks must be stable across switches");
+    assert_eq!(
+        text_again, "gamma\n\ndelta",
+        "tab 1 document must be active"
+    );
+    assert_eq!(
+        ids_again, tab1_ids,
+        "tab 1 blocks must be stable across switches"
+    );
 }
 
 #[gpui::test]
@@ -3599,9 +3599,7 @@ async fn focused_thematic_break_accepts_typing(cx: &mut TestAppContext) {
                 .doc()
                 .blocks()
                 .iter()
-                .find(|visible| {
-                    visible.entity.read(cx).kind() == BlockKind::ThematicBreak
-                })
+                .find(|visible| visible.entity.read(cx).kind() == BlockKind::ThematicBreak)
                 .map(|visible| visible.entity.clone())
         })
         .expect("document must contain a thematic break");
@@ -3612,10 +3610,7 @@ async fn focused_thematic_break_accepts_typing(cx: &mut TestAppContext) {
     cx.simulate_input("x");
     redraw(cx);
     let text = separator.read_with(cx, |block, _cx| block.display_text().to_string());
-    assert_ne!(
-        text, "---",
-        "focused thematic break must accept text input"
-    );
+    assert_ne!(text, "---", "focused thematic break must accept text input");
     assert!(
         text.contains('x'),
         "typed character must be inserted, got {text:?}"

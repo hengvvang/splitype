@@ -49,6 +49,21 @@ pub struct EditorSession {
     pub(crate) root: SplitterRoot<EditorInnerPanelKind>,
 }
 
+impl EditorSession {
+    /// A fresh session: no tabs and a single default welcome panel. The
+    /// inner root is fully self-contained — it numbers its own nodes from
+    /// 1, so nested roots never share state with the outer layout.
+    pub(crate) fn welcome() -> Self {
+        Self {
+            tab_list: EditorTabList::empty(),
+            root: SplitterRoot::single_leaf(
+                1,
+                EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
+            ),
+        }
+    }
+}
+
 /// Inner-panel containers override the Shift-drag default (which opens
 /// the dragged panel in a new window): dragging an inner panel's corner
 /// with Shift is a no-op.

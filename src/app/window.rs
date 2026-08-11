@@ -57,12 +57,27 @@ pub(crate) fn open_editor_window(
                         Editor::from_markdown(cx, markdown, file_path)
                     }
                 });
-                cx.new(move |_cx| Shell {
+                let shell = cx.new(move |_cx| Shell {
                     // The default layout is Explorer (left) + Editor (right);
                     // only Editor areas carry content entities.
                     areas: [(DEFAULT_EDITOR_AREA_ID, AreaContent::Editor(editor))].into(),
+                    retained_editor_sessions: HashMap::new(),
                     menu_bar: MenuBarState::default(),
+                });
+                // Wire the editor entity to its Shell.
+                let shell_weak = shell.downgrade();
+                let editors: Vec<Entity<Editor>> = shell
+                    .read(cx)
+                    .areas
+                    .values()
+                    .filter_map(|content| match content {
+                    AreaContent::Editor(entity) => Some(entity.clone()),
                 })
+                    .collect();
+                for editor in editors {
+                    let _ = editor.update(cx, |e, _cx| e.shell = Some(shell_weak.clone()));
+                }
+                shell
             },
         )
         .unwrap();
@@ -98,11 +113,23 @@ pub(crate) fn open_cloned_window(
         .open_window(
             splitype_window_options(SharedString::new("Splitype"), bounds),
             move |_window, cx| {
-                let editor = cx.new(|cx| {
-                    let mut ed = Editor::empty(cx);
+                // Materialize one Editor entity per cloned session.
+                let mut areas = HashMap::new();
+                let mut primary: Option<Entity<Editor>> = None;
+                for (area_id, session) in sessions {
+                    let editor = cx.new(|cx| Editor::with_session(area_id, session, cx));
+                    if primary.is_none() {
+                        primary = Some(editor.clone());
+                    }
+                    areas.insert(area_id, AreaContent::Editor(editor));
+                }
+                // The primary editor carries the window-level transition
+                // state (outer layout + explorer) until it moves to the
+                // Shell.
+                let editor = primary.expect("cloned window has at least one editor area");
+                editor.update(cx, |ed, _cx| {
                     ed.panels.layout.tree = tree;
                     ed.panels.layout.next_node_id = next_node_id;
-                    ed.editor_sessions = sessions;
                     if let Some(explorer) = explorer {
                         ed.panels.explorer = explorer;
                     }
@@ -119,12 +146,26 @@ pub(crate) fn open_cloned_window(
                         ed.panels.layout.active_area = None;
                         ed.panels.layout.activation_history.clear();
                     }
-                    ed
                 });
-                cx.new(move |_cx| Shell {
-                    areas: [(DEFAULT_EDITOR_AREA_ID, AreaContent::Editor(editor))].into(),
+                let shell = cx.new(move |_cx| Shell {
+                    areas,
+                    retained_editor_sessions: HashMap::new(),
                     menu_bar: MenuBarState::default(),
+                });
+                // Wire every editor entity to its Shell.
+                let shell_weak = shell.downgrade();
+                let editors: Vec<Entity<Editor>> = shell
+                    .read(cx)
+                    .areas
+                    .values()
+                    .filter_map(|content| match content {
+                    AreaContent::Editor(entity) => Some(entity.clone()),
                 })
+                    .collect();
+                for editor in editors {
+                    let _ = editor.update(cx, |e, _cx| e.shell = Some(shell_weak.clone()));
+                }
+                shell
             },
         )
         .unwrap();

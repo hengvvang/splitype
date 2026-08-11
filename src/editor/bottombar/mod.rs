@@ -79,16 +79,7 @@ impl Editor {
         let d = &theme.dimensions;
         let prefs = self.bottombar_settings(cx);
 
-        // The status bar renders after the area container restored the
-        // routing hint; set it for this area so tab()/doc() reads below hit
-        // THIS editor's document.
-        let previous = self.current_tab_area;
-        self.current_tab_area = Some(area_id);
-
-        let inner_leaf_count = self
-            .ensure_editor_session(area_id)
-            .root.tree
-            .count_leaves();
+        let inner_leaf_count = self.ensure_editor_session(area_id).root.tree.count_leaves();
 
         let focused = self.focused_editor_inner_panel;
         let focused_panel_id = focused.and_then(|loc| {
@@ -100,7 +91,8 @@ impl Editor {
         });
         let focused_kind = focused_panel_id.and_then(|panel_id| {
             self.ensure_editor_session(area_id)
-                .root.tree
+                .root
+                .tree
                 .find_leaf_kind(panel_id)
         });
 
@@ -251,7 +243,6 @@ impl Editor {
                     .children(right_items),
             )
             .into_any_element();
-        self.current_tab_area = previous;
         bar
     }
 

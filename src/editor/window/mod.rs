@@ -118,11 +118,14 @@ impl Editor {
                 .update(cx, |this, cx| this.on_window_should_close(window, cx))
                 .unwrap_or(true)
         });
-        if let Some(area) = self.panels.layout.active_area {
-            if let Some(session) = self.editor_sessions.get_mut(&area) {
-                if let Some(tab) = session.tab_list.tabs.get_mut(session.tab_list.active_tab) {
-                    tab.file.close_guard_installed = true;
-                }
+        if self.panels.layout.active_area.is_some() {
+            if let Some(tab) = self
+                .session
+                .tab_list
+                .tabs
+                .get_mut(self.session.tab_list.active_tab)
+            {
+                tab.file.close_guard_installed = true;
             }
         }
     }
@@ -290,10 +293,8 @@ impl Editor {
 
 impl Render for Editor {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // Window-level rendering runs without a routing hint, so tab()/doc()
-        // resolve to the ACTIVE editor. Each Editor area renders its own
-        // document view via `render_document_view` under a per-area hint.
-        self.current_tab_area = None;
+        // One Editor entity serves one area, so tab()/doc() always resolve
+        // to this editor's own session.
 
         if self.has_active_tab() {
             self.install_close_guard(cx, window);
@@ -377,8 +378,7 @@ impl Render for Editor {
         } else {
             base
         };
-        // Dialog overlays read the ACTIVE editor's tab state.
-        self.current_tab_area = None;
+        // Dialog overlays read this editor's tab state.
         if let Some(kind) = self.info_dialog {
             base.child(self.render_info_dialog_overlay(&theme, kind, cx))
         } else if self
@@ -399,10 +399,9 @@ impl Render for Editor {
 }
 
 impl Editor {
-    /// Builds one Editor area's WYSIWYG document view: the scrollable block
-    /// editor. Runs under a per-area routing hint so every document-state
-    /// access hits THIS editor's tab set; the hint is restored afterwards so
-    /// window-level code still resolves to the active editor.
+    /// Builds this editor area's WYSIWYG document view: the scrollable block
+    /// editor. One Editor entity serves one area, so every document-state
+    /// access hits this editor's own tab set.
     pub(crate) fn render_document_view(
         &mut self,
         area_id: usize,
@@ -410,9 +409,6 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let previous = self.current_tab_area;
-        self.current_tab_area = Some(area_id);
-
         let viewport_bounds = self.tab().scroll.handle.bounds();
         // A tab that has never been rendered has an unbound scroll handle
         // (0×0 bounds). Window the first frame against the window viewport
@@ -897,10 +893,6 @@ impl Editor {
             content_area
         };
 
-        // Restore the routing hint before returning so window-level code
-        // (overlays, menu actions, explorer sync) resolves to the active
-        // editor again.
-        self.current_tab_area = previous;
         content_area.into_any_element()
     }
 

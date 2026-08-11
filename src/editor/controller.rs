@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 pub(crate) use gpui::*;
 
+pub(crate) use crate::app::shell::Shell;
 pub(crate) use crate::app::window_area::DEFAULT_EDITOR_AREA_ID;
 pub(crate) use crate::app::window_area::EditorAreaMode;
 pub(crate) use crate::app::window_area::WindowAreaKind;
@@ -47,7 +48,6 @@ pub(crate) use crate::model::syntax::table::{
     serialize_table_cell_markdown,
 };
 pub(crate) use crate::splitter::tree::NodeId;
-pub(crate) use splitype_splitter::policy::ClonedContainer;
 pub(crate) use splitype_splitter::root::SplitterRoot;
 
 /// Link navigation request deferred until a `Window` is available.
@@ -202,11 +202,18 @@ pub(crate) struct DocumentTab {
 /// (menus, chrome, explorer routing) target the ACTIVE editor — the last
 /// Editor area that received focus.
 pub struct Editor {
-    /// Transient routing hint: the Editor area whose tab list `tab()` /
-    /// `doc()` currently resolve to. Set by per-area render/event handlers
-    /// and cleared by window-level entry points, which then resolve to the
-    /// active editor.
-    pub(crate) current_tab_area: Option<NodeId>,
+    /// The outer window-area this editor renders inside. An Editor entity
+    /// serves exactly one area (Shell owns the area layout); window-level
+    /// state such as the layout tree and sidebar panels lives on the Shell.
+    pub(crate) area_id: NodeId,
+    /// The Shell that owns this editor's window area. Used to request
+    /// window-level operations (splitting an area creates a fresh Editor
+    /// entity on the Shell; closing one removes it). None in tests that
+    /// create Editor-rooted windows directly.
+    pub(crate) shell: Option<WeakEntity<Shell>>,
+    /// This editor area's session: its document tabs and inner panel split
+    /// root. One Editor entity owns exactly one session.
+    pub(crate) session: EditorSession,
     /// Rendered-mode context menu currently open in the editor.
     pub(crate) context_menu: Option<ContextMenuState>,
     pub(crate) context_menu_submenu_close_task: Option<Task<()>>,
@@ -225,11 +232,6 @@ pub struct Editor {
     /// Owned here for now; the Shell entity delegates rendering to this
     /// editor and reads this state incrementally.
     pub(crate) panels: WindowPanels,
-    /// Per-Editor-area sessions (tab list + inner panel split container),
-    /// keyed by outer area id. Retained for areas that left Editor with
-    /// tabs. The inner-panel drag sessions live inside each session's
-    /// `root` container.
-    pub(crate) editor_sessions: HashMap<NodeId, EditorSession>,
     /// Currently focused inner panel — the status-bar action target.
     pub(crate) focused_editor_inner_panel: Option<InnerPanelLocation>,
     /// Per-SourceCode-panel editing runtimes (keyed by the globally unique
@@ -387,9 +389,29 @@ impl Editor {
     /// before any file is opened or an Untitled tab is started. The default
     /// layout seeds a left Explorer area and a right Editor area with an
     /// empty tab bar.
-    pub(crate) fn empty(_cx: &mut Context<Self>) -> Self {
-        let this = Self {
-            current_tab_area: None,
+    pub(crate) fn empty(cx: &mut Context<Self>) -> Self {
+        Self::empty_for_area(DEFAULT_EDITOR_AREA_ID, cx)
+    }
+
+    /// Creates an editor serving `area_id` with no document tabs. The
+    /// Shell seeds each Editor area with its own entity via this
+    /// constructor.
+    pub(crate) fn empty_for_area(area_id: NodeId, _cx: &mut Context<Self>) -> Self {
+        Self::with_session(area_id, EditorSession::welcome(), _cx)
+    }
+
+    /// Creates an editor serving `area_id` with the given session (tab
+    /// list + inner panel split root). The Shell uses this to materialize
+    /// split-off and restored editor areas; `shell` is wired in afterwards.
+    pub(crate) fn with_session(
+        area_id: NodeId,
+        session: EditorSession,
+        _cx: &mut Context<Self>,
+    ) -> Self {
+        let mut this = Self {
+            area_id,
+            shell: None,
+            session,
             context_menu: None,
             context_menu_submenu_close_task: None,
             table_insert_dialog: None,
@@ -397,18 +419,11 @@ impl Editor {
             update_check_in_progress: false,
             welcome_last_click: None,
             panels: WindowPanels::default(),
-            editor_sessions: HashMap::new(),
             focused_editor_inner_panel: None,
             source_code_panel_runtimes: HashMap::new(),
         };
-        this.with_seeded_editor()
-    }
-
-    /// Seed the default layout's Editor area as the (empty) active editor.
-    fn with_seeded_editor(mut self) -> Self {
-        self.ensure_editor_session(DEFAULT_EDITOR_AREA_ID);
-        self.panels.layout.activate_area(DEFAULT_EDITOR_AREA_ID);
-        self
+        this.panels.layout.activate_area(area_id);
+        this
     }
 
     /// True when the active editor has at least one document tab.
@@ -424,7 +439,9 @@ impl Editor {
     ) -> Self {
         let tab = Self::new_tab_from_markdown(cx, markdown, file_path);
         let mut editor = Self {
-            current_tab_area: None,
+            area_id: DEFAULT_EDITOR_AREA_ID,
+            shell: None,
+            session: EditorSession::welcome(),
             context_menu: None,
             context_menu_submenu_close_task: None,
             table_insert_dialog: None,
@@ -432,15 +449,10 @@ impl Editor {
             update_check_in_progress: false,
             welcome_last_click: None,
             panels: WindowPanels::default(),
-            editor_sessions: HashMap::new(),
             focused_editor_inner_panel: None,
             source_code_panel_runtimes: HashMap::new(),
         };
-        editor
-            .ensure_editor_session(DEFAULT_EDITOR_AREA_ID)
-            .tab_list
-            .tabs
-            .push(tab);
+        editor.session.tab_list.tabs.push(tab);
         editor.enter_editing(DEFAULT_EDITOR_AREA_ID);
         editor.panels.layout.activate_area(DEFAULT_EDITOR_AREA_ID);
         editor.rebuild_table_runtimes(cx);
@@ -498,8 +510,8 @@ impl Editor {
 
     /// Activates the tab at `index` in the given Editor area, restoring
     /// its focus and window chrome.
-    pub(crate) fn activate_tab(&mut self, area_id: NodeId, index: usize, cx: &mut Context<Self>) {
-        let list = &mut self.ensure_editor_session(area_id).tab_list;
+    pub(crate) fn activate_tab(&mut self, _area_id: NodeId, index: usize, cx: &mut Context<Self>) {
+        let list = &mut self.session.tab_list;
         if index >= list.tabs.len() {
             return;
         }
@@ -612,11 +624,8 @@ impl Editor {
     /// Closes the tab at `index` in the given Editor area, activating a
     /// neighbor. Closing the last tab leaves the area back in the welcome
     /// state (no tabs).
-    pub(crate) fn close_tab(&mut self, area_id: NodeId, index: usize, cx: &mut Context<Self>) {
-        let Some(session) = self.editor_sessions.get_mut(&area_id) else {
-            return;
-        };
-        let list = &mut session.tab_list;
+    pub(crate) fn close_tab(&mut self, _area_id: NodeId, index: usize, cx: &mut Context<Self>) {
+        let list = &mut self.session.tab_list;
         if index >= list.tabs.len() {
             return;
         }
@@ -626,7 +635,7 @@ impl Editor {
             list.active_tab = 0;
             // Last tab: migrate the editing panels back into welcome
             // panels (they remember their kind for the next entry).
-            self.exit_editing(area_id);
+            self.exit_editing(self.area_id);
             cx.notify();
             return;
         }
@@ -650,7 +659,7 @@ impl Editor {
     /// transient per-area render/event context if set, else the active
     /// editor.
     pub(crate) fn routed_tab_area(&self) -> Option<NodeId> {
-        self.current_tab_area.or(self.panels.layout.active_area)
+        Some(self.area_id)
     }
 
     /// Run `f` with the routing hint set to `area_id`, restoring the
@@ -659,14 +668,12 @@ impl Editor {
     /// of which editor is currently active.
     pub(crate) fn with_current_tab_area<R>(
         &mut self,
-        area_id: NodeId,
+        _area_id: NodeId,
         f: impl FnOnce(&mut Self) -> R,
     ) -> R {
-        let previous = self.current_tab_area;
-        self.current_tab_area = Some(area_id);
-        let result = f(self);
-        self.current_tab_area = previous;
-        result
+        // One Editor entity serves exactly one area now, so no routing is
+        // needed; kept as a no-op shim while call sites migrate.
+        f(self)
     }
 
     /// Select the inner panel at `(area_id, panel_id)` as the focused
@@ -691,9 +698,7 @@ impl Editor {
         self.focused_editor_inner_panel = Some(InnerPanelLocation { area_id, panel_id });
         self.panels.layout.activate_area(area_id);
         self.with_current_tab_area(area_id, |editor| {
-            let kind = editor
-                .editor_session(area_id)
-                .and_then(|session| session.root.tree.find_leaf_kind(panel_id));
+            let kind = editor.session.root.tree.find_leaf_kind(panel_id);
             match kind {
                 // The source panel's own block becomes the edit target.
                 Some(EditorInnerPanelKind::Editing(EditingPanelKind::SourceCode)) => {
@@ -727,26 +732,16 @@ impl Editor {
         cx.notify();
     }
 
-    /// The active document tab (of the routed editor area).
+    /// The active document tab.
     pub(crate) fn tab(&self) -> &DocumentTab {
-        let area = self
-            .routed_tab_area()
-            .expect("tab() requires an active editor area");
-        let list = &self
-            .editor_session(area)
-            .expect("routed editor area has no editor session")
-            .tab_list;
+        let list = &self.session.tab_list;
         &list.tabs[list.active_tab]
     }
 
     /// The active document tab, mutably.
     pub(crate) fn tab_mut(&mut self) -> &mut DocumentTab {
-        let area = self
-            .routed_tab_area()
-            .expect("tab_mut() requires an active editor area");
-        let list = &mut self.ensure_editor_session(area).tab_list;
-        let index = list.active_tab;
-        &mut list.tabs[index]
+        let index = self.session.tab_list.active_tab;
+        &mut self.session.tab_list.tabs[index]
     }
 
     /// The active tab's document.
@@ -763,50 +758,39 @@ impl Editor {
     // Per-area tab access (independent editors)
     // ------------------------------------------------------------------
 
-    /// True when the given Editor area has at least one document tab.
-    pub(crate) fn area_has_tabs(&self, area_id: NodeId) -> bool {
-        self.editor_session(area_id)
-            .is_some_and(|session| !session.tab_list.tabs.is_empty())
+    /// True when this editor has at least one document tab.
+    pub(crate) fn area_has_tabs(&self, _area_id: NodeId) -> bool {
+        !self.session.tab_list.tabs.is_empty()
     }
 
-    /// The given Editor area's working mode: welcome (no tabs) or editing
-    /// (at least one tab). The single source of truth for how an area's
-    /// body and status bar render.
-    pub(crate) fn area_mode(&self, area_id: NodeId) -> EditorAreaMode {
-        self.editor_area_mode(area_id)
+    /// This editor's working mode: welcome (no tabs) or editing (at least
+    /// one tab). The single source of truth for how the area's body and
+    /// status bar render.
+    pub(crate) fn area_mode(&self, _area_id: NodeId) -> EditorAreaMode {
+        self.editor_area_mode(self.area_id)
     }
 
-    /// The given Editor area's tab list. Panics if the area has no editor
-    /// session (rendering code must call `tab_list_mut_for` first).
-    pub(crate) fn tab_list_for(&self, area_id: NodeId) -> &EditorTabList<DocumentTab> {
-        &self
-            .editor_session(area_id)
-            .unwrap_or_else(|| panic!("no editor session for area {area_id}"))
-            .tab_list
+    /// This editor's tab list, mutably.
+    pub(crate) fn tab_list_mut_for(&mut self, _area_id: NodeId) -> &mut EditorTabList<DocumentTab> {
+        &mut self.session.tab_list
     }
 
-    /// The given Editor area's tab list, created on demand.
-    pub(crate) fn tab_list_mut_for(&mut self, area_id: NodeId) -> &mut EditorTabList<DocumentTab> {
-        &mut self.ensure_editor_session(area_id).tab_list
-    }
-
-    /// The given Editor area's active tab.
-    pub(crate) fn tab_for(&self, area_id: NodeId) -> &DocumentTab {
-        let list = self.tab_list_for(area_id);
+    /// This editor's active tab.
+    pub(crate) fn tab_for(&self, _area_id: NodeId) -> &DocumentTab {
+        let list = &self.session.tab_list;
         &list.tabs[list.active_tab]
     }
 
-    /// The given Editor area's active tab, mutably.
-    pub(crate) fn tab_mut_for(&mut self, area_id: NodeId) -> &mut DocumentTab {
-        let list = &mut self.ensure_editor_session(area_id).tab_list;
-        let index = list.active_tab;
-        &mut list.tabs[index]
+    /// This editor's active tab, mutably.
+    pub(crate) fn tab_mut_for(&mut self, _area_id: NodeId) -> &mut DocumentTab {
+        let index = self.session.tab_list.active_tab;
+        &mut self.session.tab_list.tabs[index]
     }
 
-    /// The active editor's tab, if an active editor with tabs exists.
+    /// The active editor's tab, if the editor has tabs.
     pub(crate) fn active_editor_tab(&self) -> Option<&DocumentTab> {
-        let session = self.active_editor_session()?;
-        session.tab_list.tabs.get(session.tab_list.active_tab)
+        let list = &self.session.tab_list;
+        list.tabs.get(list.active_tab)
     }
 
     /// The active editor's serialized document text, if any.
@@ -830,8 +814,9 @@ impl Editor {
     }
 
     /// Split `area_id` with a same-kind sibling and seed the new Editor
-    /// area per `copy_content`: `true` deep-copies the source tab list
-    /// (and clones the inner panel layout); `false` leaves the new editor
+    /// area per `copy_content`: `true` deep-copies the source session
+    /// (tab list re-materialized from its serialized document, inner panel
+    /// layout cloned with fresh local ids); `false` leaves the new editor
     /// blank. Returns the new area's id.
     pub(crate) fn split_area(
         &mut self,
@@ -841,74 +826,55 @@ impl Editor {
         copy_content: bool,
         cx: &mut Context<Self>,
     ) -> Option<NodeId> {
-        let new_id = self.split_window_area(area_id, direction, ratio, copy_content)?;
-        if copy_content {
-            // The shared content steps — inner layout clone plus tab
-            // re-materialization — are the same ones the corner-drag
-            // policy runs on mouse-up.
-            self.seed_split_content(area_id, new_id, cx);
-        }
-        Some(new_id)
+        self.split_window_area(area_id, direction, ratio, copy_content, cx)
     }
 
-    /// Deep-copy the source Editor area's tab list into `dst`: every tab is
-    /// re-materialized from its serialized document, so the two editors are
-    /// fully independent (separate undo, focus, scroll, and dirty state).
-    fn copy_editor_tab_list(&mut self, src: NodeId, dst: NodeId, cx: &mut Context<Self>) {
-        let Some(source) = self.editor_session(src).map(|session| &session.tab_list) else {
-            // Source never got a session (e.g. a non-Editor area): the
-            // copy is a blank editor.
-            self.ensure_editor_session(dst);
-            return;
+    /// Deep-copy this editor's session for a fresh sibling area: the inner
+    /// panel tree gets fresh ids from the area-local space (root leaf 1
+    /// plus a fresh local pool), and every tab is re-materialized from its
+    /// serialized document so the two editors are fully independent
+    /// (separate undo, focus, scroll, and dirty state).
+    pub(crate) fn clone_session(&self, cx: &mut Context<Self>) -> EditorSession {
+        let mut root = SplitterRoot::single_leaf(
+            1,
+            EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
+        );
+        let mut next_id = 1;
+        root.tree = self.session.root.tree.clone_with_new_ids(&mut next_id);
+        root.next_node_id = next_id;
+
+        let mut list = EditorTabList {
+            tabs: Vec::with_capacity(self.session.tab_list.tabs.len()),
+            active_tab: 0,
         };
-        if source.tabs.is_empty() {
-            // Welcome-state editor: the copy is another welcome-state
-            // editor — there is nothing to rebuild for it.
-            self.ensure_editor_session(dst);
-            return;
-        }
-        let mut copies: Vec<(String, Option<PathBuf>, EditorMode, bool)> = Vec::new();
-        for tab in &source.tabs {
+        for tab in &self.session.tab_list.tabs {
             let text = if tab.mode == EditorMode::SourceCode {
                 tab.document.to_raw_source(cx)
             } else {
                 tab.document.to_markdown(cx)
             };
-            copies.push((text, tab.file.path.clone(), tab.mode, tab.file.dirty));
+            let mut copy = Self::new_tab_from_markdown(cx, text, tab.file.path.clone());
+            copy.mode = tab.mode;
+            copy.file.dirty = tab.file.dirty;
+            list.tabs.push(copy);
         }
-        let active = source.active_tab;
-        let mut list = EditorTabList {
-            tabs: Vec::with_capacity(copies.len()),
-            active_tab: 0,
-        };
-        for (text, path, mode, dirty) in copies {
-            let mut tab = Self::new_tab_from_markdown(cx, text, path);
-            tab.mode = mode;
-            tab.file.dirty = dirty;
-            list.tabs.push(tab);
+        list.active_tab = self
+            .session
+            .tab_list
+            .active_tab
+            .min(list.tabs.len().saturating_sub(1));
+        EditorSession {
+            tab_list: list,
+            root,
         }
-        list.active_tab = active.min(list.tabs.len().saturating_sub(1));
-        let dst_list = &mut self.ensure_editor_session(dst).tab_list;
-        *dst_list = list;
-
-        // Rebuild the copied area's runtime registries under its routing
-        // context, then restore the previous context.
-        let previous = self.current_tab_area;
-        self.current_tab_area = Some(dst);
-        self.rebuild_table_runtimes(cx);
-        self.rebuild_image_runtimes(cx);
-        self.refresh_preview_blocks(cx);
-        self.tab_mut().focus.pending = self.first_focusable_entity_id(cx);
-        self.current_tab_area = previous;
     }
 
-    /// First dirty tab across ALL editor areas, if any.
+    /// First dirty tab in this editor, if any. Window-wide aggregation
+    /// (across every editor area) lives on the Shell.
     pub(crate) fn first_dirty_tab(&self) -> Option<(NodeId, usize)> {
-        for (area, session) in &self.editor_sessions {
-            for (index, tab) in session.tab_list.tabs.iter().enumerate() {
-                if tab.file.dirty {
-                    return Some((*area, index));
-                }
+        for (index, tab) in self.session.tab_list.tabs.iter().enumerate() {
+            if tab.file.dirty {
+                return Some((self.area_id, index));
             }
         }
         None
@@ -918,130 +884,4 @@ impl Editor {
     // Drag-policy content steps (invoked by the host after a policy's
     // tree operation)
     // ------------------------------------------------------------------
-
-    /// Seed the fresh sibling leaf of a plain-drag split: deep-copy the
-    /// source editor's content (inner panel layout + tab list) into `dst`.
-    /// Non-Editor areas have no content to copy.
-    pub(crate) fn seed_split_content(
-        &mut self,
-        src_id: NodeId,
-        dst_id: NodeId,
-        cx: &mut Context<Self>,
-    ) {
-        Self::clone_inner_layout(&mut self.editor_sessions, src_id, dst_id);
-        self.copy_editor_tab_list(src_id, dst_id, cx);
-    }
-
-    /// Clone the inner panel layout of `src_id`'s editor session into a
-    /// fresh session for `dst_id`. The clone lives in the area-local id
-    /// space (root leaf 1 plus a fresh local pool): inner panel ids only
-    /// need uniqueness within one area, because hosts always address
-    /// panels as `(area_id, panel_id)` pairs. Creates a blank session when
-    /// the source has none (non-Editor areas included — the caller's tab
-    /// copy step then leaves it blank).
-    pub(crate) fn clone_inner_layout(
-        editor_sessions: &mut HashMap<NodeId, EditorSession>,
-        src_id: NodeId,
-        dst_id: NodeId,
-    ) {
-        if let Some(source) = editor_sessions.get(&src_id) {
-            // Deep-copy the inner panel tree in the area-local id space:
-            // the clone starts from a fresh root leaf 1 and its own pool,
-            // so it never touches the window-wide id pool.
-            let mut root = SplitterRoot::single_leaf(
-                1,
-                EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
-            );
-            let mut next_id = 1;
-            root.tree = source.root.tree.clone_with_new_ids(&mut next_id);
-            root.next_node_id = next_id;
-            editor_sessions.insert(
-                dst_id,
-                EditorSession {
-                    tab_list: EditorTabList::empty(),
-                    root,
-                },
-            );
-        } else {
-            editor_sessions
-                .entry(dst_id)
-                .or_insert_with(|| EditorSession {
-                    tab_list: EditorTabList::empty(),
-                    root: SplitterRoot::single_leaf(
-                        1,
-                        EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
-                    ),
-                });
-        }
-    }
-
-    /// Shift-drag default behavior: open the DRAGGED panel in a new
-    /// independent window. The engine hands over a fresh single-leaf tree
-    /// of the panel's kind; here the dragged area's content is deep-copied
-    /// — an Editor area's session (inner panel layout + tab list), an
-    /// Explorer area's file-tree state.
-    pub(crate) fn clone_container_into_new_window(
-        &mut self,
-        cloned: ClonedContainer<crate::app::window_area::WindowAreaKind>,
-        cx: &mut Context<Self>,
-    ) {
-        let mut sessions = HashMap::new();
-        let mut cloned_explorer = None;
-        for (old_id, new_id) in &cloned.id_map {
-            match cloned.tree.find_leaf_kind(*new_id) {
-                Some(crate::app::window_area::WindowAreaKind::Editor) => {
-                    if let Some(source) = self.editor_sessions.get(old_id) {
-                        sessions.insert(*new_id, Self::clone_editor_session(source, cx));
-                    }
-                }
-                Some(crate::app::window_area::WindowAreaKind::Explorer) => {
-                    // The explorer model is window-global: deep-copy it so
-                    // the new window shows the same file tree.
-                    cloned_explorer = Some(self.panels.explorer.clone_for_new_window());
-                }
-                Some(crate::app::window_area::WindowAreaKind::Settings) | None => {}
-            }
-        }
-        crate::app::window::open_cloned_window(
-            cloned.tree,
-            cloned.next_node_id,
-            sessions,
-            cloned_explorer,
-            cx,
-        );
-    }
-
-    /// Deep-copy one editor session: the inner panel tree gets fresh ids
-    /// from the area-local space (root leaf 1 plus a fresh local pool), and
-    /// every tab is re-materialized from its serialized document (so undo,
-    /// focus, scroll, and dirty state start fresh but content is identical).
-    fn clone_editor_session(source: &EditorSession, cx: &mut Context<Self>) -> EditorSession {
-        let mut root = SplitterRoot::single_leaf(
-            1,
-            EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
-        );
-        let mut next_id = 1;
-        root.tree = source.root.tree.clone_with_new_ids(&mut next_id);
-        root.next_node_id = next_id;
-
-        let mut tabs = Vec::with_capacity(source.tab_list.tabs.len());
-        for tab in &source.tab_list.tabs {
-            let text = if tab.mode == EditorMode::SourceCode {
-                tab.document.to_raw_source(cx)
-            } else {
-                tab.document.to_markdown(cx)
-            };
-            let mut new_tab = Self::new_tab_from_markdown(cx, text, tab.file.path.clone());
-            new_tab.mode = tab.mode;
-            new_tab.file.dirty = tab.file.dirty;
-            tabs.push(new_tab);
-        }
-        EditorSession {
-            tab_list: EditorTabList {
-                active_tab: source.tab_list.active_tab.min(tabs.len().saturating_sub(1)),
-                tabs,
-            },
-            root,
-        }
-    }
 }

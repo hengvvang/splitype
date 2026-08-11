@@ -126,7 +126,7 @@ impl crate::editor::controller::Editor {
                 )
                 .on_click(move |_event, _window, cx| {
                     let _ = close_editor.update(cx, |ed, cx| {
-                        ed.close_window_area(leaf_id);
+                        ed.close_window_area(leaf_id, cx);
                         cx.notify();
                     });
                 });

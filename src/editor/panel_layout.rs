@@ -23,9 +23,8 @@ use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 
 impl Editor {
-    /// Render one Editor area's inner panel layout. While building, the
-    /// routing hint (`current_tab_area`) points at this area so every panel
-    /// reads THIS editor's tab list.
+    /// Render one Editor area's inner panel layout. One Editor entity serves
+    /// exactly one area, so `tab()`/`doc()` always read this editor's session.
     ///
     /// Side effects before rendering the tree:
     /// - drop runtimes of panels that were closed or joined;
@@ -43,17 +42,12 @@ impl Editor {
         self.tab_list_mut_for(area_id);
         let inner_tree = self.ensure_editor_session(area_id).root.tree.clone();
 
-        // Drop runtimes of THIS area's panels that were closed or joined,
-        // and of areas that no longer exist. Runtimes of other live areas
-        // belong to their own render pass — deleting them here would
-        // destroy another area's focused source block every frame.
-        let sessions = &self.editor_sessions;
+        // Drop runtimes of THIS area's panels that were closed or joined.
+        // (One Editor entity serves one area, so all runtimes here belong
+        // to this render pass.)
         self.source_code_panel_runtimes.retain(|(area, panel), _| {
-            sessions.contains_key(area) && (*area != area_id || inner_tree.contains_leaf(*panel))
+            *area == area_id && self.session.root.tree.contains_leaf(*panel)
         });
-
-        let previous = self.current_tab_area;
-        self.current_tab_area = Some(area_id);
 
         // Derive the focused panel from the keyboard focus when nothing is
         // focused yet — clicking inside a block or Tab navigation never
@@ -99,37 +93,31 @@ impl Editor {
 
         let inner_rendered =
             self.render_editor_inner_panel_node(&inner_tree, area_id, theme, strings, window, cx);
-        self.current_tab_area = previous;
 
-        let dropdown = {
-            let root = &self.ensure_editor_session(area_id).root;
-            // The open dropdown lives on its panel (panel-level state).
-            let mut ids = Vec::new();
-            root.tree.leaf_ids(&mut ids);
-            let open_panel = ids.into_iter().find(|id| {
-                root
-                    .tree
-                    .find_leaf(*id)
-                    .is_some_and(|p| p.open_dropdown)
-            });
-            if let Some(panel_id) = open_panel {
-                let current_kind = root
-                    .tree
-                    .find_leaf_kind(panel_id)
-                    .unwrap_or(EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(
-                        None,
-                    )));
-                Some(self.render_editor_inner_panel_dropdown_menu(
-                    area_id,
-                    panel_id,
-                    current_kind,
-                    theme,
-                    cx,
-                ))
-            } else {
-                None
-            }
-        };
+        let dropdown =
+            {
+                let root = &self.ensure_editor_session(area_id).root;
+                // The open dropdown lives on its panel (panel-level state).
+                let mut ids = Vec::new();
+                root.tree.leaf_ids(&mut ids);
+                let open_panel = ids
+                    .into_iter()
+                    .find(|id| root.tree.find_leaf(*id).is_some_and(|p| p.open_dropdown));
+                if let Some(panel_id) = open_panel {
+                    let current_kind = root.tree.find_leaf_kind(panel_id).unwrap_or(
+                        EditorInnerPanelKind::Welcome(WelcomePanelKind::Welcome(None)),
+                    );
+                    Some(self.render_editor_inner_panel_dropdown_menu(
+                        area_id,
+                        panel_id,
+                        current_kind,
+                        theme,
+                        cx,
+                    ))
+                } else {
+                    None
+                }
+            };
 
         let mut container = div()
             .w_full()
@@ -194,11 +182,7 @@ impl Editor {
         // inner-panel operations. The split node id doubles as the id of
         // its second (right/bottom) leaf, matching the outer tree's
         // semantics: Split/Close act on that side, Swap flips the sides.
-        if let Some(border_menu) = self
-            .ensure_editor_session(area_id)
-            .root
-            .active_border_menu
-        {
+        if let Some(border_menu) = self.ensure_editor_session(area_id).root.active_border_menu {
             let menu_overlay =
                 self.render_editor_inner_panel_border_menu(border_menu, area_id, theme, cx);
             container = container.child(menu_overlay);
@@ -212,17 +196,15 @@ impl Editor {
     /// pointer move. Returns whether a gesture was active (the host should
     /// repaint).
     pub(crate) fn update_inner_drag(&mut self, pos: Point<Pixels>, window: &Window) -> bool {
-        // Inner splitter drag: locate the session whose container holds
-        // the active drag, and drive it through the shared container API.
-        if let Some((area_id, session)) = self
-            .editor_sessions
-            .iter_mut()
-            .find(|(_, s)| s.root.active_splitter_drag.is_some())
-        {
+        // Inner splitter drag: drive this editor's own session container
+        // through the shared container API.
+        if self.session.root.active_splitter_drag.is_some() {
+            let area_id = self.area_id;
+            let session = &mut self.session;
             let drag = session.root.active_splitter_drag.unwrap();
             let viewport = window.viewport_size();
             let outer_rects = self.panels.layout.leaf_rects(viewport);
-            if let Some(outer_rect) = self.panels.layout.leaf_rect(*area_id, &outer_rects) {
+            if let Some(outer_rect) = self.panels.layout.leaf_rect(area_id, &outer_rects) {
                 let current_pos = match drag.direction {
                     Axis::Horizontal => f32::from(pos.x) - outer_rect.x,
                     Axis::Vertical => f32::from(pos.y) - outer_rect.y,
@@ -252,12 +234,9 @@ impl Editor {
         // Ctrl past the threshold swaps the dragged panel with the
         // hovered one, Shift ends the gesture as a no-op. Plain drags
         // defer to the inner drag policy on mouse-up.
-        if let Some((area_id, session)) = self
-            .editor_sessions
-            .iter_mut()
-            .find(|(_, s)| s.root.corner_drag_panel().is_some())
-        {
-            let area_id = *area_id;
+        if self.session.root.corner_drag_panel().is_some() {
+            let area_id = self.area_id;
+            let session = &mut self.session;
             let drag_panel = session.root.corner_drag_panel().unwrap();
             let drag = session
                 .root
@@ -328,26 +307,20 @@ impl Editor {
     /// drag policy for corner drags.
     pub(crate) fn finish_inner_drag(&mut self, window: &Window, cx: &mut Context<Self>) {
         // Inner splitter bar drag end.
-        let splitter_pending = self
-            .editor_sessions
-            .iter_mut()
-            .find(|(_, s)| s.root.active_splitter_drag.is_some());
-        if let Some((_, session)) = splitter_pending {
-            session.root.end_splitter_drag();
+        if self.session.root.active_splitter_drag.is_some() {
+            self.session.root.end_splitter_drag();
             cx.notify();
         }
         // Inner corner drag end: finish the gesture through the shared
         // container, then let the inner-panel policy interpret the facts
         // (Shift is a no-op override).
-        let corner_pending = self
-            .editor_sessions
-            .iter_mut()
-            .find(|(_, s)| s.root.corner_drag_panel().is_some())
-            .map(|(area_id, session)| {
-                let facts = session.root.finish_corner_drag();
-                (*area_id, facts)
-            });
-        if let Some((area_id, Some(facts))) = corner_pending {
+        let area_id = self.area_id;
+        let facts = if self.session.root.corner_drag_panel().is_some() {
+            self.session.root.finish_corner_drag()
+        } else {
+            None
+        };
+        if let Some(facts) = facts {
             let viewport = window.viewport_size();
             let inner_size = {
                 let outer_rects = self.panels.layout.leaf_rects(viewport);
@@ -357,30 +330,37 @@ impl Editor {
                     .map(|rect| size(px(rect.width), px(rect.height)))
                     .unwrap_or(viewport)
             };
-            if let Some(session) = self.editor_sessions.get_mut(&area_id) {
-                match facts.modifier {
+            let session = &mut self.session;
+            match facts.modifier {
                     CornerDragModifier::None => {
-                        let _ = <SplitterContainer<EditorInnerPanelKind> as DragPolicy<EditorInnerPanelKind>>::on_plain_drag(
-                            &mut session.root, &facts, inner_size,
+                        let _ = <SplitterContainer<EditorInnerPanelKind> as DragPolicy<
+                            EditorInnerPanelKind,
+                        >>::on_plain_drag(
+                            &mut session.root, &facts, inner_size
                         );
                     }
                     CornerDragModifier::Shift => {
-                        let _ = <SplitterContainer<EditorInnerPanelKind> as DragPolicy<EditorInnerPanelKind>>::on_shift_drag(
-                            &mut session.root, &facts, inner_size,
+                        let _ = <SplitterContainer<EditorInnerPanelKind> as DragPolicy<
+                            EditorInnerPanelKind,
+                        >>::on_shift_drag(
+                            &mut session.root, &facts, inner_size
                         );
                     }
                     CornerDragModifier::Ctrl => {
-                        <SplitterContainer<EditorInnerPanelKind> as DragPolicy<EditorInnerPanelKind>>::on_ctrl_drag(
-                            &mut session.root, &facts, inner_size,
+                        <SplitterContainer<EditorInnerPanelKind> as DragPolicy<
+                            EditorInnerPanelKind,
+                        >>::on_ctrl_drag(
+                            &mut session.root, &facts, inner_size
                         )
                     }
                     CornerDragModifier::Alt => {
-                        <SplitterContainer<EditorInnerPanelKind> as DragPolicy<EditorInnerPanelKind>>::on_alt_drag(
-                            &mut session.root, &facts, inner_size,
+                        <SplitterContainer<EditorInnerPanelKind> as DragPolicy<
+                            EditorInnerPanelKind,
+                        >>::on_alt_drag(
+                            &mut session.root, &facts, inner_size
                         )
                     }
                 }
-            }
             cx.notify();
         }
     }
@@ -400,11 +380,7 @@ impl Editor {
         let split_h: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = split_h_ed.update(app, |ed, cx| {
                 ed.split_editor_inner_panel_with_ratio(area_id, split_id, Axis::Horizontal, 0.5);
-                ed.editor_sessions
-                    .get_mut(&area_id)
-                    .unwrap()
-                    .root
-                    .active_border_menu = None;
+                ed.ensure_editor_session(area_id).root.active_border_menu = None;
                 cx.notify();
             });
         });
@@ -412,11 +388,7 @@ impl Editor {
         let split_v: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = split_v_ed.update(app, |ed, cx| {
                 ed.split_editor_inner_panel_with_ratio(area_id, split_id, Axis::Vertical, 0.5);
-                ed.editor_sessions
-                    .get_mut(&area_id)
-                    .unwrap()
-                    .root
-                    .active_border_menu = None;
+                ed.ensure_editor_session(area_id).root.active_border_menu = None;
                 cx.notify();
             });
         });
@@ -431,22 +403,14 @@ impl Editor {
         let close: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = close_ed.update(app, |ed, cx| {
                 ed.close_editor_inner_panel(area_id, split_id);
-                ed.editor_sessions
-                    .get_mut(&area_id)
-                    .unwrap()
-                    .root
-                    .active_border_menu = None;
+                ed.ensure_editor_session(area_id).root.active_border_menu = None;
                 cx.notify();
             });
         });
         let dismiss_ed = editor.clone();
         let dismiss: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = dismiss_ed.update(app, |ed, cx| {
-                ed.editor_sessions
-                    .get_mut(&area_id)
-                    .unwrap()
-                    .root
-                    .active_border_menu = None;
+                ed.ensure_editor_session(area_id).root.active_border_menu = None;
                 cx.notify();
             });
         });
@@ -513,12 +477,9 @@ impl Editor {
                     });
                     ed.welcome_last_click = Some(now);
                     if is_double {
-                        // The clicked editor becomes the active editor and
-                        // its routing context is set for the tab creation.
+                        // The clicked editor becomes the active editor.
                         ed.panels.layout.activate_area(area_id);
-                        ed.current_tab_area = Some(area_id);
                         ed.new_untitled_tab(area_id, cx);
-                        ed.current_tab_area = None;
                         // Focus the new source panel so typing works
                         // immediately after entering editing.
                         ed.focus_editor_inner_panel(area_id, panel_id, window, cx);
@@ -603,9 +564,7 @@ impl Editor {
                     false,
                     move |modifier, pos, cx| {
                         let _ = inner_editor.update(cx, |ed, cx| {
-                            ed.editor_sessions
-                                .get_mut(&area_id)
-                                .unwrap()
+                            ed.ensure_editor_session(area_id)
                                 .root
                                 .start_corner_drag(panel_id, pos, modifier);
                             cx.notify();
@@ -678,13 +637,11 @@ impl Editor {
                     Axis::Horizontal => {
                         let bar_editor = inner_editor.clone();
                         let menu_editor = inner_editor.clone();
-                        let bar_active =
-                            self.editor_sessions.get(&area_id).is_some_and(|session| {
-                                session
-                                    .root
-                                    .active_splitter_drag
-                                    .is_some_and(|drag| drag.split_id == split_id)
-                            });
+                        let bar_active = self
+                            .session
+                            .root
+                            .active_splitter_drag
+                            .is_some_and(|drag| drag.split_id == split_id);
                         div()
                             .w_full()
                             .h_full()
@@ -726,31 +683,29 @@ impl Editor {
                                 .on_mouse_down(MouseButton::Left, move |event, window, cx| {
                                     let start_pos = f32::from(event.position.x);
                                     let _ = bar_editor.update(cx, |ed, cx| {
-                                        if let Some(session) = ed.editor_sessions.get_mut(&area_id)
-                                        {
-                                            // The move handler tracks the pointer in the
-                                            // area's local space, so rebase the start
-                                            // position the same way.
-                                            let local_start = ed
-                                                .panels
-                                                .layout
-                                                .leaf_rect(
-                                                    area_id,
-                                                    &ed.panels
-                                                        .layout
-                                                        .leaf_rects(window.viewport_size()),
-                                                )
-                                                .map(|rect| start_pos - rect.x)
-                                                .unwrap_or(start_pos);
-                                            splitype_splitter::interaction::start_splitter_drag(
-                                                &mut session.root,
-                                                split_id,
-                                                Axis::Horizontal,
-                                                local_start,
-                                                r,
-                                            );
-                                            cx.notify();
-                                        }
+                                        // The move handler tracks the pointer in the
+                                        // area's local space, so rebase the start
+                                        // position the same way.
+                                        let local_start = ed
+                                            .panels
+                                            .layout
+                                            .leaf_rect(
+                                                area_id,
+                                                &ed.panels
+                                                    .layout
+                                                    .leaf_rects(window.viewport_size()),
+                                            )
+                                            .map(|rect| start_pos - rect.x)
+                                            .unwrap_or(start_pos);
+                                        let session = ed.ensure_editor_session(area_id);
+                                        splitype_splitter::interaction::start_splitter_drag(
+                                            &mut session.root,
+                                            split_id,
+                                            Axis::Horizontal,
+                                            local_start,
+                                            r,
+                                        );
+                                        cx.notify();
                                     });
                                 })
                                 .on_mouse_down(
@@ -758,17 +713,14 @@ impl Editor {
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_editor.update(cx, |ed, cx| {
-                                            if let Some(session) =
-                                                ed.editor_sessions.get_mut(&area_id)
-                                            {
-                                                splitype_splitter::interaction::open_border_menu(
-                                                    &mut session.root,
-                                                    split_id,
-                                                    dir,
-                                                    pos,
-                                                );
-                                                cx.notify();
-                                            }
+                                            let session = ed.ensure_editor_session(area_id);
+                                            splitype_splitter::interaction::open_border_menu(
+                                                &mut session.root,
+                                                split_id,
+                                                dir,
+                                                pos,
+                                            );
+                                            cx.notify();
                                         });
                                     },
                                 ),
@@ -778,13 +730,11 @@ impl Editor {
                     Axis::Vertical => {
                         let bar_editor = inner_editor.clone();
                         let menu_editor = inner_editor.clone();
-                        let bar_active =
-                            self.editor_sessions.get(&area_id).is_some_and(|session| {
-                                session
-                                    .root
-                                    .active_splitter_drag
-                                    .is_some_and(|drag| drag.split_id == split_id)
-                            });
+                        let bar_active = self
+                            .session
+                            .root
+                            .active_splitter_drag
+                            .is_some_and(|drag| drag.split_id == split_id);
                         div()
                             .w_full()
                             .h_full()
@@ -826,30 +776,28 @@ impl Editor {
                                 .on_mouse_down(MouseButton::Left, move |event, window, cx| {
                                     let start_pos = f32::from(event.position.y);
                                     let _ = bar_editor.update(cx, |ed, cx| {
-                                        if let Some(session) = ed.editor_sessions.get_mut(&area_id)
-                                        {
-                                            // Rebase the start position into the area's
-                                            // local space, matching the move handler.
-                                            let local_start = ed
-                                                .panels
-                                                .layout
-                                                .leaf_rect(
-                                                    area_id,
-                                                    &ed.panels
-                                                        .layout
-                                                        .leaf_rects(window.viewport_size()),
-                                                )
-                                                .map(|rect| start_pos - rect.y)
-                                                .unwrap_or(start_pos);
-                                            splitype_splitter::interaction::start_splitter_drag(
-                                                &mut session.root,
-                                                split_id,
-                                                Axis::Vertical,
-                                                local_start,
-                                                r,
-                                            );
-                                            cx.notify();
-                                        }
+                                        // Rebase the start position into the area's
+                                        // local space, matching the move handler.
+                                        let local_start = ed
+                                            .panels
+                                            .layout
+                                            .leaf_rect(
+                                                area_id,
+                                                &ed.panels
+                                                    .layout
+                                                    .leaf_rects(window.viewport_size()),
+                                            )
+                                            .map(|rect| start_pos - rect.y)
+                                            .unwrap_or(start_pos);
+                                        let session = ed.ensure_editor_session(area_id);
+                                        splitype_splitter::interaction::start_splitter_drag(
+                                            &mut session.root,
+                                            split_id,
+                                            Axis::Vertical,
+                                            local_start,
+                                            r,
+                                        );
+                                        cx.notify();
                                     });
                                 })
                                 .on_mouse_down(
@@ -857,17 +805,14 @@ impl Editor {
                                     move |event, _window, cx| {
                                         let pos = event.position;
                                         let _ = menu_editor.update(cx, |ed, cx| {
-                                            if let Some(session) =
-                                                ed.editor_sessions.get_mut(&area_id)
-                                            {
-                                                splitype_splitter::interaction::open_border_menu(
-                                                    &mut session.root,
-                                                    split_id,
-                                                    dir,
-                                                    pos,
-                                                );
-                                                cx.notify();
-                                            }
+                                            let session = ed.ensure_editor_session(area_id);
+                                            splitype_splitter::interaction::open_border_menu(
+                                                &mut session.root,
+                                                split_id,
+                                                dir,
+                                                pos,
+                                            );
+                                            cx.notify();
                                         });
                                     },
                                 ),

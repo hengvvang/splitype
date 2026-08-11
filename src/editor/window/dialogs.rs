@@ -9,7 +9,7 @@ use crate::ui::button::{compact_danger_button, compact_primary_button, compact_s
 
 use gpui::*;
 
-use crate::app::window_area::WindowAreaKind;
+
 use crate::editor::controller::{Editor, InfoDialogKind};
 use crate::editor::window::context_menu::TableInsertTarget;
 use crate::editor::window::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
@@ -71,27 +71,15 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        // No dirty document anywhere: nothing to save, close immediately.
-        // The first dirty tab across ALL editor areas drives the prompt.
-        let Some((area, index)) = self.first_dirty_tab() else {
+        // No dirty document in this editor: nothing to save, close
+        // immediately. (Window-wide aggregation across every editor area
+        // moves to the Shell together with the window-lifecycle flow.)
+        let Some((_, index)) = self.first_dirty_tab() else {
             window.remove_window();
             return;
         };
-        // Bring the owning editor to the front so the dialog (rendered from
-        // the active editor) reads the right tab state. The dirty area may
-        // have been switched away (background editing): bring it back to
-        // the foreground first, so the active-editor invariant (active is
-        // always a foreground Editor) holds.
-        if !self.is_editor_window_area(area) {
-            self.panels.layout.set_kind(area, WindowAreaKind::Editor);
-        }
-        self.panels.layout.activate_area(area);
-        let set = self
-            .editor_sessions
-            .get_mut(&area)
-            .map(|session| &mut session.tab_list)
-            .expect("dirty tab area must have a tab list");
-        let tab = &mut set.tabs[index];
+        self.panels.layout.activate_area(self.area_id);
+        let tab = &mut self.session.tab_list.tabs[index];
         tab.file.show_unsaved_changes_dialog = true;
         tab.file.close_dialog_restore_focus = tab.focus.active_entity;
         cx.notify();
@@ -105,23 +93,14 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        // No dirty document anywhere: safe to close. The first dirty tab
-        // across ALL editor areas drives the prompt.
-        let Some((area, index)) = self.first_dirty_tab() else {
+        // No dirty document in this editor: safe to close. (Window-wide
+        // aggregation across every editor area moves to the Shell together
+        // with the window-lifecycle flow.)
+        let Some((_, index)) = self.first_dirty_tab() else {
             return true;
         };
-        // The dirty area may be in the background (switched away): bring it
-        // back to the foreground so the active-editor invariant holds.
-        if !self.is_editor_window_area(area) {
-            self.panels.layout.set_kind(area, WindowAreaKind::Editor);
-        }
-        self.panels.layout.activate_area(area);
-        let set = self
-            .editor_sessions
-            .get_mut(&area)
-            .map(|session| &mut session.tab_list)
-            .expect("dirty tab area must have a tab list");
-        let tab = &mut set.tabs[index];
+        self.panels.layout.activate_area(self.area_id);
+        let tab = &mut self.session.tab_list.tabs[index];
         tab.file.show_unsaved_changes_dialog = true;
         tab.file.close_dialog_restore_focus = tab.focus.active_entity;
         cx.notify();
