@@ -6,9 +6,7 @@
 //! `crate::editor::session_ops`; the window-level area layout
 //! rendering lives in `crate::editor::window_layout`.
 
-use crate::editor::session::{
-    EditingPanelKind, EditorInnerPanelKind, InnerPanelLocation, WelcomePanelKind,
-};
+use crate::editor::session::{EditingPanelKind, EditorInnerPanelKind, WelcomePanelKind};
 use crate::splitter::{Axis, CornerDragModifier};
 use crate::ui::popover::menu_panel;
 use splitype_splitter::container::SplitterContainer;
@@ -42,12 +40,11 @@ impl Editor {
         self.tab_list_mut_for(area_id);
         let inner_tree = self.ensure_editor_session(area_id).root.tree.clone();
 
-        // Drop runtimes of THIS area's panels that were closed or joined.
-        // (One Editor entity serves one area, so all runtimes here belong
-        // to this render pass.)
-        self.source_code_panel_runtimes.retain(|(area, panel), _| {
-            *area == area_id && self.session.root.tree.contains_leaf(*panel)
-        });
+        // Drop runtimes of panels that were closed or joined. (One Editor
+        // entity serves one area, so all runtimes here belong to this
+        // render pass.)
+        self.source_code_panel_runtimes
+            .retain(|panel, _| self.session.root.tree.contains_leaf(*panel));
 
         // Derive the focused panel from the keyboard focus when nothing is
         // focused yet — clicking inside a block or Tab navigation never
@@ -58,23 +55,17 @@ impl Editor {
             && self.area_mode(area_id).is_editing()
             && let Some(target_id) = self.focused_edit_target_entity_id(window, cx)
         {
-            if let Some(((_, panel_id), _)) =
-                self.source_code_panel_runtimes
-                    .iter()
-                    .find(|((area, _), runtime)| {
-                        *area == area_id
-                            && runtime
-                                .block
-                                .as_ref()
-                                .is_some_and(|block| block.entity_id() == target_id)
-                    })
+            if let Some((panel_id, _)) =
+                self.source_code_panel_runtimes.iter().find(|(_, runtime)| {
+                    runtime
+                        .block
+                        .as_ref()
+                        .is_some_and(|block| block.entity_id() == target_id)
+                })
             {
                 // Keyboard focus sits in a source panel's own block.
                 if inner_tree.contains_leaf(*panel_id) {
-                    self.focused_editor_inner_panel = Some(InnerPanelLocation {
-                        area_id,
-                        panel_id: *panel_id,
-                    });
+                    self.focused_editor_inner_panel = Some(*panel_id);
                 }
             } else if self.doc().block_entity_by_id(target_id).is_some() {
                 // Keyboard focus sits in the shared document: point at the
@@ -85,8 +76,7 @@ impl Editor {
                     inner_tree.find_leaf_kind(*id)
                         == Some(EditorInnerPanelKind::Editing(EditingPanelKind::Wysiwyg))
                 }) {
-                    self.focused_editor_inner_panel =
-                        Some(InnerPanelLocation { area_id, panel_id });
+                    self.focused_editor_inner_panel = Some(panel_id);
                 }
             }
         }
@@ -570,8 +560,7 @@ impl Editor {
                 // editor's own render would re-enter `sync_area_states`
                 // and try to update this very entity while it renders.
                 if self.focused_editor_inner_panel.is_none() {
-                    self.focused_editor_inner_panel =
-                        Some(InnerPanelLocation { area_id, panel_id });
+                    self.focused_editor_inner_panel = Some(panel_id);
                 }
 
                 let focus_editor = cx.entity().downgrade();

@@ -14,7 +14,6 @@ use gpui::prelude::*;
 use gpui::*;
 
 use crate::editor::controller::Editor;
-use crate::editor::session::InnerPanelLocation;
 use crate::infra::config::settings::{EditorSettings, StatusBarSettings};
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
@@ -81,14 +80,7 @@ impl Editor {
 
         let inner_leaf_count = self.ensure_editor_session(area_id).root.tree.count_leaves();
 
-        let focused = self.focused_editor_inner_panel;
-        let focused_panel_id = focused.and_then(|loc| {
-            if loc.area_id == area_id {
-                Some(loc.panel_id)
-            } else {
-                None
-            }
-        });
+        let focused_panel_id = self.focused_editor_inner_panel;
         let focused_kind = focused_panel_id.and_then(|panel_id| {
             self.ensure_editor_session(area_id)
                 .root
@@ -213,9 +205,7 @@ impl Editor {
                         .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                             let _ = close_editor.update(cx, |ed, cx| {
                                 ed.close_editor_inner_panel(area_id, panel_id);
-                                if ed.focused_editor_inner_panel
-                                    == Some(InnerPanelLocation { area_id, panel_id })
-                                {
+                                if ed.focused_editor_inner_panel == Some(panel_id) {
                                     ed.focused_editor_inner_panel = None;
                                 }
                                 cx.notify();

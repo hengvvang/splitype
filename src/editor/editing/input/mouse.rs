@@ -12,12 +12,10 @@ use crate::editor::controller::*;
 
 impl Editor {
     pub(crate) fn bump_scrollbar_visibility(&mut self, cx: &mut Context<Self>) {
-        // The scrollbar belongs to the area whose document view is being
-        // interacted with (the routing hint). The fade task captures that
-        // area so it clears the RIGHT editor's fade task later.
-        let area = self
-            .routed_tab_area()
-            .expect("scrollbar visibility bump needs a routed editor area");
+        // One Editor entity serves one area; the scrollbar belongs to this
+        // editor's own document view. The fade task captures the area id so
+        // it clears the right fade task later.
+        let area = self.area_id;
         let duration = Duration::from_millis(900);
         self.tab_mut_for(area).scroll.scrollbar_visible_until = Instant::now() + duration;
 

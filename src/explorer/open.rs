@@ -50,10 +50,9 @@ impl Shell {
                 editor
                     .read(cx)
                     .focused_editor_inner_panel
-                    .filter(|loc| area.is_some_and(|area| loc.area_id == area))
+                    .filter(|_| area.is_some())
             });
-            if let (Some(area), Some(loc)) = (area, focused_panel) {
-                let panel_id = loc.panel_id;
+            if let (Some(area), Some(panel_id)) = (area, focused_panel) {
                 if let Some(editor) = self.primary_editor() {
                     let _ = editor.update(cx, |editor, cx| {
                         editor.focus_editor_inner_panel(area, panel_id, window, cx);

@@ -3403,12 +3403,12 @@ async fn rendering_one_editor_area_keeps_other_areas_source_block(cx: &mut TestA
     fn source_block_id(
         editor: &gpui::Entity<Editor>,
         cx: &mut gpui::VisualTestContext,
-        area_id: usize,
+        _area_id: usize,
     ) -> Option<gpui::EntityId> {
         editor.read_with(cx, |editor, _cx| {
             editor
                 .source_code_panel_runtimes
-                .get(&(area_id, 1))
+                .get(&1)
                 .and_then(|runtime| runtime.block.as_ref().map(|block| block.entity_id()))
         })
     }
@@ -3436,7 +3436,7 @@ async fn rendering_one_editor_area_keeps_other_areas_source_block(cx: &mut TestA
     let second_id = second.read_with(&mut cx.cx, |second, _cx| {
         second
             .source_code_panel_runtimes
-            .get(&(2, 1))
+            .get(&1)
             .and_then(|runtime| runtime.block.as_ref().map(|block| block.entity_id()))
     });
     assert!(second_id.is_some(), "second area source block should exist");

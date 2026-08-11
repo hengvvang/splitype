@@ -701,59 +701,59 @@ impl Editor {
             .on_drop::<ExternalPaths>(cx.listener(move |this, paths, window, cx| {
                 // Dropping into this editor activates it and routes the
                 // replace flow to ITS tab set.
-                this.with_current_tab_area(area_id, |this| {
+                {
                     if let Some(shell) = this.shell.clone() {
                         let _ = shell.update(cx, |shell, cx| shell.activate_area(area_id, cx));
                     }
                     this.on_external_paths_drop(paths, window, cx);
-                });
+                }
             }))
             .on_hover(cx.listener(move |this, hovered, window, cx| {
-                this.with_current_tab_area(area_id, |this| {
+                {
                     this.on_editor_hover(hovered, window, cx);
-                });
+                }
             }))
             .capture_any_mouse_down(cx.listener(move |this, event, window, cx| {
-                this.with_current_tab_area(area_id, |this| {
+                {
                     this.on_editor_capture_mouse_down(event, window, cx);
-                });
+                }
             }))
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(move |this, event, window, cx| {
-                    this.with_current_tab_area(area_id, |this| {
+                    {
                         if let Some(shell) = this.shell.clone() {
                             let _ = shell.update(cx, |shell, cx| shell.activate_area(area_id, cx));
                         }
                         this.on_editor_mouse_down(event, window, cx);
-                    });
+                    }
                 }),
             )
             .on_mouse_move(cx.listener(move |this, event, window, cx| {
-                this.with_current_tab_area(area_id, |this| {
+                {
                     this.on_editor_mouse_move(event, window, cx);
-                });
+                }
             }))
             .on_mouse_up(
                 MouseButton::Left,
                 cx.listener(move |this, event, window, cx| {
-                    this.with_current_tab_area(area_id, |this| {
+                    {
                         this.on_editor_mouse_up(event, window, cx);
-                    });
+                    }
                 }),
             )
             .on_mouse_up_out(
                 MouseButton::Left,
                 cx.listener(move |this, event, window, cx| {
-                    this.with_current_tab_area(area_id, |this| {
+                    {
                         this.on_editor_mouse_up(event, window, cx);
-                    });
+                    }
                 }),
             )
             .on_scroll_wheel(cx.listener(move |this, event, window, cx| {
-                this.with_current_tab_area(area_id, |this| {
+                {
                     this.on_editor_scroll_wheel(event, window, cx);
-                });
+                }
             }))
             .p(px(d.editor_padding))
             .pb(px(d.editor_padding
@@ -764,12 +764,12 @@ impl Editor {
             scroll_content.on_mouse_down(
                 MouseButton::Right,
                 cx.listener(move |this, event, window, cx| {
-                    this.with_current_tab_area(area_id, |this| {
+                    {
                         if let Some(shell) = this.shell.clone() {
                             let _ = shell.update(cx, |shell, cx| shell.activate_area(area_id, cx));
                         }
                         this.on_editor_context_menu_mouse_down(event, window, cx);
-                    });
+                    }
                 }),
             )
         } else {
@@ -806,16 +806,16 @@ impl Editor {
                     .bg(theme.colors.scrollbar_thumb)
                     .cursor_pointer()
                     .on_hover(cx.listener(move |this, hovered, window, cx| {
-                        this.with_current_tab_area(area_id, |this| {
+                        {
                             this.on_editor_hover(hovered, window, cx);
-                        });
+                        }
                     }))
                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                         let pointer_offset_y =
                             f32::from(event.position.y) - track_origin_y - thumb_top;
                         let _ = scrollbar_editor.update(cx, |editor, cx| {
                             cx.stop_propagation();
-                            editor.with_current_tab_area(area_id, |editor| {
+                            {
                                 if let Some(shell) = editor.shell.clone() {
                                     let _ = shell
                                         .update(cx, |shell, cx| shell.activate_area(area_id, cx));
@@ -827,7 +827,7 @@ impl Editor {
                                     max_scroll_y,
                                     cx,
                                 );
-                            });
+                            }
                         });
                     })
                     .child(
@@ -841,9 +841,9 @@ impl Editor {
                                             return;
                                         }
                                         let _ = editor.update(cx, |editor, cx| {
-                                            editor.with_current_tab_area(area_id, |editor| {
+                                            {
                                                 editor.end_scrollbar_drag(cx);
-                                            });
+                                            }
                                         });
                                     }
                                 });
@@ -858,10 +858,10 @@ impl Editor {
                                         let pointer_y_in_track =
                                             f32::from(event.position.y) - track_origin_y;
                                         let _ = editor.update(cx, |editor, cx| {
-                                            editor.with_current_tab_area(area_id, |editor| {
+                                            {
                                                 editor
                                                     .update_scrollbar_drag(pointer_y_in_track, cx);
-                                            });
+                                            }
                                         });
                                     }
                                 });
@@ -915,13 +915,13 @@ impl Editor {
                 let row_editor = editor.clone();
                 row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
                     let _ = row_editor.update(cx, |editor, cx| {
-                        editor.with_current_tab_area(area_id, |editor| {
+                        {
                             if let Some(shell) = editor.shell.clone() {
                                 let _ =
                                     shell.update(cx, |shell, cx| shell.activate_area(area_id, cx));
                             }
                             editor.on_block_context_menu_mouse_down(entity_id, event, window, cx);
-                        });
+                        }
                     });
                 })
             } else {

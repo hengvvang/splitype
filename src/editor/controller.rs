@@ -23,8 +23,7 @@ pub(crate) use crate::app::window_area::WindowAreaKind;
 pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
 pub(crate) use crate::editor::outline::state::OutlinePanelState;
 pub(crate) use crate::editor::session::{
-    EditingPanelKind, EditorInnerPanelKind, EditorSession, EditorTabList, InnerPanelLocation,
-    WelcomePanelKind,
+    EditingPanelKind, EditorInnerPanelKind, EditorSession, EditorTabList, WelcomePanelKind,
 };
 pub(crate) use crate::editor::tree::block::Block;
 pub(crate) use crate::editor::tree::document::Document;
@@ -241,12 +240,15 @@ pub struct Editor {
     /// closures) every frame, so the timestamp must live in editor state
     /// rather than in a click-handler closure.
     pub(crate) welcome_last_click: Option<Instant>,
-    /// Currently focused inner panel — the status-bar action target.
-    pub(crate) focused_editor_inner_panel: Option<InnerPanelLocation>,
+    /// Currently focused inner panel id — the status-bar action target.
+    /// One Editor entity serves one area, so the panel id alone identifies
+    /// it.
+    pub(crate) focused_editor_inner_panel: Option<usize>,
     /// Per-SourceCode-panel editing runtimes (keyed by the globally unique
-    /// panel id). Each source panel owns its own block entity so multiple
-    /// source panels edit independently; see `SourceCodePanelRuntime`.
-    pub(crate) source_code_panel_runtimes: HashMap<(NodeId, NodeId), SourceCodePanelRuntime>,
+    /// panel id; one Editor entity serves one area, so the area id is not
+    /// part of the key). Each source panel owns its own block entity so
+    /// multiple source panels edit independently; see `SourceCodePanelRuntime`.
+    pub(crate) source_code_panel_runtimes: HashMap<usize, SourceCodePanelRuntime>,
 }
 
 /// Runtime binding between a table block and one cell editor.
@@ -658,27 +660,6 @@ impl Editor {
 }
 
 impl Editor {
-    /// The Editor area that `tab()` / `doc()` currently resolve to: the
-    /// transient per-area render/event context if set, else the active
-    /// editor.
-    pub(crate) fn routed_tab_area(&self) -> Option<NodeId> {
-        Some(self.area_id)
-    }
-
-    /// Run `f` with the routing hint set to `area_id`, restoring the
-    /// previous context afterwards. Per-area event handlers use this so
-    /// their `tab()`/`doc()` access hits the owning editor area regardless
-    /// of which editor is currently active.
-    pub(crate) fn with_current_tab_area<R>(
-        &mut self,
-        _area_id: NodeId,
-        f: impl FnOnce(&mut Self) -> R,
-    ) -> R {
-        // One Editor entity serves exactly one area now, so no routing is
-        // needed; kept as a no-op shim while call sites migrate.
-        f(self)
-    }
-
     /// Select the inner panel at `(area_id, panel_id)` as the focused
     /// panel AND transfer the keyboard edit focus to that panel's editing
     /// target: a source panel focuses its own block, a Wysiwyg panel
@@ -698,19 +679,19 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.focused_editor_inner_panel = Some(InnerPanelLocation { area_id, panel_id });
+        self.focused_editor_inner_panel = Some(panel_id);
         if let Some(shell) = self.shell.clone() {
             let _ = shell.update(cx, |shell, cx| shell.activate_area(area_id, cx));
         }
-        self.with_current_tab_area(area_id, |editor| {
-            let kind = editor.session.root.tree.find_leaf_kind(panel_id);
+        {
+            let kind = self.session.root.tree.find_leaf_kind(panel_id);
             match kind {
                 // The source panel's own block becomes the edit target.
                 Some(EditorInnerPanelKind::Editing(EditingPanelKind::SourceCode)) => {
-                    editor.sync_source_code_panel(area_id, panel_id, cx);
-                    if let Some(block) = editor
+                    self.sync_source_code_panel(area_id, panel_id, cx);
+                    if let Some(block) = self
                         .source_code_panel_runtimes
-                        .get(&(area_id, panel_id))
+                        .get(&panel_id)
                         .and_then(|runtime| runtime.block.clone())
                     {
                         block.read(cx).focus_handle.focus(window);
@@ -719,21 +700,21 @@ impl Editor {
                 // Resume editing the shared document at the last position
                 // (falling back to the first block when it was rebuilt).
                 Some(EditorInnerPanelKind::Editing(EditingPanelKind::Wysiwyg)) => {
-                    let target = editor
+                    let target = self
                         .tab()
                         .focus
                         .active_entity
-                        .filter(|id| editor.focusable_entity_by_id(*id).is_some())
-                        .or_else(|| editor.first_focusable_entity_id(cx));
+                        .filter(|id| self.focusable_entity_by_id(*id).is_some())
+                        .or_else(|| self.first_focusable_entity_id(cx));
                     if let Some(id) = target {
-                        if let Some(block) = editor.focusable_entity_by_id(id) {
+                        if let Some(block) = self.focusable_entity_by_id(id) {
                             block.read(cx).focus_handle.focus(window);
                         }
                     }
                 }
                 _ => {}
             }
-        });
+        }
         cx.notify();
     }
 
