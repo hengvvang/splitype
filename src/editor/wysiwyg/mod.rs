@@ -9,7 +9,6 @@ pub(crate) mod render;
 use gpui::*;
 
 use crate::editor::controller::{Editor, EditorMode};
-use crate::model::block::BlockData;
 
 impl Editor {
     /// Re-parse and replace the rendered tree, preserving selection and
@@ -24,13 +23,7 @@ impl Editor {
         // no longer fit; capture a global source range instead.
         let selection_snapshot = self.capture_source_selection_snapshot_global(cx);
         let source = self.doc().to_markdown(cx);
-        let mut roots = Self::parse_document(cx, &source);
-        if roots.is_empty() {
-            roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
-        }
-        self.doc_mut().replace_blocks(roots, cx);
-        self.rebuild_table_runtimes(cx);
-        self.rebuild_image_runtimes(cx);
+        self.rebuild_document_from_markdown(&source, cx);
         self.apply_selection_snapshot_in_current_mode(&selection_snapshot, cx);
         self.tab_mut().focus.pending_scroll_active_block_into_view = true;
         self.tab_mut().focus.pending_scroll_recheck_after_layout = true;

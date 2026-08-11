@@ -263,7 +263,7 @@ impl Editor {
         match event {
             BlockAction::Changed => {
                 self.sync_table_record_from_runtime(&binding.table_block, cx);
-                self.rebuild_image_runtimes(cx);
+                self.sync_runtime_after_block_change(&binding.cell, cx);
                 self.mark_dirty(cx);
                 self.request_active_block_scroll_into_view(cx);
                 self.finalize_pending_undo_capture(cx);

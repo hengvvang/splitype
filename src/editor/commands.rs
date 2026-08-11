@@ -134,22 +134,13 @@ impl Editor {
         match self.tab().mode {
             EditorMode::Wysiwyg => {
                 let markdown = self.doc().to_markdown(cx);
-                let block = Self::new_block(cx, BlockData::paragraph(markdown));
-                block.update(cx, |block, _cx| block.set_source_document_mode());
-                self.doc_mut().replace_blocks(vec![block], cx);
                 self.tab_mut().mode = EditorMode::SourceCode;
-                self.tab_mut().tables.cells.clear();
+                self.rebuild_document_from_markdown(&markdown, cx);
             }
             EditorMode::SourceCode => {
                 let source = self.doc().to_raw_source(cx);
-                let mut roots = Self::parse_document(cx, &source);
-                if roots.is_empty() {
-                    roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
-                }
-                self.doc_mut().replace_blocks(roots, cx);
                 self.tab_mut().mode = EditorMode::Wysiwyg;
-                self.rebuild_table_runtimes(cx);
-                self.rebuild_image_runtimes(cx);
+                self.rebuild_document_from_markdown(&source, cx);
             }
         }
 
@@ -167,9 +158,16 @@ impl Editor {
         cx.notify();
     }
 
+    /// Records that the document text may have changed so derived views
+    /// (preview, source panes) re-sync on their next render.
+    pub(crate) fn bump_document_revision(&mut self) {
+        self.tab_mut().document_revision = self.tab().document_revision.wrapping_add(1);
+    }
+
     /// Marks the document dirty and schedules window-title and edited-state
     /// refresh for the next render frame.
     pub(crate) fn mark_dirty(&mut self, cx: &mut Context<Self>) {
+        self.bump_document_revision();
         if !self.tab().file.dirty {
             self.tab_mut().file.dirty = true;
             self.tab_mut().file.pending_window_edited = true;

@@ -9,7 +9,7 @@
 
 pub(crate) use std::time::{Duration, Instant};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -114,6 +114,11 @@ pub(crate) struct ReferenceRegistries {
     /// received its runtime context. A mismatch means blocks were added or
     /// replaced since, so the per-block sync cannot be skipped.
     pub(crate) synced_structure_version: u64,
+    /// Blocks and table cells that could contribute reference definitions,
+    /// footnote content, or standalone-image syntax, cached at the last full
+    /// registry sync. A block edit outside this set cannot change the
+    /// registries, so the per-keystroke rebuild is skipped.
+    pub(crate) candidate_blocks: HashSet<EntityId>,
 }
 
 /// Native table cell bindings and axis selections.
@@ -173,6 +178,9 @@ impl Default for ScrollState {
 /// position, selection, and previews are preserved per file.
 pub(crate) struct DocumentTab {
     pub(crate) document: Document,
+    /// Bumped whenever the document text may have changed; derived views
+    /// (preview, source panes) compare against this to skip re-syncing.
+    pub(crate) document_revision: u64,
     /// Which view this tab is currently presenting.
     pub(crate) mode: EditorMode,
     pub(crate) file: FileState,
@@ -492,6 +500,7 @@ impl Editor {
 
         DocumentTab {
             document,
+            document_revision: 0,
             mode: EditorMode::Wysiwyg,
             file: FileState {
                 path: file_path,

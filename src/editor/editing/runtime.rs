@@ -1,7 +1,7 @@
 //! Editor runtime helpers: block creation, focus queries, and reference
 //! registry rebuilds.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use gpui::*;
@@ -220,46 +220,77 @@ impl Editor {
         }
     }
 
-    /// Whether any block could contribute reference definitions
+    /// Whether this block could contribute reference definitions
     /// (`[label]: url` lines), footnote content, or standalone images to the
     /// document-wide scans.
     ///
     /// Reference definitions are only ever detected in raw-preserving block
     /// kinds or in text containing `]:`; footnote bindings need `[^` markers;
-    /// standalone images start with `![`. When none of these markers exist
-    /// the registries stay empty and no block context refresh is needed.
-    /// Code-block text is fence-suppressed by the scanners, so it is excluded.
-    fn has_runtime_sync_candidates(&self, cx: &App) -> bool {
-        let block_has_candidates = |block: &Block| -> bool {
-            if block.record.preserves_raw_source() || block.kind() == BlockKind::FootnoteDefinition
-            {
-                return true;
-            }
-            if matches!(block.kind(), BlockKind::CodeBlock { .. }) {
-                return false;
-            }
-            let visible_text = block.record.text.visible_text();
-            visible_text.contains("]:")
-                || visible_text.contains("[^")
-                || visible_text.contains("![")
-        };
+    /// standalone images start with `![`. Code-block text is fence-suppressed
+    /// by the scanners, so it is excluded.
+    fn block_has_runtime_sync_candidates(block: &Block) -> bool {
+        if block.record.preserves_raw_source() || block.kind() == BlockKind::FootnoteDefinition {
+            return true;
+        }
+        if matches!(block.kind(), BlockKind::CodeBlock { .. }) {
+            return false;
+        }
+        let visible_text = block.record.text.visible_text();
+        visible_text.contains("]:") || visible_text.contains("[^") || visible_text.contains("![")
+    }
 
-        self.doc()
-            .blocks()
-            .iter()
-            .any(|visible| block_has_candidates(visible.entity.read(cx)))
-            || self
-                .tab()
-                .tables
-                .cells
-                .values()
-                .any(|binding| block_has_candidates(binding.cell.read(cx)))
+    /// Entity ids of every block and table cell whose text could contribute
+    /// reference definitions, footnote content, or standalone-image syntax to
+    /// the document-wide registries.
+    fn collect_runtime_sync_candidates(&self, cx: &App) -> HashSet<EntityId> {
+        let mut candidates = HashSet::new();
+        for visible in self.doc().blocks() {
+            if Self::block_has_runtime_sync_candidates(visible.entity.read(cx)) {
+                candidates.insert(visible.entity.entity_id());
+            }
+        }
+        for binding in self.tab().tables.cells.values() {
+            if Self::block_has_runtime_sync_candidates(binding.cell.read(cx)) {
+                candidates.insert(binding.cell.entity_id());
+            }
+        }
+        candidates
+    }
+
+    /// Per-edit entry point: run the document-wide registry rebuild only
+    /// when the edited block could have contributed reference definitions,
+    /// footnote content, or standalone images to it. The block's own image
+    /// runtime is already refreshed by `sync_render_cache` during the edit.
+    pub(crate) fn sync_runtime_after_block_change(
+        &mut self,
+        block: &Entity<Block>,
+        cx: &mut Context<Self>,
+    ) {
+        let was_candidate = self
+            .tab()
+            .references
+            .candidate_blocks
+            .contains(&block.entity_id());
+        let now_candidate = Self::block_has_runtime_sync_candidates(&block.read(cx));
+        if !was_candidate
+            && !now_candidate
+            && self.tab().references.base_dir == self.image_base_dir()
+        {
+            return;
+        }
+        self.rebuild_image_runtimes(cx);
     }
 
     pub(crate) fn rebuild_image_runtimes(&mut self, cx: &mut Context<Self>) {
         use std::sync::Arc;
 
         let base_dir = self.image_base_dir();
+
+        // Cache which blocks/cells could contribute to the registries so the
+        // per-edit path (`sync_runtime_after_block_change`) can skip the
+        // rebuild when an unrelated block changed.
+        let candidate_blocks = self.collect_runtime_sync_candidates(cx);
+        self.tab_mut().references.candidate_blocks = candidate_blocks.clone();
 
         // Fast path: when no block can contribute reference definitions or
         // footnote content and the registries are already empty, there is
@@ -273,7 +304,7 @@ impl Editor {
                 && references.footnotes.bindings.is_empty()
                 && references.footnotes.block_occurrences.is_empty()
         };
-        if !self.has_runtime_sync_candidates(cx)
+        if candidate_blocks.is_empty()
             && registries_empty
             && self.tab().references.base_dir == base_dir
         {

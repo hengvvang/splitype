@@ -23,6 +23,9 @@ pub(crate) struct SourceCodePanelRuntime {
     /// changed externally (e.g. by a Wysiwyg panel), the block is rebuilt
     /// from it. The block itself keeps the user's raw bytes in between.
     pub(crate) synced_doc_hash: u64,
+    /// Document revision the pane block was last synced at; `None` until
+    /// the first sync.
+    pub(crate) synced_revision: Option<u64>,
 }
 
 impl Editor {
@@ -34,6 +37,14 @@ impl Editor {
     /// The block is created as a standalone entity with a minimal
     /// subscription that only syncs Changed events back to the document.
     pub(crate) fn sync_source_pane(&mut self, pane_id: usize, cx: &mut Context<Self>) {
+        let revision = self.tab().document_revision;
+        let needs_sync = match self.source_pane_runtimes.get(&pane_id) {
+            Some(runtime) => runtime.synced_revision != Some(revision) || runtime.block.is_none(),
+            None => true,
+        };
+        if !needs_sync {
+            return;
+        }
         let doc_text = self.doc().to_markdown(cx);
         let doc_hash = Self::hash_str(&doc_text);
 
@@ -43,6 +54,7 @@ impl Editor {
                 .or_insert_with(|| SourceCodePanelRuntime {
                     block: None,
                     synced_doc_hash: 0,
+                    synced_revision: None,
                 });
         if runtime.block.is_none() || doc_hash != runtime.synced_doc_hash {
             runtime.block = None;
@@ -56,6 +68,7 @@ impl Editor {
             runtime.block = Some(block);
             runtime.synced_doc_hash = doc_hash;
         }
+        runtime.synced_revision = Some(revision);
     }
 
     /// Minimal event handler for a Source pane block. Only syncs text
@@ -76,13 +89,7 @@ impl Editor {
         if text == doc {
             return;
         }
-        let mut roots = Self::parse_document(cx, &text);
-        if roots.is_empty() {
-            roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
-        }
-        self.doc_mut().replace_blocks(roots, cx);
-        self.rebuild_table_runtimes(cx);
-        self.rebuild_image_runtimes(cx);
+        self.rebuild_document_from_markdown(&text, cx);
         // Record the fingerprint of the synced document, not of the user's
         // raw bytes: markdown parsing normalizes the text (a trailing
         // newline, for instance, does not survive a parse round-trip), so
@@ -90,9 +97,11 @@ impl Editor {
         // block and drop the user's trailing newline. The block keeps the
         // user's bytes; the document is the parsed form.
         let synced_hash = Self::hash_str(&self.doc().to_markdown(cx));
+        let revision = self.tab().document_revision;
+        self.mark_dirty(cx);
         if let Some(runtime) = self.source_pane_runtimes.get_mut(&pane_id) {
             runtime.synced_doc_hash = synced_hash;
+            runtime.synced_revision = Some(revision);
         }
-        self.mark_dirty(cx);
     }
 }

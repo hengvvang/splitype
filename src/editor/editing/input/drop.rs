@@ -10,7 +10,6 @@ use anyhow::{Context as AnyhowContext, Result};
 use gpui::*;
 
 use crate::editor::controller::{Editor, EditorMode};
-use crate::model::block::BlockData;
 
 /// Returns true when `path` exists and has a `.md` or `.markdown` extension.
 pub(crate) fn is_markdown_file_path(path: &Path) -> bool {
@@ -50,17 +49,10 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let normalized = markdown.replace("\r\n", "\n").replace('\r', "\n");
-        let mut roots = Self::parse_document(cx, &normalized);
-        if roots.is_empty() {
-            roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
-        }
 
         self.tab_mut().file.path = file_path;
         self.tab_mut().mode = EditorMode::Wysiwyg;
-        self.doc_mut().replace_blocks(roots, cx);
-        self.tab_mut().tables.cells.clear();
-        self.rebuild_table_runtimes(cx);
-        self.rebuild_image_runtimes(cx);
+        self.rebuild_document_from_markdown(&normalized, cx);
 
         self.tab_mut().file.dirty = false;
         self.tab_mut().file.pending_window_edited = false;

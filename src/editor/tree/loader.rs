@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use gpui::*;
 
-use crate::editor::controller::Editor;
+use crate::editor::controller::{Editor, EditorMode};
 use crate::editor::tree::block::Block;
 use crate::model::block::BlockData;
 
@@ -30,6 +30,35 @@ impl Editor {
     ) -> Vec<Entity<Block>> {
         let records = crate::model::parse::parser::build_blocks_from_lines(lines);
         records_to_entity_blocks(records, cx)
+    }
+    /// Replace the whole document with a fresh parse of `markdown`,
+    /// rebuilding table/image runtimes and bumping the document revision.
+    ///
+    /// Mode-dependent: Wysiwyg parses blocks; SourceCode rebuilds a single
+    /// raw block (the tab's mode must be set by the caller beforehand).
+    pub(crate) fn rebuild_document_from_markdown(
+        &mut self,
+        markdown: &str,
+        cx: &mut Context<Self>,
+    ) {
+        match self.tab().mode {
+            EditorMode::Wysiwyg => {
+                let mut roots = Self::parse_document(cx, markdown);
+                if roots.is_empty() {
+                    roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
+                }
+                self.doc_mut().replace_blocks(roots, cx);
+                self.rebuild_table_runtimes(cx);
+                self.rebuild_image_runtimes(cx);
+            }
+            EditorMode::SourceCode => {
+                let block = Self::new_block(cx, BlockData::paragraph(markdown.to_string()));
+                block.update(cx, |block, _cx| block.set_source_document_mode());
+                self.doc_mut().replace_blocks(vec![block], cx);
+                self.tab_mut().tables.cells.clear();
+            }
+        }
+        self.bump_document_revision();
     }
 }
 

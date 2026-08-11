@@ -112,7 +112,7 @@ impl Editor {
                 if should_normalize_quote {
                     self.normalize_rendered_quote_structure(cx);
                 } else {
-                    self.rebuild_image_runtimes(cx);
+                    self.sync_runtime_after_block_change(&block, cx);
                 }
                 if let Some(focus_id) = callout_focus_target {
                     self.focus_block(focus_id);

@@ -8,8 +8,8 @@ use std::time::Instant;
 use gpui::*;
 
 use crate::editor::controller::{
-    BlockData, BlockSelectionAnchor, Editor, EditorMode, HistoryEntry, PendingUndoCapture,
-    UndoCaptureKind, UndoSelectionSnapshot,
+    BlockSelectionAnchor, Editor, EditorMode, HistoryEntry, PendingUndoCapture, UndoCaptureKind,
+    UndoSelectionSnapshot,
 };
 use crate::editor::tree::block::Block;
 
@@ -402,23 +402,7 @@ impl Editor {
     }
 
     pub(crate) fn restore_history_entry(&mut self, entry: &HistoryEntry, cx: &mut Context<Self>) {
-        match self.tab().mode {
-            EditorMode::Wysiwyg => {
-                let mut roots = Self::parse_document(cx, &entry.source_text);
-                if roots.is_empty() {
-                    roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
-                }
-                self.doc_mut().replace_blocks(roots, cx);
-                self.rebuild_table_runtimes(cx);
-                self.rebuild_image_runtimes(cx);
-            }
-            EditorMode::SourceCode => {
-                let block = Self::new_block(cx, BlockData::paragraph(entry.source_text.clone()));
-                block.update(cx, |block, _cx| block.set_source_document_mode());
-                self.doc_mut().replace_blocks(vec![block], cx);
-                self.tab_mut().tables.cells.clear();
-            }
-        }
+        self.rebuild_document_from_markdown(&entry.source_text, cx);
 
         self.apply_selection_snapshot_in_current_mode(&entry.selection, cx);
         self.tab_mut().focus.pending_scroll_active_block_into_view = true;

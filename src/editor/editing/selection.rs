@@ -621,29 +621,7 @@ impl Editor {
     }
 
     fn rebuild_after_cross_block_source_edit(&mut self, source: String, cx: &mut Context<Self>) {
-        match self.tab().mode {
-            EditorMode::Wysiwyg => {
-                let mut roots = Self::parse_document(cx, &source);
-                if roots.is_empty() {
-                    roots.push(Self::new_block(
-                        cx,
-                        crate::model::block::BlockData::paragraph(String::new()),
-                    ));
-                }
-                self.doc_mut().replace_blocks(roots, cx);
-                self.rebuild_table_runtimes(cx);
-                self.rebuild_image_runtimes(cx);
-            }
-            EditorMode::SourceCode => {
-                let block = Self::new_block(
-                    cx,
-                    crate::model::block::BlockData::paragraph(source.clone()),
-                );
-                block.update(cx, |block, _cx| block.set_source_document_mode());
-                self.doc_mut().replace_blocks(vec![block], cx);
-                self.tab_mut().tables.cells.clear();
-            }
-        }
+        self.rebuild_document_from_markdown(&source, cx);
     }
 
     fn apply_marked_source_range(&mut self, source_range: Range<usize>, cx: &mut Context<Self>) {
@@ -916,8 +894,7 @@ impl Editor {
             if block.selected_range.is_empty() {
                 continue;
             }
-            let source_range =
-                block.display_range_to_source_range(block.selected_range.clone());
+            let source_range = block.display_range_to_source_range(block.selected_range.clone());
             let full_markdown = block.record.text.serialize_markdown();
             let start = source_range.start.min(full_markdown.len());
             let end = source_range.end.min(full_markdown.len());
