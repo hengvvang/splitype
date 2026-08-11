@@ -30,8 +30,6 @@ use crate::syntax::table::{
 // Local types
 // ---------------------------------------------------------------------------
 
-/// Parsed opening code-fence metadata.
-type FenceInfo = CodeFenceOpening;
 
 /// Ordered-list or unordered-list marker parsed from one source line.
 #[derive(Clone)]
@@ -125,11 +123,11 @@ fn paragraph_can_continue_through_boundary(
         .any(|line| line_contains_matching_backtick_run(line, run_len))
 }
 
-fn parse_opening_fence(line: &str) -> Option<FenceInfo> {
+fn parse_opening_fence(line: &str) -> Option<CodeFenceOpening> {
     BlockKind::parse_code_fence_opening(strip_fence_indent(line)?.trim_end())
 }
 
-fn is_closing_fence(line: &str, opener: &FenceInfo) -> bool {
+fn is_closing_fence(line: &str, opener: &CodeFenceOpening) -> bool {
     let Some(trimmed) = strip_fence_indent(line).map(str::trim_end) else {
         return false;
     };
@@ -146,7 +144,7 @@ fn is_closing_fence(line: &str, opener: &FenceInfo) -> bool {
 fn find_matching_closing_fence(
     lines: &[String],
     start_index: usize,
-    opener: &FenceInfo,
+    opener: &CodeFenceOpening,
 ) -> Option<usize> {
     for index in (start_index + 1)..lines.len() {
         let line = &lines[index];
@@ -814,12 +812,12 @@ fn collect_quote_block(lines: &[String], start: usize) -> (Vec<BlockData>, usize
 
 fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
     if let Some(header_index) = lines.iter().position(|line| !line.trim().is_empty())
-        && let Some((variant, title)) = CalloutKind::parse_header_line(&lines[header_index])
+        && let Some((variant, text)) = CalloutKind::parse_header_line(&lines[header_index])
     {
-        return build_native_callout_block(&lines[header_index + 1..], variant, title);
+        return build_native_callout_block(&lines[header_index + 1..], variant, text);
     }
 
-    let mut title_markdown = String::new();
+    let mut own_text = String::new();
     let mut child_nodes: Vec<BlockData> = Vec::new();
     let mut index = 0usize;
     let mut pending_blank_lines = 0usize;
@@ -834,7 +832,7 @@ fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
         }
 
         if is_table_candidate_line(line) {
-            if pending_blank_lines > 0 && (!title_markdown.is_empty() || !child_nodes.is_empty()) {
+            if pending_blank_lines > 0 && (!own_text.is_empty() || !child_nodes.is_empty()) {
                 append_separator_children(&mut child_nodes, pending_blank_lines);
             }
             let table_end = collect_table_candidate_region(lines, index);
@@ -851,7 +849,7 @@ fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
         }
 
         if is_footnote_definition_start(line) {
-            if pending_blank_lines > 0 && (!title_markdown.is_empty() || !child_nodes.is_empty()) {
+            if pending_blank_lines > 0 && (!own_text.is_empty() || !child_nodes.is_empty()) {
                 append_separator_children(&mut child_nodes, pending_blank_lines);
             }
             let footnote_end = collect_footnote_definition_region(lines, index);
@@ -867,7 +865,7 @@ fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
         }
 
         if let Some((comment, consumed)) = collect_comment_block(lines, index) {
-            if pending_blank_lines > 0 && (!title_markdown.is_empty() || !child_nodes.is_empty()) {
+            if pending_blank_lines > 0 && (!own_text.is_empty() || !child_nodes.is_empty()) {
                 append_separator_children(&mut child_nodes, pending_blank_lines);
             }
             child_nodes.push(comment);
@@ -878,7 +876,7 @@ fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
         }
 
         if is_block_html_start(line) {
-            if pending_blank_lines > 0 && (!title_markdown.is_empty() || !child_nodes.is_empty()) {
+            if pending_blank_lines > 0 && (!own_text.is_empty() || !child_nodes.is_empty()) {
                 append_separator_children(&mut child_nodes, pending_blank_lines);
             }
             let html_end = collect_block_html_region(lines, index);
@@ -890,7 +888,7 @@ fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
         }
 
         if is_display_math_start(line) {
-            if pending_blank_lines > 0 && (!title_markdown.is_empty() || !child_nodes.is_empty()) {
+            if pending_blank_lines > 0 && (!own_text.is_empty() || !child_nodes.is_empty()) {
                 append_separator_children(&mut child_nodes, pending_blank_lines);
             }
             let math_end = collect_display_math_region(lines, index);
@@ -902,7 +900,7 @@ fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
         }
 
         if let Some(unsupported_end) = collect_unsupported_quote_region(lines, index) {
-            if pending_blank_lines > 0 && (!title_markdown.is_empty() || !child_nodes.is_empty()) {
+            if pending_blank_lines > 0 && (!own_text.is_empty() || !child_nodes.is_empty()) {
                 append_separator_children(&mut child_nodes, pending_blank_lines);
             }
             child_nodes.push(raw_block(lines[index..unsupported_end].join("\n")));
@@ -913,7 +911,7 @@ fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
         }
 
         if is_quote_start(line) {
-            if pending_blank_lines > 0 && (!title_markdown.is_empty() || !child_nodes.is_empty()) {
+            if pending_blank_lines > 0 && (!own_text.is_empty() || !child_nodes.is_empty()) {
                 append_separator_children(&mut child_nodes, pending_blank_lines);
             }
             let (mut nested_quote_nodes, consumed) = collect_quote_block(lines, index);
@@ -930,7 +928,7 @@ fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
         }
 
         if parse_list_marker(line).is_some() {
-            if pending_blank_lines > 0 && (!title_markdown.is_empty() || !child_nodes.is_empty()) {
+            if pending_blank_lines > 0 && (!own_text.is_empty() || !child_nodes.is_empty()) {
                 append_separator_children(&mut child_nodes, pending_blank_lines);
             }
             let (mut list_nodes, consumed) = collect_list_blocks(lines, index);
@@ -950,7 +948,7 @@ fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
         if parse_opening_fence(line).is_some()
             && let Some((code_block, consumed)) = collect_fenced_code_block(lines, index)
         {
-            if pending_blank_lines > 0 && (!title_markdown.is_empty() || !child_nodes.is_empty()) {
+            if pending_blank_lines > 0 && (!own_text.is_empty() || !child_nodes.is_empty()) {
                 append_separator_children(&mut child_nodes, pending_blank_lines);
             }
             child_nodes.push(code_block);
@@ -961,7 +959,7 @@ fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
         }
 
         if starts_with_standalone_image_child_paragraph(&lines[index..]) {
-            if pending_blank_lines > 0 && (!title_markdown.is_empty() || !child_nodes.is_empty()) {
+            if pending_blank_lines > 0 && (!own_text.is_empty() || !child_nodes.is_empty()) {
                 append_separator_children(&mut child_nodes, pending_blank_lines);
             }
             child_nodes.push(standalone_image_block(line.to_string()));
@@ -974,7 +972,7 @@ fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
         if strip_indented_code_prefix(line).is_some()
             && let Some((code_block, consumed)) = collect_indented_code_block(lines, index)
         {
-            if pending_blank_lines > 0 && (!title_markdown.is_empty() || !child_nodes.is_empty()) {
+            if pending_blank_lines > 0 && (!own_text.is_empty() || !child_nodes.is_empty()) {
                 append_separator_children(&mut child_nodes, pending_blank_lines);
             }
             child_nodes.push(code_block);
@@ -1003,7 +1001,7 @@ fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
         }
 
         if is_standalone_image_paragraph(&paragraph_lines) {
-            if pending_blank_lines > 0 && (!title_markdown.is_empty() || !child_nodes.is_empty()) {
+            if pending_blank_lines > 0 && (!own_text.is_empty() || !child_nodes.is_empty()) {
                 append_separator_children(&mut child_nodes, pending_blank_lines);
             }
             child_nodes.push(standalone_image_block(paragraph_lines.join("\n")));
@@ -1013,7 +1011,7 @@ fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
         }
 
         if saw_child {
-            if pending_blank_lines > 0 && (!title_markdown.is_empty() || !child_nodes.is_empty()) {
+            if pending_blank_lines > 0 && (!own_text.is_empty() || !child_nodes.is_empty()) {
                 append_separator_children(&mut child_nodes, pending_blank_lines);
             }
             child_nodes.push(native_block(
@@ -1024,22 +1022,22 @@ fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
             continue;
         }
 
-        if !title_markdown.is_empty() {
-            title_markdown.push_str(if pending_blank_lines > 0 {
+        if !own_text.is_empty() {
+            own_text.push_str(if pending_blank_lines > 0 {
                 "\n\n"
             } else {
                 "\n"
             });
         }
-        title_markdown.push_str(&paragraph_lines.join("\n"));
+        own_text.push_str(&paragraph_lines.join("\n"));
         pending_blank_lines = 0;
     }
 
-    if pending_blank_lines > 0 && (!title_markdown.is_empty() || !child_nodes.is_empty()) {
+    if pending_blank_lines > 0 && (!own_text.is_empty() || !child_nodes.is_empty()) {
         append_separator_children(&mut child_nodes, pending_blank_lines);
     }
 
-    let mut block = native_block(BlockKind::Blockquote, &title_markdown);
+    let mut block = native_block(BlockKind::Blockquote, &own_text);
     attach_child_nodes(&mut block, &mut child_nodes);
 
     let mut result = vec![block];
@@ -1050,7 +1048,7 @@ fn build_native_quote_block(lines: &[String]) -> Option<Vec<BlockData>> {
 fn build_native_callout_block(
     lines: &[String],
     variant: CalloutKind,
-    title: String,
+    text: String,
 ) -> Option<Vec<BlockData>> {
     let mut child_nodes = Vec::new();
     let mut index = 0usize;
@@ -1193,7 +1191,7 @@ fn build_native_callout_block(
         append_separator_children(&mut child_nodes, pending_blank_lines);
     }
 
-    let mut block = BlockData::new(BlockKind::Callout(variant), RichText::from_markdown(&title));
+    let mut block = BlockData::new(BlockKind::Callout(variant), RichText::from_markdown(&text));
     attach_child_nodes(&mut block, &mut child_nodes);
 
     let mut result = vec![block];

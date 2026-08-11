@@ -44,7 +44,7 @@ pub struct InlineInsertionAttributes {
 
 /// A sequence of [`InlineFragment`]s representing inline-formatted text.
 ///
-/// This is the core data structure for block titles.  It supports:
+/// This is the core data structure for block text.  It supports:
 /// - Building from raw Markdown (auto-parsing bold/italic/underline markers)
 /// - Bidirectional Markdown serialization with optimal delimiter choice
 /// - Splitting at arbitrary byte offsets (used for Enter key, paste)

@@ -88,11 +88,11 @@ impl Editor {
 
     pub(crate) fn new_table_cell_block(
         cx: &mut Context<Self>,
-        title: RichText,
+        text: RichText,
         position: TableCellPosition,
         alignment: TableColumnAlignment,
     ) -> Entity<Block> {
-        let block = Self::new_block(cx, BlockData::new(BlockKind::Paragraph, title));
+        let block = Self::new_block(cx, BlockData::new(BlockKind::Paragraph, text));
         block.update(cx, |block, _cx| {
             block.set_table_cell_mode(position, alignment);
         });

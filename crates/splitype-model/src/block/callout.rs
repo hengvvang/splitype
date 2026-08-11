@@ -34,7 +34,7 @@ impl CalloutKind {
         self.marker()
     }
 
-    /// Parse a `[!TYPE]` header line, returning the kind and trailing title text.
+    /// Parse a `[!TYPE]` header line, returning the kind and trailing text.
     pub fn parse_header_line(line: &str) -> Option<(Self, String)> {
         let trimmed = line.trim_start();
         let rest = trimmed.strip_prefix("[!")?;
@@ -48,23 +48,23 @@ impl CalloutKind {
             "CAUTION" => Self::Caution,
             _ => return None,
         };
-        let title = rest[marker_end + 1..].trim_start().to_string();
-        Some((variant, title))
+        let text = rest[marker_end + 1..].trim_start().to_string();
+        Some((variant, text))
     }
 
     /// Build the `[!TYPE]` header line for this callout.
-    pub fn header_markdown(self, title_markdown: &str) -> String {
-        if title_markdown.trim().is_empty() {
+    pub fn header_markdown(self, text_markdown: &str) -> String {
+        if text_markdown.trim().is_empty() {
             format!("[!{}]", self.marker())
         } else {
-            format!("[!{}] {}", self.marker(), title_markdown)
+            format!("[!{}] {}", self.marker(), text_markdown)
         }
     }
 
     /// Escape a plain quote header so it cannot be mistaken for a callout
     /// header when serializing a plain blockquote.
-    pub fn escape_plain_quote_header(title_markdown: &str) -> String {
-        let mut lines = title_markdown.splitn(2, '\n');
+    pub fn escape_plain_quote_header(text_markdown: &str) -> String {
+        let mut lines = text_markdown.splitn(2, '\n');
         let first = lines.next().unwrap_or_default();
         let rest = lines.next();
         let escaped_first = if Self::parse_header_line(first).is_some() {

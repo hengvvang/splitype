@@ -595,8 +595,8 @@ impl Document {
                 let first_child = block_ref.children.first().cloned().expect("checked");
                 let first_is_paragraph = first_child.read(cx).kind() == BlockKind::Paragraph;
                 if first_is_paragraph {
-                    let first_title = first_child.read(cx).record.text_markdown();
-                    let mut first_lines = first_title.split('\n');
+                    let first_text = first_child.read(cx).record.text_markdown();
+                    let mut first_lines = first_text.split('\n');
                     let first_line = first_lines.next().unwrap_or_default();
                     lines.push(format!("{indentation}[^{}]: {}", id, first_line));
                     for line in first_lines {

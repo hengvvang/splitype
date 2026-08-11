@@ -420,28 +420,28 @@ impl Block {
         Self::utf8_to_utf16_in(text, range.start)..Self::utf8_to_utf16_in(text, range.end)
     }
 
-    /// Detect Markdown shortcut prefixes in the edited title and convert the
+    /// Detect Markdown shortcut prefixes in the edited text and convert the
     /// block's kind accordingly (e.g. `"- " -> BulletedListItem`).
     ///
     /// Only triggers when the current kind is [`BlockKind::Paragraph`].
-    /// Returns the potentially updated kind, the title with prefix stripped,
+    /// Returns the potentially updated kind, the text with prefix stripped,
     /// the new cursor offset, and the number of prefix characters removed.
-    pub(crate) fn normalize_after_title_edit(
+    pub(crate) fn normalize_after_text_edit(
         &self,
-        mut next_title: RichText,
+        mut next_text: RichText,
         cursor: usize,
     ) -> (BlockKind, RichText, usize, usize) {
         if self.is_table_cell() {
-            return (self.kind(), next_title, cursor, 0);
+            return (self.kind(), next_text, cursor, 0);
         }
 
         if !self.uses_raw_text_editing() && self.kind() == BlockKind::Paragraph {
-            let visible_text = next_title.visible_text();
+            let visible_text = next_text.visible_text();
             if let Some((kind, prefix_len)) = BlockKind::detect_markdown_shortcut(&visible_text) {
-                next_title.remove_visible_prefix(prefix_len);
+                next_text.remove_visible_prefix(prefix_len);
                 return (
                     kind,
-                    next_title,
+                    next_text,
                     cursor.saturating_sub(prefix_len),
                     prefix_len,
                 );
@@ -449,21 +449,21 @@ impl Block {
         }
 
         if !self.uses_raw_text_editing() && self.kind() == BlockKind::BulletListItem {
-            let visible_text = next_title.visible_text();
+            let visible_text = next_text.visible_text();
             if let Some((checked, prefix_len)) =
                 BlockKind::parse_task_list_item_prefix(&visible_text)
             {
-                next_title.remove_visible_prefix(prefix_len);
+                next_text.remove_visible_prefix(prefix_len);
                 return (
                     BlockKind::TaskListItem { checked },
-                    next_title,
+                    next_text,
                     cursor.saturating_sub(prefix_len),
                     prefix_len,
                 );
             }
         }
 
-        (self.kind(), next_title, cursor, 0)
+        (self.kind(), next_text, cursor, 0)
     }
 
     pub(crate) fn quote_line_starts_block_syntax(line: &str) -> bool {
@@ -578,16 +578,16 @@ impl Block {
             &self.record.text.fragments,
             replacement_start,
         );
-        let mut next_title = self.record.text.clone();
-        next_title.replace_fragment_range(
+        let mut next_text = self.record.text.clone();
+        next_text.replace_fragment_range(
             link_run.start_fragment_index..link_run.end_fragment_index,
             replacement_fragments.clone(),
         );
 
         if Self::replacement_is_pure_link_run(&replacement_fragments) {
             let old_kind = self.record.kind.clone();
-            let old_title = self.record.text.clone();
-            self.record.set_text(next_title.clone());
+            let old_text = self.record.text.clone();
+            self.record.set_text(next_text.clone());
             self.sync_edit_mode_from_kind();
             self.sync_render_cache();
 
@@ -627,7 +627,7 @@ impl Block {
                 self.collapsed_caret_affinity = CollapsedCaretAffinity::Default;
                 self.cursor_blink_epoch = Instant::now();
                 self.clear_vertical_motion();
-                if self.record.kind != old_kind || self.record.text != old_title {
+                if self.record.kind != old_kind || self.record.text != old_text {
                     cx.emit(BlockAction::Changed);
                 }
                 cx.notify();
@@ -654,8 +654,8 @@ impl Block {
         } else {
             None
         };
-        self.apply_title_edit(
-            next_title,
+        self.apply_text_edit(
+            next_text,
             prefix + cursor,
             marked_clean,
             selected_clean.clone(),
@@ -833,12 +833,12 @@ impl Block {
                 .code
     }
 
-    /// Apply a new title to the block, running shortcut detection and
+    /// Apply new text to the block, running shortcut detection and
     /// updating the render cache, cursor, and selection state.  Emits
-    /// [`BlockAction::Changed`] if the kind or title actually changed.
-    pub(crate) fn apply_title_edit(
+    /// [`BlockAction::Changed`] if the kind or text actually changed.
+    pub(crate) fn apply_text_edit(
         &mut self,
-        next_title: RichText,
+        next_text: RichText,
         cursor_clean: usize,
         marked_range_clean: Option<Range<usize>>,
         selected_range_clean: Option<Range<usize>>,
@@ -847,16 +847,16 @@ impl Block {
         cx: &mut Context<Self>,
     ) {
         let old_kind = self.record.kind.clone();
-        let old_title = self.record.text.clone();
-        let old_title_was_empty = old_title.visible_text().is_empty();
+        let old_text = self.record.text.clone();
+        let old_text_was_empty = old_text.visible_text().is_empty();
         let mut collapsed_affinity = self.current_collapsed_caret_affinity();
         let keep_projection =
             self.projection.is_some() && self.edit_mode.supports_inline_projection();
 
-        let (next_kind, normalized_title, adjusted_cursor, shortcut_removed_len) =
-            self.normalize_after_title_edit(next_title, cursor_clean);
+        let (next_kind, normalized_text, adjusted_cursor, shortcut_removed_len) =
+            self.normalize_after_text_edit(next_text, cursor_clean);
         let should_restart_numbered_list = old_kind == BlockKind::Paragraph
-            && old_title_was_empty
+            && old_text_was_empty
             && self.list_group_separator_candidate
             && next_kind == BlockKind::NumberedListItem;
 
@@ -869,7 +869,7 @@ impl Block {
             .unwrap_or_else(|| adjusted_cursor..adjusted_cursor);
 
         self.record.kind = next_kind;
-        self.record.set_text(normalized_title);
+        self.record.set_text(normalized_text);
         self.numbered_list_restart_requested = should_restart_numbered_list;
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
@@ -909,7 +909,7 @@ impl Block {
         self.cursor_blink_epoch = Instant::now();
         self.clear_vertical_motion();
 
-        if self.record.kind != old_kind || self.record.text != old_title {
+        if self.record.kind != old_kind || self.record.text != old_text {
             cx.emit(BlockAction::Changed);
         }
         cx.notify();
@@ -937,11 +937,11 @@ impl Block {
     }
 
     pub(crate) fn source_range_to_clean_range(
-        title: &RichText,
+        text: &RichText,
         content_source_start: usize,
         range: Range<usize>,
     ) -> Range<usize> {
-        let map = title.markdown_offset_map();
+        let map = text.markdown_offset_map();
         map.markdown_to_visible_offset(range.start.saturating_sub(content_source_start))
             ..map.markdown_to_visible_offset(range.end.saturating_sub(content_source_start))
     }
@@ -1003,7 +1003,7 @@ impl Block {
             None
         };
 
-        let (next_kind, next_title, content_source_start) =
+        let (next_kind, next_text, content_source_start) =
             if let Some((level, content)) = BlockKind::parse_atx_heading_line(&source) {
                 (
                     BlockKind::Heading { level },
@@ -1028,18 +1028,18 @@ impl Block {
             .clone()
             .unwrap_or(cursor_source..cursor_source);
         let next_selected_clean = Self::source_range_to_clean_range(
-            &next_title,
+            &next_text,
             content_source_start,
             next_selected_source.clone(),
         );
         let next_marked_clean = marked_source_range.as_ref().map(|range| {
-            Self::source_range_to_clean_range(&next_title, content_source_start, range.clone())
+            Self::source_range_to_clean_range(&next_text, content_source_start, range.clone())
         });
         let old_kind = self.record.kind.clone();
-        let old_title = self.record.text.clone();
+        let old_text = self.record.text.clone();
 
         self.record.kind = next_kind;
-        self.record.set_text(next_title);
+        self.record.set_text(next_text);
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
         if self.edit_mode.supports_inline_projection() {
@@ -1058,14 +1058,14 @@ impl Block {
         self.cursor_blink_epoch = Instant::now();
         self.clear_vertical_motion();
 
-        if self.record.kind != old_kind || self.record.text != old_title {
+        if self.record.kind != old_kind || self.record.text != old_text {
             cx.emit(BlockAction::Changed);
         }
         cx.notify();
         true
     }
 
-    /// Replace text in visible coordinates: splice `new_text` into the title
+    /// Replace text in visible coordinates: splice `new_text` into the text
     /// at `visible_range`, re-parse inline markers, and update cursor state.
     /// When `mark_inserted_text` is true the inserted text becomes the IME
     /// marked range.
@@ -1117,7 +1117,7 @@ impl Block {
         }
 
         if self.should_use_markdown_space_link_edit() {
-            self.apply_markdown_space_title_edit(
+            self.apply_markdown_space_text_edit(
                 visible_range,
                 new_text,
                 selected_range_relative,
@@ -1132,7 +1132,7 @@ impl Block {
         // `[label](url)` markers and silently drops the link. Edit in markdown
         // space (as source-preserving links already do) so the link round-trips.
         if !self.uses_raw_text_editing() && self.record.text.has_inline_links() {
-            self.apply_markdown_space_title_edit(
+            self.apply_markdown_space_text_edit(
                 visible_range,
                 new_text,
                 selected_range_relative,
@@ -1143,25 +1143,25 @@ impl Block {
         }
 
         let clean_range = self.current_to_clean_range(visible_range.clone());
-        let mut base_title = self.record.text.clone();
+        let mut base_text = self.record.text.clone();
         let overlaps_delimiters = self.projection.is_some() && !self.uses_raw_text_editing();
         if overlaps_delimiters {
             let touched_styles = self.projected_styles_touching_display_range(&visible_range);
             if !touched_styles.is_empty() {
-                base_title.unwrap_styles_on_fragments(&touched_styles);
+                base_text.unwrap_styles_on_fragments(&touched_styles);
             }
         }
 
-        let base_visible_len = base_title.visible_text().len();
+        let base_visible_len = base_text.visible_text().len();
         let replaced_text = self.display_text()[visible_range.clone()].to_string();
         let result = if self.uses_raw_text_editing() {
-            base_title.replace_visible_range_raw(
+            base_text.replace_visible_range_raw(
                 clean_range.clone(),
                 new_text,
                 InlineInsertionAttributes::default(),
             )
         } else {
-            base_title.replace_visible_range_with_link_references(
+            base_text.replace_visible_range_with_link_references(
                 clean_range.clone(),
                 new_text,
                 inserted_attributes,
@@ -1201,7 +1201,7 @@ impl Block {
             .map(|range| range.end)
             .unwrap_or_else(|| result.map_offset(clean_range.start + new_text.len()));
 
-        self.apply_title_edit(
+        self.apply_text_edit(
             result.tree,
             cursor,
             marked_range,

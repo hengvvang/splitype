@@ -437,7 +437,7 @@ impl Block {
         self.current_cache().visible_len()
     }
 
-    pub(crate) fn split_title(&self, offset: usize) -> (RichText, RichText) {
+    pub(crate) fn split_text(&self, offset: usize) -> (RichText, RichText) {
         self.record
             .text
             .split_at(self.current_to_clean_offset(offset))
@@ -516,15 +516,15 @@ impl Block {
         }
 
         let markdown = self.record.text.serialize_markdown();
-        let next_title = RichText::from_markdown_with_link_references(
+        let next_text = RichText::from_markdown_with_link_references(
             &markdown,
             &self.link_reference_definitions,
         );
-        if self.record.text == next_title {
+        if self.record.text == next_text {
             return true;
         }
 
-        self.record.set_text(next_title);
+        self.record.set_text(next_text);
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
 
@@ -575,24 +575,24 @@ impl Block {
             return true;
         }
 
-        let mut next_title = self.record.text.clone();
+        let mut next_text = self.record.text.clone();
         let mut occurrence_iter = self
             .footnote_registry
             .occurrences_for_block(self.record.id)
             .unwrap_or(&[])
             .iter();
-        next_title.apply_footnote_reference_state(|id| {
+        next_text.apply_footnote_reference_state(|id| {
             let occurrence = occurrence_iter.next()?;
             if occurrence.id != id {
                 return None;
             }
             Some((occurrence.ordinal?, occurrence.occurrence_index))
         });
-        if self.record.text == next_title {
+        if self.record.text == next_text {
             return true;
         }
 
-        self.record.set_text(next_title);
+        self.record.set_text(next_text);
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
 
@@ -624,7 +624,7 @@ impl Block {
         !self.uses_raw_text_editing() && self.record.text.has_source_preserving_links()
     }
 
-    pub(crate) fn apply_markdown_space_title_edit(
+    pub(crate) fn apply_markdown_space_text_edit(
         &mut self,
         visible_range: Range<usize>,
         new_text: &str,
@@ -638,11 +638,11 @@ impl Block {
         let replaced_text = markdown[markdown_range.clone()].to_string();
         markdown.replace_range(markdown_range.clone(), new_text);
 
-        let next_title = RichText::from_markdown_with_link_references(
+        let next_text = RichText::from_markdown_with_link_references(
             &markdown,
             &self.link_reference_definitions,
         );
-        let map = next_title.markdown_offset_map();
+        let map = next_text.markdown_offset_map();
         let selected_markdown = selected_range_relative.as_ref().map(|relative| {
             markdown_range.start + relative.start..markdown_range.start + relative.end
         });
@@ -667,7 +667,7 @@ impl Block {
             && (new_text.contains('\n')
                 || replaced_text.contains('\n')
                 || (self.kind() == BlockKind::Blockquote
-                    && Self::multiline_quote_edit_requires_reparse(&next_title.visible_text())));
+                    && Self::multiline_quote_edit_requires_reparse(&next_text.visible_text())));
         if quote_structure_edit {
             self.quote_reparse_requested = true;
         }
@@ -678,10 +678,10 @@ impl Block {
         // closing delimiter instead of landing inside the span.
         let caret_may_have_closed_span = !new_text.is_empty()
             && !mark_inserted_text
-            && next_title.visible_text().len() < old_visible_len + new_text.len();
+            && next_text.visible_text().len() < old_visible_len + new_text.len();
 
-        self.apply_title_edit(
-            next_title,
+        self.apply_text_edit(
+            next_text,
             cursor_clean,
             marked_clean,
             selected_clean.clone(),
@@ -791,21 +791,21 @@ impl Block {
             return;
         }
 
-        let mut next_title = self.record.text.clone();
+        let mut next_text = self.record.text.clone();
         let selection = self.selection_clean_range();
         let changed = match format {
-            InlineFormat::Bold => next_title.toggle_bold(selection.clone()),
-            InlineFormat::Italic => next_title.toggle_italic(selection.clone()),
-            InlineFormat::Underline => next_title.toggle_underline(selection.clone()),
-            InlineFormat::Code => next_title.toggle_code(selection.clone()),
+            InlineFormat::Bold => next_text.toggle_bold(selection.clone()),
+            InlineFormat::Italic => next_text.toggle_italic(selection.clone()),
+            InlineFormat::Underline => next_text.toggle_underline(selection.clone()),
+            InlineFormat::Code => next_text.toggle_code(selection.clone()),
         };
         if !changed {
             return;
         }
 
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
-        self.apply_title_edit(
-            next_title,
+        self.apply_text_edit(
+            next_text,
             selection.end,
             None,
             Some(selection),

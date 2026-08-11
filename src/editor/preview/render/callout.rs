@@ -31,10 +31,10 @@ pub(crate) fn render_preview_callout(
     theme: &Theme,
 ) -> AnyElement {
     let accent = callout_accent(variant, theme);
-    let title_is_empty = block.record.text.visible_text().is_empty();
+    let text_is_empty = block.record.text.visible_text().is_empty();
     let header_label = SharedString::from(variant.label());
 
-    let header_text = if title_is_empty {
+    let header_text = if text_is_empty {
         div()
             .text_size(px(theme.typography.text_size))
             .font_weight(FontWeight::LIGHT)

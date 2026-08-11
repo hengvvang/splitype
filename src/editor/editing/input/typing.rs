@@ -53,17 +53,17 @@ impl Editor {
         true
     }
 
-    pub(crate) fn set_block_title_and_kind(
+    pub(crate) fn set_block_text_and_kind(
         block: &Entity<crate::editor::tree::block::Block>,
         kind: BlockKind,
-        title: RichText,
+        text: RichText,
         cursor: usize,
         cx: &mut Context<Self>,
     ) {
-        let (kind, title, cursor) = Self::apply_paragraph_shortcuts(kind, title, cursor);
+        let (kind, text, cursor) = Self::apply_paragraph_shortcuts(kind, text, cursor);
         block.update(cx, move |block, cx| {
             block.record.kind = kind;
-            block.record.set_text(title.clone());
+            block.record.set_text(text.clone());
             block.sync_edit_mode_from_kind();
             block.sync_render_cache();
             let clean_cursor = cursor.min(block.record.text.visible_len());
@@ -137,15 +137,15 @@ impl Editor {
         );
 
         if let Some(prev) = target {
-            let heading_title = prev.read(cx).record.text.clone();
-            let cursor = heading_title.visible_len();
+            let heading_text = prev.read(cx).record.text.clone();
+            let cursor = heading_text.visible_len();
             let removed_id = block.entity_id();
             let new_paragraph = Self::new_block(cx, BlockData::paragraph(String::new()));
 
-            Self::set_block_title_and_kind(
+            Self::set_block_text_and_kind(
                 &prev,
                 BlockKind::Heading { level },
-                heading_title,
+                heading_text,
                 cursor,
                 cx,
             );
@@ -339,19 +339,19 @@ impl Editor {
 
     pub(crate) fn apply_paragraph_shortcuts(
         kind: BlockKind,
-        mut title: RichText,
+        mut text: RichText,
         cursor: usize,
     ) -> (BlockKind, RichText, usize) {
         if kind == BlockKind::Paragraph {
-            let visible_text = title.visible_text();
+            let visible_text = text.visible_text();
             if let Some((detected_kind, prefix_len)) =
                 BlockKind::detect_markdown_shortcut(&visible_text)
             {
-                title.remove_visible_prefix(prefix_len);
-                return (detected_kind, title, cursor.saturating_sub(prefix_len));
+                text.remove_visible_prefix(prefix_len);
+                return (detected_kind, text, cursor.saturating_sub(prefix_len));
             }
         }
 
-        (kind, title, cursor)
+        (kind, text, cursor)
     }
 }

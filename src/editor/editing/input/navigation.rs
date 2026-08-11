@@ -453,7 +453,7 @@ impl Editor {
             return None;
         }
 
-        let Some((variant, title)) =
+        let Some((variant, text)) =
             crate::model::block::CalloutKind::parse_header_line(&text_markdown)
         else {
             return None;
@@ -461,7 +461,7 @@ impl Editor {
 
         block.update(cx, |block, cx| {
             block.record.kind = BlockKind::Callout(variant);
-            block.record.set_text(RichText::from_markdown(&title));
+            block.record.set_text(RichText::from_markdown(&text));
             block.sync_edit_mode_from_kind();
             block.sync_render_cache();
             block.cursor_blink_epoch = Instant::now();

@@ -55,7 +55,7 @@ pub(crate) fn build_outline_tree(markdown: &str) -> Vec<OutlineNode> {
             continue;
         }
 
-        let Some((level, title)) = BlockKind::parse_atx_heading_line(line) else {
+        let Some((level, heading_text)) = BlockKind::parse_atx_heading_line(line) else {
             continue;
         };
 
@@ -68,7 +68,7 @@ pub(crate) fn build_outline_tree(markdown: &str) -> Vec<OutlineNode> {
 
         let node = OutlineNode {
             id: format!("outline:{line_index}"),
-            label: title,
+            label: heading_text,
             kind: OutlineNodeKind::Heading {
                 line: line_index,
                 level,

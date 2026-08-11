@@ -41,14 +41,14 @@ impl Editor {
             .iter()
             .cloned()
             .enumerate()
-            .map(|(column, title)| {
+            .map(|(column, text)| {
                 let alignment = table
                     .alignments
                     .get(column)
                     .copied()
                     .unwrap_or(TableColumnAlignment::Default);
                 let position = TableCellPosition { row: 0, column };
-                let cell = Self::new_table_cell_block(cx, title, position, alignment);
+                let cell = Self::new_table_cell_block(cx, text, position, alignment);
                 self.tab_mut().tables.cells.insert(
                     cell.entity_id(),
                     TableCellBinding {
@@ -69,7 +69,7 @@ impl Editor {
             .map(|(body_row_index, row)| {
                 row.into_iter()
                     .enumerate()
-                    .map(|(column, title)| {
+                    .map(|(column, text)| {
                         let alignment = table
                             .alignments
                             .get(column)
@@ -79,7 +79,7 @@ impl Editor {
                             row: body_row_index + 1,
                             column,
                         };
-                        let cell = Self::new_table_cell_block(cx, title, position, alignment);
+                        let cell = Self::new_table_cell_block(cx, text, position, alignment);
                         self.tab_mut().tables.cells.insert(
                             cell.entity_id(),
                             TableCellBinding {

@@ -3,8 +3,8 @@
 
 use gpui::*;
 
-use crate::editor::wysiwyg::render::callout_accent_and_background;
 use crate::editor::tree::block::Block;
+use crate::editor::wysiwyg::render::layout::callout_colors;
 use crate::infra::theme::Theme;
 use crate::model::block::CalloutKind;
 
@@ -18,9 +18,9 @@ pub(crate) fn render_callout(
     theme: &Theme,
     cx: &mut Context<Block>,
 ) -> AnyElement {
-    let (accent, _) = callout_accent_and_background(variant, theme);
-    let title_is_empty = block.record.text.visible_text().is_empty();
-    let show_static_default_label = title_is_empty && !focused;
+    let (accent, _) = callout_colors(variant, theme);
+    let text_is_empty = block.record.text.visible_text().is_empty();
+    let show_static_default_label = text_is_empty && !focused;
     let header_label = SharedString::from(variant.label());
 
     let header_text = if show_static_default_label {
@@ -51,8 +51,5 @@ pub(crate) fn render_callout(
             .into_any_element()
     };
 
-    focused_base
-        .w_full()
-        .child(header_text)
-        .into_any_element()
+    focused_base.w_full().child(header_text).into_any_element()
 }

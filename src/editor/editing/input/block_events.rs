@@ -296,9 +296,9 @@ impl Editor {
                         let content = content.clone();
                         let adopted_children = adopted_children.clone();
                         move |prev, cx| {
-                            let mut next_title = prev.record.text.clone();
-                            next_title.append_tree(content.clone());
-                            prev.record.set_text(next_title);
+                            let mut next_text = prev.record.text.clone();
+                            next_text.append_tree(content.clone());
+                            prev.record.set_text(next_text);
                             prev.sync_render_cache();
                             prev.children.extend(adopted_children.clone());
                             prev.selected_range = cursor_pos..cursor_pos;
@@ -345,17 +345,17 @@ impl Editor {
                 // leave the pre-cursor text in place.
                 let structural = !*split_physical_lines;
                 let leading_empty = leading.visible_len() == 0;
-                let (mut first_title, tail_lines) = if structural {
+                let (mut first_text, tail_lines) = if structural {
                     (leading.clone(), lines.clone())
                 } else {
-                    let mut first_title = leading.clone();
-                    first_title.append_tree(RichText::from_markdown(&lines[0]));
-                    (first_title, lines[1..].to_vec())
+                    let mut first_text = leading.clone();
+                    first_text.append_tree(RichText::from_markdown(&lines[0]));
+                    (first_text, lines[1..].to_vec())
                 };
                 if tail_lines.is_empty() {
-                    first_title.append_tree(trailing.clone());
-                    let cursor = first_title.visible_len();
-                    Self::set_block_title_and_kind(&block, current_kind, first_title, cursor, cx);
+                    first_text.append_tree(trailing.clone());
+                    let cursor = first_text.visible_len();
+                    Self::set_block_text_and_kind(&block, current_kind, first_text, cursor, cx);
                     self.focus_block(block.entity_id());
                     if quote_related {
                         self.normalize_rendered_quote_structure(cx);
@@ -368,8 +368,8 @@ impl Editor {
                     return;
                 }
 
-                let cursor = first_title.visible_len();
-                Self::set_block_title_and_kind(&block, current_kind, first_title, cursor, cx);
+                let cursor = first_text.visible_len();
+                Self::set_block_text_and_kind(&block, current_kind, first_text, cursor, cx);
 
                 let Some(location) = self.doc().find_block_location(block.entity_id()) else {
                     return;
@@ -430,9 +430,9 @@ impl Editor {
                     focus_block.update(cx, {
                         let trailing = trailing.clone();
                         move |focus_block, cx| {
-                            let mut next_title = focus_block.record.text.clone();
-                            next_title.append_tree(trailing.clone());
-                            focus_block.record.set_text(next_title);
+                            let mut next_text = focus_block.record.text.clone();
+                            next_text.append_tree(trailing.clone());
+                            focus_block.record.set_text(next_text);
                             focus_block.sync_render_cache();
                             focus_block.cursor_blink_epoch = Instant::now();
                             cx.notify();

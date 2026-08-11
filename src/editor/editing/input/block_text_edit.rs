@@ -212,7 +212,7 @@ impl Block {
             return;
         }
 
-        let (leading, trailing) = self.split_title(cursor);
+        let (leading, trailing) = self.split_text(cursor);
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.record.set_text(leading);
         self.mark_changed(cx);

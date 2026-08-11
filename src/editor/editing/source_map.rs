@@ -456,10 +456,10 @@ impl Editor {
         block_ranges: &mut HashMap<EntityId, Range<usize>>,
         cx: &App,
     ) -> usize {
-        let (kind, list_ordinal, title, children) = {
+        let (kind, list_ordinal, text, children) = {
             let block_ref = block.read(cx);
             let kind = block_ref.kind();
-            let title = (!matches!(
+            let text = (!matches!(
                 kind,
                 BlockKind::Table
                     | BlockKind::CodeBlock { .. }
@@ -474,7 +474,7 @@ impl Editor {
             (
                 kind,
                 block_ref.list_ordinal,
-                title,
+                text,
                 block_ref.children.clone(),
             )
         };
@@ -517,7 +517,7 @@ impl Editor {
             }
             BlockKind::Heading { level } => self.push_inline_block_mapping(
                 block,
-                title.expect("heading title").markdown().to_string(),
+                text.expect("heading text").markdown().to_string(),
                 format!("{}{} ", "  ".repeat(list_depth), "#".repeat(level as usize)),
                 String::new(),
                 quote_depth,
@@ -528,7 +528,7 @@ impl Editor {
                 let indentation = "  ".repeat(list_depth);
                 self.push_inline_block_mapping(
                     block,
-                    title.expect("paragraph title").markdown().to_string(),
+                    text.expect("paragraph text").markdown().to_string(),
                     indentation.clone(),
                     indentation,
                     quote_depth,
@@ -540,7 +540,7 @@ impl Editor {
                 let indentation = "  ".repeat(list_depth);
                 self.push_inline_block_mapping(
                     block,
-                    title.expect("bullet title").markdown().to_string(),
+                    text.expect("bullet text").markdown().to_string(),
                     format!("{indentation}- "),
                     format!("{indentation}  "),
                     quote_depth,
@@ -552,7 +552,7 @@ impl Editor {
                 let indentation = "  ".repeat(list_depth);
                 self.push_inline_block_mapping(
                     block,
-                    title.expect("task title").markdown().to_string(),
+                    text.expect("task text").markdown().to_string(),
                     format!("{indentation}- [{}] ", if checked { "x" } else { " " }),
                     format!("{indentation}      "),
                     quote_depth,
@@ -565,7 +565,7 @@ impl Editor {
                 let ordinal = list_ordinal.unwrap_or(1);
                 self.push_inline_block_mapping(
                     block,
-                    title.expect("numbered title").markdown().to_string(),
+                    text.expect("numbered text").markdown().to_string(),
                     format!("{indentation}{ordinal}. "),
                     format!("{indentation}   "),
                     quote_depth,
@@ -574,13 +574,13 @@ impl Editor {
                 )
             }
             BlockKind::Blockquote => {
-                let title = title.expect("quote title").markdown().to_string();
-                if title.is_empty() && !children.is_empty() {
+                let text = text.expect("quote text").markdown().to_string();
+                if text.is_empty() && !children.is_empty() {
                     0
                 } else {
                     self.push_inline_block_mapping(
                         block,
-                        title,
+                        text,
                         String::new(),
                         String::new(),
                         quote_depth + 1,
@@ -590,7 +590,7 @@ impl Editor {
                 }
             }
             BlockKind::Callout(variant) => {
-                let text_markdown = title.expect("callout title").markdown().to_string();
+                let text_markdown = text.expect("callout text").markdown().to_string();
                 if text_markdown.is_empty() {
                     let full_text = Self::wrap_source_mapping_with_quotes(
                         format!("[!{}]", variant.marker()),
@@ -619,7 +619,7 @@ impl Editor {
                 }
             }
             BlockKind::FootnoteDefinition => {
-                let footnote_id = title.expect("footnote id").markdown().to_string();
+                let footnote_id = text.expect("footnote id").markdown().to_string();
                 let first_child = children.first().cloned();
                 let first_is_paragraph = first_child
                     .as_ref()

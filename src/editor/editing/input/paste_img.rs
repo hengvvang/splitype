@@ -254,14 +254,14 @@ impl Editor {
         trailing: &RichText,
         cx: &mut Context<Self>,
     ) {
-        let (kind, title, cursor) = block.read_with(cx, |block, _cx| {
-            let mut title = leading.clone();
-            title.append_tree(Self::inserted_image_tree_for_block(block, markdown));
-            let cursor = title.visible_len();
-            title.append_tree(trailing.clone());
-            (block.kind(), title, cursor)
+        let (kind, text, cursor) = block.read_with(cx, |block, _cx| {
+            let mut text = leading.clone();
+            text.append_tree(Self::inserted_image_tree_for_block(block, markdown));
+            let cursor = text.visible_len();
+            text.append_tree(trailing.clone());
+            (block.kind(), text, cursor)
         });
-        Self::set_block_title_and_kind(block, kind, title, cursor, cx);
+        Self::set_block_text_and_kind(block, kind, text, cursor, cx);
         if let Some(binding) = self.table_cell_binding(block.entity_id()) {
             self.sync_table_record_from_runtime(&binding.table_block, cx);
         }
@@ -284,7 +284,7 @@ impl Editor {
         let trailing_empty = trailing.visible_len() == 0;
 
         if leading_empty {
-            Self::set_block_title_and_kind(
+            Self::set_block_text_and_kind(
                 block,
                 BlockKind::Paragraph,
                 RichText::plain(markdown.to_string()),
@@ -307,7 +307,7 @@ impl Editor {
             return;
         }
 
-        Self::set_block_title_and_kind(
+        Self::set_block_text_and_kind(
             block,
             BlockKind::Paragraph,
             leading.clone(),

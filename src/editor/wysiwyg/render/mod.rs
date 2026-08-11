@@ -32,6 +32,11 @@ pub(crate) const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
 
 use crate::editor::block_protocol::BlockAction;
 use crate::editor::controller::Editor;
+use crate::editor::render::latex_render::{display_math_font_size, render_display_math_svg};
+use crate::editor::render::mermaid_render::{
+    mermaid_content_fingerprint, render_mermaid_svg_for_display,
+};
+use crate::editor::tree::block::{Block, ImageHandle};
 use crate::editor::wysiwyg::render::inline::text_element::BlockTextElement;
 use crate::editor::wysiwyg::render::{
     blockquote::render_blockquote,
@@ -48,11 +53,6 @@ use crate::editor::wysiwyg::render::{
     table_block::render_table,
     thematic_break::{render_thematic_break_focused, render_thematic_break_unfocused},
 };
-use crate::editor::render::latex_render::{display_math_font_size, render_display_math_svg};
-use crate::editor::render::mermaid_render::{
-    mermaid_content_fingerprint, render_mermaid_svg_for_display,
-};
-use crate::editor::tree::block::{Block, ImageHandle};
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::infra::theme::{Theme, ThemeDimensions, ThemeManager};
 use crate::model::block::BlockKind;
@@ -216,26 +216,6 @@ fn wrap_with_quote_guides(content: AnyElement, quote_depth: usize, theme: &Theme
                 .bg(c.border_quote)
         }))
         .into_any_element()
-}
-
-pub(crate) fn callout_accent_and_background(
-    variant: crate::model::block::CalloutKind,
-    theme: &Theme,
-) -> (Hsla, Hsla) {
-    let c = &theme.colors;
-    match variant {
-        crate::model::block::CalloutKind::Note => (c.callout_note_border, c.callout_note_bg),
-        crate::model::block::CalloutKind::Tip => (c.callout_tip_border, c.callout_tip_bg),
-        crate::model::block::CalloutKind::Important => {
-            (c.callout_important_border, c.callout_important_bg)
-        }
-        crate::model::block::CalloutKind::Warning => {
-            (c.callout_warning_border, c.callout_warning_bg)
-        }
-        crate::model::block::CalloutKind::Caution => {
-            (c.callout_caution_border, c.callout_caution_bg)
-        }
-    }
 }
 
 fn visible_quote_guides(block: &Block) -> usize {
@@ -1308,10 +1288,10 @@ pub(crate) fn inline_word_chunks(text: &str, code: bool, has_background: bool) -
 #[cfg(test)]
 mod tests {
     use super::inline_word_chunks;
+    use crate::editor::tree::block::Block;
     use crate::editor::wysiwyg::render::html_document::{
         HtmlComputedStyle, html_node_visual_style,
     };
-    use crate::editor::tree::block::Block;
     use crate::infra::i18n::I18nManager;
     use crate::infra::theme::{Theme, ThemeManager};
     use crate::model::block::{BlockData, BlockKind};

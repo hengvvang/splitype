@@ -3,7 +3,7 @@
 //! Bridges between GPUI's UTF-16-based IME subsystem and the block's
 //! internal UTF-8 representation.  All range arguments from GPUI arrive
 //! as UTF-16 offsets and are converted through `range_from_utf16` before
-//! operating on the block's title.
+//! operating on the block's text.
 
 use std::ops::Range;
 
