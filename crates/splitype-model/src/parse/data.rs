@@ -9,11 +9,11 @@
 use super::id::BlockId;
 use super::kind::BlockKind;
 use crate::inline::text::BlockText;
-use crate::syntax::html::{HtmlDocument, parse_html_document};
-use crate::syntax::image::parse_standalone_image;
-use crate::syntax::math::parse_display_math_source;
-use crate::syntax::mermaid::parse_mermaid_fence_source;
-use crate::syntax::table::TableData;
+use crate::block::html::{HtmlDocument, parse_html_document};
+use crate::block::image::parse_standalone_image;
+use crate::block::math::parse_display_math_source;
+use crate::block::mermaid::parse_mermaid_fence_source;
+use crate::block::table::TableData;
 
 /// Persistent data of a single block in the document tree.
 #[derive(Debug, Clone)]
@@ -193,7 +193,7 @@ impl BlockData {
                 )
             }
             BlockKind::Blockquote => prefixed_multiline(
-                &super::callout::CalloutKind::escape_plain_quote_header(&text_markdown),
+                &crate::block::callout::CalloutKind::escape_plain_quote_header(&text_markdown),
                 &format!("{indentation}> "),
                 &format!("{indentation}> "),
             ),
@@ -209,9 +209,9 @@ impl BlockData {
                 let body = self.raw_source.clone().unwrap_or(text_markdown);
                 let (source, _) = match self.kind {
                     BlockKind::MathBlock => {
-                        crate::syntax::math::serialize_display_math_source(&body)
+                        crate::block::math::serialize_display_math_source(&body)
                     }
-                    _ => crate::syntax::mermaid::serialize_mermaid_source(&body),
+                    _ => crate::block::mermaid::serialize_mermaid_source(&body),
                 };
                 if depth == 0 {
                     source

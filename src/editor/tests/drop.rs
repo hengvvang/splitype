@@ -4,7 +4,7 @@ use std::fs;
 
 
 use crate::editor::controller::{Editor, EditorMode};
-use crate::model::block::BlockKind;
+use crate::model::parse::BlockKind;
 use crate::model::inline::text::BlockText;
 
 use super::*;

@@ -17,7 +17,7 @@ pub(crate) fn render_html_block(
     let t = &theme.typography;
 
     let html = block.data.html.as_ref().cloned().unwrap_or_else(|| {
-        crate::model::syntax::html::parse_html_document(
+        crate::model::block::html::parse_html_document(
             block
                 .data
                 .raw_source

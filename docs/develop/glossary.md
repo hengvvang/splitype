@@ -6,6 +6,26 @@ concept needs a new name, extend the table instead of inventing a synonym.
 Status legend: **done** = already renamed in the codebase, **planned** = the
 target name for an upcoming rename, **kept** = deliberately left as-is.
 
+## Module layout (`splitype-model`)
+
+Mirrors the CommonMark block-level / inline-level split:
+
+- `parse/` — the parsing domain: contract types (`BlockKind`, `BlockData`,
+  `BlockId`, `CodeFenceOpening` — fence recognition metadata) plus the
+  parser (`parser.rs`, `indent.rs`).
+- `block/` — block-level content models, one file per syntax feature,
+  each bundling its data with parse/serialize helpers: `table.rs`, `html.rs`
+  (HTML blocks), `math.rs`, `mermaid.rs`, `image.rs`, `link.rs`
+  (link reference definitions), `footnote.rs` (definition heads),
+  `callout.rs` (`CalloutKind` — the `[!TYPE]` container kind, the same
+  shape as the other feature files).
+- `inline/` — the inline text model: `text.rs` (BlockText), `style.rs`,
+  `link.rs`/`footnote.rs`/`latex.rs`/`html.rs` (fragment-attached inline
+  roles), `markdown.rs`/`serialize.rs` (marker I/O), `offsets.rs`,
+  `render_cache.rs`.
+
+Dependency direction: `parse/ → block/ → inline/` (one way).
+
 ## Coordinate spaces
 
 The block text exists in three spaces. Offsets are always qualified by the

@@ -8,7 +8,7 @@ use super::markdown::{
 use super::offsets::SourceOffsetMap;
 use super::style::{InlineScript, InlineStyle};
 use super::text::InlineFragment;
-use crate::syntax::html::HtmlInlineStyle;
+use crate::inline::html::HtmlInlineStyle;
 
 // ---------------------------------------------------------------------------
 // Serializer helpers

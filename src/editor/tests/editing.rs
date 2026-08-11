@@ -8,7 +8,7 @@ use crate::editor::controller::{Editor, EditorMode};
 use crate::editor::editing::input::actions::{FocusNext, Newline};
 use crate::editor::view::context_menu::TableInsertTarget;
 use crate::editor::view::dialogs::TableInsertDialogState;
-use crate::model::block::BlockKind;
+use crate::model::parse::BlockKind;
 
 use super::*;
 
@@ -462,12 +462,12 @@ async fn newline_at_start_of_heading_moves_entire_heading_down(cx: &mut TestAppC
         let blocks = editor.doc().blocks();
         assert_eq!(
             blocks[0].entity.read(cx).kind(),
-            crate::model::block::BlockKind::Paragraph
+            crate::model::parse::BlockKind::Paragraph
         );
         assert_eq!(blocks[0].entity.read(cx).display_text(), "");
         assert_eq!(
             blocks[1].entity.read(cx).kind(),
-            crate::model::block::BlockKind::Heading { level: 2 }
+            crate::model::parse::BlockKind::Heading { level: 2 }
         );
         assert_eq!(blocks[1].entity.read(cx).display_text(), "1111");
     });

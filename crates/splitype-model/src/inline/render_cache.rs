@@ -10,7 +10,7 @@ use crate::inline::latex::InlineLatex;
 use crate::inline::link::InlineLink;
 use crate::inline::style::InlineStyle;
 use crate::inline::text::BlockText;
-use crate::syntax::html::HtmlInlineStyle;
+use crate::inline::html::HtmlInlineStyle;
 
 /// A text range with its associated [`InlineStyle`], used by
 /// the render cache to build styled text runs for the text system.

@@ -9,7 +9,7 @@ use gpui::*;
 use crate::editor::controller::{Editor, EditorMode, TableAxisSelection};
 use crate::editor::editing::input::actions::DismissTransientUi;
 use crate::editor::view::dialogs::TableInsertDialogState;
-use crate::model::syntax::table::TableData;
+use crate::model::block::table::TableData;
 
 /// Target block position for inserting a native table.
 #[derive(Clone, Copy)]

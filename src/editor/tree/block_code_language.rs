@@ -10,7 +10,7 @@ use crate::editor::block_protocol::{BlockAction, UndoCaptureKind};
 use crate::editor::render::code_highlight::highlight::{CodeHighlightResult, highlight_code_block};
 use crate::editor::tree::block::Block;
 use crate::editor::tree::block::normalize_code_language_input;
-use crate::model::block::BlockKind;
+use crate::model::parse::BlockKind;
 
 impl Block {
     pub(crate) fn code_highlight_result(&self) -> Option<&CodeHighlightResult> {

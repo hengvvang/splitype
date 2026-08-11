@@ -4,8 +4,8 @@
 use gpui::{AppContext, TestAppContext};
 
 use crate::editor::controller::Editor;
-use crate::model::block::BlockKind;
-use crate::model::syntax::image::{
+use crate::model::parse::BlockKind;
+use crate::model::block::image::{
     ImageReferenceDefinitions, ImageResolvedSource, TableCellInlineImageSegment,
     parse_table_cell_inline_images,
 };

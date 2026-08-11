@@ -3,7 +3,7 @@
 //!
 //! Text shaping requires a live `Window` and theme dimensions, so this
 //! presentation logic lives in `editor::geometry` instead of the pure
-//! `splitype_model::syntax::table` data model. The layout *math*
+//! `splitype_model::block::table` data model. The layout *math*
 //! (`from_preferred_widths`) stays in the model, keeping the model testable
 //! without a runtime. It is a free function (not an `impl` on
 //! `TableColumnLayout`) because the type is defined in `splitype-model`.
@@ -13,7 +13,7 @@ use gpui::{FontStyle, FontWeight, Pixels, SharedString, TextRun, Window, px};
 use crate::infra::theme::Theme;
 use crate::model::inline::render_cache::InlineRenderCache;
 use crate::model::inline::text::BlockText;
-use crate::model::syntax::table::{TableColumnLayout, TableData};
+use crate::model::block::table::{TableColumnLayout, TableData};
 
 /// Measure preferred column widths with the window's text system and
 /// normalize them to fractions of the available table width.

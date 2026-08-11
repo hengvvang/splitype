@@ -8,8 +8,9 @@ mod tests {
     use gpui::{AppContext, TestAppContext};
 
     use crate::editor::controller::Editor;
-    use crate::model::block::{BlockKind, CalloutKind};
-    use crate::model::syntax::html::HtmlCssColor;
+    use crate::model::parse::{BlockKind};
+    use crate::model::block::CalloutKind;
+    use crate::model::inline::html::HtmlCssColor;
 
     #[gpui::test]
     async fn imports_setext_headings_and_grouped_paragraphs(cx: &mut TestAppContext) {

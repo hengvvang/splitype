@@ -5,7 +5,7 @@ pub(crate) mod state;
 
 use std::collections::HashSet;
 
-use crate::model::block::BlockKind;
+use crate::model::parse::BlockKind;
 
 use state::{OutlineNode, OutlineNodeKind, OutlinePanelState};
 

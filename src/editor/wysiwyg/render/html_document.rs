@@ -5,11 +5,11 @@ use gpui::*;
 use crate::editor::tree::block::{Block, ImageHandle};
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::Theme;
-use crate::model::syntax::html::{
-    HtmlDocument, HtmlNode, HtmlNodeKind, attr_value, html_css_color_to_hsla,
-    parse_html_image_block, style_for_node,
+use crate::model::block::html::{
+    HtmlDocument, HtmlNode, HtmlNodeKind, attr_value, parse_html_image_block, style_for_node,
 };
-use crate::model::syntax::image::resolve_image_source;
+use crate::model::block::image::resolve_image_source;
+use crate::model::inline::html::html_css_color_to_hsla;
 
 fn html_children_text(node: &HtmlNode) -> String {
     if node.children.is_empty() {

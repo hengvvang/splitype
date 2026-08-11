@@ -12,12 +12,13 @@ use super::serialize::{
 };
 use super::style::InlineStyle;
 use super::text::{BlockText, InlineFragment};
-use crate::inline::footnote::{InlineFootnoteReference, parse_inline_footnote_reference};
-use crate::syntax::html::{
-    HtmlAttr, HtmlInlineStyle, HtmlNode, HtmlNodeKind, has_dangerous_attrs, is_inline_tag,
-    parse_html_attrs, style_for_node,
+use crate::block::html::{
+    HtmlAttr, HtmlNode, HtmlNodeKind, has_dangerous_attrs, is_inline_tag, parse_html_attrs,
+    style_for_node,
 };
-use crate::syntax::link::{LinkReferenceDefinition, LinkReferenceDefinitions, parse_link_target};
+use crate::block::link::{LinkReferenceDefinition, LinkReferenceDefinitions, parse_link_target};
+use crate::inline::footnote::{InlineFootnoteReference, parse_inline_footnote_reference};
+use crate::inline::html::HtmlInlineStyle;
 
 // ---------------------------------------------------------------------------
 // Normalizer: traverse CharTokens and rebuild the tree
@@ -879,7 +880,7 @@ fn locate_inline_link(
             } else {
                 raw_label
             };
-            let normalized_label = crate::syntax::image::normalize_reference_label(&link_label)?;
+            let normalized_label = crate::block::image::normalize_reference_label(&link_label)?;
             let LinkReferenceDefinition { destination, .. } =
                 reference_definitions.get(&normalized_label)?.clone();
             Some(LocatedInlineLink {
@@ -893,7 +894,7 @@ fn locate_inline_link(
         }
         _ => {
             let raw_label = tokens_to_string(&tokens[index + 1..label_end]);
-            let normalized_label = crate::syntax::image::normalize_reference_label(&raw_label)?;
+            let normalized_label = crate::block::image::normalize_reference_label(&raw_label)?;
             let LinkReferenceDefinition { destination, .. } =
                 reference_definitions.get(&normalized_label)?.clone();
             Some(LocatedInlineLink {

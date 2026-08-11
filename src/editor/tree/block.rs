@@ -16,18 +16,19 @@ use crate::editor::render::code_highlight::highlight::CodeHighlightResult;
 use crate::editor::render::mermaid_render::MermaidSvgRender;
 use crate::editor::tree::block_edit_mode::BlockEditMode;
 use crate::editor::tree::footnotes::FootnoteMap;
-use crate::model::block::{BlockData, BlockId, BlockKind, CalloutKind};
+use crate::model::parse::{BlockData, BlockId, BlockKind};
+use crate::model::block::CalloutKind;
 #[cfg(test)]
 use crate::model::inline::footnote::InlineFootnoteHit;
 use crate::model::inline::render_cache::{InlineRenderCache, InlineSpan};
 #[cfg(test)]
 use crate::model::inline::style::InlineStyle;
 use crate::model::inline::text::BlockText;
-use crate::model::syntax::image::ImageReferenceDefinitions;
-use crate::model::syntax::image::ImageResolvedSource;
-use crate::model::syntax::link::LinkReferenceDefinitions;
-use crate::model::syntax::table::TableCellPosition;
-use crate::model::syntax::table::{TableAxisHighlight, TableAxisMarker, TableColumnAlignment};
+use crate::model::block::image::ImageReferenceDefinitions;
+use crate::model::block::image::ImageResolvedSource;
+use crate::model::block::link::LinkReferenceDefinitions;
+use crate::model::block::table::TableCellPosition;
+use crate::model::block::table::{TableAxisHighlight, TableAxisMarker, TableColumnAlignment};
 
 // ---------------------------------------------------------------------------
 // View-local types
@@ -356,7 +357,7 @@ impl Block {
     pub(crate) fn inline_html_style_at(
         &self,
         offset: usize,
-    ) -> Option<crate::model::syntax::html::HtmlInlineStyle> {
+    ) -> Option<crate::model::inline::html::HtmlInlineStyle> {
         self.display_cache().html_style_at(offset)
     }
 

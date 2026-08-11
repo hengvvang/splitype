@@ -10,10 +10,10 @@ use pulldown_cmark::{CowStr, Event, Options, Parser, Tag, html};
 use crate::editor::render::latex_render::{inline_math_font_size, render_latex_to_svg};
 use crate::editor::render::mermaid_render::render_mermaid_to_svg;
 use crate::infra::theme::{FontWeightDef, Theme};
-use crate::model::syntax::html::{parse_html_image_block, sanitize_html_for_export};
-use crate::model::syntax::image::is_remote_image_source;
-use crate::model::syntax::math::parse_display_math_source;
-use crate::model::syntax::mermaid::{
+use crate::model::block::html::{parse_html_image_block, sanitize_html_for_export};
+use crate::model::block::image::is_remote_image_source;
+use crate::model::block::math::parse_display_math_source;
+use crate::model::block::mermaid::{
     is_mermaid_closing_fence, parse_mermaid_fence_source, parse_mermaid_fence_start,
 };
 

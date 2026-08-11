@@ -160,7 +160,7 @@ mod tests {
         tibetan_font_fallbacks_for_target_os,
     };
     use crate::infra::theme::Theme;
-    use crate::model::block::BlockId;
+    use crate::model::parse::BlockId;
     use uuid::Uuid;
 
     #[test]

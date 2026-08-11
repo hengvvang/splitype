@@ -6,21 +6,21 @@
 //! entirely on the plain data types in `crate::block` and `crate::inline`.
 
 use crate::block::callout::CalloutKind;
-use crate::block::data::BlockData;
-use crate::block::fence::CodeFenceOpening;
-use crate::block::kind::BlockKind;
+use crate::parse::data::BlockData;
+use crate::parse::fence::CodeFenceOpening;
+use crate::parse::kind::BlockKind;
 use crate::inline::text::BlockText;
 use crate::parse::indent::{
     collect_until_blank_line, dedent_lines, display_columns, is_quote_start,
     leading_indent_columns_and_bytes, strip_fence_indent, strip_indented_code_prefix,
     strip_leading_columns, strip_one_quote_level,
 };
-use crate::syntax::footnote::parse_footnote_definition_head;
-use crate::syntax::html::{HtmlBlockStart, HtmlSafetyClass, parse_html_document};
-use crate::syntax::image::parse_standalone_image;
-use crate::syntax::math::parse_display_math_source;
-use crate::syntax::mermaid::is_mermaid_info_string;
-use crate::syntax::table::{
+use crate::block::footnote::parse_footnote_definition_head;
+use crate::block::html::{HtmlBlockStart, HtmlSafetyClass, parse_html_document};
+use crate::block::image::parse_standalone_image;
+use crate::block::math::parse_display_math_source;
+use crate::block::mermaid::is_mermaid_info_string;
+use crate::block::table::{
     collect_pipeless_table_region, collect_root_table_candidate_region,
     collect_table_candidate_region, is_root_table_candidate_line, is_table_candidate_line,
     parse_root_table_region, parse_table_region,

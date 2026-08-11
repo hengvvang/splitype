@@ -27,7 +27,7 @@ use crate::editor::controller::*;
 use crate::editor::tree::block::Block;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
-use crate::model::block::BlockKind;
+use crate::model::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn render_preview_pane(

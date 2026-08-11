@@ -7,11 +7,11 @@ use gpui::*;
 
 use crate::editor::tree::block::Block;
 use crate::infra::theme::Theme;
-use crate::model::syntax::html::{
-    HtmlNode, HtmlNodeKind, attr_value, html_css_color_to_hsla, parse_html_document,
-    parse_html_image_block, style_for_node,
+use crate::model::block::html::{
+    HtmlNode, HtmlNodeKind, attr_value, parse_html_document, parse_html_image_block, style_for_node,
 };
-use crate::model::syntax::image::resolve_image_source;
+use crate::model::block::image::resolve_image_source;
+use crate::model::inline::html::html_css_color_to_hsla;
 
 /// Renders a raw HTML block read-only with the same visuals as the WYSIWYG
 /// HTML document rendering.
@@ -448,8 +448,8 @@ fn render_preview_html_image(
         .unwrap_or(1.0);
 
     let image = match resolve_image_source(src, None) {
-        crate::model::syntax::image::ImageResolvedSource::Local(path) => img(path),
-        crate::model::syntax::image::ImageResolvedSource::Remote(uri) => img(uri),
+        crate::model::block::image::ImageResolvedSource::Local(path) => img(path),
+        crate::model::block::image::ImageResolvedSource::Remote(uri) => img(uri),
     }
     .max_w(Length::Definite(relative(zoom)))
     .max_h(px(theme.dimensions.image_root_max_height * zoom))

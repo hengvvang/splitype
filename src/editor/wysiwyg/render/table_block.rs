@@ -10,10 +10,10 @@ use crate::editor::wysiwyg::render::effective_table_width;
 use crate::editor::tree::block::Block;
 use crate::editor::tree::block_edit_mode::BlockEditMode;
 use crate::infra::theme::Theme;
-use crate::model::syntax::table::TableAxisHighlight;
-use crate::model::syntax::table::TableCellPosition;
-use crate::model::syntax::table::TableColumnAlignment;
-use crate::model::syntax::table::{TableAxisKind, TableAxisMarker, TableColumnLayout};
+use crate::model::block::table::TableAxisHighlight;
+use crate::model::block::table::TableCellPosition;
+use crate::model::block::table::TableColumnAlignment;
+use crate::model::block::table::{TableAxisKind, TableAxisMarker, TableColumnLayout};
 
 /// Render a native table block.
 pub(crate) fn render_table(

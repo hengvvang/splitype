@@ -262,10 +262,10 @@ impl Editor {
             };
             let (serialized, body_range) = match block_ref.kind() {
                 BlockKind::MathBlock => {
-                    crate::model::syntax::math::serialize_display_math_source(&body)
+                    crate::model::block::math::serialize_display_math_source(&body)
                 }
                 BlockKind::MermaidBlock => {
-                    crate::model::syntax::mermaid::serialize_mermaid_source(&body)
+                    crate::model::block::mermaid::serialize_mermaid_source(&body)
                 }
                 _ => (body, 0..0),
             };
@@ -382,7 +382,7 @@ impl Editor {
             return 0;
         };
 
-        let lines = crate::model::syntax::table::serialize_table_markdown_lines(&table);
+        let lines = crate::model::block::table::serialize_table_markdown_lines(&table);
         let indentation = "  ".repeat(list_depth);
         let quote_prefix = "> ".repeat(quote_depth);
         let line_prefix_len = indentation.len() + quote_prefix.len();

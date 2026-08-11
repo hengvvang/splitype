@@ -1,6 +1,6 @@
 //! RaTeX SVG rendering helpers for LaTeX math.
 //!
-//! Display-math source parsing lives in `model::syntax::math`; this module
+//! Display-math source parsing lives in `model::block::math`; this module
 //! only owns the SVG rendering pipeline and its cache.
 
 use std::collections::HashMap;
@@ -14,7 +14,7 @@ use anyhow::{Context as _, anyhow};
 use directories::ProjectDirs;
 use gpui::{Hsla, Rgba};
 
-use crate::model::syntax::math::DisplayMathSource;
+use crate::model::block::math::DisplayMathSource;
 
 /// Upper bound on formulas retained in the in-memory SVG cache. Content
 /// is addresses by hash, so eviction is safe: the disk cache still holds
@@ -178,7 +178,7 @@ fn recolor_default_black(svg: &str, color: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::syntax::math::parse_display_math_source;
+    use crate::model::block::math::parse_display_math_source;
     use gpui::rgba;
 
     #[test]

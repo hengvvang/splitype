@@ -7,7 +7,7 @@ use crate::editor::preview::render::preview_centered_column_width;
 use crate::editor::render::mermaid_render::render_mermaid_svg_for_display;
 use crate::editor::tree::block::Block;
 use crate::infra::theme::Theme;
-use crate::model::syntax::mermaid::parse_mermaid_fence_source;
+use crate::model::block::mermaid::parse_mermaid_fence_source;
 
 /// Renders a Mermaid diagram block read-only.
 pub(crate) fn render_preview_mermaid_diagram(
@@ -35,7 +35,7 @@ pub(crate) fn render_preview_mermaid_diagram(
         } else {
             trimmed.to_string()
         };
-        crate::model::syntax::mermaid::MermaidSource {
+        crate::model::block::mermaid::MermaidSource {
             source: raw.to_string(),
             body,
             info: "mermaid".to_string(),

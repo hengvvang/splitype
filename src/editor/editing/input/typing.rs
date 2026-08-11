@@ -4,9 +4,9 @@
 use gpui::*;
 
 use crate::editor::controller::*;
-use crate::model::block::BlockKind;
+use crate::model::parse::BlockKind;
 use crate::model::inline::text::BlockText;
-use crate::model::syntax::table::*;
+use crate::model::block::table::*;
 
 impl Editor {
     pub(crate) fn jump_to_footnote_definition(&mut self, id: &str, cx: &mut Context<Self>) -> bool {

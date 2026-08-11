@@ -12,8 +12,8 @@ use crate::editor::controller::{
 };
 use crate::editor::editing::input::actions::{Copy, Cut, Delete, DeleteBack};
 use crate::editor::tree::block::Block;
-use crate::model::block::BlockKind;
-use crate::model::syntax::table::serialize_table_markdown_lines;
+use crate::model::parse::BlockKind;
+use crate::model::block::table::serialize_table_markdown_lines;
 
 /// Cross-block selection with endpoints ordered by document position.
 #[derive(Clone, Copy)]
@@ -1293,7 +1293,7 @@ mod tests {
             // the end of a document does. Ending the selection on it used to
             // abort deletion because empty roots had no source span.
             let empty =
-                Editor::new_block(cx, crate::model::block::BlockData::paragraph(String::new()));
+                Editor::new_block(cx, crate::model::parse::BlockData::paragraph(String::new()));
             let index = editor.doc().root_count();
             editor
                 .doc_mut()
@@ -1325,7 +1325,7 @@ mod tests {
             // to abort deletion (the user's "drag up from the text below into an
             // empty block above the table" case).
             let empty =
-                Editor::new_block(cx, crate::model::block::BlockData::paragraph(String::new()));
+                Editor::new_block(cx, crate::model::parse::BlockData::paragraph(String::new()));
             editor.doc_mut().insert_blocks_at(None, 0, vec![empty], cx);
 
             let entries = editor.doc().blocks().to_vec();

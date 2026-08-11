@@ -6,7 +6,7 @@ use gpui::*;
 
 use crate::editor::controller::Editor;
 use crate::editor::tree::block::Block;
-use crate::model::block::BlockData;
+use crate::model::parse::BlockData;
 
 /// Read-only block tree shown in the preview panel.
 #[derive(Default)]

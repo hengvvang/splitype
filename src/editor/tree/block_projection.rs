@@ -17,7 +17,7 @@ use crate::editor::editing::projection::{
     ProjectedLinkSelectionSnapshot,
 };
 use crate::editor::tree::block::Block;
-use crate::model::block::BlockKind;
+use crate::model::parse::BlockKind;
 use crate::model::inline::render_cache::InlineRenderCache;
 use crate::model::inline::style::StyleFlag;
 use crate::model::inline::text::{InlineFragment, InlineInsertionAttributes, BlockText};

@@ -6,7 +6,7 @@ use gpui::*;
 use crate::editor::render::latex_render::{display_math_font_size, render_display_math_svg};
 use crate::editor::tree::block::Block;
 use crate::infra::theme::Theme;
-use crate::model::syntax::math::parse_display_math_source;
+use crate::model::block::math::parse_display_math_source;
 
 /// Renders a LaTeX math block read-only.
 pub(crate) fn render_preview_latex_math(block: &Block, base: Div, theme: &Theme) -> AnyElement {
@@ -28,7 +28,7 @@ pub(crate) fn render_preview_latex_math(block: &Block, base: Div, theme: &Theme)
             .unwrap_or(raw.trim())
             .trim()
             .to_string();
-        crate::model::syntax::math::DisplayMathSource {
+        crate::model::block::math::DisplayMathSource {
             source: raw.to_string(),
             body,
         }

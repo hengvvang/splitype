@@ -15,8 +15,8 @@ use crate::inline::link::InlineLink;
 use crate::inline::offsets::{InlineEditResult, SourceOffsetMap};
 use crate::inline::render_cache::InlineRenderCache;
 use crate::inline::style::{InlineStyle, StyleFlag, set_style_flag, style_flag_enabled};
-use crate::syntax::html::HtmlInlineStyle;
-use crate::syntax::link::LinkReferenceDefinitions;
+use crate::inline::html::HtmlInlineStyle;
+use crate::block::link::LinkReferenceDefinitions;
 
 /// A contiguous run of text with a uniform [`InlineStyle`].
 ///

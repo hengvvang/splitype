@@ -6,12 +6,10 @@
 
 use std::ops::Range;
 
-use gpui::{Hsla, Rgba};
-
-use cssparser::color::{parse_hash_color, parse_named_color};
-
 #[cfg(feature = "html-native")]
 use tree_sitter::Parser;
+
+use crate::inline::html::{HtmlInlineStyle, css_number, parse_css_number, parse_inline_style};
 
 /// Active fenced code block while scanning for image/link reference definitions.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -62,72 +60,6 @@ pub struct HtmlAttr {
     /// Exact attribute source text.
     pub raw_source: String,
 }
-
-/// Parsed CSS color value from a safe inline `style` attribute.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum HtmlCssColor {
-    /// The CSS `currentColor` keyword.
-    CurrentColor,
-    /// An sRGB color with alpha.
-    Rgba(HtmlCssRgba),
-}
-
-/// RGBA channels normalized enough for both GPUI rendering and export CSS.
-#[derive(Clone, Copy, Debug, PartialEq)]
-/// An sRGB color with alpha.
-pub struct HtmlCssRgba {
-    pub red: u8,
-    pub green: u8,
-    pub blue: u8,
-    pub alpha: f32,
-}
-
-/// Convert an HTML/CSS color to GPUI's `Hsla`, following `currentColor`.
-pub fn html_css_color_to_hsla(color: HtmlCssColor, current_color: Hsla) -> Hsla {
-    match color {
-        HtmlCssColor::CurrentColor => current_color,
-        HtmlCssColor::Rgba(color) => Hsla::from(Rgba {
-            r: color.red as f32 / 255.0,
-            g: color.green as f32 / 255.0,
-            b: color.blue as f32 / 255.0,
-            a: color.alpha.clamp(0.0, 1.0),
-        }),
-    }
-}
-
-/// Parsed CSS font-size value from a safe inline `style` attribute.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum HtmlCssFontSize {
-    Px(f32),
-    Em(f32),
-    Rem(f32),
-    Percent(f32),
-    Keyword(HtmlCssFontSizeKeyword),
-}
-
-/// CSS absolute and relative font-size keywords supported by rendered HTML.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum HtmlCssFontSizeKeyword {
-    XxSmall,
-    XSmall,
-    Small,
-    Medium,
-    Large,
-    XLarge,
-    XxLarge,
-    Smaller,
-    Larger,
-}
-
-/// Whitelisted visual CSS parsed from a safe HTML `style` attribute.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub struct HtmlInlineStyle {
-    pub color: Option<HtmlCssColor>,
-    pub background_color: Option<HtmlCssColor>,
-    pub font_size: Option<HtmlCssFontSize>,
-}
-
-impl Eq for HtmlInlineStyle {}
 
 /// Safe data extracted from a standalone HTML `<img>` block.
 #[derive(Clone, Debug, PartialEq)]
@@ -199,94 +131,6 @@ impl HtmlDocument {
 
     pub fn is_semantic(&self) -> bool {
         self.safety == HtmlSafetyClass::Semantic
-    }
-}
-
-impl HtmlCssColor {
-    pub fn to_css(self) -> String {
-        match self {
-            Self::CurrentColor => "currentColor".to_string(),
-            Self::Rgba(color) => format!(
-                "rgba({},{},{},{:.3})",
-                color.red,
-                color.green,
-                color.blue,
-                color.alpha.clamp(0.0, 1.0)
-            ),
-        }
-    }
-}
-
-impl HtmlCssFontSize {
-    pub fn resolve(self, parent_px: f32, root_px: f32) -> f32 {
-        let resolved = match self {
-            Self::Px(value) => value,
-            Self::Em(value) => parent_px * value,
-            Self::Rem(value) => root_px * value,
-            Self::Percent(value) => parent_px * value / 100.0,
-            Self::Keyword(keyword) => match keyword {
-                HtmlCssFontSizeKeyword::XxSmall => root_px * 0.6,
-                HtmlCssFontSizeKeyword::XSmall => root_px * 0.75,
-                HtmlCssFontSizeKeyword::Small => root_px * 0.875,
-                HtmlCssFontSizeKeyword::Medium => root_px,
-                HtmlCssFontSizeKeyword::Large => root_px * 1.125,
-                HtmlCssFontSizeKeyword::XLarge => root_px * 1.5,
-                HtmlCssFontSizeKeyword::XxLarge => root_px * 2.0,
-                HtmlCssFontSizeKeyword::Smaller => parent_px * 0.833,
-                HtmlCssFontSizeKeyword::Larger => parent_px * 1.2,
-            },
-        };
-
-        if resolved.is_finite() {
-            resolved.clamp(6.0, 96.0)
-        } else {
-            parent_px
-        }
-    }
-
-    pub fn to_css(self) -> String {
-        match self {
-            Self::Px(value) => format!("{}px", css_number(value)),
-            Self::Em(value) => format!("{}em", css_number(value)),
-            Self::Rem(value) => format!("{}rem", css_number(value)),
-            Self::Percent(value) => format!("{}%", css_number(value)),
-            Self::Keyword(keyword) => match keyword {
-                HtmlCssFontSizeKeyword::XxSmall => "xx-small",
-                HtmlCssFontSizeKeyword::XSmall => "x-small",
-                HtmlCssFontSizeKeyword::Small => "small",
-                HtmlCssFontSizeKeyword::Medium => "medium",
-                HtmlCssFontSizeKeyword::Large => "large",
-                HtmlCssFontSizeKeyword::XLarge => "x-large",
-                HtmlCssFontSizeKeyword::XxLarge => "xx-large",
-                HtmlCssFontSizeKeyword::Smaller => "smaller",
-                HtmlCssFontSizeKeyword::Larger => "larger",
-            }
-            .to_string(),
-        }
-    }
-}
-
-impl HtmlInlineStyle {
-    pub fn is_empty(&self) -> bool {
-        self.color.is_none() && self.background_color.is_none() && self.font_size.is_none()
-    }
-
-    pub fn to_css(self) -> Option<String> {
-        if self.is_empty() {
-            return None;
-        }
-
-        let mut declarations = Vec::new();
-        if let Some(color) = self.color {
-            declarations.push(format!("color: {}", color.to_css()));
-        }
-        if let Some(color) = self.background_color {
-            declarations.push(format!("background-color: {}", color.to_css()));
-        }
-        if let Some(font_size) = self.font_size {
-            declarations.push(format!("font-size: {}", font_size.to_css()));
-        }
-        Some(format!("{};", declarations.join("; ")))
     }
 }
 
@@ -431,7 +275,7 @@ fn find_closing_tag_start(raw_source: &str, tag_name: &str) -> Option<usize> {
     raw_source.to_ascii_lowercase().rfind(&needle)
 }
 
-fn escape_html_attr(value: &str) -> String {
+pub(crate) fn escape_html_attr(value: &str) -> String {
     let mut escaped = String::new();
     for ch in value.chars() {
         match ch {
@@ -868,259 +712,6 @@ pub fn parse_html_zoom(style: &str) -> Option<f32> {
     None
 }
 
-pub fn parse_inline_style(style: &str) -> HtmlInlineStyle {
-    let mut parsed = HtmlInlineStyle::default();
-    for declaration in style.split(';') {
-        let Some((property, value)) = declaration.split_once(':') else {
-            continue;
-        };
-        let property = property.trim().to_ascii_lowercase();
-        let value = value.trim();
-        match property.as_str() {
-            "color" => {
-                if let Some(color) = parse_css_color(value) {
-                    parsed.color = Some(color);
-                }
-            }
-            "background-color" => {
-                if let Some(color) = parse_css_color(value) {
-                    parsed.background_color = Some(color);
-                }
-            }
-            "font-size" => {
-                if let Some(size) = parse_css_font_size(value) {
-                    parsed.font_size = Some(size);
-                }
-            }
-            _ => {}
-        }
-    }
-    parsed
-}
-
-fn parse_css_color(value: &str) -> Option<HtmlCssColor> {
-    let value = value.trim();
-    if value.eq_ignore_ascii_case("currentcolor") {
-        return Some(HtmlCssColor::CurrentColor);
-    }
-    if value.eq_ignore_ascii_case("transparent") {
-        return Some(HtmlCssColor::Rgba(HtmlCssRgba {
-            red: 0,
-            green: 0,
-            blue: 0,
-            alpha: 0.0,
-        }));
-    }
-    if let Some(hex) = value.strip_prefix('#')
-        && let Ok((red, green, blue, alpha)) = parse_hash_color(hex.as_bytes())
-    {
-        return Some(HtmlCssColor::Rgba(HtmlCssRgba {
-            red,
-            green,
-            blue,
-            alpha,
-        }));
-    }
-    if value
-        .chars()
-        .all(|ch| ch.is_ascii_alphabetic() || ch == '-')
-        && let Ok((red, green, blue)) = parse_named_color(value)
-    {
-        return Some(HtmlCssColor::Rgba(HtmlCssRgba {
-            red,
-            green,
-            blue,
-            alpha: 1.0,
-        }));
-    }
-    parse_rgb_color(value).or_else(|| parse_hsl_color(value))
-}
-
-fn parse_rgb_color(value: &str) -> Option<HtmlCssColor> {
-    let args = css_function_args(value, &["rgb", "rgba"])?;
-    let parts = css_function_parts(args);
-    if parts.len() < 3 {
-        return None;
-    }
-
-    let red = parse_rgb_component(&parts[0])?;
-    let green = parse_rgb_component(&parts[1])?;
-    let blue = parse_rgb_component(&parts[2])?;
-    let alpha = parts
-        .get(3)
-        .and_then(|part| parse_alpha_component(part))
-        .unwrap_or(1.0);
-    Some(HtmlCssColor::Rgba(HtmlCssRgba {
-        red,
-        green,
-        blue,
-        alpha,
-    }))
-}
-
-fn parse_hsl_color(value: &str) -> Option<HtmlCssColor> {
-    let args = css_function_args(value, &["hsl", "hsla"])?;
-    let parts = css_function_parts(args);
-    if parts.len() < 3 {
-        return None;
-    }
-
-    let hue = parse_hue(&parts[0])?;
-    let saturation = parse_percent_component(&parts[1])?;
-    let lightness = parse_percent_component(&parts[2])?;
-    let alpha = parts
-        .get(3)
-        .and_then(|part| parse_alpha_component(part))
-        .unwrap_or(1.0);
-    let (red, green, blue) = hsl_to_rgb(hue, saturation, lightness);
-    Some(HtmlCssColor::Rgba(HtmlCssRgba {
-        red,
-        green,
-        blue,
-        alpha,
-    }))
-}
-
-fn css_function_args<'a>(value: &'a str, names: &[&str]) -> Option<&'a str> {
-    let open = value.find('(')?;
-    let close = value.rfind(')')?;
-    if close <= open || !value[close + 1..].trim().is_empty() {
-        return None;
-    }
-    let name = value[..open].trim();
-    names
-        .iter()
-        .any(|candidate| name.eq_ignore_ascii_case(candidate))
-        .then_some(&value[open + 1..close])
-}
-
-fn css_function_parts(args: &str) -> Vec<String> {
-    if args.contains(',') {
-        return args
-            .split(',')
-            .map(str::trim)
-            .filter(|part| !part.is_empty())
-            .map(str::to_string)
-            .collect();
-    }
-
-    let normalized = args.replace('/', " / ");
-    normalized
-        .split_whitespace()
-        .filter(|token| *token != "/")
-        .map(str::to_string)
-        .collect()
-}
-
-fn parse_rgb_component(value: &str) -> Option<u8> {
-    if let Some(percent) = value.trim().strip_suffix('%') {
-        let value = parse_css_number(percent)?;
-        return Some((value.clamp(0.0, 100.0) * 255.0 / 100.0).round() as u8);
-    }
-
-    let value = parse_css_number(value)?;
-    Some(value.clamp(0.0, 255.0).round() as u8)
-}
-
-fn parse_percent_component(value: &str) -> Option<f32> {
-    let value = value.trim().strip_suffix('%')?;
-    Some((parse_css_number(value)? / 100.0).clamp(0.0, 1.0))
-}
-
-fn parse_alpha_component(value: &str) -> Option<f32> {
-    if let Some(percent) = value.trim().strip_suffix('%') {
-        return Some((parse_css_number(percent)? / 100.0).clamp(0.0, 1.0));
-    }
-    Some(parse_css_number(value)?.clamp(0.0, 1.0))
-}
-
-fn parse_hue(value: &str) -> Option<f32> {
-    let trimmed = value.trim().to_ascii_lowercase();
-    if let Some(value) = trimmed.strip_suffix("deg") {
-        return parse_css_number(value);
-    }
-    if let Some(value) = trimmed.strip_suffix("turn") {
-        return Some(parse_css_number(value)? * 360.0);
-    }
-    if let Some(value) = trimmed.strip_suffix("rad") {
-        return Some(parse_css_number(value)? * 180.0 / std::f32::consts::PI);
-    }
-    parse_css_number(&trimmed)
-}
-
-fn hsl_to_rgb(hue_degrees: f32, saturation: f32, lightness: f32) -> (u8, u8, u8) {
-    let hue = hue_degrees.rem_euclid(360.0) / 60.0;
-    let chroma = (1.0 - (2.0 * lightness - 1.0).abs()) * saturation;
-    let x = chroma * (1.0 - (hue % 2.0 - 1.0).abs());
-    let (red, green, blue) = match hue.floor() as i32 {
-        0 => (chroma, x, 0.0),
-        1 => (x, chroma, 0.0),
-        2 => (0.0, chroma, x),
-        3 => (0.0, x, chroma),
-        4 => (x, 0.0, chroma),
-        _ => (chroma, 0.0, x),
-    };
-    let m = lightness - chroma / 2.0;
-    (
-        ((red + m).clamp(0.0, 1.0) * 255.0).round() as u8,
-        ((green + m).clamp(0.0, 1.0) * 255.0).round() as u8,
-        ((blue + m).clamp(0.0, 1.0) * 255.0).round() as u8,
-    )
-}
-
-fn parse_css_font_size(value: &str) -> Option<HtmlCssFontSize> {
-    let trimmed = value.trim().to_ascii_lowercase();
-    match trimmed.as_str() {
-        "xx-small" => return Some(HtmlCssFontSize::Keyword(HtmlCssFontSizeKeyword::XxSmall)),
-        "x-small" => return Some(HtmlCssFontSize::Keyword(HtmlCssFontSizeKeyword::XSmall)),
-        "small" => return Some(HtmlCssFontSize::Keyword(HtmlCssFontSizeKeyword::Small)),
-        "medium" => return Some(HtmlCssFontSize::Keyword(HtmlCssFontSizeKeyword::Medium)),
-        "large" => return Some(HtmlCssFontSize::Keyword(HtmlCssFontSizeKeyword::Large)),
-        "x-large" => return Some(HtmlCssFontSize::Keyword(HtmlCssFontSizeKeyword::XLarge)),
-        "xx-large" => return Some(HtmlCssFontSize::Keyword(HtmlCssFontSizeKeyword::XxLarge)),
-        "smaller" => return Some(HtmlCssFontSize::Keyword(HtmlCssFontSizeKeyword::Smaller)),
-        "larger" => return Some(HtmlCssFontSize::Keyword(HtmlCssFontSizeKeyword::Larger)),
-        _ => {}
-    }
-
-    if let Some(value) = trimmed.strip_suffix("rem") {
-        return Some(HtmlCssFontSize::Rem(parse_non_negative_css_number(value)?));
-    }
-    if let Some(value) = trimmed.strip_suffix("em") {
-        return Some(HtmlCssFontSize::Em(parse_non_negative_css_number(value)?));
-    }
-    if let Some(value) = trimmed.strip_suffix("px") {
-        return Some(HtmlCssFontSize::Px(parse_non_negative_css_number(value)?));
-    }
-    if let Some(value) = trimmed.strip_suffix('%') {
-        return Some(HtmlCssFontSize::Percent(parse_non_negative_css_number(
-            value,
-        )?));
-    }
-    None
-}
-
-fn parse_non_negative_css_number(value: &str) -> Option<f32> {
-    let value = parse_css_number(value)?;
-    (value >= 0.0).then_some(value)
-}
-
-fn parse_css_number(value: &str) -> Option<f32> {
-    let value = value.trim().parse::<f32>().ok()?;
-    value.is_finite().then_some(value)
-}
-
-fn css_number(value: f32) -> String {
-    let mut formatted = format!("{:.3}", value);
-    while formatted.contains('.') && formatted.ends_with('0') {
-        formatted.pop();
-    }
-    if formatted.ends_with('.') {
-        formatted.pop();
-    }
-    formatted
-}
-
 fn is_safe_tag(name: &str) -> bool {
     is_inline_tag(name) || is_block_tag(name)
 }
@@ -1199,6 +790,9 @@ fn tree_sitter_reports_error(_: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::inline::html::{
+        HtmlCssColor, HtmlCssFontSize, HtmlCssFontSizeKeyword, HtmlCssRgba, HtmlInlineStyle,
+    };
 
     #[test]
     fn safe_inline_html_classifies_as_semantic() {

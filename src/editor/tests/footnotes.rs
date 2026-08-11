@@ -3,7 +3,7 @@
 use gpui::{AppContext, TestAppContext};
 
 use crate::editor::controller::Editor;
-use crate::model::block::BlockKind;
+use crate::model::parse::BlockKind;
 use crate::model::inline::footnote::superscript_ordinal;
 
 

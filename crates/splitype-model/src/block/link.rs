@@ -8,8 +8,8 @@ use std::str::FromStr;
 
 use gpui::http_client::Uri;
 
-use crate::syntax::html::{FenceInfo, HtmlBlockStart};
-use crate::syntax::image::normalize_reference_label;
+use crate::block::html::{FenceInfo, HtmlBlockStart};
+use crate::block::image::normalize_reference_label;
 
 /// A single link reference definition: `[label]: destination "title"`.
 #[derive(Clone, Debug, PartialEq, Eq)]

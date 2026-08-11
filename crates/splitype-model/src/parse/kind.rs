@@ -6,7 +6,7 @@
 
 use gpui::SharedString;
 
-use super::callout::CalloutKind;
+use crate::block::callout::CalloutKind;
 use super::fence::CodeFenceOpening;
 
 /// The semantic kind of a block.

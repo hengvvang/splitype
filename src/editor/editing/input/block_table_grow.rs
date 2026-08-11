@@ -7,7 +7,7 @@ use gpui::*;
 
 use crate::editor::block_protocol::BlockAction;
 use crate::editor::tree::block::Block;
-use crate::model::block::BlockKind;
+use crate::model::parse::BlockKind;
 impl Block {
     fn table_append_column_should_stay_visible(&self) -> bool {
         self.table_append_column_edge_hovered
@@ -239,7 +239,7 @@ impl Block {
 #[cfg(test)]
 mod tests {
     use super::Block;
-    use crate::model::block::BlockData;
+    use crate::model::parse::BlockData;
     use gpui::{AppContext, TestAppContext};
 
     #[gpui::test]

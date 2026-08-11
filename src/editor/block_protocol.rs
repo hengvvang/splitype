@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use gpui::{Image, Pixels, Point};
 
 use crate::model::inline::text::BlockText;
-use crate::model::syntax::table::TableAxisKind;
+use crate::model::block::table::TableAxisKind;
 
 /// Image payload extracted from GPUI's clipboard abstraction.
 ///

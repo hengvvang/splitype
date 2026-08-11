@@ -11,7 +11,7 @@ use crate::editor::controller::Editor;
 use crate::editor::view::context_menu::ContextMenuState;
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::Theme;
-use crate::model::syntax::table::TableAxisKind;
+use crate::model::block::table::TableAxisKind;
 impl Editor {
     pub(crate) fn render_axis_menu_item(
         theme: &Theme,

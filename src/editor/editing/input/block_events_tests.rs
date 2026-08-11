@@ -9,7 +9,8 @@ mod tests {
     use crate::editor::controller::Editor;
     use crate::editor::editing::input::actions::ExitCodeBlock;
     use crate::editor::editing::input::actions::{DeleteBack, Newline};
-    use crate::model::block::{BlockData, BlockKind, CalloutKind};
+    use crate::model::parse::{BlockData, BlockKind};
+use crate::model::block::CalloutKind;
     use crate::model::inline::text::BlockText;
     use gpui::{AppContext, TestAppContext};
 

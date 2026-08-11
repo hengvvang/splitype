@@ -10,7 +10,7 @@ use crate::editor::geometry::text_layout::*;
 use crate::editor::render::code_highlight::highlight::code_highlight_color;
 use crate::editor::tree::block::Block;
 use crate::infra::theme::{ThemeColors, ThemeManager};
-use crate::model::syntax::html::html_css_color_to_hsla;
+use crate::model::inline::html::html_css_color_to_hsla;
 
 fn build_text_runs(
     input: &Block,
@@ -852,9 +852,9 @@ mod tests {
         source_text_bounds, wrapped_line_height,
     };
     use crate::editor::tree::block::Block;
-    use crate::model::block::{BlockData, BlockKind};
+    use crate::model::parse::{BlockData, BlockKind};
     use crate::model::inline::text::BlockText;
-    use crate::model::syntax::table::TableCellPosition;
+    use crate::model::block::table::TableCellPosition;
     use gpui::{
         AppContext, Bounds, Hsla, Modifiers, MouseButton, MouseDownEvent, SharedString,
         TestAppContext, TextAlign, TextRun, VisualTestContext, font, point, px, rgba, size,
@@ -1051,7 +1051,7 @@ mod tests {
             );
             block.set_table_cell_mode(
                 TableCellPosition { row: 0, column: 0 },
-                crate::model::syntax::table::TableColumnAlignment::Center,
+                crate::model::block::table::TableColumnAlignment::Center,
             );
             block
         });

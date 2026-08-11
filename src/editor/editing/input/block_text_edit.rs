@@ -12,7 +12,7 @@ use crate::editor::editing::input::actions::{
     Delete, DeleteBack, IndentBlock, Newline, OutdentBlock, WordDeleteBack, WordDeleteForward,
 };
 use crate::editor::tree::block::{Block, CollapsedCaretAffinity};
-use crate::model::block::BlockKind;
+use crate::model::parse::BlockKind;
 use crate::model::inline::text::BlockText;
 impl Block {
     fn is_leaf_quote(&self) -> bool {
@@ -458,7 +458,7 @@ impl Block {
 #[cfg(test)]
 mod tests {
     use super::Block;
-    use crate::model::block::{BlockData, BlockKind};
+    use crate::model::parse::{BlockData, BlockKind};
     use crate::model::inline::text::BlockText;
     use gpui::{AppContext, TestAppContext};
 

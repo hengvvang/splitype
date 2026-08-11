@@ -12,8 +12,8 @@ use crate::editor::tree::block::{Block, ImageHandle};
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 use crate::model::inline::style::InlineScript;
-use crate::model::syntax::html::html_css_color_to_hsla;
-use crate::model::syntax::image::{
+use crate::model::inline::html::html_css_color_to_hsla;
+use crate::model::block::image::{
     ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
 };
 

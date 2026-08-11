@@ -11,9 +11,10 @@ use gpui::*;
 
 use crate::editor::controller::Editor;
 use crate::editor::tree::block::Block;
-use crate::model::block::{BlockId, BlockKind, CalloutKind};
-use crate::model::syntax::image::parse_standalone_image;
-use crate::model::syntax::table::serialize_table_markdown_lines;
+use crate::model::parse::{BlockId, BlockKind};
+use crate::model::block::CalloutKind;
+use crate::model::block::image::parse_standalone_image;
+use crate::model::block::table::serialize_table_markdown_lines;
 
 /// A block together with its position in the flattened document (DFS) order.
 #[derive(Clone)]
@@ -707,7 +708,7 @@ mod tests {
     use gpui::{AppContext, TestAppContext};
 
     use crate::editor::controller::Editor;
-    use crate::model::block::{BlockData, BlockKind};
+    use crate::model::parse::{BlockData, BlockKind};
 
     #[gpui::test]
     async fn snapshot_tracks_nested_visible_order(cx: &mut TestAppContext) {

@@ -8,8 +8,8 @@ use super::actions::{JumpToBottom, JumpToTop, PageDown, PageUp};
 use crate::editor::block_protocol::BlockAction;
 use crate::editor::controller::*;
 use crate::editor::tree::block::CollapsedCaretAffinity;
-use crate::model::block::BlockKind;
-use crate::model::syntax::table::TableCellPosition;
+use crate::model::parse::BlockKind;
+use crate::model::block::table::TableCellPosition;
 
 impl Editor {
     pub(crate) fn on_page_up(&mut self, _: &PageUp, _window: &mut Window, cx: &mut Context<Self>) {

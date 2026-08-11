@@ -55,11 +55,11 @@ use crate::editor::wysiwyg::render::{
 };
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::infra::theme::{Theme, ThemeDimensions, ThemeManager};
-use crate::model::block::BlockKind;
-use crate::model::syntax::image::ImageResolvedSource;
-use crate::model::syntax::math::parse_display_math_source;
-use crate::model::syntax::mermaid::parse_mermaid_fence_source;
-use crate::model::syntax::table::{TableAxisHighlight, TableAxisKind};
+use crate::model::parse::BlockKind;
+use crate::model::block::image::ImageResolvedSource;
+use crate::model::block::math::parse_display_math_source;
+use crate::model::block::mermaid::parse_mermaid_fence_source;
+use crate::model::block::table::{TableAxisHighlight, TableAxisKind};
 
 pub(crate) fn render_custom_bullet_marker(depth: usize, color: Hsla) -> AnyElement {
     match depth % 3 {
@@ -487,7 +487,7 @@ impl Block {
                 .unwrap_or(raw.trim())
                 .trim()
                 .to_string();
-            crate::model::syntax::math::DisplayMathSource {
+            crate::model::block::math::DisplayMathSource {
                 source: raw.to_string(),
                 body,
             }
@@ -560,7 +560,7 @@ impl Block {
             } else {
                 trimmed.to_string()
             };
-            crate::model::syntax::mermaid::MermaidSource {
+            crate::model::block::mermaid::MermaidSource {
                 source: raw.to_string(),
                 body,
                 info: "mermaid".to_string(),
@@ -1294,9 +1294,9 @@ mod tests {
     };
     use crate::infra::i18n::I18nManager;
     use crate::infra::theme::{Theme, ThemeManager};
-    use crate::model::block::{BlockData, BlockKind};
+    use crate::model::parse::{BlockData, BlockKind};
     use crate::model::inline::text::BlockText;
-    use crate::model::syntax::html::parse_html_document;
+    use crate::model::block::html::parse_html_document;
     use gpui::{Hsla, Rgba, TestAppContext, px};
 
     fn assert_color_near(color: Hsla, red: u8, green: u8, blue: u8, alpha: u8) {

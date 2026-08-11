@@ -10,7 +10,7 @@ use gpui::*;
 use crate::editor::block_protocol::PastedImageSource;
 use crate::editor::controller::*;
 use crate::infra::config::settings::{ImagePasteBehavior, read_app_settings};
-use crate::model::block::BlockKind;
+use crate::model::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn current_image_paste_behavior() -> ImagePasteBehavior {

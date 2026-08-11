@@ -2,6 +2,7 @@
 //! and render caches.
 
 pub mod footnote;
+pub mod html;
 pub mod latex;
 pub mod link;
 pub mod markdown;

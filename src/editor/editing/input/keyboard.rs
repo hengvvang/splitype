@@ -22,7 +22,7 @@ use gpui::*;
 
 use super::actions::{IndentBlock, OutdentBlock};
 use crate::editor::controller::Editor;
-use crate::model::block::BlockKind;
+use crate::model::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn focused_block_for_tab_key(

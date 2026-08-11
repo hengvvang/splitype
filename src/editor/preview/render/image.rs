@@ -6,7 +6,7 @@ use gpui::*;
 use crate::editor::preview::render::{paragraph, preview_centered_column_width};
 use crate::editor::tree::block::Block;
 use crate::infra::theme::Theme;
-use crate::model::syntax::image::{ImageResolvedSource, parse_standalone_image};
+use crate::model::block::image::{ImageResolvedSource, parse_standalone_image};
 
 /// Renders a paragraph/list-item block that holds a lone image read-only.
 /// Falls back to the paragraph renderer when the block is not an image.

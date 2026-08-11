@@ -6,7 +6,7 @@ use std::str::FromStr;
 
 use gpui::{SharedUri, http_client::Uri};
 
-use crate::syntax::html::{FenceInfo, HtmlBlockStart};
+use crate::block::html::{FenceInfo, HtmlBlockStart};
 
 /// Parsed standalone image expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
