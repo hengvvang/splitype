@@ -539,13 +539,13 @@ impl Editor {
         if endpoint.offset >= visible_len {
             return Some(mapping.full_source_range.end);
         }
-        let markdown_offset = block
-            .current_range_to_markdown_range(endpoint.offset..endpoint.offset)
+        let source_offset = block
+            .display_range_to_source_range(endpoint.offset..endpoint.offset)
             .start;
         let max_content = mapping.content_to_source.len().saturating_sub(1);
         Some(
             mapping.full_source_range.start
-                + mapping.content_to_source[markdown_offset.min(max_content)],
+                + mapping.content_to_source[source_offset.min(max_content)],
         )
     }
 
@@ -570,7 +570,7 @@ impl Editor {
         let block = mapping.entity.read(cx);
         Some(CrossBlockSelectionEndpoint {
             entity_id: mapping.entity.entity_id(),
-            offset: block.markdown_offset_to_current_offset(content_offset),
+            offset: block.source_offset_to_display_offset(content_offset),
         })
     }
 
@@ -855,9 +855,9 @@ impl Editor {
         }
 
         let markdown = block.record.text.serialize_markdown();
-        let markdown_range = block.current_range_to_markdown_range(range);
+        let source_range = block.display_range_to_source_range(range);
         markdown
-            .get(markdown_range)
+            .get(source_range)
             .map(ToOwned::to_owned)
             .unwrap_or_default()
     }
@@ -916,11 +916,11 @@ impl Editor {
             if block.selected_range.is_empty() {
                 continue;
             }
-            let markdown_range =
-                block.current_range_to_markdown_range(block.selected_range.clone());
+            let source_range =
+                block.display_range_to_source_range(block.selected_range.clone());
             let full_markdown = block.record.text.serialize_markdown();
-            let start = markdown_range.start.min(full_markdown.len());
-            let end = markdown_range.end.min(full_markdown.len());
+            let start = source_range.start.min(full_markdown.len());
+            let end = source_range.end.min(full_markdown.len());
             // Clamp to nearest valid UTF-8 char boundaries to avoid panicking
             // on multi-byte characters (e.g. CJK text).
             let start = if full_markdown.is_char_boundary(start) {

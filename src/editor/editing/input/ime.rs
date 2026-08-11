@@ -85,12 +85,12 @@ impl EntityInputHandler for Block {
         cx: &mut Context<Self>,
     ) {
         if self.code_language_focus_handle.is_focused(_window) {
-            let visible_range = range_utf16
+            let display_range = range_utf16
                 .as_ref()
                 .map(|range| self.code_language_range_from_utf16(range))
                 .or(self.code_language_marked_range.clone())
                 .unwrap_or(self.code_language_selected_range.clone());
-            self.replace_code_language_text_in_range(visible_range, new_text, None, false, cx);
+            self.replace_code_language_text_in_range(display_range, new_text, None, false, cx);
             return;
         }
 
@@ -105,12 +105,12 @@ impl EntityInputHandler for Block {
         }
 
         self.prepare_undo_capture(UndoCaptureKind::CoalescibleText, cx);
-        let visible_range = range_utf16
+        let display_range = range_utf16
             .as_ref()
             .map(|range| self.range_from_utf16(range))
             .or(self.marked_range.clone())
             .unwrap_or(self.selected_range.clone());
-        self.replace_text_in_visible_range(visible_range, new_text, None, false, cx);
+        self.replace_text_in_display_range(display_range, new_text, None, false, cx);
     }
 
     fn replace_and_mark_text_in_range(
@@ -122,7 +122,7 @@ impl EntityInputHandler for Block {
         cx: &mut Context<Self>,
     ) {
         if self.code_language_focus_handle.is_focused(_window) {
-            let visible_range = range_utf16
+            let display_range = range_utf16
                 .as_ref()
                 .map(|range| self.code_language_range_from_utf16(range))
                 .or(self.code_language_marked_range.clone())
@@ -134,7 +134,7 @@ impl EntityInputHandler for Block {
                 .map(|relative| relative.start..relative.end);
 
             self.replace_code_language_text_in_range(
-                visible_range,
+                display_range,
                 &sanitized_new_text,
                 selected_range_relative,
                 !sanitized_new_text.is_empty(),
@@ -158,7 +158,7 @@ impl EntityInputHandler for Block {
         }
 
         self.prepare_undo_capture(UndoCaptureKind::CoalescibleText, cx);
-        let visible_range = range_utf16
+        let display_range = range_utf16
             .as_ref()
             .map(|range| self.range_from_utf16(range))
             .or(self.marked_range.clone())
@@ -168,8 +168,8 @@ impl EntityInputHandler for Block {
             .map(|range_utf16| Self::utf16_range_to_utf8_in(new_text, range_utf16))
             .map(|relative| relative.start..relative.end);
 
-        self.replace_text_in_visible_range(
-            visible_range,
+        self.replace_text_in_display_range(
+            display_range,
             new_text,
             selected_range_relative,
             !new_text.is_empty(),

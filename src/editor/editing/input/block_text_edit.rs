@@ -181,7 +181,7 @@ impl Block {
             {
                 let fence_end = self.visible_len();
                 self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
-                self.replace_text_in_visible_range(fence_start..fence_end, "", None, false, cx);
+                self.replace_text_in_display_range(fence_start..fence_end, "", None, false, cx);
                 cx.emit(BlockAction::RequestNewline {
                     trailing: RichText::plain(String::new()),
                     source_already_mutated: true,

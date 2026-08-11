@@ -470,7 +470,7 @@ impl Editor {
                     | BlockKind::RawMarkdown
                     | BlockKind::ThematicBreak
             ))
-            .then(|| block_ref.record.text.markdown_offset_map());
+            .then(|| block_ref.record.text.source_offset_map());
             (
                 kind,
                 block_ref.list_ordinal,
@@ -517,7 +517,7 @@ impl Editor {
             }
             BlockKind::Heading { level } => self.push_inline_block_mapping(
                 block,
-                text.expect("heading text").markdown().to_string(),
+                text.expect("heading text").source().to_string(),
                 format!("{}{} ", "  ".repeat(list_depth), "#".repeat(level as usize)),
                 String::new(),
                 quote_depth,
@@ -528,7 +528,7 @@ impl Editor {
                 let indentation = "  ".repeat(list_depth);
                 self.push_inline_block_mapping(
                     block,
-                    text.expect("paragraph text").markdown().to_string(),
+                    text.expect("paragraph text").source().to_string(),
                     indentation.clone(),
                     indentation,
                     quote_depth,
@@ -540,7 +540,7 @@ impl Editor {
                 let indentation = "  ".repeat(list_depth);
                 self.push_inline_block_mapping(
                     block,
-                    text.expect("bullet text").markdown().to_string(),
+                    text.expect("bullet text").source().to_string(),
                     format!("{indentation}- "),
                     format!("{indentation}  "),
                     quote_depth,
@@ -552,7 +552,7 @@ impl Editor {
                 let indentation = "  ".repeat(list_depth);
                 self.push_inline_block_mapping(
                     block,
-                    text.expect("task text").markdown().to_string(),
+                    text.expect("task text").source().to_string(),
                     format!("{indentation}- [{}] ", if checked { "x" } else { " " }),
                     format!("{indentation}      "),
                     quote_depth,
@@ -565,7 +565,7 @@ impl Editor {
                 let ordinal = list_ordinal.unwrap_or(1);
                 self.push_inline_block_mapping(
                     block,
-                    text.expect("numbered text").markdown().to_string(),
+                    text.expect("numbered text").source().to_string(),
                     format!("{indentation}{ordinal}. "),
                     format!("{indentation}   "),
                     quote_depth,
@@ -574,7 +574,7 @@ impl Editor {
                 )
             }
             BlockKind::Blockquote => {
-                let text = text.expect("quote text").markdown().to_string();
+                let text = text.expect("quote text").source().to_string();
                 if text.is_empty() && !children.is_empty() {
                     0
                 } else {
@@ -590,7 +590,7 @@ impl Editor {
                 }
             }
             BlockKind::Callout(variant) => {
-                let text_markdown = text.expect("callout text").markdown().to_string();
+                let text_markdown = text.expect("callout text").source().to_string();
                 if text_markdown.is_empty() {
                     let full_text = Self::wrap_source_mapping_with_quotes(
                         format!("[!{}]", variant.marker()),
@@ -619,7 +619,7 @@ impl Editor {
                 }
             }
             BlockKind::FootnoteDefinition => {
-                let footnote_id = text.expect("footnote id").markdown().to_string();
+                let footnote_id = text.expect("footnote id").source().to_string();
                 let first_child = children.first().cloned();
                 let first_is_paragraph = first_child
                     .as_ref()
@@ -647,8 +647,8 @@ impl Editor {
                         .read(cx)
                         .record
                         .text
-                        .markdown_offset_map()
-                        .markdown()
+                        .source_offset_map()
+                        .source()
                         .to_string(),
                     block
                         .read(cx)

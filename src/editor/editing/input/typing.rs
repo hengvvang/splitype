@@ -32,7 +32,7 @@ impl Editor {
         };
         let range = block
             .read(cx)
-            .current_range_for_footnote_occurrence(first_reference.occurrence_index)
+            .display_range_for_footnote_occurrence(first_reference.occurrence_index)
             .unwrap_or(0..0);
         self.focus_block_range(&block, range, cx);
         true
@@ -66,8 +66,8 @@ impl Editor {
             block.record.set_text(text.clone());
             block.sync_edit_mode_from_kind();
             block.sync_render_cache();
-            let clean_cursor = cursor.min(block.record.text.visible_len());
-            block.selected_range = block.clean_to_current_range(clean_cursor..clean_cursor);
+            let plain_cursor = cursor.min(block.record.text.visible_len());
+            block.selected_range = block.plain_to_display_range(plain_cursor..plain_cursor);
             block.selection_reversed = false;
             block.marked_range = None;
             block.vertical_motion_x = None;

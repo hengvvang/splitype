@@ -5,7 +5,7 @@ use super::markdown::{
     CharToken, escaped_sequence_token_len, is_single_tilde_delimiter, locate_script_close,
     matches_sequence, token_is_backslash_escaped,
 };
-use super::offsets::InlineMarkdownOffsetMap;
+use super::offsets::SourceOffsetMap;
 use super::style::{InlineScript, InlineStyle};
 use super::text::InlineFragment;
 use crate::syntax::html::HtmlInlineStyle;
@@ -14,57 +14,42 @@ use crate::syntax::html::HtmlInlineStyle;
 // Serializer helpers
 // ---------------------------------------------------------------------------
 
-pub(crate) fn serialize_fragment_run_markdown_with_offset_map(
+pub(crate) fn serialize_fragment_run_with_offset_map(
     fragments: &[InlineFragment],
-) -> InlineMarkdownOffsetMap {
+) -> SourceOffsetMap {
     if fragments.is_empty() {
-        return InlineMarkdownOffsetMap {
-            markdown: String::new(),
-            visible_to_markdown: vec![0],
-            markdown_to_visible: vec![0],
+        return SourceOffsetMap {
+            source: String::new(),
+            plain_to_source: vec![0],
+            source_to_plain: vec![0],
         };
     }
 
     let stacks = choose_fragment_stacks(fragments);
     let mut output = String::new();
-    let total_visible_len = fragments
+    let total_plain_len = fragments
         .iter()
         .map(|fragment| fragment.text.len())
         .sum::<usize>();
-    let mut visible_to_markdown = vec![0; total_visible_len + 1];
-    let mut markdown_to_visible = vec![0];
+    let mut plain_to_source = vec![0; total_plain_len + 1];
+    let mut source_to_plain = vec![0];
     let mut current_stack: Vec<Delimiter> = Vec::new();
     let mut current_html_style: Option<HtmlInlineStyle> = None;
-    let mut visible_cursor = 0usize;
+    let mut plain_cursor = 0usize;
 
     for (fragment, next_stack) in fragments.iter().zip(stacks.iter()) {
         if current_html_style != fragment.html_style {
             let transition = stack_transition_string(&current_stack, &[]);
-            push_markdown_marker(
-                &mut output,
-                &mut markdown_to_visible,
-                visible_cursor,
-                &transition,
-            );
+            push_markdown_marker(&mut output, &mut source_to_plain, plain_cursor, &transition);
             current_stack.clear();
 
             if current_html_style.is_some() {
-                push_markdown_marker(
-                    &mut output,
-                    &mut markdown_to_visible,
-                    visible_cursor,
-                    "</span>",
-                );
+                push_markdown_marker(&mut output, &mut source_to_plain, plain_cursor, "</span>");
             }
             if let Some(style) = fragment.html_style
                 && let Some(marker) = html_style_open_marker(style)
             {
-                push_markdown_marker(
-                    &mut output,
-                    &mut markdown_to_visible,
-                    visible_cursor,
-                    &marker,
-                );
+                push_markdown_marker(&mut output, &mut source_to_plain, plain_cursor, &marker);
             }
             current_html_style = fragment.html_style;
         }
@@ -72,9 +57,9 @@ pub(crate) fn serialize_fragment_run_markdown_with_offset_map(
         let transition = stack_transition_string(&current_stack, next_stack);
         let transition_start = output.len();
         output.push_str(&transition);
-        markdown_to_visible.resize(output.len() + 1, visible_cursor);
+        source_to_plain.resize(output.len() + 1, plain_cursor);
         for local in 0..=transition.len() {
-            markdown_to_visible[transition_start + local] = visible_cursor;
+            source_to_plain[transition_start + local] = plain_cursor;
         }
 
         let escaped = if let Some(math) = fragment.math.as_ref() {
@@ -85,47 +70,37 @@ pub(crate) fn serialize_fragment_run_markdown_with_offset_map(
             escape_literal_text_with_offset_map(&fragment.text)
         };
         let escaped_start = output.len();
-        output.push_str(escaped.markdown());
-        for local_visible in 0..=fragment.text.len() {
-            visible_to_markdown[visible_cursor + local_visible] =
-                escaped_start + escaped.visible_to_markdown_offset(local_visible);
+        output.push_str(escaped.source());
+        for local_plain in 0..=fragment.text.len() {
+            plain_to_source[plain_cursor + local_plain] =
+                escaped_start + escaped.plain_to_source_offset(local_plain);
         }
-        markdown_to_visible.resize(output.len() + 1, visible_cursor);
-        for local_markdown in 0..=escaped.markdown().len() {
-            markdown_to_visible[escaped_start + local_markdown] =
-                visible_cursor + escaped.markdown_to_visible_offset(local_markdown);
+        source_to_plain.resize(output.len() + 1, plain_cursor);
+        for local_source in 0..=escaped.source().len() {
+            source_to_plain[escaped_start + local_source] =
+                plain_cursor + escaped.source_to_plain_offset(local_source);
         }
-        visible_cursor += fragment.text.len();
+        plain_cursor += fragment.text.len();
         current_stack = next_stack.clone();
     }
 
     let transition = stack_transition_string(&current_stack, &[]);
-    push_markdown_marker(
-        &mut output,
-        &mut markdown_to_visible,
-        visible_cursor,
-        &transition,
-    );
+    push_markdown_marker(&mut output, &mut source_to_plain, plain_cursor, &transition);
     if current_html_style.is_some() {
-        push_markdown_marker(
-            &mut output,
-            &mut markdown_to_visible,
-            visible_cursor,
-            "</span>",
-        );
+        push_markdown_marker(&mut output, &mut source_to_plain, plain_cursor, "</span>");
     }
 
-    InlineMarkdownOffsetMap {
-        markdown: output,
-        visible_to_markdown,
-        markdown_to_visible,
+    SourceOffsetMap {
+        source: output,
+        plain_to_source,
+        source_to_plain,
     }
 }
 
 fn push_markdown_marker(
     output: &mut String,
-    markdown_to_visible: &mut Vec<usize>,
-    visible_cursor: usize,
+    source_to_plain: &mut Vec<usize>,
+    plain_cursor: usize,
     marker: &str,
 ) {
     if marker.is_empty() {
@@ -133,17 +108,17 @@ fn push_markdown_marker(
     }
     let marker_start = output.len();
     output.push_str(marker);
-    markdown_to_visible.resize(output.len() + 1, visible_cursor);
+    source_to_plain.resize(output.len() + 1, plain_cursor);
     for local in 0..=marker.len() {
-        markdown_to_visible[marker_start + local] = visible_cursor;
+        source_to_plain[marker_start + local] = plain_cursor;
     }
 }
 
-fn identity_text_with_offset_map(text: &str) -> InlineMarkdownOffsetMap {
-    InlineMarkdownOffsetMap {
-        markdown: text.to_string(),
-        visible_to_markdown: (0..=text.len()).collect(),
-        markdown_to_visible: (0..=text.len()).collect(),
+fn identity_text_with_offset_map(text: &str) -> SourceOffsetMap {
+    SourceOffsetMap {
+        source: text.to_string(),
+        plain_to_source: (0..=text.len()).collect(),
+        source_to_plain: (0..=text.len()).collect(),
     }
 }
 
@@ -396,21 +371,21 @@ pub(crate) fn emphasis_requires_body(delimiter: Delimiter) -> bool {
             | Delimiter::Underline
     )
 }
-fn escape_literal_text_with_offset_map(text: &str) -> InlineMarkdownOffsetMap {
+fn escape_literal_text_with_offset_map(text: &str) -> SourceOffsetMap {
     let mut escaped = String::new();
-    let mut visible_to_markdown = vec![0; text.len() + 1];
-    let mut markdown_to_visible = vec![0];
+    let mut plain_to_source = vec![0; text.len() + 1];
+    let mut source_to_plain = vec![0];
     let mut index = 0;
 
     while index < text.len() {
-        visible_to_markdown[index] = escaped.len();
+        plain_to_source[index] = escaped.len();
         if text[index..].starts_with("</strong>") {
             let start = escaped.len();
             escaped.push('\\');
             escaped.push_str("</strong>");
-            markdown_to_visible.resize(escaped.len() + 1, index);
+            source_to_plain.resize(escaped.len() + 1, index);
             for local in 0..=escaped.len() - start {
-                markdown_to_visible[start + local] = index;
+                source_to_plain[start + local] = index;
             }
             index += 9;
             continue;
@@ -420,9 +395,9 @@ fn escape_literal_text_with_offset_map(text: &str) -> InlineMarkdownOffsetMap {
             let start = escaped.len();
             escaped.push('\\');
             escaped.push_str("<strong>");
-            markdown_to_visible.resize(escaped.len() + 1, index);
+            source_to_plain.resize(escaped.len() + 1, index);
             for local in 0..=escaped.len() - start {
-                markdown_to_visible[start + local] = index;
+                source_to_plain[start + local] = index;
             }
             index += 8;
             continue;
@@ -432,9 +407,9 @@ fn escape_literal_text_with_offset_map(text: &str) -> InlineMarkdownOffsetMap {
             let start = escaped.len();
             escaped.push('\\');
             escaped.push_str("</em>");
-            markdown_to_visible.resize(escaped.len() + 1, index);
+            source_to_plain.resize(escaped.len() + 1, index);
             for local in 0..=escaped.len() - start {
-                markdown_to_visible[start + local] = index;
+                source_to_plain[start + local] = index;
             }
             index += 5;
             continue;
@@ -444,9 +419,9 @@ fn escape_literal_text_with_offset_map(text: &str) -> InlineMarkdownOffsetMap {
             let start = escaped.len();
             escaped.push('\\');
             escaped.push_str("<em>");
-            markdown_to_visible.resize(escaped.len() + 1, index);
+            source_to_plain.resize(escaped.len() + 1, index);
             for local in 0..=escaped.len() - start {
-                markdown_to_visible[start + local] = index;
+                source_to_plain[start + local] = index;
             }
             index += 4;
             continue;
@@ -456,9 +431,9 @@ fn escape_literal_text_with_offset_map(text: &str) -> InlineMarkdownOffsetMap {
             let start = escaped.len();
             escaped.push('\\');
             escaped.push_str("</u>");
-            markdown_to_visible.resize(escaped.len() + 1, index);
+            source_to_plain.resize(escaped.len() + 1, index);
             for local in 0..=escaped.len() - start {
-                markdown_to_visible[start + local] = index;
+                source_to_plain[start + local] = index;
             }
             index += 4;
             continue;
@@ -468,9 +443,9 @@ fn escape_literal_text_with_offset_map(text: &str) -> InlineMarkdownOffsetMap {
             let start = escaped.len();
             escaped.push('\\');
             escaped.push_str("<u>");
-            markdown_to_visible.resize(escaped.len() + 1, index);
+            source_to_plain.resize(escaped.len() + 1, index);
             for local in 0..=escaped.len() - start {
-                markdown_to_visible[start + local] = index;
+                source_to_plain[start + local] = index;
             }
             index += 3;
             continue;
@@ -479,9 +454,9 @@ fn escape_literal_text_with_offset_map(text: &str) -> InlineMarkdownOffsetMap {
         if text[index..].starts_with('\\') {
             let start = escaped.len();
             escaped.push_str("\\\\");
-            markdown_to_visible.resize(escaped.len() + 1, index);
+            source_to_plain.resize(escaped.len() + 1, index);
             for local in 0..=escaped.len() - start {
-                markdown_to_visible[start + local] = index;
+                source_to_plain[start + local] = index;
             }
             index += 1;
             continue;
@@ -490,9 +465,9 @@ fn escape_literal_text_with_offset_map(text: &str) -> InlineMarkdownOffsetMap {
         if text[index..].starts_with('*') {
             let start = escaped.len();
             escaped.push_str("\\*");
-            markdown_to_visible.resize(escaped.len() + 1, index);
+            source_to_plain.resize(escaped.len() + 1, index);
             for local in 0..=escaped.len() - start {
-                markdown_to_visible[start + local] = index;
+                source_to_plain[start + local] = index;
             }
             index += 1;
             continue;
@@ -501,9 +476,9 @@ fn escape_literal_text_with_offset_map(text: &str) -> InlineMarkdownOffsetMap {
         if text[index..].starts_with('_') {
             let start = escaped.len();
             escaped.push_str("\\_");
-            markdown_to_visible.resize(escaped.len() + 1, index);
+            source_to_plain.resize(escaped.len() + 1, index);
             for local in 0..=escaped.len() - start {
-                markdown_to_visible[start + local] = index;
+                source_to_plain[start + local] = index;
             }
             index += 1;
             continue;
@@ -512,9 +487,9 @@ fn escape_literal_text_with_offset_map(text: &str) -> InlineMarkdownOffsetMap {
         if text[index..].starts_with('~') {
             let start = escaped.len();
             escaped.push_str("\\~");
-            markdown_to_visible.resize(escaped.len() + 1, index);
+            source_to_plain.resize(escaped.len() + 1, index);
             for local in 0..=escaped.len() - start {
-                markdown_to_visible[start + local] = index;
+                source_to_plain[start + local] = index;
             }
             index += 1;
             continue;
@@ -523,9 +498,9 @@ fn escape_literal_text_with_offset_map(text: &str) -> InlineMarkdownOffsetMap {
         if text[index..].starts_with('^') {
             let start = escaped.len();
             escaped.push_str("\\^");
-            markdown_to_visible.resize(escaped.len() + 1, index);
+            source_to_plain.resize(escaped.len() + 1, index);
             for local in 0..=escaped.len() - start {
-                markdown_to_visible[start + local] = index;
+                source_to_plain[start + local] = index;
             }
             index += 1;
             continue;
@@ -534,9 +509,9 @@ fn escape_literal_text_with_offset_map(text: &str) -> InlineMarkdownOffsetMap {
         if text[index..].starts_with('`') {
             let start = escaped.len();
             escaped.push_str("\\`");
-            markdown_to_visible.resize(escaped.len() + 1, index);
+            source_to_plain.resize(escaped.len() + 1, index);
             for local in 0..=escaped.len() - start {
-                markdown_to_visible[start + local] = index;
+                source_to_plain[start + local] = index;
             }
             index += 1;
             continue;
@@ -545,59 +520,59 @@ fn escape_literal_text_with_offset_map(text: &str) -> InlineMarkdownOffsetMap {
         let ch = text[index..].chars().next().unwrap();
         let start = escaped.len();
         escaped.push(ch);
-        markdown_to_visible.resize(escaped.len() + 1, index);
+        source_to_plain.resize(escaped.len() + 1, index);
         for local in 0..=escaped.len() - start {
-            markdown_to_visible[start + local] = index;
+            source_to_plain[start + local] = index;
         }
         index += ch.len_utf8();
     }
-    visible_to_markdown[text.len()] = escaped.len();
-    markdown_to_visible[escaped.len()] = text.len();
+    plain_to_source[text.len()] = escaped.len();
+    source_to_plain[escaped.len()] = text.len();
 
-    InlineMarkdownOffsetMap {
-        markdown: escaped,
-        visible_to_markdown,
-        markdown_to_visible,
+    SourceOffsetMap {
+        source: escaped,
+        plain_to_source,
+        source_to_plain,
     }
 }
 
-fn escape_code_span_text_with_offset_map(text: &str) -> InlineMarkdownOffsetMap {
+fn escape_code_span_text_with_offset_map(text: &str) -> SourceOffsetMap {
     let needs_padding = !text.is_empty()
         && !text.chars().all(|ch| ch == ' ')
         && (text.starts_with([' ', '`']) || text.ends_with([' ', '`']));
     let leading_padding = usize::from(needs_padding);
 
-    let mut markdown = String::new();
+    let mut source = String::new();
     if needs_padding {
-        markdown.push(' ');
+        source.push(' ');
     }
-    markdown.push_str(text);
+    source.push_str(text);
     if needs_padding {
-        markdown.push(' ');
+        source.push(' ');
     }
 
-    let mut visible_to_markdown = vec![0; text.len() + 1];
-    for (visible, markdown_offset) in visible_to_markdown.iter_mut().enumerate() {
-        *markdown_offset = leading_padding + visible;
+    let mut plain_to_source = vec![0; text.len() + 1];
+    for (visible, source_offset) in plain_to_source.iter_mut().enumerate() {
+        *source_offset = leading_padding + visible;
     }
 
     let content_start = leading_padding;
     let content_end = leading_padding + text.len();
-    let mut markdown_to_visible = vec![0; markdown.len() + 1];
-    for (markdown_offset, visible) in markdown_to_visible.iter_mut().enumerate() {
-        *visible = if markdown_offset <= content_start {
+    let mut source_to_plain = vec![0; source.len() + 1];
+    for (source_offset, visible) in source_to_plain.iter_mut().enumerate() {
+        *visible = if source_offset <= content_start {
             0
-        } else if markdown_offset >= content_end {
+        } else if source_offset >= content_end {
             text.len()
         } else {
-            markdown_offset - content_start
+            source_offset - content_start
         };
     }
 
-    InlineMarkdownOffsetMap {
-        markdown,
-        visible_to_markdown,
-        markdown_to_visible,
+    SourceOffsetMap {
+        source,
+        plain_to_source,
+        source_to_plain,
     }
 }
 

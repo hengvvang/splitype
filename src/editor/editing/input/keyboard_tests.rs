@@ -48,7 +48,7 @@ async fn typing_quote_shortcut_immediately_refreshes_rendered_quote_metadata(
                 crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
-            block.replace_text_in_visible_range(0..0, "> ", None, false, cx);
+            block.replace_text_in_display_range(0..0, "> ", None, false, cx);
         });
     });
 
@@ -94,7 +94,7 @@ async fn footnote_reference_jump_and_backref_follow_in_place_definition(cx: &mut
 
         let expected_backref_range = paragraph
             .read(cx)
-            .current_range_for_footnote_occurrence(0)
+            .display_range_for_footnote_occurrence(0)
             .expect("resolved footnote occurrence");
         editor.on_block_event(
             definition.clone(),
@@ -172,7 +172,7 @@ async fn typing_callout_shortcut_materializes_body_and_focuses_it(cx: &mut TestA
                 crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
-            block.replace_text_in_visible_range(0..0, "> [!NOTE]", None, false, cx);
+            block.replace_text_in_display_range(0..0, "> [!NOTE]", None, false, cx);
         });
     });
 
@@ -220,7 +220,7 @@ async fn typing_numbered_list_shortcut_after_separator_preserves_group_boundary(
                 crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
-            block.replace_text_in_visible_range(0..0, "1. ", None, false, cx);
+            block.replace_text_in_display_range(0..0, "1. ", None, false, cx);
         });
     });
 
@@ -300,7 +300,7 @@ async fn empty_list_child_paragraph_backspace_outdents_to_root(cx: &mut TestAppC
                     crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     block_cx,
                 );
-                block.replace_text_in_visible_range(
+                block.replace_text_in_display_range(
                     0..block.visible_len(),
                     "",
                     None,
@@ -338,7 +338,7 @@ async fn empty_list_child_paragraph_enter_continues_same_level(cx: &mut TestAppC
                     crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     block_cx,
                 );
-                block.replace_text_in_visible_range(
+                block.replace_text_in_display_range(
                     0..block.visible_len(),
                     "",
                     None,
@@ -431,7 +431,7 @@ async fn trailing_fence_line_enter_closes_code_block(cx: &mut TestAppContext) {
             block.update(cx, |block, block_cx| {
                 // Type a closing fence on a fresh last line, then Enter.
                 let end = block.visible_len();
-                block.replace_text_in_visible_range(end..end, "\n```", None, false, block_cx);
+                block.replace_text_in_display_range(end..end, "\n```", None, false, block_cx);
                 block.move_to(block.visible_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
@@ -501,7 +501,7 @@ async fn setext_dash_underline_enter_promotes_previous_paragraph_to_h2(cx: &mut 
             let underline = editor.doc().blocks()[1].entity.clone();
             underline.update(cx, |block, block_cx| {
                 let end = block.visible_len();
-                block.replace_text_in_visible_range(0..end, "-----", None, false, block_cx);
+                block.replace_text_in_display_range(0..end, "-----", None, false, block_cx);
                 block.move_to(block.visible_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
@@ -528,7 +528,7 @@ async fn dash_underline_without_heading_target_stays_a_separator(cx: &mut TestAp
         editor.update(cx, |editor, cx| {
             let block = editor.doc().blocks()[0].entity.clone();
             block.update(cx, |block, block_cx| {
-                block.replace_text_in_visible_range(0..0, "-----", None, false, block_cx);
+                block.replace_text_in_display_range(0..0, "-----", None, false, block_cx);
                 block.move_to(block.visible_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
@@ -550,7 +550,7 @@ async fn equals_underline_without_heading_target_stays_a_paragraph(cx: &mut Test
         editor.update(cx, |editor, cx| {
             let block = editor.doc().blocks()[0].entity.clone();
             block.update(cx, |block, block_cx| {
-                block.replace_text_in_visible_range(0..0, "=====", None, false, block_cx);
+                block.replace_text_in_display_range(0..0, "=====", None, false, block_cx);
                 block.move_to(block.visible_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
@@ -627,7 +627,7 @@ async fn pipe_row_below_table_is_absorbed_as_a_row(cx: &mut TestAppContext) {
         editor.update(cx, |editor, cx| {
             let row = editor.doc().root_blocks()[1].clone();
             row.update(cx, |block, block_cx| {
-                block.replace_text_in_visible_range(0..0, "| Alice | 10 |", None, false, block_cx);
+                block.replace_text_in_display_range(0..0, "| Alice | 10 |", None, false, block_cx);
                 block.move_to(block.visible_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
@@ -696,7 +696,7 @@ async fn pipeless_row_below_table_is_absorbed_as_a_row(cx: &mut TestAppContext) 
         editor.update(cx, |editor, cx| {
             let row = editor.doc().root_blocks()[1].clone();
             row.update(cx, |block, block_cx| {
-                block.replace_text_in_visible_range(0..0, "Alice | 10", None, false, block_cx);
+                block.replace_text_in_display_range(0..0, "Alice | 10", None, false, block_cx);
                 block.move_to(block.visible_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
@@ -736,7 +736,7 @@ async fn ragged_pipeless_row_below_table_is_padded_to_width(cx: &mut TestAppCont
         editor.update(cx, |editor, cx| {
             let row = editor.doc().root_blocks()[1].clone();
             row.update(cx, |block, block_cx| {
-                block.replace_text_in_visible_range(0..0, "one | two", None, false, block_cx);
+                block.replace_text_in_display_range(0..0, "one | two", None, false, block_cx);
                 block.move_to(block.visible_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
@@ -767,7 +767,7 @@ async fn lone_pipe_row_without_table_context_stays_a_paragraph(cx: &mut TestAppC
         editor.update(cx, |editor, cx| {
             let block = editor.doc().root_blocks()[0].clone();
             block.update(cx, |block, block_cx| {
-                block.replace_text_in_visible_range(0..0, "| a | b |", None, false, block_cx);
+                block.replace_text_in_display_range(0..0, "| a | b |", None, false, block_cx);
                 block.move_to(block.visible_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
@@ -815,7 +815,7 @@ async fn dollar_dollar_enter_creates_editable_math_block(cx: &mut TestAppContext
         editor.update(cx, |editor, cx| {
             let block = editor.doc().blocks()[0].entity.clone();
             block.update(cx, |block, block_cx| {
-                block.replace_text_in_visible_range(
+                block.replace_text_in_display_range(
                     0..block.visible_len(),
                     "$$",
                     None,
@@ -852,7 +852,7 @@ async fn dollar_dollar_prefix_then_enter_wraps_existing_line(cx: &mut TestAppCon
             block.update(cx, |block, block_cx| {
                 // Home, type the fence in front of the formula, then Enter.
                 block.move_to(0, block_cx);
-                block.replace_text_in_visible_range(0..0, "$$", None, false, block_cx);
+                block.replace_text_in_display_range(0..0, "$$", None, false, block_cx);
                 block.move_to("$$".len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
@@ -905,7 +905,7 @@ async fn auto_created_math_block_exit_shortcut_creates_plain_text_block(cx: &mut
         editor.update(cx, |editor, cx| {
             let block = editor.doc().blocks()[0].entity.clone();
             block.update(cx, |block, block_cx| {
-                block.replace_text_in_visible_range(
+                block.replace_text_in_display_range(
                     0..block.visible_len(),
                     "$$",
                     None,
@@ -1989,8 +1989,8 @@ async fn shortcut_created_leaf_quote_backspace_twice_downgrades_to_text_block(
                 crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
-            block.replace_text_in_visible_range(0..0, "> ", None, false, cx);
-            block.replace_text_in_visible_range(0..0, "a", None, false, cx);
+            block.replace_text_in_display_range(0..0, "> ", None, false, cx);
+            block.replace_text_in_display_range(0..0, "a", None, false, cx);
         });
     });
 
@@ -2204,7 +2204,7 @@ async fn quote_newline_inside_title_stays_in_one_source_authoritative_group(
                 crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                 cx,
             );
-            block.replace_text_in_visible_range(5..5, "\n", None, false, cx);
+            block.replace_text_in_display_range(5..5, "\n", None, false, cx);
         });
 
         let visible = editor.doc().blocks();
@@ -2255,7 +2255,7 @@ async fn multiline_edit_inside_quote_reparses_into_child_blocks(cx: &mut TestApp
                 crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                 cx,
             );
-            block.replace_text_in_visible_range(5..5, "\n- item", None, false, cx);
+            block.replace_text_in_display_range(5..5, "\n- item", None, false, cx);
         });
     });
 

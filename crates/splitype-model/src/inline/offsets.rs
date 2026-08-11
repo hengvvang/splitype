@@ -1,52 +1,53 @@
-//! Bidirectional offset map and edit result types for inline Markdown text.
+//! Bidirectional offset map and edit result types for inline text.
 //!
-//! `InlineMarkdownOffsetMap` maps between visible text offsets and generated
-//! Markdown source positions. `InlineEditResult` captures the new tree and
-//! selected offset mapping after an edit operation.
+//! `SourceOffsetMap` maps between plain text offsets (the fragment tree, no
+//! markers) and generated source positions (the serialized Markdown). The
+//! "plain" side is the tree text; the "source" side is the Markdown text
+//! produced by serialization. `InlineEditResult` captures the new tree and
+//! the offset mapping after an edit operation.
 
 use std::ops::Range;
 
 use crate::inline::text::RichText;
 
-/// Bidirectional offset map between source Markdown and visible inline text.
+/// Bidirectional offset map between plain inline text and source Markdown.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct InlineMarkdownOffsetMap {
-    pub(crate) markdown: String,
-    pub(crate) visible_to_markdown: Vec<usize>,
-    pub(crate) markdown_to_visible: Vec<usize>,
+pub struct SourceOffsetMap {
+    pub(crate) source: String,
+    pub(crate) plain_to_source: Vec<usize>,
+    pub(crate) source_to_plain: Vec<usize>,
 }
 
-impl InlineMarkdownOffsetMap {
-    pub fn markdown(&self) -> &str {
-        &self.markdown
+impl SourceOffsetMap {
+    pub fn source(&self) -> &str {
+        &self.source
     }
 
-    pub fn visible_to_markdown_offset(&self, offset: usize) -> usize {
-        self.visible_to_markdown
-            .get(offset.min(self.visible_to_markdown.len().saturating_sub(1)))
+    pub fn plain_to_source_offset(&self, offset: usize) -> usize {
+        self.plain_to_source
+            .get(offset.min(self.plain_to_source.len().saturating_sub(1)))
             .copied()
             .unwrap_or(0)
     }
 
-    pub fn visible_to_markdown_range(&self, range: Range<usize>) -> Range<usize> {
-        self.visible_to_markdown_offset(range.start)..self.visible_to_markdown_offset(range.end)
+    pub fn plain_to_source_range(&self, range: Range<usize>) -> Range<usize> {
+        self.plain_to_source_offset(range.start)..self.plain_to_source_offset(range.end)
     }
 
-    pub fn markdown_to_visible_offset(&self, offset: usize) -> usize {
-        self.markdown_to_visible
-            .get(offset.min(self.markdown_to_visible.len().saturating_sub(1)))
+    pub fn source_to_plain_offset(&self, offset: usize) -> usize {
+        self.source_to_plain
+            .get(offset.min(self.source_to_plain.len().saturating_sub(1)))
             .copied()
             .unwrap_or(0)
     }
 
-    pub fn markdown_to_visible_range(&self, range: Range<usize>) -> Range<usize> {
-        self.markdown_to_visible_offset(range.start)..self.markdown_to_visible_offset(range.end)
+    pub fn source_to_plain_range(&self, range: Range<usize>) -> Range<usize> {
+        self.source_to_plain_offset(range.start)..self.source_to_plain_offset(range.end)
     }
 }
 
-/// Result of a visible-text replacement operation, containing the
-/// normalized tree and a mapping from pre-edit visible offsets to
-/// post-edit tree offsets.
+/// Result of a text replacement operation, containing the normalized tree and
+/// a mapping from pre-edit text offsets to post-edit tree offsets.
 #[derive(Clone, Debug)]
 pub struct InlineEditResult {
     pub tree: RichText,

@@ -8,11 +8,11 @@
 use std::ops::Range;
 
 use super::markdown::{NormalizeBuilder, flatten_tokens, parse_until};
-use super::serialize::{clamp_to_char_boundary, serialize_fragment_run_markdown_with_offset_map};
+use super::serialize::{clamp_to_char_boundary, serialize_fragment_run_with_offset_map};
 use crate::inline::footnote::{InlineFootnoteReference, superscript_ordinal};
 use crate::inline::latex::InlineLatex;
 use crate::inline::link::InlineLink;
-use crate::inline::offsets::{InlineEditResult, InlineMarkdownOffsetMap};
+use crate::inline::offsets::{InlineEditResult, SourceOffsetMap};
 use crate::inline::render_cache::InlineRenderCache;
 use crate::inline::style::{InlineStyle, StyleFlag, set_style_flag, style_flag_enabled};
 use crate::syntax::html::HtmlInlineStyle;
@@ -195,22 +195,22 @@ impl RichText {
     /// This is the export side of the I/O boundary; the internal fragment
     /// representation never stores raw marker characters.
     pub fn serialize_markdown(&self) -> String {
-        self.markdown_offset_map().markdown
+        self.source_offset_map().source
     }
 
-    pub fn markdown_offset_map(&self) -> InlineMarkdownOffsetMap {
+    pub fn source_offset_map(&self) -> SourceOffsetMap {
         if self.fragments.is_empty() {
-            return InlineMarkdownOffsetMap {
-                markdown: String::new(),
-                visible_to_markdown: vec![0],
-                markdown_to_visible: vec![0],
+            return SourceOffsetMap {
+                source: String::new(),
+                plain_to_source: vec![0],
+                source_to_plain: vec![0],
             };
         }
 
         let mut output = String::new();
-        let mut visible_to_markdown = vec![0; self.visible_len() + 1];
-        let mut markdown_to_visible = vec![0];
-        let mut visible_cursor = 0usize;
+        let mut plain_to_source = vec![0; self.visible_len() + 1];
+        let mut source_to_plain = vec![0];
+        let mut plain_cursor = 0usize;
         let mut index = 0usize;
         while index < self.fragments.len() {
             if let Some(footnote) = self.fragments[index].footnote.clone() {
@@ -221,26 +221,26 @@ impl RichText {
                 output.push_str(&raw_markdown);
                 let run_end = output.len();
 
-                for local_visible in 0..=run_visible_len {
+                for local_plain in 0..=run_visible_len {
                     let mapped = if run_visible_len == 0 {
                         0
                     } else {
-                        (raw_len * local_visible) / run_visible_len
+                        (raw_len * local_plain) / run_visible_len
                     };
-                    visible_to_markdown[visible_cursor + local_visible] = run_start + mapped;
+                    plain_to_source[plain_cursor + local_plain] = run_start + mapped;
                 }
 
-                markdown_to_visible.resize(run_end + 1, visible_cursor);
-                for local_markdown in 0..=raw_len {
+                source_to_plain.resize(run_end + 1, plain_cursor);
+                for local_source in 0..=raw_len {
                     let mapped = if raw_len == 0 {
                         0
                     } else {
-                        (run_visible_len * local_markdown) / raw_len
+                        (run_visible_len * local_source) / raw_len
                     };
-                    markdown_to_visible[run_start + local_markdown] = visible_cursor + mapped;
+                    source_to_plain[run_start + local_source] = plain_cursor + mapped;
                 }
 
-                visible_cursor += run_visible_len;
+                plain_cursor += run_visible_len;
                 index += 1;
                 continue;
             }
@@ -253,18 +253,18 @@ impl RichText {
                 output.push_str(&raw_markdown);
                 let run_end = output.len();
 
-                for local_visible in 0..=run_visible_len {
-                    visible_to_markdown[visible_cursor + local_visible] =
-                        run_start + local_visible.min(raw_len);
+                for local_plain in 0..=run_visible_len {
+                    plain_to_source[plain_cursor + local_plain] =
+                        run_start + local_plain.min(raw_len);
                 }
 
-                markdown_to_visible.resize(run_end + 1, visible_cursor);
-                for local_markdown in 0..=raw_len {
-                    markdown_to_visible[run_start + local_markdown] =
-                        visible_cursor + local_markdown.min(run_visible_len);
+                source_to_plain.resize(run_end + 1, plain_cursor);
+                for local_source in 0..=raw_len {
+                    source_to_plain[run_start + local_source] =
+                        plain_cursor + local_source.min(run_visible_len);
                 }
 
-                visible_cursor += run_visible_len;
+                plain_cursor += run_visible_len;
                 index += 1;
                 continue;
             }
@@ -279,14 +279,13 @@ impl RichText {
                 end += 1;
             }
 
-            let run_map =
-                serialize_fragment_run_markdown_with_offset_map(&self.fragments[index..end]);
+            let run_map = serialize_fragment_run_with_offset_map(&self.fragments[index..end]);
             if let Some(link) = link {
-                let run_visible_len = run_map.visible_to_markdown.len().saturating_sub(1);
+                let run_visible_len = run_map.plain_to_source.len().saturating_sub(1);
                 let link_start = output.len();
                 let editable_text = link.editable_text();
                 output.push_str(link.open_marker());
-                output.push_str(run_map.markdown());
+                output.push_str(run_map.source());
                 if let Some(middle_marker) = link.middle_marker() {
                     output.push_str(middle_marker);
                 }
@@ -295,59 +294,59 @@ impl RichText {
                 }
                 output.push_str(link.close_marker());
                 let link_end = output.len();
-                let label_markdown_start = link_start + link.open_marker().len();
+                let label_source_start = link_start + link.open_marker().len();
 
-                for local_visible in 0..=run_visible_len {
-                    visible_to_markdown[visible_cursor + local_visible] =
-                        label_markdown_start + run_map.visible_to_markdown_offset(local_visible);
+                for local_plain in 0..=run_visible_len {
+                    plain_to_source[plain_cursor + local_plain] =
+                        label_source_start + run_map.plain_to_source_offset(local_plain);
                 }
 
-                markdown_to_visible.resize(link_end + 1, visible_cursor);
+                source_to_plain.resize(link_end + 1, plain_cursor);
                 for local in 0..=link.open_marker().len() {
-                    markdown_to_visible[link_start + local] = visible_cursor;
+                    source_to_plain[link_start + local] = plain_cursor;
                 }
-                for local_markdown in 0..run_map.markdown().len() {
-                    markdown_to_visible[label_markdown_start + local_markdown] =
-                        visible_cursor + run_map.markdown_to_visible_offset(local_markdown);
+                for local_source in 0..run_map.source().len() {
+                    source_to_plain[label_source_start + local_source] =
+                        plain_cursor + run_map.source_to_plain_offset(local_source);
                 }
 
-                let label_markdown_end = label_markdown_start + run_map.markdown().len();
-                markdown_to_visible[label_markdown_end] = visible_cursor + run_visible_len;
+                let label_source_end = label_source_start + run_map.source().len();
+                source_to_plain[label_source_end] = plain_cursor + run_visible_len;
 
-                let suffix_start = label_markdown_end;
+                let suffix_start = label_source_end;
                 let suffix_len = link.middle_marker().map(str::len).unwrap_or(0)
                     + editable_text.as_ref().map(String::len).unwrap_or(0)
                     + link.close_marker().len();
                 for local in 0..=suffix_len {
-                    markdown_to_visible[suffix_start + local] = visible_cursor + run_visible_len;
+                    source_to_plain[suffix_start + local] = plain_cursor + run_visible_len;
                 }
-                visible_cursor += run_visible_len;
+                plain_cursor += run_visible_len;
             } else {
                 let run_start = output.len();
-                output.push_str(run_map.markdown());
+                output.push_str(run_map.source());
                 let run_end = output.len();
 
-                let run_visible_len = run_map.visible_to_markdown.len().saturating_sub(1);
-                for local_visible in 0..=run_visible_len {
-                    visible_to_markdown[visible_cursor + local_visible] =
-                        run_start + run_map.visible_to_markdown_offset(local_visible);
+                let run_visible_len = run_map.plain_to_source.len().saturating_sub(1);
+                for local_plain in 0..=run_visible_len {
+                    plain_to_source[plain_cursor + local_plain] =
+                        run_start + run_map.plain_to_source_offset(local_plain);
                 }
 
-                markdown_to_visible.resize(run_end + 1, visible_cursor);
-                for local_markdown in 0..=run_map.markdown().len() {
-                    markdown_to_visible[run_start + local_markdown] =
-                        visible_cursor + run_map.markdown_to_visible_offset(local_markdown);
+                source_to_plain.resize(run_end + 1, plain_cursor);
+                for local_source in 0..=run_map.source().len() {
+                    source_to_plain[run_start + local_source] =
+                        plain_cursor + run_map.source_to_plain_offset(local_source);
                 }
-                visible_cursor += run_visible_len;
+                plain_cursor += run_visible_len;
             }
 
             index = end;
         }
 
-        InlineMarkdownOffsetMap {
-            markdown: output,
-            visible_to_markdown,
-            markdown_to_visible,
+        SourceOffsetMap {
+            source: output,
+            plain_to_source,
+            source_to_plain,
         }
     }
 

@@ -108,7 +108,7 @@ impl Editor {
         let selected_range = target.read(cx).selected_range.clone();
         let content_range = target
             .read(cx)
-            .current_range_to_markdown_range(selected_range);
+            .display_range_to_source_range(selected_range);
         let max_offset = mapping.content_to_source.len().saturating_sub(1);
         let start = mapping.full_source_range.start
             + mapping.content_to_source[content_range.start.min(max_offset)];
@@ -331,7 +331,7 @@ impl Editor {
                     let selected_range = mapping
                         .entity
                         .read(cx)
-                        .markdown_range_to_current_range(content_start..content_end);
+                        .source_range_to_display_range(content_start..content_end);
                     mapping.entity.update(cx, move |block, cx| {
                         block.selected_range = selected_range.clone();
                         block.selection_reversed = snapshot.reversed;
@@ -363,13 +363,13 @@ impl Editor {
                 };
                 let content_offset = mapping.source_to_content
                     [local_source.min(mapping.source_to_content.len().saturating_sub(1))];
-                let current_offset = mapping
+                let display_offset = mapping
                     .entity
                     .read(cx)
-                    .markdown_offset_to_current_offset(content_offset);
+                    .source_offset_to_display_offset(content_offset);
                 mapping.entity.update(cx, move |block, cx| {
                     block.assign_collapsed_selection_offset(
-                        current_offset,
+                        display_offset,
                         crate::editor::tree::block::CollapsedCaretAffinity::Default,
                         None,
                     );

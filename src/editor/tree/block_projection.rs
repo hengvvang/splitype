@@ -23,7 +23,7 @@ use crate::model::inline::style::StyleFlag;
 use crate::model::inline::text::{InlineFragment, InlineInsertionAttributes, RichText};
 
 impl Block {
-    pub(crate) fn current_cache(&self) -> &InlineRenderCache {
+    pub(crate) fn display_cache(&self) -> &InlineRenderCache {
         self.projection
             .as_ref()
             .map(|projection| &projection.cache)
@@ -41,7 +41,7 @@ impl Block {
             projection
                 .link_run_fully_covering_range(&self.selected_range)
                 .map(|run| ProjectedLinkSelectionSnapshot {
-                    clean_range: run.clean_range.clone(),
+                    plain_range: run.plain_range.clone(),
                     display_relative_range: self
                         .selected_range
                         .start
@@ -53,11 +53,11 @@ impl Block {
                     selection_reversed: self.selection_reversed,
                 })
         });
-        let clean_selected = self.current_to_clean_range(self.selected_range.clone());
-        let clean_marked = self
+        let plain_selected = self.display_to_plain_range(self.selected_range.clone());
+        let plain_marked = self
             .marked_range
             .clone()
-            .map(|range| self.current_to_clean_range(range));
+            .map(|range| self.display_to_plain_range(range));
         let heading_level = match self.kind() {
             BlockKind::Heading { level } => Some(level),
             _ => None,
@@ -66,21 +66,21 @@ impl Block {
             == Some(&(
                 supports_projection,
                 heading_level,
-                clean_selected.clone(),
-                clean_marked.clone(),
+                plain_selected.clone(),
+                plain_marked.clone(),
             ))
         {
             return;
         }
-        let (clean_anchor, clean_focus) = self.clean_selection_anchor_focus();
+        let (plain_anchor, plain_focus) = self.plain_selection_anchor_focus();
         let (anchor_affinity, focus_affinity) = self.selection_endpoint_affinities();
-        let collapsed_affinity = self.current_collapsed_caret_affinity();
-        self.rebuild_inline_projection(clean_selected.clone(), clean_marked.clone());
+        let collapsed_affinity = self.display_collapsed_caret_affinity();
+        self.rebuild_inline_projection(plain_selected.clone(), plain_marked.clone());
         if let Some(snapshot) = projected_link_selection
             && let Some(run) = self
                 .projection
                 .as_ref()
-                .and_then(|projection| projection.link_run_for_clean_range(&snapshot.clean_range))
+                .and_then(|projection| projection.link_run_for_plain_range(&snapshot.plain_range))
         {
             let start = run.display_range.start
                 + snapshot
@@ -95,22 +95,22 @@ impl Block {
             self.selected_range = start..end;
             self.selection_reversed = snapshot.selection_reversed;
             self.collapsed_caret_affinity = CollapsedCaretAffinity::Default;
-        } else if clean_selected.is_empty() {
-            let offset = self.clean_to_current_cursor_offset_with_affinity(
-                clean_selected.start,
+        } else if plain_selected.is_empty() {
+            let offset = self.plain_to_display_cursor_offset_with_affinity(
+                plain_selected.start,
                 collapsed_affinity,
             );
             self.assign_collapsed_selection_offset(offset, collapsed_affinity, None);
         } else {
-            self.set_selection_from_clean_anchor_focus(
-                clean_anchor,
-                clean_focus,
+            self.set_selection_from_plain_anchor_focus(
+                plain_anchor,
+                plain_focus,
                 anchor_affinity,
                 focus_affinity,
             );
             self.collapsed_caret_affinity = CollapsedCaretAffinity::Default;
         }
-        self.marked_range = clean_marked.map(|range| self.clean_to_current_range(range));
+        self.marked_range = plain_marked.map(|range| self.plain_to_display_range(range));
     }
 
     pub(crate) fn clear_inline_projection(&mut self) {
@@ -119,23 +119,23 @@ impl Block {
             return;
         }
 
-        let clean_marked = self
+        let plain_marked = self
             .marked_range
             .clone()
-            .map(|range| self.current_to_clean_range(range));
-        let (clean_anchor, clean_focus) = self.clean_selection_anchor_focus();
+            .map(|range| self.display_to_plain_range(range));
+        let (plain_anchor, plain_focus) = self.plain_selection_anchor_focus();
         self.projection = None;
         self.projection_cache_key = None;
-        self.set_selection_from_anchor_focus(clean_anchor, clean_focus);
-        self.marked_range = clean_marked;
+        self.set_selection_from_anchor_focus(plain_anchor, plain_focus);
+        self.marked_range = plain_marked;
         self.collapsed_caret_affinity = CollapsedCaretAffinity::Default;
         self.refresh_cached_display_text();
     }
 
     pub(crate) fn rebuild_inline_projection(
         &mut self,
-        clean_selected: Range<usize>,
-        clean_marked: Option<Range<usize>>,
+        plain_selected: Range<usize>,
+        plain_marked: Option<Range<usize>>,
     ) {
         let heading_level = match self.kind() {
             BlockKind::Heading { level } => Some(level),
@@ -144,14 +144,14 @@ impl Block {
         self.projection_cache_key = Some((
             self.edit_mode.supports_inline_projection(),
             heading_level,
-            clean_selected.clone(),
-            clean_marked.clone(),
+            plain_selected.clone(),
+            plain_marked.clone(),
         ));
         let block_prefix = heading_level.map(|level| format!("{} ", "#".repeat(level as usize)));
         self.projection = ExpandedInlineProjection::build_with_prefix(
             &self.record.text.fragments,
-            clean_selected,
-            clean_marked,
+            plain_selected,
+            plain_marked,
             block_prefix.as_deref(),
         );
         self.refresh_cached_display_text();
@@ -195,7 +195,7 @@ impl Block {
         )
     }
 
-    pub(crate) fn current_collapsed_caret_affinity(&self) -> CollapsedCaretAffinity {
+    pub(crate) fn display_collapsed_caret_affinity(&self) -> CollapsedCaretAffinity {
         if !self.selected_range.is_empty() {
             return CollapsedCaretAffinity::Default;
         }
@@ -235,53 +235,53 @@ impl Block {
         self.sync_collapsed_caret_affinity();
     }
 
-    pub(crate) fn clean_to_current_cursor_offset(&self, clean: usize) -> usize {
+    pub(crate) fn plain_to_display_cursor_offset(&self, plain: usize) -> usize {
         let Some(projection) = &self.projection else {
-            return clean;
+            return plain;
         };
         projection
-            .clean_to_display_cursor
-            .get(clean.min(projection.clean_to_display_cursor.len().saturating_sub(1)))
+            .plain_to_display_cursor
+            .get(plain.min(projection.plain_to_display_cursor.len().saturating_sub(1)))
             .copied()
-            .unwrap_or(clean)
+            .unwrap_or(plain)
     }
 
-    pub(crate) fn clean_to_current_cursor_offset_with_affinity(
+    pub(crate) fn plain_to_display_cursor_offset_with_affinity(
         &self,
-        clean: usize,
+        plain: usize,
         affinity: CollapsedCaretAffinity,
     ) -> usize {
         let Some(projection) = &self.projection else {
-            return clean;
+            return plain;
         };
         projection
-            .display_offset_for_clean_cursor(clean, affinity)
-            .unwrap_or_else(|| self.clean_to_current_cursor_offset(clean))
+            .display_offset_for_plain_cursor(plain, affinity)
+            .unwrap_or_else(|| self.plain_to_display_cursor_offset(plain))
     }
 
-    pub(crate) fn clean_to_current_range_start(&self, clean: usize) -> usize {
-        self.clean_to_current_cursor_offset(clean)
+    pub(crate) fn plain_to_display_range_start(&self, plain: usize) -> usize {
+        self.plain_to_display_cursor_offset(plain)
     }
 
-    pub(crate) fn clean_to_current_range_end(&self, clean: usize) -> usize {
-        self.clean_to_current_cursor_offset(clean)
+    pub(crate) fn plain_to_display_range_end(&self, plain: usize) -> usize {
+        self.plain_to_display_cursor_offset(plain)
     }
 
-    pub(crate) fn clean_to_current_range(&self, range: Range<usize>) -> Range<usize> {
+    pub(crate) fn plain_to_display_range(&self, range: Range<usize>) -> Range<usize> {
         if range.is_empty() {
-            let offset = self.clean_to_current_cursor_offset(range.start);
+            let offset = self.plain_to_display_cursor_offset(range.start);
             offset..offset
         } else {
-            self.clean_to_current_range_start(range.start)
-                ..self.clean_to_current_range_end(range.end)
+            self.plain_to_display_range_start(range.start)
+                ..self.plain_to_display_range_end(range.end)
         }
     }
 
-    pub(crate) fn current_to_clean_range(&self, range: Range<usize>) -> Range<usize> {
-        self.current_to_clean_offset(range.start)..self.current_to_clean_offset(range.end)
+    pub(crate) fn display_to_plain_range(&self, range: Range<usize>) -> Range<usize> {
+        self.display_to_plain_offset(range.start)..self.display_to_plain_offset(range.end)
     }
 
-    pub(crate) fn current_to_clean_offset(&self, offset: usize) -> usize {
+    pub(crate) fn display_to_plain_offset(&self, offset: usize) -> usize {
         self.unexpand_offset(offset)
     }
 
@@ -303,26 +303,26 @@ impl Block {
             .and_then(|projection| projection.move_right_target(offset))
     }
 
-    pub(crate) fn selection_clean_range(&self) -> Range<usize> {
-        self.current_to_clean_range(self.selected_range.clone())
+    pub(crate) fn selection_plain_range(&self) -> Range<usize> {
+        self.display_to_plain_range(self.selected_range.clone())
     }
 
-    pub(crate) fn current_range_to_markdown_range(&self, range: Range<usize>) -> Range<usize> {
+    pub(crate) fn display_range_to_source_range(&self, range: Range<usize>) -> Range<usize> {
         if self.uses_raw_text_editing() || self.kind().is_code_block() {
             return range.start.min(self.visible_len())..range.end.min(self.visible_len());
         }
 
         if let Some(link_run) = self.projected_link_run_fully_covering_range(&range) {
-            let map = self.record.text.markdown_offset_map();
-            let label_markdown_start = map.visible_to_markdown_offset(link_run.clean_range.start);
-            let run_markdown_start =
-                label_markdown_start.saturating_sub(link_run.link.open_marker().len());
-            let start = run_markdown_start
+            let map = self.record.text.source_offset_map();
+            let label_source_start = map.plain_to_source_offset(link_run.plain_range.start);
+            let run_source_start =
+                label_source_start.saturating_sub(link_run.link.open_marker().len());
+            let start = run_source_start
                 + range
                     .start
                     .saturating_sub(link_run.display_range.start)
                     .min(link_run.display_range.len());
-            let end = run_markdown_start
+            let end = run_source_start
                 + range
                     .end
                     .saturating_sub(link_run.display_range.start)
@@ -347,34 +347,34 @@ impl Block {
                 .min(footnote_run.display_range.len());
             let mapped_start = (raw_len * local_start) / footnote_run.display_range.len().max(1);
             let mapped_end = (raw_len * local_end) / footnote_run.display_range.len().max(1);
-            let map = self.record.text.markdown_offset_map();
-            let run_markdown_start = map.visible_to_markdown_offset(footnote_run.clean_range.start);
-            return run_markdown_start + mapped_start..run_markdown_start + mapped_end;
+            let map = self.record.text.source_offset_map();
+            let run_source_start = map.plain_to_source_offset(footnote_run.plain_range.start);
+            return run_source_start + mapped_start..run_source_start + mapped_end;
         }
 
-        let clean_range = self.current_to_clean_range(range);
+        let plain_range = self.display_to_plain_range(range);
         self.record
             .text
-            .markdown_offset_map()
-            .visible_to_markdown_range(clean_range)
+            .source_offset_map()
+            .plain_to_source_range(plain_range)
     }
 
-    pub(crate) fn markdown_range_to_current_range(&self, range: Range<usize>) -> Range<usize> {
+    pub(crate) fn source_range_to_display_range(&self, range: Range<usize>) -> Range<usize> {
         if self.uses_raw_text_editing() || self.kind().is_code_block() {
             let len = self.visible_len();
             return range.start.min(len)..range.end.min(len);
         }
 
-        let clean_range = self
+        let plain_range = self
             .record
             .text
-            .markdown_offset_map()
-            .markdown_to_visible_range(range);
-        self.clean_to_current_range(clean_range)
+            .source_offset_map()
+            .source_to_plain_range(range);
+        self.plain_to_display_range(plain_range)
     }
 
-    pub(crate) fn markdown_offset_to_current_offset(&self, offset: usize) -> usize {
-        self.markdown_range_to_current_range(offset..offset).start
+    pub(crate) fn source_offset_to_display_offset(&self, offset: usize) -> usize {
+        self.source_range_to_display_range(offset..offset).start
     }
 
     pub(crate) fn prepare_undo_capture(&self, kind: UndoCaptureKind, cx: &mut Context<Self>) {
@@ -555,14 +555,14 @@ impl Block {
     pub(crate) fn apply_link_projection_edit(
         &mut self,
         link_run: &ExpandedLinkRun,
-        visible_range: Range<usize>,
+        display_range: Range<usize>,
         new_text: &str,
         selected_range_relative: Option<Range<usize>>,
         mark_inserted_text: bool,
         cx: &mut Context<Self>,
     ) {
-        let local_visible_range = visible_range.start - link_run.display_range.start
-            ..visible_range.end - link_run.display_range.start;
+        let local_visible_range = display_range.start - link_run.display_range.start
+            ..display_range.end - link_run.display_range.start;
         let local_display_text = self.display_text()[link_run.display_range.clone()].to_string();
         let local_tree = RichText::plain(local_display_text);
         let local_result = local_tree.replace_visible_range_with_link_references(
@@ -595,9 +595,9 @@ impl Block {
                 .iter()
                 .map(|fragment| fragment.text.len())
                 .sum::<usize>();
-            let selected_clean =
+            let selected_plain =
                 replacement_clean_start..replacement_clean_start + replacement_visible_len;
-            self.rebuild_inline_projection(selected_clean.clone(), None);
+            self.rebuild_inline_projection(selected_plain.clone(), None);
 
             let local_selected = selected_range_relative.clone().unwrap_or_else(|| {
                 let cursor = local_visible_range.start + new_text.len();
@@ -607,7 +607,7 @@ impl Block {
                 projection
                     .link_runs
                     .iter()
-                    .find(|run| run.clean_range == selected_clean)
+                    .find(|run| run.plain_range == selected_plain)
             }) {
                 let start = projected_link_run.display_range.start
                     + local_selected
@@ -645,8 +645,8 @@ impl Block {
             .map(|range| range.end)
             .unwrap_or_else(|| local_result.map_offset(local_visible_range.start + new_text.len()));
         let prefix = replacement_clean_start;
-        let selected_clean = local_selected.map(|range| prefix + range.start..prefix + range.end);
-        let marked_clean = if mark_inserted_text && !new_text.is_empty() {
+        let selected_plain = local_selected.map(|range| prefix + range.start..prefix + range.end);
+        let marked_plain = if mark_inserted_text && !new_text.is_empty() {
             let inserted_range =
                 local_visible_range.start..local_visible_range.start + new_text.len();
             let mapped = local_result.map_range(&inserted_range);
@@ -657,9 +657,9 @@ impl Block {
         self.apply_text_edit(
             next_text,
             prefix + cursor,
-            marked_clean,
-            selected_clean.clone(),
-            selected_clean
+            marked_plain,
+            selected_plain.clone(),
+            selected_plain
                 .as_ref()
                 .and_then(|range| (!range.is_empty()).then_some(false)),
             false,
@@ -667,23 +667,23 @@ impl Block {
         );
     }
 
-    pub(crate) fn insertion_attributes_for_current_offset(
+    pub(crate) fn insertion_attributes_for_display_offset(
         &self,
-        current_offset: usize,
+        display_offset: usize,
     ) -> InlineInsertionAttributes {
         if self.uses_raw_text_editing() {
             return InlineInsertionAttributes::default();
         }
 
         if self.projection.is_none() {
-            return self.record.text.attributes_for_insertion_at(current_offset);
+            return self.record.text.attributes_for_insertion_at(display_offset);
         }
 
         for segment in self.projection_segments() {
             match segment.kind {
                 ExpandedInlineSegmentKind::StyledText
-                    if current_offset >= segment.display_range.start
-                        && current_offset <= segment.display_range.end =>
+                    if display_offset >= segment.display_range.start
+                        && display_offset <= segment.display_range.end =>
                 {
                     let fragment = &self.record.text.fragments[segment.fragment_index];
                     return InlineInsertionAttributes {
@@ -695,7 +695,7 @@ impl Block {
                     };
                 }
                 ExpandedInlineSegmentKind::OpeningDelimiter(_)
-                    if current_offset == segment.display_range.end =>
+                    if display_offset == segment.display_range.end =>
                 {
                     let fragment = &self.record.text.fragments[segment.fragment_index];
                     return InlineInsertionAttributes {
@@ -707,7 +707,7 @@ impl Block {
                     };
                 }
                 ExpandedInlineSegmentKind::ClosingDelimiter(_)
-                    if current_offset == segment.display_range.start =>
+                    if display_offset == segment.display_range.start =>
                 {
                     let fragment = &self.record.text.fragments[segment.fragment_index];
                     return InlineInsertionAttributes {
@@ -722,12 +722,12 @@ impl Block {
                 // an opening one. Insert plain text so it isn't absorbed back into
                 // the span, matching how code and strikethrough already behave.
                 ExpandedInlineSegmentKind::ClosingDelimiter(_)
-                    if current_offset == segment.display_range.end =>
+                    if display_offset == segment.display_range.end =>
                 {
                     return InlineInsertionAttributes::default();
                 }
                 ExpandedInlineSegmentKind::OpeningDelimiter(_)
-                    if current_offset == segment.display_range.start =>
+                    if display_offset == segment.display_range.start =>
                 {
                     return InlineInsertionAttributes::default();
                 }
@@ -737,8 +737,8 @@ impl Block {
                             .projection
                             .as_ref()
                             .and_then(|projection| projection.link_runs.get(link_group))
-                        && current_offset >= link_run.target_display_range.start
-                        && current_offset <= link_run.target_display_range.end
+                        && display_offset >= link_run.target_display_range.start
+                        && display_offset <= link_run.target_display_range.end
                     {
                         return InlineInsertionAttributes::default();
                     }
@@ -749,7 +749,7 @@ impl Block {
 
         self.record
             .text
-            .attributes_for_insertion_at(self.current_to_clean_offset(current_offset))
+            .attributes_for_insertion_at(self.display_to_plain_offset(display_offset))
     }
 
     pub(crate) fn attributes_for_fragment(fragment: &InlineFragment) -> InlineInsertionAttributes {
@@ -762,36 +762,36 @@ impl Block {
         }
     }
 
-    pub(crate) fn replacement_attributes_for_visible_range(
+    pub(crate) fn replacement_attributes_for_display_range(
         &self,
-        visible_range: &Range<usize>,
+        display_range: &Range<usize>,
     ) -> InlineInsertionAttributes {
         if self.uses_raw_text_editing() {
             return InlineInsertionAttributes::default();
         }
 
-        if visible_range.is_empty() {
-            return self.insertion_attributes_for_current_offset(visible_range.start);
+        if display_range.is_empty() {
+            return self.insertion_attributes_for_display_offset(display_range.start);
         }
 
         if self.projection.is_some() {
             return self
-                .projected_replacement_attributes_for_visible_range(visible_range)
+                .projected_replacement_attributes_for_visible_range(display_range)
                 .unwrap_or_default();
         }
 
-        self.fragment_attributes_for_clean_range(self.current_to_clean_range(visible_range.clone()))
+        self.fragment_attributes_for_plain_range(self.display_to_plain_range(display_range.clone()))
             .unwrap_or_default()
     }
 
     pub(crate) fn projected_replacement_attributes_for_visible_range(
         &self,
-        visible_range: &Range<usize>,
+        display_range: &Range<usize>,
     ) -> Option<InlineInsertionAttributes> {
         self.projection_segments().iter().find_map(|segment| {
             (segment.kind == ExpandedInlineSegmentKind::StyledText
-                && segment.display_range.start <= visible_range.start
-                && visible_range.end <= segment.display_range.end)
+                && segment.display_range.start <= display_range.start
+                && display_range.end <= segment.display_range.end)
                 .then(|| {
                     self.record
                         .text
@@ -803,11 +803,11 @@ impl Block {
         })
     }
 
-    pub(crate) fn fragment_attributes_for_clean_range(
+    pub(crate) fn fragment_attributes_for_plain_range(
         &self,
-        clean_range: Range<usize>,
+        plain_range: Range<usize>,
     ) -> Option<InlineInsertionAttributes> {
-        if clean_range.is_empty() {
+        if plain_range.is_empty() {
             return None;
         }
 
@@ -815,7 +815,7 @@ impl Block {
         for fragment in &self.record.text.fragments {
             let fragment_start = cursor;
             let fragment_end = fragment_start + fragment.text.len();
-            if fragment_start <= clean_range.start && clean_range.end <= fragment_end {
+            if fragment_start <= plain_range.start && plain_range.end <= fragment_end {
                 return Some(Self::attributes_for_fragment(fragment));
             }
             cursor = fragment_end;
@@ -828,7 +828,7 @@ impl Block {
         self.selected_range.is_empty()
             && !self.uses_raw_text_editing()
             && self
-                .insertion_attributes_for_current_offset(self.cursor_offset())
+                .insertion_attributes_for_display_offset(self.cursor_offset())
                 .style
                 .code
     }
@@ -839,7 +839,7 @@ impl Block {
     pub(crate) fn apply_text_edit(
         &mut self,
         next_text: RichText,
-        cursor_clean: usize,
+        cursor_plain: usize,
         marked_range_clean: Option<Range<usize>>,
         selected_range_clean: Option<Range<usize>>,
         selected_range_reversed: Option<bool>,
@@ -849,21 +849,21 @@ impl Block {
         let old_kind = self.record.kind.clone();
         let old_text = self.record.text.clone();
         let old_text_was_empty = old_text.visible_text().is_empty();
-        let mut collapsed_affinity = self.current_collapsed_caret_affinity();
+        let mut collapsed_affinity = self.display_collapsed_caret_affinity();
         let keep_projection =
             self.projection.is_some() && self.edit_mode.supports_inline_projection();
 
         let (next_kind, normalized_text, adjusted_cursor, shortcut_removed_len) =
-            self.normalize_after_text_edit(next_text, cursor_clean);
+            self.normalize_after_text_edit(next_text, cursor_plain);
         let should_restart_numbered_list = old_kind == BlockKind::Paragraph
             && old_text_was_empty
             && self.list_group_separator_candidate
             && next_kind == BlockKind::NumberedListItem;
 
-        let next_marked_clean = marked_range_clean
+        let next_marked_plain = marked_range_clean
             .as_ref()
             .map(|range| Self::adjust_range_for_shortcut(range, shortcut_removed_len));
-        let next_selected_clean = selected_range_clean
+        let next_selected_plain = selected_range_clean
             .as_ref()
             .map(|range| Self::adjust_range_for_shortcut(range, shortcut_removed_len))
             .unwrap_or_else(|| adjusted_cursor..adjusted_cursor);
@@ -878,31 +878,31 @@ impl Block {
         if self.edit_mode.supports_inline_projection()
             && (keep_projection || caret_may_have_closed_span)
         {
-            self.rebuild_inline_projection(next_selected_clean.clone(), next_marked_clean.clone());
+            self.rebuild_inline_projection(next_selected_plain.clone(), next_marked_plain.clone());
         }
 
         // If the edit closed a span (its delimiters were absorbed), place the
         // caret after the new closing marker so typing continues as plain text.
         if caret_may_have_closed_span
-            && next_selected_clean.is_empty()
+            && next_selected_plain.is_empty()
             && self.projection.as_ref().is_some_and(|projection| {
-                projection.caret_closes_span_at_clean(next_selected_clean.start)
+                projection.caret_closes_span_at_plain(next_selected_plain.start)
             })
         {
             collapsed_affinity = CollapsedCaretAffinity::OuterEnd;
         }
 
-        self.marked_range = next_marked_clean
+        self.marked_range = next_marked_plain
             .clone()
-            .map(|range| self.clean_to_current_range(range));
-        if next_selected_clean.is_empty() {
-            let offset = self.clean_to_current_cursor_offset_with_affinity(
-                next_selected_clean.start,
+            .map(|range| self.plain_to_display_range(range));
+        if next_selected_plain.is_empty() {
+            let offset = self.plain_to_display_cursor_offset_with_affinity(
+                next_selected_plain.start,
                 collapsed_affinity,
             );
             self.assign_collapsed_selection_offset(offset, collapsed_affinity, None);
         } else {
-            self.selected_range = self.clean_to_current_range(next_selected_clean);
+            self.selected_range = self.plain_to_display_range(next_selected_plain);
             self.selection_reversed = selected_range_reversed.unwrap_or(self.selection_reversed);
             self.collapsed_caret_affinity = CollapsedCaretAffinity::Default;
         }
@@ -921,32 +921,32 @@ impl Block {
             .and_then(|projection| projection.block_prefix_range.clone())
     }
 
-    pub(crate) fn heading_source_offset_for_current_offset(
+    pub(crate) fn heading_source_offset_for_display_offset(
         &self,
-        current_offset: usize,
+        display_offset: usize,
         prefix_len: usize,
     ) -> usize {
-        if current_offset <= prefix_len {
-            current_offset
+        if display_offset <= prefix_len {
+            display_offset
         } else {
             prefix_len
                 + self
-                    .current_range_to_markdown_range(current_offset..current_offset)
+                    .display_range_to_source_range(display_offset..display_offset)
                     .start
         }
     }
 
-    pub(crate) fn source_range_to_clean_range(
+    pub(crate) fn source_range_to_plain_range(
         text: &RichText,
         content_source_start: usize,
         range: Range<usize>,
     ) -> Range<usize> {
-        let map = text.markdown_offset_map();
-        map.markdown_to_visible_offset(range.start.saturating_sub(content_source_start))
-            ..map.markdown_to_visible_offset(range.end.saturating_sub(content_source_start))
+        let map = text.source_offset_map();
+        map.source_to_plain_offset(range.start.saturating_sub(content_source_start))
+            ..map.source_to_plain_offset(range.end.saturating_sub(content_source_start))
     }
 
-    pub(crate) fn source_offset_to_current_offset(
+    pub(crate) fn content_source_offset_to_display_offset(
         &self,
         content_source_start: usize,
         source_offset: usize,
@@ -955,18 +955,18 @@ impl Block {
         {
             source_offset
         } else {
-            let clean = self
+            let plain = self
                 .record
                 .text
-                .markdown_offset_map()
-                .markdown_to_visible_offset(source_offset.saturating_sub(content_source_start));
-            self.clean_to_current_cursor_offset(clean)
+                .source_offset_map()
+                .source_to_plain_offset(source_offset.saturating_sub(content_source_start));
+            self.plain_to_display_cursor_offset(plain)
         }
     }
 
     pub(crate) fn apply_heading_prefix_edit(
         &mut self,
-        visible_range: Range<usize>,
+        display_range: Range<usize>,
         new_text: &str,
         selected_range_relative: Option<Range<usize>>,
         mark_inserted_text: bool,
@@ -975,14 +975,14 @@ impl Block {
         let Some(prefix_range) = self.heading_projection_prefix_range() else {
             return false;
         };
-        if visible_range.start >= prefix_range.end {
+        if display_range.start >= prefix_range.end {
             return false;
         }
 
         let prefix_len = prefix_range.len();
         let source_range = self
-            .heading_source_offset_for_current_offset(visible_range.start, prefix_len)
-            ..self.heading_source_offset_for_current_offset(visible_range.end, prefix_len);
+            .heading_source_offset_for_display_offset(display_range.start, prefix_len)
+            ..self.heading_source_offset_for_display_offset(display_range.end, prefix_len);
         let mut source = format!(
             "{}{}",
             &self.display_text()[prefix_range],
@@ -1027,13 +1027,13 @@ impl Block {
         let next_selected_source = selected_source_range
             .clone()
             .unwrap_or(cursor_source..cursor_source);
-        let next_selected_clean = Self::source_range_to_clean_range(
+        let next_selected_plain = Self::source_range_to_plain_range(
             &next_text,
             content_source_start,
             next_selected_source.clone(),
         );
-        let next_marked_clean = marked_source_range.as_ref().map(|range| {
-            Self::source_range_to_clean_range(&next_text, content_source_start, range.clone())
+        let next_marked_plain = marked_source_range.as_ref().map(|range| {
+            Self::source_range_to_plain_range(&next_text, content_source_start, range.clone())
         });
         let old_kind = self.record.kind.clone();
         let old_text = self.record.text.clone();
@@ -1043,16 +1043,16 @@ impl Block {
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
         if self.edit_mode.supports_inline_projection() {
-            self.rebuild_inline_projection(next_selected_clean, next_marked_clean);
+            self.rebuild_inline_projection(next_selected_plain, next_marked_plain);
         }
 
         self.selected_range = self
-            .source_offset_to_current_offset(content_source_start, next_selected_source.start)
-            ..self.source_offset_to_current_offset(content_source_start, next_selected_source.end);
+            .content_source_offset_to_display_offset(content_source_start, next_selected_source.start)
+            ..self.content_source_offset_to_display_offset(content_source_start, next_selected_source.end);
         self.selection_reversed = false;
         self.marked_range = marked_source_range.map(|range| {
-            self.source_offset_to_current_offset(content_source_start, range.start)
-                ..self.source_offset_to_current_offset(content_source_start, range.end)
+            self.content_source_offset_to_display_offset(content_source_start, range.start)
+                ..self.content_source_offset_to_display_offset(content_source_start, range.end)
         });
         self.collapsed_caret_affinity = CollapsedCaretAffinity::Default;
         self.cursor_blink_epoch = Instant::now();
@@ -1066,23 +1066,23 @@ impl Block {
     }
 
     /// Replace text in visible coordinates: splice `new_text` into the text
-    /// at `visible_range`, re-parse inline markers, and update cursor state.
+    /// at `display_range`, re-parse inline markers, and update cursor state.
     /// When `mark_inserted_text` is true the inserted text becomes the IME
     /// marked range.
     ///
     /// When the block is in editing-expansion mode (code spans show `` ` ``
-    /// delimiters), the `visible_range` is first mapped back to the original
+    /// delimiters), the `display_range` is first mapped back to the original
     /// tree's offset space.
-    pub(crate) fn replace_text_in_visible_range(
+    pub(crate) fn replace_text_in_display_range(
         &mut self,
-        visible_range: Range<usize>,
+        display_range: Range<usize>,
         new_text: &str,
         selected_range_relative: Option<Range<usize>>,
         mark_inserted_text: bool,
         cx: &mut Context<Self>,
     ) {
         if self.apply_heading_prefix_edit(
-            visible_range.clone(),
+            display_range.clone(),
             new_text,
             selected_range_relative.clone(),
             mark_inserted_text,
@@ -1091,7 +1091,7 @@ impl Block {
             return;
         }
 
-        let inserted_attributes = self.replacement_attributes_for_visible_range(&visible_range);
+        let inserted_attributes = self.replacement_attributes_for_display_range(&display_range);
 
         // Inline `[label](url)` links round-trip through their projected source,
         // so edit them via the link projection even when the block is otherwise
@@ -1101,13 +1101,13 @@ impl Block {
         // their original source spelling.
         if !self.uses_raw_text_editing()
             && let Some(link_run) = self
-                .projected_link_run_fully_covering_range(&visible_range)
+                .projected_link_run_fully_covering_range(&display_range)
                 .filter(|run| !run.link.is_source_preserving())
                 .cloned()
         {
             self.apply_link_projection_edit(
                 &link_run,
-                visible_range,
+                display_range,
                 new_text,
                 selected_range_relative,
                 mark_inserted_text,
@@ -1116,9 +1116,9 @@ impl Block {
             return;
         }
 
-        if self.should_use_markdown_space_link_edit() {
-            self.apply_markdown_space_text_edit(
-                visible_range,
+        if self.should_use_source_space_link_edit() {
+            self.apply_source_space_text_edit(
+                display_range,
                 new_text,
                 selected_range_relative,
                 mark_inserted_text,
@@ -1132,8 +1132,8 @@ impl Block {
         // `[label](url)` markers and silently drops the link. Edit in markdown
         // space (as source-preserving links already do) so the link round-trips.
         if !self.uses_raw_text_editing() && self.record.text.has_inline_links() {
-            self.apply_markdown_space_text_edit(
-                visible_range,
+            self.apply_source_space_text_edit(
+                display_range,
                 new_text,
                 selected_range_relative,
                 mark_inserted_text,
@@ -1142,27 +1142,27 @@ impl Block {
             return;
         }
 
-        let clean_range = self.current_to_clean_range(visible_range.clone());
+        let plain_range = self.display_to_plain_range(display_range.clone());
         let mut base_text = self.record.text.clone();
         let overlaps_delimiters = self.projection.is_some() && !self.uses_raw_text_editing();
         if overlaps_delimiters {
-            let touched_styles = self.projected_styles_touching_display_range(&visible_range);
+            let touched_styles = self.projected_styles_touching_display_range(&display_range);
             if !touched_styles.is_empty() {
                 base_text.unwrap_styles_on_fragments(&touched_styles);
             }
         }
 
         let base_visible_len = base_text.visible_text().len();
-        let replaced_text = self.display_text()[visible_range.clone()].to_string();
+        let replaced_text = self.display_text()[display_range.clone()].to_string();
         let result = if self.uses_raw_text_editing() {
             base_text.replace_visible_range_raw(
-                clean_range.clone(),
+                plain_range.clone(),
                 new_text,
                 InlineInsertionAttributes::default(),
             )
         } else {
             base_text.replace_visible_range_with_link_references(
-                clean_range.clone(),
+                plain_range.clone(),
                 new_text,
                 inserted_attributes,
                 &self.link_reference_definitions,
@@ -1170,9 +1170,9 @@ impl Block {
         };
 
         // A span was closed when re-parsing absorbed delimiters into a style,
-        // leaving the clean text shorter than expected. Skip IME and deletions.
+        // leaving the plain text shorter than expected. Skip IME and deletions.
         let expected_visible_len =
-            base_visible_len.saturating_sub(clean_range.len()) + new_text.len();
+            base_visible_len.saturating_sub(plain_range.len()) + new_text.len();
         let caret_may_have_closed_span = !self.uses_raw_text_editing()
             && !new_text.is_empty()
             && !mark_inserted_text
@@ -1186,20 +1186,20 @@ impl Block {
         if quote_structure_edit {
             self.quote_reparse_requested = true;
         }
-        let inserted_range = clean_range.start..clean_range.start + new_text.len();
+        let inserted_range = plain_range.start..plain_range.start + new_text.len();
         let marked_range = if mark_inserted_text && !new_text.is_empty() {
             Some(result.map_range(&inserted_range))
         } else {
             None
         };
         let selected_range = selected_range_relative.as_ref().map(|relative| {
-            let absolute = clean_range.start + relative.start..clean_range.start + relative.end;
+            let absolute = plain_range.start + relative.start..plain_range.start + relative.end;
             result.map_range(&absolute)
         });
         let cursor = selected_range
             .as_ref()
             .map(|range| range.end)
-            .unwrap_or_else(|| result.map_offset(clean_range.start + new_text.len()));
+            .unwrap_or_else(|| result.map_offset(plain_range.start + new_text.len()));
 
         self.apply_text_edit(
             result.tree,

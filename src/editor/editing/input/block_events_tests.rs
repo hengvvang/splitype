@@ -49,7 +49,7 @@ mod tests {
                     crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                     cx,
                 );
-                block.replace_text_in_visible_range(0..0, "> ", None, false, cx);
+                block.replace_text_in_display_range(0..0, "> ", None, false, cx);
             });
         });
 
@@ -97,7 +97,7 @@ mod tests {
 
             let expected_backref_range = paragraph
                 .read(cx)
-                .current_range_for_footnote_occurrence(0)
+                .display_range_for_footnote_occurrence(0)
                 .expect("resolved footnote occurrence");
             editor.on_block_event(
                 definition.clone(),
@@ -176,7 +176,7 @@ mod tests {
                     crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                     cx,
                 );
-                block.replace_text_in_visible_range(0..0, "> [!NOTE]", None, false, cx);
+                block.replace_text_in_display_range(0..0, "> [!NOTE]", None, false, cx);
             });
         });
 
@@ -225,7 +225,7 @@ mod tests {
                     crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                     cx,
                 );
-                block.replace_text_in_visible_range(0..0, "1. ", None, false, cx);
+                block.replace_text_in_display_range(0..0, "1. ", None, false, cx);
             });
         });
 
@@ -306,7 +306,7 @@ mod tests {
                         crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                         block_cx,
                     );
-                    block.replace_text_in_visible_range(
+                    block.replace_text_in_display_range(
                         0..block.visible_len(),
                         "",
                         None,
@@ -344,7 +344,7 @@ mod tests {
                         crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                         block_cx,
                     );
-                    block.replace_text_in_visible_range(
+                    block.replace_text_in_display_range(
                         0..block.visible_len(),
                         "",
                         None,
@@ -437,7 +437,7 @@ mod tests {
                 block.update(cx, |block, block_cx| {
                     // Type a closing fence on a fresh last line, then Enter.
                     let end = block.visible_len();
-                    block.replace_text_in_visible_range(end..end, "\n```", None, false, block_cx);
+                    block.replace_text_in_display_range(end..end, "\n```", None, false, block_cx);
                     block.move_to(block.visible_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
@@ -511,7 +511,7 @@ mod tests {
                 let underline = editor.doc().blocks()[1].entity.clone();
                 underline.update(cx, |block, block_cx| {
                     let end = block.visible_len();
-                    block.replace_text_in_visible_range(0..end, "-----", None, false, block_cx);
+                    block.replace_text_in_display_range(0..end, "-----", None, false, block_cx);
                     block.move_to(block.visible_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
@@ -538,7 +538,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
-                    block.replace_text_in_visible_range(0..0, "-----", None, false, block_cx);
+                    block.replace_text_in_display_range(0..0, "-----", None, false, block_cx);
                     block.move_to(block.visible_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
@@ -560,7 +560,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
-                    block.replace_text_in_visible_range(0..0, "=====", None, false, block_cx);
+                    block.replace_text_in_display_range(0..0, "=====", None, false, block_cx);
                     block.move_to(block.visible_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
@@ -639,7 +639,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let row = editor.doc().root_blocks()[1].clone();
                 row.update(cx, |block, block_cx| {
-                    block.replace_text_in_visible_range(
+                    block.replace_text_in_display_range(
                         0..0,
                         "| Alice | 10 |",
                         None,
@@ -714,7 +714,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let row = editor.doc().root_blocks()[1].clone();
                 row.update(cx, |block, block_cx| {
-                    block.replace_text_in_visible_range(0..0, "Alice | 10", None, false, block_cx);
+                    block.replace_text_in_display_range(0..0, "Alice | 10", None, false, block_cx);
                     block.move_to(block.visible_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
@@ -754,7 +754,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let row = editor.doc().root_blocks()[1].clone();
                 row.update(cx, |block, block_cx| {
-                    block.replace_text_in_visible_range(0..0, "one | two", None, false, block_cx);
+                    block.replace_text_in_display_range(0..0, "one | two", None, false, block_cx);
                     block.move_to(block.visible_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
@@ -785,7 +785,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let block = editor.doc().root_blocks()[0].clone();
                 block.update(cx, |block, block_cx| {
-                    block.replace_text_in_visible_range(0..0, "| a | b |", None, false, block_cx);
+                    block.replace_text_in_display_range(0..0, "| a | b |", None, false, block_cx);
                     block.move_to(block.visible_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
@@ -833,7 +833,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
-                    block.replace_text_in_visible_range(
+                    block.replace_text_in_display_range(
                         0..block.visible_len(),
                         "$$",
                         None,
@@ -870,7 +870,7 @@ mod tests {
                 block.update(cx, |block, block_cx| {
                     // Home, type the fence in front of the formula, then Enter.
                     block.move_to(0, block_cx);
-                    block.replace_text_in_visible_range(0..0, "$$", None, false, block_cx);
+                    block.replace_text_in_display_range(0..0, "$$", None, false, block_cx);
                     block.move_to("$$".len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
@@ -925,7 +925,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
-                    block.replace_text_in_visible_range(
+                    block.replace_text_in_display_range(
                         0..block.visible_len(),
                         "$$",
                         None,

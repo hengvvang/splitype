@@ -6,7 +6,7 @@
 //! unconditionally invoked `ExpandedInlineProjection::build`, a full
 //! O(fragments + text) walk that allocates several parallel index `Vec`s.
 //! Post-commit, the function short-circuits when
-//! `(supports_projection, clean_selected, clean_marked)` matches the
+//! `(supports_projection, plain_selected, plain_marked)` matches the
 //! cached key from the last build.
 //!
 //! `ExpandedInlineProjection::build` is `pub(super)` and unreachable from
@@ -26,31 +26,31 @@ mod common;
 use common::{MockFragment, mock_fragments};
 
 fn simulate_projection_build(fragments: &[MockFragment]) -> Option<(usize, Vec<usize>)> {
-    let clean_len: usize = fragments.iter().map(|f| f.text.len()).sum();
-    let mut display_to_clean: Vec<usize> = Vec::with_capacity(clean_len + 1);
-    let mut clean_to_display: Vec<usize> = vec![0; clean_len + 1];
+    let plain_len: usize = fragments.iter().map(|f| f.text.len()).sum();
+    let mut display_to_plain: Vec<usize> = Vec::with_capacity(plain_len + 1);
+    let mut plain_to_display: Vec<usize> = vec![0; plain_len + 1];
     let mut display_cursor = 0usize;
-    let mut clean_cursor = 0usize;
+    let mut plain_cursor = 0usize;
     let mut any_expanded = false;
     for f in fragments {
         let len = f.text.len();
         if f.has_link {
             for _ in 0..2 {
-                display_to_clean.push(clean_cursor);
+                display_to_plain.push(plain_cursor);
             }
             display_cursor += 2;
             any_expanded = true;
         }
         for offset in 0..=len {
-            clean_to_display[clean_cursor + offset] = display_cursor + offset;
+            plain_to_display[plain_cursor + offset] = display_cursor + offset;
         }
         for offset in 1..=len {
-            display_to_clean.push(clean_cursor + offset);
+            display_to_plain.push(plain_cursor + offset);
         }
         display_cursor += len;
-        clean_cursor += len;
+        plain_cursor += len;
     }
-    any_expanded.then_some((display_cursor, clean_to_display))
+    any_expanded.then_some((display_cursor, plain_to_display))
 }
 
 fn projection_cache(c: &mut Criterion) {

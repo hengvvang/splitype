@@ -67,9 +67,9 @@ impl Block {
     }
 
     fn paste_image_split(&self) -> (RichText, RichText) {
-        let clean_selected = self.selection_clean_range();
-        let (leading, tail) = self.record.text.split_at(clean_selected.start);
-        let (_, trailing) = tail.split_at(clean_selected.end.saturating_sub(clean_selected.start));
+        let plain_selected = self.selection_plain_range();
+        let (leading, tail) = self.record.text.split_at(plain_selected.start);
+        let (_, trailing) = tail.split_at(plain_selected.end.saturating_sub(plain_selected.start));
         (leading, trailing)
     }
     pub(crate) fn on_copy(&mut self, _: &Copy, _window: &mut Window, cx: &mut Context<Self>) {
@@ -152,10 +152,10 @@ impl Block {
                     self.replace_text_in_range(None, &normalized, window, cx);
                     return;
                 }
-                let clean_selected = self.selection_clean_range();
-                let (leading, tail) = self.record.text.split_at(clean_selected.start);
+                let plain_selected = self.selection_plain_range();
+                let (leading, tail) = self.record.text.split_at(plain_selected.start);
                 let (_, trailing) =
-                    tail.split_at(clean_selected.end.saturating_sub(clean_selected.start));
+                    tail.split_at(plain_selected.end.saturating_sub(plain_selected.start));
                 let lines = normalized
                     .split('\n')
                     .map(ToOwned::to_owned)

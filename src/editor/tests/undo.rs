@@ -17,7 +17,7 @@ async fn undo_reverts_recent_rendered_typing(cx: &mut TestAppContext) {
                 crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
-            block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
+            block.replace_text_in_display_range(5..5, " beta", None, false, cx);
         });
     });
 
@@ -42,14 +42,14 @@ async fn consecutive_text_edits_within_window_coalesce_into_one_undo(cx: &mut Te
                 crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
-            block.replace_text_in_visible_range(1..1, "b", None, false, cx);
+            block.replace_text_in_display_range(1..1, "b", None, false, cx);
         });
         block.update(cx, |block, cx| {
             block.prepare_undo_capture(
                 crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
-            block.replace_text_in_visible_range(2..2, "c", None, false, cx);
+            block.replace_text_in_display_range(2..2, "c", None, false, cx);
         });
     });
 
@@ -74,7 +74,7 @@ async fn redo_restores_text_reverted_by_undo(cx: &mut TestAppContext) {
                 crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
-            block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
+            block.replace_text_in_display_range(5..5, " beta", None, false, cx);
         });
     });
 
@@ -101,7 +101,7 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
                 crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
-            block.replace_text_in_visible_range(5..5, " beta", None, false, cx);
+            block.replace_text_in_display_range(5..5, " beta", None, false, cx);
         });
     });
 
@@ -116,7 +116,7 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
                 crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
                 cx,
             );
-            block.replace_text_in_visible_range(5..5, " gamma", None, false, cx);
+            block.replace_text_in_display_range(5..5, " gamma", None, false, cx);
         });
     });
 
