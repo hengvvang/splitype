@@ -21,22 +21,22 @@ use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 struct MockSpacingInfo {
-    quote_group_anchor: Option<u128>,
-    visible_quote_group_anchor: Option<u128>,
-    callout_anchor: Option<u128>,
+    quote_group_id: Option<u128>,
+    visible_quote_group_id: Option<u128>,
+    callout_group_id: Option<u128>,
     callout_variant: Option<u8>,
     is_callout_header: bool,
-    footnote_anchor: Option<u128>,
+    footnote_group_id: Option<u128>,
     is_footnote_header: bool,
 }
 
 struct MockBlock {
-    quote_group_anchor: Option<u128>,
-    visible_quote_group_anchor: Option<u128>,
-    callout_anchor: Option<u128>,
+    quote_group_id: Option<u128>,
+    visible_quote_group_id: Option<u128>,
+    callout_group_id: Option<u128>,
     callout_variant: Option<u8>,
     is_callout: bool,
-    footnote_anchor: Option<u128>,
+    footnote_group_id: Option<u128>,
     is_footnote_definition: bool,
 }
 
@@ -44,12 +44,12 @@ impl MockSpacingInfo {
     #[inline]
     fn from_block(b: &MockBlock) -> Self {
         Self {
-            quote_group_anchor: b.quote_group_anchor,
-            visible_quote_group_anchor: b.visible_quote_group_anchor,
-            callout_anchor: b.callout_anchor,
+            quote_group_id: b.quote_group_id,
+            visible_quote_group_id: b.visible_quote_group_id,
+            callout_group_id: b.callout_group_id,
             callout_variant: b.callout_variant,
             is_callout_header: b.is_callout,
-            footnote_anchor: b.footnote_anchor,
+            footnote_group_id: b.footnote_group_id,
             is_footnote_header: b.is_footnote_definition,
         }
     }
@@ -58,16 +58,16 @@ impl MockSpacingInfo {
 fn mock_document(n: usize, with_callouts: bool) -> Vec<MockBlock> {
     (0..n)
         .map(|i| MockBlock {
-            quote_group_anchor: (i % 7 == 0).then_some(i as u128),
-            visible_quote_group_anchor: (i % 7 == 0).then_some(i as u128),
-            callout_anchor: if with_callouts && i % 8 < 4 {
+            quote_group_id: (i % 7 == 0).then_some(i as u128),
+            visible_quote_group_id: (i % 7 == 0).then_some(i as u128),
+            callout_group_id: if with_callouts && i % 8 < 4 {
                 Some((i / 8) as u128)
             } else {
                 None
             },
             callout_variant: (with_callouts && i % 8 < 4).then_some(1),
             is_callout: with_callouts && i % 8 == 0,
-            footnote_anchor: (with_callouts && i % 16 == 0).then_some((i / 16) as u128),
+            footnote_group_id: (with_callouts && i % 16 == 0).then_some((i / 16) as u128),
             is_footnote_definition: with_callouts && i % 16 == 0,
         })
         .collect()
@@ -85,9 +85,9 @@ fn eager_frame(blocks: &[MockBlock]) -> u64 {
     while i < blocks.len() {
         let here = spacing_infos[i];
         sum += here.callout_variant.unwrap_or(0) as u64;
-        if let Some(anchor) = here.callout_anchor {
+        if let Some(group_id) = here.callout_group_id {
             let mut j = i;
-            while j < blocks.len() && spacing_infos[j].callout_anchor == Some(anchor) {
+            while j < blocks.len() && spacing_infos[j].callout_group_id == Some(group_id) {
                 sum += spacing_infos[j].is_callout_header as u64;
                 j += 1;
             }
@@ -107,9 +107,9 @@ fn lazy_frame(blocks: &[MockBlock]) -> u64 {
     while i < blocks.len() {
         let here = spacing_for(i);
         sum += here.callout_variant.unwrap_or(0) as u64;
-        if let Some(anchor) = here.callout_anchor {
+        if let Some(group_id) = here.callout_group_id {
             let mut j = i;
-            while j < blocks.len() && spacing_for(j).callout_anchor == Some(anchor) {
+            while j < blocks.len() && spacing_for(j).callout_group_id == Some(group_id) {
                 sum += spacing_for(j).is_callout_header as u64;
                 j += 1;
             }

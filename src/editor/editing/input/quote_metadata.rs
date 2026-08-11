@@ -22,7 +22,7 @@ impl Editor {
         let block_ref = block.read(cx);
         block_ref.kind().is_quote_container()
             || block_ref.quote_depth > 0
-            || block_ref.quote_group_anchor.is_some()
+            || block_ref.quote_group_id.is_some()
     }
 
     pub(crate) fn refresh_rendered_quote_metadata_if_needed(

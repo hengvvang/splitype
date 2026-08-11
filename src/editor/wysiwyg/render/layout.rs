@@ -16,12 +16,12 @@ use crate::infra::theme::*;
 /// (quote, callout, footnote) and should collapse their inter-row gap.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct RowSpacingInfo {
-    pub quote_group_anchor: Option<BlockId>,
-    pub visible_quote_group_anchor: Option<BlockId>,
-    pub callout_anchor: Option<BlockId>,
+    pub quote_group_id: Option<BlockId>,
+    pub visible_quote_group_id: Option<BlockId>,
+    pub callout_group_id: Option<BlockId>,
     pub callout_variant: Option<crate::model::block::CalloutKind>,
     pub is_callout_header: bool,
-    pub footnote_anchor: Option<BlockId>,
+    pub footnote_group_id: Option<BlockId>,
     pub is_footnote_header: bool,
 }
 
@@ -29,12 +29,12 @@ impl RowSpacingInfo {
     /// Read spacing metadata from a block entity.
     pub fn from_block(block: &crate::editor::tree::block::Block) -> Self {
         Self {
-            quote_group_anchor: block.quote_group_anchor,
-            visible_quote_group_anchor: block.visible_quote_group_anchor,
-            callout_anchor: block.callout_anchor,
+            quote_group_id: block.quote_group_id,
+            visible_quote_group_id: block.visible_quote_group_id,
+            callout_group_id: block.callout_group_id,
             callout_variant: block.callout_variant,
             is_callout_header: block.kind().is_callout(),
-            footnote_anchor: block.footnote_anchor,
+            footnote_group_id: block.footnote_group_id,
             is_footnote_header: block.kind().is_footnote_definition(),
         }
     }
@@ -52,8 +52,8 @@ pub fn row_top_gap(
     let Some(previous) = previous else {
         return 0.0;
     };
-    if previous.quote_group_anchor.is_some()
-        && previous.quote_group_anchor == current.quote_group_anchor
+    if previous.quote_group_id.is_some()
+        && previous.quote_group_id == current.quote_group_id
     {
         0.0
     } else {
@@ -70,8 +70,8 @@ pub fn callout_row_top_gap(
     let Some(previous) = previous else {
         return 0.0;
     };
-    if previous.visible_quote_group_anchor.is_some()
-        && previous.visible_quote_group_anchor == current.visible_quote_group_anchor
+    if previous.visible_quote_group_id.is_some()
+        && previous.visible_quote_group_id == current.visible_quote_group_id
     {
         return 0.0;
     }
@@ -168,11 +168,11 @@ mod tests {
         let group = Uuid::new_v4();
         let gap = row_top_gap(
             Some(RowSpacingInfo {
-                quote_group_anchor: Some(BlockId(group)),
+                quote_group_id: Some(BlockId(group)),
                 ..RowSpacingInfo::default()
             }),
             RowSpacingInfo {
-                quote_group_anchor: Some(BlockId(group)),
+                quote_group_id: Some(BlockId(group)),
                 ..RowSpacingInfo::default()
             },
             4.0,
@@ -218,11 +218,11 @@ mod tests {
         let group = Uuid::new_v4();
         let gap = row_top_gap(
             Some(RowSpacingInfo {
-                quote_group_anchor: Some(BlockId(group)),
+                quote_group_id: Some(BlockId(group)),
                 ..RowSpacingInfo::default()
             }),
             RowSpacingInfo {
-                quote_group_anchor: Some(BlockId(group)),
+                quote_group_id: Some(BlockId(group)),
                 ..RowSpacingInfo::default()
             },
             4.0,
@@ -234,11 +234,11 @@ mod tests {
     fn distinct_quote_groups_keep_default_gap() {
         let gap = row_top_gap(
             Some(RowSpacingInfo {
-                quote_group_anchor: Some(BlockId(Uuid::new_v4())),
+                quote_group_id: Some(BlockId(Uuid::new_v4())),
                 ..RowSpacingInfo::default()
             }),
             RowSpacingInfo {
-                quote_group_anchor: Some(BlockId(Uuid::new_v4())),
+                quote_group_id: Some(BlockId(Uuid::new_v4())),
                 ..RowSpacingInfo::default()
             },
             4.0,
@@ -250,11 +250,11 @@ mod tests {
     fn non_quote_rows_keep_default_gap() {
         let gap = row_top_gap(
             Some(RowSpacingInfo {
-                quote_group_anchor: None,
+                quote_group_id: None,
                 ..RowSpacingInfo::default()
             }),
             RowSpacingInfo {
-                quote_group_anchor: Some(BlockId(Uuid::new_v4())),
+                quote_group_id: Some(BlockId(Uuid::new_v4())),
                 ..RowSpacingInfo::default()
             },
             4.0,
@@ -297,11 +297,11 @@ mod tests {
         let gap = callout_row_top_gap(
             Some(RowSpacingInfo {
                 is_callout_header: false,
-                visible_quote_group_anchor: Some(BlockId(group)),
+                visible_quote_group_id: Some(BlockId(group)),
                 ..RowSpacingInfo::default()
             }),
             RowSpacingInfo {
-                visible_quote_group_anchor: Some(BlockId(group)),
+                visible_quote_group_id: Some(BlockId(group)),
                 ..RowSpacingInfo::default()
             },
             dimensions,

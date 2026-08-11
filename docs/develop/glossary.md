@@ -50,7 +50,7 @@ Notes:
 | Concept | Term | Status |
 | --- | --- | --- |
 | Callout flavor (Note/Tip/…) | **CalloutKind** | kept — "callout type" is the ecosystem term (GFM/Obsidian `[!TYPE]`). The field name `variant` is fine; they are synonyms, do not "unify" them. |
-| Visual group anchor ids | `*_group_id` (`quote_group_id`, `callout_group_id`, `footnote_group_id`) | planned (currently `*_group_anchor`) |
+| Visual group anchor ids | `*_group_id` (`quote_group_id`, `callout_group_id`, `footnote_group_id`) | done — was `*_group_anchor`; the fields hold the group's leading `BlockId`, so they are ids, not anchors. `visible_quote_group_id` follows; `visible_quote_depth` stays (the visually rendered quote depth, not an id). "anchor" now names only selection endpoints (`BlockSelectionAnchor`, `CrossBlockSelection.anchor/focus`). |
 | Selection anchor | `anchor`/`focus` | kept — standard selection vocabulary. |
 
 ## Areas and panes

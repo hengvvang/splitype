@@ -804,7 +804,7 @@ mod tests {
                 entries[2]
                     .entity
                     .read(cx)
-                    .visible_quote_group_anchor
+                    .visible_quote_group_id
                     .is_some()
             );
             assert_eq!(entries[3].entity.read(cx).kind(), BlockKind::Paragraph);
@@ -814,7 +814,7 @@ mod tests {
                 entries[3]
                     .entity
                     .read(cx)
-                    .visible_quote_group_anchor
+                    .visible_quote_group_id
                     .is_none()
             );
             assert_eq!(editor.doc().serialize_markdown(cx), canonical_markdown);
@@ -961,7 +961,7 @@ mod tests {
                 let block = entries.entity.read(cx);
                 block.kind() == BlockKind::Paragraph
                     && block.display_text() == "Final footnote text with nested list:"
-                    && block.footnote_anchor.is_some()
+                    && block.footnote_group_id.is_some()
                     && block.quote_depth == 1
             }));
             assert!(
@@ -970,7 +970,7 @@ mod tests {
                     .filter(|entries| {
                         let block = entries.entity.read(cx);
                         block.kind() == BlockKind::BulletListItem
-                            && block.footnote_anchor.is_some()
+                            && block.footnote_group_id.is_some()
                             && block.quote_depth == 1
                     })
                     .count()
@@ -1499,7 +1499,7 @@ mod tests {
             assert_eq!(entries[3].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[3].entity.read(cx).display_text(), "nested footnote");
             assert_eq!(entries[3].entity.read(cx).quote_depth, 1);
-            assert!(entries[3].entity.read(cx).footnote_anchor.is_some());
+            assert!(entries[3].entity.read(cx).footnote_group_id.is_some());
             assert_eq!(editor.doc().serialize_markdown(cx), canonical_markdown);
         });
     }

@@ -445,23 +445,23 @@ impl Editor {
             let first_spacing = spacing_for(index);
             let top_gap = row_top_gap(previous_row_spacing, first_spacing, d.block_gap);
 
-            if let (Some(callout_anchor), Some(callout_variant)) =
-                (first_spacing.callout_anchor, first_spacing.callout_variant)
+            if let (Some(callout_group_id), Some(callout_variant)) =
+                (first_spacing.callout_group_id, first_spacing.callout_variant)
             {
                 let mut segments = Vec::new();
                 let mut group_end = index;
                 let mut previous_callout_row = None;
                 while group_end < blocks.len()
-                    && spacing_for(group_end).callout_anchor == Some(callout_anchor)
+                    && spacing_for(group_end).callout_group_id == Some(callout_group_id)
                 {
                     let row_spacing = spacing_for(group_end);
-                    if let Some(footnote_anchor) = row_spacing.footnote_anchor {
+                    if let Some(footnote_group_id) = row_spacing.footnote_group_id {
                         let mut footnote_end = group_end;
                         let mut previous_footnote_row = None;
                         let mut row_gaps = Vec::new();
                         while footnote_end < blocks.len()
-                            && spacing_for(footnote_end).callout_anchor == Some(callout_anchor)
-                            && spacing_for(footnote_end).footnote_anchor == Some(footnote_anchor)
+                            && spacing_for(footnote_end).callout_group_id == Some(callout_group_id)
+                            && spacing_for(footnote_end).footnote_group_id == Some(footnote_group_id)
                         {
                             let footnote_spacing = spacing_for(footnote_end);
                             row_gaps.push(footnote_row_top_gap(previous_footnote_row, d.block_gap));
@@ -499,12 +499,12 @@ impl Editor {
                 continue;
             }
 
-            if let Some(footnote_anchor) = first_spacing.footnote_anchor {
+            if let Some(footnote_group_id) = first_spacing.footnote_group_id {
                 let mut segments = Vec::new();
                 let mut group_end = index;
                 let mut previous_footnote_row = None;
                 while group_end < blocks.len()
-                    && spacing_for(group_end).footnote_anchor == Some(footnote_anchor)
+                    && spacing_for(group_end).footnote_group_id == Some(footnote_group_id)
                 {
                     let row_spacing = spacing_for(group_end);
                     segments.push(PlannedInnerSegment::Block {

@@ -319,12 +319,12 @@ impl Document {
         parent_id: Option<BlockId>,
         list_depth: usize,
         inherited_quote_depth: usize,
-        inherited_quote_group_anchor: Option<BlockId>,
-        inherited_visible_quote_group_anchor: Option<BlockId>,
+        inherited_quote_group_id: Option<BlockId>,
+        inherited_visible_quote_group_id: Option<BlockId>,
         inherited_callout_depth: usize,
-        inherited_callout_anchor: Option<BlockId>,
+        inherited_callout_group_id: Option<BlockId>,
         inherited_callout_variant: Option<CalloutKind>,
-        inherited_footnote_anchor: Option<BlockId>,
+        inherited_footnote_group_id: Option<BlockId>,
         cx: &mut Context<Editor>,
         snapshot: &mut BlockIndex,
     ) {
@@ -374,35 +374,35 @@ impl Document {
             let is_quote_container = kind.is_quote_container();
             let own_callout_variant = kind.callout_kind();
             let quote_depth = inherited_quote_depth + usize::from(is_quote_container);
-            let quote_group_anchor = if is_quote_container {
-                inherited_quote_group_anchor.or(Some(block_id))
+            let quote_group_id = if is_quote_container {
+                inherited_quote_group_id.or(Some(block_id))
             } else {
-                inherited_quote_group_anchor
+                inherited_quote_group_id
             };
             let callout_depth =
                 inherited_callout_depth + usize::from(own_callout_variant.is_some());
-            let callout_anchor = if own_callout_variant.is_some() {
+            let callout_group_id = if own_callout_variant.is_some() {
                 Some(block_id)
             } else {
-                inherited_callout_anchor
+                inherited_callout_group_id
             };
             let callout_variant = own_callout_variant.or(inherited_callout_variant);
             let visible_quote_depth = quote_depth.saturating_sub(callout_depth);
-            let visible_quote_group_anchor = match kind {
-                BlockKind::Blockquote => inherited_visible_quote_group_anchor.or(Some(block_id)),
+            let visible_quote_group_id = match kind {
+                BlockKind::Blockquote => inherited_visible_quote_group_id.or(Some(block_id)),
                 BlockKind::Callout(_) => None,
                 _ if visible_quote_depth == 0 => None,
-                _ => inherited_visible_quote_group_anchor,
+                _ => inherited_visible_quote_group_id,
             };
-            let child_visible_quote_group_anchor = if own_callout_variant.is_some() {
+            let child_visible_quote_group_id = if own_callout_variant.is_some() {
                 None
             } else {
-                visible_quote_group_anchor
+                visible_quote_group_id
             };
-            let footnote_anchor = if kind.is_footnote_definition() {
+            let footnote_group_id = if kind.is_footnote_definition() {
                 Some(block_id)
             } else {
-                inherited_footnote_anchor
+                inherited_footnote_group_id
             };
             let child_list_depth = list_depth + usize::from(kind.is_list_item());
             let list_group_separator_candidate = is_empty_paragraph && previous_was_list_item;
@@ -412,13 +412,13 @@ impl Document {
                 block.data.children = content.clone();
                 block.render_depth = list_depth;
                 block.quote_depth = quote_depth;
-                block.quote_group_anchor = quote_group_anchor;
+                block.quote_group_id = quote_group_id;
                 block.visible_quote_depth = visible_quote_depth;
-                block.visible_quote_group_anchor = visible_quote_group_anchor;
+                block.visible_quote_group_id = visible_quote_group_id;
                 block.callout_depth = callout_depth;
-                block.callout_anchor = callout_anchor;
+                block.callout_group_id = callout_group_id;
                 block.callout_variant = callout_variant;
-                block.footnote_anchor = footnote_anchor;
+                block.footnote_group_id = footnote_group_id;
                 block.parent_is_list_item = parent_is_list_item;
                 block.list_ordinal = list_ordinal;
                 block.list_group_separator_candidate = list_group_separator_candidate;
@@ -434,12 +434,12 @@ impl Document {
                     Some(block_id),
                     child_list_depth,
                     quote_depth,
-                    quote_group_anchor,
-                    child_visible_quote_group_anchor,
+                    quote_group_id,
+                    child_visible_quote_group_id,
                     callout_depth,
-                    callout_anchor,
+                    callout_group_id,
                     callout_variant,
-                    footnote_anchor,
+                    footnote_group_id,
                     cx,
                     snapshot,
                 );
