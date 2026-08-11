@@ -412,7 +412,7 @@ async fn enter_inside_inline_math_paragraph_creates_new_block(cx: &mut TestAppCo
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(entries[0].entity.read(cx).display_text(), "$n^2$");
-        assert!(!entries[0].entity.read(cx).uses_raw_text_editing());
+        assert!(!entries[0].entity.read(cx).edits_verbatim_text());
         assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(entries[1].entity.read(cx).display_text(), "");
         assert_eq!(editor.doc().to_markdown(cx), "$n^2$\n\n");
@@ -836,7 +836,7 @@ async fn dollar_dollar_enter_creates_editable_math_block(cx: &mut TestAppContext
         // The delimiters are stripped; only the formula body is stored.
         assert_eq!(block.display_text(), "");
         assert_eq!(block.selected_range, 0..0);
-        assert!(block.uses_raw_text_editing());
+        assert!(block.edits_verbatim_text());
         assert_eq!(editor.doc().to_markdown(cx), "$$\n\n$$");
     });
 }

@@ -22,7 +22,11 @@ Notes:
 - "visible" is **not** a coordinate name. It survives only as prose in
   comments. Done: `RichText::visible_text/visible_len` → `plain_text`/
   `plain_len`; `Block::visible_len` → `display_len`;
-  `InlineRenderCache::visible_text/visible_len` → `text()`/`len()`.
+  `InlineRenderCache::visible_text/visible_len` → `text()`/`len()`;
+  `RichText::remove_visible_prefix` → `remove_plain_prefix`;
+  `replace_visible_range_with_link_references` →
+  `replace_plain_range_with_link_references`;
+  `replace_visible_range_raw` → `replace_plain_range_verbatim`.
 - `source` also names the image origin concept (`ImageResolvedSource`).
   These two senses are unrelated; do not add new "source" names for other
   concepts.
@@ -73,9 +77,9 @@ layout, panes belong to an Editor session.
 | Concept | Term | Status |
 | --- | --- | --- |
 | View mode (whole document) | `EditorMode::Wysiwyg/SourceCode` | kept — user-facing. |
-| Block edit mode | `Rich` / `Verbatim` / `Code` | planned (`RenderedRich` / `SourceRaw` / `CodeBlockRaw`). |
+| Block edit mode | `RenderedRich` / `Verbatim` / `CodeBlockRaw` | done — `SourceRaw` → `Verbatim`; the mode enum carries the behavior, "raw" stays for content. |
 | Opaque passthrough content | **raw** | kept for content: `BlockKind::RawMarkdown`, `raw_source` (unparsed original text). |
-| Marker-free editing of raw content | **verbatim** | planned for behavior: `SourceRaw` → `Verbatim`, `uses_raw_text_editing` → `edits_verbatim_text`, `replace_visible_range_raw` → `replace_visible_range_verbatim`. |
+| Marker-free editing of raw content | **verbatim** | done — `BlockEditMode::Verbatim` (was `SourceRaw`), `edits_verbatim_text` (was `uses_raw_text_editing`), `is_verbatim_mode`/`set_verbatim_mode` (was `is_/set_source_raw_mode`), `replace_plain_range_verbatim` (was `replace_visible_range_raw`). `set_source_document_mode` stays: it means SourceCode-view document mode. |
 | Derived view state | — | planned: `TableRuntimes` → `TableGrids`, `rebuild_table_runtimes` → `rebuild_table_grids`, `SourceCodePanelRuntime` → `SourceCodePaneState`, field `image_runtime` → `image_handle`. "Runtime" no longer names editor state; it is reserved for background execution. |
 | Document serialization | `serialize_*` | planned: `to_markdown` → `serialize_markdown`, `to_raw_source` → `serialize_source_text`, `current_document_source` → `serialize_document_for_mode`, `markdown_line` → `serialize_markdown_line`. |
 

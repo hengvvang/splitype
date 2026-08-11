@@ -213,7 +213,7 @@ impl Block {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if !self.kind().is_task_list_item() || self.is_source_raw_mode() {
+        if !self.kind().is_task_list_item() || self.is_verbatim_mode() {
             return;
         }
 

@@ -122,8 +122,9 @@ pub struct Block {
     /// `rebuild_inline_projection`, and `clear_inline_projection`.
     pub(crate) cached_display_text: SharedString,
     pub(crate) collapsed_caret_affinity: CollapsedCaretAffinity,
-    /// When true, block-level shortcuts and inline formatting are
-    /// suppressed; the block stores raw text for source-mode editing.
+    /// Editing semantics of the block's text: rendered rich text or
+    /// verbatim source/code text (shortcuts and inline formatting
+    /// suppressed, delimiters stored as-is).
     pub(crate) edit_mode: BlockEditMode,
     show_source_line_numbers: bool,
     pub(crate) show_code_line_numbers: bool,
@@ -255,8 +256,8 @@ impl Block {
         self.record.kind.clone()
     }
 
-    pub(crate) fn is_source_raw_mode(&self) -> bool {
-        self.edit_mode == BlockEditMode::SourceRaw
+    pub(crate) fn is_verbatim_mode(&self) -> bool {
+        self.edit_mode == BlockEditMode::Verbatim
     }
 
     pub(crate) fn show_source_line_numbers(&self) -> bool {
@@ -285,18 +286,18 @@ impl Block {
         changed
     }
 
-    pub(crate) fn uses_raw_text_editing(&self) -> bool {
-        self.edit_mode.uses_raw_text_editing()
+    pub(crate) fn edits_verbatim_text(&self) -> bool {
+        self.edit_mode.edits_verbatim_text()
     }
 
-    pub(crate) fn set_source_raw_mode(&mut self) {
+    pub(crate) fn set_verbatim_mode(&mut self) {
         self.clear_inline_projection();
-        self.edit_mode = BlockEditMode::SourceRaw;
+        self.edit_mode = BlockEditMode::Verbatim;
         self.show_source_line_numbers = false;
     }
 
     pub(crate) fn set_source_document_mode(&mut self) {
-        self.set_source_raw_mode();
+        self.set_verbatim_mode();
         self.show_source_line_numbers = true;
     }
 
@@ -306,7 +307,7 @@ impl Block {
             self.show_source_line_numbers = false;
             return;
         }
-        if self.edit_mode != BlockEditMode::SourceRaw {
+        if self.edit_mode != BlockEditMode::Verbatim {
             if self.kind().is_code_block() {
                 self.clear_inline_projection();
             }
@@ -497,9 +498,9 @@ impl Block {
             return false;
         }
 
-        let selected_source = (!self.uses_raw_text_editing())
+        let selected_source = (!self.edits_verbatim_text())
             .then(|| self.display_range_to_source_range(self.selected_range.clone()));
-        let marked_source = (!self.uses_raw_text_editing())
+        let marked_source = (!self.edits_verbatim_text())
             .then(|| {
                 self.marked_range
                     .clone()
@@ -511,7 +512,7 @@ impl Block {
         let had_projection = self.projection.is_some();
 
         self.link_reference_definitions = link_reference_definitions;
-        if self.uses_raw_text_editing() {
+        if self.edits_verbatim_text() {
             return true;
         }
 
@@ -543,8 +544,7 @@ impl Block {
             }
         }
 
-        self.marked_range =
-            marked_source.map(|range| self.source_range_to_display_range(range));
+        self.marked_range = marked_source.map(|range| self.source_range_to_display_range(range));
 
         if had_projection {
             self.sync_inline_projection_for_focus(true);
@@ -557,9 +557,9 @@ impl Block {
             return false;
         }
 
-        let selected_source = (!self.uses_raw_text_editing())
+        let selected_source = (!self.edits_verbatim_text())
             .then(|| self.display_range_to_source_range(self.selected_range.clone()));
-        let marked_source = (!self.uses_raw_text_editing())
+        let marked_source = (!self.edits_verbatim_text())
             .then(|| {
                 self.marked_range
                     .clone()
@@ -571,7 +571,7 @@ impl Block {
         let had_projection = self.projection.is_some();
 
         self.footnote_registry = footnote_registry;
-        if self.uses_raw_text_editing() || !self.record.text.has_footnote_references() {
+        if self.edits_verbatim_text() || !self.record.text.has_footnote_references() {
             return true;
         }
 
@@ -611,8 +611,7 @@ impl Block {
             }
         }
 
-        self.marked_range =
-            marked_source.map(|range| self.source_range_to_display_range(range));
+        self.marked_range = marked_source.map(|range| self.source_range_to_display_range(range));
 
         if had_projection {
             self.sync_inline_projection_for_focus(true);
@@ -621,7 +620,7 @@ impl Block {
     }
 
     pub(crate) fn should_use_source_space_link_edit(&self) -> bool {
-        !self.uses_raw_text_editing() && self.record.text.has_source_preserving_links()
+        !self.edits_verbatim_text() && self.record.text.has_source_preserving_links()
     }
 
     pub(crate) fn apply_source_space_text_edit(
@@ -643,9 +642,9 @@ impl Block {
             &self.link_reference_definitions,
         );
         let map = next_text.source_offset_map();
-        let selected_source = selected_range_relative.as_ref().map(|relative| {
-            source_range.start + relative.start..source_range.start + relative.end
-        });
+        let selected_source = selected_range_relative
+            .as_ref()
+            .map(|relative| source_range.start + relative.start..source_range.start + relative.end);
         let cursor_source = selected_source
             .as_ref()
             .map(|range| range.end)
@@ -787,7 +786,7 @@ impl Block {
     ///
     /// Serializers later translate these flags back to markers on export.
     pub(crate) fn toggle_inline_format(&mut self, format: InlineFormat, cx: &mut Context<Self>) {
-        if self.selected_range.is_empty() || self.uses_raw_text_editing() {
+        if self.selected_range.is_empty() || self.edits_verbatim_text() {
             return;
         }
 

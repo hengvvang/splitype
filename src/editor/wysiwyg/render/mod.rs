@@ -957,8 +957,8 @@ impl Render for Block {
             return cell_base.relative().child(cell_wrapper).into_any_element();
         }
 
-        // Source-mode rendering: raw text with no formatting.
-        if self.is_source_raw_mode()
+        // Verbatim-mode rendering: raw text with no formatting.
+        if self.is_verbatim_mode()
             && (focused
                 || !matches!(
                     self.kind(),

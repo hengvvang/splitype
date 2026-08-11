@@ -239,7 +239,7 @@ impl Editor {
         block: &crate::editor::tree::block::Block,
         markdown: &str,
     ) -> RichText {
-        if block.uses_raw_text_editing() || block.kind().is_code_block() {
+        if block.edits_verbatim_text() || block.kind().is_code_block() {
             RichText::plain(markdown.to_string())
         } else {
             RichText::from_markdown(markdown)
@@ -362,7 +362,7 @@ impl Editor {
             == crate::editor::controller::EditorMode::Wysiwyg
             && block.read(cx).kind() == BlockKind::Paragraph
             && self.table_cell_binding(block.entity_id()).is_none()
-            && !block.read(cx).uses_raw_text_editing();
+            && !block.read(cx).edits_verbatim_text();
 
         if can_insert_image_block {
             self.insert_image_block_after_paragraph(&block, leading, &markdown, trailing, cx);

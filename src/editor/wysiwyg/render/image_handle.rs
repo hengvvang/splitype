@@ -87,6 +87,6 @@ impl Block {
     }
 
     pub(crate) fn showing_rendered_image(&self) -> bool {
-        self.image_runtime.is_some() && !self.is_source_raw_mode()
+        self.image_runtime.is_some() && !self.is_verbatim_mode()
     }
 }

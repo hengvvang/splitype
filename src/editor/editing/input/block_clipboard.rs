@@ -91,7 +91,7 @@ impl Block {
     }
 
     pub(crate) fn on_paste(&mut self, _: &Paste, window: &mut Window, cx: &mut Context<Self>) {
-        if self.kind().is_thematic_break() && !self.uses_raw_text_editing() {
+        if self.kind().is_thematic_break() && !self.edits_verbatim_text() {
             return;
         }
 
@@ -139,7 +139,7 @@ impl Block {
                 return;
             }
 
-            if self.uses_raw_text_editing() {
+            if self.edits_verbatim_text() {
                 self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
                 self.replace_text_in_range(None, &text, window, cx);
                 return;

@@ -409,7 +409,7 @@ impl RichText {
         self.normalize_fragments();
     }
 
-    pub fn remove_visible_prefix(&mut self, prefix_len: usize) {
+    pub fn remove_plain_prefix(&mut self, prefix_len: usize) {
         let (_, tail) = self.split_at(prefix_len);
         *self = tail;
     }
@@ -503,7 +503,7 @@ impl RichText {
         self.normalize_fragments();
     }
 
-    pub fn replace_visible_range_with_link_references(
+    pub fn replace_plain_range_with_link_references(
         &self,
         range: Range<usize>,
         new_text: &str,
@@ -531,10 +531,11 @@ impl RichText {
         temp.normalize_inline_syntax_with_link_references(reference_definitions)
     }
 
-    /// Like `replace_visible_range` but skips marker normalization so
-    /// that backticks, stars, and other delimiters are stored as-is.
-    /// Used for source-mode editing where the text must remain raw.
-    pub fn replace_visible_range_raw(
+    /// Like `replace_plain_range_with_link_references` but skips marker
+    /// normalization so that backticks, stars, and other delimiters are
+    /// stored as-is. Used for verbatim editing where the text must remain
+    /// source text.
+    pub fn replace_plain_range_verbatim(
         &self,
         range: Range<usize>,
         new_text: &str,

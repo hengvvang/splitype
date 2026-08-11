@@ -341,7 +341,7 @@ pub(crate) fn link_at_position<'a>(
     line_height: Pixels,
     position: Point<Pixels>,
 ) -> Option<&'a InlineLinkHit> {
-    if input.is_source_raw_mode()
+    if input.is_verbatim_mode()
         || input.display_text().is_empty()
         || lines.is_empty()
         || position.y < bounds.top()
@@ -380,7 +380,7 @@ pub(crate) fn footnote_at_position<'a>(
     line_height: Pixels,
     position: Point<Pixels>,
 ) -> Option<&'a InlineFootnoteHit> {
-    if input.is_source_raw_mode()
+    if input.is_verbatim_mode()
         || input.display_text().is_empty()
         || lines.is_empty()
         || position.y < bounds.top()

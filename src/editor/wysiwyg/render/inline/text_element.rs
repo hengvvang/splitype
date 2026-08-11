@@ -472,7 +472,7 @@ impl Element for BlockTextElement {
         let input = self.input.read(cx);
         let shared_text = input.shared_display_text();
         let is_placeholder = self.is_placeholder;
-        let show_inline_code_backgrounds = !input.is_source_raw_mode();
+        let show_inline_code_backgrounds = !input.is_verbatim_mode();
         let show_source_line_numbers = input.show_source_line_numbers();
         let source_line_count = source_line_count(shared_text.as_ref());
         let style = window.text_style();
@@ -595,7 +595,7 @@ impl Element for BlockTextElement {
         let cursor = input.cursor_offset();
         let line_height = window.line_height();
         let focused = input.focus_handle.is_focused(window);
-        let show_inline_code_backgrounds = !input.is_source_raw_mode();
+        let show_inline_code_backgrounds = !input.is_verbatim_mode();
         let show_source_line_numbers = input.show_source_line_numbers();
         let style = window.text_style();
         let font_size = style.font_size.to_pixels(window.rem_size());
@@ -753,7 +753,7 @@ impl Element for BlockTextElement {
             let input = self.input.read(cx);
             let text_bounds = source_text_bounds(bounds, prepaint.source_line_number_gutter_width);
             let hovering_link = !self.is_placeholder
-                && !input.is_source_raw_mode()
+                && !input.is_verbatim_mode()
                 && prepaint.hitbox.is_hovered(window)
                 && link_at_position(
                     input,

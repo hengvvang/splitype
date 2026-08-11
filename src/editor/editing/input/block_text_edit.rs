@@ -89,7 +89,7 @@ impl Block {
             return;
         }
 
-        if self.is_source_raw_mode() {
+        if self.is_verbatim_mode() {
             if !self.selected_range.is_empty() {
                 self.replace_text_in_range(None, "", window, cx);
             }
@@ -243,7 +243,7 @@ impl Block {
             return;
         }
 
-        if self.is_source_raw_mode() {
+        if self.is_verbatim_mode() {
             if self.selected_range.is_empty() {
                 self.select_to(self.previous_boundary(self.cursor_offset()), cx);
             }
@@ -333,7 +333,7 @@ impl Block {
             return;
         }
 
-        if self.is_source_raw_mode() {
+        if self.is_verbatim_mode() {
             if self.selected_range.is_empty() {
                 self.select_to(self.next_boundary(self.cursor_offset()), cx);
             }

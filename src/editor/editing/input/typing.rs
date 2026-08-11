@@ -347,7 +347,7 @@ impl Editor {
             if let Some((detected_kind, prefix_len)) =
                 BlockKind::detect_markdown_shortcut(&plain_text)
             {
-                text.remove_visible_prefix(prefix_len);
+                text.remove_plain_prefix(prefix_len);
                 return (detected_kind, text, cursor.saturating_sub(prefix_len));
             }
         }

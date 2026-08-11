@@ -308,7 +308,7 @@ impl Block {
     }
 
     pub(crate) fn display_range_to_source_range(&self, range: Range<usize>) -> Range<usize> {
-        if self.uses_raw_text_editing() || self.kind().is_code_block() {
+        if self.edits_verbatim_text() || self.kind().is_code_block() {
             return range.start.min(self.display_len())..range.end.min(self.display_len());
         }
 
@@ -360,7 +360,7 @@ impl Block {
     }
 
     pub(crate) fn source_range_to_display_range(&self, range: Range<usize>) -> Range<usize> {
-        if self.uses_raw_text_editing() || self.kind().is_code_block() {
+        if self.edits_verbatim_text() || self.kind().is_code_block() {
             let len = self.display_len();
             return range.start.min(len)..range.end.min(len);
         }
@@ -435,10 +435,10 @@ impl Block {
             return (self.kind(), next_text, cursor, 0);
         }
 
-        if !self.uses_raw_text_editing() && self.kind() == BlockKind::Paragraph {
+        if !self.edits_verbatim_text() && self.kind() == BlockKind::Paragraph {
             let plain_text = next_text.plain_text();
             if let Some((kind, prefix_len)) = BlockKind::detect_markdown_shortcut(&plain_text) {
-                next_text.remove_visible_prefix(prefix_len);
+                next_text.remove_plain_prefix(prefix_len);
                 return (
                     kind,
                     next_text,
@@ -448,12 +448,12 @@ impl Block {
             }
         }
 
-        if !self.uses_raw_text_editing() && self.kind() == BlockKind::BulletListItem {
+        if !self.edits_verbatim_text() && self.kind() == BlockKind::BulletListItem {
             let plain_text = next_text.plain_text();
             if let Some((checked, prefix_len)) =
                 BlockKind::parse_task_list_item_prefix(&plain_text)
             {
-                next_text.remove_visible_prefix(prefix_len);
+                next_text.remove_plain_prefix(prefix_len);
                 return (
                     BlockKind::TaskListItem { checked },
                     next_text,
@@ -565,7 +565,7 @@ impl Block {
             ..display_range.end - link_run.display_range.start;
         let local_display_text = self.display_text()[link_run.display_range.clone()].to_string();
         let local_tree = RichText::plain(local_display_text);
-        let local_result = local_tree.replace_visible_range_with_link_references(
+        let local_result = local_tree.replace_plain_range_with_link_references(
             local_visible_range.clone(),
             new_text,
             InlineInsertionAttributes::default(),
@@ -671,7 +671,7 @@ impl Block {
         &self,
         display_offset: usize,
     ) -> InlineInsertionAttributes {
-        if self.uses_raw_text_editing() {
+        if self.edits_verbatim_text() {
             return InlineInsertionAttributes::default();
         }
 
@@ -766,7 +766,7 @@ impl Block {
         &self,
         display_range: &Range<usize>,
     ) -> InlineInsertionAttributes {
-        if self.uses_raw_text_editing() {
+        if self.edits_verbatim_text() {
             return InlineInsertionAttributes::default();
         }
 
@@ -826,7 +826,7 @@ impl Block {
 
     pub(crate) fn collapsed_caret_inherits_inline_code_style(&self) -> bool {
         self.selected_range.is_empty()
-            && !self.uses_raw_text_editing()
+            && !self.edits_verbatim_text()
             && self
                 .insertion_attributes_for_display_offset(self.cursor_offset())
                 .style
@@ -1104,7 +1104,7 @@ impl Block {
         // a link's anchor text editable the same way in every block; reference and
         // autolink links stay on the markdown-space path below, which preserves
         // their original source spelling.
-        if !self.uses_raw_text_editing()
+        if !self.edits_verbatim_text()
             && let Some(link_run) = self
                 .projected_link_run_fully_covering_range(&display_range)
                 .filter(|run| !run.link.is_source_preserving())
@@ -1136,7 +1136,7 @@ impl Block {
         // inline tree from collapsed plain text, which no longer contains the
         // `[label](url)` markers and silently drops the link. Edit in markdown
         // space (as source-preserving links already do) so the link round-trips.
-        if !self.uses_raw_text_editing() && self.record.text.has_inline_links() {
+        if !self.edits_verbatim_text() && self.record.text.has_inline_links() {
             self.apply_source_space_text_edit(
                 display_range,
                 new_text,
@@ -1149,7 +1149,7 @@ impl Block {
 
         let plain_range = self.display_to_plain_range(display_range.clone());
         let mut base_text = self.record.text.clone();
-        let overlaps_delimiters = self.projection.is_some() && !self.uses_raw_text_editing();
+        let overlaps_delimiters = self.projection.is_some() && !self.edits_verbatim_text();
         if overlaps_delimiters {
             let touched_styles = self.projected_styles_touching_display_range(&display_range);
             if !touched_styles.is_empty() {
@@ -1159,14 +1159,14 @@ impl Block {
 
         let base_plain_len = base_text.plain_text().len();
         let replaced_text = self.display_text()[display_range.clone()].to_string();
-        let result = if self.uses_raw_text_editing() {
-            base_text.replace_visible_range_raw(
+        let result = if self.edits_verbatim_text() {
+            base_text.replace_plain_range_verbatim(
                 plain_range.clone(),
                 new_text,
                 InlineInsertionAttributes::default(),
             )
         } else {
-            base_text.replace_visible_range_with_link_references(
+            base_text.replace_plain_range_with_link_references(
                 plain_range.clone(),
                 new_text,
                 inserted_attributes,
@@ -1178,11 +1178,11 @@ impl Block {
         // leaving the plain text shorter than expected. Skip IME and deletions.
         let expected_plain_len =
             base_plain_len.saturating_sub(plain_range.len()) + new_text.len();
-        let caret_may_have_closed_span = !self.uses_raw_text_editing()
+        let caret_may_have_closed_span = !self.edits_verbatim_text()
             && !new_text.is_empty()
             && !mark_inserted_text
             && result.tree.plain_text().len() < expected_plain_len;
-        let quote_structure_edit = !self.uses_raw_text_editing()
+        let quote_structure_edit = !self.edits_verbatim_text()
             && self.quote_depth > 0
             && (new_text.contains('\n')
                 || replaced_text.contains('\n')
