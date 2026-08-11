@@ -1,0 +1,10 @@
+[alias]
+# Faster test runner with expression filters: `cargo t -E 'test(editor::tree)'`
+t = "nextest run"
+# Unit tests only (skips the four tests/ integration binaries)
+tl = "nextest run -E 'package(splitype)'"
+# Engine crates in isolation
+tm = "nextest run -E 'package(splitype-model)'"
+ts = "nextest run -E 'package(splitype-splitter)'"
+# Editor subsystem groups (after the editor::tests split)
+ted = "nextest run -E 'test(editor::tests)'"
