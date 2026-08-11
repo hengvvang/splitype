@@ -9,3 +9,4 @@ pub(crate) mod shell;
 pub mod window;
 pub mod window_area;
 pub(crate) mod window_chrome;
+pub(crate) mod window_panels;

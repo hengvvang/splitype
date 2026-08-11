@@ -118,15 +118,17 @@ impl Editor {
                 .update(cx, |this, cx| this.on_window_should_close(window, cx))
                 .unwrap_or(true)
         });
-        if self.panels.layout.active_area.is_some() {
-            if let Some(tab) = self
-                .session
-                .tab_list
-                .tabs
-                .get_mut(self.session.tab_list.active_tab)
-            {
-                tab.file.close_guard_installed = true;
-            }
+        // The guard callback is window-scoped and routes back to this
+        // editor, so the marker does not depend on the area-activation
+        // state (which is only pushed once the Shell renders — it is
+        // always false during window construction).
+        if let Some(tab) = self
+            .session
+            .tab_list
+            .tabs
+            .get_mut(self.session.tab_list.active_tab)
+        {
+            tab.file.close_guard_installed = true;
         }
     }
 
@@ -324,50 +326,72 @@ impl Render for Editor {
         // selection does not repaint.
         let follow_modifier_active = window.modifiers().secondary();
 
-        let base = div()
-            .w_full()
-            .h_full()
-            .flex()
-            .flex_col()
-            .relative()
-            .bg(theme.colors.editor_background)
-            .font(editor_text_font())
-            .on_modifiers_changed(move |event, window, _| {
-                if event.modifiers.secondary() != follow_modifier_active {
-                    window.refresh();
-                }
-            })
-            .capture_action(cx.listener(Self::on_copy_capture))
-            .capture_action(cx.listener(Self::on_cut_capture))
-            .capture_action(cx.listener(Self::on_delete_capture))
-            .capture_action(cx.listener(Self::on_delete_back_capture))
-            .capture_key_down(cx.listener(Self::on_editor_key_down_capture))
-            .on_action(cx.listener(Self::on_undo))
-            .on_action(cx.listener(Self::on_redo))
-            .on_action(cx.listener(Self::on_save_document))
-            .on_action(cx.listener(Self::on_save_document_as))
-            .on_action(cx.listener(Self::on_export_html))
-            .on_action(cx.listener(Self::on_export_pdf))
-            .on_action(cx.listener(Self::on_quit_application))
-            .on_action(cx.listener(Self::on_close_window))
-            .on_action(cx.listener(Self::on_toggle_view_mode_action))
-            .on_action(cx.listener(Self::on_toggle_explorer_action))
-            .on_action(cx.listener(Self::on_close_explorer_folder_action))
-            .on_action(cx.listener(Self::on_page_up))
-            .on_action(cx.listener(Self::on_page_down))
-            .on_action(cx.listener(Self::on_jump_to_top))
-            .on_action(cx.listener(Self::on_jump_to_bottom))
-            .on_action(cx.listener(Self::on_dismiss_transient_ui))
-            .on_action(cx.listener(Self::on_install_cli_tool))
-            .on_action(cx.listener(Self::on_uninstall_cli_tool));
-        let main_content = div()
-            .w_full()
-            .flex_1()
-            .min_h(px(0.0))
-            .flex()
-            .min_w(px(0.0))
-            .child(self.render_tiled_layout(&theme, &strings, window, cx));
-        let base = base.child(main_content);
+        let d = &theme.dimensions;
+        let c = &theme.colors;
+        let area_id = self.area_id;
+        // Pushed by the Shell every frame: how many areas the outer layout
+        // holds (maximize/close controls hide for a single area) and
+        // whether this tile is maximized.
+        let leaf_count = self.leaf_count;
+        let is_maximized = self.is_maximized;
+
+        // One Editor entity renders its own area tile: top bar, inner panel
+        // layout, and bottom status bar. The outer split tree (rendered by
+        // the Shell) embeds this tile as one leaf.
+        let base =
+            div()
+                .id(("editor-area-tile", area_id))
+                .w_full()
+                .h_full()
+                .flex()
+                .flex_col()
+                .relative()
+                .rounded(px(d.area_tile_radius))
+                .bg(c.dialog_surface)
+                .border(px(d.dialog_border_width))
+                .border_color(c.dialog_border)
+                .shadow_lg()
+                .font(editor_text_font())
+                .on_modifiers_changed(move |event, window, _| {
+                    if event.modifiers.secondary() != follow_modifier_active {
+                        window.refresh();
+                    }
+                })
+                .capture_action(cx.listener(Self::on_copy_capture))
+                .capture_action(cx.listener(Self::on_cut_capture))
+                .capture_action(cx.listener(Self::on_delete_capture))
+                .capture_action(cx.listener(Self::on_delete_back_capture))
+                .capture_key_down(cx.listener(Self::on_editor_key_down_capture))
+                .on_action(cx.listener(Self::on_undo))
+                .on_action(cx.listener(Self::on_redo))
+                .on_action(cx.listener(Self::on_save_document))
+                .on_action(cx.listener(Self::on_save_document_as))
+                .on_action(cx.listener(Self::on_export_html))
+                .on_action(cx.listener(Self::on_export_pdf))
+                .on_action(cx.listener(Self::on_quit_application))
+                .on_action(cx.listener(Self::on_close_window))
+                .on_action(cx.listener(Self::on_toggle_view_mode_action))
+                .on_action(cx.listener(Self::on_page_up))
+                .on_action(cx.listener(Self::on_page_down))
+                .on_action(cx.listener(Self::on_jump_to_top))
+                .on_action(cx.listener(Self::on_jump_to_bottom))
+                .on_action(cx.listener(Self::on_dismiss_transient_ui))
+                .on_action(cx.listener(Self::on_install_cli_tool))
+                .on_action(cx.listener(Self::on_uninstall_cli_tool))
+                .child(self.render_editor_topbar(
+                    area_id,
+                    WindowAreaKind::Editor,
+                    &theme,
+                    leaf_count,
+                    is_maximized,
+                    cx,
+                ))
+                .child(
+                    div().w_full().flex_1().min_h(px(0.0)).relative().child(
+                        self.render_editor_midcontainer(area_id, &theme, &strings, window, cx),
+                    ),
+                )
+                .child(self.render_editor_bottombar(area_id, &theme, &strings, cx));
         let base = if let Some(context_menu) = self.render_context_menu_overlay(&theme, cx) {
             base.child(context_menu)
         } else {
@@ -730,7 +754,9 @@ impl Editor {
                 // Dropping into this editor activates it and routes the
                 // replace flow to ITS tab set.
                 this.with_current_tab_area(area_id, |this| {
-                    this.panels.layout.activate_area(area_id);
+                    if let Some(shell) = this.shell.clone() {
+                        let _ = shell.update(cx, |shell, cx| shell.activate_area(area_id, cx));
+                    }
                     this.on_external_paths_drop(paths, window, cx);
                 });
             }))
@@ -748,7 +774,9 @@ impl Editor {
                 MouseButton::Left,
                 cx.listener(move |this, event, window, cx| {
                     this.with_current_tab_area(area_id, |this| {
-                        this.panels.layout.activate_area(area_id);
+                        if let Some(shell) = this.shell.clone() {
+                            let _ = shell.update(cx, |shell, cx| shell.activate_area(area_id, cx));
+                        }
                         this.on_editor_mouse_down(event, window, cx);
                     });
                 }),
@@ -789,7 +817,9 @@ impl Editor {
                 MouseButton::Right,
                 cx.listener(move |this, event, window, cx| {
                     this.with_current_tab_area(area_id, |this| {
-                        this.panels.layout.activate_area(area_id);
+                        if let Some(shell) = this.shell.clone() {
+                            let _ = shell.update(cx, |shell, cx| shell.activate_area(area_id, cx));
+                        }
                         this.on_editor_context_menu_mouse_down(event, window, cx);
                     });
                 }),
@@ -838,7 +868,10 @@ impl Editor {
                         let _ = scrollbar_editor.update(cx, |editor, cx| {
                             cx.stop_propagation();
                             editor.with_current_tab_area(area_id, |editor| {
-                                editor.panels.layout.activate_area(area_id);
+                                if let Some(shell) = editor.shell.clone() {
+                                    let _ = shell
+                                        .update(cx, |shell, cx| shell.activate_area(area_id, cx));
+                                }
                                 editor.start_scrollbar_drag(
                                     pointer_offset_y,
                                     track_height,
@@ -935,7 +968,10 @@ impl Editor {
                 row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
                     let _ = row_editor.update(cx, |editor, cx| {
                         editor.with_current_tab_area(area_id, |editor| {
-                            editor.panels.layout.activate_area(area_id);
+                            if let Some(shell) = editor.shell.clone() {
+                                let _ =
+                                    shell.update(cx, |shell, cx| shell.activate_area(area_id, cx));
+                            }
                             editor.on_block_context_menu_mouse_down(entity_id, event, window, cx);
                         });
                     });

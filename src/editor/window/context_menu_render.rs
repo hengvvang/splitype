@@ -3,7 +3,7 @@
 
 use crate::ui::button::{primary_button, secondary_button};
 use crate::ui::dialog::dialog_card;
-use crate::ui::menu_item::{menu_item, menu_item_row};
+use crate::ui::menu_item::menu_item;
 use crate::ui::popover::menu_panel;
 use crate::ui::popover::overlay;
 
@@ -70,6 +70,12 @@ impl Editor {
         let d = &theme.dimensions;
         let t = &theme.typography;
         let s = cx.global::<I18nManager>().strings().clone();
+        // Mouse positions arrive in window coordinates, but this editor's
+        // overlays position inside its own tile (which starts at
+        // `area_rect.origin`); translate once, and paint the menu in a
+        // deferred layer so panels at tile edges escape the split
+        // containers' overflow clipping.
+        let origin = self.area_rect.map(|rect| rect.origin).unwrap_or_default();
 
         match menu {
             ContextMenuState::Insert {
@@ -77,8 +83,8 @@ impl Editor {
                 submenu_open,
                 ..
             } => {
-                let panel_x = position.x;
-                let panel_y = position.y;
+                let panel_x = position.x - origin.x;
+                let panel_y = position.y - origin.y;
                 let panel_width = px(d.context_menu_panel_width);
 
                 let submenu = submenu_open.then(|| {
@@ -141,16 +147,21 @@ impl Editor {
                             ),
                     );
 
-                Some(if let Some(submenu) = submenu {
-                    overlay.child(submenu).into_any_element()
-                } else {
-                    overlay.into_any_element()
-                })
+                Some(
+                    deferred(if let Some(submenu) = submenu {
+                        overlay.child(submenu).into_any_element()
+                    } else {
+                        overlay.into_any_element()
+                    })
+                    .into_any_element(),
+                )
             }
             ContextMenuState::TableAxis {
                 position,
                 selection,
             } => {
+                let panel_x = position.x - origin.x;
+                let panel_y = position.y - origin.y;
                 let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
                     return None;
                 };
@@ -367,415 +378,38 @@ impl Editor {
                 };
 
                 Some(
-                    overlay()
-                        .id("table-axis-context-menu-overlay")
-                        .occlude()
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(Self::on_dismiss_context_menu_overlay),
-                        )
-                        .child(
-                            div()
-                                .id("table-axis-context-menu-panel")
-                                .absolute()
-                                .left(position.x)
-                                .top(position.y)
-                                .w(px(d.context_menu_axis_panel_width))
-                                .p(px(d.menu_panel_padding))
-                                .flex()
-                                .flex_col()
-                                .gap(px(d.menu_panel_gap))
-                                .bg(c.dialog_surface)
-                                .border(px(d.dialog_border_width))
-                                .border_color(c.dialog_border)
-                                .rounded(px(d.menu_panel_radius))
-                                .shadow_lg()
-                                .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
-                                    cx.stop_propagation()
-                                })
-                                .children(items),
-                        )
-                        .into_any_element(),
-                )
-            }
-            ContextMenuState::ExplorerFile {
-                position,
-                path,
-                is_dir,
-            } => {
-                let panel_x = position.x;
-                let panel_y = position.y;
-                let path = path.clone();
-                let is_dir = *is_dir;
-                let strings = cx.global::<I18nManager>().strings().clone();
-                let is_root = self
-                    .panels
-                    .explorer
-                    .trees_cache
-                    .iter()
-                    .any(|tree| tree.path == path);
-                let can_undo = self.panels.explorer.undo_history.can_undo();
-                let can_redo = self.panels.explorer.undo_history.can_redo();
-                let has_pasteable = self.panels.explorer.clipboard.is_some();
-                let entry_id = self.explorer_id_for_path(&path);
-
-                // Build a menu row: label only (no icons, no keybindings —
-                // matching Zed's context menu), optionally disabled, with a
-                // danger variant for destructive actions.
-                let make_item = |id: &'static str,
-                                 label: String,
-                                 color: Hsla,
-                                 enabled: bool,
-                                 editor: WeakEntity<Editor>,
-                                 handler: Box<
-                    dyn Fn(&mut Editor, &mut Window, &mut Context<Editor>) + 'static,
-                >|
-                 -> AnyElement {
-                    if enabled {
-                        menu_item(id, c, d)
-                            .gap(px(8.0))
+                    deferred(
+                        overlay()
+                            .id("table-axis-context-menu-overlay")
+                            .occlude()
+                            .on_mouse_down(
+                                MouseButton::Left,
+                                cx.listener(Self::on_dismiss_context_menu_overlay),
+                            )
                             .child(
                                 div()
-                                    .text_size(px(t.text_size * 0.8))
-                                    .text_color(color)
-                                    .child(label),
+                                    .id("table-axis-context-menu-panel")
+                                    .absolute()
+                                    .left(panel_x)
+                                    .top(panel_y)
+                                    .w(px(d.context_menu_axis_panel_width))
+                                    .p(px(d.menu_panel_padding))
+                                    .flex()
+                                    .flex_col()
+                                    .gap(px(d.menu_panel_gap))
+                                    .bg(c.dialog_surface)
+                                    .border(px(d.dialog_border_width))
+                                    .border_color(c.dialog_border)
+                                    .rounded(px(d.menu_panel_radius))
+                                    .shadow_lg()
+                                    .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
+                                        cx.stop_propagation()
+                                    })
+                                    .children(items),
                             )
-                            .on_mouse_down(MouseButton::Left, move |_ev, window, cx| {
-                                let handler = &handler;
-                                let _ = editor.update(cx, move |ed, cx| {
-                                    handler(ed, window, cx);
-                                });
-                                cx.stop_propagation();
-                            })
-                            .into_any_element()
-                    } else {
-                        menu_item_row(c, d)
-                            .gap(px(8.0))
-                            .child(
-                                div()
-                                    .text_size(px(t.text_size * 0.8))
-                                    .text_color(c.dialog_muted)
-                                    .child(label),
-                            )
-                            .into_any_element()
-                    }
-                };
-                let separator = || {
-                    div()
-                        .mx(px(d.menu_separator_margin_x))
-                        .my(px(d.menu_separator_margin_y))
-                        .h(px(d.menu_separator_height))
-                        .bg(c.dialog_border)
-                        .into_any_element()
-                };
-
-                let mut items = Vec::new();
-
-                // New File / New Folder (directories only).
-                if is_dir {
-                    let p = path.clone();
-                    items.push(make_item(
-                        "ws-ctx-new-file",
-                        strings.explorer_new_file.clone(),
-                        c.text_default,
-                        true,
-                        cx.entity().downgrade(),
-                        Box::new(move |ed, window, cx| {
-                            let p = p.clone();
-                            ed.dismiss_contextual_overlays(cx);
-                            ed.start_inline_create_file(p, window, cx);
-                        }),
-                    ));
-                    let p = path.clone();
-                    items.push(make_item(
-                        "ws-ctx-new-folder",
-                        strings.explorer_new_folder.clone(),
-                        c.text_default,
-                        true,
-                        cx.entity().downgrade(),
-                        Box::new(move |ed, window, cx| {
-                            let p = p.clone();
-                            ed.dismiss_contextual_overlays(cx);
-                            ed.start_inline_create_folder(p, window, cx);
-                        }),
-                    ));
-                    items.push(separator());
-                }
-
-                // Reveal / Open with system / Open in terminal.
-                let p = path.clone();
-                items.push(make_item(
-                    "ws-ctx-reveal",
-                    strings.explorer_reveal_in_file_manager.clone(),
-                    c.text_default,
-                    true,
-                    cx.entity().downgrade(),
-                    Box::new(move |ed, _window, cx| {
-                        let p = p.clone();
-                        ed.dismiss_contextual_overlays(cx);
-                        ed.reveal_in_file_explorer(&p);
-                    }),
-                ));
-                let p = path.clone();
-                items.push(make_item(
-                    "ws-ctx-open-default",
-                    strings.explorer_open_in_default_app.clone(),
-                    c.text_default,
-                    true,
-                    cx.entity().downgrade(),
-                    Box::new(move |ed, _window, cx| {
-                        let p = p.clone();
-                        ed.dismiss_contextual_overlays(cx);
-                        ed.open_explorer_with_system(&p);
-                    }),
-                ));
-                items.push(separator());
-
-                // Cut / Copy / Duplicate / Paste (paste disabled without
-                // clipboard content), then Undo / Redo (disabled when the
-                // corresponding stack is empty) — matching Zed's order.
-                items.push(make_item(
-                    "ws-ctx-cut",
-                    strings.explorer_cut.clone(),
-                    c.text_default,
-                    true,
-                    cx.entity().downgrade(),
-                    Box::new(|ed, _window, cx| {
-                        ed.dismiss_contextual_overlays(cx);
-                        ed.explorer_cut(cx);
-                    }),
-                ));
-                items.push(make_item(
-                    "ws-ctx-copy",
-                    strings.explorer_copy.clone(),
-                    c.text_default,
-                    true,
-                    cx.entity().downgrade(),
-                    Box::new(|ed, _window, cx| {
-                        ed.dismiss_contextual_overlays(cx);
-                        ed.explorer_copy(cx);
-                    }),
-                ));
-                items.push(make_item(
-                    "ws-ctx-duplicate",
-                    strings.explorer_duplicate.clone(),
-                    c.text_default,
-                    true,
-                    cx.entity().downgrade(),
-                    Box::new(|ed, window, cx| {
-                        ed.dismiss_contextual_overlays(cx);
-                        ed.explorer_duplicate(window, cx);
-                    }),
-                ));
-                items.push(make_item(
-                    "ws-ctx-paste",
-                    strings.explorer_paste.clone(),
-                    c.text_default,
-                    has_pasteable,
-                    cx.entity().downgrade(),
-                    Box::new(|ed, window, cx| {
-                        ed.dismiss_contextual_overlays(cx);
-                        ed.explorer_paste(window, cx);
-                    }),
-                ));
-                items.push(make_item(
-                    "ws-ctx-undo",
-                    strings.explorer_undo.clone(),
-                    c.text_default,
-                    can_undo,
-                    cx.entity().downgrade(),
-                    Box::new(|ed, window, cx| {
-                        ed.dismiss_contextual_overlays(cx);
-                        ed.explorer_undo(window, cx);
-                    }),
-                ));
-                items.push(make_item(
-                    "ws-ctx-redo",
-                    strings.explorer_redo.clone(),
-                    c.text_default,
-                    can_redo,
-                    cx.entity().downgrade(),
-                    Box::new(|ed, window, cx| {
-                        ed.dismiss_contextual_overlays(cx);
-                        ed.explorer_redo(window, cx);
-                    }),
-                ));
-                items.push(separator());
-
-                // Copy Path / Copy Relative Path.
-                let p = path.clone();
-                items.push(make_item(
-                    "ws-ctx-copy-path",
-                    strings.explorer_copy_path.clone(),
-                    c.text_default,
-                    true,
-                    cx.entity().downgrade(),
-                    Box::new(move |ed, _window, cx| {
-                        let p = p.clone();
-                        ed.dismiss_contextual_overlays(cx);
-                        ed.copy_path_to_clipboard(&p, cx);
-                    }),
-                ));
-                let p = path.clone();
-                items.push(make_item(
-                    "ws-ctx-copy-relative-path",
-                    strings.explorer_copy_relative_path.clone(),
-                    c.text_default,
-                    true,
-                    cx.entity().downgrade(),
-                    Box::new(move |ed, _window, cx| {
-                        let p = p.clone();
-                        ed.dismiss_contextual_overlays(cx);
-                        ed.copy_explorer_relative_path(&p, cx);
-                    }),
-                ));
-
-                // Rename (hidden for the root, mirroring Zed) and Delete.
-                if !is_root {
-                    items.push(separator());
-                    let p = path.clone();
-                    items.push(make_item(
-                        "ws-ctx-rename",
-                        strings.explorer_rename.clone(),
-                        c.text_default,
-                        true,
-                        cx.entity().downgrade(),
-                        Box::new(move |ed, window, cx| {
-                            let p = p.clone();
-                            ed.dismiss_contextual_overlays(cx);
-                            ed.start_inline_rename(p, window, cx);
-                        }),
-                    ));
-                    items.push(make_item(
-                        "ws-ctx-trash",
-                        strings.explorer_trash.clone(),
-                        c.text_default,
-                        true,
-                        cx.entity().downgrade(),
-                        Box::new(|ed, window, cx| {
-                            ed.dismiss_contextual_overlays(cx);
-                            ed.trash_explorer_selections(window, cx);
-                        }),
-                    ));
-                    items.push(make_item(
-                        "ws-ctx-delete",
-                        strings.explorer_delete.clone(),
-                        c.dialog_danger_button_bg,
-                        true,
-                        cx.entity().downgrade(),
-                        Box::new(|ed, window, cx| {
-                            ed.dismiss_contextual_overlays(cx);
-                            ed.delete_explorer_selections(window, cx);
-                        }),
-                    ));
-                } else {
-                    // Worktree roots: add another folder to the explorer or
-                    // remove this one (mirrors Zed's "Add Folders to
-                    // Project…" / "Remove from Project").
-                    items.push(separator());
-                    items.push(make_item(
-                        "ws-ctx-add-folder",
-                        strings.explorer_add_folder.clone(),
-                        c.text_default,
-                        true,
-                        cx.entity().downgrade(),
-                        Box::new(|ed, window, cx| {
-                            ed.dismiss_contextual_overlays(cx);
-                            ed.prompt_open_explorer_folder(window, cx);
-                        }),
-                    ));
-                    items.push(make_item(
-                        "ws-ctx-remove-folder",
-                        strings.explorer_remove_folder.clone(),
-                        c.text_default,
-                        true,
-                        cx.entity().downgrade(),
-                        Box::new(move |ed, _window, cx| {
-                            let p = path.clone();
-                            ed.dismiss_contextual_overlays(cx);
-                            if let Some(index) = ed
-                                .panels
-                                .explorer
-                                .worktrees
-                                .iter()
-                                .position(|worktree| worktree.read(cx).root() == p.as_path())
-                            {
-                                ed.remove_explorer_worktree(index, cx);
-                            }
-                        }),
-                    ));
-                }
-
-                // Expand All / Collapse All (directories; root uses the
-                // whole-tree variants, mirroring Zed).
-                if is_dir {
-                    items.push(separator());
-                    let entry_id = entry_id;
-                    items.push(make_item(
-                        "ws-ctx-expand-all",
-                        strings.explorer_expand_all.clone(),
-                        c.text_default,
-                        true,
-                        cx.entity().downgrade(),
-                        Box::new(move |ed, _window, cx| {
-                            ed.dismiss_contextual_overlays(cx);
-                            match entry_id {
-                                Some((_, id)) if !is_root => {
-                                    ed.expand_all_explorer_for_entry(id, cx);
-                                }
-                                _ => ed.expand_all_explorer_nodes(cx),
-                            }
-                        }),
-                    ));
-                    let entry_id = entry_id;
-                    items.push(make_item(
-                        "ws-ctx-collapse-all",
-                        strings.explorer_collapse_all.clone(),
-                        c.text_default,
-                        true,
-                        cx.entity().downgrade(),
-                        Box::new(move |ed, _window, cx| {
-                            ed.dismiss_contextual_overlays(cx);
-                            match entry_id {
-                                Some((_, id)) if !is_root => {
-                                    ed.collapse_all_explorer_for_entry(id, cx);
-                                }
-                                _ => ed.collapse_all_explorer_nodes(cx),
-                            }
-                        }),
-                    ));
-                }
-
-                Some(
-                    overlay()
-                        .id("explorer-file-context-menu-overlay")
-                        .occlude()
-                        .on_mouse_down(
-                            MouseButton::Left,
-                            cx.listener(Self::on_dismiss_context_menu_overlay),
-                        )
-                        .child(
-                            div()
-                                .id("explorer-file-context-menu-panel")
-                                .absolute()
-                                .left(panel_x)
-                                .top(panel_y)
-                                .w(px(250.0))
-                                .p(px(d.menu_panel_padding))
-                                .flex()
-                                .flex_col()
-                                .gap(px(2.0))
-                                .bg(c.dialog_surface)
-                                .border(px(d.dialog_border_width))
-                                .border_color(c.dialog_border)
-                                .rounded(px(d.menu_panel_radius))
-                                .shadow_lg()
-                                .on_mouse_down(MouseButton::Left, |_ev, _window, cx| {
-                                    cx.stop_propagation()
-                                })
-                                .children(items),
-                        )
-                        .into_any_element(),
+                            .into_any_element(),
+                    )
+                    .into_any_element(),
                 )
             }
         }

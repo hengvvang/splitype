@@ -21,6 +21,7 @@ pub(crate) use crate::app::window_area::DEFAULT_EDITOR_AREA_ID;
 pub(crate) use crate::app::window_area::EditorAreaMode;
 pub(crate) use crate::app::window_area::WindowAreaKind;
 pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
+pub(crate) use crate::editor::outline::state::OutlinePanelState;
 pub(crate) use crate::editor::session::{
     EditingPanelKind, EditorInnerPanelKind, EditorSession, EditorTabList, InnerPanelLocation,
     WelcomePanelKind,
@@ -32,7 +33,6 @@ pub(crate) use crate::editor::tree::footnotes::{
 };
 pub(crate) use crate::editor::window::context_menu::ContextMenuState;
 pub(crate) use crate::editor::window::dialogs::TableInsertDialogState;
-pub(crate) use crate::editor::window_layout::WindowPanels;
 pub(crate) use crate::editor::{PreviewState, SourceCodePanelRuntime};
 pub(crate) use crate::model::block::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::model::inline::text::RichText;
@@ -214,6 +214,24 @@ pub struct Editor {
     /// This editor area's session: its document tabs and inner panel split
     /// root. One Editor entity owns exactly one session.
     pub(crate) session: EditorSession,
+    /// The area's rectangle in window coordinates, pushed by the Shell on
+    /// every layout change (the Shell owns the outer layout tree). Used by
+    /// inner-panel rendering and drag gestures to translate pointer
+    /// positions into the area's local space.
+    pub(crate) area_rect: Option<Bounds<Pixels>>,
+    /// Whether this area is the window's active editor (the target for
+    /// explorer file opens). Pushed by the Shell alongside `area_rect`.
+    pub(crate) is_active_area: bool,
+    /// Whether this area's tile is maximized in the outer layout. Pushed
+    /// by the Shell alongside `area_rect`.
+    pub(crate) is_maximized: bool,
+    /// How many areas the window's outer layout currently has; the top bar
+    /// hides the maximize/close controls when only one area exists. Pushed
+    /// by the Shell alongside `area_rect`.
+    pub(crate) leaf_count: usize,
+    /// This editor's outline panel state (heading tree of its own active
+    /// document). Synced during render from the active tab.
+    pub(crate) outline: OutlinePanelState,
     /// Rendered-mode context menu currently open in the editor.
     pub(crate) context_menu: Option<ContextMenuState>,
     pub(crate) context_menu_submenu_close_task: Option<Task<()>>,
@@ -228,10 +246,6 @@ pub struct Editor {
     /// closures) every frame, so the timestamp must live in editor state
     /// rather than in a click-handler closure.
     pub(crate) welcome_last_click: Option<Instant>,
-    /// Window-level panel state (outer layout, explorer, outline, settings).
-    /// Owned here for now; the Shell entity delegates rendering to this
-    /// editor and reads this state incrementally.
-    pub(crate) panels: WindowPanels,
     /// Currently focused inner panel — the status-bar action target.
     pub(crate) focused_editor_inner_panel: Option<InnerPanelLocation>,
     /// Per-SourceCode-panel editing runtimes (keyed by the globally unique
@@ -408,21 +422,24 @@ impl Editor {
         session: EditorSession,
         _cx: &mut Context<Self>,
     ) -> Self {
-        let mut this = Self {
+        let this = Self {
             area_id,
             shell: None,
             session,
+            area_rect: None,
+            is_active_area: false,
+            is_maximized: false,
+            leaf_count: 1,
+            outline: OutlinePanelState::default(),
             context_menu: None,
             context_menu_submenu_close_task: None,
             table_insert_dialog: None,
             info_dialog: None,
             update_check_in_progress: false,
             welcome_last_click: None,
-            panels: WindowPanels::default(),
             focused_editor_inner_panel: None,
             source_code_panel_runtimes: HashMap::new(),
         };
-        this.panels.layout.activate_area(area_id);
         this
     }
 
@@ -442,19 +459,22 @@ impl Editor {
             area_id: DEFAULT_EDITOR_AREA_ID,
             shell: None,
             session: EditorSession::welcome(),
+            area_rect: None,
+            is_active_area: false,
+            is_maximized: false,
+            leaf_count: 1,
+            outline: OutlinePanelState::default(),
             context_menu: None,
             context_menu_submenu_close_task: None,
             table_insert_dialog: None,
             info_dialog: None,
             update_check_in_progress: false,
             welcome_last_click: None,
-            panels: WindowPanels::default(),
             focused_editor_inner_panel: None,
             source_code_panel_runtimes: HashMap::new(),
         };
         editor.session.tab_list.tabs.push(tab);
         editor.enter_editing(DEFAULT_EDITOR_AREA_ID);
-        editor.panels.layout.activate_area(DEFAULT_EDITOR_AREA_ID);
         editor.rebuild_table_runtimes(cx);
         editor.rebuild_image_runtimes(cx);
         editor.refresh_preview_blocks(cx);
@@ -580,14 +600,8 @@ impl Editor {
         crate::app::menus::record_recent_file_from_editor(path, cx);
     }
 
-    /// Whether `area_id` currently holds an Editor kind. Host-side
-    /// taxonomy: the splitter engine stays kind-agnostic, so the host
-    /// answers this question with its own kind enum.
-    pub(crate) fn is_editor_window_area(&self, area_id: NodeId) -> bool {
-        self.panels.layout.tree.find_leaf_kind(area_id) == Some(WindowAreaKind::Editor)
-    }
-
-    /// Opens a file in the ACTIVE editor's tab bar. Returns `false` when no
+    /// Opens a file in the ACTIVE editor's tab bar, routed through the
+    /// Shell (which owns the area layout). Returns `false` when no active
     /// Editor area exists (the caller decides how to handle that case).
     pub(crate) fn open_file_in_active_editor(
         &mut self,
@@ -595,16 +609,14 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        // The engine's active-area tracking is kind-agnostic; only an
-        // Editor area can receive a file (host-owned invariant).
-        if let Some(area) = self.panels.layout.active_area
-            && self.is_editor_window_area(area)
-        {
-            self.open_file_in_area(area, path, window, cx);
-            true
-        } else {
-            false
-        }
+        let Some(shell) = self.shell.clone() else {
+            return false;
+        };
+        shell
+            .update(cx, |shell, cx| {
+                shell.open_file_in_active_editor(path, window, cx)
+            })
+            .unwrap_or(false)
     }
 
     /// Opens a fresh untitled tab in the given Editor area.
@@ -696,7 +708,9 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.focused_editor_inner_panel = Some(InnerPanelLocation { area_id, panel_id });
-        self.panels.layout.activate_area(area_id);
+        if let Some(shell) = self.shell.clone() {
+            let _ = shell.update(cx, |shell, cx| shell.activate_area(area_id, cx));
+        }
         self.with_current_tab_area(area_id, |editor| {
             let kind = editor.session.root.tree.find_leaf_kind(panel_id);
             match kind {
@@ -818,17 +832,6 @@ impl Editor {
     /// (tab list re-materialized from its serialized document, inner panel
     /// layout cloned with fresh local ids); `false` leaves the new editor
     /// blank. Returns the new area's id.
-    pub(crate) fn split_area(
-        &mut self,
-        area_id: NodeId,
-        direction: crate::splitter::Axis,
-        ratio: f32,
-        copy_content: bool,
-        cx: &mut Context<Self>,
-    ) -> Option<NodeId> {
-        self.split_window_area(area_id, direction, ratio, copy_content, cx)
-    }
-
     /// Deep-copy this editor's session for a fresh sibling area: the inner
     /// panel tree gets fresh ids from the area-local space (root leaf 1
     /// plus a fresh local pool), and every tab is re-materialized from its

@@ -1,8 +1,12 @@
 //! Outline panel — heading tree navigation.
+//!
+//! The outline is an Editor inner panel: its state lives on each Editor
+//! entity (derived from that editor's own active document), so every area's
+//! Outline panel shows its own document's headings.
 
 use gpui::*;
 
-use crate::editor::controller::*;
+use crate::editor::controller::Editor;
 use crate::editor::explorer_state::state::{
     EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, stable_node_hash,
 };
@@ -13,21 +17,23 @@ use crate::infra::theme::Theme;
 use crate::ui::empty_state::empty_state_container;
 
 impl Editor {
-    pub(crate) fn sync_explorer_outline(&mut self, cx: &mut Context<Self>) {
+    /// Rebuilds this editor's outline tree from its own active document
+    /// when the serialized source changed.
+    pub(crate) fn sync_editor_outline(&mut self, cx: &mut Context<Self>) {
         let Some(source) = self.active_editor_serialized_text(cx) else {
             return;
         };
-        if self.panels.outline.source.as_deref() == Some(source.as_str()) {
+        if self.outline.source.as_deref() == Some(source.as_str()) {
             return;
         }
 
         let outline = build_outline_tree(&source);
-        prune_outline_state(&mut self.panels.outline, &outline);
-        self.panels.outline.tree = outline;
-        self.panels.outline.source = Some(source);
+        prune_outline_state(&mut self.outline, &outline);
+        self.outline.tree = outline;
+        self.outline.source = Some(source);
     }
     pub(crate) fn select_outline_node(&mut self, id: String, cx: &mut Context<Self>) {
-        self.panels.outline.selected = Some(id);
+        self.outline.selected = Some(id);
         cx.notify();
     }
     pub(crate) fn render_outline_tree(
@@ -37,7 +43,7 @@ impl Editor {
         strings: &I18nStrings,
         editor: &WeakEntity<Editor>,
     ) -> AnyElement {
-        if self.panels.outline.tree.is_empty() {
+        if self.outline.tree.is_empty() {
             return self.render_outline_empty_state(theme, strings);
         }
 
@@ -45,13 +51,7 @@ impl Editor {
             .w_full()
             .flex()
             .flex_col()
-            .children(self.render_outline_nodes(
-                &self.panels.outline.tree,
-                0,
-                area_id,
-                theme,
-                editor,
-            ))
+            .children(self.render_outline_nodes(&self.outline.tree, 0, area_id, theme, editor))
             .into_any_element()
     }
 
@@ -93,14 +93,14 @@ impl Editor {
         strings: &I18nStrings,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        self.sync_explorer_models(cx);
+        self.sync_editor_outline(cx);
         let editor = cx.entity().downgrade();
         self.render_outline_tree(area_id, theme, strings, &editor)
     }
 
     pub(crate) fn toggle_outline_node(&mut self, id: &str, cx: &mut Context<Self>) {
-        if !self.panels.outline.expanded.remove(id) {
-            self.panels.outline.expanded.insert(id.to_string());
+        if !self.outline.expanded.remove(id) {
+            self.outline.expanded.insert(id.to_string());
         }
         cx.notify();
     }
@@ -118,7 +118,7 @@ impl Editor {
         let mut elements = Vec::new();
         for node in nodes {
             elements.push(self.render_outline_node(node, depth, area_id, theme, editor));
-            if !node.children.is_empty() && self.panels.outline.expanded.contains(&node.id) {
+            if !node.children.is_empty() && self.outline.expanded.contains(&node.id) {
                 elements.extend(self.render_outline_nodes(
                     &node.children,
                     depth + 1,
@@ -140,9 +140,9 @@ impl Editor {
     ) -> AnyElement {
         let c = &theme.colors;
         let t = &theme.typography;
-        let is_expanded = self.panels.outline.expanded.contains(&node.id);
+        let is_expanded = self.outline.expanded.contains(&node.id);
         let has_children = !node.children.is_empty();
-        let selected = matches!(&self.panels.outline.selected, Some(id) if id == &node.id);
+        let selected = matches!(&self.outline.selected, Some(id) if id == &node.id);
         let node_id = node.id.clone();
         let click_editor = editor.clone();
         let click_kind = node.kind.clone();

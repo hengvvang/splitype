@@ -272,11 +272,17 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
         install_menus(cx);
     } else if action.as_any().is::<ToggleExplorer>() {
         let _ = with_active_editor(cx, |editor, window, cx| {
-            editor.toggle_explorer_drawer(window, cx);
+            if let Some(shell) = editor.shell.clone() {
+                let _ = shell.update(cx, |shell, cx| {
+                    shell.toggle_explorer_drawer(window, cx);
+                });
+            }
         });
     } else if action.as_any().is::<CloseExplorerFolder>() {
         let _ = with_active_editor(cx, |editor, _window, cx| {
-            editor.close_explorer_folder(cx);
+            if let Some(shell) = editor.shell.clone() {
+                let _ = shell.update(cx, |shell, cx| shell.close_explorer_folder(cx));
+            }
         });
     } else if action.as_any().is::<QuitApplication>() {
         request_quit_application(cx);
@@ -378,11 +384,17 @@ pub(crate) fn dispatch_menu_action_for_editor(
         install_menus(cx);
     } else if action.as_any().is::<ToggleExplorer>() {
         let _ = target.update(cx, |editor, cx| {
-            editor.toggle_explorer_drawer(window, cx);
+            if let Some(shell) = editor.shell.clone() {
+                let _ = shell.update(cx, |shell, cx| {
+                    shell.toggle_explorer_drawer(window, cx);
+                });
+            }
         });
     } else if action.as_any().is::<CloseExplorerFolder>() {
         let _ = target.update(cx, |editor, cx| {
-            editor.close_explorer_folder(cx);
+            if let Some(shell) = editor.shell.clone() {
+                let _ = shell.update(cx, |shell, cx| shell.close_explorer_folder(cx));
+            }
         });
     }
 }

@@ -11,16 +11,29 @@ use std::collections::HashMap;
 
 use gpui::*;
 
+use crate::app::window_area::WindowAreaKind;
 use crate::app::window_chrome::MenuBarState;
-use crate::editor::controller::Editor;
+use crate::app::window_panels::WindowPanels;
+use crate::editor::controller::{DocumentTab, Editor};
 use crate::editor::session::EditorSession;
+use crate::infra::i18n::I18nManager;
 use crate::infra::theme::ThemeManager;
 use crate::splitter::NodeId;
+use splitype_splitter::tree::Axis;
 
 /// The content of one area in the outer layout tree.
 pub enum AreaContent {
     /// An editor with its own tab list and inner panel layout.
     Editor(Entity<Editor>),
+}
+
+/// Explorer row right-click menu: a window-level overlay rendered by the
+/// Shell (it must float over every area at window coordinates).
+#[derive(Clone)]
+pub(crate) struct ExplorerFileMenuState {
+    pub(crate) position: Point<Pixels>,
+    pub(crate) path: std::path::PathBuf,
+    pub(crate) is_dir: bool,
 }
 
 /// The OS window's root entity: content areas + window lifecycle.
@@ -35,9 +48,25 @@ pub struct Shell {
     pub(crate) retained_editor_sessions: HashMap<NodeId, EditorSession>,
     /// Open/hover state for the in-window titlebar menu bar.
     pub(crate) menu_bar: MenuBarState,
+    /// Window panel state: the outer area layout tree plus the explorer /
+    /// outline / settings sidebar states.
+    pub(crate) panels: WindowPanels,
+    /// The last rendered viewport size; area rectangles are derived from
+    /// it when the layout changes (see [`Self::sync_area_states`]).
+    pub(crate) last_viewport: Option<Size<Pixels>>,
+    /// Explorer row right-click menu state (rendered at window level).
+    pub(crate) explorer_file_menu: Option<ExplorerFileMenuState>,
 }
 
 impl Shell {
+    /// The active editor area's active tab, if any. Reads through the
+    /// editor content entity of the active area.
+    pub(crate) fn active_editor_tab<'a>(&self, cx: &'a App) -> Option<&'a DocumentTab> {
+        let area = self.active_editor_area()?;
+        let editor = self.editor_for(area)?;
+        editor.read(cx).active_editor_tab()
+    }
+
     /// The window's primary (first) editor area content, if any.
     pub(crate) fn primary_editor(&self) -> Option<&Entity<Editor>> {
         self.areas.values().find_map(|area| match area {
@@ -45,6 +74,223 @@ impl Shell {
         })
     }
 
+    /// Recomputes every editor area's pushed state — the area rectangle,
+    /// active-editor flag, and maximized flag — from the outer layout.
+    /// Called after every layout change and on render (with the current
+    /// viewport).
+    pub(crate) fn sync_area_states(&mut self, cx: &mut Context<Self>) {
+        let Some(viewport) = self.last_viewport else {
+            return;
+        };
+        let outer_rects = self.panels.layout.leaf_rects(viewport);
+        let active = self.panels.layout.active_area;
+        let leaf_count = self.panels.layout.tree.count_leaves();
+        let editors: Vec<(NodeId, Entity<Editor>)> = self
+            .areas
+            .iter()
+            .filter_map(|(area_id, content)| match content {
+                AreaContent::Editor(entity) => Some((*area_id, entity.clone())),
+            })
+            .collect();
+        for (area_id, entity) in editors {
+            let rect = outer_rects
+                .iter()
+                .find(|rect| rect.id == area_id)
+                .map(|rect| Bounds {
+                    origin: point(px(rect.x), px(rect.y)),
+                    size: size(px(rect.width), px(rect.height)),
+                });
+            let is_maximized = self
+                .panels
+                .layout
+                .tree
+                .find_leaf(area_id)
+                .is_some_and(|panel| panel.maximized);
+            let _ = entity.update(cx, |editor, _cx| {
+                editor.area_rect = rect;
+                editor.is_active_area = active == Some(area_id);
+                editor.is_maximized = is_maximized;
+                editor.leaf_count = leaf_count;
+            });
+        }
+    }
+
+    /// Marks `area_id` as the active editor area and re-pushes the
+    /// active-flag to every editor entity.
+    pub(crate) fn activate_area(&mut self, area_id: NodeId, cx: &mut Context<Self>) {
+        self.panels.layout.activate_area(area_id);
+        self.sync_area_states(cx);
+    }
+
+    /// Dismisses the primary editor's floating overlays (context menu,
+    /// table-insert dialog). Explorer actions run on the Shell but the
+    /// overlays still live on the editor entity.
+    pub(crate) fn dismiss_contextual_overlays(&mut self, cx: &mut Context<Self>) {
+        if let Some(editor) = self.primary_editor() {
+            let _ = editor.update(cx, |editor, cx| editor.dismiss_contextual_overlays(cx));
+        }
+    }
+
+    /// Opens the explorer row context menu at `position` (window
+    /// coordinates). The Shell renders the menu itself, so it floats over
+    /// every area regardless of which tiles are present.
+    pub(crate) fn open_explorer_file_context_menu(
+        &mut self,
+        position: Point<Pixels>,
+        path: std::path::PathBuf,
+        is_dir: bool,
+        cx: &mut Context<Self>,
+    ) {
+        self.dismiss_contextual_overlays(cx);
+        self.explorer_file_menu = Some(ExplorerFileMenuState {
+            position,
+            path,
+            is_dir,
+        });
+        cx.notify();
+    }
+
+    /// Closes the explorer row context menu, if open.
+    pub(crate) fn close_explorer_file_menu(&mut self, cx: &mut Context<Self>) {
+        if self.explorer_file_menu.take().is_some() {
+            cx.notify();
+        }
+    }
+
+    /// Opens or closes the area-type dropdown of `area_id` (topbar click).
+    pub(crate) fn toggle_area_dropdown(&mut self, area_id: NodeId, cx: &mut Context<Self>) {
+        self.panels.layout.toggle_dropdown(area_id);
+        cx.notify();
+    }
+
+    /// Toggles the maximized state of `area_id`'s tile (topbar click).
+    pub(crate) fn toggle_area_maximize(&mut self, area_id: NodeId, cx: &mut Context<Self>) {
+        self.panels.layout.toggle_maximize(area_id);
+        self.sync_area_states(cx);
+        cx.notify();
+    }
+
+    /// Split `area_id` at `ratio` with a sibling of the SAME kind. With
+    /// `copy_content = false` the new Editor area starts with a fresh
+    /// blank session; with `true` the sibling is a deep copy of the source
+    /// editor's session (inner panel layout + tab list). Returns the new
+    /// area's id.
+    pub(crate) fn split_window_area(
+        &mut self,
+        area_id: NodeId,
+        direction: Axis,
+        ratio: f32,
+        copy_content: bool,
+        cx: &mut Context<Self>,
+    ) -> Option<NodeId> {
+        let new_id = self.panels.layout.split_leaf(area_id, direction, ratio)?;
+        if self.panels.layout.tree.find_leaf_kind(area_id) == Some(WindowAreaKind::Editor) {
+            let session = if copy_content {
+                self.primary_editor()
+                    .map(|editor| editor.update(cx, |editor, cx| editor.clone_session(cx)))
+                    .unwrap_or_else(EditorSession::welcome)
+            } else {
+                EditorSession::welcome()
+            };
+            self.add_editor_area(new_id, session, cx);
+        }
+        self.sync_area_states(cx);
+        Some(new_id)
+    }
+
+    /// Split `area_id` with a same-kind sibling, seeding the new Editor
+    /// area per `copy_content` (see [`Self::split_window_area`]).
+    pub(crate) fn split_area(
+        &mut self,
+        area_id: NodeId,
+        direction: Axis,
+        ratio: f32,
+        copy_content: bool,
+        cx: &mut Context<Self>,
+    ) -> Option<NodeId> {
+        self.split_window_area(area_id, direction, ratio, copy_content, cx)
+    }
+
+    /// Materialize the fresh sibling leaf of a plain-drag split: for an
+    /// Editor-kind leaf, deep-copy the primary editor's session into a new
+    /// entity. Non-Editor areas have no content to copy.
+    pub(crate) fn seed_split_area(&mut self, new_id: NodeId, cx: &mut Context<Self>) {
+        if self.panels.layout.tree.find_leaf_kind(new_id) == Some(WindowAreaKind::Editor) {
+            let session = self
+                .primary_editor()
+                .map(|editor| editor.update(cx, |editor, cx| editor.clone_session(cx)))
+                .unwrap_or_else(EditorSession::welcome);
+            self.add_editor_area(new_id, session, cx);
+        }
+        self.sync_area_states(cx);
+    }
+
+    /// Close an area, clean up its editor session, and drop the content
+    /// entity.
+    pub(crate) fn close_window_area(&mut self, area_id: NodeId, cx: &mut Context<Self>) {
+        self.panels.layout.close_leaf(area_id);
+        self.remove_editor_area(area_id, cx);
+        self.retained_editor_sessions.remove(&area_id);
+        self.sync_area_states(cx);
+    }
+
+    /// Swap the area kind of area `a` and area `b`. Editor entities and
+    /// retained sessions move along with the Editor kind so the new Editor
+    /// area inherits the swapped-in tabs and panel layout.
+    pub(crate) fn swap_window_area_kinds(&mut self, a: NodeId, b: NodeId, cx: &mut Context<Self>) {
+        self.panels.layout.swap_kinds(a, b);
+        self.swap_area_contents(a, b, cx);
+        self.sync_area_states(cx);
+    }
+
+    /// Change an area's kind. Leaving Editor keeps the session while it
+    /// still holds tabs (background editing — switching back restores it)
+    /// and drops it once empty; the content entity is materialized or
+    /// discarded accordingly.
+    pub(crate) fn change_window_area_kind(
+        &mut self,
+        area_id: NodeId,
+        kind: WindowAreaKind,
+        cx: &mut Context<Self>,
+    ) {
+        let previous = self.panels.layout.tree.find_leaf_kind(area_id);
+        self.panels.layout.set_kind(area_id, kind);
+        self.sync_area_kind(area_id, kind == WindowAreaKind::Editor, cx);
+        if kind == WindowAreaKind::Editor && previous != Some(WindowAreaKind::Editor) {
+            // Entering Editor is an explicit interaction, so the area
+            // becomes the active editor.
+            self.panels.layout.activate_area(area_id);
+        }
+        self.sync_area_states(cx);
+    }
+
+    /// The editor area that a file open should target: the active area
+    /// when it is an Editor area.
+    pub(crate) fn active_editor_area(&self) -> Option<NodeId> {
+        let area = self.panels.layout.active_area?;
+        (self.panels.layout.tree.find_leaf_kind(area) == Some(WindowAreaKind::Editor))
+            .then_some(area)
+    }
+
+    /// Opens `path` in the active editor's tab list, if an active editor
+    /// exists. Returns whether the file was opened.
+    pub(crate) fn open_file_in_active_editor(
+        &mut self,
+        path: &std::path::Path,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let Some(area_id) = self.active_editor_area() else {
+            return false;
+        };
+        let Some(editor) = self.editor_for(area_id) else {
+            return false;
+        };
+        let _ = editor.update(cx, |editor, cx| {
+            editor.open_file_in_area(area_id, path, window, cx)
+        });
+        true
+    }
     /// Creates a fresh Editor entity serving `area_id` and registers it in
     /// the areas map. The new entity is wired to this Shell and its runtime
     /// registries are rebuilt for the (possibly cloned) document tabs.
@@ -184,10 +430,7 @@ impl Shell {
                 Some(crate::app::window_area::WindowAreaKind::Explorer) => {
                     // The explorer model is window-global: deep-copy it so
                     // the new window shows the same file tree.
-                    if let Some(editor) = self.primary_editor() {
-                        cloned_explorer =
-                            Some(editor.read(cx).panels.explorer.clone_for_new_window());
-                    }
+                    cloned_explorer = Some(self.panels.explorer.clone_for_new_window());
                 }
                 Some(crate::app::window_area::WindowAreaKind::Settings) | None => {}
             }
@@ -231,7 +474,13 @@ impl Shell {
 
 impl Render for Shell {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        // Track the viewport so area rectangles can be pushed to the editor
+        // entities before their tiles render this frame.
+        self.last_viewport = Some(window.viewport_size());
+        self.sync_area_states(cx);
+
         let theme = cx.global::<ThemeManager>().current_arc();
+        let strings = cx.global::<I18nManager>().strings_arc();
         let (titlebar, menu_panel, titlebar_height) = self.render_window_chrome(&theme, window, cx);
 
         let mut base = div()
@@ -241,6 +490,8 @@ impl Render for Shell {
             .flex_col()
             .relative()
             .bg(theme.colors.editor_background)
+            .on_action(cx.listener(Self::on_toggle_explorer_action))
+            .on_action(cx.listener(Self::on_close_explorer_folder_action))
             // A mouse-down anywhere in the window body closes an open
             // menu; titlebar and menu panels are siblings of the body
             // container, so their clicks never reach this listener.
@@ -251,22 +502,27 @@ impl Render for Shell {
         }
 
         // The custom titlebar is absolutely positioned over the window top;
-        // offset the body by its height so content starts below it.
+        // offset the body by its height so content starts below it. The
+        // outer tiled layout renders every area; each Editor leaf embeds
+        // its own content entity.
         let body = div()
             .w_full()
             .flex_1()
             .min_h(px(0.0))
             .pt(px(titlebar_height))
             .flex()
-            .min_w(px(0.0));
-        let body = match self.primary_editor() {
-            Some(editor) => body.child(editor.clone().into_any_element()),
-            None => body,
-        };
+            .min_w(px(0.0))
+            .child(self.render_tiled_layout(&theme, &strings, window, cx));
         base = base.child(body);
 
         if let Some(menu_panel) = menu_panel {
             base = base.child(menu_panel);
+        }
+
+        // The explorer row context menu floats at window level, above every
+        // area, so its window-coordinate position stays accurate.
+        if let Some(menu) = self.render_explorer_file_context_menu(&theme, cx) {
+            base = base.child(menu);
         }
 
         base.into_any_element()

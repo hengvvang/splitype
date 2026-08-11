@@ -31,8 +31,7 @@ impl crate::editor::controller::Editor {
         // The active editor (the target for explorer file opens) shows a
         // link icon after its name; other kinds and inactive editors stay
         // plain text.
-        let is_active_editor = kind == crate::app::window_area::WindowAreaKind::Editor
-            && self.panels.layout.active_area == Some(leaf_id);
+        let is_active_editor = self.is_active_area;
         let type_button = small_pill_button(c, d)
             .id(("area-topbar-type", leaf_id))
             .text_size(px(12.0))
@@ -48,7 +47,11 @@ impl crate::editor::controller::Editor {
             })
             .on_click(move |_event, _window, cx| {
                 let _ = type_editor.update(cx, |ed, cx| {
-                    ed.panels.layout.toggle_dropdown(leaf_id);
+                    if let Some(shell) = ed.shell.clone() {
+                        let _ = shell.update(cx, |shell, cx| {
+                            shell.toggle_area_dropdown(leaf_id, cx);
+                        });
+                    }
                     cx.notify();
                 });
             });
@@ -65,7 +68,11 @@ impl crate::editor::controller::Editor {
             .on_click(move |_event, _window, cx| {
                 let _ = split_h_editor.update(cx, |ed, cx| {
                     // Same-kind split; Editor areas deep-copy their tabs.
-                    ed.split_area(leaf_id, Axis::Horizontal, 0.5, true, cx);
+                    if let Some(shell) = ed.shell.clone() {
+                        let _ = shell.update(cx, |shell, cx| {
+                            shell.split_area(leaf_id, Axis::Horizontal, 0.5, true, cx);
+                        });
+                    }
                     cx.notify();
                 });
             });
@@ -82,7 +89,11 @@ impl crate::editor::controller::Editor {
             .on_click(move |_event, _window, cx| {
                 let _ = split_v_editor.update(cx, |ed, cx| {
                     // Same-kind split; Editor areas deep-copy their tabs.
-                    ed.split_area(leaf_id, Axis::Vertical, 0.5, true, cx);
+                    if let Some(shell) = ed.shell.clone() {
+                        let _ = shell.update(cx, |shell, cx| {
+                            shell.split_area(leaf_id, Axis::Vertical, 0.5, true, cx);
+                        });
+                    }
                     cx.notify();
                 });
             });
@@ -110,7 +121,11 @@ impl crate::editor::controller::Editor {
                 )
                 .on_click(move |_event, _window, cx| {
                     let _ = max_editor.update(cx, |ed, cx| {
-                        ed.panels.layout.toggle_maximize(leaf_id);
+                        if let Some(shell) = ed.shell.clone() {
+                            let _ = shell.update(cx, |shell, cx| {
+                                shell.toggle_area_maximize(leaf_id, cx);
+                            });
+                        }
                         cx.notify();
                     });
                 });
@@ -126,7 +141,11 @@ impl crate::editor::controller::Editor {
                 )
                 .on_click(move |_event, _window, cx| {
                     let _ = close_editor.update(cx, |ed, cx| {
-                        ed.close_window_area(leaf_id, cx);
+                        if let Some(shell) = ed.shell.clone() {
+                            let _ = shell.update(cx, |shell, cx| {
+                                shell.close_window_area(leaf_id, cx);
+                            });
+                        }
                         cx.notify();
                     });
                 });
@@ -186,10 +205,12 @@ impl crate::editor::controller::Editor {
                                 .child(file_name.clone())
                                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                                     let _ = tab_editor.update(cx, |ed, cx| {
-                                        ed.with_current_tab_area(leaf_id, |ed| {
-                                            ed.panels.layout.activate_area(leaf_id);
-                                            ed.activate_tab(leaf_id, index, cx);
-                                        });
+                                        if let Some(shell) = ed.shell.clone() {
+                                            let _ = shell.update(cx, |shell, cx| {
+                                                shell.activate_area(leaf_id, cx);
+                                            });
+                                        }
+                                        ed.activate_tab(leaf_id, index, cx);
                                         cx.notify();
                                     });
                                 }),
@@ -212,10 +233,12 @@ impl crate::editor::controller::Editor {
                                 )
                                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                                     let _ = close_editor.update(cx, |ed, cx| {
-                                        ed.with_current_tab_area(leaf_id, |ed| {
-                                            ed.panels.layout.activate_area(leaf_id);
-                                            ed.close_tab(leaf_id, index, cx);
-                                        });
+                                        if let Some(shell) = ed.shell.clone() {
+                                            let _ = shell.update(cx, |shell, cx| {
+                                                shell.activate_area(leaf_id, cx);
+                                            });
+                                        }
+                                        ed.close_tab(leaf_id, index, cx);
                                         cx.notify();
                                     });
                                 }),
@@ -244,10 +267,12 @@ impl crate::editor::controller::Editor {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = add_editor.update(cx, |ed, cx| {
-                            ed.with_current_tab_area(leaf_id, |ed| {
-                                ed.panels.layout.activate_area(leaf_id);
-                                ed.new_untitled_tab(leaf_id, cx);
-                            });
+                            if let Some(shell) = ed.shell.clone() {
+                                let _ = shell.update(cx, |shell, cx| {
+                                    shell.activate_area(leaf_id, cx);
+                                });
+                            }
+                            ed.new_untitled_tab(leaf_id, cx);
                             cx.notify();
                         });
                     })

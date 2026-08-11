@@ -6,10 +6,11 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use crate::editor::controller::Editor;
+use crate::app::shell::Shell;
+
 use crate::editor::explorer_state::state::*;
 
-impl Editor {
+impl Shell {
     // ── Expand / collapse ────────────────────────────────────────────────
 
     /// Expand a directory and all of its descendants.
@@ -135,7 +136,7 @@ impl Editor {
     /// exists yet (e.g. deriving one from the active document).
     pub(crate) fn sync_explorer_file_tree(&mut self, cx: &mut Context<Self>) {
         if self.panels.explorer.worktrees.is_empty() {
-            if let Some(path) = self.explorer_root_for_current_file() {
+            if let Some(path) = self.explorer_root_for_current_file(cx) {
                 self.add_explorer_worktree(path, cx);
                 return;
             }
@@ -143,7 +144,7 @@ impl Editor {
             self.panels.explorer.entries.clear();
             return;
         }
-        self.select_active_file_in_tree(false);
+        self.select_active_file_in_tree(false, cx);
         self.rebuild_explorer_entries();
     }
 
@@ -201,10 +202,14 @@ impl Editor {
     /// (filesystem-driven rescans must not steal the user's selection); only
     /// a pending target or a missing selection falls back to the active
     /// document.
-    pub(crate) fn select_active_file_in_tree(&mut self, reveal: bool) {
-        // When the sidebar is showing the outline, the selection belongs to
-        // the outline panel; do not steal it with a file-tree reveal.
-        if self.panels.outline.selected.is_some() {
+    pub(crate) fn select_active_file_in_tree(&mut self, reveal: bool, cx: &App) {
+        // When the active editor's outline panel has a selection, the
+        // selection belongs to the outline; do not steal it with a
+        // file-tree reveal.
+        if self
+            .primary_editor()
+            .is_some_and(|editor| editor.read(cx).outline.selected.is_some())
+        {
             self.panels.explorer.pending_select = None;
             return;
         }
@@ -237,7 +242,7 @@ impl Editor {
             }
         }
         let Some(path) = self
-            .active_editor_tab()
+            .active_editor_tab(cx)
             .and_then(|tab| tab.file.path.clone())
         else {
             return;

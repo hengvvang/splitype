@@ -23,13 +23,14 @@ use std::time::Duration;
 
 use gpui::*;
 
-use crate::editor::controller::Editor;
+use crate::app::shell::Shell;
+
 use crate::editor::explorer_state::state::*;
 use crate::editor::explorer_state::undo::{ExplorerChange, explorer_change_destination};
 use crate::editor::explorer_state::utils::{execute_entry_ops, explorer_is_copy_modifier};
 use crate::infra::theme::ThemeManager;
 
-impl Editor {
+impl Shell {
     // ── Panel-level drag handling (cursor style + hover scroll) ─────────
 
     /// Refresh the drag cursor to signal move vs. copy while a drag is

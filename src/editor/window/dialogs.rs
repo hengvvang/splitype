@@ -9,7 +9,6 @@ use crate::ui::button::{compact_danger_button, compact_primary_button, compact_s
 
 use gpui::*;
 
-
 use crate::editor::controller::{Editor, InfoDialogKind};
 use crate::editor::window::context_menu::TableInsertTarget;
 use crate::editor::window::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
@@ -78,7 +77,6 @@ impl Editor {
             window.remove_window();
             return;
         };
-        self.panels.layout.activate_area(self.area_id);
         let tab = &mut self.session.tab_list.tabs[index];
         tab.file.show_unsaved_changes_dialog = true;
         tab.file.close_dialog_restore_focus = tab.focus.active_entity;
@@ -99,7 +97,6 @@ impl Editor {
         let Some((_, index)) = self.first_dirty_tab() else {
             return true;
         };
-        self.panels.layout.activate_area(self.area_id);
         let tab = &mut self.session.tab_list.tabs[index];
         tab.file.show_unsaved_changes_dialog = true;
         tab.file.close_dialog_restore_focus = tab.focus.active_entity;

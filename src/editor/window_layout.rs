@@ -3,20 +3,18 @@
 //!
 //! The layout engine (tree, sessions, operations) lives in `crate::splitter`;
 //! the editor's inner panel layout rendering lives in
-//! `crate::editor::panel_layout`. This module also aggregates the editor
-//! window's panel state ([`WindowPanels`]).
+//! `crate::editor::panel_layout`. The window panel state aggregate lives in
+//! `crate::app::window_panels`.
 
 use crate::ui::menu_item::menu_item;
 use crate::ui::popover::menu_panel;
 
 use gpui::*;
 
+use crate::app::shell::Shell;
+
 use crate::app::window_area::WindowAreaKind;
-use crate::app::window_area::WindowLayout;
 use crate::editor::corner_drag_preview::render_corner_drag_preview;
-use crate::editor::explorer_state::state::ExplorerState;
-use crate::editor::outline::state::OutlinePanelState;
-use crate::editor::settings_state::SettingsUiState;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 use crate::splitter::{Axis, CornerDragModifier};
@@ -25,7 +23,6 @@ use splitype_splitter::policy::DragPolicy;
 use splitype_splitter::sessions::{id_at_point, past_shortcut_threshold};
 use splitype_splitter::tree::SplitTree;
 
-use super::controller::*;
 
 /// Icon path for a window-area top-bar button, per area kind.
 ///
@@ -69,7 +66,7 @@ pub(crate) fn border_menu_style(theme: &Theme) -> crate::splitter::interaction::
         separator_height: d.menu_separator_height,
     }
 }
-impl Editor {
+impl Shell {
     pub(crate) fn render_tiled_layout(
         &mut self,
         theme: &Theme,
@@ -159,10 +156,21 @@ impl Editor {
                         }
                     }
                     // Inner-level gestures (splitter bars and panel corner
-                    // drags) drive the per-area sessions through the shared
+                    // drags) drive each area's session through the shared
                     // container API; the handling lives in `panel_layout`.
-                    if ed.update_inner_drag(pos, window) {
-                        changed = true;
+                    // Forward to every editor entity — only the one with an
+                    // active drag reports a change.
+                    let editors: Vec<Entity<crate::editor::controller::Editor>> = ed
+                        .areas
+                        .values()
+                        .filter_map(|content| match content {
+                            crate::app::shell::AreaContent::Editor(entity) => Some(entity.clone()),
+                        })
+                        .collect();
+                    for editor in editors {
+                        if editor.update(cx, |editor, _cx| editor.update_inner_drag(pos, window)) {
+                            changed = true;
+                        }
                     }
                     if changed {
                         cx.notify();
@@ -202,11 +210,7 @@ impl Editor {
                                             &mut ed.panels.layout, &facts, viewport
                                         )
                                     {
-                                        if let Some(shell) = ed.shell.clone() {
-                                            let _ = shell.update(cx, |shell, cx| {
-                                                shell.clone_container_into_new_window(cloned, cx)
-                                            });
-                                        }
+                                        ed.clone_container_into_new_window(cloned, cx);
                                     }
                                 }
                                 CornerDragModifier::Ctrl => {
@@ -228,7 +232,17 @@ impl Editor {
                     }
                     // Inner-level drag end (splitter bars and panel corner
                     // drags); the handling lives in `panel_layout`.
-                    ed.finish_inner_drag(window, cx);
+                    let editors: Vec<Entity<crate::editor::controller::Editor>> = ed
+                        .areas
+                        .values()
+                        .filter_map(|content| match content {
+                            crate::app::shell::AreaContent::Editor(entity) => Some(entity.clone()),
+                        })
+                        .collect();
+                    for editor in editors {
+                        let _ =
+                            editor.update(cx, |editor, cx| editor.finish_inner_drag(window, cx));
+                    }
                 });
             })
             .child(layout_tree);
@@ -492,9 +506,18 @@ impl Editor {
         strings: &I18nStrings,
         leaf_count: usize,
         is_maximized: bool,
-        window: &mut Window,
+        _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        // An Editor leaf renders its own tile (top bar, inner panels,
+        // status bar) via its content entity; only Explorer / Settings
+        // leaves are rendered by the Shell.
+        if kind == crate::app::window_area::WindowAreaKind::Editor {
+            if let Some(entity) = self.editor_for(leaf_id) {
+                return entity.clone().into_any_element();
+            }
+        }
+
         let c = &theme.colors;
         let d = &theme.dimensions;
         let gap = d.area_tile_gap;
@@ -502,7 +525,7 @@ impl Editor {
 
         let topbar = match kind {
             WindowAreaKind::Editor => {
-                self.render_editor_topbar(leaf_id, kind, theme, leaf_count, is_maximized, cx)
+                unreachable!("editor leaf without an entity is rendered by its entity")
             }
             WindowAreaKind::Explorer => {
                 self.render_explorer_topbar(leaf_id, kind, theme, leaf_count, is_maximized, cx)
@@ -514,7 +537,7 @@ impl Editor {
 
         let midcontainer: AnyElement = match kind {
             WindowAreaKind::Editor => {
-                self.render_editor_midcontainer(leaf_id, theme, strings, window, cx)
+                unreachable!("editor leaf without an entity is rendered by its entity")
             }
             WindowAreaKind::Explorer => {
                 self.render_explorer_midcontainer(leaf_id, theme, strings, cx)
@@ -526,7 +549,7 @@ impl Editor {
 
         let bottombar = match kind {
             WindowAreaKind::Editor => {
-                Some(self.render_editor_bottombar(leaf_id, theme, strings, cx))
+                unreachable!("editor leaf without an entity is rendered by its entity")
             }
             WindowAreaKind::Explorer => Some(self.render_explorer_bottombar(leaf_id, theme, cx)),
             WindowAreaKind::Settings => Some(self.render_settings_bottombar(leaf_id, theme, cx)),
@@ -747,27 +770,3 @@ impl Editor {
 // ---------------------------------------------------------------------------
 // Window panels aggregate
 // ---------------------------------------------------------------------------
-
-/// Sidebar and tiled-layout state of the editor window.
-///
-/// Pure state records; rendering lives in `crate::editor::window_layout`
-/// (outer layout), `crate::explorer`, and `crate::settings`. The per-area
-/// editor sessions and inner-panel operations live on the `Editor` entity
-/// (see `crate::editor::session_ops`).
-pub struct WindowPanels {
-    pub(crate) explorer: ExplorerState,
-    pub(crate) layout: WindowLayout,
-    pub(crate) outline: OutlinePanelState,
-    pub(crate) settings: SettingsUiState,
-}
-
-impl Default for WindowPanels {
-    fn default() -> Self {
-        Self {
-            explorer: ExplorerState::default(),
-            layout: crate::app::window_area::default_layout(),
-            outline: OutlinePanelState::default(),
-            settings: SettingsUiState::default(),
-        }
-    }
-}

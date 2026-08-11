@@ -36,12 +36,6 @@ pub(crate) enum ContextMenuState {
         position: Point<Pixels>,
         selection: TableAxisSelection,
     },
-    /// ExplorerState file or folder context menu.
-    ExplorerFile {
-        position: Point<Pixels>,
-        path: std::path::PathBuf,
-        is_dir: bool,
-    },
 }
 impl Editor {
     pub(crate) fn root_ancestor_entity_id(&self, entity_id: EntityId) -> EntityId {
@@ -90,22 +84,6 @@ impl Editor {
         self.context_menu = Some(ContextMenuState::TableAxis {
             position,
             selection,
-        });
-        cx.notify();
-    }
-
-    pub(crate) fn open_explorer_file_context_menu(
-        &mut self,
-        position: Point<Pixels>,
-        path: std::path::PathBuf,
-        is_dir: bool,
-        cx: &mut Context<Self>,
-    ) {
-        self.dismiss_contextual_overlays(cx);
-        self.context_menu = Some(ContextMenuState::ExplorerFile {
-            position,
-            path,
-            is_dir,
         });
         cx.notify();
     }

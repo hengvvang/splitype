@@ -6,7 +6,8 @@ use std::path::Path;
 
 use gpui::*;
 
-use crate::editor::controller::Editor;
+use crate::app::shell::Shell;
+
 use crate::editor::explorer_state::state::*;
 
 // Explorer navigation actions. They intentionally carry no default key
@@ -28,7 +29,7 @@ actions!(
     ]
 );
 
-impl Editor {
+impl Shell {
     // ── Selection resolution ─────────────────────────────────────────────
 
     /// Worktree index whose cached tree contains `id`. Ids are globally

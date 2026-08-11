@@ -5,10 +5,11 @@ use std::path::PathBuf;
 
 use gpui::*;
 
-use crate::editor::controller::Editor;
+use crate::app::shell::Shell;
+
 use crate::editor::explorer_state::state::*;
 
-impl Editor {
+impl Shell {
     pub(crate) fn open_explorer_file(
         &mut self,
         path: PathBuf,
@@ -44,13 +45,19 @@ impl Editor {
     ) {
         self.open_explorer_file(path, window, cx);
         if focus_editor {
-            if let Some(area) = self.panels.layout.active_area {
-                if let Some(panel_id) = self
+            let area = self.panels.layout.active_area;
+            let focused_panel = self.primary_editor().and_then(|editor| {
+                editor
+                    .read(cx)
                     .focused_editor_inner_panel
-                    .filter(|loc| loc.area_id == area)
-                    .map(|loc| loc.panel_id)
-                {
-                    self.focus_editor_inner_panel(area, panel_id, window, cx);
+                    .filter(|loc| area.is_some_and(|area| loc.area_id == area))
+            });
+            if let (Some(area), Some(loc)) = (area, focused_panel) {
+                let panel_id = loc.panel_id;
+                if let Some(editor) = self.primary_editor() {
+                    let _ = editor.update(cx, |editor, cx| {
+                        editor.focus_editor_inner_panel(area, panel_id, window, cx);
+                    });
                 }
             }
         }
@@ -73,7 +80,11 @@ impl Editor {
             return;
         };
         self.panels.layout.activate_area(new_id);
-        self.open_file_in_area(new_id, &path, window, cx);
+        if let Some(editor) = self.editor_for(new_id) {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.open_file_in_area(new_id, &path, window, cx);
+            });
+        }
         cx.notify();
     }
 }

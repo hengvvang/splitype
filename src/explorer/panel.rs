@@ -6,11 +6,11 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
+use crate::app::shell::Shell;
+
 use crate::editor::actions::{CloseExplorerFolder, ToggleExplorer};
-use crate::editor::controller::Editor;
 use crate::editor::explorer_state::state::*;
 use crate::editor::explorer_state::worktree::Worktree;
-use crate::editor::outline::state::OutlinePanelState;
 use crate::infra::config::settings::ExplorerSettingsStore;
 
 /// Re-key a selection after a worktree removal: selections inside the
@@ -46,7 +46,7 @@ fn remap_explorer_root_after_move(index: usize, from: usize, to: usize) -> usize
     }
 }
 
-impl Editor {
+impl Shell {
     pub(crate) fn toggle_explorer_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.panels.explorer.is_open {
             self.panels.explorer.is_open = false;
@@ -92,9 +92,6 @@ impl Editor {
         explorer.hover_scroll_task = None;
         explorer.hover_scroll_generation += 1;
         explorer.previous_drag_position = None;
-        // The outline panel reads the active document, not the worktree, but
-        // it shares the sidebar lifecycle: reset it with the sidebar.
-        self.panels.outline = OutlinePanelState::default();
         cx.notify();
     }
 
@@ -238,7 +235,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.refresh_explorer_trees(cx);
-        self.select_active_file_in_tree(true);
+        self.select_active_file_in_tree(true, cx);
         self.rebuild_explorer_entries();
         self.autoscroll_explorer_selection();
         // Start the pending rename editor now that the copied entry is in
@@ -264,26 +261,22 @@ impl Editor {
     }
     pub(crate) fn sync_explorer_after_document_path_change(&mut self, cx: &mut Context<Self>) {
         if self.panels.explorer.worktrees.is_empty() {
-            if let Some(path) = self.explorer_root_for_current_file() {
+            if let Some(path) = self.explorer_root_for_current_file(cx) {
                 self.add_explorer_worktree(path, cx);
             }
         }
-        self.panels.outline.source = None;
         if self.panels.explorer.is_open {
             self.sync_explorer_models(cx);
         }
     }
     pub(crate) fn sync_explorer_models(&mut self, cx: &mut Context<Self>) {
         // The file tree only needs a root directory, so it syncs even in
-        // the welcome state (no tabs). The outline reads the active
-        // document and only runs once a tab exists.
+        // the welcome state (no tabs). Each Editor entity syncs its own
+        // outline from its active document when it renders.
         self.sync_explorer_file_tree(cx);
-        if self.has_active_tab() {
-            self.sync_explorer_outline(cx);
-        }
     }
-    pub(crate) fn explorer_root_for_current_file(&self) -> Option<PathBuf> {
-        self.active_editor_tab()
+    pub(crate) fn explorer_root_for_current_file(&self, cx: &App) -> Option<PathBuf> {
+        self.active_editor_tab(cx)
             .and_then(|tab| tab.file.path.as_ref())
             .and_then(|path| path.parent().map(Path::to_path_buf))
     }

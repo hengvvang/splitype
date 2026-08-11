@@ -7,10 +7,12 @@
 
 use gpui::*;
 
+use crate::app::shell::Shell;
+
 use crate::infra::theme::Theme;
 use crate::ui::bottombar::bottombar_container;
 
-impl crate::editor::controller::Editor {
+impl Shell {
     /// Bottom bar of a Settings area. Renders the shared bar shell with no
     /// content yet, so the area keeps the same layout as Editor / Explorer.
     pub(crate) fn render_settings_bottombar(

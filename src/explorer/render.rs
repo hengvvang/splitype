@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
+use crate::app::shell::Shell;
+
 use crate::editor::explorer_state::state::*;
 use crate::explorer::drag_and_drop::DraggedExplorerEntryView;
 use crate::explorer::filename_editor::ExplorerFilenameInputElement;
@@ -16,9 +18,8 @@ use crate::infra::theme::Theme;
 use crate::ui::button::icon_chip_button;
 use crate::ui::empty_state::empty_state_container;
 
-use crate::editor::controller::Editor;
 
-impl Editor {
+impl Shell {
     pub(crate) fn render_explorer_files_tree(
         &mut self,
         area_id: usize,
@@ -93,7 +94,7 @@ impl Editor {
         let list = uniform_list(
             ("explorer-tree", area_id),
             entries_len,
-            cx.processor(move |this: &mut Editor, range: Range<usize>, _window, cx| {
+            cx.processor(move |this: &mut Shell, range: Range<usize>, _window, cx| {
                 this.panels.explorer.rendered_rows = range.len();
                 // The drag highlight extends to a directory and all of
                 // its descendants; resolve it once per frame.
@@ -224,7 +225,7 @@ impl Editor {
         area_id: usize,
         drag_highlight: Option<&Path>,
         theme: &Theme,
-        editor: &WeakEntity<Editor>,
+        editor: &WeakEntity<Shell>,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         match row {
@@ -249,7 +250,7 @@ impl Editor {
         area_id: usize,
         drag_highlight: Option<&Path>,
         theme: &Theme,
-        editor: &WeakEntity<Editor>,
+        editor: &WeakEntity<Shell>,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
@@ -557,7 +558,7 @@ impl Editor {
         area_id: usize,
         drag_highlight: Option<&Path>,
         theme: &Theme,
-        editor: &WeakEntity<Editor>,
+        editor: &WeakEntity<Shell>,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
@@ -806,7 +807,7 @@ impl Editor {
         &self,
         area_id: usize,
         theme: &Theme,
-        _editor: &WeakEntity<Editor>,
+        _editor: &WeakEntity<Shell>,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let Some(edit) = self.panels.explorer.edit.as_ref() else {

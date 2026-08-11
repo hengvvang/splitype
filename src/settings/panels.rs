@@ -8,13 +8,14 @@ use crate::ui::select::{select_option, select_panel, select_trigger};
 
 use gpui::*;
 
-use crate::editor::controller::*;
+use crate::app::shell::Shell;
+
 use crate::editor::settings_state::SettingsTab;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::{Theme, ThemeManager};
 use crate::ui::switch::Switch;
 
-impl Editor {
+impl Shell {
     pub(crate) fn render_settings_midcontainer(
         &mut self,
         area_id: usize,

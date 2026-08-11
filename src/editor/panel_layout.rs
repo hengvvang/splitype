@@ -143,15 +143,10 @@ impl Editor {
             active: c.focus_accent,
             ..Default::default()
         };
-        let inner_size = {
-            let viewport = window.viewport_size();
-            let outer_rects = self.panels.layout.leaf_rects(viewport);
-            self.panels
-                .layout
-                .leaf_rect(area_id, &outer_rects)
-                .map(|rect| size(px(rect.width), px(rect.height)))
-                .unwrap_or(viewport)
-        };
+        let inner_size = self
+            .area_rect
+            .map(|rect| size(rect.size.width, rect.size.height))
+            .unwrap_or_else(|| window.viewport_size());
         // The corner-drag session lives on the dragging panel itself;
         // find it via the root.
         if let Some(drag_panel) = self.ensure_editor_session(area_id).root.corner_drag_panel() {
@@ -195,37 +190,36 @@ impl Editor {
     /// an active splitter-bar or corner drag, from a window-coordinate
     /// pointer move. Returns whether a gesture was active (the host should
     /// repaint).
-    pub(crate) fn update_inner_drag(&mut self, pos: Point<Pixels>, window: &Window) -> bool {
+    pub(crate) fn update_inner_drag(&mut self, pos: Point<Pixels>, _window: &Window) -> bool {
         // Inner splitter drag: drive this editor's own session container
         // through the shared container API.
         if self.session.root.active_splitter_drag.is_some() {
-            let area_id = self.area_id;
             let session = &mut self.session;
             let drag = session.root.active_splitter_drag.unwrap();
-            let viewport = window.viewport_size();
-            let outer_rects = self.panels.layout.leaf_rects(viewport);
-            if let Some(outer_rect) = self.panels.layout.leaf_rect(area_id, &outer_rects) {
-                let current_pos = match drag.direction {
-                    Axis::Horizontal => f32::from(pos.x) - outer_rect.x,
-                    Axis::Vertical => f32::from(pos.y) - outer_rect.y,
-                };
-                let inner_size = size(px(outer_rect.width), px(outer_rect.height));
-                let span = session
-                    .root
-                    .split_pixel_span(drag.split_id, inner_size)
-                    .unwrap_or_else(|| match drag.direction {
-                        Axis::Horizontal => outer_rect.width,
-                        Axis::Vertical => outer_rect.height,
-                    });
-                if span > 1.0 {
-                    let mut refreshed = drag;
-                    refreshed.total_span = span;
-                    session.root.active_splitter_drag = Some(refreshed);
-                }
-                session.root.update_splitter_drag(current_pos);
-                return true;
+            let Some(outer_rect) = self.area_rect else {
+                return false;
+            };
+            let origin = outer_rect.origin;
+            let rect_size = outer_rect.size;
+            let current_pos = match drag.direction {
+                Axis::Horizontal => f32::from(pos.x) - f32::from(origin.x),
+                Axis::Vertical => f32::from(pos.y) - f32::from(origin.y),
+            };
+            let inner_size = size(rect_size.width, rect_size.height);
+            let span = session
+                .root
+                .split_pixel_span(drag.split_id, inner_size)
+                .unwrap_or_else(|| match drag.direction {
+                    Axis::Horizontal => f32::from(rect_size.width),
+                    Axis::Vertical => f32::from(rect_size.height),
+                });
+            if span > 1.0 {
+                let mut refreshed = drag;
+                refreshed.total_span = span;
+                session.root.active_splitter_drag = Some(refreshed);
             }
-            return false;
+            session.root.update_splitter_drag(current_pos);
+            return true;
         }
 
         // Inner corner drag: translate the pointer into the dragging
@@ -244,22 +238,24 @@ impl Editor {
                 .find_leaf(drag_panel)
                 .and_then(|p| p.active_corner_drag)
                 .unwrap();
-            let viewport = window.viewport_size();
-            let outer_rects = self.panels.layout.leaf_rects(viewport);
             let mut pending_swap: Option<(usize, usize)> = None;
             let mut handled = false;
-            if let Some(outer_rect) = self.panels.layout.leaf_rect(area_id, &outer_rects) {
+            if let Some(outer_rect) = self.area_rect {
+                let origin = outer_rect.origin;
+                let rect_size = outer_rect.size;
                 let mut updated = drag;
                 let inner_pos = point(
-                    px(f32::from(pos.x) - outer_rect.x),
-                    px(f32::from(pos.y) - outer_rect.y),
+                    px(f32::from(pos.x) - f32::from(origin.x)),
+                    px(f32::from(pos.y) - f32::from(origin.y)),
                 );
-                let inner_size = size(px(outer_rect.width), px(outer_rect.height));
+                let inner_size = size(rect_size.width, rect_size.height);
                 let start_x = f32::from(updated.start_pos.x);
                 let start_y = f32::from(updated.start_pos.y);
-                if start_x > outer_rect.width || start_y > outer_rect.height {
-                    updated.start_pos =
-                        point(px(start_x - outer_rect.x), px(start_y - outer_rect.y));
+                if start_x > f32::from(rect_size.width) || start_y > f32::from(rect_size.height) {
+                    updated.start_pos = point(
+                        px(start_x - f32::from(origin.x)),
+                        px(start_y - f32::from(origin.y)),
+                    );
                 }
                 // Write the corrected start pos back onto the panel's own
                 // session, then let the root update the facts (hover,
@@ -314,7 +310,6 @@ impl Editor {
         // Inner corner drag end: finish the gesture through the shared
         // container, then let the inner-panel policy interpret the facts
         // (Shift is a no-op override).
-        let area_id = self.area_id;
         let facts = if self.session.root.corner_drag_panel().is_some() {
             self.session.root.finish_corner_drag()
         } else {
@@ -322,14 +317,7 @@ impl Editor {
         };
         if let Some(facts) = facts {
             let viewport = window.viewport_size();
-            let inner_size = {
-                let outer_rects = self.panels.layout.leaf_rects(viewport);
-                self.panels
-                    .layout
-                    .leaf_rect(area_id, &outer_rects)
-                    .map(|rect| size(px(rect.width), px(rect.height)))
-                    .unwrap_or(viewport)
-            };
+            let inner_size = self.area_rect.map(|rect| rect.size).unwrap_or(viewport);
             let session = &mut self.session;
             match facts.modifier {
                     CornerDragModifier::None => {
@@ -478,7 +466,11 @@ impl Editor {
                     ed.welcome_last_click = Some(now);
                     if is_double {
                         // The clicked editor becomes the active editor.
-                        ed.panels.layout.activate_area(area_id);
+                        if let Some(shell) = ed.shell.clone() {
+                            let _ = shell.update(cx, |shell, cx| {
+                                shell.activate_area(area_id, cx);
+                            });
+                        }
                         ed.new_untitled_tab(area_id, cx);
                         // Focus the new source panel so typing works
                         // immediately after entering editing.
@@ -572,12 +564,14 @@ impl Editor {
                     },
                 );
 
-                // Auto-focus first inner panel if none is focused.
+                // Auto-focus first inner panel if none is focused. The
+                // area activation happens on user interaction (panel
+                // click / focus) — a Shell update from inside this
+                // editor's own render would re-enter `sync_area_states`
+                // and try to update this very entity while it renders.
                 if self.focused_editor_inner_panel.is_none() {
                     self.focused_editor_inner_panel =
                         Some(InnerPanelLocation { area_id, panel_id });
-                    // The auto-focused editor becomes the active editor too.
-                    self.panels.layout.activate_area(area_id);
                 }
 
                 let focus_editor = cx.entity().downgrade();
@@ -680,22 +674,15 @@ impl Editor {
                                     bar_active,
                                     &overlay_style,
                                 )
-                                .on_mouse_down(MouseButton::Left, move |event, window, cx| {
+                                .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                     let start_pos = f32::from(event.position.x);
                                     let _ = bar_editor.update(cx, |ed, cx| {
                                         // The move handler tracks the pointer in the
                                         // area's local space, so rebase the start
                                         // position the same way.
                                         let local_start = ed
-                                            .panels
-                                            .layout
-                                            .leaf_rect(
-                                                area_id,
-                                                &ed.panels
-                                                    .layout
-                                                    .leaf_rects(window.viewport_size()),
-                                            )
-                                            .map(|rect| start_pos - rect.x)
+                                            .area_rect
+                                            .map(|rect| start_pos - f32::from(rect.origin.x))
                                             .unwrap_or(start_pos);
                                         let session = ed.ensure_editor_session(area_id);
                                         splitype_splitter::interaction::start_splitter_drag(
@@ -773,21 +760,14 @@ impl Editor {
                                     bar_active,
                                     &overlay_style,
                                 )
-                                .on_mouse_down(MouseButton::Left, move |event, window, cx| {
+                                .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                     let start_pos = f32::from(event.position.y);
                                     let _ = bar_editor.update(cx, |ed, cx| {
                                         // Rebase the start position into the area's
                                         // local space, matching the move handler.
                                         let local_start = ed
-                                            .panels
-                                            .layout
-                                            .leaf_rect(
-                                                area_id,
-                                                &ed.panels
-                                                    .layout
-                                                    .leaf_rects(window.viewport_size()),
-                                            )
-                                            .map(|rect| start_pos - rect.y)
+                                            .area_rect
+                                            .map(|rect| start_pos - f32::from(rect.origin.y))
                                             .unwrap_or(start_pos);
                                         let session = ed.ensure_editor_session(area_id);
                                         splitype_splitter::interaction::start_splitter_drag(

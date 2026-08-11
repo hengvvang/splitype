@@ -3,13 +3,15 @@
 
 use gpui::*;
 
+use crate::app::shell::Shell;
+
 use crate::editor::window_layout::area_topbar_icon;
 use crate::infra::theme::Theme;
 use crate::splitter::Axis;
 use crate::ui::button::{icon_chip_button, small_pill_button};
 use crate::ui::topbar::topbar_container;
 
-impl crate::editor::controller::Editor {
+impl Shell {
     /// Top bar of a Settings area: type selector and split/close controls.
     pub(crate) fn render_settings_topbar(
         &self,

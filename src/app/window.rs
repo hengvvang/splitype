@@ -10,6 +10,7 @@ use crate::app::menus::install_menus;
 use crate::app::shell::{AreaContent, Shell};
 use crate::app::window_area::{DEFAULT_EDITOR_AREA_ID, WindowAreaKind};
 use crate::app::window_chrome::MenuBarState;
+use crate::app::window_panels::WindowPanels;
 use crate::editor::controller::Editor;
 use crate::editor::explorer_state::state::ExplorerState;
 use crate::editor::session::EditorSession;
@@ -63,6 +64,9 @@ pub(crate) fn open_editor_window(
                     areas: [(DEFAULT_EDITOR_AREA_ID, AreaContent::Editor(editor))].into(),
                     retained_editor_sessions: HashMap::new(),
                     menu_bar: MenuBarState::default(),
+                    panels: WindowPanels::default(),
+                    last_viewport: None,
+                    explorer_file_menu: None,
                 });
                 // Wire the editor entity to its Shell.
                 let shell_weak = shell.downgrade();
@@ -71,8 +75,8 @@ pub(crate) fn open_editor_window(
                     .areas
                     .values()
                     .filter_map(|content| match content {
-                    AreaContent::Editor(entity) => Some(entity.clone()),
-                })
+                        AreaContent::Editor(entity) => Some(entity.clone()),
+                    })
                     .collect();
                 for editor in editors {
                     let _ = editor.update(cx, |e, _cx| e.shell = Some(shell_weak.clone()));
@@ -115,42 +119,37 @@ pub(crate) fn open_cloned_window(
             move |_window, cx| {
                 // Materialize one Editor entity per cloned session.
                 let mut areas = HashMap::new();
-                let mut primary: Option<Entity<Editor>> = None;
                 for (area_id, session) in sessions {
                     let editor = cx.new(|cx| Editor::with_session(area_id, session, cx));
-                    if primary.is_none() {
-                        primary = Some(editor.clone());
-                    }
                     areas.insert(area_id, AreaContent::Editor(editor));
                 }
-                // The primary editor carries the window-level transition
-                // state (outer layout + explorer) until it moves to the
-                // Shell.
-                let editor = primary.expect("cloned window has at least one editor area");
-                editor.update(cx, |ed, _cx| {
-                    ed.panels.layout.tree = tree;
-                    ed.panels.layout.next_node_id = next_node_id;
-                    if let Some(explorer) = explorer {
-                        ed.panels.explorer = explorer;
-                    }
-                    // Activate the first Editor leaf of the cloned layout
-                    // (the empty constructor seeds the default area id,
-                    // which the clone may not contain).
-                    let mut ids = Vec::new();
-                    ed.panels.layout.tree.leaf_ids(&mut ids);
-                    if let Some(id) = ids.into_iter().find(|id| {
-                        ed.panels.layout.tree.find_leaf_kind(*id) == Some(WindowAreaKind::Editor)
-                    }) {
-                        ed.panels.layout.activate_area(id);
-                    } else {
-                        ed.panels.layout.active_area = None;
-                        ed.panels.layout.activation_history.clear();
-                    }
-                });
+                // The Shell owns the cloned outer layout and explorer state.
+                let mut panels = WindowPanels::default();
+                panels.layout.tree = tree;
+                panels.layout.next_node_id = next_node_id;
+                if let Some(explorer) = explorer {
+                    panels.explorer = explorer;
+                }
+                // Activate the first Editor leaf of the cloned layout
+                // (the empty constructor seeds the default area id,
+                // which the clone may not contain).
+                let mut ids = Vec::new();
+                panels.layout.tree.leaf_ids(&mut ids);
+                if let Some(id) = ids.into_iter().find(|id| {
+                    panels.layout.tree.find_leaf_kind(*id) == Some(WindowAreaKind::Editor)
+                }) {
+                    panels.layout.activate_area(id);
+                } else {
+                    panels.layout.active_area = None;
+                    panels.layout.activation_history.clear();
+                }
                 let shell = cx.new(move |_cx| Shell {
                     areas,
                     retained_editor_sessions: HashMap::new(),
                     menu_bar: MenuBarState::default(),
+                    panels,
+                    last_viewport: None,
+                    explorer_file_menu: None,
                 });
                 // Wire every editor entity to its Shell.
                 let shell_weak = shell.downgrade();
@@ -159,8 +158,8 @@ pub(crate) fn open_cloned_window(
                     .areas
                     .values()
                     .filter_map(|content| match content {
-                    AreaContent::Editor(entity) => Some(entity.clone()),
-                })
+                        AreaContent::Editor(entity) => Some(entity.clone()),
+                    })
                     .collect();
                 for editor in editors {
                     let _ = editor.update(cx, |e, _cx| e.shell = Some(shell_weak.clone()));

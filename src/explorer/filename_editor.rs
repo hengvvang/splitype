@@ -13,7 +13,8 @@ use std::path::PathBuf;
 
 use gpui::*;
 
-use crate::editor::controller::Editor;
+use crate::app::shell::Shell;
+
 use crate::editor::editing::input::actions::{Copy, Cut, DismissTransientUi, Paste};
 use crate::editor::explorer_state::state::{
     EXPLORER_NODE_HEIGHT, ExplorerEditState, ExplorerFilenameEditor, ExplorerRow,
@@ -204,7 +205,7 @@ impl ExplorerFilenameEditor {
 
 // ── Editor-side handlers: validation, confirm/cancel, keyboard, clipboard ─
 
-impl Editor {
+impl Shell {
     /// Real-time validation of the inline filename (mirrors Zed's
     /// `populate_validation_error`): whitespace warns, illegal characters and
     /// name collisions error.
@@ -709,7 +710,7 @@ impl Editor {
 
 // ── GPUI IME bridge ─────────────────────────────────────────────────────
 
-impl EntityInputHandler for Editor {
+impl EntityInputHandler for Shell {
     fn text_for_range(
         &mut self,
         range_utf16: Range<usize>,
@@ -906,7 +907,7 @@ pub(crate) struct ExplorerFilenamePrepaintState {
 /// IME composition underline; registers the window input handler while
 /// focused (mirrors `CodeLanguageInputElement`).
 pub(crate) struct ExplorerFilenameInputElement {
-    pub(crate) editor: Entity<Editor>,
+    pub(crate) editor: Entity<Shell>,
 }
 
 impl IntoElement for ExplorerFilenameInputElement {

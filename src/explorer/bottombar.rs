@@ -3,11 +3,13 @@
 
 use gpui::*;
 
+use crate::app::shell::Shell;
+
 use crate::infra::theme::Theme;
 use crate::ui::bottombar::bottombar_container;
 use crate::ui::button::icon_chip_button;
 
-impl crate::editor::controller::Editor {
+impl Shell {
     /// Bottom bar of an Explorer area: add-folder button plus the worktree
     /// count. The folder icon opens a folder picker that adds the chosen
     /// directory as a new worktree (mirrors the root row's folder button,

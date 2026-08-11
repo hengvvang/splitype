@@ -121,7 +121,7 @@ impl Editor {
                 mode_pill =
                     mode_pill.on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = toggle_editor.update(cx, |ed, cx| {
-                            ed.toggle_editor_inner_panel_dropdown(area_id, panel_id);
+                            ed.toggle_editor_inner_panel_dropdown(area_id, panel_id, cx);
                             cx.notify();
                         });
                     });

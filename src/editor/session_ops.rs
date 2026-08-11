@@ -7,7 +7,6 @@
 //! copied state machine.
 
 use crate::app::window_area::EditorAreaMode;
-use crate::app::window_area::WindowAreaKind;
 use crate::editor::controller::Editor;
 use crate::editor::session::{
     EditingPanelKind, EditorInnerPanelKind, EditorSession, WelcomePanelKind,
@@ -17,107 +16,6 @@ use gpui::Context;
 use splitype_splitter::tree::Axis;
 
 impl Editor {
-    /// Split `area_id` at `ratio` with a sibling of the SAME kind. With
-    /// `copy_content = false` the new Editor area starts with a fresh
-    /// blank session; with `true` the sibling is a deep copy of this
-    /// editor's session (inner panel layout + tab list). The new Editor
-    /// area is materialized as its own entity on the Shell. Returns the
-    /// new area's id.
-    pub fn split_window_area(
-        &mut self,
-        area_id: NodeId,
-        direction: Axis,
-        ratio: f32,
-        copy_content: bool,
-        cx: &mut Context<Self>,
-    ) -> Option<NodeId> {
-        let new_id = self.panels.layout.split_leaf(area_id, direction, ratio)?;
-        if self.panels.layout.tree.find_leaf_kind(area_id) == Some(WindowAreaKind::Editor) {
-            let session = if copy_content {
-                self.clone_session(cx)
-            } else {
-                EditorSession::welcome()
-            };
-            if let Some(shell) = self.shell.clone() {
-                let _ = shell.update(cx, |shell, cx| {
-                    shell.add_editor_area(new_id, session, cx);
-                });
-            }
-        }
-        Some(new_id)
-    }
-
-    /// Materialize the fresh sibling leaf of a plain-drag split: for an
-    /// Editor-kind leaf, deep-copy this editor's session into a new entity
-    /// on the Shell. Non-Editor areas have no content to copy.
-    pub fn seed_split_area(&mut self, new_id: NodeId, cx: &mut Context<Self>) {
-        if self.panels.layout.tree.find_leaf_kind(new_id) == Some(WindowAreaKind::Editor) {
-            let session = self.clone_session(cx);
-            if let Some(shell) = self.shell.clone() {
-                let _ = shell.update(cx, |shell, cx| {
-                    shell.add_editor_area(new_id, session, cx);
-                });
-            }
-        }
-    }
-
-    /// Close an area, clean up its editor session, and drop the content
-    /// entity on the Shell.
-    pub fn close_window_area(&mut self, area_id: NodeId, cx: &mut Context<Self>) {
-        self.panels.layout.close_leaf(area_id);
-        if let Some(shell) = self.shell.clone() {
-            let _ = shell.update(cx, |shell, cx| {
-                shell.remove_editor_area(area_id, cx);
-                shell.retained_editor_sessions.remove(&area_id);
-            });
-        }
-        self.clear_inner_panel_focus(area_id);
-    }
-
-    /// Swap the area kind of area `a` and area `b`. Editor entities and
-    /// retained sessions move along with the Editor kind so the new Editor
-    /// area inherits the swapped-in tabs and panel layout.
-    pub fn swap_window_area_kinds(&mut self, a: NodeId, b: NodeId, cx: &mut Context<Self>) {
-        self.panels.layout.swap_kinds(a, b);
-        if let Some(shell) = self.shell.clone() {
-            let _ = shell.update(cx, |shell, cx| shell.swap_area_contents(a, b, cx));
-        }
-    }
-
-    /// Change an area's kind. Leaving Editor keeps the session while it
-    /// still holds tabs (background editing — switching back restores it)
-    /// and drops it once empty; the Shell materializes/discards the
-    /// content entity accordingly.
-    pub fn change_window_area_kind(
-        &mut self,
-        area_id: NodeId,
-        kind: WindowAreaKind,
-        cx: &mut Context<Self>,
-    ) {
-        let previous = self.panels.layout.tree.find_leaf_kind(area_id);
-        self.panels.layout.set_kind(area_id, kind);
-        if let Some(shell) = self.shell.clone() {
-            let is_editor = kind == WindowAreaKind::Editor;
-            let _ = shell.update(cx, |shell, cx| shell.sync_area_kind(area_id, is_editor, cx));
-        }
-        if previous == Some(WindowAreaKind::Editor) && kind != WindowAreaKind::Editor {
-            self.clear_inner_panel_focus(area_id);
-        } else if kind == WindowAreaKind::Editor && previous != Some(WindowAreaKind::Editor) {
-            // Entering Editor is an explicit interaction, so the area
-            // becomes the active editor.
-            self.panels.layout.activate_area(area_id);
-        }
-    }
-
-    fn clear_inner_panel_focus(&mut self, area_id: NodeId) {
-        if self
-            .focused_editor_inner_panel
-            .is_some_and(|loc| loc.area_id == area_id)
-        {
-            self.focused_editor_inner_panel = None;
-        }
-        self.session.root.clear_dropdowns();
-    }
     pub fn ensure_editor_session(&mut self, _area_id: NodeId) -> &mut EditorSession {
         &mut self.session
     }
@@ -206,11 +104,18 @@ impl Editor {
         session.root.close_leaf(panel_id);
     }
 
-    pub fn toggle_editor_inner_panel_dropdown(&mut self, area_id: NodeId, panel_id: NodeId) {
+    pub fn toggle_editor_inner_panel_dropdown(
+        &mut self,
+        area_id: NodeId,
+        panel_id: NodeId,
+        cx: &mut Context<Self>,
+    ) {
         let session = self.ensure_editor_session(area_id);
         session.root.toggle_dropdown(panel_id);
         // Opening an inner dropdown closes any outer dropdown.
-        self.panels.layout.clear_dropdowns();
+        if let Some(shell) = self.shell.clone() {
+            let _ = shell.update(cx, |shell, _cx| shell.panels.layout.clear_dropdowns());
+        }
     }
 
     pub fn change_editor_inner_panel_kind(

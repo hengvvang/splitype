@@ -6,7 +6,8 @@ use std::path::{Path, PathBuf};
 
 use gpui::*;
 
-use crate::editor::controller::Editor;
+use crate::app::shell::Shell;
+
 use crate::editor::explorer_state::state::*;
 use crate::editor::explorer_state::undo::{
     ExplorerChange, execute_explorer_change, execute_explorer_change_inverse,
@@ -14,7 +15,7 @@ use crate::editor::explorer_state::undo::{
 };
 use crate::editor::explorer_state::utils::execute_entry_ops;
 
-impl Editor {
+impl Shell {
     /// Delete the effective selection with a confirmation prompt; after the
     /// background deletion the selection moves to the next surviving sibling
     /// (Zed's trash/delete flow, without the OS-trash variant).

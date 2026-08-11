@@ -92,7 +92,11 @@ impl Editor {
         self.tab_mut().undo.last_stable_source_text = normalized;
         self.tab_mut().undo.restore_in_progress = false;
         self.refresh_stable_document_snapshot(cx);
-        self.sync_explorer_after_document_path_change(cx);
+        if let Some(shell) = self.shell.clone() {
+            let _ = shell.update(cx, |shell, cx| {
+                shell.sync_explorer_after_document_path_change(cx);
+            });
+        }
         cx.notify();
     }
 }

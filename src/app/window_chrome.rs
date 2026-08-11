@@ -181,10 +181,10 @@ impl Shell {
         }
     }
 
-    /// Closes the menu bar when the window body (outside the titlebar and any
-    /// open menu panel) receives a mouse-down. The menu panels are siblings of
-    /// the body container and are `.occlude()`d, so their clicks never reach
-    /// this listener.
+    /// Closes the menu bar and the explorer context menu when the window
+    /// body (outside the titlebar and any open menu panel) receives a
+    /// mouse-down. The menu panels are siblings of the body container and
+    /// are `.occlude()`d, so their clicks never reach this listener.
     pub(crate) fn on_body_mouse_down(
         &mut self,
         _: &MouseDownEvent,
@@ -192,6 +192,7 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         self.close_menu_bar(cx);
+        self.close_explorer_file_menu(cx);
     }
 
     pub(crate) fn close_menu_bar(&mut self, cx: &mut Context<Self>) {

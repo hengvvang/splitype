@@ -1,7 +1,7 @@
 //! Outline panel state — heading tree, expansion set, and selection.
 //!
-//! The outline is an editor inner panel; its state lives here on the Editor
-//! entity (`WindowPanels::outline`) instead of in the explorer sidebar
+//! The outline is an editor inner panel; its state lives here on each
+//! Editor entity (`Editor::outline`) instead of in the explorer sidebar
 //! state, so the editor never depends on the explorer module.
 
 use std::collections::HashSet;

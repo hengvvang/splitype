@@ -5,13 +5,22 @@
 //! machine (add worktree → scan → toggle expand) exactly the way the UI
 //! click handlers do, so a broken tree build or expansion path surfaces
 //! here first.
+//!
+//! The explorer model lives on the Shell (window entity), so each probe
+//! builds a minimal Shell with one Editor content entity — the same wiring
+//! the real window uses.
 
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use gpui::{AppContext, TestAppContext};
 
+use crate::app::shell::{AreaContent, Shell};
+use crate::app::window_area::DEFAULT_EDITOR_AREA_ID;
+use crate::app::window_chrome::MenuBarState;
+use crate::app::window_panels::WindowPanels;
 use crate::editor::controller::Editor;
 use crate::editor::explorer_state::state::*;
 
@@ -41,8 +50,24 @@ fn temp_explorer_root(test_name: &str) -> PathBuf {
     root
 }
 
-fn visible_labels(editor: &Editor) -> Vec<String> {
-    editor
+/// A minimal window: a Shell with the default explorer+editor layout and
+/// one Editor content entity (mirrors `open_editor_window`'s wiring).
+fn new_test_shell<T: AppContext>(cx: &mut T) -> T::Result<gpui::Entity<Shell>> {
+    cx.new(|cx| {
+        let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
+        Shell {
+            areas: [(DEFAULT_EDITOR_AREA_ID, AreaContent::Editor(editor))].into(),
+            retained_editor_sessions: HashMap::new(),
+            menu_bar: MenuBarState::default(),
+            panels: WindowPanels::default(),
+            last_viewport: None,
+            explorer_file_menu: None,
+        }
+    })
+}
+
+fn visible_labels(shell: &Shell) -> Vec<String> {
+    shell
         .panels
         .explorer
         .entries
@@ -63,14 +88,14 @@ async fn single_file_worktree_roots_at_the_file(cx: &mut TestAppContext) {
     let root = temp_explorer_root("file-root");
     let file = root.join("top.md");
 
-    let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
-    editor.update(cx, |editor, cx| {
-        editor.add_explorer_worktree(file.clone(), cx);
+    let shell = new_test_shell(cx);
+    shell.update(cx, |shell, cx| {
+        shell.add_explorer_worktree(file.clone(), cx);
     });
     cx.run_until_parked();
 
-    editor.read_with(cx, |editor, _cx| {
-        let trees = &editor.panels.explorer.trees_cache;
+    shell.read_with(cx, |shell, _cx| {
+        let trees = &shell.panels.explorer.trees_cache;
         assert_eq!(trees.len(), 1, "one worktree");
         let root_node = &trees[0];
         assert_eq!(
@@ -81,7 +106,7 @@ async fn single_file_worktree_roots_at_the_file(cx: &mut TestAppContext) {
         assert_eq!(root_node.path, file);
         assert!(root_node.children.is_empty());
 
-        let rows = visible_labels(editor);
+        let rows = visible_labels(shell);
         assert_eq!(rows, vec!["top.md"], "only the file row is visible");
     });
 }
@@ -94,14 +119,14 @@ async fn toggle_on_subfolder_reveals_its_children(cx: &mut TestAppContext) {
     init_explorer_test_app(cx);
     let root = temp_explorer_root("toggle-subfolder");
 
-    let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
-    editor.update(cx, |editor, cx| {
-        editor.add_explorer_worktree(root.clone(), cx);
+    let shell = new_test_shell(cx);
+    shell.update(cx, |shell, cx| {
+        shell.add_explorer_worktree(root.clone(), cx);
     });
     cx.run_until_parked();
 
-    let subdir_id = editor.read_with(cx, |editor, _cx| {
-        let trees = &editor.panels.explorer.trees_cache;
+    let subdir_id = shell.read_with(cx, |shell, _cx| {
+        let trees = &shell.panels.explorer.trees_cache;
         assert_eq!(trees.len(), 1, "one worktree");
         let root_node = &trees[0];
         assert_eq!(root_node.kind, ExplorerEntryKind::Directory);
@@ -131,7 +156,7 @@ async fn toggle_on_subfolder_reveals_its_children(cx: &mut TestAppContext) {
         );
 
         // Root row is expanded by default → subfolder already visible.
-        let labels_before = visible_labels(editor);
+        let labels_before = visible_labels(shell);
         assert!(
             labels_before.contains(&"subdir".to_string()),
             "{labels_before:?}"
@@ -144,11 +169,11 @@ async fn toggle_on_subfolder_reveals_its_children(cx: &mut TestAppContext) {
     });
 
     // Toggle the subfolder (what the row click does) → children appear.
-    editor.update(cx, |editor, cx| {
-        editor.toggle_explorer_node(subdir_id, cx);
+    shell.update(cx, |shell, cx| {
+        shell.toggle_explorer_node(subdir_id, cx);
     });
-    editor.read_with(cx, |editor, _cx| {
-        let labels_after = visible_labels(editor);
+    shell.read_with(cx, |shell, _cx| {
+        let labels_after = visible_labels(shell);
         assert!(
             labels_after.contains(&"inner.md".to_string()),
             "inner.md visible after toggle: {labels_after:?}"
@@ -160,11 +185,11 @@ async fn toggle_on_subfolder_reveals_its_children(cx: &mut TestAppContext) {
     });
 
     // Toggling again collapses it back.
-    editor.update(cx, |editor, cx| {
-        editor.toggle_explorer_node(subdir_id, cx);
+    shell.update(cx, |shell, cx| {
+        shell.toggle_explorer_node(subdir_id, cx);
     });
-    editor.read_with(cx, |editor, _cx| {
-        let labels_collapsed = visible_labels(editor);
+    shell.read_with(cx, |shell, _cx| {
+        let labels_collapsed = visible_labels(shell);
         assert!(
             !labels_collapsed.contains(&"inner.md".to_string()),
             "{labels_collapsed:?}"
@@ -179,14 +204,14 @@ async fn rescan_preserves_expanded_subfolder(cx: &mut TestAppContext) {
     init_explorer_test_app(cx);
     let root = temp_explorer_root("rescan-expansion");
 
-    let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
-    editor.update(cx, |editor, cx| {
-        editor.add_explorer_worktree(root.clone(), cx);
+    let shell = new_test_shell(cx);
+    shell.update(cx, |shell, cx| {
+        shell.add_explorer_worktree(root.clone(), cx);
     });
     cx.run_until_parked();
 
-    let subdir_id = editor.read_with(cx, |editor, _cx| {
-        editor
+    let subdir_id = shell.read_with(cx, |shell, _cx| {
+        shell
             .panels
             .explorer
             .trees_cache
@@ -198,18 +223,18 @@ async fn rescan_preserves_expanded_subfolder(cx: &mut TestAppContext) {
             .unwrap()
             .id
     });
-    editor.update(cx, |editor, cx| {
-        editor.toggle_explorer_node(subdir_id, cx);
+    shell.update(cx, |shell, cx| {
+        shell.toggle_explorer_node(subdir_id, cx);
     });
 
     // Simulate the fs watcher firing: force a full rescan.
-    editor.update(cx, |editor, cx| {
-        editor.rescan_explorer_worktrees(cx);
+    shell.update(cx, |shell, cx| {
+        shell.rescan_explorer_worktrees(cx);
     });
     cx.run_until_parked();
 
-    editor.read_with(cx, |editor, _cx| {
-        let labels = visible_labels(editor);
+    shell.read_with(cx, |shell, _cx| {
+        let labels = visible_labels(shell);
         assert!(
             labels.contains(&"inner.md".to_string()),
             "expansion survived the rescan: {labels:?}"
