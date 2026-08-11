@@ -20,17 +20,17 @@ async fn request_quote_break_creates_new_root_leaf_quote_group(cx: &mut TestAppC
         let quote = editor.doc().first_root().expect("root quote").clone();
         editor.on_block_event(quote, &BlockAction::RequestQuoteBreak, cx);
 
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "first");
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
-        assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "first");
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Blockquote);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
+        assert_eq!(entries[1].entity.read(cx).quote_depth, 1);
         assert_eq!(editor.doc().to_markdown(cx), "> first\n\n> ");
         assert_eq!(
             editor.tab().focus.pending,
-            Some(visible[1].entity.entity_id())
+            Some(entries[1].entity.entity_id())
         );
     });
 }
@@ -53,11 +53,11 @@ async fn typing_quote_shortcut_immediately_refreshes_rendered_quote_metadata(
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 1);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "");
-        assert_eq!(visible[0].entity.read(cx).quote_depth, 1);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "");
+        assert_eq!(entries[0].entity.read(cx).quote_depth, 1);
         assert_eq!(editor.doc().to_markdown(cx), "> ");
     });
 }
@@ -77,7 +77,7 @@ async fn footnote_reference_jump_and_backref_follow_in_place_definition(cx: &mut
             .doc()
             .blocks()
             .iter()
-            .find(|visible| visible.entity.read(cx).kind() == BlockKind::FootnoteDefinition)
+            .find(|entries| entries.entity.read(cx).kind() == BlockKind::FootnoteDefinition)
             .expect("footnote definition block")
             .entity
             .clone();
@@ -122,15 +122,15 @@ async fn image_block_insert_preserves_surrounding_paragraph_text(cx: &mut TestAp
             cx,
         );
 
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 3);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "before");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "before");
         assert_eq!(
-            visible[1].entity.read(cx).display_text(),
+            entries[1].entity.read(cx).display_text(),
             "![image](./assets/image.png)"
         );
-        assert!(visible[1].entity.read(cx).image_runtime().is_some());
-        assert_eq!(visible[2].entity.read(cx).display_text(), "after");
+        assert!(entries[1].entity.read(cx).image_runtime().is_some());
+        assert_eq!(entries[2].entity.read(cx).display_text(), "after");
     });
 }
 
@@ -148,14 +148,14 @@ async fn image_paste_text_in_code_block_stays_inside_block(cx: &mut TestAppConte
             cx,
         );
 
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 1);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 1);
         assert_eq!(
-            visible[0].entity.read(cx).kind(),
+            entries[0].entity.read(cx).kind(),
             BlockKind::CodeBlock { language: None }
         );
         assert_eq!(
-            visible[0].entity.read(cx).display_text(),
+            entries[0].entity.read(cx).display_text(),
             "before![image](./assets/image.png)after"
         );
     });
@@ -177,19 +177,19 @@ async fn typing_callout_shortcut_materializes_body_and_focuses_it(cx: &mut TestA
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
         assert_eq!(
-            visible[0].entity.read(cx).kind(),
+            entries[0].entity.read(cx).kind(),
             BlockKind::Callout(CalloutKind::Note)
         );
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
-        assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
+        assert_eq!(entries[1].entity.read(cx).quote_depth, 1);
         assert_eq!(editor.doc().to_markdown(cx), "> [!NOTE]\n> ");
         assert_eq!(
             editor.tab().focus.pending,
-            Some(visible[1].entity.entity_id())
+            Some(entries[1].entity.entity_id())
         );
     });
 }
@@ -225,20 +225,20 @@ async fn typing_numbered_list_shortcut_after_separator_preserves_group_boundary(
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 5);
-        assert_eq!(visible[0].entity.read(cx).list_ordinal, Some(1));
-        assert_eq!(visible[1].entity.read(cx).list_ordinal, Some(2));
-        assert_eq!(visible[2].entity.read(cx).list_ordinal, Some(3));
-        assert_eq!(visible[3].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[3].entity.read(cx).display_text(), "");
-        assert_eq!(visible[4].entity.entity_id(), separator_id);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 5);
+        assert_eq!(entries[0].entity.read(cx).list_ordinal, Some(1));
+        assert_eq!(entries[1].entity.read(cx).list_ordinal, Some(2));
+        assert_eq!(entries[2].entity.read(cx).list_ordinal, Some(3));
+        assert_eq!(entries[3].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[3].entity.read(cx).display_text(), "");
+        assert_eq!(entries[4].entity.entity_id(), separator_id);
         assert_eq!(
-            visible[4].entity.read(cx).kind(),
+            entries[4].entity.read(cx).kind(),
             BlockKind::NumberedListItem
         );
-        assert_eq!(visible[4].entity.read(cx).display_text(), "");
-        assert_eq!(visible[4].entity.read(cx).list_ordinal, Some(1));
+        assert_eq!(entries[4].entity.read(cx).display_text(), "");
+        assert_eq!(entries[4].entity.read(cx).list_ordinal, Some(1));
         assert_eq!(editor.doc().to_markdown(cx), "1. aa\n2. bb\n3. cc\n\n1. ");
     });
 }
@@ -251,11 +251,11 @@ async fn request_indent_nests_non_empty_list_item(cx: &mut TestAppContext) {
         let second = editor.doc().blocks()[1].entity.clone();
         editor.on_block_event(second, &BlockAction::RequestIndent, cx);
 
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::BulletListItem);
-        assert_eq!(visible[1].entity.read(cx).render_depth, 1);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::BulletListItem);
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::BulletListItem);
+        assert_eq!(entries[1].entity.read(cx).render_depth, 1);
         assert_eq!(editor.doc().to_markdown(cx), "- a\n  - b");
     });
 }
@@ -271,14 +271,14 @@ async fn request_outdent_lifts_list_child_paragraph_after_parent(cx: &mut TestAp
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "item");
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "child text");
-        assert_eq!(visible[1].entity.read(cx).render_depth, 0);
-        assert_eq!(visible[1].entity.entity_id(), child_id);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::BulletListItem);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "item");
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "child text");
+        assert_eq!(entries[1].entity.read(cx).render_depth, 0);
+        assert_eq!(entries[1].entity.entity_id(), child_id);
         assert_eq!(editor.doc().to_markdown(cx), "- item\n\nchild text");
     });
 }
@@ -314,13 +314,13 @@ async fn empty_list_child_paragraph_backspace_outdents_to_root(cx: &mut TestAppC
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
-        assert_eq!(visible[1].entity.entity_id(), child_id);
-        assert_eq!(visible[1].entity.read(cx).render_depth, 0);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::BulletListItem);
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
+        assert_eq!(entries[1].entity.entity_id(), child_id);
+        assert_eq!(entries[1].entity.read(cx).render_depth, 0);
         assert_eq!(editor.doc().to_markdown(cx), "- item\n\n");
     });
 }
@@ -352,17 +352,17 @@ async fn empty_list_child_paragraph_enter_continues_same_level(cx: &mut TestAppC
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 3);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::BulletListItem);
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
         // Enter splits into a fresh block; the structure (two empty
         // list-child paragraphs) is what matters.
-        assert_eq!(visible[1].entity.read(cx).render_depth, 1);
-        assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[2].entity.read(cx).display_text(), "");
-        assert_eq!(visible[2].entity.read(cx).render_depth, 1);
+        assert_eq!(entries[1].entity.read(cx).render_depth, 1);
+        assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[2].entity.read(cx).display_text(), "");
+        assert_eq!(entries[2].entity.read(cx).render_depth, 1);
         assert_eq!(editor.doc().to_markdown(cx), "- item\n  \n  ");
     });
 }
@@ -383,11 +383,11 @@ async fn enter_inside_script_paragraph_creates_new_block(cx: &mut TestAppContext
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "H2O");
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "H2O");
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
         assert_eq!(editor.doc().to_markdown(cx), "H~2~O\n\n");
     });
 }
@@ -408,13 +408,13 @@ async fn enter_inside_inline_math_paragraph_creates_new_block(cx: &mut TestAppCo
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "$n^2$");
-        assert!(!visible[0].entity.read(cx).uses_raw_text_editing());
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "$n^2$");
+        assert!(!entries[0].entity.read(cx).uses_raw_text_editing());
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
         assert_eq!(editor.doc().to_markdown(cx), "$n^2$\n\n");
     });
 }
@@ -439,17 +439,17 @@ async fn trailing_fence_line_enter_closes_code_block(cx: &mut TestAppContext) {
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
         assert_eq!(
-            visible[0].entity.read(cx).kind(),
+            entries[0].entity.read(cx).kind(),
             BlockKind::CodeBlock {
                 language: Some("rust".into())
             }
         );
-        assert_eq!(visible[0].entity.read(cx).display_text(), "let x = 1;");
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
+        assert_eq!(entries[0].entity.read(cx).display_text(), "let x = 1;");
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
         assert_eq!(editor.doc().to_markdown(cx), "```rust\nlet x = 1;\n```\n\n");
     });
 }
@@ -470,15 +470,15 @@ async fn setext_equals_underline_enter_promotes_previous_paragraph_to_h1(cx: &mu
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
         assert_eq!(
-            visible[0].entity.read(cx).kind(),
+            entries[0].entity.read(cx).kind(),
             BlockKind::Heading { level: 1 }
         );
-        assert_eq!(visible[0].entity.read(cx).display_text(), "Title");
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
+        assert_eq!(entries[0].entity.read(cx).display_text(), "Title");
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
         assert_eq!(editor.doc().to_markdown(cx), "# Title\n\n");
     });
 
@@ -509,12 +509,12 @@ async fn setext_dash_underline_enter_promotes_previous_paragraph_to_h2(cx: &mut 
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
+        let entries = editor.doc().blocks();
         assert_eq!(
-            visible[0].entity.read(cx).kind(),
+            entries[0].entity.read(cx).kind(),
             BlockKind::Heading { level: 2 }
         );
-        assert_eq!(visible[0].entity.read(cx).display_text(), "Title");
+        assert_eq!(entries[0].entity.read(cx).display_text(), "Title");
         assert_eq!(editor.doc().to_markdown(cx), "## Title\n\n");
     });
 }
@@ -536,8 +536,8 @@ async fn dash_underline_without_heading_target_stays_a_separator(cx: &mut TestAp
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::ThematicBreak);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::ThematicBreak);
     });
 }
 
@@ -558,9 +558,9 @@ async fn equals_underline_without_heading_target_stays_a_paragraph(cx: &mut Test
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "=====");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "=====");
     });
 }
 
@@ -796,12 +796,12 @@ async fn math_block_exit_shortcut_creates_plain_text_block(cx: &mut TestAppConte
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MathBlock);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "n^2");
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::MathBlock);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "n^2");
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
         assert_eq!(editor.doc().to_markdown(cx), "$$n^2$$\n\n");
     });
 }
@@ -829,9 +829,9 @@ async fn dollar_dollar_enter_creates_editable_math_block(cx: &mut TestAppContext
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 1);
-        let block = visible[0].entity.read(cx);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 1);
+        let block = entries[0].entity.read(cx);
         assert_eq!(block.kind(), BlockKind::MathBlock);
         // The delimiters are stripped; only the formula body is stored.
         assert_eq!(block.display_text(), "");
@@ -860,9 +860,9 @@ async fn dollar_dollar_prefix_then_enter_wraps_existing_line(cx: &mut TestAppCon
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 1);
-        let block = visible[0].entity.read(cx);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 1);
+        let block = entries[0].entity.read(cx);
         assert_eq!(block.kind(), BlockKind::MathBlock);
         // The pre-existing text is kept as the formula body.
         assert_eq!(block.display_text(), "E = mc^2");
@@ -888,10 +888,10 @@ async fn enter_inside_math_block_keeps_local_formula_editing(cx: &mut TestAppCon
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 1);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MathBlock);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "n\n^2");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::MathBlock);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "n\n^2");
         assert_eq!(editor.doc().to_markdown(cx), "$$\nn\n^2\n$$");
     });
 }
@@ -920,12 +920,12 @@ async fn auto_created_math_block_exit_shortcut_creates_plain_text_block(cx: &mut
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MathBlock);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "");
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::MathBlock);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "");
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
         assert_eq!(editor.doc().to_markdown(cx), "$$\n\n$$\n\n");
     });
 }
@@ -986,12 +986,12 @@ async fn raw_like_block_exit_shortcut_creates_plain_text_block(cx: &mut TestAppC
         });
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.doc().blocks();
-            assert_eq!(visible.len(), 2);
-            assert_eq!(visible[0].entity.read(cx).kind(), kind);
-            assert_eq!(visible[0].entity.read(cx).display_text(), text);
-            assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-            assert_eq!(visible[1].entity.read(cx).display_text(), "");
+            let entries = editor.doc().blocks();
+            assert_eq!(entries.len(), 2);
+            assert_eq!(entries[0].entity.read(cx).kind(), kind);
+            assert_eq!(entries[0].entity.read(cx).display_text(), text);
+            assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+            assert_eq!(entries[1].entity.read(cx).display_text(), "");
         });
     }
 }
@@ -1069,7 +1069,7 @@ pub(crate) fn table_root(editor: &Editor, cx: &App) -> Entity<Block> {
         .doc()
         .blocks()
         .iter()
-        .map(|visible| visible.entity.clone())
+        .map(|entries| entries.entity.clone())
         .find(|block| block.read(cx).kind() == BlockKind::Table)
         .expect("table root")
 }
@@ -1334,11 +1334,11 @@ async fn plain_multiline_paste_with_scripts_splits_physical_lines(cx: &mut TestA
             cx,
         );
 
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 3);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "H2O");
-        assert_eq!(visible[1].entity.read(cx).display_text(), "CO2");
-        assert_eq!(visible[2].entity.read(cx).display_text(), "xn");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "H2O");
+        assert_eq!(entries[1].entity.read(cx).display_text(), "CO2");
+        assert_eq!(entries[2].entity.read(cx).display_text(), "xn");
         assert_eq!(editor.doc().to_markdown(cx), "H~2~O\n\nCO~2~\n\nx^n^");
     });
 }
@@ -1369,9 +1369,9 @@ async fn structural_paste_of_table_renders_native_table(cx: &mut TestAppContext)
         // as the header. The empty paste target is also dropped, and a
         // trailing paragraph is added so the document does not end on the
         // table with no line below it.
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        let table = visible[0].entity.read(cx);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        let table = entries[0].entity.read(cx);
         assert_eq!(table.kind(), BlockKind::Table);
         let data = table.record.table.as_ref().expect("table data");
         assert_eq!(data.header[0].serialize_markdown(), "A");
@@ -1379,8 +1379,8 @@ async fn structural_paste_of_table_renders_native_table(cx: &mut TestAppContext)
         assert_eq!(data.rows.len(), 1);
         assert_eq!(data.rows[0][0].serialize_markdown(), "1");
         assert_eq!(data.rows[0][1].serialize_markdown(), "2");
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
     });
 }
 
@@ -1410,9 +1410,9 @@ async fn structural_paste_of_code_block_renders_native_code_block(cx: &mut TestA
         // no longer folded into a paragraph, and the empty paste target is
         // dropped. A trailing paragraph is added so the document does not end
         // on the code block with no line below it.
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        let code = visible[0].entity.read(cx);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        let code = entries[0].entity.read(cx);
         assert_eq!(
             code.kind(),
             BlockKind::CodeBlock {
@@ -1420,7 +1420,7 @@ async fn structural_paste_of_code_block_renders_native_code_block(cx: &mut TestA
             }
         );
         assert_eq!(code.display_text(), "fn main() {}");
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(
             editor.doc().to_markdown(cx),
             "```rust\nfn main() {}\n```\n\n"
@@ -1449,18 +1449,18 @@ async fn structural_paste_of_table_preserves_surrounding_text(cx: &mut TestAppCo
             cx,
         );
 
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 3);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "before");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "before");
 
-        let table = visible[1].entity.read(cx);
+        let table = entries[1].entity.read(cx);
         assert_eq!(table.kind(), BlockKind::Table);
         let data = table.record.table.as_ref().expect("table data");
         assert_eq!(data.header[0].serialize_markdown(), "A");
         assert_eq!(data.rows[0][0].serialize_markdown(), "1");
 
-        assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[2].entity.read(cx).display_text(), "after");
+        assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[2].entity.read(cx).display_text(), "after");
     });
 }
 
@@ -1485,18 +1485,18 @@ async fn structural_paste_of_code_block_preserves_surrounding_text(cx: &mut Test
             cx,
         );
 
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 3);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "before");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "before");
         assert_eq!(
-            visible[1].entity.read(cx).kind(),
+            entries[1].entity.read(cx).kind(),
             BlockKind::CodeBlock {
                 language: Some("rust".into())
             }
         );
-        assert_eq!(visible[1].entity.read(cx).display_text(), "fn main() {}");
-        assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[2].entity.read(cx).display_text(), "after");
+        assert_eq!(entries[1].entity.read(cx).display_text(), "fn main() {}");
+        assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[2].entity.read(cx).display_text(), "after");
         // Text already follows the code block, so no extra trailing
         // paragraph is added mid-document.
     });
@@ -1522,12 +1522,12 @@ async fn structural_paste_at_document_end_adds_one_trailing_paragraph(cx: &mut T
             cx,
         );
 
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 3);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "intro");
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::ThematicBreak);
-        assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[2].entity.read(cx).display_text(), "");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "intro");
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::ThematicBreak);
+        assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[2].entity.read(cx).display_text(), "");
     });
 }
 
@@ -1654,7 +1654,7 @@ async fn structural_paste_of_standalone_image_at_document_end_adds_trailing_para
         // same trailing paragraph even though it is a paragraph block.
         let roots = editor.doc().root_blocks();
         assert_eq!(roots.len(), 3);
-        assert!(roots[1].read(cx).renders_as_standalone_image());
+        assert!(roots[1].read(cx).is_standalone_image());
         assert_eq!(roots[2].read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(roots[2].read(cx).display_text(), "");
     });
@@ -1686,11 +1686,11 @@ async fn plain_multiline_paste_with_blank_script_lines_skips_separator_blanks(
             cx,
         );
 
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 3);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "H2O");
-        assert_eq!(visible[1].entity.read(cx).display_text(), "CO2");
-        assert_eq!(visible[2].entity.read(cx).display_text(), "xn");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "H2O");
+        assert_eq!(entries[1].entity.read(cx).display_text(), "CO2");
+        assert_eq!(entries[2].entity.read(cx).display_text(), "xn");
     });
 }
 
@@ -1717,11 +1717,11 @@ async fn plain_multiline_paste_with_leading_inline_html_splits_physical_lines(
             cx,
         );
 
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 3);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "2");
-        assert_eq!(visible[1].entity.read(cx).display_text(), "n");
-        assert_eq!(visible[2].entity.read(cx).display_text(), "x");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "2");
+        assert_eq!(entries[1].entity.read(cx).display_text(), "n");
+        assert_eq!(entries[2].entity.read(cx).display_text(), "x");
         assert_eq!(
             editor.doc().to_markdown(cx),
             "<sub>2</sub>\n\n<sup>n</sup>\n\n<span style=\"color: rgba(255,0,0,1.000);\">x</span>"
@@ -1747,11 +1747,11 @@ async fn plain_paste_preserves_tibetan_spaces(cx: &mut TestAppContext) {
             cx,
         );
 
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 1);
-        assert_eq!(visible[0].entity.read(cx).display_text(), tibetan);
-        assert!(visible[0].entity.read(cx).display_text().contains("།། བདག"));
-        assert!(visible[0].entity.read(cx).display_text().ends_with(' '));
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].entity.read(cx).display_text(), tibetan);
+        assert!(entries[0].entity.read(cx).display_text().contains("།། བདག"));
+        assert!(entries[0].entity.read(cx).display_text().ends_with(' '));
         assert_eq!(editor.doc().to_markdown(cx), tibetan);
     });
 }
@@ -1772,12 +1772,12 @@ async fn nested_list_item_backspace_downgrades_to_direct_list_child(cx: &mut Tes
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "b");
-        assert_eq!(visible[1].entity.read(cx).render_depth, 1);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::BulletListItem);
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "b");
+        assert_eq!(entries[1].entity.read(cx).render_depth, 1);
         assert_eq!(editor.doc().to_markdown(cx), "- a\n\n  b");
     });
 }
@@ -1798,11 +1798,11 @@ async fn empty_nested_list_item_backspace_twice_exits_to_outer_paragraph(cx: &mu
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
-        assert_eq!(visible[1].entity.read(cx).render_depth, 1);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
+        assert_eq!(entries[1].entity.read(cx).render_depth, 1);
         assert_eq!(editor.doc().to_markdown(cx), "- a\n  ");
     });
 
@@ -1817,12 +1817,12 @@ async fn empty_nested_list_item_backspace_twice_exits_to_outer_paragraph(cx: &mu
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
-        assert_eq!(visible[1].entity.read(cx).render_depth, 0);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::BulletListItem);
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
+        assert_eq!(entries[1].entity.read(cx).render_depth, 0);
         assert_eq!(editor.doc().to_markdown(cx), "- a\n\n");
     });
 }
@@ -1840,18 +1840,18 @@ async fn nested_list_item_downgrade_hoists_children_after_paragraph(cx: &mut Tes
             cx,
         );
 
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 4);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::BulletListItem);
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "b");
-        assert_eq!(visible[1].entity.read(cx).render_depth, 1);
-        assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::BulletListItem);
-        assert_eq!(visible[2].entity.read(cx).display_text(), "c");
-        assert_eq!(visible[2].entity.read(cx).render_depth, 1);
-        assert_eq!(visible[3].entity.read(cx).kind(), BlockKind::BulletListItem);
-        assert_eq!(visible[3].entity.read(cx).display_text(), "d");
-        assert_eq!(visible[3].entity.read(cx).render_depth, 1);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 4);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::BulletListItem);
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "b");
+        assert_eq!(entries[1].entity.read(cx).render_depth, 1);
+        assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::BulletListItem);
+        assert_eq!(entries[2].entity.read(cx).display_text(), "c");
+        assert_eq!(entries[2].entity.read(cx).render_depth, 1);
+        assert_eq!(entries[3].entity.read(cx).kind(), BlockKind::BulletListItem);
+        assert_eq!(entries[3].entity.read(cx).display_text(), "d");
+        assert_eq!(entries[3].entity.read(cx).render_depth, 1);
         assert_eq!(editor.doc().to_markdown(cx), "- a\n\n  b\n  - c\n  - d");
     });
 }
@@ -1871,10 +1871,10 @@ async fn nested_numbered_and_task_items_backspace_downgrade_to_list_child(cx: &m
         });
     });
     numbered.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "b");
-        assert_eq!(visible[1].entity.read(cx).render_depth, 1);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "b");
+        assert_eq!(entries[1].entity.read(cx).render_depth, 1);
         assert_eq!(editor.doc().to_markdown(cx), "1. a\n\n  b");
     });
 
@@ -1889,10 +1889,10 @@ async fn nested_numbered_and_task_items_backspace_downgrade_to_list_child(cx: &m
         });
     });
     task.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "b");
-        assert_eq!(visible[1].entity.read(cx).render_depth, 1);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "b");
+        assert_eq!(entries[1].entity.read(cx).render_depth, 1);
         assert_eq!(editor.doc().to_markdown(cx), "- [ ] a\n\n  b");
     });
 }
@@ -1905,23 +1905,23 @@ async fn request_quote_break_creates_nested_leaf_quote_group(cx: &mut TestAppCon
         let nested_quote = editor.doc().blocks()[1].entity.clone();
         editor.on_block_event(nested_quote, &BlockAction::RequestQuoteBreak, cx);
 
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 4);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "outer");
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "inner");
-        assert_eq!(visible[1].entity.read(cx).quote_depth, 2);
-        assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[2].entity.read(cx).display_text(), "");
-        assert_eq!(visible[2].entity.read(cx).quote_depth, 1);
-        assert_eq!(visible[3].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(visible[3].entity.read(cx).display_text(), "");
-        assert_eq!(visible[3].entity.read(cx).quote_depth, 2);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 4);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "outer");
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Blockquote);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "inner");
+        assert_eq!(entries[1].entity.read(cx).quote_depth, 2);
+        assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[2].entity.read(cx).display_text(), "");
+        assert_eq!(entries[2].entity.read(cx).quote_depth, 1);
+        assert_eq!(entries[3].entity.read(cx).kind(), BlockKind::Blockquote);
+        assert_eq!(entries[3].entity.read(cx).display_text(), "");
+        assert_eq!(entries[3].entity.read(cx).quote_depth, 2);
         assert_eq!(editor.doc().to_markdown(cx), "> outer\n> > inner\n> \n> > ");
         assert_eq!(
             editor.tab().focus.pending,
-            Some(visible[3].entity.entity_id())
+            Some(entries[3].entity.entity_id())
         );
     });
 }
@@ -1942,11 +1942,11 @@ async fn imported_leaf_quote_backspace_twice_downgrades_to_text_block(cx: &mut T
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 1);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "");
-        assert_eq!(visible[0].entity.read(cx).quote_depth, 1);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "");
+        assert_eq!(entries[0].entity.read(cx).quote_depth, 1);
         assert_eq!(editor.doc().to_markdown(cx), "> ");
     });
 
@@ -1965,12 +1965,12 @@ async fn imported_leaf_quote_backspace_twice_downgrades_to_text_block(cx: &mut T
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 1);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "");
-        assert_eq!(visible[0].entity.read(cx).quote_depth, 0);
-        assert_eq!(visible[0].entity.entity_id(), empty_quote_id);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "");
+        assert_eq!(entries[0].entity.read(cx).quote_depth, 0);
+        assert_eq!(entries[0].entity.entity_id(), empty_quote_id);
         assert_eq!(editor.doc().to_markdown(cx), "");
     });
 }
@@ -2047,11 +2047,11 @@ async fn root_quote_break_then_backspace_keeps_text_block_slot_after_group(
     let new_leaf_id = editor.update(cx, |editor, cx| {
         let quote = editor.doc().first_root().expect("group quote").clone();
         editor.on_block_event(quote, &BlockAction::RequestQuoteBreak, cx);
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
-        visible[1].entity.entity_id()
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Blockquote);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
+        entries[1].entity.entity_id()
     });
 
     cx.update(|window, cx| {
@@ -2065,14 +2065,14 @@ async fn root_quote_break_then_backspace_keeps_text_block_slot_after_group(
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "side\n\n1234");
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
-        assert_eq!(visible[1].entity.entity_id(), new_leaf_id);
-        assert_eq!(visible[1].entity.read(cx).quote_depth, 0);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "side\n\n1234");
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
+        assert_eq!(entries[1].entity.entity_id(), new_leaf_id);
+        assert_eq!(entries[1].entity.read(cx).quote_depth, 0);
         assert_eq!(editor.doc().to_markdown(cx), "> side\n> \n> 1234\n\n");
     });
 }
@@ -2093,10 +2093,10 @@ async fn empty_callout_body_backspace_downgrades_parent_to_quote(cx: &mut TestAp
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 1);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "[!NOTE]");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "[!NOTE]");
         assert_eq!(editor.doc().to_markdown(cx), "> \\[!NOTE]");
     });
 }
@@ -2116,19 +2116,19 @@ async fn callout_exit_break_creates_plain_text_block(cx: &mut TestAppContext) {
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 3);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 3);
         assert_eq!(
-            visible[0].entity.read(cx).kind(),
+            entries[0].entity.read(cx).kind(),
             BlockKind::Callout(CalloutKind::Tip)
         );
-        assert_eq!(visible[2].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[2].entity.read(cx).display_text(), "");
-        assert_eq!(visible[2].entity.read(cx).quote_depth, 0);
+        assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[2].entity.read(cx).display_text(), "");
+        assert_eq!(entries[2].entity.read(cx).quote_depth, 0);
         assert_eq!(editor.doc().to_markdown(cx), "> [!TIP]\n> body\n\n");
         assert_eq!(
             editor.tab().focus.pending,
-            Some(visible[2].entity.entity_id())
+            Some(entries[2].entity.entity_id())
         );
     });
 }
@@ -2153,11 +2153,11 @@ async fn delete_on_empty_leaf_quote_downgrades_to_text_block(cx: &mut TestAppCon
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 1);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "");
-        assert_eq!(visible[0].entity.entity_id(), empty_quote_id);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "");
+        assert_eq!(entries[0].entity.entity_id(), empty_quote_id);
         assert_eq!(editor.doc().to_markdown(cx), "");
     });
 }
@@ -2180,13 +2180,13 @@ async fn quote_container_with_children_does_not_collapse_from_leaf_exit_path(
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "");
-        assert_eq!(visible[0].entity.read(cx).quote_depth, 1);
-        assert!(!visible[0].entity.read(cx).children.is_empty());
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::BulletListItem);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "");
+        assert_eq!(entries[0].entity.read(cx).quote_depth, 1);
+        assert!(!entries[0].entity.read(cx).children.is_empty());
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::BulletListItem);
         assert_eq!(editor.doc().to_markdown(cx), "> - item");
     });
 }
@@ -2207,10 +2207,10 @@ async fn quote_newline_inside_title_stays_in_one_source_authoritative_group(
             block.replace_text_in_display_range(5..5, "\n", None, false, cx);
         });
 
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 1);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "first\nsecond");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "first\nsecond");
         assert_eq!(editor.doc().to_markdown(cx), "> first\n> second");
     });
 }
@@ -2233,13 +2233,13 @@ async fn root_quote_enter_stays_in_same_group(cx: &mut TestAppContext) {
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "first");
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
-        assert_eq!(visible[1].entity.read(cx).quote_depth, 1);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "first");
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
+        assert_eq!(entries[1].entity.read(cx).quote_depth, 1);
         assert_eq!(editor.doc().to_markdown(cx), "> first\n> ");
     });
 }
@@ -2260,12 +2260,12 @@ async fn multiline_edit_inside_quote_reparses_into_child_blocks(cx: &mut TestApp
     });
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "first");
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::BulletListItem);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "item");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "first");
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::BulletListItem);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "item");
         assert_eq!(editor.doc().to_markdown(cx), "> first\n> - item");
     });
 }

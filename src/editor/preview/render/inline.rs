@@ -23,11 +23,11 @@ pub(crate) fn render_preview_inline(
     theme: &Theme,
 ) -> AnyElement {
     let cache = text.render_cache();
-    let visible = cache.visible_text();
+    let plain = cache.visible_text();
 
     let mut elements: Vec<AnyElement> = Vec::new();
     for span in cache.spans() {
-        let segment = &visible[span.range.clone()];
+        let segment = &plain[span.range.clone()];
         if segment.is_empty() {
             continue;
         }

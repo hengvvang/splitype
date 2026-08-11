@@ -20,13 +20,13 @@ pub(crate) fn render_preview_image(
     let d = &theme.dimensions;
     let t = &theme.typography;
 
-    let visible = block.record.text.visible_text();
-    let Some(syntax) = parse_standalone_image(&visible) else {
+    let plain = block.record.text.visible_text();
+    let Some(syntax) = parse_standalone_image(&plain) else {
         return paragraph::render_preview_paragraph(block, base, theme);
     };
     let alt = syntax.alt.clone();
     let Some(runtime) = block.image_runtime_for_syntax(syntax) else {
-        return render_preview_image_placeholder(&alt, &visible, base, theme);
+        return render_preview_image_placeholder(&alt, &plain, base, theme);
     };
 
     let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));

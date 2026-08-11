@@ -55,7 +55,7 @@ impl Editor {
         self.doc()
             .blocks()
             .iter()
-            .find_map(|visible| is_focused(&visible.entity).then(|| visible.entity.clone()))
+            .find_map(|entry| is_focused(&entry.entity).then(|| entry.entity.clone()))
     }
 
     pub(crate) fn on_editor_key_down_capture(

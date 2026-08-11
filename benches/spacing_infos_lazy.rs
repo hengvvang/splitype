@@ -5,7 +5,7 @@
 //! with an on-demand `spacing_for(index)` closure.
 //!
 //! Pre-refactor: per frame, every visible block's spacing metadata was read
-//! into a `Vec<RenderedRowSpacingInfo>` before the layout loop began —
+//! into a `Vec<RowSpacingInfo>` before the layout loop began —
 //! 7-field struct × N blocks (~120 B each) + a `Vec` allocation. For a
 //! 200-block document that's ~24 KB allocated and freed every frame.
 //!

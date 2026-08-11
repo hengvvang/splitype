@@ -78,16 +78,11 @@ impl Editor {
         let prefs = self.bottombar_settings(cx);
 
         let panel_id = self.panel_id;
-        let inner_leaf_count = self.session().root
-            .tree
-            .count_leaves();
+        let inner_leaf_count = self.session().root.tree.count_leaves();
 
         let focused_pane_id = self.focused_pane;
-        let focused_kind = focused_pane_id.and_then(|pane_id| {
-            self.session().root
-                .tree
-                .find_leaf_kind(pane_id)
-        });
+        let focused_kind =
+            focused_pane_id.and_then(|pane_id| self.session().root.tree.find_leaf_kind(pane_id));
 
         let mut left_items: Vec<AnyElement> = Vec::new();
         let mut right_items: Vec<AnyElement> = Vec::new();
@@ -258,12 +253,12 @@ impl Editor {
             let entity_id = block.entity_id();
             let mut before_lines = 0usize;
             let mut found = false;
-            for visible in self.doc().blocks() {
-                if visible.entity.entity_id() == entity_id {
+            for entry in self.doc().blocks() {
+                if entry.entity.entity_id() == entity_id {
                     found = true;
                     break;
                 }
-                before_lines += visible.entity.read(cx).display_text().matches('\n').count() + 1;
+                before_lines += entry.entity.read(cx).display_text().matches('\n').count() + 1;
             }
             if found {
                 let text = block.read(cx).display_text();

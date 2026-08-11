@@ -31,18 +31,18 @@ async fn toggle_view_mode_preserves_paragraph_caret_position(cx: &mut TestAppCon
 
         editor.toggle_view_mode(cx);
         assert!(matches!(editor.tab().mode, EditorMode::Wysiwyg));
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
         assert!(
-            visible
+            entries
                 .iter()
-                .all(|visible| !visible.entity.read(cx).show_source_line_numbers())
+                .all(|entries| !entries.entity.read(cx).show_source_line_numbers())
         );
-        assert_eq!(visible[1].entity.read(cx).display_text(), "beta");
-        assert_eq!(visible[1].entity.read(cx).selected_range, 2..2);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "beta");
+        assert_eq!(entries[1].entity.read(cx).selected_range, 2..2);
         assert_eq!(
             editor.tab().focus.pending,
-            Some(visible[1].entity.entity_id())
+            Some(entries[1].entity.entity_id())
         );
     });
 }
@@ -182,9 +182,9 @@ async fn repeated_ctrl_a_selects_all_rendered_blocks(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.read_with(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        let first_id = visible[0].entity.entity_id();
-        let last = visible.last().expect("visible blocks");
+        let entries = editor.doc().blocks();
+        let first_id = entries[0].entity.entity_id();
+        let last = entries.last().expect("block entries");
         let last_id = last.entity.entity_id();
         let last_len = last.entity.read(cx).visible_len();
         let selection = editor
@@ -196,8 +196,8 @@ async fn repeated_ctrl_a_selects_all_rendered_blocks(cx: &mut TestAppContext) {
         assert_eq!(selection.anchor.offset, 0);
         assert_eq!(selection.focus.entity_id, last_id);
         assert_eq!(selection.focus.offset, last_len);
-        for visible in visible {
-            let block = visible.entity.read(cx);
+        for entries in entries {
+            let block = entries.entity.read(cx);
             let len = block.visible_len();
             if len > 0 {
                 assert_eq!(block.editor_selection_range, Some(0..len));
@@ -216,8 +216,8 @@ async fn repeated_ctrl_a_selects_all_rendered_blocks(cx: &mut TestAppContext) {
             selected_after_second,
             "third Ctrl+A should keep the full rendered document selected"
         );
-        for visible in editor.doc().blocks() {
-            let block = visible.entity.read(cx);
+        for entries in editor.doc().blocks() {
+            let block = entries.entity.read(cx);
             let len = block.visible_len();
             if len > 0 {
                 assert_eq!(block.editor_selection_range, Some(0..len));
@@ -535,9 +535,9 @@ async fn tab_key_keeps_list_indent_semantics(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[1].entity.read(cx).render_depth, 1);
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[1].entity.read(cx).render_depth, 1);
         assert_eq!(editor.doc().to_markdown(cx), "- a\n  - b");
     });
 }
@@ -658,7 +658,7 @@ async fn inserting_table_at_document_end_adds_trailing_paragraph(cx: &mut TestAp
         let roots = editor.doc().blocks();
         let kinds = roots
             .iter()
-            .map(|visible| visible.entity.read(cx).kind())
+            .map(|entries| entries.entity.read(cx).kind())
             .collect::<Vec<_>>();
         let table_index = kinds
             .iter()
@@ -691,12 +691,12 @@ async fn ctrl_enter_exits_focused_math_block(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::MathBlock);
-        assert_eq!(visible[0].entity.read(cx).display_text(), "n^2");
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::MathBlock);
+        assert_eq!(entries[0].entity.read(cx).display_text(), "n^2");
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
         assert_eq!(editor.doc().to_markdown(cx), "$$n^2$$\n\n");
     });
 }
@@ -728,14 +728,14 @@ async fn ctrl_enter_exits_focused_table_cell(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.update(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
-        assert_eq!(visible.len(), 2);
-        assert_eq!(visible[0].entity.read(cx).kind(), BlockKind::Table);
-        assert_eq!(visible[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(visible[1].entity.read(cx).display_text(), "");
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Table);
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
         assert_eq!(
             editor.tab().focus.active_entity,
-            Some(visible[1].entity.entity_id())
+            Some(entries[1].entity.entity_id())
         );
     });
 }
@@ -860,4 +860,3 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
         assert_eq!(editor.tab().focus.pending, Some(restored_cell.entity_id()));
     });
 }
-

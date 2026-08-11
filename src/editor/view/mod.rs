@@ -28,7 +28,7 @@ use std::time::{Duration, Instant};
 use gpui::*;
 
 use crate::editor::controller::*;
-use crate::editor::tree::document::RenderedBlock;
+use crate::editor::tree::document::BlockEntry;
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::infra::theme::{Theme, ThemeDimensions, ThemeManager};
 use crate::model::block::CalloutKind;
@@ -89,8 +89,8 @@ pub(crate) fn open_discussions(cx: &mut App) {
 }
 
 use crate::editor::wysiwyg::render::layout::{
-    RenderedRowSpacingInfo, callout_colors, callout_row_top_gap, editor_text_font,
-    footnote_row_top_gap, rendered_row_top_gap,
+    RowSpacingInfo, callout_colors, callout_row_top_gap, editor_text_font,
+    footnote_row_top_gap, row_top_gap,
 };
 
 // ── Export methods ────────────────────────────────────────────────────────
@@ -423,13 +423,13 @@ impl Editor {
                 || Instant::now() <= self.tab().scroll.scrollbar_visible_until);
 
         // Spacing metadata is read on demand instead of pre-collected into a
-        // Vec<RenderedRowSpacingInfo> sized to all visible blocks. For long
+        // Vec<RowSpacingInfo> sized to all visible blocks. For long
         // documents this skips a ~tens-of-KB allocation per frame; per-block
         // entity.read_with is a cheap immutable lock + 7-field struct copy.
-        let spacing_for = |index: usize| -> RenderedRowSpacingInfo {
+        let spacing_for = |index: usize| -> RowSpacingInfo {
             blocks[index]
                 .entity
-                .read_with(cx, |block, _cx| RenderedRowSpacingInfo::from_block(block))
+                .read_with(cx, |block, _cx| RowSpacingInfo::from_block(block))
         };
         let mut previous_row_spacing = None;
         // One lightweight plan entry per render row, covering the whole
@@ -443,7 +443,7 @@ impl Editor {
         let mut index = 0usize;
         while index < blocks.len() {
             let first_spacing = spacing_for(index);
-            let top_gap = rendered_row_top_gap(previous_row_spacing, first_spacing, d.block_gap);
+            let top_gap = row_top_gap(previous_row_spacing, first_spacing, d.block_gap);
 
             if let (Some(callout_anchor), Some(callout_variant)) =
                 (first_spacing.callout_anchor, first_spacing.callout_variant)
@@ -546,10 +546,10 @@ impl Editor {
         let focus_row = self
             .focused_edit_target_entity_id(window, cx)
             .and_then(|id| {
-                self.doc().visible_index_for_entity_id(id).or_else(|| {
+                self.doc().index_for_entity_id(id).or_else(|| {
                     self.table_cell_binding(id).and_then(|binding| {
                         self.doc()
-                            .visible_index_for_entity_id(binding.table_block.entity_id())
+                            .index_for_entity_id(binding.table_block.entity_id())
                     })
                 })
             })
@@ -577,13 +577,13 @@ impl Editor {
 
         // On a structural edit the row indices no longer match last frame, so the
         // cache refresh below is skipped; its block-keyed entries still hold.
-        let structural_change = blocks.len() != self.tab().scroll.prev_visible_block_ids.len()
+        let structural_change = blocks.len() != self.tab().scroll.prev_block_ids.len()
             || blocks
                 .iter()
-                .zip(&self.tab().scroll.prev_visible_block_ids)
+                .zip(&self.tab().scroll.prev_block_ids)
                 .any(|(visible, prev)| visible.entity.entity_id() != *prev);
         if structural_change {
-            self.tab_mut().scroll.prev_visible_block_ids =
+            self.tab_mut().scroll.prev_block_ids =
                 blocks.iter().map(|v| v.entity.entity_id()).collect();
         }
 
@@ -591,7 +591,7 @@ impl Editor {
         // adjacent painted-top differences are scroll-free heights. Caching those,
         // not raw positions, is what keeps the window stable while scrolling.
         if !structural_change {
-            if let Some((prev_start, prev_end)) = self.tab().scroll.prev_render_window {
+            if let Some((prev_start, prev_end)) = self.tab().scroll.prev_row_band {
                 let prev_end = prev_end.min(row_first_ids.len());
                 for row in prev_start..prev_end.saturating_sub(1) {
                     if let (Some(top), Some(next_top)) = (row_tops[row], row_tops[row + 1]) {
@@ -631,24 +631,24 @@ impl Editor {
                 .retain(|id, _| live.contains(id));
         }
 
-        let render_window = Self::rendered_window(
+        let band = Self::visible_row_band(
             &strides,
             current_scroll_y,
             viewport_height,
             RENDER_OVERDRAW_PX,
             focus_row,
         );
-        self.tab_mut().scroll.prev_render_window =
-            Some((render_window.run_start, render_window.run_end));
+        self.tab_mut().scroll.prev_row_band =
+            Some((band.run_start, band.run_end));
 
         // The first mounted row re-applies its `mt`, so drop it from the top
         // spacer to avoid shifting content down by a gap.
-        let top_h = match row_top_gaps.get(render_window.run_start) {
-            Some(gap) => (render_window.top_h - gap).max(0.0),
-            None => render_window.top_h,
+        let top_h = match row_top_gaps.get(band.run_start) {
+            Some(gap) => (band.top_h - gap).max(0.0),
+            None => band.top_h,
         };
         let mut block_rows: Vec<AnyElement> =
-            Vec::with_capacity(render_window.run_end - render_window.run_start + 2);
+            Vec::with_capacity(band.run_end - band.run_start + 2);
         if top_h > 0.5 {
             block_rows.push(
                 div()
@@ -659,7 +659,7 @@ impl Editor {
             );
         }
         for (row_index, plan) in rows.iter().enumerate() {
-            if row_index < render_window.run_start || row_index >= render_window.run_end {
+            if row_index < band.run_start || row_index >= band.run_end {
                 continue;
             }
             block_rows.push(self.build_planned_row_element(
@@ -672,12 +672,12 @@ impl Editor {
                 d,
             ));
         }
-        if render_window.bottom_h > 0.5 {
+        if band.bottom_h > 0.5 {
             block_rows.push(
                 div()
                     .w_full()
                     .flex_shrink_0()
-                    .h(px(render_window.bottom_h))
+                    .h(px(band.bottom_h))
                     .into_any_element(),
             );
         }
@@ -857,7 +857,7 @@ impl Editor {
     fn build_planned_row_element(
         &self,
         plan: &PlannedRow,
-        blocks: &[RenderedBlock],
+        blocks: &[BlockEntry],
         editor: WeakEntity<Self>,
         panel_id: usize,
         centered_width: f32,

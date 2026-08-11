@@ -137,7 +137,7 @@ pub(crate) fn render_preview_block(
         }
         BlockKind::RawMarkdown => paragraph::render_preview_raw_markdown(block, base, theme),
         BlockKind::Paragraph | BlockKind::HtmlComment => {
-            if block.renders_as_standalone_image() {
+            if block.is_standalone_image() {
                 image::render_preview_image(block, base, theme, window)
             } else {
                 paragraph::render_preview_paragraph(block, base, theme)

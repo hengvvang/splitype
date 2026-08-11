@@ -57,16 +57,16 @@ impl Editor {
     /// sum places each row against a band from the current scroll offset.
     /// Unmeasured rows use a lower-bound estimate, so the window never lands on a
     /// spacer. Pure, so it is unit-tested headlessly.
-    pub(crate) fn rendered_window(
+    pub(crate) fn visible_row_band(
         strides: &[f32],
         scroll_y: f32,
         viewport_height: f32,
         overdraw: f32,
         focus_row: Option<usize>,
-    ) -> RenderWindow {
+    ) -> RowBand {
         let n = strides.len();
         if n == 0 {
-            return RenderWindow {
+            return RowBand {
                 run_start: 0,
                 run_end: 0,
                 top_h: 0.0,
@@ -120,7 +120,7 @@ impl Editor {
             }
         }
 
-        RenderWindow {
+        RowBand {
             run_start,
             run_end,
             top_h: top_of_start.max(0.0),

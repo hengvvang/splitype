@@ -1,5 +1,5 @@
 //! Block-originated event routing: every `BlockAction` emitted by a block
-//! is dispatched here against the cached visible-order snapshot.
+//! is dispatched here against the cached entry-order snapshot.
 
 use gpui::*;
 
@@ -85,10 +85,10 @@ impl Editor {
             self.clear_cross_block_selection(cx);
         }
 
-        let visible_before = self.doc().flatten_visible_blocks();
-        let current_visible_index = visible_before
+        let entries_before = self.doc().flatten_entries();
+        let current_entry_index = entries_before
             .iter()
-            .position(|visible| visible.entity.entity_id() == block.entity_id())
+            .position(|entry| entry.entity.entity_id() == block.entity_id())
             .unwrap_or(0);
 
         match event {
@@ -275,10 +275,10 @@ impl Editor {
                 cx.notify();
             }
             BlockAction::RequestMergeIntoPrev { content } => {
-                if current_visible_index == 0 {
+                if current_entry_index == 0 {
                     return;
                 }
-                let prev = visible_before[current_visible_index - 1].entity.clone();
+                let prev = entries_before[current_entry_index - 1].entity.clone();
                 let quote_related = self.block_is_quote_structure_related(&block, cx)
                     || self.block_is_quote_structure_related(&prev, cx);
                 self.prepare_undo_capture(
@@ -422,7 +422,7 @@ impl Editor {
                                     .or_else(|| runtime.header.last().cloned())
                             })
                     } else {
-                        self.doc().last_visible_descendant(last_root.entity_id())
+                        self.doc().last_descendant(last_root.entity_id())
                     };
                     let Some(focus_block) = focus_block else {
                         return;
@@ -474,7 +474,7 @@ impl Editor {
             BlockAction::RequestPasteImage { .. }
             | BlockAction::RequestReplaceCrossBlockSelection { .. } => {}
             BlockAction::RequestIndent => {
-                if current_visible_index == 0 {
+                if current_entry_index == 0 {
                     return;
                 }
 
@@ -482,7 +482,7 @@ impl Editor {
                     return;
                 };
                 let current_kind = block.read(cx).kind();
-                let target_parent = visible_before[current_visible_index - 1].entity.clone();
+                let target_parent = entries_before[current_entry_index - 1].entity.clone();
                 if !current_kind.can_nest_under(&target_parent.read(cx).kind()) {
                     return;
                 }
@@ -695,11 +695,11 @@ impl Editor {
             BlockAction::RequestTableCellMoveHorizontal { .. }
             | BlockAction::RequestTableCellMoveVertical { .. } => {}
             BlockAction::RequestFocusPrev { preferred_x } => {
-                if current_visible_index == 0 {
+                if current_entry_index == 0 {
                     return;
                 }
 
-                let target = visible_before[current_visible_index - 1].entity.clone();
+                let target = entries_before[current_entry_index - 1].entity.clone();
                 // Entering a table from below lands in a body cell instead of
                 // the non-editable table container.
                 if target.read(cx).kind() == BlockKind::Table
@@ -718,17 +718,17 @@ impl Editor {
                 cx.notify();
             }
             BlockAction::RequestFocusNext { preferred_x } => {
-                if current_visible_index + 1 >= visible_before.len() {
+                if current_entry_index + 1 >= entries_before.len() {
                     // A trailing multi-line block (code, math, ...) has nowhere
                     // below to move to, so give it a paragraph to land on and
                     // focus that, matching how a trailing table behaves.
                     if block.read(cx).kind().is_multiline_text_block() {
                         self.ensure_trailing_paragraph_after_structural(&block, cx);
-                        let visible = self.doc().flatten_visible_blocks();
-                        if let Some(landing) = visible
+                        let entry = self.doc().flatten_entries();
+                        if let Some(landing) = entry
                             .iter()
                             .position(|v| v.entity.entity_id() == block.entity_id())
-                            .and_then(|index| visible.get(index + 1))
+                            .and_then(|index| entry.get(index + 1))
                             .map(|v| v.entity.clone())
                         {
                             self.focus_block(landing.entity_id());
@@ -739,7 +739,7 @@ impl Editor {
                     return;
                 }
 
-                let target = visible_before[current_visible_index + 1].entity.clone();
+                let target = entries_before[current_entry_index + 1].entity.clone();
                 // Entering a table from above lands in a header cell instead of
                 // the non-editable table container.
                 if target.read(cx).kind() == BlockKind::Table
@@ -758,11 +758,11 @@ impl Editor {
                 cx.notify();
             }
             BlockAction::RequestBlockUp => {
-                if current_visible_index == 0 {
+                if current_entry_index == 0 {
                     return;
                 }
 
-                let target = visible_before[current_visible_index - 1].entity.clone();
+                let target = entries_before[current_entry_index - 1].entity.clone();
                 if target.read(cx).kind() == BlockKind::Table
                     && self.focus_table_entry_cell(&target, false, cx)
                 {
@@ -773,11 +773,11 @@ impl Editor {
                 cx.notify();
             }
             BlockAction::RequestBlockDown => {
-                if current_visible_index + 1 >= visible_before.len() {
+                if current_entry_index + 1 >= entries_before.len() {
                     return;
                 }
 
-                let target = visible_before[current_visible_index + 1].entity.clone();
+                let target = entries_before[current_entry_index + 1].entity.clone();
                 if target.read(cx).kind() == BlockKind::Table
                     && self.focus_table_entry_cell(&target, true, cx)
                 {
@@ -793,7 +793,7 @@ impl Editor {
                 }
                 let quote_related = self.block_is_quote_structure_related(&block, cx);
                 let is_last_visible_leaf =
-                    visible_before.len() == 1 && block.read(cx).children.is_empty();
+                    entries_before.len() == 1 && block.read(cx).children.is_empty();
                 if is_last_visible_leaf {
                     if block.read(cx).kind() == BlockKind::Paragraph {
                         Self::reset_block_cursor(&block, 0, cx);
@@ -809,14 +809,14 @@ impl Editor {
                     cx,
                 );
 
-                let visible_before_ids = visible_before
+                let entries_before_ids = entries_before
                     .iter()
-                    .map(|visible| visible.entity.entity_id())
+                    .map(|entry| entry.entity.entity_id())
                     .collect::<Vec<_>>();
-                let focus_candidate = if current_visible_index > 0 {
-                    Some(visible_before_ids[current_visible_index - 1])
+                let focus_candidate = if current_entry_index > 0 {
+                    Some(entries_before_ids[current_entry_index - 1])
                 } else {
-                    visible_before_ids.get(current_visible_index + 1).copied()
+                    entries_before_ids.get(current_entry_index + 1).copied()
                 };
 
                 let adopted_children =
@@ -855,8 +855,8 @@ impl Editor {
                 self.clear_table_axis_preview(cx);
                 self.clear_table_axis_selection(cx);
                 self.focus_block(block.entity_id());
-                for visible in self.doc().flatten_visible_blocks() {
-                    visible.entity.update(cx, |_, cx| cx.notify());
+                for entry in self.doc().flatten_entries() {
+                    entry.entity.update(cx, |_, cx| cx.notify());
                 }
                 cx.notify();
             }

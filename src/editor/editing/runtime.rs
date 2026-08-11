@@ -42,8 +42,8 @@ impl Editor {
             });
         }
 
-        for visible in self.doc().blocks().to_vec() {
-            visible.entity.update(cx, |block, _cx| {
+        for entries in self.doc().blocks().to_vec() {
+            entries.entity.update(cx, |block, _cx| {
                 changed |= block.end_pointer_selection_session();
             });
         }
@@ -135,16 +135,16 @@ impl Editor {
 
     pub(crate) fn rebuild_footnote_registry(&mut self, cx: &App) -> FootnoteMap {
         let mut definitions = HashMap::new();
-        let visible = self.doc().blocks().to_vec();
-        for visible_block in &visible {
-            let block = visible_block.entity.read(cx);
+        let entries = self.doc().blocks().to_vec();
+        for entry in &entries {
+            let block = entry.entity.read(cx);
             if block.kind() != BlockKind::FootnoteDefinition {
                 continue;
             }
 
             let allow_definition = self
                 .doc()
-                .find_block_location(visible_block.entity.entity_id())
+                .find_block_location(entry.entity.entity_id())
                 .is_some_and(|location| {
                     location.parent.is_none()
                         || location
@@ -158,7 +158,7 @@ impl Editor {
 
             definitions
                 .entry(block.record.text.visible_text().to_string())
-                .or_insert(visible_block.entity.entity_id());
+                .or_insert(entry.entity.entity_id());
         }
 
         let mut bindings = HashMap::<String, FootnoteDefinitionBinding>::new();
@@ -176,8 +176,8 @@ impl Editor {
         let mut next_ordinal = 1usize;
         let mut occurrence_index = 0usize;
         let mut block_occurrences = HashMap::<BlockId, Vec<FootnoteResolvedOccurrence>>::new();
-        for visible_block in visible {
-            let block = visible_block.entity.read(cx);
+        for entry in entries {
+            let block = entry.entity.read(cx);
             let block_id = block.record.id;
             for fragment in &block.record.text.fragments {
                 let Some(footnote) = fragment.footnote.as_ref() else {
@@ -190,7 +190,7 @@ impl Editor {
                     }
                     if binding.first_reference.is_none() {
                         binding.first_reference = Some(FootnoteReferenceLocation {
-                            entity_id: visible_block.entity.entity_id(),
+                            entity_id: entry.entity.entity_id(),
                             occurrence_index,
                         });
                     }
@@ -244,9 +244,9 @@ impl Editor {
     /// the document-wide registries.
     fn collect_runtime_sync_candidates(&self, cx: &App) -> HashSet<EntityId> {
         let mut candidates = HashSet::new();
-        for visible in self.doc().blocks() {
-            if Self::block_has_runtime_sync_candidates(visible.entity.read(cx)) {
-                candidates.insert(visible.entity.entity_id());
+        for entries in self.doc().blocks() {
+            if Self::block_has_runtime_sync_candidates(entries.entity.read(cx)) {
+                candidates.insert(entries.entity.entity_id());
             }
         }
         for binding in self.tab().tables.cells.values() {
@@ -342,13 +342,13 @@ impl Editor {
         self.tab_mut().references.synced_structure_version = self.doc().structure_version();
 
         let base_dir = self.tab().references.base_dir.clone();
-        let visible = self.doc().blocks().to_vec();
-        for visible_block in visible {
-            self.sync_runtime_context_for_block(&visible_block.entity, base_dir.as_deref(), cx);
-            if visible_block.entity.read(cx).kind() != BlockKind::Table {
+        let entries = self.doc().blocks().to_vec();
+        for entry in entries {
+            self.sync_runtime_context_for_block(&entry.entity, base_dir.as_deref(), cx);
+            if entry.entity.read(cx).kind() != BlockKind::Table {
                 continue;
             }
-            let Some(runtime) = visible_block.entity.read(cx).table_runtime.clone() else {
+            let Some(runtime) = entry.entity.read(cx).table_runtime.clone() else {
                 continue;
             };
             for cell in runtime.header {

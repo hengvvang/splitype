@@ -133,9 +133,9 @@ pub(crate) struct TableRuntimes {
 pub(crate) struct ScrollState {
     pub(crate) handle: ScrollHandle,
     pub(crate) last_viewport_size: Option<Size<Pixels>>,
-    /// Last frame's visible block ids, to detect structural edits so the height
+    /// Last frame.s mounted block ids, to detect structural edits so the height
     /// cache is refreshed only when the row/block mapping is unchanged.
-    pub(crate) prev_visible_block_ids: Vec<EntityId>,
+    pub(crate) prev_block_ids: Vec<EntityId>,
     /// Per-row footprint (height plus trailing gap), keyed by the row's first
     /// block. Scroll-invariant, unlike raw painted positions, so windowing from
     /// their running sum stays correct as the document scrolls. Filled as rows
@@ -143,7 +143,7 @@ pub(crate) struct ScrollState {
     pub(crate) row_stride_cache: HashMap<EntityId, f32>,
     /// Row range mounted last frame; only those rows shared one scroll offset, so
     /// their adjacent-top differences are valid footprints for the cache.
-    pub(crate) prev_render_window: Option<(usize, usize)>,
+    pub(crate) prev_row_band: Option<(usize, usize)>,
     pub(crate) scrollbar_hovered: bool,
     pub(crate) scrollbar_visible_until: Instant,
     pub(crate) scrollbar_fade_task: Option<Task<()>>,
@@ -159,9 +159,9 @@ impl Default for ScrollState {
         Self {
             handle: ScrollHandle::new(),
             last_viewport_size: None,
-            prev_visible_block_ids: Vec::new(),
+            prev_block_ids: Vec::new(),
             row_stride_cache: HashMap::new(),
-            prev_render_window: None,
+            prev_row_band: None,
             scrollbar_hovered: false,
             scrollbar_visible_until: Instant::now(),
             scrollbar_fade_task: None,
@@ -245,13 +245,12 @@ pub struct Editor {
     /// rather than in a click-handler closure.
     pub(crate) welcome_last_click: Option<Instant>,
     /// Currently focused pane id — the status-bar action target.
-    /// One Editor entity serves one area, so the panel id alone identifies
-    /// it.
+    /// One Editor entity serves one area, so the area (panel) id alone
+    /// identifies it.
     pub(crate) focused_pane: Option<usize>,
-    /// Per-SourceCode-panel editing runtimes (keyed by the globally unique
-    /// panel id; one Editor entity serves one area, so the area id is not
-    /// part of the key). Each source panel owns its own block entity so
-    /// multiple source panels edit independently; see `SourceCodePanelRuntime`.
+    /// Per-SourceCode-pane editing runtimes, keyed by the pane id. Each
+    /// source pane owns its own block entity so multiple source panels edit
+    /// independently; see `SourceCodePanelRuntime`.
     pub(crate) source_pane_runtimes: HashMap<usize, SourceCodePanelRuntime>,
 }
 
@@ -283,7 +282,7 @@ pub(crate) struct ScrollbarGeometry {
 /// Windowing result: the run of rows to mount, plus the top/bottom spacer
 /// heights standing in for the culled rows.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct RenderWindow {
+pub(crate) struct RowBand {
     pub(crate) run_start: usize,
     pub(crate) run_end: usize,
     pub(crate) top_h: f32,

@@ -15,9 +15,9 @@ use crate::model::block::{BlockId, BlockKind, CalloutKind};
 use crate::model::syntax::image::parse_standalone_image;
 use crate::model::syntax::table::serialize_table_markdown_lines;
 
-/// A block together with its position in the current visible DFS order.
+/// A block together with its position in the flattened document (DFS) order.
 #[derive(Clone)]
-pub(crate) struct RenderedBlock {
+pub(crate) struct BlockEntry {
     pub entity: Entity<Block>,
 }
 
@@ -28,21 +28,21 @@ pub(crate) struct BlockLocation {
     pub index: usize,
 }
 
-/// Cached visible-order metadata for the current runtime tree.
+/// Cached flattened-order metadata for the current runtime tree.
 #[derive(Default, Clone)]
 pub(crate) struct BlockIndex {
-    visible: Vec<RenderedBlock>,
-    visible_index_by_entity: HashMap<EntityId, usize>,
+    entries: Vec<BlockEntry>,
+    index_by_entity: HashMap<EntityId, usize>,
     location_by_entity: HashMap<EntityId, BlockLocation>,
-    last_visible_descendant_by_entity: HashMap<EntityId, EntityId>,
+    last_descendant_by_entity: HashMap<EntityId, EntityId>,
 }
 
 impl BlockIndex {
     pub(crate) fn clear(&mut self) {
-        self.visible.clear();
-        self.visible_index_by_entity.clear();
+        self.entries.clear();
+        self.index_by_entity.clear();
         self.location_by_entity.clear();
-        self.last_visible_descendant_by_entity.clear();
+        self.last_descendant_by_entity.clear();
     }
 }
 
@@ -61,7 +61,7 @@ pub(crate) struct Document {
     /// per-block loop when the block set is identical to the last sync.
     structure_version: u64,
     /// The structure version the tree metadata (quote depths, anchors,
-    /// ordinals, visible snapshot) was last rebuilt for. Text-only edits do
+    /// ordinals, entries snapshot) was last rebuilt for. Text-only edits do
     /// not change tree metadata, so callers can skip the full DFS while
     /// this matches [`Self::structure_version`].
     metadata_rebuild_version: u64,
@@ -107,33 +107,30 @@ impl Document {
         self.roots.len()
     }
 
-    pub(crate) fn blocks(&self) -> &[RenderedBlock] {
-        &self.snapshot.visible
+    pub(crate) fn blocks(&self) -> &[BlockEntry] {
+        &self.snapshot.entries
     }
 
-    pub(crate) fn flatten_visible_blocks(&self) -> Vec<RenderedBlock> {
-        self.snapshot.visible.clone()
+    pub(crate) fn flatten_entries(&self) -> Vec<BlockEntry> {
+        self.snapshot.entries.clone()
     }
 
     pub(crate) fn focused_block_entity_id(&self, window: &Window, cx: &App) -> Option<EntityId> {
         self.snapshot
-            .visible
+            .entries
             .iter()
-            .find(|visible| visible.entity.read(cx).focus_handle.is_focused(window))
-            .map(|visible| visible.entity.entity_id())
+            .find(|entries| entries.entity.read(cx).focus_handle.is_focused(window))
+            .map(|entries| entries.entity.entity_id())
     }
 
-    pub(crate) fn visible_index_for_entity_id(&self, entity_id: EntityId) -> Option<usize> {
-        self.snapshot
-            .visible_index_by_entity
-            .get(&entity_id)
-            .copied()
+    pub(crate) fn index_for_entity_id(&self, entity_id: EntityId) -> Option<usize> {
+        self.snapshot.index_by_entity.get(&entity_id).copied()
     }
 
     pub(crate) fn block_entity_by_id(&self, entity_id: EntityId) -> Option<Entity<Block>> {
-        self.visible_index_for_entity_id(entity_id)
-            .and_then(|index| self.snapshot.visible.get(index))
-            .map(|visible| visible.entity.clone())
+        self.index_for_entity_id(entity_id)
+            .and_then(|index| self.snapshot.entries.get(index))
+            .map(|entries| entries.entity.clone())
     }
 
     pub(crate) fn find_block_location(&self, entity_id: EntityId) -> Option<BlockLocation> {
@@ -151,10 +148,10 @@ impl Document {
         }
     }
 
-    pub(crate) fn last_visible_descendant(&self, entity_id: EntityId) -> Option<Entity<Block>> {
+    pub(crate) fn last_descendant(&self, entity_id: EntityId) -> Option<Entity<Block>> {
         let descendant_id = self
             .snapshot
-            .last_visible_descendant_by_entity
+            .last_descendant_by_entity
             .get(&entity_id)
             .copied()?;
         self.block_entity_by_id(descendant_id)
@@ -174,9 +171,9 @@ impl Document {
 
     pub(crate) fn to_raw_source(&self, cx: &App) -> String {
         self.snapshot
-            .visible
+            .entries
             .iter()
-            .map(|visible| visible.entity.read(cx).display_text().to_string())
+            .map(|entries| entries.entity.read(cx).display_text().to_string())
             .collect::<Vec<_>>()
             .join("\n")
     }
@@ -193,7 +190,7 @@ impl Document {
         });
     }
 
-    /// Runs a tree mutation and then eagerly rebuilds metadata and the visible
+    /// Runs a tree mutation and then eagerly rebuilds metadata and the entries
     /// snapshot exactly once for that mutation batch.
     pub(crate) fn with_structure_mutation<R>(
         &mut self,
@@ -206,13 +203,13 @@ impl Document {
         result
     }
 
-    /// Rebuilds tree metadata and cached visible-order data from the current
+    /// Rebuilds tree metadata and cached flattened-order data from the current
     /// roots.
     ///
     /// The pass first normalizes impossible runtime-only shapes by hoisting
     /// children out of leaf blocks. It then performs one DFS to update parent
     /// UUIDs, child UUID lists, render depth, numbered-list ordinals, and the
-    /// visible snapshot.
+    /// entries snapshot.
     pub(crate) fn rebuild_metadata_and_snapshot(&mut self, cx: &mut Context<Editor>) {
         Self::normalize_block_list(&mut self.roots, cx);
         self.snapshot.clear();
@@ -334,13 +331,11 @@ impl Document {
         let mut previous_was_list_item = false;
         for (index, block) in blocks.iter().enumerate() {
             let entity_id = block.entity_id();
-            let visible_index = snapshot.visible.len();
-            snapshot.visible.push(RenderedBlock {
+            let entry_index = snapshot.entries.len();
+            snapshot.entries.push(BlockEntry {
                 entity: block.clone(),
             });
-            snapshot
-                .visible_index_by_entity
-                .insert(entity_id, visible_index);
+            snapshot.index_by_entity.insert(entity_id, entry_index);
             snapshot.location_by_entity.insert(
                 entity_id,
                 BlockLocation {
@@ -448,14 +443,14 @@ impl Document {
                     snapshot,
                 );
                 snapshot
-                    .last_visible_descendant_by_entity
+                    .last_descendant_by_entity
                     .get(&children.last().expect("children checked").entity_id())
                     .copied()
                     .unwrap_or_else(|| children.last().expect("children checked").entity_id())
             };
 
             snapshot
-                .last_visible_descendant_by_entity
+                .last_descendant_by_entity
                 .insert(entity_id, last_descendant_id);
             previous_was_list_item = kind.is_list_item();
         }
@@ -719,28 +714,16 @@ mod tests {
             cx.new(|cx| Editor::from_markdown(cx, "- a\n  - b\n    - c\n- d".to_string(), None));
 
         editor.update(cx, |editor, _cx| {
-            let visible = editor.doc().blocks().to_vec();
-            let a = visible[0].entity.clone();
-            let b = visible[1].entity.clone();
-            let c = visible[2].entity.clone();
-            let d = visible[3].entity.clone();
+            let entries = editor.doc().blocks().to_vec();
+            let a = entries[0].entity.clone();
+            let b = entries[1].entity.clone();
+            let c = entries[2].entity.clone();
+            let d = entries[3].entity.clone();
 
-            assert_eq!(
-                editor.doc().visible_index_for_entity_id(a.entity_id()),
-                Some(0)
-            );
-            assert_eq!(
-                editor.doc().visible_index_for_entity_id(b.entity_id()),
-                Some(1)
-            );
-            assert_eq!(
-                editor.doc().visible_index_for_entity_id(c.entity_id()),
-                Some(2)
-            );
-            assert_eq!(
-                editor.doc().visible_index_for_entity_id(d.entity_id()),
-                Some(3)
-            );
+            assert_eq!(editor.doc().index_for_entity_id(a.entity_id()), Some(0));
+            assert_eq!(editor.doc().index_for_entity_id(b.entity_id()), Some(1));
+            assert_eq!(editor.doc().index_for_entity_id(c.entity_id()), Some(2));
+            assert_eq!(editor.doc().index_for_entity_id(d.entity_id()), Some(3));
 
             let c_location = editor
                 .doc()
@@ -755,7 +738,7 @@ mod tests {
             assert_eq!(
                 editor
                     .doc()
-                    .last_visible_descendant(a.entity_id())
+                    .last_descendant(a.entity_id())
                     .expect("descendant")
                     .entity_id(),
                 c.entity_id()
@@ -785,7 +768,7 @@ mod tests {
                 .doc()
                 .blocks()
                 .iter()
-                .map(|visible| visible.entity.entity_id())
+                .map(|entries| entries.entity.entity_id())
                 .collect::<Vec<_>>();
             assert_eq!(visible_ids, vec![root.entity_id(), child.entity_id()]);
 
@@ -847,10 +830,10 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, "- a\n- b\n- c".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            let visible = editor.doc().blocks().to_vec();
-            let a = visible[0].entity.clone();
-            let b = visible[1].entity.clone();
-            let c = visible[2].entity.clone();
+            let entries = editor.doc().blocks().to_vec();
+            let a = entries[0].entity.clone();
+            let b = entries[1].entity.clone();
+            let c = entries[2].entity.clone();
 
             editor
                 .doc_mut()
@@ -867,18 +850,9 @@ mod tests {
                     );
                 });
 
-            assert_eq!(
-                editor.doc().visible_index_for_entity_id(a.entity_id()),
-                Some(0)
-            );
-            assert_eq!(
-                editor.doc().visible_index_for_entity_id(c.entity_id()),
-                Some(1)
-            );
-            assert_eq!(
-                editor.doc().visible_index_for_entity_id(b.entity_id()),
-                Some(2)
-            );
+            assert_eq!(editor.doc().index_for_entity_id(a.entity_id()), Some(0));
+            assert_eq!(editor.doc().index_for_entity_id(c.entity_id()), Some(1));
+            assert_eq!(editor.doc().index_for_entity_id(b.entity_id()), Some(2));
 
             let c_location = editor
                 .doc()
@@ -893,7 +867,7 @@ mod tests {
             assert_eq!(
                 editor
                     .doc()
-                    .last_visible_descendant(a.entity_id())
+                    .last_descendant(a.entity_id())
                     .expect("descendant")
                     .entity_id(),
                 c.entity_id()

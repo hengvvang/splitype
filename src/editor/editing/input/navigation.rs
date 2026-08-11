@@ -145,10 +145,10 @@ impl Editor {
         to_block_start: bool,
         cx: &mut Context<Self>,
     ) {
-        let visible = self.doc().flatten_visible_blocks();
-        let Some(index) = visible
+        let entry = self.doc().flatten_entries();
+        let Some(index) = entry
             .iter()
-            .position(|visible| visible.entity.entity_id() == table_block.entity_id())
+            .position(|entry| entry.entity.entity_id() == table_block.entity_id())
         else {
             return;
         };
@@ -158,8 +158,8 @@ impl Editor {
             Some(index + 1)
         };
         let Some(target) = target_index
-            .and_then(|target_index| visible.get(target_index))
-            .map(|visible| visible.entity.clone())
+            .and_then(|target_index| entry.get(target_index))
+            .map(|entry| entry.entity.clone())
         else {
             return;
         };

@@ -317,7 +317,7 @@ impl Editor {
             kind.is_atomic_structural()
                 || kind.is_quote_container()
                 || kind.is_footnote_definition()
-                || block.renders_as_standalone_image()
+                || block.is_standalone_image()
         };
         if !strands {
             return;

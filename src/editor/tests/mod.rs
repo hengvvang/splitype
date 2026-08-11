@@ -105,7 +105,7 @@ fn focus_first_block(editor: &gpui::Entity<Editor>, cx: &mut gpui::VisualTestCon
                 .doc()
                 .blocks()
                 .first()
-                .map(|visible| visible.entity.clone())
+                .map(|entries| entries.entity.clone())
         })
         .expect("document should have a block");
     focus_block(editor, &first, cx);

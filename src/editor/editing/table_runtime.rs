@@ -103,18 +103,18 @@ impl Editor {
     pub(crate) fn rebuild_table_runtimes(&mut self, cx: &mut Context<Self>) {
         self.tab_mut().tables.cells.clear();
         self.tab_mut().tables.axis_preview = None;
-        let visible = self.doc().blocks().to_vec();
-        for block in &visible {
+        let entries = self.doc().blocks().to_vec();
+        for block in &entries {
             block
                 .entity
                 .update(cx, |block, _cx| block.clear_table_runtime());
         }
-        for visible in visible {
-            let Some(table) = visible.entity.read(cx).record.table.clone() else {
+        for entry in entries {
+            let Some(table) = entry.entity.read(cx).record.table.clone() else {
                 continue;
             };
-            if visible.entity.read(cx).kind() == BlockKind::Table {
-                self.install_table_runtime_for_block(&visible.entity, &table, cx);
+            if entry.entity.read(cx).kind() == BlockKind::Table {
+                self.install_table_runtime_for_block(&entry.entity, &table, cx);
             }
         }
         // Cells are runtime-only blocks outside the document tree; recreating
@@ -705,10 +705,10 @@ impl Editor {
 
         let visible_tables = self
             .doc()
-            .flatten_visible_blocks()
+            .flatten_entries()
             .into_iter()
-            .filter(|visible| visible.entity.read(cx).kind() == BlockKind::Table)
-            .map(|visible| visible.entity)
+            .filter(|entry| entry.entity.read(cx).kind() == BlockKind::Table)
+            .map(|entry| entry.entity)
             .collect::<Vec<_>>();
 
         for table_block in &visible_tables {

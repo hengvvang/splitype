@@ -175,7 +175,7 @@ fn simulate_projection_build(fragments: &[MockFragment]) -> Option<(usize, Vec<u
 }
 
 /// Pick the run of rows whose extent intersects the viewport band, from each
-/// row's content-space top. Mirrors the shape of `Editor::rendered_window`.
+/// row's content-space top. Mirrors the shape of `Editor::visible_row_band`.
 fn windowed_run(tops: &[f32], row_height: f32, band_top: f32, band_bottom: f32) -> (usize, usize) {
     let n = tops.len();
     let start = tops

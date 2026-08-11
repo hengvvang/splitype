@@ -112,7 +112,7 @@ async fn switching_tabs_renders_the_new_document_immediately(cx: &mut TestAppCon
             let blocks = editor.doc().blocks();
             let ids = blocks
                 .iter()
-                .map(|visible| visible.entity.entity_id())
+                .map(|entries| entries.entity.entity_id())
                 .collect();
             let text = editor.doc().to_markdown(cx);
             (ids, text)
@@ -218,7 +218,7 @@ async fn switching_to_an_unrendered_tab_mounts_a_full_viewport(cx: &mut TestAppC
     // window mounted.
     redraw(cx);
     let (start, end) = editor
-        .read_with(cx, |editor, _cx| editor.tab().scroll.prev_render_window)
+        .read_with(cx, |editor, _cx| editor.tab().scroll.prev_row_band)
         .expect("document view must keep rendering");
     assert!(
         end - start > 10,
@@ -234,15 +234,15 @@ async fn focused_thematic_break_accepts_typing(cx: &mut TestAppContext) {
         move |_window, cx| Editor::from_markdown(cx, "alpha\n\n---\n\nbeta".to_string(), None)
     });
 
-    // Focus the thematic break block (the second visible block).
+    // Focus the thematic break block (the second block in the document).
     let separator = editor
         .read_with(cx, |editor, cx| {
             editor
                 .doc()
                 .blocks()
                 .iter()
-                .find(|visible| visible.entity.read(cx).kind() == BlockKind::ThematicBreak)
-                .map(|visible| visible.entity.clone())
+                .find(|entries| entries.entity.read(cx).kind() == BlockKind::ThematicBreak)
+                .map(|entries| entries.entity.clone())
         })
         .expect("document must contain a thematic break");
     focus_block(&editor, &separator, cx);

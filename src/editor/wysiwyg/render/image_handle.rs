@@ -26,7 +26,7 @@ impl Block {
     /// self-contained image widget. Unlike `showing_rendered_image`, this is
     /// derived from the block text rather than the computed runtime, so it is
     /// valid before image runtimes are (re)built.
-    pub(crate) fn renders_as_standalone_image(&self) -> bool {
+    pub(crate) fn is_standalone_image(&self) -> bool {
         self.can_present_as_image() && self.standalone_image_markdown_for_runtime().is_some()
     }
 

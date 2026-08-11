@@ -47,12 +47,12 @@ async fn root_level_footnotes_number_by_first_reference_and_render_in_place(
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
     editor.read_with(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
+        let entries = editor.doc().blocks();
 
-        let first_ref = visible
+        let first_ref = entries
             .iter()
-            .find(|visible| {
-                visible
+            .find(|entries| {
+                entries
                     .entity
                     .read(cx)
                     .display_text()
@@ -66,10 +66,10 @@ async fn root_level_footnotes_number_by_first_reference_and_render_in_place(
             format!("Here is a footnote reference.{}", superscript_ordinal(1))
         );
 
-        let second_ref = visible
+        let second_ref = entries
             .iter()
-            .find(|visible| {
-                visible
+            .find(|entries| {
+                entries
                     .entity
                     .read(cx)
                     .display_text()
@@ -86,11 +86,11 @@ async fn root_level_footnotes_number_by_first_reference_and_render_in_place(
             )
         );
 
-        let footnote_defs = visible
+        let footnote_defs = entries
             .iter()
-            .filter_map(|visible| {
-                let block = visible.entity.read(cx);
-                (block.kind() == BlockKind::FootnoteDefinition).then_some(visible.entity.clone())
+            .filter_map(|entries| {
+                let block = entries.entity.read(cx);
+                (block.kind() == BlockKind::FootnoteDefinition).then_some(entries.entity.clone())
             })
             .collect::<Vec<_>>();
         assert_eq!(footnote_defs.len(), 2);
@@ -122,12 +122,12 @@ async fn callout_footnotes_number_and_render_in_place(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
     editor.read_with(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
+        let entries = editor.doc().blocks();
 
-        let reference_block = visible
+        let reference_block = entries
             .iter()
-            .find(|visible| {
-                visible
+            .find(|entries| {
+                entries
                     .entity
                     .read(cx)
                     .display_text()
@@ -141,9 +141,9 @@ async fn callout_footnotes_number_and_render_in_place(cx: &mut TestAppContext) {
             format!("Callout footnote reference.{}", superscript_ordinal(1))
         );
 
-        let definition = visible
+        let definition = entries
             .iter()
-            .find(|visible| visible.entity.read(cx).kind() == BlockKind::FootnoteDefinition)
+            .find(|entries| entries.entity.read(cx).kind() == BlockKind::FootnoteDefinition)
             .expect("callout footnote definition")
             .entity
             .clone();
@@ -160,11 +160,11 @@ async fn root_reference_binds_to_nested_quote_footnote_definition(cx: &mut TestA
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
     editor.read_with(cx, |editor, cx| {
-        let visible = editor.doc().blocks();
+        let entries = editor.doc().blocks();
 
-        let root_reference = visible
+        let root_reference = entries
             .iter()
-            .find(|visible| visible.entity.read(cx).quote_depth == 0)
+            .find(|entries| entries.entity.read(cx).quote_depth == 0)
             .expect("root reference block")
             .entity
             .clone();
@@ -173,9 +173,9 @@ async fn root_reference_binds_to_nested_quote_footnote_definition(cx: &mut TestA
             format!("Root reference.{}", superscript_ordinal(1))
         );
 
-        let definition = visible
+        let definition = entries
             .iter()
-            .find(|visible| visible.entity.read(cx).kind() == BlockKind::FootnoteDefinition)
+            .find(|entries| entries.entity.read(cx).kind() == BlockKind::FootnoteDefinition)
             .expect("nested quote footnote definition")
             .entity
             .clone();

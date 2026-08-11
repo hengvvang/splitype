@@ -1046,9 +1046,14 @@ impl Block {
             self.rebuild_inline_projection(next_selected_plain, next_marked_plain);
         }
 
-        self.selected_range = self
-            .content_source_offset_to_display_offset(content_source_start, next_selected_source.start)
-            ..self.content_source_offset_to_display_offset(content_source_start, next_selected_source.end);
+        self.selected_range = self.content_source_offset_to_display_offset(
+            content_source_start,
+            next_selected_source.start,
+        )
+            ..self.content_source_offset_to_display_offset(
+                content_source_start,
+                next_selected_source.end,
+            );
         self.selection_reversed = false;
         self.marked_range = marked_source_range.map(|range| {
             self.content_source_offset_to_display_offset(content_source_start, range.start)
@@ -1065,7 +1070,7 @@ impl Block {
         true
     }
 
-    /// Replace text in visible coordinates: splice `new_text` into the text
+    /// Replace text in display coordinates: splice `new_text` into the text
     /// at `display_range`, re-parse inline markers, and update cursor state.
     /// When `mark_inserted_text` is true the inserted text becomes the IME
     /// marked range.
@@ -1128,7 +1133,7 @@ impl Block {
         }
 
         // Editing outside an inline link's run would otherwise re-derive the
-        // inline tree from collapsed visible text, which no longer contains the
+        // inline tree from collapsed plain text, which no longer contains the
         // `[label](url)` markers and silently drops the link. Edit in markdown
         // space (as source-preserving links already do) so the link round-trips.
         if !self.uses_raw_text_editing() && self.record.text.has_inline_links() {

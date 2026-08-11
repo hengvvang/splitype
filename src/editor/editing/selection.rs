@@ -15,7 +15,7 @@ use crate::editor::tree::block::Block;
 use crate::model::block::BlockKind;
 use crate::model::syntax::table::serialize_table_markdown_lines;
 
-/// Cross-block selection with endpoints ordered by visible block position.
+/// Cross-block selection with endpoints ordered by document position.
 #[derive(Clone, Copy)]
 struct NormalizedCrossBlockSelection {
     start: CrossBlockSelectionEndpoint,
@@ -28,8 +28,8 @@ struct NormalizedCrossBlockSelection {
 impl Editor {
     fn clear_cross_block_selection_visuals(&mut self, cx: &mut Context<Self>) -> bool {
         let mut changed = false;
-        for visible in self.doc().blocks().to_vec() {
-            visible.entity.update(cx, |block, cx| {
+        for entries in self.doc().blocks().to_vec() {
+            entries.entity.update(cx, |block, cx| {
                 if block.editor_selection_range.take().is_some() {
                     changed = true;
                     cx.notify();
@@ -200,11 +200,11 @@ impl Editor {
     }
 
     fn rendered_document_is_fully_selected(&self, cx: &App) -> bool {
-        let visible = self.doc().blocks().to_vec();
-        let Some(first) = visible.first() else {
+        let entries = self.doc().blocks().to_vec();
+        let Some(first) = entries.first() else {
             return false;
         };
-        let Some(last) = visible.last() else {
+        let Some(last) = entries.last() else {
             return false;
         };
         let Some(selection) = self.tab().selection.cross_block else {
@@ -250,11 +250,11 @@ impl Editor {
             return;
         }
 
-        let visible = self.doc().blocks().to_vec();
-        let Some(first) = visible.first() else {
+        let entries = self.doc().blocks().to_vec();
+        let Some(first) = entries.first() else {
             return;
         };
-        let Some(last) = visible.last() else {
+        let Some(last) = entries.last() else {
             return;
         };
         let first_id = first.entity.entity_id();
@@ -265,8 +265,8 @@ impl Editor {
         self.dismiss_contextual_overlays(cx);
         self.clear_table_axis_preview(cx);
         self.clear_table_axis_selection(cx);
-        for visible in &visible {
-            visible.entity.update(cx, |block, cx| {
+        for entries in &entries {
+            entries.entity.update(cx, |block, cx| {
                 let cursor = block.cursor_offset();
                 let collapsed = cursor..cursor;
                 if block.selected_range != collapsed {
@@ -359,10 +359,10 @@ impl Editor {
         let Some(end) = self.endpoint_for_source_offset(snapshot.range.end, &mappings, cx) else {
             return false;
         };
-        let Some(start_index) = self.doc().visible_index_for_entity_id(start.entity_id) else {
+        let Some(start_index) = self.doc().index_for_entity_id(start.entity_id) else {
             return false;
         };
-        let Some(end_index) = self.doc().visible_index_for_entity_id(end.entity_id) else {
+        let Some(end_index) = self.doc().index_for_entity_id(end.entity_id) else {
             return false;
         };
         if start_index == end_index {
@@ -394,8 +394,8 @@ impl Editor {
         cx: &App,
     ) -> Option<CrossBlockSelectionEndpoint> {
         let mut previous: Option<(Entity<Block>, Bounds<Pixels>)> = None;
-        for visible in self.doc().blocks() {
-            let entity = visible.entity.clone();
+        for entries in self.doc().blocks() {
+            let entity = entries.entity.clone();
             let bounds = entity.read(cx).last_bounds;
             let Some(bounds) = bounds else {
                 continue;
@@ -435,13 +435,13 @@ impl Editor {
     fn cross_block_selection_is_empty(&self, selection: CrossBlockSelection) -> bool {
         let Some(anchor_index) = self
             .doc()
-            .visible_index_for_entity_id(selection.anchor.entity_id)
+            .index_for_entity_id(selection.anchor.entity_id)
         else {
             return true;
         };
         let Some(focus_index) = self
             .doc()
-            .visible_index_for_entity_id(selection.focus.entity_id)
+            .index_for_entity_id(selection.focus.entity_id)
         else {
             return true;
         };
@@ -452,8 +452,8 @@ impl Editor {
         let selection = self.tab().selection.cross_block?;
         let anchor = self.clamp_cross_block_endpoint(selection.anchor, cx)?;
         let focus = self.clamp_cross_block_endpoint(selection.focus, cx)?;
-        let anchor_index = self.doc().visible_index_for_entity_id(anchor.entity_id)?;
-        let focus_index = self.doc().visible_index_for_entity_id(focus.entity_id)?;
+        let anchor_index = self.doc().index_for_entity_id(anchor.entity_id)?;
+        let focus_index = self.doc().index_for_entity_id(focus.entity_id)?;
         let reversed = focus_index < anchor_index
             || (focus_index == anchor_index && focus.offset < anchor.offset);
         let (start, end, start_index, end_index) = if reversed {
@@ -489,12 +489,12 @@ impl Editor {
     fn sync_cross_block_selection_visuals(&mut self, cx: &mut Context<Self>) {
         let normalized = self.normalized_cross_block_selection(cx);
         let blocks = self.doc().blocks().to_vec();
-        for (index, visible) in blocks.into_iter().enumerate() {
+        for (index, entries) in blocks.into_iter().enumerate() {
             let next_range = normalized.and_then(|selection| {
                 if index < selection.start_index || index > selection.end_index {
                     return None;
                 }
-                let block = visible.entity.read(cx);
+                let block = entries.entity.read(cx);
                 let len = block.visible_len();
                 let range = if selection.start_index == selection.end_index {
                     selection.start.offset.min(len)..selection.end.offset.min(len)
@@ -508,7 +508,7 @@ impl Editor {
                 (!range.is_empty()).then_some(range)
             });
 
-            visible.entity.update(cx, |block, cx| {
+            entries.entity.update(cx, |block, cx| {
                 if block.editor_selection_range != next_range {
                     block.editor_selection_range = next_range.clone();
                     cx.notify();
@@ -584,7 +584,7 @@ impl Editor {
             .into_iter()
             .map(|mapping| (mapping.entity.entity_id(), mapping))
             .collect();
-        let visible = self.doc().blocks();
+        let entries = self.doc().blocks();
 
         // Resolve an endpoint to a source offset. Atomic blocks (tables, etc.)
         // carry no per-block text mapping, so endpoint_source_offset returns
@@ -595,7 +595,7 @@ impl Editor {
                 if let Some(offset) = self.endpoint_source_offset(endpoint, &mappings, cx) {
                     return Some(offset);
                 }
-                let entity = visible.get(index)?.entity.clone();
+                let entity = entries.get(index)?.entity.clone();
                 let range = block_ranges.get(&entity.entity_id())?;
                 Some(if at_end { range.end } else { range.start })
             };
@@ -604,12 +604,12 @@ impl Editor {
         let end = endpoint_offset(selection.end, selection.end_index, true)?;
         let (mut lo, mut hi) = (start.min(end), start.max(end));
 
-        // Endpoint offsets can never point *after* a zero-visible-len (atomic)
+        // Endpoint offsets can never point *after* a zero-entries-len (atomic)
         // block, so a table at the trailing boundary of the selection would be
         // left behind. Union in the full source range of every atomic block
-        // whose visible index falls inside the selection so it is removed whole.
+        // whose entries index falls inside the selection so it is removed whole.
         for index in selection.start_index..=selection.end_index {
-            let entity = visible.get(index)?.entity.clone();
+            let entity = entries.get(index)?.entity.clone();
             if entity.read(cx).visible_len() == 0 {
                 if let Some(range) = block_ranges.get(&entity.entity_id()) {
                     lo = lo.min(range.start);
@@ -707,7 +707,7 @@ impl Editor {
         let selection = self.normalized_cross_block_selection(cx)?;
         let source = self.current_document_source(cx);
         let mappings = self.source_mapping_by_entity_id(cx);
-        let visible = self.doc().blocks();
+        let entries = self.doc().blocks();
 
         // Join blocks with the same spacing the document serializer uses
         // (collect_root_markdown_lines): a blank line between blocks, but tight
@@ -720,7 +720,7 @@ impl Editor {
         let mut previous_was_list_item = false;
 
         for index in selection.start_index..=selection.end_index {
-            let entity = visible.get(index)?.entity.clone();
+            let entity = entries.get(index)?.entity.clone();
             let block = entity.read(cx);
             let len = block.visible_len();
             let range = if selection.start_index == selection.end_index {
@@ -889,8 +889,8 @@ impl Editor {
         }
 
         // Fall back to a single block with a non-collapsed selection range.
-        for visible in self.doc().blocks() {
-            let block = visible.entity.read(cx);
+        for entries in self.doc().blocks() {
+            let block = entries.entity.read(cx);
             if block.selected_range.is_empty() {
                 continue;
             }
@@ -950,9 +950,9 @@ mod tests {
         end_offset: usize,
         cx: &mut Context<Editor>,
     ) {
-        let visible = editor.doc().blocks().to_vec();
-        let start = visible[start_index].entity.entity_id();
-        let end = visible[end_index].entity.entity_id();
+        let entries = editor.doc().blocks().to_vec();
+        let start = entries[start_index].entity.entity_id();
+        let end = entries[end_index].entity.entity_id();
         editor.tab_mut().selection.cross_block = Some(CrossBlockSelection {
             anchor: CrossBlockSelectionEndpoint {
                 entity_id: start,
@@ -967,8 +967,8 @@ mod tests {
     }
 
     fn assign_visible_block_bounds(editor: &mut Editor, cx: &mut Context<Editor>) {
-        for (index, visible) in editor.doc().blocks().to_vec().into_iter().enumerate() {
-            visible.entity.update(cx, move |block, _cx| {
+        for (index, entries) in editor.doc().blocks().to_vec().into_iter().enumerate() {
+            entries.entity.update(cx, move |block, _cx| {
                 block.last_bounds = Some(Bounds::new(
                     point(px(0.0), px(index as f32 * 32.0)),
                     size(px(400.0), px(24.0)),
@@ -989,7 +989,7 @@ mod tests {
             set_selection(editor, 0, 0, 2, 2, cx);
             assert!(editor.tab().selection.cross_block.is_some());
             assert!(
-                editor.doc().blocks().iter().any(|visible| visible
+                editor.doc().blocks().iter().any(|entries| entries
                     .entity
                     .read(cx)
                     .editor_selection_range
@@ -1001,7 +1001,7 @@ mod tests {
             assert!(editor.tab().selection.cross_block.is_none());
             assert!(editor.tab().selection.cross_block_drag.is_some());
             assert!(
-                editor.doc().blocks().iter().all(|visible| visible
+                editor.doc().blocks().iter().all(|entries| entries
                     .entity
                     .read(cx)
                     .editor_selection_range
@@ -1077,17 +1077,17 @@ mod tests {
         });
 
         editor.update(&mut cx, |editor, cx| {
-            let visible = editor.doc().blocks().to_vec();
-            assert_eq!(visible.len(), 3);
-            let end_len = visible[2].entity.read(cx).visible_len();
+            let entries = editor.doc().blocks().to_vec();
+            assert_eq!(entries.len(), 3);
+            let end_len = entries[2].entity.read(cx).visible_len();
             set_selection(editor, 0, 0, 2, end_len, cx);
 
             assert_eq!(
                 editor.cross_block_selected_markdown(cx).as_deref(),
                 Some("alpha **bold**\n\n- item\n\n![alt](image.png)")
             );
-            for visible in visible {
-                let block = visible.entity.read(cx);
+            for entries in entries {
+                let block = entries.entity.read(cx);
                 assert_eq!(block.editor_selection_range, Some(0..block.visible_len()));
             }
         });
@@ -1164,9 +1164,9 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, TABLE_DOC.to_string(), None));
 
         editor.update(&mut cx, |editor, cx| {
-            let visible = editor.doc().blocks().to_vec();
-            assert_eq!(visible.len(), 3);
-            let end_len = visible[2].entity.read(cx).visible_len();
+            let entries = editor.doc().blocks().to_vec();
+            assert_eq!(entries.len(), 3);
+            let end_len = entries[2].entity.read(cx).visible_len();
             // The table sits in the interior of the selection.
             set_selection(editor, 0, 0, 2, end_len, cx);
             assert!(editor.delete_cross_block_selection(cx));
@@ -1212,9 +1212,9 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, TABLE_DOC.to_string(), None));
 
         editor.update(&mut cx, |editor, cx| {
-            let visible = editor.doc().blocks().to_vec();
-            assert_eq!(visible.len(), 3);
-            let alpha_len = visible[0].entity.read(cx).visible_len();
+            let entries = editor.doc().blocks().to_vec();
+            assert_eq!(entries.len(), 3);
+            let alpha_len = entries[0].entity.read(cx).visible_len();
             // Drag from the end of the paragraph above onto the table: only the
             // table is removed, and re-parse normalizes the spacing.
             set_selection(editor, 0, alpha_len, 1, 0, cx);
@@ -1235,9 +1235,9 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, TABLE_DOC.to_string(), None));
 
         editor.update(&mut cx, |editor, cx| {
-            let visible = editor.doc().blocks().to_vec();
-            assert_eq!(visible.len(), 3);
-            let end_len = visible[2].entity.read(cx).visible_len();
+            let entries = editor.doc().blocks().to_vec();
+            assert_eq!(entries.len(), 3);
+            let end_len = entries[2].entity.read(cx).visible_len();
             set_selection(editor, 0, 0, 2, end_len, cx);
 
             // The clipboard markdown serializes the full table, matching what
@@ -1266,9 +1266,9 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, doc.to_string(), None));
 
         editor.update(&mut cx, |editor, cx| {
-            let visible = editor.doc().blocks().to_vec();
-            assert_eq!(visible.len(), 3);
-            let end_len = visible[2].entity.read(cx).visible_len();
+            let entries = editor.doc().blocks().to_vec();
+            assert_eq!(entries.len(), 3);
+            let end_len = entries[2].entity.read(cx).visible_len();
             set_selection(editor, 0, 0, 2, end_len, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
@@ -1299,9 +1299,9 @@ mod tests {
                 .doc_mut()
                 .insert_blocks_at(None, index, vec![empty], cx);
 
-            let visible = editor.doc().blocks().to_vec();
-            assert_eq!(visible.len(), 3);
-            let alpha_len = visible[0].entity.read(cx).visible_len();
+            let entries = editor.doc().blocks().to_vec();
+            assert_eq!(entries.len(), 3);
+            let alpha_len = entries[0].entity.read(cx).visible_len();
             // From the end of `alpha` onto the trailing empty paragraph.
             set_selection(editor, 0, alpha_len, 2, 0, cx);
             assert!(editor.delete_cross_block_selection(cx));
@@ -1328,8 +1328,8 @@ mod tests {
                 Editor::new_block(cx, crate::model::block::BlockData::paragraph(String::new()));
             editor.doc_mut().insert_blocks_at(None, 0, vec![empty], cx);
 
-            let visible = editor.doc().blocks().to_vec();
-            assert_eq!(visible.len(), 3);
+            let entries = editor.doc().blocks().to_vec();
+            assert_eq!(entries.len(), 3);
             // From the empty paragraph (index 0) to the start of `gamma`.
             set_selection(editor, 0, 0, 2, 0, cx);
             assert!(editor.delete_cross_block_selection(cx));
