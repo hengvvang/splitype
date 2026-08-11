@@ -872,7 +872,7 @@ mod tests {
             let table = entries[1]
                 .entity
                 .read(cx)
-                .record
+                .data
                 .table
                 .as_ref()
                 .expect("native nested table");
@@ -938,7 +938,7 @@ mod tests {
                 let block = entries.entity.read(cx);
                 block.kind() == BlockKind::Table
                     && block.quote_depth == 1
-                    && block.record.table.as_ref().is_some_and(|table| {
+                    && block.data.table.as_ref().is_some_and(|table| {
                         table.header.len() == 2
                             && table.rows.len() == 2
                             && table.header[0].serialize_markdown() == "k"
@@ -1048,7 +1048,7 @@ mod tests {
             let table = entries[0]
                 .entity
                 .read(cx)
-                .record
+                .data
                 .table
                 .as_ref()
                 .expect("native table data");
@@ -1204,7 +1204,7 @@ mod tests {
                 entries[0]
                     .entity
                     .read(cx)
-                    .record
+                    .data
                     .html
                     .as_ref()
                     .is_some_and(|html| html.is_semantic())
@@ -1312,7 +1312,7 @@ mod tests {
             assert_eq!(block.kind(), BlockKind::HtmlBlock);
             assert!(
                 block
-                    .record
+                    .data
                     .html
                     .as_ref()
                     .is_some_and(|html| html.is_semantic())
@@ -1613,7 +1613,7 @@ mod tests {
                 let block = block.entity.read(cx);
                 block.kind() == BlockKind::Table
                     && block
-                        .record
+                        .data
                         .table
                         .as_ref()
                         .is_some_and(|table| table.header.len() == 3 && table.rows.len() >= 2)

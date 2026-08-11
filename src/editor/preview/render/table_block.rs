@@ -22,13 +22,13 @@ pub(crate) fn render_preview_table(
     let d = &theme.dimensions;
     let t = &theme.typography;
 
-    let Some(table) = block.record.table.as_ref() else {
+    let Some(table) = block.data.table.as_ref() else {
         return base
             .text_size(px(t.text_size))
             .text_color(c.text_default)
             .line_height(rems(t.text_line_height))
             .child(inline::render_preview_inline(
-                &block.record.text,
+                &block.data.text,
                 c.text_default,
                 t.text_size,
                 FontWeight::NORMAL,

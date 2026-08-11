@@ -53,7 +53,7 @@ impl Block {
         cx: &mut Context<Self>,
     ) {
         cx.stop_propagation();
-        cx.write_to_clipboard(ClipboardItem::new_string(self.record.text.plain_text()));
+        cx.write_to_clipboard(ClipboardItem::new_string(self.data.text.plain_text()));
     }
 
     pub(crate) fn on_code_language_newline(

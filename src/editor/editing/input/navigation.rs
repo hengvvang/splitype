@@ -444,7 +444,7 @@ impl Editor {
         let (kind, text_markdown, has_children) = block.read_with(cx, |block, _cx| {
             (
                 block.kind(),
-                block.record.text.serialize_markdown(),
+                block.data.text.serialize_markdown(),
                 !block.children.is_empty(),
             )
         });
@@ -459,8 +459,8 @@ impl Editor {
         };
 
         block.update(cx, |block, cx| {
-            block.record.kind = BlockKind::Callout(variant);
-            block.record.set_text(RichText::from_markdown(&text));
+            block.data.kind = BlockKind::Callout(variant);
+            block.data.set_text(RichText::from_markdown(&text));
             block.sync_edit_mode_from_kind();
             block.sync_render_cache();
             block.cursor_blink_epoch = Instant::now();
@@ -489,7 +489,7 @@ impl Editor {
             };
             let block_ref = block.read(cx);
             (
-                variant.header_markdown(&parent_ref.record.text.serialize_markdown()),
+                variant.header_markdown(&parent_ref.data.text.serialize_markdown()),
                 parent_ref.children.len() == 1,
                 block_ref.kind() == BlockKind::Paragraph
                     && block_ref.display_text().is_empty()
@@ -507,9 +507,9 @@ impl Editor {
         self.doc_mut().with_structure_mutation(cx, |document, cx| {
             let _ = document.remove_block_by_id_raw(block.entity_id(), cx);
             parent.update(cx, |parent, cx| {
-                parent.record.kind = BlockKind::Blockquote;
+                parent.data.kind = BlockKind::Blockquote;
                 parent
-                    .record
+                    .data
                     .set_text(RichText::from_markdown(&header_markdown));
                 parent.sync_edit_mode_from_kind();
                 parent.sync_render_cache();

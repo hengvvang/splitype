@@ -68,7 +68,7 @@ impl Block {
 
     fn paste_image_split(&self) -> (RichText, RichText) {
         let plain_selected = self.selection_plain_range();
-        let (leading, tail) = self.record.text.split_at(plain_selected.start);
+        let (leading, tail) = self.data.text.split_at(plain_selected.start);
         let (_, trailing) = tail.split_at(plain_selected.end.saturating_sub(plain_selected.start));
         (leading, trailing)
     }
@@ -153,7 +153,7 @@ impl Block {
                     return;
                 }
                 let plain_selected = self.selection_plain_range();
-                let (leading, tail) = self.record.text.split_at(plain_selected.start);
+                let (leading, tail) = self.data.text.split_at(plain_selected.start);
                 let (_, trailing) =
                     tail.split_at(plain_selected.end.saturating_sub(plain_selected.start));
                 let lines = normalized

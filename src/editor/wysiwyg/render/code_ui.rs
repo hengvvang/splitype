@@ -116,7 +116,7 @@ impl Block {
 
         div()
             .id(ElementId::Name(
-                format!("code-toolbar-{}", self.record.id).into(),
+                format!("code-toolbar-{}", self.data.id).into(),
             ))
             .absolute()
             .top(px(top))
@@ -139,7 +139,7 @@ impl Block {
             .child(
                 div()
                     .id(ElementId::Name(
-                        format!("code-language-picker-{}", self.record.id).into(),
+                        format!("code-language-picker-{}", self.data.id).into(),
                     ))
                     .h_full()
                     .flex()
@@ -165,7 +165,7 @@ impl Block {
             .child(div().w(px(1.0)).h(px(14.0)).bg(c.table_border))
             .child(
                 icon_button(
-                    ElementId::Name(format!("code-line-numbers-{}", self.record.id).into()),
+                    ElementId::Name(format!("code-line-numbers-{}", self.data.id).into()),
                     c,
                     d,
                 )
@@ -186,7 +186,7 @@ impl Block {
             )
             .child(
                 icon_button(
-                    ElementId::Name(format!("code-copy-{}", self.record.id).into()),
+                    ElementId::Name(format!("code-copy-{}", self.data.id).into()),
                     c,
                     d,
                 )
@@ -219,7 +219,7 @@ impl Block {
 
         div()
             .id(ElementId::Name(
-                format!("code-picker-container-{}", self.record.id).into(),
+                format!("code-picker-container-{}", self.data.id).into(),
             ))
             .absolute()
             .top(px(toolbar_height + 5.0))
@@ -292,7 +292,7 @@ impl Block {
             .child(
                 div()
                     .id(ElementId::Name(
-                        format!("code-language-list-{}", self.record.id).into(),
+                        format!("code-language-list-{}", self.data.id).into(),
                     ))
                     .w_full()
                     .max_h(px(250.0))
@@ -308,7 +308,7 @@ impl Block {
                             code_language_display_name(&selected_language) == option.label;
                         menu_item(
                             ElementId::Name(
-                                format!("code-language-option-{}-{index}", self.record.id).into(),
+                                format!("code-language-option-{}-{index}", self.data.id).into(),
                             ),
                             c,
                             d,

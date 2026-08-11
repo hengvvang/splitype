@@ -149,7 +149,7 @@ impl Block {
         ));
         let block_prefix = heading_level.map(|level| format!("{} ", "#".repeat(level as usize)));
         self.projection = ExpandedInlineProjection::build_with_prefix(
-            &self.record.text.fragments,
+            &self.data.text.fragments,
             plain_selected,
             plain_marked,
             block_prefix.as_deref(),
@@ -313,7 +313,7 @@ impl Block {
         }
 
         if let Some(link_run) = self.projected_link_run_fully_covering_range(&range) {
-            let map = self.record.text.source_offset_map();
+            let map = self.data.text.source_offset_map();
             let label_source_start = map.plain_to_source_offset(link_run.plain_range.start);
             let run_source_start =
                 label_source_start.saturating_sub(link_run.link.open_marker().len());
@@ -347,13 +347,13 @@ impl Block {
                 .min(footnote_run.display_range.len());
             let mapped_start = (raw_len * local_start) / footnote_run.display_range.len().max(1);
             let mapped_end = (raw_len * local_end) / footnote_run.display_range.len().max(1);
-            let map = self.record.text.source_offset_map();
+            let map = self.data.text.source_offset_map();
             let run_source_start = map.plain_to_source_offset(footnote_run.plain_range.start);
             return run_source_start + mapped_start..run_source_start + mapped_end;
         }
 
         let plain_range = self.display_to_plain_range(range);
-        self.record
+        self.data
             .text
             .source_offset_map()
             .plain_to_source_range(plain_range)
@@ -366,7 +366,7 @@ impl Block {
         }
 
         let plain_range = self
-            .record
+            .data
             .text
             .source_offset_map()
             .source_to_plain_range(range);
@@ -575,19 +575,19 @@ impl Block {
 
         let replacement_start = link_run.start_fragment_index;
         let replacement_clean_start = Self::clean_offset_before_fragment_index(
-            &self.record.text.fragments,
+            &self.data.text.fragments,
             replacement_start,
         );
-        let mut next_text = self.record.text.clone();
+        let mut next_text = self.data.text.clone();
         next_text.replace_fragment_range(
             link_run.start_fragment_index..link_run.end_fragment_index,
             replacement_fragments.clone(),
         );
 
         if Self::replacement_is_pure_link_run(&replacement_fragments) {
-            let old_kind = self.record.kind.clone();
-            let old_text = self.record.text.clone();
-            self.record.set_text(next_text.clone());
+            let old_kind = self.data.kind.clone();
+            let old_text = self.data.text.clone();
+            self.data.set_text(next_text.clone());
             self.sync_edit_mode_from_kind();
             self.sync_render_cache();
 
@@ -627,7 +627,7 @@ impl Block {
                 self.collapsed_caret_affinity = CollapsedCaretAffinity::Default;
                 self.cursor_blink_epoch = Instant::now();
                 self.clear_vertical_motion();
-                if self.record.kind != old_kind || self.record.text != old_text {
+                if self.data.kind != old_kind || self.data.text != old_text {
                     cx.emit(BlockAction::Changed);
                 }
                 cx.notify();
@@ -676,7 +676,7 @@ impl Block {
         }
 
         if self.projection.is_none() {
-            return self.record.text.attributes_for_insertion_at(display_offset);
+            return self.data.text.attributes_for_insertion_at(display_offset);
         }
 
         for segment in self.projection_segments() {
@@ -685,7 +685,7 @@ impl Block {
                     if display_offset >= segment.display_range.start
                         && display_offset <= segment.display_range.end =>
                 {
-                    let fragment = &self.record.text.fragments[segment.fragment_index];
+                    let fragment = &self.data.text.fragments[segment.fragment_index];
                     return InlineInsertionAttributes {
                         style: fragment.style,
                         html_style: fragment.html_style,
@@ -697,7 +697,7 @@ impl Block {
                 ExpandedInlineSegmentKind::OpeningDelimiter(_)
                     if display_offset == segment.display_range.end =>
                 {
-                    let fragment = &self.record.text.fragments[segment.fragment_index];
+                    let fragment = &self.data.text.fragments[segment.fragment_index];
                     return InlineInsertionAttributes {
                         style: fragment.style,
                         html_style: fragment.html_style,
@@ -709,7 +709,7 @@ impl Block {
                 ExpandedInlineSegmentKind::ClosingDelimiter(_)
                     if display_offset == segment.display_range.start =>
                 {
-                    let fragment = &self.record.text.fragments[segment.fragment_index];
+                    let fragment = &self.data.text.fragments[segment.fragment_index];
                     return InlineInsertionAttributes {
                         style: fragment.style,
                         html_style: fragment.html_style,
@@ -747,7 +747,7 @@ impl Block {
             }
         }
 
-        self.record
+        self.data
             .text
             .attributes_for_insertion_at(self.display_to_plain_offset(display_offset))
     }
@@ -793,7 +793,7 @@ impl Block {
                 && segment.display_range.start <= display_range.start
                 && display_range.end <= segment.display_range.end)
                 .then(|| {
-                    self.record
+                    self.data
                         .text
                         .fragments
                         .get(segment.fragment_index)
@@ -812,7 +812,7 @@ impl Block {
         }
 
         let mut cursor = 0usize;
-        for fragment in &self.record.text.fragments {
+        for fragment in &self.data.text.fragments {
             let fragment_start = cursor;
             let fragment_end = fragment_start + fragment.text.len();
             if fragment_start <= plain_range.start && plain_range.end <= fragment_end {
@@ -846,8 +846,8 @@ impl Block {
         caret_may_have_closed_span: bool,
         cx: &mut Context<Self>,
     ) {
-        let old_kind = self.record.kind.clone();
-        let old_text = self.record.text.clone();
+        let old_kind = self.data.kind.clone();
+        let old_text = self.data.text.clone();
         let old_text_was_empty = old_text.plain_text().is_empty();
         let mut collapsed_affinity = self.display_collapsed_caret_affinity();
         let keep_projection =
@@ -868,8 +868,8 @@ impl Block {
             .map(|range| Self::adjust_range_for_shortcut(range, shortcut_removed_len))
             .unwrap_or_else(|| adjusted_cursor..adjusted_cursor);
 
-        self.record.kind = next_kind;
-        self.record.set_text(normalized_text);
+        self.data.kind = next_kind;
+        self.data.set_text(normalized_text);
         self.numbered_list_restart_requested = should_restart_numbered_list;
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
@@ -909,7 +909,7 @@ impl Block {
         self.cursor_blink_epoch = Instant::now();
         self.clear_vertical_motion();
 
-        if self.record.kind != old_kind || self.record.text != old_text {
+        if self.data.kind != old_kind || self.data.text != old_text {
             cx.emit(BlockAction::Changed);
         }
         cx.notify();
@@ -956,7 +956,7 @@ impl Block {
             source_offset
         } else {
             let plain = self
-                .record
+                .data
                 .text
                 .source_offset_map()
                 .source_to_plain_offset(source_offset.saturating_sub(content_source_start));
@@ -986,7 +986,7 @@ impl Block {
         let mut source = format!(
             "{}{}",
             &self.display_text()[prefix_range],
-            self.record.text.serialize_markdown()
+            self.data.text.serialize_markdown()
         );
         source.replace_range(source_range.clone(), new_text);
 
@@ -1035,11 +1035,11 @@ impl Block {
         let next_marked_plain = marked_source_range.as_ref().map(|range| {
             Self::source_range_to_plain_range(&next_text, content_source_start, range.clone())
         });
-        let old_kind = self.record.kind.clone();
-        let old_text = self.record.text.clone();
+        let old_kind = self.data.kind.clone();
+        let old_text = self.data.text.clone();
 
-        self.record.kind = next_kind;
-        self.record.set_text(next_text);
+        self.data.kind = next_kind;
+        self.data.set_text(next_text);
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
         if self.edit_mode.supports_inline_projection() {
@@ -1063,7 +1063,7 @@ impl Block {
         self.cursor_blink_epoch = Instant::now();
         self.clear_vertical_motion();
 
-        if self.record.kind != old_kind || self.record.text != old_text {
+        if self.data.kind != old_kind || self.data.text != old_text {
             cx.emit(BlockAction::Changed);
         }
         cx.notify();
@@ -1136,7 +1136,7 @@ impl Block {
         // inline tree from collapsed plain text, which no longer contains the
         // `[label](url)` markers and silently drops the link. Edit in markdown
         // space (as source-preserving links already do) so the link round-trips.
-        if !self.edits_verbatim_text() && self.record.text.has_inline_links() {
+        if !self.edits_verbatim_text() && self.data.text.has_inline_links() {
             self.apply_source_space_text_edit(
                 display_range,
                 new_text,
@@ -1148,7 +1148,7 @@ impl Block {
         }
 
         let plain_range = self.display_to_plain_range(display_range.clone());
-        let mut base_text = self.record.text.clone();
+        let mut base_text = self.data.text.clone();
         let overlaps_delimiters = self.projection.is_some() && !self.edits_verbatim_text();
         if overlaps_delimiters {
             let touched_styles = self.projected_styles_touching_display_range(&display_range);

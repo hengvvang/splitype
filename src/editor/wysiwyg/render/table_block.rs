@@ -51,7 +51,7 @@ pub(crate) fn render_table(
     let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
     let table_width = effective_table_width(block, viewport_width, d);
     let column_layout = block
-        .record
+        .data
         .table
         .as_ref()
         .map(|table| measure_table_column_layout(table, table_width, window, theme))
@@ -94,7 +94,7 @@ pub(crate) fn render_table(
         .child(
             div()
                 .id(ElementId::Name(
-                    format!("table-header-axis-band-{}", block.record.id).into(),
+                    format!("table-header-axis-band-{}", block.data.id).into(),
                 ))
                 .absolute()
                 .left(px(-6.0))
@@ -162,7 +162,7 @@ pub(crate) fn render_table(
 
             div()
                 .id(ElementId::Name(
-                    format!("table-header-cell-wrap-{}-{}", block.record.id, column).into(),
+                    format!("table-header-cell-wrap-{}-{}", block.data.id, column).into(),
                 ))
                 .relative()
                 .flex_none()
@@ -184,7 +184,7 @@ pub(crate) fn render_table(
                         .id(ElementId::Name(
                             format!(
                                 "table-column-axis-activation-{}-{}",
-                                block.record.id, column
+                                block.data.id, column
                             )
                             .into(),
                         ))
@@ -262,7 +262,7 @@ pub(crate) fn render_table(
 
             div()
                 .id(ElementId::Name(
-                    format!("table-body-row-wrap-{}-{}", block.record.id, body_row_index).into(),
+                    format!("table-body-row-wrap-{}-{}", block.data.id, body_row_index).into(),
                 ))
                 .relative()
                 .w_full()
@@ -280,7 +280,7 @@ pub(crate) fn render_table(
                 .child(
                     div()
                         .id(ElementId::Name(
-                            format!("table-row-axis-band-{}-{}", block.record.id, body_row_index)
+                            format!("table-row-axis-band-{}-{}", block.data.id, body_row_index)
                                 .into(),
                         ))
                         .absolute()
@@ -341,7 +341,7 @@ pub(crate) fn render_table(
                         .id(ElementId::Name(
                             format!(
                                 "table-body-cell-wrap-{}-{}-{}",
-                                block.record.id, body_row_index, column
+                                block.data.id, body_row_index, column
                             )
                             .into(),
                         ))
@@ -362,7 +362,7 @@ pub(crate) fn render_table(
                 }))
         });
 
-    let block_id = ElementId::Name(format!("block-{}", block.record.id).into());
+    let block_id = ElementId::Name(format!("block-{}", block.data.id).into());
 
     {
         let mut rows = Vec::with_capacity(1 + body_row_count);
@@ -371,7 +371,7 @@ pub(crate) fn render_table(
 
         let column_edge_band = div()
             .id(ElementId::Name(
-                format!("table-append-column-edge-{}", block.record.id).into(),
+                format!("table-append-column-edge-{}", block.data.id).into(),
             ))
             .absolute()
             .top_0()
@@ -382,7 +382,7 @@ pub(crate) fn render_table(
 
         let row_edge_band = div()
             .id(ElementId::Name(
-                format!("table-append-row-edge-{}", block.record.id).into(),
+                format!("table-append-row-edge-{}", block.data.id).into(),
             ))
             .absolute()
             .left_0()
@@ -393,7 +393,7 @@ pub(crate) fn render_table(
 
         let column_control = div()
             .id(ElementId::Name(
-                format!("table-append-column-zone-{}", block.record.id).into(),
+                format!("table-append-column-zone-{}", block.data.id).into(),
             ))
             .absolute()
             .top_0()
@@ -404,7 +404,7 @@ pub(crate) fn render_table(
             .child(
                 div()
                     .id(ElementId::Name(
-                        format!("table-append-column-button-{}", block.record.id).into(),
+                        format!("table-append-column-button-{}", block.data.id).into(),
                     ))
                     .absolute()
                     .top_0()
@@ -445,7 +445,7 @@ pub(crate) fn render_table(
 
         let row_control = div()
             .id(ElementId::Name(
-                format!("table-append-row-zone-{}", block.record.id).into(),
+                format!("table-append-row-zone-{}", block.data.id).into(),
             ))
             .absolute()
             .left_0()
@@ -456,7 +456,7 @@ pub(crate) fn render_table(
             .child(
                 div()
                     .id(ElementId::Name(
-                        format!("table-append-row-button-{}", block.record.id).into(),
+                        format!("table-append-row-button-{}", block.data.id).into(),
                     ))
                     .absolute()
                     .left_0()
@@ -497,7 +497,7 @@ pub(crate) fn render_table(
 
         let expand_control = div()
             .id(ElementId::Name(
-                format!("table-expand-button-{}", block.record.id).into(),
+                format!("table-expand-button-{}", block.data.id).into(),
             ))
             .absolute()
             .right(px(-18.0))

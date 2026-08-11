@@ -15,10 +15,10 @@ impl Editor {
     /// Parse a Markdown string into a tree of block entities.
     ///
     /// Delegates to the pure parser in `model::parse` and converts the
-    /// resulting `BlockData` records into GPUI `Entity<Block>` values.
+    /// resulting `BlockData` values into GPUI `Entity<Block>` entities.
     pub(crate) fn parse_document(cx: &mut Context<Self>, markdown: &str) -> Vec<Entity<Block>> {
-        let records = crate::model::parse::parser::parse_document(markdown);
-        records_to_entity_blocks(records, cx)
+        let blocks = crate::model::parse::parser::parse_document(markdown);
+        blocks_to_entity_tree(blocks, cx)
     }
 
     /// Build runtime blocks from pre-split Markdown lines.
@@ -28,8 +28,8 @@ impl Editor {
         cx: &mut Context<Self>,
         lines: &[String],
     ) -> Vec<Entity<Block>> {
-        let records = crate::model::parse::parser::build_blocks_from_lines(lines);
-        records_to_entity_blocks(records, cx)
+        let blocks = crate::model::parse::parser::build_blocks_from_lines(lines);
+        blocks_to_entity_tree(blocks, cx)
     }
     /// Replace the whole document with a fresh parse of `markdown`,
     /// rebuilding table/image handles and bumping the document revision.
@@ -66,24 +66,21 @@ impl Editor {
 ///
 /// Parent-child relationships encoded in `BlockData.parent` / `BlockData.children`
 /// are reconstructed as `Block.children` vectors.
-fn records_to_entity_blocks(
-    records: Vec<BlockData>,
-    cx: &mut Context<Editor>,
-) -> Vec<Entity<Block>> {
-    // Create GPUI entities for every record.
+fn blocks_to_entity_tree(data: Vec<BlockData>, cx: &mut Context<Editor>) -> Vec<Entity<Block>> {
+    // Create GPUI entities for every block.
     let mut entities: HashMap<uuid::Uuid, Entity<Block>> = HashMap::new();
-    for record in &records {
-        let entity = Editor::new_block(cx, record.clone());
-        entities.insert(record.id.0, entity);
+    for block in &data {
+        let entity = Editor::new_block(cx, block.clone());
+        entities.insert(block.id.0, entity);
     }
 
     // Wire up child relationships on each parent entity.
-    for record in &records {
-        if record.children.is_empty() {
+    for block in &data {
+        if block.children.is_empty() {
             continue;
         }
-        if let Some(parent_entity) = entities.get(&record.id.0) {
-            let child_entities: Vec<Entity<Block>> = record
+        if let Some(parent_entity) = entities.get(&block.id.0) {
+            let child_entities: Vec<Entity<Block>> = block
                 .children
                 .iter()
                 .filter_map(|child_id| entities.get(&child_id.0).cloned())
@@ -97,10 +94,9 @@ fn records_to_entity_blocks(
         }
     }
 
-    // Return only root records (those without a parent).
-    records
-        .iter()
-        .filter(|record| record.parent.is_none())
-        .filter_map(|record| entities.get(&record.id.0).cloned())
+    // Return only root blocks (those without a parent).
+    data.iter()
+        .filter(|block| block.parent.is_none())
+        .filter_map(|block| entities.get(&block.id.0).cloned())
         .collect()
 }

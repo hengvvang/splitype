@@ -58,7 +58,7 @@ impl Block {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         self.render_inline_tree_runs(
-            &self.record.text,
+            &self.data.text,
             theme,
             base_color,
             font_size,
@@ -408,7 +408,7 @@ impl Block {
         font_weight: FontWeight,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
-        let segments = parse_table_cell_inline_images(&self.record.text.serialize_markdown());
+        let segments = parse_table_cell_inline_images(&self.data.text.serialize_markdown());
         if !segments
             .iter()
             .any(|segment| matches!(segment, TableCellInlineImageSegment::Image { .. }))

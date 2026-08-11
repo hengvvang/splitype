@@ -296,9 +296,9 @@ impl Editor {
                         let content = content.clone();
                         let adopted_children = adopted_children.clone();
                         move |prev, cx| {
-                            let mut next_text = prev.record.text.clone();
+                            let mut next_text = prev.data.text.clone();
                             next_text.append_tree(content.clone());
-                            prev.record.set_text(next_text);
+                            prev.data.set_text(next_text);
                             prev.sync_render_cache();
                             prev.children.extend(adopted_children.clone());
                             prev.selected_range = cursor_pos..cursor_pos;
@@ -425,9 +425,9 @@ impl Editor {
                     focus_block.update(cx, {
                         let trailing = trailing.clone();
                         move |focus_block, cx| {
-                            let mut next_text = focus_block.record.text.clone();
+                            let mut next_text = focus_block.data.text.clone();
                             next_text.append_tree(trailing.clone());
-                            focus_block.record.set_text(next_text);
+                            focus_block.data.set_text(next_text);
                             focus_block.sync_render_cache();
                             focus_block.cursor_blink_epoch = Instant::now();
                             cx.notify();
@@ -573,8 +573,8 @@ impl Editor {
                     let (moved, removed_location) =
                         document.remove_block_by_id_raw(block.entity_id(), cx)?;
                     moved.update(cx, |block, cx| {
-                        block.record.kind = BlockKind::Paragraph;
-                        block.record.raw_source = None;
+                        block.data.kind = BlockKind::Paragraph;
+                        block.data.raw_source = None;
                         block.sync_edit_mode_from_kind();
                         block.sync_render_cache();
                         block.cursor_blink_epoch = Instant::now();
@@ -609,7 +609,7 @@ impl Editor {
                         BlockKind::TaskListItem { checked } => checked,
                         _ => return,
                     };
-                    block.record.kind = BlockKind::TaskListItem { checked: !checked };
+                    block.data.kind = BlockKind::TaskListItem { checked: !checked };
                     block.sync_edit_mode_from_kind();
                     block.sync_render_cache();
                     block.cursor_blink_epoch = Instant::now();

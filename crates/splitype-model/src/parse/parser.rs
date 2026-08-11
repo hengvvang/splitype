@@ -8,7 +8,7 @@
 use crate::block::callout::CalloutKind;
 use crate::block::fence::CodeFenceOpening;
 use crate::block::kind::BlockKind;
-use crate::block::record::BlockData;
+use crate::block::data::BlockData;
 use crate::inline::text::RichText;
 use crate::parse::indent::{
     collect_until_blank_line, dedent_lines, display_columns, is_quote_start,

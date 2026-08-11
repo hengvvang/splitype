@@ -37,9 +37,9 @@ impl Block {
         let BlockKind::Callout(variant) = self.kind() else {
             return false;
         };
-        let header_markdown = variant.header_markdown(&self.record.text.serialize_markdown());
-        self.record.kind = BlockKind::Blockquote;
-        self.record
+        let header_markdown = variant.header_markdown(&self.data.text.serialize_markdown());
+        self.data.kind = BlockKind::Blockquote;
+        self.data
             .set_text(RichText::from_markdown(&header_markdown));
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
@@ -214,7 +214,7 @@ impl Block {
 
         let (leading, trailing) = self.split_text(cursor);
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
-        self.record.set_text(leading);
+        self.data.set_text(leading);
         self.mark_changed(cx);
         let cursor = self.display_len();
         self.assign_collapsed_selection_offset(cursor, CollapsedCaretAffinity::Default, None);
@@ -309,7 +309,7 @@ impl Block {
 
         if self.selected_range.is_empty() && self.cursor_offset() == 0 {
             cx.emit(BlockAction::RequestMergeIntoPrev {
-                content: self.record.text.clone(),
+                content: self.data.text.clone(),
             });
             return;
         }
@@ -464,11 +464,11 @@ mod tests {
 
     #[gpui::test]
     async fn multiline_quote_is_not_treated_as_leaf(cx: &mut TestAppContext) {
-        let block = cx.new(|cx| Block::with_record(cx, BlockData::paragraph(String::new())));
+        let block = cx.new(|cx| Block::with_data(cx, BlockData::paragraph(String::new())));
 
         block.update(cx, |block, cx| {
-            block.record.kind = BlockKind::Blockquote;
-            block.record.set_text(RichText::plain("first\n"));
+            block.data.kind = BlockKind::Blockquote;
+            block.data.set_text(RichText::plain("first\n"));
             block.sync_edit_mode_from_kind();
             block.sync_render_cache();
             cx.notify();

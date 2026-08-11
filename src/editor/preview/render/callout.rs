@@ -31,7 +31,7 @@ pub(crate) fn render_preview_callout(
     theme: &Theme,
 ) -> AnyElement {
     let accent = callout_accent(variant, theme);
-    let text_is_empty = block.record.text.plain_text().is_empty();
+    let text_is_empty = block.data.text.plain_text().is_empty();
     let header_label = SharedString::from(variant.label());
 
     let header_text = if text_is_empty {
@@ -49,7 +49,7 @@ pub(crate) fn render_preview_callout(
             .font_weight(FontWeight::LIGHT)
             .text_color(accent)
             .child(inline::render_preview_inline(
-                &block.record.text,
+                &block.data.text,
                 accent,
                 theme.typography.text_size,
                 FontWeight::LIGHT,

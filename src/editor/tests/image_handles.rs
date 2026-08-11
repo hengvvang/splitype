@@ -213,7 +213,7 @@ async fn html_fallback_before_image_does_not_swallow_standalone_image(cx: &mut T
                     .starts_with("<span style='color:blue;'>")
             );
             assert!(
-                html.record
+                html.data
                     .html
                     .as_ref()
                     .is_some_and(|html| html.is_semantic())
@@ -585,7 +585,7 @@ async fn table_cell_with_mixed_inline_image_uses_inline_image_segments(cx: &mut 
         let cell = handle.rows[0][0].read(cx);
         assert!(cell.image_handle().is_none());
 
-        let segments = parse_table_cell_inline_images(&cell.record.text_markdown());
+        let segments = parse_table_cell_inline_images(&cell.data.text_markdown());
         assert_eq!(segments.len(), 2);
         assert_eq!(
             segments[0],

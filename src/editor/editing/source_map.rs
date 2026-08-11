@@ -15,7 +15,7 @@ impl Editor {
 
     pub(crate) fn is_empty_paragraph_separator(block: &Block) -> bool {
         block.kind() == BlockKind::Paragraph
-            && block.record.text.plain_text().is_empty()
+            && block.data.text.plain_text().is_empty()
             && block.children.is_empty()
     }
 
@@ -375,7 +375,7 @@ impl Editor {
         mappings: &mut Vec<SourceTargetMapping>,
         cx: &App,
     ) -> usize {
-        let Some(table) = block.read(cx).record.table.clone() else {
+        let Some(table) = block.read(cx).data.table.clone() else {
             return 0;
         };
         let Some(grid) = block.read(cx).table_grid.clone() else {
@@ -470,7 +470,7 @@ impl Editor {
                     | BlockKind::RawMarkdown
                     | BlockKind::ThematicBreak
             ))
-            .then(|| block_ref.record.text.source_offset_map());
+            .then(|| block_ref.data.text.source_offset_map());
             (
                 kind,
                 block_ref.list_ordinal,
@@ -500,7 +500,7 @@ impl Editor {
             BlockKind::ThematicBreak => {
                 let line = block
                     .read(cx)
-                    .record
+                    .data
                     .serialize_markdown_line(list_depth, list_ordinal);
                 if quote_depth == 0 {
                     line.len()
@@ -645,7 +645,7 @@ impl Editor {
                     first_child,
                     first_child
                         .read(cx)
-                        .record
+                        .data
                         .text
                         .source_offset_map()
                         .source()

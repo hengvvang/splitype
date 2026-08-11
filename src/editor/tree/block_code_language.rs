@@ -18,7 +18,7 @@ impl Block {
     }
 
     pub(crate) fn sync_code_highlight(&mut self) {
-        self.code_highlight = match &self.record.kind {
+        self.code_highlight = match &self.data.kind {
             BlockKind::CodeBlock { language } => highlight_code_block(
                 language.as_deref().map(|value| &**value),
                 self.render_cache.text(),
@@ -34,7 +34,7 @@ impl Block {
     }
 
     pub(crate) fn code_language_text(&self) -> &str {
-        match &self.record.kind {
+        match &self.data.kind {
             BlockKind::CodeBlock {
                 language: Some(language),
             } => language.as_ref(),
@@ -201,11 +201,11 @@ impl Block {
             None
         };
 
-        let old_language = match &self.record.kind {
+        let old_language = match &self.data.kind {
             BlockKind::CodeBlock { language } => language.clone(),
             _ => None,
         };
-        self.record.kind = BlockKind::CodeBlock {
+        self.data.kind = BlockKind::CodeBlock {
             language: (!normalized.is_empty()).then(|| SharedString::from(normalized)),
         };
         self.code_language_selected_range = next_selection;
@@ -216,7 +216,7 @@ impl Block {
         self.cursor_blink_epoch = Instant::now();
         self.sync_code_highlight();
 
-        let next_language = match &self.record.kind {
+        let next_language = match &self.data.kind {
             BlockKind::CodeBlock { language } => language.clone(),
             _ => None,
         };
@@ -238,11 +238,11 @@ impl Block {
         if old_language != value {
             self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
             if value.eq_ignore_ascii_case("math") || value.eq_ignore_ascii_case("latex") {
-                self.record.kind = BlockKind::MathBlock;
+                self.data.kind = BlockKind::MathBlock;
             } else if value.eq_ignore_ascii_case("mermaid") {
-                self.record.kind = BlockKind::MermaidBlock;
+                self.data.kind = BlockKind::MermaidBlock;
             } else {
-                self.record.kind = BlockKind::CodeBlock {
+                self.data.kind = BlockKind::CodeBlock {
                     language: (!value.is_empty()).then(|| SharedString::from(value.to_string())),
                 };
             }

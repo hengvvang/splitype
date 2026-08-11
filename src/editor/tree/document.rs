@@ -348,11 +348,11 @@ impl Document {
             let (block_id, kind, children, is_empty_paragraph) = {
                 let block_ref = block.read(cx);
                 (
-                    block_ref.record.id,
+                    block_ref.data.id,
                     block_ref.kind(),
                     block_ref.children.clone(),
                     block_ref.kind() == BlockKind::Paragraph
-                        && block_ref.record.text.plain_text().is_empty()
+                        && block_ref.data.text.plain_text().is_empty()
                         && block_ref.children.is_empty(),
                 )
             };
@@ -362,7 +362,7 @@ impl Document {
 
             let content = children
                 .iter()
-                .map(|child| child.read(cx).record.id)
+                .map(|child| child.read(cx).data.id)
                 .collect::<Vec<_>>();
             let list_ordinal = if kind.is_numbered_list_item() {
                 numbered_list_ordinal += 1;
@@ -408,8 +408,8 @@ impl Document {
             let list_group_separator_candidate = is_empty_paragraph && previous_was_list_item;
 
             block.update(cx, move |block, _cx| {
-                block.record.parent = parent_id;
-                block.record.children = content.clone();
+                block.data.parent = parent_id;
+                block.data.children = content.clone();
                 block.render_depth = list_depth;
                 block.quote_depth = quote_depth;
                 block.quote_group_anchor = quote_group_anchor;
@@ -459,7 +459,7 @@ impl Document {
 
     pub(crate) fn is_empty_root_paragraph(block: &Block) -> bool {
         block.kind() == BlockKind::Paragraph
-            && block.record.text.plain_text().is_empty()
+            && block.data.text.plain_text().is_empty()
             && block.children.is_empty()
     }
 
@@ -514,7 +514,7 @@ impl Document {
     ) {
         match block_ref.kind() {
             BlockKind::Table => {
-                if let Some(table) = block_ref.record.table.as_ref() {
+                if let Some(table) = block_ref.data.table.as_ref() {
                     lines.extend(serialize_table_markdown_lines(table));
                 }
             }
@@ -522,11 +522,11 @@ impl Document {
                 let indentation = "  ".repeat(list_depth);
                 let lang_str = language.as_ref().map(|s| s.as_ref()).unwrap_or("");
                 let fence = crate::editor::tree::serialize::safe_code_fence_with_info(
-                    &block_ref.record.text.plain_text(),
+                    &block_ref.data.text.plain_text(),
                     language.as_ref().map(|language| language.as_ref()),
                 );
                 lines.push(format!("{indentation}{fence}{lang_str}"));
-                let content = block_ref.record.text.plain_text();
+                let content = block_ref.data.text.plain_text();
                 for code_line in content.split('\n') {
                     lines.push(format!("{indentation}{code_line}"));
                 }
@@ -534,7 +534,7 @@ impl Document {
             }
             BlockKind::Blockquote => {
                 let text_markdown =
-                    CalloutKind::escape_plain_quote_header(&block_ref.record.text_markdown());
+                    CalloutKind::escape_plain_quote_header(&block_ref.data.text_markdown());
                 let indentation = "  ".repeat(list_depth);
                 if !text_markdown.is_empty() || block_ref.children.is_empty() {
                     for line in text_markdown.split('\n') {
@@ -562,7 +562,7 @@ impl Document {
                 let indentation = "  ".repeat(list_depth);
                 lines.push(format!(
                     "{indentation}> {}",
-                    variant.header_markdown(&block_ref.record.text_markdown())
+                    variant.header_markdown(&block_ref.data.text_markdown())
                 ));
                 if !block_ref.children.is_empty() {
                     let mut child_lines = Vec::new();
@@ -582,7 +582,7 @@ impl Document {
             }
             BlockKind::FootnoteDefinition => {
                 let indentation = "  ".repeat(list_depth);
-                let id = block_ref.record.text.plain_text();
+                let id = block_ref.data.text.plain_text();
                 if block_ref.children.is_empty() {
                     lines.push(format!("{indentation}[^{}]:", id));
                     return;
@@ -591,7 +591,7 @@ impl Document {
                 let first_child = block_ref.children.first().cloned().expect("checked");
                 let first_is_paragraph = first_child.read(cx).kind() == BlockKind::Paragraph;
                 if first_is_paragraph {
-                    let first_text = first_child.read(cx).record.text_markdown();
+                    let first_text = first_child.read(cx).data.text_markdown();
                     let mut first_lines = first_text.split('\n');
                     let first_line = first_lines.next().unwrap_or_default();
                     lines.push(format!("{indentation}[^{}]: {}", id, first_line));
@@ -615,10 +615,10 @@ impl Document {
             BlockKind::RawMarkdown | BlockKind::HtmlComment | BlockKind::HtmlBlock => {
                 let indentation = "  ".repeat(list_depth);
                 let raw_markdown = block_ref
-                    .record
+                    .data
                     .raw_source
                     .clone()
-                    .unwrap_or_else(|| block_ref.record.text_markdown());
+                    .unwrap_or_else(|| block_ref.data.text_markdown());
                 for line in raw_markdown.split('\n') {
                     if indentation.is_empty() {
                         lines.push(line.to_string());
@@ -632,7 +632,7 @@ impl Document {
             | BlockKind::NumberedListItem => {
                 lines.push(
                     block_ref
-                        .record
+                        .data
                         .serialize_markdown_line(list_depth, block_ref.list_ordinal),
                 );
                 let child_list_depth = list_depth + 1;
@@ -652,7 +652,7 @@ impl Document {
             _ => {
                 lines.push(
                     block_ref
-                        .record
+                        .data
                         .serialize_markdown_line(list_depth, block_ref.list_ordinal),
                 );
                 let child_list_depth = list_depth + usize::from(block_ref.kind().is_list_item());
@@ -672,7 +672,7 @@ impl Document {
             return false;
         }
 
-        let markdown = block_ref.record.text_markdown();
+        let markdown = block_ref.data.text_markdown();
         !markdown.is_empty() && parse_standalone_image(&markdown).is_none()
     }
 

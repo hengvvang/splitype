@@ -39,7 +39,7 @@ Notes:
 | Concept | Term | Status | Notes |
 | --- | --- | --- | --- |
 | A node in the document | **block** | done | The parser's old "node" vocabulary is being retired (`parser.rs`). |
-| Block persistent data | **BlockData** | done | Runtime field `Block.record` → `data` (planned). |
+| Block persistent data | **BlockData** | done — `Block.record` → `data`, `Block::with_record` → `with_data`, `record.rs` → `data.rs`. `ExplorerUndoHistory::record` keeps its verb (undo records). |
 | Kind of a block | **BlockKind** | done | `BlockKind::Callout(CalloutKind)` reads naturally. |
 | Flattened document sequence | **entries** | done | `BlockEntry` (was `RenderedBlock`), `flatten_entries()`, `index_for_entity_id()`, `last_descendant()`. "Visible order" survives only as prose. |
 | Block content text | **text** | done | Was "title". `apply_text_edit`, `set_block_text_and_kind`, `split_text`. |

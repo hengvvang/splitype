@@ -473,7 +473,7 @@ impl Block {
         let d = &theme.dimensions;
         let t = &theme.typography;
         let raw = self
-            .record
+            .data
             .raw_source
             .as_deref()
             .unwrap_or_else(|| self.display_text());
@@ -545,7 +545,7 @@ impl Block {
         let d = &theme.dimensions;
         let t = &theme.typography;
         let raw = self
-            .record
+            .data
             .raw_source
             .as_deref()
             .unwrap_or_else(|| self.display_text());
@@ -654,7 +654,7 @@ impl Block {
         } else {
             div()
                 .id(ElementId::Name(
-                    format!("mermaid-scroll-{}", block.record.id).into(),
+                    format!("mermaid-scroll-{}", block.data.id).into(),
                 ))
                 .w_full()
                 .overflow_x_scroll()
@@ -773,7 +773,7 @@ impl Render for Block {
             self.reset_code_language_input_layout();
         }
 
-        let block_id = ElementId::Name(format!("block-{}", self.record.id).into());
+        let block_id = ElementId::Name(format!("block-{}", self.data.id).into());
         let is_placeholder =
             focused && self.display_text().is_empty() && self.marked_range.is_none();
 
@@ -894,7 +894,7 @@ impl Render for Block {
 
             let cell_menu = div()
                 .id(ElementId::Name(
-                    format!("table-cell-menu-{}", self.record.id).into(),
+                    format!("table-cell-menu-{}", self.data.id).into(),
                 ))
                 .w(px(12.0))
                 .h_full()
@@ -1383,7 +1383,7 @@ mod tests {
             ThemeManager::init(cx);
         });
         let (block, cx) = cx.add_window_view(|_window, cx| {
-            Block::with_record(
+            Block::with_data(
                 cx,
                 BlockData::new(
                     BlockKind::CodeBlock {

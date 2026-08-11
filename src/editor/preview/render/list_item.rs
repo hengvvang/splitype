@@ -113,7 +113,7 @@ pub(crate) fn render_preview_bulleted_list_item(
                 .min_w(px(0.0))
                 .flex_grow()
                 .child(inline::render_preview_inline(
-                    &block.record.text,
+                    &block.data.text,
                     c.text_default,
                     t.text_size,
                     FontWeight::NORMAL,
@@ -175,7 +175,7 @@ pub(crate) fn render_preview_task_list_item(
                 .min_w(px(0.0))
                 .flex_grow()
                 .child(inline::render_preview_inline(
-                    &block.record.text,
+                    &block.data.text,
                     text_color,
                     t.text_size,
                     FontWeight::NORMAL,
@@ -215,7 +215,7 @@ pub(crate) fn render_preview_numbered_list_item(
                 .min_w(px(0.0))
                 .flex_grow()
                 .child(inline::render_preview_inline(
-                    &block.record.text,
+                    &block.data.text,
                     c.text_default,
                     t.text_size,
                     FontWeight::NORMAL,

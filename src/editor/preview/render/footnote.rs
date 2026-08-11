@@ -48,7 +48,7 @@ pub(crate) fn render_preview_footnote_definition(
                 .flex_grow()
                 .text_color(c.text_quote)
                 .child(inline::render_preview_inline(
-                    &block.record.text,
+                    &block.data.text,
                     c.text_quote,
                     t.code_size,
                     FontWeight::NORMAL,

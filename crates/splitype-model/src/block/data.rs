@@ -1,6 +1,6 @@
 //! Persistent data of a block, independent of the editor runtime.
 //!
-//! `BlockData` is the pure data record for one block-level node: identity,
+//! `BlockData` is the pure data for one block-level node: identity,
 //! semantic kind, inline-formatted text, optional payloads (table, HTML), and
 //! tree references (parent / children via [`BlockId`]). Raw-preserved
 //! Markdown keeps its original source in `raw_source` so it round-trips
@@ -234,8 +234,7 @@ impl BlockData {
 
     fn text_markdown_for_output(&self) -> String {
         let plain = self.text.plain_text();
-        if self.can_present_text_as_standalone_image() && parse_standalone_image(&plain).is_some()
-        {
+        if self.can_present_text_as_standalone_image() && parse_standalone_image(&plain).is_some() {
             return plain;
         }
 
@@ -318,13 +317,22 @@ mod tests {
         assert_eq!(task.serialize_markdown_line(0, None), "- [x] done");
         assert_eq!(task.serialize_markdown_line(2, None), "    - [x] done");
         assert_eq!(numbered.serialize_markdown_line(0, Some(3)), "3. step");
-        assert_eq!(numbered.serialize_markdown_line(2, Some(12)), "    12. step");
+        assert_eq!(
+            numbered.serialize_markdown_line(2, Some(12)),
+            "    12. step"
+        );
         assert_eq!(heading.serialize_markdown_line(0, None), "## **title**");
         assert_eq!(quote.serialize_markdown_line(0, None), "> quoted text");
         assert_eq!(quote.serialize_markdown_line(2, None), "    > quoted text");
         assert_eq!(paragraph.serialize_markdown_line(1, None), "  plain");
-        assert_eq!(comment.serialize_markdown_line(0, None), "<!--\ncomment\n-->");
-        assert_eq!(comment.serialize_markdown_line(1, None), "  <!--\n  comment\n  -->");
+        assert_eq!(
+            comment.serialize_markdown_line(0, None),
+            "<!--\ncomment\n-->"
+        );
+        assert_eq!(
+            comment.serialize_markdown_line(1, None),
+            "  <!--\n  comment\n  -->"
+        );
     }
 
     #[test]
@@ -337,60 +345,66 @@ mod tests {
 
     #[test]
     fn quote_serializes_back_serialize_markdown() {
-        let record = BlockData::new(BlockKind::Blockquote, RichText::plain("text"));
-        let line = record.serialize_markdown_line(0, None);
+        let data = BlockData::new(BlockKind::Blockquote, RichText::plain("text"));
+        let line = data.serialize_markdown_line(0, None);
         assert_eq!(line, "> text");
     }
 
     #[test]
     fn code_block_serialize_markdown_line_returns_plain_content() {
-        let record = BlockData::new(
+        let data = BlockData::new(
             BlockKind::CodeBlock {
                 language: Some("rust".into()),
             },
             RichText::plain("let x = 1;\nprintln!(\"hi\");"),
         );
         // serialize_markdown_line returns bare content; fences are added by persistence layer.
-        let line = record.serialize_markdown_line(0, None);
+        let line = data.serialize_markdown_line(0, None);
         assert_eq!(line, "let x = 1;\nprintln!(\"hi\");");
     }
 
     #[test]
     fn thematic_break_serialize_markdown_line_round_trips() {
-        let record = BlockData::new(BlockKind::ThematicBreak, RichText::plain(String::new()));
-        assert_eq!(record.serialize_markdown_line(0, None), "---");
+        let data = BlockData::new(BlockKind::ThematicBreak, RichText::plain(String::new()));
+        assert_eq!(data.serialize_markdown_line(0, None), "---");
         assert!(BlockKind::parse_thematic_break_line("---"));
     }
 
     #[test]
     fn task_list_serializes_canonical_markdown() {
-        let record = BlockData::new(
+        let data = BlockData::new(
             BlockKind::TaskListItem { checked: false },
             RichText::plain("todo"),
         );
-        assert_eq!(record.serialize_markdown_line(0, None), "- [ ] todo");
+        assert_eq!(data.serialize_markdown_line(0, None), "- [ ] todo");
     }
 
     #[test]
     fn math_block_stores_body_and_rebuilds_fences() {
-        let record = BlockData::latex_math("$$x^2$$");
-        assert_eq!(record.text.plain_text(), "x^2");
-        assert_eq!(record.raw_source.as_deref(), Some("x^2"));
-        assert_eq!(record.serialize_markdown_line(0, None), "$$x^2$$");
+        let data = BlockData::latex_math("$$x^2$$");
+        assert_eq!(data.text.plain_text(), "x^2");
+        assert_eq!(data.raw_source.as_deref(), Some("x^2"));
+        assert_eq!(data.serialize_markdown_line(0, None), "$$x^2$$");
 
-        let record = BlockData::latex_math("$$\n\\int_0^1 x^2 dx\n$$");
-        assert_eq!(record.text.plain_text(), "\\int_0^1 x^2 dx");
-        assert_eq!(record.serialize_markdown_line(2, None), "    $$\\int_0^1 x^2 dx$$");
+        let data = BlockData::latex_math("$$\n\\int_0^1 x^2 dx\n$$");
+        assert_eq!(data.text.plain_text(), "\\int_0^1 x^2 dx");
+        assert_eq!(
+            data.serialize_markdown_line(2, None),
+            "    $$\\int_0^1 x^2 dx$$"
+        );
     }
 
     #[test]
     fn mermaid_block_stores_body_and_rebuilds_fences() {
-        let record = BlockData::mermaid_diagram("```mermaid\ngraph LR\nA-->B\n```");
-        assert_eq!(record.text.plain_text(), "graph LR\nA-->B");
-        assert_eq!(record.raw_source.as_deref(), Some("graph LR\nA-->B"));
-        assert_eq!(record.serialize_markdown_line(0, None), "```mermaid\ngraph LR\nA-->B\n```");
+        let data = BlockData::mermaid_diagram("```mermaid\ngraph LR\nA-->B\n```");
+        assert_eq!(data.text.plain_text(), "graph LR\nA-->B");
+        assert_eq!(data.raw_source.as_deref(), Some("graph LR\nA-->B"));
         assert_eq!(
-            record.serialize_markdown_line(1, None),
+            data.serialize_markdown_line(0, None),
+            "```mermaid\ngraph LR\nA-->B\n```"
+        );
+        assert_eq!(
+            data.serialize_markdown_line(1, None),
             "  ```mermaid\n  graph LR\n  A-->B\n  ```"
         );
     }

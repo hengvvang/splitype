@@ -595,7 +595,7 @@ mod tests {
             let roots = editor.doc().root_blocks();
             assert_eq!(roots.len(), 2);
             assert_eq!(roots[0].read(cx).kind(), BlockKind::Table);
-            let table = roots[0].read(cx).record.table.clone().expect("table");
+            let table = roots[0].read(cx).data.table.clone().expect("table");
             assert_eq!(table.header.len(), 2);
             assert_eq!(table.header[0].serialize_markdown(), "Name");
             assert!(table.rows.is_empty());
@@ -655,7 +655,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let roots = editor.doc().root_blocks();
             assert_eq!(roots[0].read(cx).kind(), BlockKind::Table);
-            let table = roots[0].read(cx).record.table.clone().expect("table");
+            let table = roots[0].read(cx).data.table.clone().expect("table");
             assert_eq!(table.rows.len(), 1);
             assert_eq!(table.rows[0][0].serialize_markdown(), "Alice");
             assert_eq!(table.rows[0][1].serialize_markdown(), "10");
@@ -684,7 +684,7 @@ mod tests {
             let roots = editor.doc().root_blocks();
             assert_eq!(roots.len(), 2);
             assert_eq!(roots[0].read(cx).kind(), BlockKind::Table);
-            let table = roots[0].read(cx).record.table.clone().expect("table");
+            let table = roots[0].read(cx).data.table.clone().expect("table");
             assert_eq!(table.header.len(), 2);
             assert_eq!(table.header[0].serialize_markdown(), "Name");
             assert_eq!(table.header[1].serialize_markdown(), "Score");
@@ -724,7 +724,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let roots = editor.doc().root_blocks();
             assert_eq!(roots[0].read(cx).kind(), BlockKind::Table);
-            let table = roots[0].read(cx).record.table.clone().expect("table");
+            let table = roots[0].read(cx).data.table.clone().expect("table");
             assert_eq!(table.rows.len(), 1);
             assert_eq!(table.rows[0][0].serialize_markdown(), "Alice");
             assert_eq!(table.rows[0][1].serialize_markdown(), "10");
@@ -764,7 +764,7 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let table = editor.doc().root_blocks()[0]
                 .read(cx)
-                .record
+                .data
                 .table
                 .clone()
                 .expect("table");
@@ -988,10 +988,10 @@ mod tests {
             ),
         ];
 
-        for (record, kind, text) in cases {
+        for (data, kind, text) in cases {
             let editor = cx.new(|cx| {
                 let mut editor = Editor::from_markdown(cx, String::new(), None);
-                let block = Editor::new_block(cx, record.clone());
+                let block = Editor::new_block(cx, data.clone());
                 editor.doc_mut().replace_blocks(vec![block], cx);
                 editor
             });

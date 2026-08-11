@@ -62,11 +62,11 @@ impl Editor {
     ) {
         let (kind, text, cursor) = Self::apply_paragraph_shortcuts(kind, text, cursor);
         block.update(cx, move |block, cx| {
-            block.record.kind = kind;
-            block.record.set_text(text.clone());
+            block.data.kind = kind;
+            block.data.set_text(text.clone());
             block.sync_edit_mode_from_kind();
             block.sync_render_cache();
-            let plain_cursor = cursor.min(block.record.text.plain_len());
+            let plain_cursor = cursor.min(block.data.text.plain_len());
             block.selected_range = block.plain_to_display_range(plain_cursor..plain_cursor);
             block.selection_reversed = false;
             block.marked_range = None;
@@ -87,7 +87,7 @@ impl Editor {
         if block.kind() != BlockKind::Paragraph || !block.children.is_empty() {
             return false;
         }
-        let text = block.record.text.plain_text();
+        let text = block.data.text.plain_text();
         !text.trim().is_empty() && !text.contains('\n')
     }
 
@@ -137,7 +137,7 @@ impl Editor {
         );
 
         if let Some(prev) = target {
-            let heading_text = prev.read(cx).record.text.clone();
+            let heading_text = prev.read(cx).data.text.clone();
             let cursor = heading_text.plain_len();
             let removed_id = block.entity_id();
             let new_paragraph = Self::new_block(cx, BlockData::paragraph(String::new()));
@@ -258,9 +258,9 @@ impl Editor {
         text: &str,
         cx: &mut Context<Self>,
     ) -> bool {
-        // Capture any in-progress cell edits before mutating the record.
+        // Capture any in-progress cell edits before mutating the table data.
         self.sync_table_record_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+        let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return false;
         };
         let Some(row) = parse_table_body_row(text, table.column_count()) else {
@@ -273,7 +273,7 @@ impl Editor {
         );
         table.rows.push(row);
         table_block.update(cx, |block, cx| {
-            block.record.table = Some(table);
+            block.data.table = Some(table);
             cx.notify();
         });
 

@@ -71,12 +71,12 @@ impl Block {
     }
 
     fn standalone_image_markdown_for_handle(&self) -> Option<String> {
-        let visible = self.record.text.plain_text();
+        let visible = self.data.text.plain_text();
         if parse_standalone_image(&visible).is_some() {
             return Some(visible);
         }
 
-        let serialized = self.record.text.serialize_markdown();
+        let serialized = self.data.text.serialize_markdown();
         parse_standalone_image(&serialized)
             .is_some()
             .then_some(serialized)

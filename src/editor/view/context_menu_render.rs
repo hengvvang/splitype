@@ -163,7 +163,7 @@ impl Editor {
                 let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
                     return None;
                 };
-                let table = table_block.read(cx).record.table.clone()?;
+                let table = table_block.read(cx).data.table.clone()?;
                 let items = match selection.kind {
                     TableAxisKind::Column => vec![
                         Self::render_axis_menu_item(

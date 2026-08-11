@@ -44,16 +44,16 @@ async fn append_column_updates_table_and_focuses_new_header_cell(cx: &mut TestAp
         let table = editor.doc().first_root().expect("table root").clone();
         editor.append_table_column(&table, cx);
 
-        let record = table
+        let table_data = table
             .read(cx)
-            .record
+            .data
             .table
             .as_ref()
-            .expect("table record after append");
-        assert_eq!(record.header.len(), 3);
-        assert_eq!(record.rows[0].len(), 3);
+            .expect("table data after append");
+        assert_eq!(table_data.header.len(), 3);
+        assert_eq!(table_data.rows[0].len(), 3);
         assert_eq!(
-            record.alignments,
+            table_data.alignments,
             vec![
                 TableColumnAlignment::Default,
                 TableColumnAlignment::Right,
@@ -76,16 +76,16 @@ async fn append_row_updates_table_and_focuses_first_cell_of_new_row(cx: &mut Tes
         let table = editor.doc().first_root().expect("table root").clone();
         editor.append_table_row(&table, cx);
 
-        let record = table
+        let table_data = table
             .read(cx)
-            .record
+            .data
             .table
             .as_ref()
-            .expect("table record after append");
-        assert_eq!(record.rows.len(), 2);
-        assert_eq!(record.rows[1].len(), 2);
+            .expect("table data after append");
+        assert_eq!(table_data.rows.len(), 2);
+        assert_eq!(table_data.rows[1].len(), 2);
         assert!(
-            record.rows[1]
+            table_data.rows[1]
                 .iter()
                 .all(|cell| cell.serialize_markdown().is_empty())
         );
@@ -97,7 +97,7 @@ async fn append_row_updates_table_and_focuses_first_cell_of_new_row(cx: &mut Tes
 }
 
 #[gpui::test]
-async fn setting_column_alignment_updates_record_and_selection(cx: &mut TestAppContext) {
+async fn setting_column_alignment_updates_table_data_and_selection(cx: &mut TestAppContext) {
     let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -105,9 +105,9 @@ async fn setting_column_alignment_updates_record_and_selection(cx: &mut TestAppC
         let table = editor.doc().first_root().expect("table root").clone();
         editor.set_table_column_alignment(&table, 1, TableColumnAlignment::Right, cx);
 
-        let record = table.read(cx).record.table.as_ref().expect("table record");
+        let table_data = table.read(cx).data.table.as_ref().expect("table data");
         assert_eq!(
-            record.alignments,
+            table_data.alignments,
             vec![TableColumnAlignment::Default, TableColumnAlignment::Right]
         );
         assert_eq!(
@@ -131,8 +131,8 @@ async fn moving_table_row_updates_focus_and_selection(cx: &mut TestAppContext) {
         // Visual row 2 is the second body row; move it up above the first.
         editor.move_table_row(&table, 2, -1, cx);
 
-        let record = table.read(cx).record.table.as_ref().expect("table record");
-        assert_eq!(record.rows[0][0].serialize_markdown(), "3");
+        let table_data = table.read(cx).data.table.as_ref().expect("table data");
+        assert_eq!(table_data.rows[0][0].serialize_markdown(), "3");
         assert_eq!(
             editor.tab().tables.axis_selection,
             Some(crate::editor::controller::TableAxisSelection {
@@ -160,9 +160,9 @@ async fn moving_first_body_row_up_swaps_with_header(cx: &mut TestAppContext) {
         // Visual row 1 (first body row) moves up into the header position.
         editor.move_table_row(&table, 1, -1, cx);
 
-        let record = table.read(cx).record.table.as_ref().expect("table record");
-        assert_eq!(record.header[0].serialize_markdown(), "1");
-        assert_eq!(record.rows[0][0].serialize_markdown(), "A");
+        let table_data = table.read(cx).data.table.as_ref().expect("table data");
+        assert_eq!(table_data.header[0].serialize_markdown(), "1");
+        assert_eq!(table_data.rows[0][0].serialize_markdown(), "A");
         assert_eq!(
             editor.tab().tables.axis_selection,
             Some(crate::editor::controller::TableAxisSelection {
@@ -184,9 +184,9 @@ async fn moving_header_row_down_swaps_with_first_body(cx: &mut TestAppContext) {
         // Visual row 0 (header) moves down, swapping with the first body row.
         editor.move_table_row(&table, 0, 1, cx);
 
-        let record = table.read(cx).record.table.as_ref().expect("table record");
-        assert_eq!(record.header[0].serialize_markdown(), "1");
-        assert_eq!(record.rows[0][0].serialize_markdown(), "A");
+        let table_data = table.read(cx).data.table.as_ref().expect("table data");
+        assert_eq!(table_data.header[0].serialize_markdown(), "1");
+        assert_eq!(table_data.rows[0][0].serialize_markdown(), "A");
         assert_eq!(
             editor.tab().tables.axis_selection,
             Some(crate::editor::controller::TableAxisSelection {
@@ -292,8 +292,8 @@ async fn deleting_table_column_moves_selection_to_nearest_survivor(cx: &mut Test
         let table = editor.doc().first_root().expect("table root").clone();
         editor.delete_table_column(&table, 2, cx);
 
-        let record = table.read(cx).record.table.as_ref().expect("table record");
-        assert_eq!(record.header.len(), 2);
+        let table_data = table.read(cx).data.table.as_ref().expect("table data");
+        assert_eq!(table_data.header.len(), 2);
         assert_eq!(
             editor.tab().tables.axis_selection,
             Some(crate::editor::controller::TableAxisSelection {
@@ -314,10 +314,10 @@ async fn deleting_table_header_promotes_next_row(cx: &mut TestAppContext) {
         let table = editor.doc().first_root().expect("table root").clone();
         editor.delete_table_header_row(&table, cx);
 
-        let record = table.read(cx).record.table.as_ref().expect("table record");
-        assert_eq!(record.header[0].serialize_markdown(), "1");
-        assert_eq!(record.header[1].serialize_markdown(), "2");
-        assert!(record.rows.is_empty());
+        let table_data = table.read(cx).data.table.as_ref().expect("table data");
+        assert_eq!(table_data.header[0].serialize_markdown(), "1");
+        assert_eq!(table_data.header[1].serialize_markdown(), "2");
+        assert!(table_data.rows.is_empty());
 
         let grid = table.read(cx).table_grid.as_ref().expect("rebuilt grid");
         assert_eq!(editor.tab().focus.pending, Some(grid.header[0].entity_id()));
@@ -335,9 +335,9 @@ async fn deleting_last_body_row_leaves_header_only_table(cx: &mut TestAppContext
         // header-only table behind.
         editor.delete_table_row(&table, 0, cx);
 
-        let record = table.read(cx).record.table.as_ref().expect("table record");
-        assert!(record.rows.is_empty());
-        assert_eq!(record.header[0].serialize_markdown(), "A");
+        let table_data = table.read(cx).data.table.as_ref().expect("table data");
+        assert!(table_data.rows.is_empty());
+        assert_eq!(table_data.header[0].serialize_markdown(), "A");
         assert_eq!(editor.doc().root_count(), 1);
         assert_eq!(table.read(cx).kind(), BlockKind::Table);
     });

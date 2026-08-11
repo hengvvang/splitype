@@ -930,7 +930,7 @@ mod tests {
     async fn link_hit_matches_only_rendered_link_text(cx: &mut TestAppContext) {
         let cx = cx.add_empty_window();
         let block = cx.new(|cx| {
-            Block::with_record(
+            Block::with_data(
                 cx,
                 BlockData::new(
                     BlockKind::Paragraph,
@@ -973,7 +973,7 @@ mod tests {
     async fn secondary_click_follows_link_while_plain_click_edits(cx: &mut TestAppContext) {
         let cx = cx.add_empty_window();
         let block = cx.new(|cx| {
-            Block::with_record(
+            Block::with_data(
                 cx,
                 BlockData::new(
                     BlockKind::Paragraph,
@@ -1042,7 +1042,7 @@ mod tests {
     async fn link_hit_respects_center_alignment(cx: &mut TestAppContext) {
         let cx = cx.add_empty_window();
         let block = cx.new(|cx| {
-            let mut block = Block::with_record(
+            let mut block = Block::with_data(
                 cx,
                 BlockData::new(
                     BlockKind::Paragraph,
@@ -1091,7 +1091,7 @@ mod tests {
     async fn text_runs_apply_inline_html_color_and_background(cx: &mut TestAppContext) {
         let cx = cx.add_empty_window();
         let block = cx.new(|cx| {
-            Block::with_record(
+            Block::with_data(
                 cx,
                 BlockData::new(
                     BlockKind::Paragraph,
@@ -1165,7 +1165,7 @@ mod tests {
         let cx = cx.add_empty_window();
         let label = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz";
         let block = cx.new(|cx| {
-            Block::with_record(
+            Block::with_data(
                 cx,
                 BlockData::new(
                     BlockKind::Paragraph,

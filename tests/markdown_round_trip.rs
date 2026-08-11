@@ -5,7 +5,7 @@
 //! block tree and that inline formatting survives serialization.
 
 use splitype_model::block::kind::BlockKind;
-use splitype_model::block::record::BlockData;
+use splitype_model::block::data::BlockData;
 use splitype_model::inline::text::RichText;
 use splitype_model::parse::parser::parse_document;
 use splitype_model::syntax::table::TableData;

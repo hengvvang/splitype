@@ -584,7 +584,7 @@ async fn delimiter_row_enter_forms_native_table(cx: &mut TestAppContext) {
         let roots = editor.doc().root_blocks();
         assert_eq!(roots.len(), 2);
         assert_eq!(roots[0].read(cx).kind(), BlockKind::Table);
-        let table = roots[0].read(cx).record.table.clone().expect("table");
+        let table = roots[0].read(cx).data.table.clone().expect("table");
         assert_eq!(table.header.len(), 2);
         assert_eq!(table.header[0].serialize_markdown(), "Name");
         assert!(table.rows.is_empty());
@@ -637,7 +637,7 @@ async fn pipe_row_below_table_is_absorbed_as_a_row(cx: &mut TestAppContext) {
     editor.update(cx, |editor, cx| {
         let roots = editor.doc().root_blocks();
         assert_eq!(roots[0].read(cx).kind(), BlockKind::Table);
-        let table = roots[0].read(cx).record.table.clone().expect("table");
+        let table = roots[0].read(cx).data.table.clone().expect("table");
         assert_eq!(table.rows.len(), 1);
         assert_eq!(table.rows[0][0].serialize_markdown(), "Alice");
         assert_eq!(table.rows[0][1].serialize_markdown(), "10");
@@ -666,7 +666,7 @@ async fn pipeless_delimiter_row_enter_forms_native_table(cx: &mut TestAppContext
         let roots = editor.doc().root_blocks();
         assert_eq!(roots.len(), 2);
         assert_eq!(roots[0].read(cx).kind(), BlockKind::Table);
-        let table = roots[0].read(cx).record.table.clone().expect("table");
+        let table = roots[0].read(cx).data.table.clone().expect("table");
         assert_eq!(table.header.len(), 2);
         assert_eq!(table.header[0].serialize_markdown(), "Name");
         assert_eq!(table.header[1].serialize_markdown(), "Score");
@@ -706,7 +706,7 @@ async fn pipeless_row_below_table_is_absorbed_as_a_row(cx: &mut TestAppContext) 
     editor.update(cx, |editor, cx| {
         let roots = editor.doc().root_blocks();
         assert_eq!(roots[0].read(cx).kind(), BlockKind::Table);
-        let table = roots[0].read(cx).record.table.clone().expect("table");
+        let table = roots[0].read(cx).data.table.clone().expect("table");
         assert_eq!(table.rows.len(), 1);
         assert_eq!(table.rows[0][0].serialize_markdown(), "Alice");
         assert_eq!(table.rows[0][1].serialize_markdown(), "10");
@@ -746,7 +746,7 @@ async fn ragged_pipeless_row_below_table_is_padded_to_width(cx: &mut TestAppCont
     editor.update(cx, |editor, cx| {
         let table = editor.doc().root_blocks()[0]
             .read(cx)
-            .record
+            .data
             .table
             .clone()
             .expect("table");
@@ -968,10 +968,10 @@ async fn raw_like_block_exit_shortcut_creates_plain_text_block(cx: &mut TestAppC
         ),
     ];
 
-    for (record, kind, text) in cases {
+    for (data, kind, text) in cases {
         let editor = cx.new(|cx| {
             let mut editor = Editor::from_markdown(cx, String::new(), None);
-            let block = Editor::new_block(cx, record.clone());
+            let block = Editor::new_block(cx, data.clone());
             editor.doc_mut().replace_blocks(vec![block], cx);
             editor
         });
@@ -1373,7 +1373,7 @@ async fn structural_paste_of_table_renders_native_table(cx: &mut TestAppContext)
         assert_eq!(entries.len(), 2);
         let table = entries[0].entity.read(cx);
         assert_eq!(table.kind(), BlockKind::Table);
-        let data = table.record.table.as_ref().expect("table data");
+        let data = table.data.table.as_ref().expect("table data");
         assert_eq!(data.header[0].serialize_markdown(), "A");
         assert_eq!(data.header[1].serialize_markdown(), "B");
         assert_eq!(data.rows.len(), 1);
@@ -1455,7 +1455,7 @@ async fn structural_paste_of_table_preserves_surrounding_text(cx: &mut TestAppCo
 
         let table = entries[1].entity.read(cx);
         assert_eq!(table.kind(), BlockKind::Table);
-        let data = table.record.table.as_ref().expect("table data");
+        let data = table.data.table.as_ref().expect("table data");
         assert_eq!(data.header[0].serialize_markdown(), "A");
         assert_eq!(data.rows[0][0].serialize_markdown(), "1");
 

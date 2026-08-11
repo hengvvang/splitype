@@ -110,7 +110,7 @@ impl Editor {
                 .update(cx, |block, _cx| block.clear_table_grid());
         }
         for entry in entries {
-            let Some(table) = entry.entity.read(cx).record.table.clone() else {
+            let Some(table) = entry.entity.read(cx).data.table.clone() else {
                 continue;
             };
             if entry.entity.read(cx).kind() == BlockKind::Table {
@@ -135,7 +135,7 @@ impl Editor {
         };
         let alignments = table_block
             .read(cx)
-            .record
+            .data
             .table
             .as_ref()
             .map(|table| table.alignments.clone())
@@ -143,19 +143,19 @@ impl Editor {
         let header = grid
             .header
             .iter()
-            .map(|cell| cell.read(cx).record.text.clone())
+            .map(|cell| cell.read(cx).data.text.clone())
             .collect::<Vec<_>>();
         let rows = grid
             .rows
             .iter()
             .map(|row| {
                 row.iter()
-                    .map(|cell| cell.read(cx).record.text.clone())
+                    .map(|cell| cell.read(cx).data.text.clone())
                     .collect::<Vec<_>>()
             })
             .collect::<Vec<_>>();
         table_block.update(cx, move |block, _cx| {
-            block.record.table = Some(TableData {
+            block.data.table = Some(TableData {
                 header,
                 rows,
                 alignments,
@@ -170,7 +170,7 @@ impl Editor {
     ) {
         self.sync_table_record_from_grid(table_block, cx);
 
-        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+        let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
         let started_local_capture = if self.tab().undo.pending_capture.is_none() {
@@ -187,7 +187,7 @@ impl Editor {
         table.append_column(alignment);
 
         table_block.update(cx, move |block, _cx| {
-            block.record.table = Some(table.clone());
+            block.data.table = Some(table.clone());
         });
         self.rebuild_table_grids(cx);
         if let Some(cell) = table_block
@@ -209,7 +209,7 @@ impl Editor {
     pub(crate) fn append_table_row(&mut self, table_block: &Entity<Block>, cx: &mut Context<Self>) {
         self.sync_table_record_from_grid(table_block, cx);
 
-        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+        let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
         let started_local_capture = if self.tab().undo.pending_capture.is_none() {
@@ -221,7 +221,7 @@ impl Editor {
         table.append_row();
 
         table_block.update(cx, move |block, _cx| {
-            block.record.table = Some(table.clone());
+            block.data.table = Some(table.clone());
         });
         self.rebuild_table_grids(cx);
         if let Some(cell) = table_block
@@ -303,7 +303,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.sync_table_record_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+        let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
         let started_local_capture = if self.tab().undo.pending_capture.is_none() {
@@ -314,7 +314,7 @@ impl Editor {
         };
         table.set_column_alignment(column, alignment);
         table_block.update(cx, move |block, _cx| {
-            block.record.table = Some(table.clone());
+            block.data.table = Some(table.clone());
         });
         self.rebuild_table_grids(cx);
         let selection = TableAxisSelection {
@@ -340,7 +340,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.sync_table_record_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+        let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
         let next_row = if delta < 0 {
@@ -364,7 +364,7 @@ impl Editor {
         };
         table.swap_visual_rows(visual_row, next_row);
         table_block.update(cx, move |block, _cx| {
-            block.record.table = Some(table.clone());
+            block.data.table = Some(table.clone());
         });
         self.rebuild_table_grids(cx);
         let selection = TableAxisSelection {
@@ -397,7 +397,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.sync_table_record_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+        let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
         let next_column = if delta < 0 {
@@ -419,7 +419,7 @@ impl Editor {
         };
         table.swap_columns(column, next_column);
         table_block.update(cx, move |block, _cx| {
-            block.record.table = Some(table.clone());
+            block.data.table = Some(table.clone());
         });
         self.rebuild_table_grids(cx);
         let selection = TableAxisSelection {
@@ -451,7 +451,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.sync_table_record_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+        let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
         if row_index >= table.rows.len() {
@@ -466,7 +466,7 @@ impl Editor {
         table.remove_body_row(row_index);
         let remaining_body_rows = table.rows.len();
         table_block.update(cx, move |block, _cx| {
-            block.record.table = Some(table.clone());
+            block.data.table = Some(table.clone());
         });
         self.rebuild_table_grids(cx);
         // Row selections are addressed by visual index, where the first body row
@@ -511,7 +511,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.sync_table_record_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+        let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
         // The first body row is promoted into the header, so there must be at
@@ -527,7 +527,7 @@ impl Editor {
         };
         table.remove_header_row();
         table_block.update(cx, move |block, _cx| {
-            block.record.table = Some(table.clone());
+            block.data.table = Some(table.clone());
         });
         self.rebuild_table_grids(cx);
         self.clear_table_axis_selection(cx);
@@ -547,7 +547,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.sync_table_record_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+        let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
         if table.column_count() <= 1 || column >= table.column_count() {
@@ -562,7 +562,7 @@ impl Editor {
         table.remove_column(column);
         let focus_column = column.min(table.column_count().saturating_sub(1));
         table_block.update(cx, move |block, _cx| {
-            block.record.table = Some(table.clone());
+            block.data.table = Some(table.clone());
         });
         self.rebuild_table_grids(cx);
         let selection = TableAxisSelection {
@@ -787,7 +787,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.sync_table_record_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+        let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
         let started_local_capture = if self.tab().undo.pending_capture.is_none() {
@@ -798,7 +798,7 @@ impl Editor {
         };
         table.insert_column_at(column, TableColumnAlignment::Default);
         table_block.update(cx, move |block, _cx| {
-            block.record.table = Some(table.clone());
+            block.data.table = Some(table.clone());
         });
         self.rebuild_table_grids(cx);
         self.mark_dirty(cx);
@@ -815,7 +815,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.sync_table_record_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+        let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
         let started_local_capture = if self.tab().undo.pending_capture.is_none() {
@@ -826,7 +826,7 @@ impl Editor {
         };
         table.insert_row_at(visual_row);
         table_block.update(cx, move |block, _cx| {
-            block.record.table = Some(table.clone());
+            block.data.table = Some(table.clone());
         });
         self.rebuild_table_grids(cx);
         self.mark_dirty(cx);
@@ -843,7 +843,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.sync_table_record_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+        let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
         let started_local_capture = if self.tab().undo.pending_capture.is_none() {
@@ -854,7 +854,7 @@ impl Editor {
         };
         table.duplicate_column(column);
         table_block.update(cx, move |block, _cx| {
-            block.record.table = Some(table.clone());
+            block.data.table = Some(table.clone());
         });
         self.rebuild_table_grids(cx);
         self.mark_dirty(cx);
@@ -871,7 +871,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.sync_table_record_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+        let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
         let started_local_capture = if self.tab().undo.pending_capture.is_none() {
@@ -882,7 +882,7 @@ impl Editor {
         };
         table.duplicate_row(visual_row);
         table_block.update(cx, move |block, _cx| {
-            block.record.table = Some(table.clone());
+            block.data.table = Some(table.clone());
         });
         self.rebuild_table_grids(cx);
         self.mark_dirty(cx);
@@ -898,7 +898,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.sync_table_record_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).record.table.clone() else {
+        let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
         let started_local_capture = if self.tab().undo.pending_capture.is_none() {
@@ -909,7 +909,7 @@ impl Editor {
         };
         table.expand_table();
         table_block.update(cx, move |block, _cx| {
-            block.record.table = Some(table.clone());
+            block.data.table = Some(table.clone());
         });
         self.rebuild_table_grids(cx);
         self.mark_dirty(cx);

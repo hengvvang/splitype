@@ -14,7 +14,7 @@ pub(crate) fn render_preview_latex_math(block: &Block, base: Div, theme: &Theme)
     let d = &theme.dimensions;
     let t = &theme.typography;
     let raw = block
-        .record
+        .data
         .raw_source
         .as_deref()
         .unwrap_or_else(|| block.display_text());

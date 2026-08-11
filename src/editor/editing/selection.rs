@@ -820,19 +820,19 @@ impl Editor {
         if full_block {
             return match block.kind() {
                 BlockKind::Table => block
-                    .record
+                    .data
                     .table
                     .as_ref()
                     .map(serialize_table_markdown_lines)
                     .map(|lines| lines.join("\n"))
                     .unwrap_or_default(),
                 _ => block
-                    .record
+                    .data
                     .serialize_markdown_line(block.render_depth, block.list_ordinal),
             };
         }
 
-        let markdown = block.record.text.serialize_markdown();
+        let markdown = block.data.text.serialize_markdown();
         let source_range = block.display_range_to_source_range(range);
         markdown
             .get(source_range)
@@ -895,7 +895,7 @@ impl Editor {
                 continue;
             }
             let source_range = block.display_range_to_source_range(block.selected_range.clone());
-            let full_markdown = block.record.text.serialize_markdown();
+            let full_markdown = block.data.text.serialize_markdown();
             let start = source_range.start.min(full_markdown.len());
             let end = source_range.end.min(full_markdown.len());
             // Clamp to nearest valid UTF-8 char boundaries to avoid panicking

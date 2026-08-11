@@ -15,7 +15,7 @@ pub(crate) fn render_preview_paragraph(block: &Block, base: Div, theme: &Theme) 
         .text_color(c.text_default)
         .line_height(rems(t.text_line_height))
         .child(inline::render_preview_inline(
-            &block.record.text,
+            &block.data.text,
             c.text_default,
             t.text_size,
             FontWeight::NORMAL,

@@ -12,7 +12,7 @@ use crate::infra::theme::Theme;
 /// Extracts the fence language tag from the raw source (e.g. `rust` from
 /// ```rust ... ```), mirroring the WYSIWYG language resolution.
 fn fence_language(block: &Block) -> Option<String> {
-    let raw = block.record.raw_source.as_deref().unwrap_or_default();
+    let raw = block.data.raw_source.as_deref().unwrap_or_default();
     let trimmed = raw.trim_start();
     let rest = trimmed.strip_prefix("```")?;
     let first_line = rest.split('\n').next().unwrap_or("");

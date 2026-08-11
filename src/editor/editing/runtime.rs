@@ -73,8 +73,8 @@ impl Editor {
 
     /// Creates a new block entity and subscribes this editor to its
     /// [`BlockAction`](crate::editor::block_protocol::BlockAction) stream.
-    pub(crate) fn new_block(cx: &mut Context<Self>, record: BlockData) -> Entity<Block> {
-        let block = cx.new(|cx| Block::with_record(cx, record));
+    pub(crate) fn new_block(cx: &mut Context<Self>, data: BlockData) -> Entity<Block> {
+        let block = cx.new(|cx| Block::with_data(cx, data));
         cx.subscribe(&block, Self::on_block_event).detach();
         block
     }
@@ -82,8 +82,8 @@ impl Editor {
     /// Creates a standalone block NOT subscribed to the Editor's event
     /// handler.  Used for the Source channel panel so its events don't
     /// interfere with the document tree.
-    pub(crate) fn new_standalone_block(cx: &mut Context<Self>, record: BlockData) -> Entity<Block> {
-        cx.new(|cx| Block::with_record(cx, record))
+    pub(crate) fn new_standalone_block(cx: &mut Context<Self>, data: BlockData) -> Entity<Block> {
+        cx.new(|cx| Block::with_data(cx, data))
     }
 
     pub(crate) fn new_table_cell_block(
@@ -157,7 +157,7 @@ impl Editor {
             }
 
             definitions
-                .entry(block.record.text.plain_text().to_string())
+                .entry(block.data.text.plain_text().to_string())
                 .or_insert(entry.entity.entity_id());
         }
 
@@ -178,8 +178,8 @@ impl Editor {
         let mut block_occurrences = HashMap::<BlockId, Vec<FootnoteResolvedOccurrence>>::new();
         for entry in entries {
             let block = entry.entity.read(cx);
-            let block_id = block.record.id;
-            for fragment in &block.record.text.fragments {
+            let block_id = block.data.id;
+            for fragment in &block.data.text.fragments {
                 let Some(footnote) = fragment.footnote.as_ref() else {
                     continue;
                 };
@@ -229,13 +229,13 @@ impl Editor {
     /// standalone images start with `![`. Code-block text is fence-suppressed
     /// by the scanners, so it is excluded.
     fn block_has_registry_candidates(block: &Block) -> bool {
-        if block.record.preserves_raw_source() || block.kind() == BlockKind::FootnoteDefinition {
+        if block.data.preserves_raw_source() || block.kind() == BlockKind::FootnoteDefinition {
             return true;
         }
         if matches!(block.kind(), BlockKind::CodeBlock { .. }) {
             return false;
         }
-        let plain_text = block.record.text.plain_text();
+        let plain_text = block.data.text.plain_text();
         plain_text.contains("]:") || plain_text.contains("[^") || plain_text.contains("![")
     }
 

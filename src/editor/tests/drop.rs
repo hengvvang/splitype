@@ -179,7 +179,7 @@ async fn dirty_drop_saves_existing_document_before_replace(cx: &mut TestAppConte
     editor.update(cx, |editor, cx| {
         let first = editor.doc().first_root().expect("current root").clone();
         first.update(cx, |block, _cx| {
-            block.record.set_text(RichText::plain("edited".to_string()));
+            block.data.set_text(RichText::plain("edited".to_string()));
             block.sync_render_cache();
         });
         editor.mark_dirty(cx);

@@ -33,7 +33,7 @@ pub(crate) fn render_preview_heading(
         .font_weight(font_weight)
         .text_color(text_color)
         .child(inline::render_preview_inline(
-            &block.record.text,
+            &block.data.text,
             text_color,
             font_size,
             font_weight,

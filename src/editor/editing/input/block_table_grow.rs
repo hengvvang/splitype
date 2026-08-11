@@ -244,7 +244,7 @@ mod tests {
 
     #[gpui::test]
     async fn append_column_button_stays_visible_while_crossing_hover_gap(cx: &mut TestAppContext) {
-        let block = cx.new(|cx| Block::with_record(cx, BlockData::paragraph(String::new())));
+        let block = cx.new(|cx| Block::with_data(cx, BlockData::paragraph(String::new())));
 
         block.update(cx, |block, cx| {
             block.set_table_append_column_hover_part(Some(true), None, None, cx);
@@ -260,7 +260,7 @@ mod tests {
     }
     #[gpui::test]
     async fn append_row_button_stays_visible_while_crossing_hover_gap(cx: &mut TestAppContext) {
-        let block = cx.new(|cx| Block::with_record(cx, BlockData::paragraph(String::new())));
+        let block = cx.new(|cx| Block::with_data(cx, BlockData::paragraph(String::new())));
 
         block.update(cx, |block, cx| {
             block.set_table_append_row_hover_part(Some(true), None, None, cx);
@@ -277,7 +277,7 @@ mod tests {
 
     #[gpui::test]
     async fn column_edge_hover_reveals_only_column_append_control(cx: &mut TestAppContext) {
-        let block = cx.new(|cx| Block::with_record(cx, BlockData::paragraph(String::new())));
+        let block = cx.new(|cx| Block::with_data(cx, BlockData::paragraph(String::new())));
 
         block.update(cx, |block, cx| {
             block.set_table_append_column_hover_part(Some(true), None, None, cx);
@@ -291,7 +291,7 @@ mod tests {
 
     #[gpui::test]
     async fn row_edge_hover_reveals_only_row_append_control(cx: &mut TestAppContext) {
-        let block = cx.new(|cx| Block::with_record(cx, BlockData::paragraph(String::new())));
+        let block = cx.new(|cx| Block::with_data(cx, BlockData::paragraph(String::new())));
 
         block.update(cx, |block, cx| {
             block.set_table_append_row_hover_part(Some(true), None, None, cx);

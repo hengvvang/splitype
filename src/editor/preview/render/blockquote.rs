@@ -21,7 +21,7 @@ pub(crate) fn render_preview_blockquote(
         .text_color(c.text_quote)
         .line_height(rems(t.text_line_height))
         .child(inline::render_preview_inline(
-            &block.record.text,
+            &block.data.text,
             c.text_quote,
             t.text_size,
             FontWeight::NORMAL,

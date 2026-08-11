@@ -20,10 +20,10 @@ pub(crate) fn render_preview_html_block(block: &Block, base: Div, theme: &Theme)
     let d = &theme.dimensions;
     let t = &theme.typography;
 
-    let html = block.record.html.as_ref().cloned().unwrap_or_else(|| {
+    let html = block.data.html.as_ref().cloned().unwrap_or_else(|| {
         parse_html_document(
             block
-                .record
+                .data
                 .raw_source
                 .as_deref()
                 .unwrap_or_else(|| block.display_text()),

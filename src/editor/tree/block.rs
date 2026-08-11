@@ -65,13 +65,13 @@ impl EventEmitter<BlockAction> for Block {}
 /// A single editable block in the document tree.
 ///
 /// Each block holds a [`BlockData`] containing the persistent data (kind,
-/// title, UUIDs) and a [`FocusHandle`] for keyboard routing.  Runtime state
+/// text, UUIDs) and a [`FocusHandle`] for keyboard routing.  Runtime state
 /// such as selection, cursor blink, and layout cache live on the struct.
 ///
 /// Blocks delegate structural operations (split, merge, indent, delete) to
 /// the parent editor via `BlockAction` emissions.
 pub struct Block {
-    pub record: BlockData,
+    pub data: BlockData,
     pub(crate) render_cache: InlineRenderCache,
     pub(crate) code_highlight: Option<CodeHighlightResult>,
     pub children: Vec<Entity<Block>>,
@@ -168,11 +168,11 @@ pub struct Block {
 }
 
 impl Block {
-    pub fn with_record(cx: &mut Context<Self>, record: BlockData) -> Self {
-        let edit_mode = BlockEditMode::for_kind(&record.kind);
-        let render_cache = record.text.render_cache();
+    pub fn with_data(cx: &mut Context<Self>, data: BlockData) -> Self {
+        let edit_mode = BlockEditMode::for_kind(&data.kind);
+        let render_cache = data.text.render_cache();
         let mut block = Self {
-            record,
+            data,
             render_cache,
             code_highlight: None,
             children: Vec::new(),
@@ -253,7 +253,7 @@ impl Block {
     }
 
     pub fn kind(&self) -> BlockKind {
-        self.record.kind.clone()
+        self.data.kind.clone()
     }
 
     pub(crate) fn is_verbatim_mode(&self) -> bool {
@@ -311,7 +311,7 @@ impl Block {
             if self.kind().is_code_block() {
                 self.clear_inline_projection();
             }
-            self.edit_mode = BlockEditMode::for_kind(&self.record.kind);
+            self.edit_mode = BlockEditMode::for_kind(&self.data.kind);
             self.show_source_line_numbers = false;
         }
     }
@@ -371,13 +371,13 @@ impl Block {
     }
 
     pub(crate) fn has_mixed_inline_visuals(&self) -> bool {
-        self.record.text.has_mixed_inline_visuals()
+        self.data.text.has_mixed_inline_visuals()
     }
 
     pub(crate) fn footnote_definition_id(&self) -> Option<String> {
         self.kind()
             .is_footnote_definition()
-            .then(|| self.record.text.plain_text())
+            .then(|| self.data.text.plain_text())
     }
 
     pub(crate) fn footnote_definition_ordinal(&self) -> Option<usize> {
@@ -400,7 +400,7 @@ impl Block {
         occurrence_index: usize,
     ) -> Option<Range<usize>> {
         let mut plain_offset = 0usize;
-        for fragment in &self.record.text.fragments {
+        for fragment in &self.data.text.fragments {
             let len = fragment.text.len();
             if fragment
                 .footnote
@@ -439,7 +439,7 @@ impl Block {
     }
 
     pub(crate) fn split_text(&self, offset: usize) -> (RichText, RichText) {
-        self.record
+        self.data
             .text
             .split_at(self.display_to_plain_offset(offset))
     }
@@ -459,7 +459,7 @@ impl Block {
         let collapsed_affinity = self.display_collapsed_caret_affinity();
         let keep_projection =
             self.projection.is_some() && self.edit_mode.supports_inline_projection();
-        self.render_cache = self.record.text.render_cache();
+        self.render_cache = self.data.text.render_cache();
         self.sync_code_highlight();
         self.sync_image_handle();
         self.projection = None;
@@ -516,16 +516,16 @@ impl Block {
             return true;
         }
 
-        let markdown = self.record.text.serialize_markdown();
+        let markdown = self.data.text.serialize_markdown();
         let next_text = RichText::from_markdown_with_link_references(
             &markdown,
             &self.link_reference_definitions,
         );
-        if self.record.text == next_text {
+        if self.data.text == next_text {
             return true;
         }
 
-        self.record.set_text(next_text);
+        self.data.set_text(next_text);
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
 
@@ -571,14 +571,14 @@ impl Block {
         let had_projection = self.projection.is_some();
 
         self.footnote_registry = footnote_registry;
-        if self.edits_verbatim_text() || !self.record.text.has_footnote_references() {
+        if self.edits_verbatim_text() || !self.data.text.has_footnote_references() {
             return true;
         }
 
-        let mut next_text = self.record.text.clone();
+        let mut next_text = self.data.text.clone();
         let mut occurrence_iter = self
             .footnote_registry
-            .occurrences_for_block(self.record.id)
+            .occurrences_for_block(self.data.id)
             .unwrap_or(&[])
             .iter();
         next_text.apply_footnote_reference_state(|id| {
@@ -588,11 +588,11 @@ impl Block {
             }
             Some((occurrence.ordinal?, occurrence.occurrence_index))
         });
-        if self.record.text == next_text {
+        if self.data.text == next_text {
             return true;
         }
 
-        self.record.set_text(next_text);
+        self.data.set_text(next_text);
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
 
@@ -620,7 +620,7 @@ impl Block {
     }
 
     pub(crate) fn should_use_source_space_link_edit(&self) -> bool {
-        !self.edits_verbatim_text() && self.record.text.has_source_preserving_links()
+        !self.edits_verbatim_text() && self.data.text.has_source_preserving_links()
     }
 
     pub(crate) fn apply_source_space_text_edit(
@@ -631,9 +631,9 @@ impl Block {
         mark_inserted_text: bool,
         cx: &mut Context<Self>,
     ) {
-        let old_plain_len = self.record.text.plain_text().len();
+        let old_plain_len = self.data.text.plain_text().len();
         let source_range = self.display_range_to_source_range(display_range.clone());
-        let mut markdown = self.record.text.serialize_markdown();
+        let mut markdown = self.data.text.serialize_markdown();
         let replaced_text = markdown[source_range.clone()].to_string();
         markdown.replace_range(source_range.clone(), new_text);
 
@@ -703,8 +703,8 @@ impl Block {
 
     pub(crate) fn convert_to_paragraph(&mut self, cx: &mut Context<Self>) {
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
-        self.record.kind = BlockKind::Paragraph;
-        self.record.raw_source = None;
+        self.data.kind = BlockKind::Paragraph;
+        self.data.raw_source = None;
         self.quote_reparse_requested = false;
         self.mark_changed(cx);
     }
@@ -728,9 +728,9 @@ impl Block {
         };
         let source_len = source_text.len();
         self.clear_inline_projection();
-        self.record.kind = BlockKind::ThematicBreak;
-        self.record.raw_source = Some(source_text.clone());
-        self.record.set_text(RichText::plain(source_text));
+        self.data.kind = BlockKind::ThematicBreak;
+        self.data.raw_source = Some(source_text.clone());
+        self.data.set_text(RichText::plain(source_text));
         self.quote_reparse_requested = false;
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
@@ -747,9 +747,9 @@ impl Block {
     ) {
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.clear_inline_projection();
-        self.record.kind = BlockKind::CodeBlock { language };
-        self.record.raw_source = None;
-        self.record.set_text(RichText::plain(String::new()));
+        self.data.kind = BlockKind::CodeBlock { language };
+        self.data.raw_source = None;
+        self.data.set_text(RichText::plain(String::new()));
         self.quote_reparse_requested = false;
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
@@ -767,8 +767,8 @@ impl Block {
     pub(crate) fn enter_math_block(&mut self, body: &str, cx: &mut Context<Self>) {
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.clear_inline_projection();
-        self.record.kind = BlockKind::MathBlock;
-        self.record.set_text(RichText::plain(body.to_string()));
+        self.data.kind = BlockKind::MathBlock;
+        self.data.set_text(RichText::plain(body.to_string()));
         self.quote_reparse_requested = false;
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
@@ -790,7 +790,7 @@ impl Block {
             return;
         }
 
-        let mut next_text = self.record.text.clone();
+        let mut next_text = self.data.text.clone();
         let selection = self.selection_plain_range();
         let changed = match format {
             InlineFormat::Bold => next_text.toggle_bold(selection.clone()),

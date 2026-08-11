@@ -20,7 +20,7 @@ pub(crate) fn render_preview_mermaid_diagram(
     let d = &theme.dimensions;
     let t = &theme.typography;
     let raw = block
-        .record
+        .data
         .raw_source
         .as_deref()
         .unwrap_or_else(|| block.display_text());
@@ -76,7 +76,7 @@ pub(crate) fn render_preview_mermaid_diagram(
             } else {
                 div()
                     .id(ElementId::Name(
-                        format!("preview-mermaid-{}", block.record.id).into(),
+                        format!("preview-mermaid-{}", block.data.id).into(),
                     ))
                     .w_full()
                     .overflow_x_scroll()

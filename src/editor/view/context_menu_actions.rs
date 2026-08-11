@@ -99,7 +99,7 @@ impl Editor {
         };
         let can_move = table_block
             .read(cx)
-            .record
+            .data
             .table
             .as_ref()
             .map(|table| selection.index < table.rows.len())
@@ -147,7 +147,7 @@ impl Editor {
         };
         let can_move = table_block
             .read(cx)
-            .record
+            .data
             .table
             .as_ref()
             .map(|table| selection.index + 1 < table.column_count())
@@ -176,7 +176,7 @@ impl Editor {
         };
         let row_count = table_block
             .read(cx)
-            .record
+            .data
             .table
             .as_ref()
             .map(|table| table.rows.len());
@@ -340,7 +340,7 @@ impl Editor {
         };
         let column_count = table_block
             .read(cx)
-            .record
+            .data
             .table
             .as_ref()
             .map(|table| table.column_count());
