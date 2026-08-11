@@ -65,7 +65,6 @@ impl Editor {
             return;
         }
 
-        self.close_menu_bar(cx);
         self.context_menu_submenu_close_task = None;
         self.context_menu = Some(ContextMenuState::Insert {
             position,
@@ -87,7 +86,6 @@ impl Editor {
             return;
         }
 
-        self.close_menu_bar(cx);
         self.context_menu_submenu_close_task = None;
         self.context_menu = Some(ContextMenuState::TableAxis {
             position,
@@ -103,7 +101,6 @@ impl Editor {
         is_dir: bool,
         cx: &mut Context<Self>,
     ) {
-        self.close_menu_bar(cx);
         self.dismiss_contextual_overlays(cx);
         self.context_menu = Some(ContextMenuState::ExplorerFile {
             position,

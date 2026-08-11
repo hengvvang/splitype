@@ -1,9 +1,9 @@
 //! Window commands — save/export/quit/close, CLI tooling, view-mode
 //! switching, and dirty tracking.
 //!
-//! Action handlers wired in the window chrome (`src/editor/window/`) delegate to
-//! these methods. File prompts and menu state live in
-//! `crate::editor::menu_bar`.
+//! Action handlers wired in the editor's render flow (`src/editor/window/`)
+//! delegate to these methods. File prompts live in `crate::app::menus`; the
+//! in-window menu-bar state machine lives in `crate::app::window_chrome`.
 
 use std::path::Path;
 

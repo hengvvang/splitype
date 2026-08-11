@@ -73,7 +73,6 @@ impl Editor {
         self.tab_mut().file.show_unsaved_changes_dialog = false;
         self.clear_pending_drop_replace_state(cx);
         self.dismiss_contextual_overlays(cx);
-        self.close_menu_bar(cx);
         self.tab_mut().tables.axis_preview = None;
         self.tab_mut().tables.axis_selection = None;
         self.sync_table_axis_visuals(cx);

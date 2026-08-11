@@ -1,4 +1,4 @@
-//! Editor window rendering — `Editor::render`, chrome, and panel views.
+//! Editor window rendering — `Editor::render` and panel views.
 //!
 //! # Render phases
 //! 1. **Pre-frame bookkeeping** — pending focus, scroll-into-view,
@@ -8,12 +8,14 @@
 //!    footnote / plain rows, compute inter-row gaps.
 //! 4. **Windowing** — visible viewport plus overscan; top / bottom spacers.
 //! 5. **Scroll content** — windowed rows in scroll container with listeners.
-//! 6. **Chrome** — titlebar, tiled sidebar, menu panel, context menu,
-//!    table-insert dialog, info/drop/unsaved overlays.
+//! 6. **Overlays** — context menu, table-insert dialog, info/drop/unsaved
+//!    dialogs.
 //!
-//! The per-area top bar and bottom status bar live in
-//! `crate::editor::topbar` and `crate::editor::bottombar`; this module
-//! covers the window-level render flow and floating overlays.
+//! The window chrome (custom titlebar + in-window menu bar) moved to the
+//! Shell (`crate::app::window_chrome`); the per-area top bar and bottom
+//! status bar live in `crate::editor::topbar` and
+//! `crate::editor::bottombar`. This module covers the editor's content
+//! render flow and floating overlays.
 
 pub(crate) mod context_menu;
 pub(crate) mod context_menu_actions;
@@ -30,10 +32,7 @@ use crate::editor::tree::document::RenderedBlock;
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::infra::theme::{Theme, ThemeDimensions, ThemeManager};
 use crate::model::block::CalloutKind;
-use crate::ui::custom_titlebar::{custom_titlebar_height, render_custom_titlebar};
-use crate::ui::menu_bar::{
-    footnote_group_shell, in_window_menu_bar_height_for_target_os, supports_in_window_menu,
-};
+use crate::ui::menu_bar::footnote_group_shell;
 
 // ── Constants ────────────────────────────────────────────────────────────
 
@@ -97,17 +96,6 @@ use crate::editor::wysiwyg::render::layout::{
 // ── Export methods ────────────────────────────────────────────────────────
 
 impl Editor {
-    fn on_titlebar_close(
-        &mut self,
-        event: &ClickEvent,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        if event.standard_click() {
-            self.request_close_current_window(window, cx);
-        }
-    }
-
     pub(crate) fn install_close_guard(&mut self, cx: &mut Context<Self>, window: &mut Window) {
         if self
             .active_editor_tab()
@@ -325,15 +313,7 @@ impl Render for Editor {
             self.sync_window_title(window, &strings);
         }
 
-        let d = &theme.dimensions;
         let _editor = cx.entity().downgrade();
-        let has_menus = cx
-            .get_menus()
-            .map(|menus| !menus.is_empty())
-            .unwrap_or(false);
-        let titlebar_height = custom_titlebar_height(window, d);
-        let _menu_bar_height =
-            in_window_menu_bar_height_for_target_os(std::env::consts::OS, has_menus, d);
 
         // Repaint when the Cmd/Ctrl follow modifier toggles so a hovered link's
         // hand cursor updates without moving the pointer. `ModifiersChanged` is
@@ -379,58 +359,14 @@ impl Render for Editor {
             .on_action(cx.listener(Self::on_dismiss_transient_ui))
             .on_action(cx.listener(Self::on_install_cli_tool))
             .on_action(cx.listener(Self::on_uninstall_cli_tool));
-        // Fetch menus + collect labels once for both renderers; previously each
-        // of render_in_window_menu_bar / render_in_window_menu_panel called
-        // cx.get_menus() and walked menus.iter().map(|m| m.name.to_string())
-        // independently — two redundant Vec<OwnedMenu> + two redundant
-        // Vec<String>-of-N-allocations per frame.
-        let menus = supports_in_window_menu()
-            .then(|| cx.get_menus())
-            .flatten()
-            .filter(|m| !m.is_empty());
-        let menu_labels: Vec<SharedString> = menus
-            .as_ref()
-            .map(|m| m.iter().map(|menu| menu.name.clone()).collect())
-            .unwrap_or_default();
-        // The titlebar never shows a title text; the window title lives in the
-        // OS title bar / task bar via `sync_window_title`.
-        let window_title: SharedString = SharedString::new("");
-        let inline_menu =
-            self.render_inline_titlebar_menu(&theme, cx, menus.as_deref(), &menu_labels);
-        let base = if let Some(titlebar) = render_custom_titlebar(
-            "editor-titlebar",
-            window_title,
-            inline_menu,
-            &theme,
-            window,
-            cx,
-            Self::on_titlebar_close,
-        ) {
-            base.child(titlebar)
-        } else {
-            base
-        };
         let main_content = div()
             .w_full()
             .flex_1()
             .min_h(px(0.0))
-            .pt(px(titlebar_height))
             .flex()
             .min_w(px(0.0))
             .child(self.render_tiled_layout(&theme, &strings, window, cx));
         let base = base.child(main_content);
-        let base = if let Some(menu_panel) = self.render_in_window_menu_panel(
-            &theme,
-            cx,
-            menus.as_deref(),
-            &menu_labels,
-            titlebar_height,
-            f32::from(window.viewport_size().height.max(px(1.0))),
-        ) {
-            base.child(menu_panel)
-        } else {
-            base
-        };
         let base = if let Some(context_menu) = self.render_context_menu_overlay(&theme, cx) {
             base.child(context_menu)
         } else {
@@ -483,13 +419,12 @@ impl Editor {
         // instead of a 1px sliver, so the switch shows a full screen of rows
         // immediately; `track_scroll` binds the real bounds during layout
         // and later frames use them.
-        let viewport_size = if viewport_bounds.size.width == px(0.0)
-            || viewport_bounds.size.height == px(0.0)
-        {
-            window.viewport_size()
-        } else {
-            viewport_bounds.size
-        };
+        let viewport_size =
+            if viewport_bounds.size.width == px(0.0) || viewport_bounds.size.height == px(0.0) {
+                window.viewport_size()
+            } else {
+                viewport_bounds.size
+            };
         self.apply_pending_focus(window, cx);
         self.apply_pending_scroll_into_view(window, cx);
         self.sync_scroll_viewport(viewport_size, cx);

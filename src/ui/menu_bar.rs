@@ -1,5 +1,5 @@
-//! In-window menu bar geometry — pure layout math shared by the titlebar
-//! menu bar renderer (`crate::titlebar`) and the editor window.
+//! In-window menu bar geometry — pure layout math shared by the Shell's
+//! titlebar menu bar renderer (`crate::app::window_chrome`).
 //!
 //! These functions compute menu-bar button widths, panel positioning,
 //! submenu bridging, and scrollable-menu heights from theme dimensions.

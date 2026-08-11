@@ -20,7 +20,6 @@ pub(crate) use crate::app::window_area::DEFAULT_EDITOR_AREA_ID;
 pub(crate) use crate::app::window_area::EditorAreaMode;
 pub(crate) use crate::app::window_area::WindowAreaKind;
 pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
-pub(crate) use crate::editor::menu_bar::MenuBarState;
 pub(crate) use crate::editor::session::{
     EditingPanelKind, EditorInnerPanelKind, EditorSession, EditorTabList, InnerPanelLocation,
     WelcomePanelKind,
@@ -208,8 +207,6 @@ pub struct Editor {
     /// and cleared by window-level entry points, which then resolve to the
     /// active editor.
     pub(crate) current_tab_area: Option<NodeId>,
-    /// Open/hover state for the in-window titlebar menu bar.
-    pub(crate) menu_bar: MenuBarState,
     /// Rendered-mode context menu currently open in the editor.
     pub(crate) context_menu: Option<ContextMenuState>,
     pub(crate) context_menu_submenu_close_task: Option<Task<()>>,
@@ -393,7 +390,6 @@ impl Editor {
     pub(crate) fn empty(_cx: &mut Context<Self>) -> Self {
         let this = Self {
             current_tab_area: None,
-            menu_bar: MenuBarState::default(),
             context_menu: None,
             context_menu_submenu_close_task: None,
             table_insert_dialog: None,
@@ -429,7 +425,6 @@ impl Editor {
         let tab = Self::new_tab_from_markdown(cx, markdown, file_path);
         let mut editor = Self {
             current_tab_area: None,
-            menu_bar: MenuBarState::default(),
             context_menu: None,
             context_menu_submenu_close_task: None,
             table_insert_dialog: None,

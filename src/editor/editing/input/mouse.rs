@@ -57,7 +57,8 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.dismiss_menu_bar_from_body(cx);
+        // The in-window menu bar lives on the Shell; a mouse-down in the
+        // editor body reaches the Shell's body listener, which closes it.
         self.clear_table_axis_preview(cx);
         self.clear_table_axis_selection(cx);
     }

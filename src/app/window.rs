@@ -9,6 +9,7 @@ use gpui::*;
 use crate::app::menus::install_menus;
 use crate::app::shell::{AreaContent, Shell};
 use crate::app::window_area::{DEFAULT_EDITOR_AREA_ID, WindowAreaKind};
+use crate::app::window_chrome::MenuBarState;
 use crate::editor::controller::Editor;
 use crate::editor::explorer_state::state::ExplorerState;
 use crate::editor::session::EditorSession;
@@ -60,6 +61,7 @@ pub(crate) fn open_editor_window(
                     // The default layout is Explorer (left) + Editor (right);
                     // only Editor areas carry content entities.
                     areas: [(DEFAULT_EDITOR_AREA_ID, AreaContent::Editor(editor))].into(),
+                    menu_bar: MenuBarState::default(),
                 })
             },
         )
@@ -121,6 +123,7 @@ pub(crate) fn open_cloned_window(
                 });
                 cx.new(move |_cx| Shell {
                     areas: [(DEFAULT_EDITOR_AREA_ID, AreaContent::Editor(editor))].into(),
+                    menu_bar: MenuBarState::default(),
                 })
             },
         )

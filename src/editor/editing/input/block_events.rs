@@ -852,7 +852,6 @@ impl Editor {
                 cx.notify();
             }
             BlockAction::RequestFocus => {
-                self.close_menu_bar(cx);
                 self.clear_table_axis_preview(cx);
                 self.clear_table_axis_selection(cx);
                 self.focus_block(block.entity_id());

@@ -209,7 +209,6 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.close_menu_bar(cx);
         self.hide_info_dialog(cx);
         self.dismiss_contextual_overlays(cx);
 
@@ -278,7 +277,6 @@ impl Editor {
 
         self.tab_mut().file.show_drop_replace_dialog = false;
         self.tab_mut().file.pending_drop_replace_after_save = true;
-        self.close_menu_bar(cx);
 
         if let Some(path) = self.tab().file.path.clone() {
             if self.save_to_existing_path(&path, window, cx) {

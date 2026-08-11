@@ -36,7 +36,7 @@ pub(crate) mod explorer_state;
 pub mod file;
 pub mod geometry;
 pub mod keybindings;
-pub(crate) mod menu_bar;
+pub(crate) mod menu_actions;
 pub(crate) mod outline;
 pub(crate) mod panel_layout;
 pub mod preview;

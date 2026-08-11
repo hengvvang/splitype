@@ -29,5 +29,4 @@ pub mod explorer;
 pub mod infra;
 pub mod platform;
 pub mod settings;
-pub mod titlebar;
 pub mod ui;

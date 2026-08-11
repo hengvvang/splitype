@@ -1,53 +1,278 @@
-//! In-window titlebar menu bar — rendering and the import-menu split
-//! detection.
+//! Window-level chrome for Shell-rooted windows — the custom system
+//! titlebar and the in-window fallback menu bar.
 //!
-//! The menu-bar state machine lives in `crate::editor::menu_bar` (the Editor
-//! entity owns the state); the pure geometry lives in
-//! `crate::ui::menu_bar` so both the editor window and this
-//! renderer can share it.
+//! Owns [`MenuBarState`] (the open/hover/close state machine) and renders
+//! the titlebar plus its floating menu panel. Both are window-level
+//! concerns: the Shell entity owns and renders them, while the Editor
+//! renders only its own content below this chrome.
+//!
+//! The menu-tree data and action dispatch live in `crate::app::menus`;
+//! this module only renders and drives that data. The pure geometry lives
+//! in `crate::ui::menu_bar` so both the Shell chrome and the Editor can
+//! share it.
 
-use crate::ui::button::menu_bar_button;
-use crate::ui::menu_bar::{
-    TITLEBAR_MENU_BUTTON_GAP, menu_bar_button_width, menu_panel_left, menu_panel_width_for_labels,
-    owned_menu_item_labels, scrollable_import_menu_scroll_height, submenu_bridge_geometry,
-    submenu_panel_top,
-};
-use crate::ui::menu_item::{menu_item, menu_item_row};
-use crate::ui::popover::overlay;
+use std::time::Duration;
 
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
 use crate::app::menus::dispatch_menu_action_for_editor;
+use crate::app::shell::Shell;
 use crate::editor::actions::{
     AddLanguageConfig, AddThemeConfig, NoRecentFiles, SelectLanguage, SelectTheme,
 };
 use crate::editor::controller::Editor;
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::{Theme, ThemeManager};
+use crate::ui::button::menu_bar_button;
+use crate::ui::custom_titlebar::{custom_titlebar_height, render_custom_titlebar};
+use crate::ui::menu_bar::{
+    TITLEBAR_MENU_BUTTON_GAP, menu_bar_button_width, menu_panel_left, menu_panel_width_for_labels,
+    owned_menu_item_labels, scrollable_import_menu_scroll_height, submenu_bridge_geometry,
+    submenu_panel_top, supports_in_window_menu,
+};
+use crate::ui::menu_item::{menu_item, menu_item_row};
+use crate::ui::popover::overlay;
 
-// ── Import menu (theme / language) split detection ────────────────────────
-
-pub(crate) fn import_menu_split_index(items: &[OwnedMenuItem]) -> Option<usize> {
-    let [
-        prefix @ ..,
-        OwnedMenuItem::Separator,
-        OwnedMenuItem::Action { action, .. },
-    ] = items
-    else {
-        return None;
-    };
-
-    if action.as_ref().as_any().is::<AddThemeConfig>()
-        || action.as_ref().as_any().is::<AddLanguageConfig>()
-    {
-        Some(prefix.len())
-    } else {
-        None
-    }
+/// Open/hover state for the in-window titlebar menu bar.
+#[derive(Default)]
+pub(crate) struct MenuBarState {
+    /// Open top-level menu in the in-window fallback menu bar.
+    pub(crate) open: Option<usize>,
+    pub(crate) expanded: bool,
+    /// Open child submenu inside the in-window fallback menu panel.
+    pub(crate) submenu_open: Option<usize>,
+    pub(crate) panel_hovered: bool,
+    pub(crate) submenu_panel_hovered: bool,
+    /// Hover state for the invisible bridge spanning the gap between the menu
+    /// panel and an open submenu. Tracked separately from
+    /// `submenu_panel_hovered` so the handoff between the two regions cannot
+    /// clobber a single shared flag and tear the menu down.
+    pub(crate) submenu_bridge_hovered: bool,
+    pub(crate) close_task: Option<Task<()>>,
 }
 
-impl Editor {
+impl Shell {
+    // ── Menu-bar state machine ────────────────────────────────────────────
+
+    pub(crate) fn toggle_menu_bar_expanded(&mut self, cx: &mut Context<Self>) {
+        self.menu_bar.expanded = !self.menu_bar.expanded;
+        if !self.menu_bar.expanded {
+            self.menu_bar.open = None;
+            self.menu_bar.submenu_open = None;
+        }
+        cx.notify();
+    }
+
+    pub(crate) fn on_menu_panel_hover(
+        &mut self,
+        hovered: &bool,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_menu_panel_hovered(*hovered, cx);
+    }
+
+    pub(crate) fn on_menu_submenu_panel_hover(
+        &mut self,
+        hovered: &bool,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_menu_submenu_panel_hovered(*hovered, cx);
+    }
+
+    pub(crate) fn on_menu_submenu_bridge_hover(
+        &mut self,
+        hovered: &bool,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_menu_submenu_bridge_hovered(*hovered, cx);
+    }
+
+    pub(crate) fn open_menu_bar(&mut self, index: usize, cx: &mut Context<Self>) {
+        self.menu_bar.close_task = None;
+        if self.menu_bar.open != Some(index) {
+            self.menu_bar.open = Some(index);
+            self.menu_bar.submenu_open = None;
+            self.menu_bar.submenu_panel_hovered = false;
+            self.menu_bar.submenu_bridge_hovered = false;
+            cx.notify();
+        }
+    }
+
+    pub(crate) fn open_menu_submenu(&mut self, index: usize, cx: &mut Context<Self>) {
+        self.menu_bar.close_task = None;
+        if self.menu_bar.submenu_open != Some(index) {
+            self.menu_bar.submenu_open = Some(index);
+            cx.notify();
+        }
+    }
+
+    pub(crate) fn close_menu_submenu(&mut self, cx: &mut Context<Self>) {
+        let had_open_submenu = self.menu_bar.submenu_open.take().is_some();
+        let had_submenu_hover =
+            self.menu_bar.submenu_panel_hovered || self.menu_bar.submenu_bridge_hovered;
+        self.menu_bar.submenu_panel_hovered = false;
+        self.menu_bar.submenu_bridge_hovered = false;
+        if had_open_submenu || had_submenu_hover {
+            cx.notify();
+        }
+    }
+
+    pub(crate) fn schedule_menu_bar_close(&mut self, cx: &mut Context<Self>) {
+        if self.menu_bar.open.is_none() {
+            return;
+        }
+
+        let weak_shell = cx.entity().downgrade();
+        self.menu_bar.close_task = Some(cx.spawn(
+            async move |_this: WeakEntity<Shell>, cx: &mut AsyncApp| {
+                cx.background_executor()
+                    .timer(Duration::from_millis(120))
+                    .await;
+                let _ = weak_shell.update(cx, |shell, cx| {
+                    shell.menu_bar.close_task = None;
+                    if !shell.menu_bar.panel_hovered
+                        && !shell.menu_bar.submenu_panel_hovered
+                        && !shell.menu_bar.submenu_bridge_hovered
+                    {
+                        shell.close_menu_bar(cx);
+                    }
+                });
+            },
+        ));
+    }
+
+    pub(crate) fn set_menu_panel_hovered(&mut self, hovered: bool, cx: &mut Context<Self>) {
+        self.menu_bar.panel_hovered = hovered;
+        if hovered {
+            self.menu_bar.close_task = None;
+        } else if !self.menu_bar.submenu_panel_hovered && !self.menu_bar.submenu_bridge_hovered {
+            self.schedule_menu_bar_close(cx);
+        }
+    }
+
+    pub(crate) fn set_menu_submenu_panel_hovered(&mut self, hovered: bool, cx: &mut Context<Self>) {
+        self.menu_bar.submenu_panel_hovered = hovered;
+        if hovered {
+            self.menu_bar.close_task = None;
+        } else if !self.menu_bar.panel_hovered && !self.menu_bar.submenu_bridge_hovered {
+            self.schedule_menu_bar_close(cx);
+        }
+    }
+
+    /// Hover handler for the invisible gap bridge. The bridge and the submenu
+    /// panel overlap, so the cursor crossing between them fires a `false` for
+    /// one region and a `true` for the other in the same gesture. Keeping their
+    /// hover state in separate flags lets either one hold the menu open
+    /// regardless of the order those events arrive.
+    pub(crate) fn set_menu_submenu_bridge_hovered(
+        &mut self,
+        hovered: bool,
+        cx: &mut Context<Self>,
+    ) {
+        self.menu_bar.submenu_bridge_hovered = hovered;
+        if hovered {
+            self.menu_bar.close_task = None;
+        } else if !self.menu_bar.panel_hovered && !self.menu_bar.submenu_panel_hovered {
+            self.schedule_menu_bar_close(cx);
+        }
+    }
+
+    /// Closes the menu bar when the window body (outside the titlebar and any
+    /// open menu panel) receives a mouse-down. The menu panels are siblings of
+    /// the body container and are `.occlude()`d, so their clicks never reach
+    /// this listener.
+    pub(crate) fn on_body_mouse_down(
+        &mut self,
+        _: &MouseDownEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.close_menu_bar(cx);
+    }
+
+    pub(crate) fn close_menu_bar(&mut self, cx: &mut Context<Self>) {
+        let had_open_menu = self.menu_bar.open.take().is_some();
+        let had_open_submenu = self.menu_bar.submenu_open.take().is_some();
+        let had_hover_state = self.menu_bar.panel_hovered
+            || self.menu_bar.submenu_panel_hovered
+            || self.menu_bar.submenu_bridge_hovered;
+        let had_pending_close = self.menu_bar.close_task.take().is_some();
+        self.menu_bar.panel_hovered = false;
+        self.menu_bar.submenu_panel_hovered = false;
+        self.menu_bar.submenu_bridge_hovered = false;
+        if had_open_menu || had_open_submenu || had_hover_state || had_pending_close {
+            cx.notify();
+        }
+    }
+
+    // ── Chrome rendering ──────────────────────────────────────────────────
+
+    /// Renders the window chrome: the custom system titlebar (with the
+    /// in-window menu bar when the platform has no native menu) and the
+    /// floating menu panel for the currently open menu.
+    ///
+    /// Returns `(titlebar, menu_panel, titlebar_height)`; the titlebar is
+    /// absolutely positioned over the window top, so the caller must offset
+    /// the window body by `titlebar_height`.
+    pub(crate) fn render_window_chrome(
+        &mut self,
+        theme: &Theme,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> (Option<AnyElement>, Option<AnyElement>, f32) {
+        let titlebar_height = custom_titlebar_height(window, &theme.dimensions);
+        // Fetch menus + collect labels once for both renderers; previously each
+        // of render_inline_titlebar_menu / render_in_window_menu_panel called
+        // cx.get_menus() and walked menus.iter().map(|m| m.name.to_string())
+        // independently — two redundant Vec<OwnedMenu> + two redundant
+        // Vec<String>-of-N-allocations per frame.
+        let menus = supports_in_window_menu()
+            .then(|| cx.get_menus())
+            .flatten()
+            .filter(|m| !m.is_empty());
+        let menu_labels: Vec<SharedString> = menus
+            .as_ref()
+            .map(|m| m.iter().map(|menu| menu.name.clone()).collect())
+            .unwrap_or_default();
+        // The titlebar never shows a title text; the window title lives in the
+        // OS title bar / task bar via the Editor's `sync_window_title`.
+        let window_title: SharedString = SharedString::new("");
+        let inline_menu =
+            self.render_inline_titlebar_menu(theme, cx, menus.as_deref(), &menu_labels);
+
+        let titlebar = render_custom_titlebar(
+            "editor-titlebar",
+            window_title,
+            inline_menu,
+            theme,
+            window,
+            cx,
+            Shell::on_titlebar_close,
+        );
+
+        let editor = self.primary_editor().map(|editor| editor.downgrade());
+        let menu_panel = editor.and_then(|editor| {
+            self.render_in_window_menu_panel(
+                theme,
+                cx,
+                menus.as_deref(),
+                &menu_labels,
+                titlebar_height,
+                f32::from(window.viewport_size().height.max(px(1.0))),
+                editor,
+            )
+        });
+
+        (titlebar, menu_panel, titlebar_height)
+    }
+
+    /// Renders the in-window menu bar row (the fallback for platforms
+    /// without a native application menu): the app icon toggle button plus
+    /// one button per top-level menu.
     pub(crate) fn render_inline_titlebar_menu(
         &self,
         theme: &Theme,
@@ -63,7 +288,7 @@ impl Editor {
         let c = &theme.colors;
         let d = &theme.dimensions;
         let t = &theme.typography;
-        let editor = cx.entity().downgrade();
+        let shell = cx.entity().downgrade();
 
         let is_expanded = self.menu_bar.expanded || self.menu_bar.open.is_some();
 
@@ -75,7 +300,7 @@ impl Editor {
             .gap(px(TITLEBAR_MENU_BUTTON_GAP))
             .px(px(6.0));
 
-        let app_button_editor = editor.clone();
+        let app_button_shell = shell.clone();
         // Sized to hug the 14px glyph (compact hit target) rather than the
         // 46px-wide window-control buttons; the glyph itself stays the
         // unmodified Segoe GlobalNavButton SVG.
@@ -100,8 +325,8 @@ impl Editor {
                     }),
             )
             .on_click(move |_, _window, cx| {
-                let _ = app_button_editor.update(cx, |ed, cx| {
-                    ed.toggle_menu_bar_expanded(cx);
+                let _ = app_button_shell.update(cx, |shell, cx| {
+                    shell.toggle_menu_bar_expanded(cx);
                 });
             });
 
@@ -116,8 +341,8 @@ impl Editor {
             for (index, label) in menu_labels.iter().enumerate() {
                 let label = label.clone();
                 let is_open = self.menu_bar.open == Some(index);
-                let button_editor = editor.clone();
-                let click_editor = editor.clone();
+                let button_shell = shell.clone();
+                let click_shell = shell.clone();
                 let button_width = button_widths[index];
 
                 row = row.child(
@@ -135,13 +360,13 @@ impl Editor {
                         .child(label)
                         .on_hover(move |hovered, _window, cx| {
                             if *hovered {
-                                let _ = button_editor
-                                    .update(cx, |editor, cx| editor.open_menu_bar(index, cx));
+                                let _ = button_shell
+                                    .update(cx, |shell, cx| shell.open_menu_bar(index, cx));
                             }
                         })
                         .on_click(move |_, _window, cx| {
-                            let _ = click_editor
-                                .update(cx, |editor, cx| editor.open_menu_bar(index, cx));
+                            let _ =
+                                click_shell.update(cx, |shell, cx| shell.open_menu_bar(index, cx));
                         }),
                 );
             }
@@ -155,7 +380,8 @@ impl Editor {
         item: OwnedMenuItem,
         item_index: usize,
         theme: &Theme,
-        editor: WeakEntity<Self>,
+        shell: WeakEntity<Shell>,
+        editor: WeakEntity<Editor>,
         cx: &Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
@@ -173,8 +399,8 @@ impl Editor {
                 .into_any_element(),
             OwnedMenuItem::Action { name, action, .. } => {
                 let is_disabled = action.as_ref().as_any().is::<NoRecentFiles>();
-                let click_editor = editor.clone();
-                let hover_editor = editor.clone();
+                let click_shell = shell.clone();
+                let hover_shell = shell.clone();
 
                 let mut is_selected = false;
                 let mut left_elem: Option<AnyElement> = None;
@@ -239,7 +465,7 @@ impl Editor {
                     .on_hover(move |hovered, _window, cx| {
                         if *hovered {
                             let _ =
-                                hover_editor.update(cx, |editor, cx| editor.close_menu_submenu(cx));
+                                hover_shell.update(cx, |shell, cx| shell.close_menu_submenu(cx));
                         }
                     });
 
@@ -250,20 +476,15 @@ impl Editor {
                         .active(|this| this.opacity(0.92))
                         .cursor_pointer()
                         .on_click(move |_, window, cx| {
-                            let _ = click_editor.update(cx, |editor, cx| editor.close_menu_bar(cx));
-                            dispatch_menu_action_for_editor(
-                                action.as_ref(),
-                                &click_editor,
-                                window,
-                                cx,
-                            );
+                            let _ = click_shell.update(cx, |shell, cx| shell.close_menu_bar(cx));
+                            dispatch_menu_action_for_editor(action.as_ref(), &editor, window, cx);
                         })
                         .into_any_element()
                 }
             }
             OwnedMenuItem::Submenu(submenu) => {
                 let is_open = self.menu_bar.submenu_open == Some(item_index);
-                let hover_editor = editor.clone();
+                let hover_shell = shell.clone();
                 menu_item(("app-menu-submenu", item_index), c, d)
                     .w_full()
                     .flex_shrink_0()
@@ -285,8 +506,8 @@ impl Editor {
                     )
                     .on_hover(move |hovered, _window, cx| {
                         if *hovered {
-                            let _ = hover_editor
-                                .update(cx, |editor, cx| editor.open_menu_submenu(item_index, cx));
+                            let _ = hover_shell
+                                .update(cx, |shell, cx| shell.open_menu_submenu(item_index, cx));
                         }
                     })
                     .into_any_element()
@@ -304,7 +525,7 @@ impl Editor {
 
     /// Renders the currently open in-window fallback menu as a floating
     /// panel. `menus` and `menu_labels` are fetched and computed once at
-    /// the caller and shared with [`Self::render_in_window_menu_bar`].
+    /// the caller and shared with [`Self::render_inline_titlebar_menu`].
     pub(crate) fn render_in_window_menu_panel(
         &self,
         theme: &Theme,
@@ -313,6 +534,7 @@ impl Editor {
         menu_labels: &[SharedString],
         top_offset: f32,
         viewport_height: f32,
+        editor: WeakEntity<Editor>,
     ) -> Option<AnyElement> {
         let open_index = self.menu_bar.open?;
         let menus = menus?;
@@ -321,7 +543,7 @@ impl Editor {
         let c = &theme.colors;
         let d = &theme.dimensions;
         let t = &theme.typography;
-        let editor = cx.entity().downgrade();
+        let shell = cx.entity().downgrade();
         let menu_item_labels = owned_menu_item_labels(&menu_items);
         let menu_panel_width = menu_panel_width_for_labels(&menu_item_labels, d);
         let submenu_bridge = self
@@ -379,6 +601,7 @@ impl Editor {
                                 OwnedMenuItem::Action { name, action, .. } => {
                                     let is_disabled =
                                         action.as_ref().as_any().is::<NoRecentFiles>();
+                                    let click_shell = shell.clone();
                                     let editor = editor.clone();
 
                                     let mut is_selected = false;
@@ -464,8 +687,8 @@ impl Editor {
                                             .active(|this| this.opacity(0.92))
                                             .cursor_pointer()
                                             .on_click(move |_, window, cx| {
-                                                let _ = editor.update(cx, |editor, cx| {
-                                                    editor.close_menu_bar(cx)
+                                                let _ = click_shell.update(cx, |shell, cx| {
+                                                    shell.close_menu_bar(cx)
                                                 });
                                                 dispatch_menu_action_for_editor(
                                                     action.as_ref(),
@@ -586,6 +809,7 @@ impl Editor {
                                         item,
                                         item_index,
                                         theme,
+                                        shell.clone(),
                                         editor.clone(),
                                         cx,
                                     )
@@ -604,6 +828,7 @@ impl Editor {
                             item,
                             split_index + footer_index,
                             theme,
+                            shell.clone(),
                             editor.clone(),
                             cx,
                         )
@@ -619,7 +844,14 @@ impl Editor {
                 .cloned()
                 .enumerate()
                 .map(|(item_index, item)| {
-                    self.render_in_window_menu_item(item, item_index, theme, editor.clone(), cx)
+                    self.render_in_window_menu_item(
+                        item,
+                        item_index,
+                        theme,
+                        shell.clone(),
+                        editor.clone(),
+                        cx,
+                    )
                 });
 
             main_panel.children(items).into_any_element()
@@ -640,6 +872,28 @@ impl Editor {
         };
 
         Some(layer.into_any_element())
+    }
+}
+
+/// Detects the trailing "Add Theme Config" / "Add Language Config" items
+/// pinned to the bottom of the theme / language import menus, returning the
+/// split index (start of the pinned footer).
+pub(crate) fn import_menu_split_index(items: &[OwnedMenuItem]) -> Option<usize> {
+    let [
+        prefix @ ..,
+        OwnedMenuItem::Separator,
+        OwnedMenuItem::Action { action, .. },
+    ] = items
+    else {
+        return None;
+    };
+
+    if action.as_ref().as_any().is::<AddThemeConfig>()
+        || action.as_ref().as_any().is::<AddLanguageConfig>()
+    {
+        Some(prefix.len())
+    } else {
+        None
     }
 }
 

@@ -51,7 +51,6 @@ impl Editor {
         if self.panels.explorer.is_open {
             self.panels.explorer.is_open = false;
         } else {
-            self.close_menu_bar(cx);
             self.dismiss_contextual_overlays(cx);
             self.panels.explorer.is_open = true;
             self.sync_explorer_models(cx);
@@ -429,7 +428,6 @@ impl Editor {
             let _ = std::process::Command::new("xdg-open").arg(parent).spawn();
         }
     }
-
 
     pub(crate) fn start_inline_create_file(
         &mut self,
