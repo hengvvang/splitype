@@ -1366,7 +1366,7 @@ fn collect_list_blocks(lines: &[String], start: usize) -> (Vec<BlockData>, usize
 
                 let should_promote_plain_child = pending_blank_lines > 0
                     || saw_child
-                    || block.text.visible_text().is_empty()
+                    || block.text.plain_text().is_empty()
                     || parse_standalone_image(&block.text.serialize_markdown()).is_some();
                 if should_promote_plain_child {
                     let (mut paragraph, consumed) = collect_paragraph_block(&anchor_dedented, 0);

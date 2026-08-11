@@ -21,13 +21,13 @@ impl Block {
         self.code_highlight = match &self.record.kind {
             BlockKind::CodeBlock { language } => highlight_code_block(
                 language.as_deref().map(|value| &**value),
-                self.render_cache.visible_text(),
+                self.render_cache.text(),
             ),
             BlockKind::MathBlock => {
-                highlight_code_block(Some("math"), self.render_cache.visible_text())
+                highlight_code_block(Some("math"), self.render_cache.text())
             }
             BlockKind::MermaidBlock => {
-                highlight_code_block(Some("mermaid"), self.render_cache.visible_text())
+                highlight_code_block(Some("mermaid"), self.render_cache.text())
             }
             _ => None,
         };

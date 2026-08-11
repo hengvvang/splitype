@@ -117,7 +117,7 @@ async fn ctrl_a_selects_entire_source_document_in_source_mode(cx: &mut TestAppCo
 
     editor.read_with(cx, |editor, cx| {
         let source = editor.doc().blocks()[0].entity.read(cx);
-        assert_eq!(source.selected_range, 0..source.visible_len());
+        assert_eq!(source.selected_range, 0..source.display_len());
         assert!(editor.tab().selection.cross_block.is_none());
     });
 }
@@ -145,7 +145,7 @@ async fn ctrl_a_selects_only_focused_block_text_in_rendered_mode(cx: &mut TestAp
         let first = editor.doc().blocks()[0].entity.read(cx);
         let second = editor.doc().blocks()[1].entity.read(cx);
         assert_eq!(first.selected_range, 0..0);
-        assert_eq!(second.selected_range, 0..second.visible_len());
+        assert_eq!(second.selected_range, 0..second.display_len());
         assert!(editor.tab().selection.cross_block.is_none());
     });
 }
@@ -174,7 +174,7 @@ async fn repeated_ctrl_a_selects_all_rendered_blocks(cx: &mut TestAppContext) {
 
     editor.read_with(cx, |editor, cx| {
         let first = editor.doc().blocks()[0].entity.read(cx);
-        assert_eq!(first.selected_range, 0..first.visible_len());
+        assert_eq!(first.selected_range, 0..first.display_len());
         assert!(editor.tab().selection.cross_block.is_none());
     });
 
@@ -186,7 +186,7 @@ async fn repeated_ctrl_a_selects_all_rendered_blocks(cx: &mut TestAppContext) {
         let first_id = entries[0].entity.entity_id();
         let last = entries.last().expect("block entries");
         let last_id = last.entity.entity_id();
-        let last_len = last.entity.read(cx).visible_len();
+        let last_len = last.entity.read(cx).display_len();
         let selection = editor
             .tab()
             .selection
@@ -198,7 +198,7 @@ async fn repeated_ctrl_a_selects_all_rendered_blocks(cx: &mut TestAppContext) {
         assert_eq!(selection.focus.offset, last_len);
         for entries in entries {
             let block = entries.entity.read(cx);
-            let len = block.visible_len();
+            let len = block.display_len();
             if len > 0 {
                 assert_eq!(block.editor_selection_range, Some(0..len));
             }
@@ -218,7 +218,7 @@ async fn repeated_ctrl_a_selects_all_rendered_blocks(cx: &mut TestAppContext) {
         );
         for entries in editor.doc().blocks() {
             let block = entries.entity.read(cx);
-            let len = block.visible_len();
+            let len = block.display_len();
             if len > 0 {
                 assert_eq!(block.editor_selection_range, Some(0..len));
             }
@@ -265,7 +265,7 @@ async fn rendered_ctrl_a_cycle_expires_before_second_press(cx: &mut TestAppConte
 
     editor.read_with(cx, |editor, cx| {
         let second = editor.doc().blocks()[1].entity.read(cx);
-        assert_eq!(second.selected_range, 0..second.visible_len());
+        assert_eq!(second.selected_range, 0..second.display_len());
         assert!(editor.tab().selection.cross_block.is_none());
         assert_eq!(
             editor
@@ -378,7 +378,7 @@ async fn down_from_code_content_focuses_language_input(cx: &mut TestAppContext) 
     editor.update_in(cx, |editor, window, cx| {
         let block = editor.doc().blocks()[0].entity.clone();
         block.update(cx, |block, block_cx| {
-            block.move_to(block.visible_len(), block_cx);
+            block.move_to(block.display_len(), block_cx);
             block.on_focus_next(&FocusNext, window, block_cx);
         });
         assert!(
@@ -525,7 +525,7 @@ async fn tab_key_keeps_list_indent_semantics(cx: &mut TestAppContext) {
     let second = editor.update(cx, |editor, cx| {
         let second = editor.doc().blocks()[1].entity.clone();
         second.update(cx, |block, block_cx| {
-            block.move_to(block.visible_len(), block_cx);
+            block.move_to(block.display_len(), block_cx);
         });
         second
     });
@@ -560,7 +560,7 @@ async fn tab_key_keeps_table_cell_navigation(cx: &mut TestAppContext) {
         let first = runtime.rows[0][0].clone();
         let second = runtime.rows[0][1].clone();
         first.update(cx, |block, block_cx| {
-            block.move_to(block.visible_len(), block_cx);
+            block.move_to(block.display_len(), block_cx);
         });
         (second.entity_id(), first)
     });
@@ -592,7 +592,7 @@ async fn right_arrow_at_cell_end_moves_to_next_cell(cx: &mut TestAppContext) {
         let first = runtime.rows[0][0].clone();
         let second = runtime.rows[0][1].clone();
         first.update(cx, |block, block_cx| {
-            block.move_to(block.visible_len(), block_cx);
+            block.move_to(block.display_len(), block_cx);
         });
         (second.entity_id(), first)
     });
@@ -681,7 +681,7 @@ async fn ctrl_enter_exits_focused_math_block(cx: &mut TestAppContext) {
     let block = editor.update(cx, |editor, cx| {
         let block = editor.doc().blocks()[0].entity.clone();
         block.update(cx, |block, block_cx| {
-            block.move_to(block.visible_len(), block_cx);
+            block.move_to(block.display_len(), block_cx);
         });
         block
     });
@@ -718,7 +718,7 @@ async fn ctrl_enter_exits_focused_table_cell(cx: &mut TestAppContext) {
             .rows[0][0]
             .clone();
         cell.update(cx, |block, block_cx| {
-            block.move_to(block.visible_len(), block_cx);
+            block.move_to(block.display_len(), block_cx);
         });
         cell
     });

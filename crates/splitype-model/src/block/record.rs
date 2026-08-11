@@ -154,12 +154,12 @@ impl BlockData {
         match self.kind {
             BlockKind::Paragraph => indent_multiline(&text_markdown, &indentation),
             BlockKind::ThematicBreak => {
-                // Prefer the edited visible text so focused editing of the
+                // Prefer the edited plain text so focused editing of the
                 // separator round-trips; the raw source only preserves the
                 // original marker style (e.g. `***`) when the text is emptied.
-                let visible = self.text.visible_text();
-                if !visible.trim().is_empty() {
-                    visible.to_string()
+                let plain = self.text.plain_text();
+                if !plain.trim().is_empty() {
+                    plain.to_string()
                 } else if let Some(raw) = &self.raw_source
                     && !raw.trim().is_empty()
                 {
@@ -201,7 +201,7 @@ impl BlockData {
                 format!("{indentation}> {}", variant.header_markdown(&text_markdown))
             }
             BlockKind::FootnoteDefinition => {
-                format!("{indentation}[^{}]: ", self.text.visible_text())
+                format!("{indentation}[^{}]: ", self.text.plain_text())
             }
             BlockKind::Table => String::new(),
             BlockKind::CodeBlock { .. } => text_markdown,
@@ -233,10 +233,10 @@ impl BlockData {
     }
 
     fn text_markdown_for_output(&self) -> String {
-        let visible = self.text.visible_text();
-        if self.can_present_text_as_standalone_image() && parse_standalone_image(&visible).is_some()
+        let plain = self.text.plain_text();
+        if self.can_present_text_as_standalone_image() && parse_standalone_image(&plain).is_some()
         {
-            return visible;
+            return plain;
         }
 
         self.text_markdown()
@@ -254,7 +254,7 @@ impl BlockData {
 
     fn sync_raw_source(&mut self) {
         if self.preserves_raw_source() {
-            self.raw_source = Some(self.text.visible_text().to_string());
+            self.raw_source = Some(self.text.plain_text().to_string());
             if self.kind == BlockKind::HtmlBlock {
                 self.html = self.raw_source.as_ref().map(|raw| parse_html_document(raw));
             }
@@ -374,19 +374,19 @@ mod tests {
     #[test]
     fn math_block_stores_body_and_rebuilds_fences() {
         let record = BlockData::latex_math("$$x^2$$");
-        assert_eq!(record.text.visible_text(), "x^2");
+        assert_eq!(record.text.plain_text(), "x^2");
         assert_eq!(record.raw_source.as_deref(), Some("x^2"));
         assert_eq!(record.markdown_line(0, None), "$$x^2$$");
 
         let record = BlockData::latex_math("$$\n\\int_0^1 x^2 dx\n$$");
-        assert_eq!(record.text.visible_text(), "\\int_0^1 x^2 dx");
+        assert_eq!(record.text.plain_text(), "\\int_0^1 x^2 dx");
         assert_eq!(record.markdown_line(2, None), "    $$\\int_0^1 x^2 dx$$");
     }
 
     #[test]
     fn mermaid_block_stores_body_and_rebuilds_fences() {
         let record = BlockData::mermaid_diagram("```mermaid\ngraph LR\nA-->B\n```");
-        assert_eq!(record.text.visible_text(), "graph LR\nA-->B");
+        assert_eq!(record.text.plain_text(), "graph LR\nA-->B");
         assert_eq!(record.raw_source.as_deref(), Some("graph LR\nA-->B"));
         assert_eq!(record.markdown_line(0, None), "```mermaid\ngraph LR\nA-->B\n```");
         assert_eq!(

@@ -307,7 +307,7 @@ mod tests {
                         block_cx,
                     );
                     block.replace_text_in_display_range(
-                        0..block.visible_len(),
+                        0..block.display_len(),
                         "",
                         None,
                         false,
@@ -345,7 +345,7 @@ mod tests {
                         block_cx,
                     );
                     block.replace_text_in_display_range(
-                        0..block.visible_len(),
+                        0..block.display_len(),
                         "",
                         None,
                         false,
@@ -382,7 +382,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
             });
@@ -407,7 +407,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
             });
@@ -436,9 +436,9 @@ mod tests {
                 let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
                     // Type a closing fence on a fresh last line, then Enter.
-                    let end = block.visible_len();
+                    let end = block.display_len();
                     block.replace_text_in_display_range(end..end, "\n```", None, false, block_cx);
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
             });
@@ -471,7 +471,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let underline = editor.doc().blocks()[1].entity.clone();
                 underline.update(cx, |block, block_cx| {
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
             });
@@ -510,9 +510,9 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let underline = editor.doc().blocks()[1].entity.clone();
                 underline.update(cx, |block, block_cx| {
-                    let end = block.visible_len();
+                    let end = block.display_len();
                     block.replace_text_in_display_range(0..end, "-----", None, false, block_cx);
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
             });
@@ -539,7 +539,7 @@ mod tests {
                 let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
                     block.replace_text_in_display_range(0..0, "-----", None, false, block_cx);
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
             });
@@ -561,7 +561,7 @@ mod tests {
                 let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
                     block.replace_text_in_display_range(0..0, "=====", None, false, block_cx);
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
             });
@@ -585,7 +585,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let delimiter = editor.doc().root_blocks()[1].clone();
                 delimiter.update(cx, |block, block_cx| {
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
             });
@@ -628,7 +628,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let delimiter = editor.doc().root_blocks()[1].clone();
                 delimiter.update(cx, |block, block_cx| {
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
             });
@@ -646,7 +646,7 @@ mod tests {
                         false,
                         block_cx,
                     );
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
             });
@@ -674,7 +674,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let delimiter = editor.doc().root_blocks()[1].clone();
                 delimiter.update(cx, |block, block_cx| {
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
             });
@@ -703,7 +703,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let delimiter = editor.doc().root_blocks()[1].clone();
                 delimiter.update(cx, |block, block_cx| {
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
             });
@@ -715,7 +715,7 @@ mod tests {
                 let row = editor.doc().root_blocks()[1].clone();
                 row.update(cx, |block, block_cx| {
                     block.replace_text_in_display_range(0..0, "Alice | 10", None, false, block_cx);
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
             });
@@ -742,7 +742,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let delimiter = editor.doc().root_blocks()[1].clone();
                 delimiter.update(cx, |block, block_cx| {
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
             });
@@ -755,7 +755,7 @@ mod tests {
                 let row = editor.doc().root_blocks()[1].clone();
                 row.update(cx, |block, block_cx| {
                     block.replace_text_in_display_range(0..0, "one | two", None, false, block_cx);
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
             });
@@ -786,7 +786,7 @@ mod tests {
                 let block = editor.doc().root_blocks()[0].clone();
                 block.update(cx, |block, block_cx| {
                     block.replace_text_in_display_range(0..0, "| a | b |", None, false, block_cx);
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
             });
@@ -834,13 +834,13 @@ mod tests {
                 let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
                     block.replace_text_in_display_range(
-                        0..block.visible_len(),
+                        0..block.display_len(),
                         "$$",
                         None,
                         false,
                         block_cx,
                     );
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
             });
@@ -926,13 +926,13 @@ mod tests {
                 let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
                     block.replace_text_in_display_range(
-                        0..block.visible_len(),
+                        0..block.display_len(),
                         "$$",
                         None,
                         false,
                         block_cx,
                     );
-                    block.move_to(block.visible_len(), block_cx);
+                    block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                     block.on_exit_code_block(&ExitCodeBlock, window, block_cx);
                 });

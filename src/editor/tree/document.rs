@@ -351,7 +351,7 @@ impl Document {
                     block_ref.kind(),
                     block_ref.children.clone(),
                     block_ref.kind() == BlockKind::Paragraph
-                        && block_ref.record.text.visible_text().is_empty()
+                        && block_ref.record.text.plain_text().is_empty()
                         && block_ref.children.is_empty(),
                 )
             };
@@ -458,7 +458,7 @@ impl Document {
 
     pub(crate) fn is_empty_root_paragraph(block: &Block) -> bool {
         block.kind() == BlockKind::Paragraph
-            && block.record.text.visible_text().is_empty()
+            && block.record.text.plain_text().is_empty()
             && block.children.is_empty()
     }
 
@@ -521,11 +521,11 @@ impl Document {
                 let indentation = "  ".repeat(list_depth);
                 let lang_str = language.as_ref().map(|s| s.as_ref()).unwrap_or("");
                 let fence = crate::editor::tree::serialize::safe_code_fence_with_info(
-                    &block_ref.record.text.visible_text(),
+                    &block_ref.record.text.plain_text(),
                     language.as_ref().map(|language| language.as_ref()),
                 );
                 lines.push(format!("{indentation}{fence}{lang_str}"));
-                let content = block_ref.record.text.visible_text();
+                let content = block_ref.record.text.plain_text();
                 for code_line in content.split('\n') {
                     lines.push(format!("{indentation}{code_line}"));
                 }
@@ -581,7 +581,7 @@ impl Document {
             }
             BlockKind::FootnoteDefinition => {
                 let indentation = "  ".repeat(list_depth);
-                let id = block_ref.record.text.visible_text();
+                let id = block_ref.record.text.plain_text();
                 if block_ref.children.is_empty() {
                     lines.push(format!("{indentation}[^{}]:", id));
                     return;

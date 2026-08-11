@@ -66,7 +66,7 @@ impl Editor {
             block.record.set_text(text.clone());
             block.sync_edit_mode_from_kind();
             block.sync_render_cache();
-            let plain_cursor = cursor.min(block.record.text.visible_len());
+            let plain_cursor = cursor.min(block.record.text.plain_len());
             block.selected_range = block.plain_to_display_range(plain_cursor..plain_cursor);
             block.selection_reversed = false;
             block.marked_range = None;
@@ -87,7 +87,7 @@ impl Editor {
         if block.kind() != BlockKind::Paragraph || !block.children.is_empty() {
             return false;
         }
-        let text = block.record.text.visible_text();
+        let text = block.record.text.plain_text();
         !text.trim().is_empty() && !text.contains('\n')
     }
 
@@ -138,7 +138,7 @@ impl Editor {
 
         if let Some(prev) = target {
             let heading_text = prev.read(cx).record.text.clone();
-            let cursor = heading_text.visible_len();
+            let cursor = heading_text.plain_len();
             let removed_id = block.entity_id();
             let new_paragraph = Self::new_block(cx, BlockData::paragraph(String::new()));
 
@@ -343,9 +343,9 @@ impl Editor {
         cursor: usize,
     ) -> (BlockKind, RichText, usize) {
         if kind == BlockKind::Paragraph {
-            let visible_text = text.visible_text();
+            let plain_text = text.plain_text();
             if let Some((detected_kind, prefix_len)) =
-                BlockKind::detect_markdown_shortcut(&visible_text)
+                BlockKind::detect_markdown_shortcut(&plain_text)
             {
                 text.remove_visible_prefix(prefix_len);
                 return (detected_kind, text, cursor.saturating_sub(prefix_len));

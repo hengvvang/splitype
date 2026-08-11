@@ -19,7 +19,7 @@ pub(crate) fn render_callout(
     cx: &mut Context<Block>,
 ) -> AnyElement {
     let (accent, _) = callout_colors(variant, theme);
-    let text_is_empty = block.record.text.visible_text().is_empty();
+    let text_is_empty = block.record.text.plain_text().is_empty();
     let show_static_default_label = text_is_empty && !focused;
     let header_label = SharedString::from(variant.label());
 

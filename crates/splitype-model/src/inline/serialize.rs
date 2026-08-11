@@ -552,15 +552,15 @@ fn escape_code_span_text_with_offset_map(text: &str) -> SourceOffsetMap {
     }
 
     let mut plain_to_source = vec![0; text.len() + 1];
-    for (visible, source_offset) in plain_to_source.iter_mut().enumerate() {
-        *source_offset = leading_padding + visible;
+    for (plain, source_offset) in plain_to_source.iter_mut().enumerate() {
+        *source_offset = leading_padding + plain;
     }
 
     let content_start = leading_padding;
     let content_end = leading_padding + text.len();
     let mut source_to_plain = vec![0; source.len() + 1];
-    for (source_offset, visible) in source_to_plain.iter_mut().enumerate() {
-        *visible = if source_offset <= content_start {
+    for (source_offset, plain) in source_to_plain.iter_mut().enumerate() {
+        *plain = if source_offset <= content_start {
             0
         } else if source_offset >= content_end {
             text.len()

@@ -210,7 +210,7 @@ impl Editor {
         let Some(selection) = self.tab().selection.cross_block else {
             return false;
         };
-        let last_len = last.entity.read(cx).visible_len();
+        let last_len = last.entity.read(cx).display_len();
         selection.anchor
             == CrossBlockSelectionEndpoint {
                 entity_id: first.entity.entity_id(),
@@ -233,7 +233,7 @@ impl Editor {
         self.clear_table_axis_preview(cx);
         self.clear_table_axis_selection(cx);
         block.update(cx, |block, cx| {
-            let len = block.visible_len();
+            let len = block.display_len();
             block.selected_range = 0..len;
             block.selection_reversed = false;
             block.marked_range = None;
@@ -259,7 +259,7 @@ impl Editor {
         };
         let first_id = first.entity.entity_id();
         let last_id = last.entity.entity_id();
-        let last_len = last.entity.read(cx).visible_len();
+        let last_len = last.entity.read(cx).display_len();
 
         self.end_block_pointer_selection_sessions(cx);
         self.dismiss_contextual_overlays(cx);
@@ -403,7 +403,7 @@ impl Editor {
 
             if position.y < bounds.top() {
                 if let Some((previous, _)) = previous {
-                    let offset = previous.read(cx).visible_len();
+                    let offset = previous.read(cx).display_len();
                     return Some(CrossBlockSelectionEndpoint {
                         entity_id: previous.entity_id(),
                         offset,
@@ -428,7 +428,7 @@ impl Editor {
 
         previous.map(|(entity, _)| CrossBlockSelectionEndpoint {
             entity_id: entity.entity_id(),
-            offset: entity.read(cx).visible_len(),
+            offset: entity.read(cx).display_len(),
         })
     }
 
@@ -479,7 +479,7 @@ impl Editor {
         cx: &App,
     ) -> Option<CrossBlockSelectionEndpoint> {
         let entity = self.doc().block_entity_by_id(endpoint.entity_id)?;
-        let len = entity.read(cx).visible_len();
+        let len = entity.read(cx).display_len();
         Some(CrossBlockSelectionEndpoint {
             entity_id: endpoint.entity_id,
             offset: endpoint.offset.min(len),
@@ -495,7 +495,7 @@ impl Editor {
                     return None;
                 }
                 let block = entries.entity.read(cx);
-                let len = block.visible_len();
+                let len = block.display_len();
                 let range = if selection.start_index == selection.end_index {
                     selection.start.offset.min(len)..selection.end.offset.min(len)
                 } else if index == selection.start_index {
@@ -532,11 +532,11 @@ impl Editor {
     ) -> Option<usize> {
         let mapping = mappings.get(&endpoint.entity_id)?;
         let block = mapping.entity.read(cx);
-        let visible_len = block.visible_len();
+        let display_len = block.display_len();
         if endpoint.offset == 0 {
             return Some(mapping.full_source_range.start);
         }
-        if endpoint.offset >= visible_len {
+        if endpoint.offset >= display_len {
             return Some(mapping.full_source_range.end);
         }
         let source_offset = block
@@ -610,7 +610,7 @@ impl Editor {
         // whose entries index falls inside the selection so it is removed whole.
         for index in selection.start_index..=selection.end_index {
             let entity = entries.get(index)?.entity.clone();
-            if entity.read(cx).visible_len() == 0 {
+            if entity.read(cx).display_len() == 0 {
                 if let Some(range) = block_ranges.get(&entity.entity_id()) {
                     lo = lo.min(range.start);
                     hi = hi.max(range.end);
@@ -722,7 +722,7 @@ impl Editor {
         for index in selection.start_index..=selection.end_index {
             let entity = entries.get(index)?.entity.clone();
             let block = entity.read(cx);
-            let len = block.visible_len();
+            let len = block.display_len();
             let range = if selection.start_index == selection.end_index {
                 selection.start.offset.min(len)..selection.end.offset.min(len)
             } else if index == selection.start_index {
@@ -1079,7 +1079,7 @@ mod tests {
         editor.update(&mut cx, |editor, cx| {
             let entries = editor.doc().blocks().to_vec();
             assert_eq!(entries.len(), 3);
-            let end_len = entries[2].entity.read(cx).visible_len();
+            let end_len = entries[2].entity.read(cx).display_len();
             set_selection(editor, 0, 0, 2, end_len, cx);
 
             assert_eq!(
@@ -1088,7 +1088,7 @@ mod tests {
             );
             for entries in entries {
                 let block = entries.entity.read(cx);
-                assert_eq!(block.editor_selection_range, Some(0..block.visible_len()));
+                assert_eq!(block.editor_selection_range, Some(0..block.display_len()));
             }
         });
         cx.quit();
@@ -1166,7 +1166,7 @@ mod tests {
         editor.update(&mut cx, |editor, cx| {
             let entries = editor.doc().blocks().to_vec();
             assert_eq!(entries.len(), 3);
-            let end_len = entries[2].entity.read(cx).visible_len();
+            let end_len = entries[2].entity.read(cx).display_len();
             // The table sits in the interior of the selection.
             set_selection(editor, 0, 0, 2, end_len, cx);
             assert!(editor.delete_cross_block_selection(cx));
@@ -1214,7 +1214,7 @@ mod tests {
         editor.update(&mut cx, |editor, cx| {
             let entries = editor.doc().blocks().to_vec();
             assert_eq!(entries.len(), 3);
-            let alpha_len = entries[0].entity.read(cx).visible_len();
+            let alpha_len = entries[0].entity.read(cx).display_len();
             // Drag from the end of the paragraph above onto the table: only the
             // table is removed, and re-parse normalizes the spacing.
             set_selection(editor, 0, alpha_len, 1, 0, cx);
@@ -1237,7 +1237,7 @@ mod tests {
         editor.update(&mut cx, |editor, cx| {
             let entries = editor.doc().blocks().to_vec();
             assert_eq!(entries.len(), 3);
-            let end_len = entries[2].entity.read(cx).visible_len();
+            let end_len = entries[2].entity.read(cx).display_len();
             set_selection(editor, 0, 0, 2, end_len, cx);
 
             // The clipboard markdown serializes the full table, matching what
@@ -1261,14 +1261,14 @@ mod tests {
         let mut cx = TestAppContext::single();
         init_editor_test_app(&mut cx);
         // Code blocks edit their raw text, so they are deletable as an ordinary
-        // text range; this documents that visible_len-based behavior.
+        // text range; this documents that display_len-based behavior.
         let doc = "alpha\n\n```\ncode\n```\n\ngamma";
         let editor = cx.new(|cx| Editor::from_markdown(cx, doc.to_string(), None));
 
         editor.update(&mut cx, |editor, cx| {
             let entries = editor.doc().blocks().to_vec();
             assert_eq!(entries.len(), 3);
-            let end_len = entries[2].entity.read(cx).visible_len();
+            let end_len = entries[2].entity.read(cx).display_len();
             set_selection(editor, 0, 0, 2, end_len, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
@@ -1301,7 +1301,7 @@ mod tests {
 
             let entries = editor.doc().blocks().to_vec();
             assert_eq!(entries.len(), 3);
-            let alpha_len = entries[0].entity.read(cx).visible_len();
+            let alpha_len = entries[0].entity.read(cx).display_len();
             // From the end of `alpha` onto the trailing empty paragraph.
             set_selection(editor, 0, alpha_len, 2, 0, cx);
             assert!(editor.delete_cross_block_selection(cx));

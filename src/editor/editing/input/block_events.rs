@@ -344,7 +344,7 @@ impl Editor {
                 // row, so structural pastes hand every line to the importer and
                 // leave the pre-cursor text in place.
                 let structural = !*split_physical_lines;
-                let leading_empty = leading.visible_len() == 0;
+                let leading_empty = leading.plain_len() == 0;
                 let (mut first_text, tail_lines) = if structural {
                     (leading.clone(), lines.clone())
                 } else {
@@ -354,7 +354,7 @@ impl Editor {
                 };
                 if tail_lines.is_empty() {
                     first_text.append_tree(trailing.clone());
-                    let cursor = first_text.visible_len();
+                    let cursor = first_text.plain_len();
                     Self::set_block_text_and_kind(&block, current_kind, first_text, cursor, cx);
                     self.focus_block(block.entity_id());
                     if quote_related {
@@ -368,7 +368,7 @@ impl Editor {
                     return;
                 }
 
-                let cursor = first_text.visible_len();
+                let cursor = first_text.plain_len();
                 Self::set_block_text_and_kind(&block, current_kind, first_text, cursor, cx);
 
                 let Some(location) = self.doc().find_block_location(block.entity_id()) else {
@@ -384,7 +384,7 @@ impl Editor {
                 } else {
                     Self::build_blocks_from_lines(cx, &tail_lines)
                 };
-                if structural && trailing.visible_len() > 0 {
+                if structural && trailing.plain_len() > 0 {
                     inserted_roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
                 }
                 self.doc_mut().insert_blocks_at(

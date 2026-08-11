@@ -115,7 +115,7 @@ impl Block {
     }
 
     pub(crate) fn on_end(&mut self, _: &End, _window: &mut Window, cx: &mut Context<Self>) {
-        self.move_to(self.visible_len(), cx);
+        self.move_to(self.display_len(), cx);
     }
 
     pub(crate) fn on_select_left(
@@ -200,7 +200,7 @@ impl Block {
 
     fn select_all_text(&mut self, cx: &mut Context<Self>) {
         self.move_to(0, cx);
-        self.select_to(self.visible_len(), cx);
+        self.select_to(self.display_len(), cx);
     }
 
     pub(crate) fn on_select_all(
@@ -231,6 +231,6 @@ impl Block {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.select_to(self.visible_len(), cx);
+        self.select_to(self.display_len(), cx);
     }
 }

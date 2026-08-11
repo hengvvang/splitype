@@ -250,7 +250,7 @@ impl Editor {
                 let Some(block) = self.doc().first_root().cloned() else {
                     return;
                 };
-                let len = block.read(cx).visible_len();
+                let len = block.read(cx).display_len();
                 // Anchored snapshots carry a block-local caret; treat it as a
                 // raw offset into the single source block as a best effort.
                 let cursor = snapshot
@@ -277,7 +277,7 @@ impl Editor {
                     let entity_id = block.entity_id();
                     let selected_range = anchor.content_range.clone();
                     block.update(cx, move |block, cx| {
-                        let len = block.visible_len();
+                        let len = block.display_len();
                         block.selected_range =
                             selected_range.start.min(len)..selected_range.end.min(len);
                         block.selection_reversed = snapshot.reversed;

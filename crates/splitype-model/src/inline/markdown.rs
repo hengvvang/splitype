@@ -1,6 +1,6 @@
 //! Markdown-to-`RichText` parser: tokenizes inline text, matches delimiter
 //! pairs (bold, italic, links, footnotes, math, inline HTML), and rebuilds
-//! the styled fragment tree with a visible-to-normalized offset map.
+//! the styled fragment tree with an input-to-normalized offset map.
 
 use std::ops::Range;
 
@@ -39,8 +39,10 @@ pub(crate) struct ParseResult {
 }
 
 /// Builds the output fragments during normalization (marker parsing).
-/// Keeps track of the visible-to-normalized offset mapping so that
-/// selections and cursors can be mapped to the normalized tree.
+/// Keeps track of the input-to-normalized offset mapping so that
+/// selections and cursors can be mapped to the normalized tree. The input
+/// side is the normalizer's input text: Markdown when parsing, plain text
+/// when editing.
 pub struct NormalizeBuilder {
     pub(crate) fragments: Vec<InlineFragment>,
     pub(crate) visible_to_normalized: Vec<usize>,
@@ -130,7 +132,7 @@ impl NormalizeBuilder {
             .unwrap_or(0);
         let normalized_start = self.normalized_len;
         let source = math.source.clone();
-        let visible_len = source.len();
+        let plain_len = source.len();
 
         for token in tokens {
             let token_len = token.source_range.len();
@@ -140,7 +142,7 @@ impl NormalizeBuilder {
             }
         }
 
-        self.normalized_len += visible_len;
+        self.normalized_len += plain_len;
         self.fragments.push(InlineFragment {
             text: source,
             style: extra_style,
@@ -154,7 +156,7 @@ impl NormalizeBuilder {
 
 pub(crate) fn flatten_tokens(fragments: &[InlineFragment]) -> Vec<CharToken> {
     let mut tokens = Vec::new();
-    let mut visible_offset = 0;
+    let mut plain_offset = 0;
 
     for fragment in fragments {
         for ch in fragment.text.chars() {
@@ -163,9 +165,9 @@ pub(crate) fn flatten_tokens(fragments: &[InlineFragment]) -> Vec<CharToken> {
                 ch,
                 style: fragment.style,
                 html_style: fragment.html_style,
-                source_range: visible_offset..visible_offset + len,
+                source_range: plain_offset..plain_offset + len,
             });
-            visible_offset += len;
+            plain_offset += len;
         }
     }
 
@@ -509,8 +511,8 @@ pub(crate) fn parse_footnote_reference(
     }];
 
     let normalized_start = builder.normalized_len;
-    let visible_len = raw_markdown.len();
-    let normalized_end = normalized_start + visible_len;
+    let plain_len = raw_markdown.len();
+    let normalized_end = normalized_start + plain_len;
     for token in &tokens[index..=end_index] {
         let token_len = token.source_range.len();
         for delta in 0..=token_len {
@@ -568,7 +570,7 @@ pub(crate) fn parse_inline_link(
     let link = located.link;
 
     let normalized_start = builder.normalized_len;
-    let label_len = label_result.tree.visible_len();
+    let label_len = label_result.tree.plain_len();
 
     for boundary in tokens[index].source_range.start..=tokens[index].source_range.end {
         builder.visible_to_normalized[boundary] = normalized_start;

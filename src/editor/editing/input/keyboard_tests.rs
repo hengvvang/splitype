@@ -301,7 +301,7 @@ async fn empty_list_child_paragraph_backspace_outdents_to_root(cx: &mut TestAppC
                     block_cx,
                 );
                 block.replace_text_in_display_range(
-                    0..block.visible_len(),
+                    0..block.display_len(),
                     "",
                     None,
                     false,
@@ -339,7 +339,7 @@ async fn empty_list_child_paragraph_enter_continues_same_level(cx: &mut TestAppC
                     block_cx,
                 );
                 block.replace_text_in_display_range(
-                    0..block.visible_len(),
+                    0..block.display_len(),
                     "",
                     None,
                     false,
@@ -376,7 +376,7 @@ async fn enter_inside_script_paragraph_creates_new_block(cx: &mut TestAppContext
         editor.update(cx, |editor, cx| {
             let block = editor.doc().blocks()[0].entity.clone();
             block.update(cx, |block, block_cx| {
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -401,7 +401,7 @@ async fn enter_inside_inline_math_paragraph_creates_new_block(cx: &mut TestAppCo
         editor.update(cx, |editor, cx| {
             let block = editor.doc().blocks()[0].entity.clone();
             block.update(cx, |block, block_cx| {
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -430,9 +430,9 @@ async fn trailing_fence_line_enter_closes_code_block(cx: &mut TestAppContext) {
             let block = editor.doc().blocks()[0].entity.clone();
             block.update(cx, |block, block_cx| {
                 // Type a closing fence on a fresh last line, then Enter.
-                let end = block.visible_len();
+                let end = block.display_len();
                 block.replace_text_in_display_range(end..end, "\n```", None, false, block_cx);
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -463,7 +463,7 @@ async fn setext_equals_underline_enter_promotes_previous_paragraph_to_h1(cx: &mu
         editor.update(cx, |editor, cx| {
             let underline = editor.doc().blocks()[1].entity.clone();
             underline.update(cx, |block, block_cx| {
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -500,9 +500,9 @@ async fn setext_dash_underline_enter_promotes_previous_paragraph_to_h2(cx: &mut 
         editor.update(cx, |editor, cx| {
             let underline = editor.doc().blocks()[1].entity.clone();
             underline.update(cx, |block, block_cx| {
-                let end = block.visible_len();
+                let end = block.display_len();
                 block.replace_text_in_display_range(0..end, "-----", None, false, block_cx);
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -529,7 +529,7 @@ async fn dash_underline_without_heading_target_stays_a_separator(cx: &mut TestAp
             let block = editor.doc().blocks()[0].entity.clone();
             block.update(cx, |block, block_cx| {
                 block.replace_text_in_display_range(0..0, "-----", None, false, block_cx);
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -551,7 +551,7 @@ async fn equals_underline_without_heading_target_stays_a_paragraph(cx: &mut Test
             let block = editor.doc().blocks()[0].entity.clone();
             block.update(cx, |block, block_cx| {
                 block.replace_text_in_display_range(0..0, "=====", None, false, block_cx);
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -574,7 +574,7 @@ async fn delimiter_row_enter_forms_native_table(cx: &mut TestAppContext) {
         editor.update(cx, |editor, cx| {
             let delimiter = editor.doc().root_blocks()[1].clone();
             delimiter.update(cx, |block, block_cx| {
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -616,7 +616,7 @@ async fn pipe_row_below_table_is_absorbed_as_a_row(cx: &mut TestAppContext) {
         editor.update(cx, |editor, cx| {
             let delimiter = editor.doc().root_blocks()[1].clone();
             delimiter.update(cx, |block, block_cx| {
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -628,7 +628,7 @@ async fn pipe_row_below_table_is_absorbed_as_a_row(cx: &mut TestAppContext) {
             let row = editor.doc().root_blocks()[1].clone();
             row.update(cx, |block, block_cx| {
                 block.replace_text_in_display_range(0..0, "| Alice | 10 |", None, false, block_cx);
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -656,7 +656,7 @@ async fn pipeless_delimiter_row_enter_forms_native_table(cx: &mut TestAppContext
         editor.update(cx, |editor, cx| {
             let delimiter = editor.doc().root_blocks()[1].clone();
             delimiter.update(cx, |block, block_cx| {
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -685,7 +685,7 @@ async fn pipeless_row_below_table_is_absorbed_as_a_row(cx: &mut TestAppContext) 
         editor.update(cx, |editor, cx| {
             let delimiter = editor.doc().root_blocks()[1].clone();
             delimiter.update(cx, |block, block_cx| {
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -697,7 +697,7 @@ async fn pipeless_row_below_table_is_absorbed_as_a_row(cx: &mut TestAppContext) 
             let row = editor.doc().root_blocks()[1].clone();
             row.update(cx, |block, block_cx| {
                 block.replace_text_in_display_range(0..0, "Alice | 10", None, false, block_cx);
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -724,7 +724,7 @@ async fn ragged_pipeless_row_below_table_is_padded_to_width(cx: &mut TestAppCont
         editor.update(cx, |editor, cx| {
             let delimiter = editor.doc().root_blocks()[1].clone();
             delimiter.update(cx, |block, block_cx| {
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -737,7 +737,7 @@ async fn ragged_pipeless_row_below_table_is_padded_to_width(cx: &mut TestAppCont
             let row = editor.doc().root_blocks()[1].clone();
             row.update(cx, |block, block_cx| {
                 block.replace_text_in_display_range(0..0, "one | two", None, false, block_cx);
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -768,7 +768,7 @@ async fn lone_pipe_row_without_table_context_stays_a_paragraph(cx: &mut TestAppC
             let block = editor.doc().root_blocks()[0].clone();
             block.update(cx, |block, block_cx| {
                 block.replace_text_in_display_range(0..0, "| a | b |", None, false, block_cx);
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -816,13 +816,13 @@ async fn dollar_dollar_enter_creates_editable_math_block(cx: &mut TestAppContext
             let block = editor.doc().blocks()[0].entity.clone();
             block.update(cx, |block, block_cx| {
                 block.replace_text_in_display_range(
-                    0..block.visible_len(),
+                    0..block.display_len(),
                     "$$",
                     None,
                     false,
                     block_cx,
                 );
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
         });
@@ -906,13 +906,13 @@ async fn auto_created_math_block_exit_shortcut_creates_plain_text_block(cx: &mut
             let block = editor.doc().blocks()[0].entity.clone();
             block.update(cx, |block, block_cx| {
                 block.replace_text_in_display_range(
-                    0..block.visible_len(),
+                    0..block.display_len(),
                     "$$",
                     None,
                     false,
                     block_cx,
                 );
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
                 block.on_exit_code_block(&ExitCodeBlock, window, block_cx);
             });
@@ -1509,7 +1509,7 @@ async fn structural_paste_at_document_end_adds_one_trailing_paragraph(cx: &mut T
     editor.update(cx, |editor, cx| {
         let block = editor.doc().blocks()[0].entity.clone();
         block.update(cx, |block, _cx| {
-            block.selected_range = block.visible_len()..block.visible_len();
+            block.selected_range = block.display_len()..block.display_len();
         });
         editor.on_block_event(
             block,
@@ -1540,7 +1540,7 @@ async fn structural_paste_of_quote_at_document_end_adds_trailing_paragraph(
     editor.update(cx, |editor, cx| {
         let block = editor.doc().blocks()[0].entity.clone();
         block.update(cx, |block, _cx| {
-            block.selected_range = block.visible_len()..block.visible_len();
+            block.selected_range = block.display_len()..block.display_len();
         });
         editor.on_block_event(
             block,
@@ -1574,7 +1574,7 @@ async fn structural_paste_of_callout_at_document_end_adds_trailing_paragraph(
     editor.update(cx, |editor, cx| {
         let block = editor.doc().blocks()[0].entity.clone();
         block.update(cx, |block, _cx| {
-            block.selected_range = block.visible_len()..block.visible_len();
+            block.selected_range = block.display_len()..block.display_len();
         });
         editor.on_block_event(
             block,
@@ -1607,7 +1607,7 @@ async fn structural_paste_of_footnote_definition_at_document_end_adds_trailing_p
     editor.update(cx, |editor, cx| {
         let block = editor.doc().blocks()[0].entity.clone();
         block.update(cx, |block, _cx| {
-            block.selected_range = block.visible_len()..block.visible_len();
+            block.selected_range = block.display_len()..block.display_len();
         });
         editor.on_block_event(
             block,
@@ -1637,7 +1637,7 @@ async fn structural_paste_of_standalone_image_at_document_end_adds_trailing_para
     editor.update(cx, |editor, cx| {
         let block = editor.doc().blocks()[0].entity.clone();
         block.update(cx, |block, _cx| {
-            block.selected_range = block.visible_len()..block.visible_len();
+            block.selected_range = block.display_len()..block.display_len();
         });
         editor.on_block_event(
             block,
@@ -1935,7 +1935,7 @@ async fn imported_leaf_quote_backspace_twice_downgrades_to_text_block(cx: &mut T
         editor.update(cx, |editor, cx| {
             let quote = editor.doc().first_root().expect("root quote").clone();
             quote.update(cx, |block, block_cx| {
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_delete_back(&DeleteBack, window, block_cx);
             });
         });
@@ -1998,7 +1998,7 @@ async fn shortcut_created_leaf_quote_backspace_twice_downgrades_to_text_block(
         editor.update(cx, |editor, cx| {
             let quote = editor.doc().first_root().expect("shortcut quote").clone();
             quote.update(cx, |block, block_cx| {
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
                 block.on_delete_back(&DeleteBack, window, block_cx);
             });
         });
@@ -2224,7 +2224,7 @@ async fn root_quote_enter_stays_in_same_group(cx: &mut TestAppContext) {
         editor.update(cx, |editor, cx| {
             let quote = editor.doc().first_root().expect("root quote").clone();
             quote.update(cx, |block, block_cx| {
-                block.move_to(block.visible_len(), block_cx);
+                block.move_to(block.display_len(), block_cx);
             });
             quote.update(cx, |block, block_cx| {
                 block.on_newline(&Newline, window, block_cx);

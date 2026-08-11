@@ -20,8 +20,9 @@ space they live in (`source_range`, `plain_range`, `display_range`).
 Notes:
 
 - "visible" is **not** a coordinate name. It survives only as prose in
-  comments. Planned: `RichText::visible_text/visible_len` → `plain_text`/
-  `plain_len`; `Block::visible_len` → `display_len`.
+  comments. Done: `RichText::visible_text/visible_len` → `plain_text`/
+  `plain_len`; `Block::visible_len` → `display_len`;
+  `InlineRenderCache::visible_text/visible_len` → `text()`/`len()`.
 - `source` also names the image origin concept (`ImageResolvedSource`).
   These two senses are unrelated; do not add new "source" names for other
   concepts.

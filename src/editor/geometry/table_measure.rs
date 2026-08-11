@@ -64,7 +64,7 @@ fn measure_cell_preferred_width(
     theme: &Theme,
 ) -> Pixels {
     let cache = cell.render_cache();
-    let text = cache.visible_text();
+    let text = cache.text();
     let cell_chrome_width = cell_chrome_width(theme);
     if text.is_empty() {
         return cell_chrome_width;
@@ -103,7 +103,7 @@ fn measure_cell_preferred_width(
 }
 
 fn measurement_runs(cache: &InlineRenderCache, base_run: &TextRun) -> Vec<TextRun> {
-    let mut boundaries = vec![0, cache.visible_text().len()];
+    let mut boundaries = vec![0, cache.text().len()];
     for span in cache.spans() {
         boundaries.push(span.range.start);
         boundaries.push(span.range.end);

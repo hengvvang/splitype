@@ -1,6 +1,6 @@
 //! Pre-computed view of a [`RichText`] tree optimized for rendering.
 //!
-//! The render cache flattens the fragment tree into a single visible text
+//! The render cache flattens the fragment tree into a single text
 //! string plus a list of [`InlineSpan`]s.
 
 use std::ops::Range;
@@ -12,7 +12,7 @@ use crate::inline::style::InlineStyle;
 use crate::inline::text::RichText;
 use crate::syntax::html::HtmlInlineStyle;
 
-/// A visible-text range with its associated [`InlineStyle`], used by
+/// A text range with its associated [`InlineStyle`], used by
 /// the render cache to build styled text runs for the text system.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct InlineSpan {
@@ -26,23 +26,23 @@ pub struct InlineSpan {
 
 /// Pre-computed view of an [`RichText`] optimized for rendering.
 ///
-/// Flattens the fragment tree into a visible text string plus a list of
+/// Flattens the fragment tree into a text string plus a list of
 /// [`InlineSpan`]s.
 #[derive(Clone, Debug, Default)]
 pub struct InlineRenderCache {
-    visible_text: String,
+    text: String,
     spans: Vec<InlineSpan>,
 }
 
 impl InlineRenderCache {
     pub fn from_tree(tree: &RichText) -> Self {
-        let mut visible_text = String::new();
+        let mut text = String::new();
         let mut spans = Vec::new();
-        let mut visible_offset = 0;
+        let mut plain_offset = 0;
 
         for fragment in &tree.fragments {
-            let fragment_start = visible_offset;
-            visible_text.push_str(&fragment.text);
+            let fragment_start = plain_offset;
+            text.push_str(&fragment.text);
             let fragment_len = fragment.text.len();
             if fragment_len > 0 {
                 spans.push(InlineSpan {
@@ -58,25 +58,25 @@ impl InlineRenderCache {
                 });
             }
 
-            visible_offset += fragment_len;
+            plain_offset += fragment_len;
         }
 
         Self {
-            visible_text,
+            text,
             spans,
         }
     }
 
-    pub fn visible_text(&self) -> &str {
-        &self.visible_text
+    pub fn text(&self) -> &str {
+        &self.text
     }
 
     pub fn spans(&self) -> &[InlineSpan] {
         &self.spans
     }
 
-    pub fn visible_len(&self) -> usize {
-        self.visible_text.len()
+    pub fn len(&self) -> usize {
+        self.text.len()
     }
 
     pub fn style_at(&self, offset: usize) -> InlineStyle {

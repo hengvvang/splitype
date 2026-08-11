@@ -99,7 +99,7 @@ impl Block {
 
         if self.kind() == BlockKind::Paragraph
             && self.selected_range.is_empty()
-            && self.cursor_offset() == self.visible_len()
+            && self.cursor_offset() == self.display_len()
             && BlockKind::parse_thematic_break_line(self.display_text())
             // A dash run is also a setext underline; defer it to the editor so a
             // preceding paragraph can become a heading (the editor falls back to
@@ -131,7 +131,7 @@ impl Block {
 
         if self.kind() == BlockKind::Paragraph
             && self.selected_range.is_empty()
-            && self.cursor_offset() == self.visible_len()
+            && self.cursor_offset() == self.display_len()
             && let Some(fence) = BlockKind::parse_code_fence_opening(self.display_text())
         {
             self.enter_code_block(fence.language, cx);
@@ -176,10 +176,10 @@ impl Block {
             // Typing a bare closing fence on the last line and pressing Enter
             // leaves the block, matching source mode.
             if self.selected_range.is_empty()
-                && self.cursor_offset() == self.visible_len()
+                && self.cursor_offset() == self.display_len()
                 && let Some(fence_start) = self.trailing_code_fence_line_start()
             {
-                let fence_end = self.visible_len();
+                let fence_end = self.display_len();
                 self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
                 self.replace_text_in_display_range(fence_start..fence_end, "", None, false, cx);
                 cx.emit(BlockAction::RequestNewline {
@@ -216,7 +216,7 @@ impl Block {
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.record.set_text(leading);
         self.mark_changed(cx);
-        let cursor = self.visible_len();
+        let cursor = self.display_len();
         self.assign_collapsed_selection_offset(cursor, CollapsedCaretAffinity::Default, None);
         self.marked_range = None;
         cx.emit(BlockAction::RequestNewline {
@@ -383,7 +383,7 @@ impl Block {
         cx: &mut Context<Self>,
     ) {
         if self.selected_range.is_empty() {
-            if self.cursor_offset() == self.visible_len() {
+            if self.cursor_offset() == self.display_len() {
                 // Nothing to the right in this block; defer to grapheme
                 // delete, which handles block merge and separator removal.
                 self.on_delete(&Delete, window, cx);

@@ -157,7 +157,7 @@ impl Editor {
             }
 
             definitions
-                .entry(block.record.text.visible_text().to_string())
+                .entry(block.record.text.plain_text().to_string())
                 .or_insert(entry.entity.entity_id());
         }
 
@@ -235,8 +235,8 @@ impl Editor {
         if matches!(block.kind(), BlockKind::CodeBlock { .. }) {
             return false;
         }
-        let visible_text = block.record.text.visible_text();
-        visible_text.contains("]:") || visible_text.contains("[^") || visible_text.contains("![")
+        let plain_text = block.record.text.plain_text();
+        plain_text.contains("]:") || plain_text.contains("[^") || plain_text.contains("![")
     }
 
     /// Entity ids of every block and table cell whose text could contribute

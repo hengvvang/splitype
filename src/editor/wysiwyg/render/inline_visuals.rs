@@ -106,7 +106,7 @@ impl Block {
         cx: &mut Context<Self>,
     ) -> Vec<AnyElement> {
         let cache = tree.render_cache();
-        let text = cache.visible_text();
+        let text = cache.text();
         let mut children = Vec::new();
         let mut cursor = 0usize;
 

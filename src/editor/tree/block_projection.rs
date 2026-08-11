@@ -227,7 +227,7 @@ impl Block {
         affinity: CollapsedCaretAffinity,
         preferred_x: Option<Pixels>,
     ) {
-        let clamped_offset = offset.min(self.visible_len());
+        let clamped_offset = offset.min(self.display_len());
         self.selected_range = clamped_offset..clamped_offset;
         self.selection_reversed = false;
         self.vertical_motion_x = preferred_x;
@@ -309,7 +309,7 @@ impl Block {
 
     pub(crate) fn display_range_to_source_range(&self, range: Range<usize>) -> Range<usize> {
         if self.uses_raw_text_editing() || self.kind().is_code_block() {
-            return range.start.min(self.visible_len())..range.end.min(self.visible_len());
+            return range.start.min(self.display_len())..range.end.min(self.display_len());
         }
 
         if let Some(link_run) = self.projected_link_run_fully_covering_range(&range) {
@@ -361,7 +361,7 @@ impl Block {
 
     pub(crate) fn source_range_to_display_range(&self, range: Range<usize>) -> Range<usize> {
         if self.uses_raw_text_editing() || self.kind().is_code_block() {
-            let len = self.visible_len();
+            let len = self.display_len();
             return range.start.min(len)..range.end.min(len);
         }
 
@@ -436,8 +436,8 @@ impl Block {
         }
 
         if !self.uses_raw_text_editing() && self.kind() == BlockKind::Paragraph {
-            let visible_text = next_text.visible_text();
-            if let Some((kind, prefix_len)) = BlockKind::detect_markdown_shortcut(&visible_text) {
+            let plain_text = next_text.plain_text();
+            if let Some((kind, prefix_len)) = BlockKind::detect_markdown_shortcut(&plain_text) {
                 next_text.remove_visible_prefix(prefix_len);
                 return (
                     kind,
@@ -449,9 +449,9 @@ impl Block {
         }
 
         if !self.uses_raw_text_editing() && self.kind() == BlockKind::BulletListItem {
-            let visible_text = next_text.visible_text();
+            let plain_text = next_text.plain_text();
             if let Some((checked, prefix_len)) =
-                BlockKind::parse_task_list_item_prefix(&visible_text)
+                BlockKind::parse_task_list_item_prefix(&plain_text)
             {
                 next_text.remove_visible_prefix(prefix_len);
                 return (
@@ -591,12 +591,12 @@ impl Block {
             self.sync_edit_mode_from_kind();
             self.sync_render_cache();
 
-            let replacement_visible_len = replacement_fragments
+            let replacement_plain_len = replacement_fragments
                 .iter()
                 .map(|fragment| fragment.text.len())
                 .sum::<usize>();
             let selected_plain =
-                replacement_clean_start..replacement_clean_start + replacement_visible_len;
+                replacement_clean_start..replacement_clean_start + replacement_plain_len;
             self.rebuild_inline_projection(selected_plain.clone(), None);
 
             let local_selected = selected_range_relative.clone().unwrap_or_else(|| {
@@ -848,7 +848,7 @@ impl Block {
     ) {
         let old_kind = self.record.kind.clone();
         let old_text = self.record.text.clone();
-        let old_text_was_empty = old_text.visible_text().is_empty();
+        let old_text_was_empty = old_text.plain_text().is_empty();
         let mut collapsed_affinity = self.display_collapsed_caret_affinity();
         let keep_projection =
             self.projection.is_some() && self.edit_mode.supports_inline_projection();
@@ -1157,7 +1157,7 @@ impl Block {
             }
         }
 
-        let base_visible_len = base_text.visible_text().len();
+        let base_plain_len = base_text.plain_text().len();
         let replaced_text = self.display_text()[display_range.clone()].to_string();
         let result = if self.uses_raw_text_editing() {
             base_text.replace_visible_range_raw(
@@ -1176,18 +1176,18 @@ impl Block {
 
         // A span was closed when re-parsing absorbed delimiters into a style,
         // leaving the plain text shorter than expected. Skip IME and deletions.
-        let expected_visible_len =
-            base_visible_len.saturating_sub(plain_range.len()) + new_text.len();
+        let expected_plain_len =
+            base_plain_len.saturating_sub(plain_range.len()) + new_text.len();
         let caret_may_have_closed_span = !self.uses_raw_text_editing()
             && !new_text.is_empty()
             && !mark_inserted_text
-            && result.tree.visible_text().len() < expected_visible_len;
+            && result.tree.plain_text().len() < expected_plain_len;
         let quote_structure_edit = !self.uses_raw_text_editing()
             && self.quote_depth > 0
             && (new_text.contains('\n')
                 || replaced_text.contains('\n')
                 || (self.kind() == BlockKind::Blockquote
-                    && Self::multiline_quote_edit_requires_reparse(&result.tree.visible_text())));
+                    && Self::multiline_quote_edit_requires_reparse(&result.tree.plain_text())));
         if quote_structure_edit {
             self.quote_reparse_requested = true;
         }

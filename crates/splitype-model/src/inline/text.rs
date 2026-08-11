@@ -116,7 +116,7 @@ impl RichText {
         tree
     }
 
-    pub fn visible_text(&self) -> String {
+    pub fn plain_text(&self) -> String {
         let mut text = String::new();
         for fragment in &self.fragments {
             text.push_str(&fragment.text);
@@ -124,7 +124,7 @@ impl RichText {
         text
     }
 
-    pub fn visible_len(&self) -> usize {
+    pub fn plain_len(&self) -> usize {
         self.fragments
             .iter()
             .map(|fragment| fragment.text.len())
@@ -145,7 +145,7 @@ impl RichText {
     /// Whether any fragment carries an inline `[label](url)` link. Unlike
     /// reference/autolink links these are not "source preserving", but their
     /// `[...](...)` markers are still stripped from the fragment text, so an
-    /// edit that re-derives the tree from visible text alone would drop them.
+    /// edit that re-derives the tree from plain text alone would drop them.
     pub fn has_inline_links(&self) -> bool {
         self.fragments
             .iter()
@@ -208,7 +208,7 @@ impl RichText {
         }
 
         let mut output = String::new();
-        let mut plain_to_source = vec![0; self.visible_len() + 1];
+        let mut plain_to_source = vec![0; self.plain_len() + 1];
         let mut source_to_plain = vec![0];
         let mut plain_cursor = 0usize;
         let mut index = 0usize;
@@ -216,16 +216,16 @@ impl RichText {
             if let Some(footnote) = self.fragments[index].footnote.clone() {
                 let raw_markdown = footnote.raw_markdown();
                 let raw_len = raw_markdown.len();
-                let run_visible_len = self.fragments[index].text.len();
+                let run_plain_len = self.fragments[index].text.len();
                 let run_start = output.len();
                 output.push_str(&raw_markdown);
                 let run_end = output.len();
 
-                for local_plain in 0..=run_visible_len {
-                    let mapped = if run_visible_len == 0 {
+                for local_plain in 0..=run_plain_len {
+                    let mapped = if run_plain_len == 0 {
                         0
                     } else {
-                        (raw_len * local_plain) / run_visible_len
+                        (raw_len * local_plain) / run_plain_len
                     };
                     plain_to_source[plain_cursor + local_plain] = run_start + mapped;
                 }
@@ -235,12 +235,12 @@ impl RichText {
                     let mapped = if raw_len == 0 {
                         0
                     } else {
-                        (run_visible_len * local_source) / raw_len
+                        (run_plain_len * local_source) / raw_len
                     };
                     source_to_plain[run_start + local_source] = plain_cursor + mapped;
                 }
 
-                plain_cursor += run_visible_len;
+                plain_cursor += run_plain_len;
                 index += 1;
                 continue;
             }
@@ -248,12 +248,12 @@ impl RichText {
             if let Some(math) = self.fragments[index].math.clone() {
                 let raw_markdown = math.source;
                 let raw_len = raw_markdown.len();
-                let run_visible_len = self.fragments[index].text.len();
+                let run_plain_len = self.fragments[index].text.len();
                 let run_start = output.len();
                 output.push_str(&raw_markdown);
                 let run_end = output.len();
 
-                for local_plain in 0..=run_visible_len {
+                for local_plain in 0..=run_plain_len {
                     plain_to_source[plain_cursor + local_plain] =
                         run_start + local_plain.min(raw_len);
                 }
@@ -261,10 +261,10 @@ impl RichText {
                 source_to_plain.resize(run_end + 1, plain_cursor);
                 for local_source in 0..=raw_len {
                     source_to_plain[run_start + local_source] =
-                        plain_cursor + local_source.min(run_visible_len);
+                        plain_cursor + local_source.min(run_plain_len);
                 }
 
-                plain_cursor += run_visible_len;
+                plain_cursor += run_plain_len;
                 index += 1;
                 continue;
             }
@@ -281,7 +281,7 @@ impl RichText {
 
             let run_map = serialize_fragment_run_with_offset_map(&self.fragments[index..end]);
             if let Some(link) = link {
-                let run_visible_len = run_map.plain_to_source.len().saturating_sub(1);
+                let run_plain_len = run_map.plain_to_source.len().saturating_sub(1);
                 let link_start = output.len();
                 let editable_text = link.editable_text();
                 output.push_str(link.open_marker());
@@ -296,7 +296,7 @@ impl RichText {
                 let link_end = output.len();
                 let label_source_start = link_start + link.open_marker().len();
 
-                for local_plain in 0..=run_visible_len {
+                for local_plain in 0..=run_plain_len {
                     plain_to_source[plain_cursor + local_plain] =
                         label_source_start + run_map.plain_to_source_offset(local_plain);
                 }
@@ -311,23 +311,23 @@ impl RichText {
                 }
 
                 let label_source_end = label_source_start + run_map.source().len();
-                source_to_plain[label_source_end] = plain_cursor + run_visible_len;
+                source_to_plain[label_source_end] = plain_cursor + run_plain_len;
 
                 let suffix_start = label_source_end;
                 let suffix_len = link.middle_marker().map(str::len).unwrap_or(0)
                     + editable_text.as_ref().map(String::len).unwrap_or(0)
                     + link.close_marker().len();
                 for local in 0..=suffix_len {
-                    source_to_plain[suffix_start + local] = plain_cursor + run_visible_len;
+                    source_to_plain[suffix_start + local] = plain_cursor + run_plain_len;
                 }
-                plain_cursor += run_visible_len;
+                plain_cursor += run_plain_len;
             } else {
                 let run_start = output.len();
                 output.push_str(run_map.source());
                 let run_end = output.len();
 
-                let run_visible_len = run_map.plain_to_source.len().saturating_sub(1);
-                for local_plain in 0..=run_visible_len {
+                let run_plain_len = run_map.plain_to_source.len().saturating_sub(1);
+                for local_plain in 0..=run_plain_len {
                     plain_to_source[plain_cursor + local_plain] =
                         run_start + run_map.plain_to_source_offset(local_plain);
                 }
@@ -337,7 +337,7 @@ impl RichText {
                     source_to_plain[run_start + local_source] =
                         plain_cursor + run_map.source_to_plain_offset(local_source);
                 }
-                plain_cursor += run_visible_len;
+                plain_cursor += run_plain_len;
             }
 
             index = end;
@@ -351,7 +351,7 @@ impl RichText {
     }
 
     pub fn split_at(&self, offset: usize) -> (Self, Self) {
-        let clamped = offset.min(self.visible_len());
+        let clamped = offset.min(self.plain_len());
         let mut left = Vec::new();
         let mut right = Vec::new();
         let mut consumed = 0;
@@ -419,7 +419,7 @@ impl RichText {
             return InlineInsertionAttributes::default();
         }
 
-        let clamped = offset.min(self.visible_len());
+        let clamped = offset.min(self.plain_len());
         let mut consumed = 0;
 
         for (index, fragment) in self.fragments.iter().enumerate() {
@@ -510,8 +510,8 @@ impl RichText {
         inserted_attributes: InlineInsertionAttributes,
         reference_definitions: &LinkReferenceDefinitions,
     ) -> InlineEditResult {
-        let clamped_start = range.start.min(self.visible_len());
-        let clamped_end = range.end.min(self.visible_len());
+        let clamped_start = range.start.min(self.plain_len());
+        let clamped_end = range.end.min(self.plain_len());
         let (before, tail) = self.split_at(clamped_start);
         let (_, after) = tail.split_at(clamped_end.saturating_sub(clamped_start));
 
@@ -540,8 +540,8 @@ impl RichText {
         new_text: &str,
         inserted_attributes: InlineInsertionAttributes,
     ) -> InlineEditResult {
-        let clamped_start = range.start.min(self.visible_len());
-        let clamped_end = range.end.min(self.visible_len());
+        let clamped_start = range.start.min(self.plain_len());
+        let clamped_end = range.end.min(self.plain_len());
         let (before, tail) = self.split_at(clamped_start);
         let (_, after) = tail.split_at(clamped_end.saturating_sub(clamped_start));
 
@@ -558,7 +558,7 @@ impl RichText {
         }
         temp.append_tree(after);
         temp.normalize_fragments();
-        let len = temp.visible_len();
+        let len = temp.plain_len();
         InlineEditResult {
             tree: RichText::from_fragments(temp.fragments),
             visible_to_normalized: (0..=len).collect(),
@@ -573,9 +573,9 @@ impl RichText {
         &self,
         reference_definitions: &LinkReferenceDefinitions,
     ) -> InlineEditResult {
-        let visible_text = self.visible_text();
+        let plain_text = self.plain_text();
         let tokens = flatten_tokens(&self.fragments);
-        let mut builder = NormalizeBuilder::new(visible_text.len());
+        let mut builder = NormalizeBuilder::new(plain_text.len());
         let _ = parse_until(
             &tokens,
             0,
@@ -597,8 +597,8 @@ impl RichText {
             return false;
         }
 
-        let clamped_start = range.start.min(self.visible_len());
-        let clamped_end = range.end.min(self.visible_len());
+        let clamped_start = range.start.min(self.plain_len());
+        let clamped_end = range.end.min(self.plain_len());
         if clamped_start >= clamped_end {
             return false;
         }

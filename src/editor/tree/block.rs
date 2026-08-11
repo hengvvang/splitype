@@ -320,7 +320,7 @@ impl Block {
     /// Written by the tree-metadata rebuild; compared on text edits to detect
     /// kind changes that require a metadata refresh without a structural edit.
     pub fn display_text(&self) -> &str {
-        self.display_cache().visible_text()
+        self.display_cache().text()
     }
 
     /// Cheap clone of the current display text as a `SharedString` (Arc bump)
@@ -332,7 +332,7 @@ impl Block {
     }
 
     pub(crate) fn refresh_cached_display_text(&mut self) {
-        let current = self.display_cache().visible_text();
+        let current = self.display_cache().text();
         if self.cached_display_text.as_ref() != current {
             self.cached_display_text = SharedString::from(current.to_string());
         }
@@ -376,7 +376,7 @@ impl Block {
     pub(crate) fn footnote_definition_id(&self) -> Option<String> {
         self.kind()
             .is_footnote_definition()
-            .then(|| self.record.text.visible_text())
+            .then(|| self.record.text.plain_text())
     }
 
     pub(crate) fn footnote_definition_ordinal(&self) -> Option<usize> {
@@ -433,8 +433,8 @@ impl Block {
         self.kind().is_list_item() || self.parent_is_list_item
     }
 
-    pub(crate) fn visible_len(&self) -> usize {
-        self.display_cache().visible_len()
+    pub(crate) fn display_len(&self) -> usize {
+        self.display_cache().len()
     }
 
     pub(crate) fn split_text(&self, offset: usize) -> (RichText, RichText) {
@@ -632,7 +632,7 @@ impl Block {
         mark_inserted_text: bool,
         cx: &mut Context<Self>,
     ) {
-        let old_visible_len = self.record.text.visible_text().len();
+        let old_plain_len = self.record.text.plain_text().len();
         let source_range = self.display_range_to_source_range(display_range.clone());
         let mut markdown = self.record.text.serialize_markdown();
         let replaced_text = markdown[source_range.clone()].to_string();
@@ -667,7 +667,7 @@ impl Block {
             && (new_text.contains('\n')
                 || replaced_text.contains('\n')
                 || (self.kind() == BlockKind::Blockquote
-                    && Self::multiline_quote_edit_requires_reparse(&next_text.visible_text())));
+                    && Self::multiline_quote_edit_requires_reparse(&next_text.plain_text())));
         if quote_structure_edit {
             self.quote_reparse_requested = true;
         }
@@ -678,7 +678,7 @@ impl Block {
         // closing delimiter instead of landing inside the span.
         let caret_may_have_closed_span = !new_text.is_empty()
             && !mark_inserted_text
-            && next_text.visible_text().len() < old_visible_len + new_text.len();
+            && next_text.plain_text().len() < old_plain_len + new_text.len();
 
         self.apply_text_edit(
             next_text,
@@ -916,7 +916,7 @@ impl Block {
     ) -> usize {
         let Some(lines) = self.last_layout.as_ref() else {
             return if prefer_last_line {
-                self.visible_len()
+                self.display_len()
             } else {
                 0
             };
@@ -1030,8 +1030,8 @@ impl Block {
     }
 
     pub(crate) fn set_selection_from_anchor_focus(&mut self, anchor: usize, focus: usize) {
-        let clamped_anchor = anchor.min(self.visible_len());
-        let clamped_focus = focus.min(self.visible_len());
+        let clamped_anchor = anchor.min(self.display_len());
+        let clamped_focus = focus.min(self.display_len());
         self.selected_range = clamped_anchor.min(clamped_focus)..clamped_anchor.max(clamped_focus);
         self.selection_reversed = !self.selected_range.is_empty() && clamped_focus < clamped_anchor;
     }
@@ -1060,7 +1060,7 @@ impl Block {
     }
 
     pub fn select_to(&mut self, offset: usize, cx: &mut Context<Self>) {
-        let clamped_offset = offset.min(self.visible_len());
+        let clamped_offset = offset.min(self.display_len());
         if self.selection_reversed {
             self.selected_range.start = clamped_offset;
         } else {
@@ -1149,7 +1149,7 @@ impl Block {
             return 0;
         }
         if position.y > bounds.bottom() {
-            return self.visible_len();
+            return self.display_len();
         }
 
         let text = self.display_text();

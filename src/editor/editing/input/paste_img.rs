@@ -257,7 +257,7 @@ impl Editor {
         let (kind, text, cursor) = block.read_with(cx, |block, _cx| {
             let mut text = leading.clone();
             text.append_tree(Self::inserted_image_tree_for_block(block, markdown));
-            let cursor = text.visible_len();
+            let cursor = text.plain_len();
             text.append_tree(trailing.clone());
             (block.kind(), text, cursor)
         });
@@ -280,8 +280,8 @@ impl Editor {
         let Some(location) = self.doc().find_block_location(block.entity_id()) else {
             return;
         };
-        let leading_empty = leading.visible_len() == 0;
-        let trailing_empty = trailing.visible_len() == 0;
+        let leading_empty = leading.plain_len() == 0;
+        let trailing_empty = trailing.plain_len() == 0;
 
         if leading_empty {
             Self::set_block_text_and_kind(
@@ -311,7 +311,7 @@ impl Editor {
             block,
             BlockKind::Paragraph,
             leading.clone(),
-            leading.visible_len(),
+            leading.plain_len(),
             cx,
         );
         let image_block = Self::new_block(cx, BlockData::paragraph(markdown.to_string()));

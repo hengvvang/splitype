@@ -71,7 +71,7 @@ impl Block {
     }
 
     fn standalone_image_markdown_for_runtime(&self) -> Option<String> {
-        let visible = self.record.text.visible_text();
+        let visible = self.record.text.plain_text();
         if parse_standalone_image(&visible).is_some() {
             return Some(visible);
         }

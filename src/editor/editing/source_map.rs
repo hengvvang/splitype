@@ -15,7 +15,7 @@ impl Editor {
 
     pub(crate) fn is_empty_paragraph_separator(block: &Block) -> bool {
         block.kind() == BlockKind::Paragraph
-            && block.record.text.visible_text().is_empty()
+            && block.record.text.plain_text().is_empty()
             && block.children.is_empty()
     }
 

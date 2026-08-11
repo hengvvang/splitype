@@ -20,9 +20,9 @@ fn parses_headings_paragraphs_and_rules() {
     let blocks = roots("# Title\n\nbody text\n\n---\n");
     assert_eq!(blocks.len(), 3);
     assert_eq!(blocks[0].kind, BlockKind::Heading { level: 1 });
-    assert_eq!(blocks[0].text.visible_text(), "Title");
+    assert_eq!(blocks[0].text.plain_text(), "Title");
     assert_eq!(blocks[1].kind, BlockKind::Paragraph);
-    assert_eq!(blocks[1].text.visible_text(), "body text");
+    assert_eq!(blocks[1].text.plain_text(), "body text");
     assert_eq!(blocks[2].kind, BlockKind::ThematicBreak);
 }
 
@@ -32,20 +32,20 @@ fn nested_list_children_are_linked_to_their_parent() {
     let blocks = roots("- parent\n  - child\n    - grandchild\n");
     let parent = blocks
         .iter()
-        .find(|block| block.kind.is_list_item() && block.text.visible_text() == "parent")
+        .find(|block| block.kind.is_list_item() && block.text.plain_text() == "parent")
         .expect("parent list item");
     assert_eq!(parent.children.len(), 1);
 
     let child = blocks
         .iter()
-        .find(|block| block.text.visible_text() == "child")
+        .find(|block| block.text.plain_text() == "child")
         .expect("child list item");
     assert_eq!(child.parent, Some(parent.id));
     assert_eq!(child.children.len(), 1);
 
     let grandchild = blocks
         .iter()
-        .find(|block| block.text.visible_text() == "grandchild")
+        .find(|block| block.text.plain_text() == "grandchild")
         .expect("grandchild list item");
     assert_eq!(grandchild.parent, Some(child.id));
     assert!(grandchild.children.is_empty());
@@ -57,19 +57,19 @@ fn nested_quotes_chain_as_parents_and_children() {
     let blocks = roots("> level1\n> > level2\n> > > level3\n");
     let level1 = blocks
         .iter()
-        .find(|block| block.kind == BlockKind::Blockquote && block.text.visible_text() == "level1")
+        .find(|block| block.kind == BlockKind::Blockquote && block.text.plain_text() == "level1")
         .expect("level1 quote");
     assert_eq!(level1.children.len(), 1);
 
     let level2 = blocks
         .iter()
-        .find(|block| block.text.visible_text() == "level2")
+        .find(|block| block.text.plain_text() == "level2")
         .expect("level2 quote");
     assert_eq!(level2.parent, Some(level1.id));
 
     let level3 = blocks
         .iter()
-        .find(|block| block.text.visible_text() == "level3")
+        .find(|block| block.text.plain_text() == "level3")
         .expect("level3 quote");
     assert_eq!(level3.parent, Some(level2.id));
 }
@@ -83,7 +83,7 @@ fn fenced_code_block_preserves_language() {
         panic!("expected code block, got {:?}", blocks[0].kind);
     };
     assert_eq!(language.as_deref().map(AsRef::as_ref), Some("rust"));
-    assert_eq!(blocks[0].text.visible_text(), "fn main() {}");
+    assert_eq!(blocks[0].text.plain_text(), "fn main() {}");
 }
 
 /// Tables parse into native `TableData` with header and rows.
@@ -105,7 +105,7 @@ fn inline_formatting_round_trips() {
         text.serialize_markdown(),
         "**bold** and *italic* and `code`"
     );
-    assert!(!text.visible_text().is_empty());
+    assert!(!text.plain_text().is_empty());
 }
 
 /// Raw HTML blocks preserve their source.

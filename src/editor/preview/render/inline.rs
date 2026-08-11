@@ -23,7 +23,7 @@ pub(crate) fn render_preview_inline(
     theme: &Theme,
 ) -> AnyElement {
     let cache = text.render_cache();
-    let plain = cache.visible_text();
+    let plain = cache.text();
 
     let mut elements: Vec<AnyElement> = Vec::new();
     for span in cache.spans() {

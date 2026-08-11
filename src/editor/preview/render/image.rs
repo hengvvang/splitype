@@ -20,7 +20,7 @@ pub(crate) fn render_preview_image(
     let d = &theme.dimensions;
     let t = &theme.typography;
 
-    let plain = block.record.text.visible_text();
+    let plain = block.record.text.plain_text();
     let Some(syntax) = parse_standalone_image(&plain) else {
         return paragraph::render_preview_paragraph(block, base, theme);
     };
