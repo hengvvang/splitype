@@ -8,9 +8,9 @@ mod tests {
     use gpui::{AppContext, TestAppContext};
 
     use crate::editor::controller::Editor;
-    use crate::model::parse::{BlockKind};
     use crate::model::block::CalloutKind;
     use crate::model::inline::html::HtmlCssColor;
+    use crate::model::parse::BlockKind;
 
     #[gpui::test]
     async fn imports_setext_headings_and_grouped_paragraphs(cx: &mut TestAppContext) {
@@ -334,7 +334,10 @@ mod tests {
             );
             assert_eq!(entries[4].entity.read(cx).display_text(), "dd");
             assert_eq!(entries[4].entity.read(cx).list_ordinal, Some(1));
-            assert_eq!(editor.doc().serialize_markdown(cx), "1. aa\n2. bb\n3. cc\n\n1. dd");
+            assert_eq!(
+                editor.doc().serialize_markdown(cx),
+                "1. aa\n2. bb\n3. cc\n\n1. dd"
+            );
         });
     }
 
@@ -801,23 +804,11 @@ mod tests {
                 "inner one\n\ninner two"
             );
             assert_eq!(entries[2].entity.read(cx).quote_depth, 2);
-            assert!(
-                entries[2]
-                    .entity
-                    .read(cx)
-                    .visible_quote_group_id
-                    .is_some()
-            );
+            assert!(entries[2].entity.read(cx).visible_quote_group_id.is_some());
             assert_eq!(entries[3].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[3].entity.read(cx).display_text(), "after");
             assert_eq!(entries[3].entity.read(cx).quote_depth, 1);
-            assert!(
-                entries[3]
-                    .entity
-                    .read(cx)
-                    .visible_quote_group_id
-                    .is_none()
-            );
+            assert!(entries[3].entity.read(cx).visible_quote_group_id.is_none());
             assert_eq!(editor.doc().serialize_markdown(cx), canonical_markdown);
         });
     }
@@ -851,7 +842,10 @@ mod tests {
             assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(entries[2].entity.read(cx).display_text(), "inner");
             assert_eq!(entries[2].entity.read(cx).quote_depth, 2);
-            assert_eq!(editor.doc().serialize_markdown(cx), "> outer\n> \n> > inner");
+            assert_eq!(
+                editor.doc().serialize_markdown(cx),
+                "> outer\n> \n> > inner"
+            );
         });
     }
 
@@ -955,14 +949,7 @@ mod tests {
             assert!(entries.iter().any(|entries| {
                 let block = entries.entity.read(cx);
                 block.kind() == BlockKind::FootnoteDefinition
-                    && block.display_text() == "final"
-                    && block.quote_depth == 1
-            }));
-            assert!(entries.iter().any(|entries| {
-                let block = entries.entity.read(cx);
-                block.kind() == BlockKind::Paragraph
-                    && block.display_text() == "Final footnote text with nested list:"
-                    && block.footnote_group_id.is_some()
+                    && block.display_text() == "final: Final footnote text with nested list:"
                     && block.quote_depth == 1
             }));
             assert!(
@@ -1112,7 +1099,10 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::MathBlock);
             assert_eq!(entries[1].entity.read(cx).display_text(), "x^2");
             assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Paragraph);
-            assert_eq!(editor.doc().serialize_markdown(cx), "before\n\n$$x^2$$\n\nafter");
+            assert_eq!(
+                editor.doc().serialize_markdown(cx),
+                "before\n\n$$x^2$$\n\nafter"
+            );
         });
     }
 
@@ -1453,24 +1443,22 @@ mod tests {
 
         editor.update(cx, |editor, cx| {
             let entries = editor.doc().blocks();
-            assert_eq!(entries.len(), 5);
+            assert_eq!(entries.len(), 4);
             assert_eq!(
                 entries[0].entity.read(cx).kind(),
                 BlockKind::FootnoteDefinition
             );
-            assert_eq!(entries[0].entity.read(cx).display_text(), "note");
-            assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(
-                entries[1].entity.read(cx).display_text(),
-                "Footnote text with bold"
+                entries[0].entity.read(cx).display_text(),
+                "note: Footnote text with bold"
             );
+            assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::BulletListItem);
+            assert_eq!(entries[1].entity.read(cx).display_text(), "item 1");
             assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::BulletListItem);
-            assert_eq!(entries[2].entity.read(cx).display_text(), "item 1");
-            assert_eq!(entries[3].entity.read(cx).kind(), BlockKind::BulletListItem);
-            assert_eq!(entries[3].entity.read(cx).display_text(), "item 2");
-            assert_eq!(entries[4].entity.read(cx).kind(), BlockKind::Paragraph);
+            assert_eq!(entries[2].entity.read(cx).display_text(), "item 2");
+            assert_eq!(entries[3].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(
-                entries[4].entity.read(cx).display_text(),
+                entries[3].entity.read(cx).display_text(),
                 "Second paragraph."
             );
             assert_eq!(editor.doc().serialize_markdown(cx), canonical_markdown);
@@ -1485,7 +1473,7 @@ mod tests {
 
         editor.update(cx, |editor, cx| {
             let entries = editor.doc().blocks();
-            assert_eq!(entries.len(), 4);
+            assert_eq!(entries.len(), 3);
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(entries[0].entity.read(cx).display_text(), "outer");
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
@@ -1495,12 +1483,12 @@ mod tests {
                 entries[2].entity.read(cx).kind(),
                 BlockKind::FootnoteDefinition
             );
-            assert_eq!(entries[2].entity.read(cx).display_text(), "note");
+            assert_eq!(
+                entries[2].entity.read(cx).display_text(),
+                "note: nested footnote"
+            );
             assert_eq!(entries[2].entity.read(cx).quote_depth, 1);
-            assert_eq!(entries[3].entity.read(cx).kind(), BlockKind::Paragraph);
-            assert_eq!(entries[3].entity.read(cx).display_text(), "nested footnote");
-            assert_eq!(entries[3].entity.read(cx).quote_depth, 1);
-            assert!(entries[3].entity.read(cx).footnote_group_id.is_some());
+            assert!(entries[2].entity.read(cx).footnote_group_id.is_some());
             assert_eq!(editor.doc().serialize_markdown(cx), canonical_markdown);
         });
     }
@@ -1707,7 +1695,10 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "child text");
             assert_eq!(entries[1].entity.read(cx).render_depth, 1);
-            assert_eq!(editor.doc().serialize_markdown(cx), "- item\n\n  child text");
+            assert_eq!(
+                editor.doc().serialize_markdown(cx),
+                "- item\n\n  child text"
+            );
         });
     }
 

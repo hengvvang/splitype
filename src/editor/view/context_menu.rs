@@ -20,6 +20,14 @@ pub(crate) enum TableInsertTarget {
     Append,
 }
 
+/// Tooltip state for a hovered footnote (reference or definition header):
+/// the definition text plus the pointer position in window coordinates.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct FootnoteTooltipState {
+    pub(crate) content: SharedString,
+    pub(crate) position: Point<Pixels>,
+}
+
 /// Rendered-mode context menu currently open in the editor.
 #[derive(Clone)]
 pub(crate) enum ContextMenuState {

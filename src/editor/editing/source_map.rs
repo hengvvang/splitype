@@ -158,34 +158,76 @@ impl Editor {
         full_text.len()
     }
 
-    pub(crate) fn push_footnote_definition_head_mapping(
+    /// Pushes the single source mapping for a footnote definition block whose
+    /// display text is `{id}: {content}` and whose source is
+    /// `[^{id}]: {content}` (continuation lines indented four spaces). The id
+    /// maps into the `[^…]` label, the content maps after `]: `.
+    pub(crate) fn push_footnote_definition_full_mapping(
         block: &Entity<Block>,
         footnote_id: &str,
-        include_trailing_space: bool,
+        first_line: &str,
         quote_depth: usize,
         absolute_start: usize,
         mappings: &mut Vec<SourceTargetMapping>,
     ) -> usize {
-        let mut full_text = format!("[^{footnote_id}]:");
-        if include_trailing_space {
-            full_text.push(' ');
-        }
-
-        let mut content_to_source = vec![0; footnote_id.len() + 1];
+        let id_len = footnote_id.len();
+        let content = format!("{footnote_id}: {first_line}");
+        let mut full_text = format!("[^{footnote_id}]");
+        let mut content_to_source = vec![0; content.len() + 1];
         let mut source_to_content = vec![0; full_text.len() + 1];
+
+        // `[^` maps to the display start; the id maps inside the label.
         let id_start = 2usize;
-        for offset in 0..=footnote_id.len() {
+        for offset in 0..=id_len {
             content_to_source[offset] = id_start + offset;
         }
         for source_offset in 0..=full_text.len() {
             source_to_content[source_offset] = if source_offset <= id_start {
                 0
-            } else if source_offset >= id_start + footnote_id.len() {
-                footnote_id.len()
             } else {
-                source_offset - id_start
+                (source_offset - id_start).min(id_len)
             };
         }
+
+        // `: ` follows the label; `:` and ` ` in the display map past it.
+        let content_prefix_end = id_len + 2;
+        full_text.push_str(": ");
+        source_to_content.resize(full_text.len() + 1, id_len);
+        for index in id_start + id_len..=id_start + id_len + 1 {
+            source_to_content[index] = id_len;
+        }
+        source_to_content[id_start + id_len + 2] = id_len + 1;
+        source_to_content[id_start + id_len + 3] = id_len + 2;
+        content_to_source[id_len] = id_start + id_len;
+        content_to_source[id_len + 1] = full_text.len();
+
+        // The content part: display content[id_len+2..] ↔ source after `]: `,
+        // with each continuation line indented four spaces.
+        let mut content_offset = content_prefix_end;
+        while content_offset < content.len() {
+            content_to_source[content_offset] = full_text.len();
+            let ch = content[content_offset..]
+                .chars()
+                .next()
+                .expect("content offset should stay on char boundaries");
+            let start = full_text.len();
+            full_text.push(ch);
+            source_to_content.resize(full_text.len() + 1, content_offset);
+            for index in start..=full_text.len() {
+                source_to_content[index] = content_offset;
+            }
+            content_offset += ch.len_utf8();
+            if ch == '\n' {
+                let prefix_start = full_text.len();
+                full_text.push_str("    ");
+                source_to_content.resize(full_text.len() + 1, content_offset);
+                for index in prefix_start..=full_text.len() {
+                    source_to_content[index] = content_offset;
+                }
+            }
+        }
+        content_to_source[content.len()] = full_text.len();
+        source_to_content[full_text.len()] = content.len();
 
         let (full_text, content_to_source, source_to_content) =
             Self::wrap_source_mapping_with_quotes(
@@ -619,15 +661,13 @@ impl Editor {
                 }
             }
             BlockKind::FootnoteDefinition => {
-                let footnote_id = text.expect("footnote id").source().to_string();
-                let first_child = children.first().cloned();
-                let first_is_paragraph = first_child
-                    .as_ref()
-                    .is_some_and(|child| child.read(cx).kind() == BlockKind::Paragraph);
-                Self::push_footnote_definition_head_mapping(
+                let footnote_source = text.expect("footnote text").source().to_string();
+                let (footnote_id, first_line) =
+                    crate::model::block::footnote::split_footnote_definition_text(&footnote_source);
+                Self::push_footnote_definition_full_mapping(
                     block,
-                    &footnote_id,
-                    first_is_paragraph,
+                    footnote_id,
+                    first_line,
                     quote_depth,
                     absolute_start,
                     mappings,
@@ -637,38 +677,8 @@ impl Editor {
 
         if kind == BlockKind::FootnoteDefinition {
             let mut total_len = own_len;
-            let mut child_index = 0usize;
-            if let Some(first_child) = children.first()
-                && first_child.read(cx).kind() == BlockKind::Paragraph
-            {
-                total_len = self.push_inline_block_mapping(
-                    first_child,
-                    first_child
-                        .read(cx)
-                        .data
-                        .text
-                        .source_offset_map()
-                        .source()
-                        .to_string(),
-                    block
-                        .read(cx)
-                        .footnote_definition_id()
-                        .map(|id| format!("[^{id}]: "))
-                        .unwrap_or_else(|| "[^]: ".to_string()),
-                    "    ".to_string(),
-                    quote_depth,
-                    absolute_start,
-                    mappings,
-                );
-                child_index = 1;
-            }
-
-            let mut previous_kind = if child_index > 0 {
-                Some(BlockKind::Paragraph)
-            } else {
-                None
-            };
-            for child in children.iter().skip(child_index) {
+            let mut previous_kind = Some(BlockKind::Paragraph);
+            for child in &children {
                 let current_kind = child.read(cx).kind();
                 if total_len > 0 {
                     total_len += if previous_kind.is_none() {

@@ -12,7 +12,6 @@ pub struct FootnoteReferenceLocation {
 /// Definition block and first-reference metadata for one footnote id.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct FootnoteDefinitionBinding {
-    pub ordinal: Option<usize>,
     pub definition_entity_id: gpui::EntityId,
     pub first_reference: Option<FootnoteReferenceLocation>,
 }
@@ -29,10 +28,6 @@ impl FootnoteMap {
         self.bindings.get(id)
     }
 
-    pub fn ordinal(&self, id: &str) -> Option<usize> {
-        self.binding(id).and_then(|binding| binding.ordinal)
-    }
-
     pub fn occurrences_for_block(
         &self,
         block_id: crate::model::parse::BlockId,
@@ -45,6 +40,5 @@ impl FootnoteMap {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FootnoteResolvedOccurrence {
     pub id: String,
-    pub ordinal: Option<usize>,
     pub occurrence_index: usize,
 }

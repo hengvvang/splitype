@@ -1,4 +1,4 @@
-//! Preview footnote definition rendering — ordinal badge plus content.
+//! Preview footnote definition rendering — real-id text plus content.
 
 use gpui::*;
 
@@ -17,12 +17,6 @@ pub(crate) fn render_preview_footnote_definition(
     let d = &theme.dimensions;
     let t = &theme.typography;
 
-    let ordinal = block
-        .footnote_definition_ordinal()
-        .map(|ordinal| ordinal.to_string())
-        .unwrap_or_else(|| "?".to_string());
-    let badge_text_size = px((t.code_size - 1.0).max(10.0));
-
     let mut header = base
         .w_full()
         .flex()
@@ -31,17 +25,6 @@ pub(crate) fn render_preview_footnote_definition(
         .gap(px(d.list_marker_gap))
         .text_size(px(t.code_size))
         .text_color(c.text_quote)
-        .child(
-            div()
-                .px(px(d.footnote_badge_padding_x))
-                .py(px(d.footnote_badge_padding_y))
-                .rounded(px(999.0))
-                .bg(c.footnote_badge_bg)
-                .text_size(badge_text_size)
-                .text_color(c.footnote_badge_text)
-                .font_weight(FontWeight::SEMIBOLD)
-                .child(SharedString::from(ordinal)),
-        )
         .child(
             div()
                 .min_w(px(0.0))
@@ -57,8 +40,41 @@ pub(crate) fn render_preview_footnote_definition(
         );
 
     if block.footnote_definition_has_backref() {
-        header = header.child(div().text_color(c.footnote_backref).child("\u{21A9}"));
+        header = header.child(
+            div()
+                .text_color(c.footnote_backref)
+                .hover(|this| this.underline().text_color(c.text_link))
+                .cursor_pointer()
+                .child("\u{21A9}"),
+        );
     }
 
     header.into_any_element()
+}
+
+/// Renders the collected GitHub-style footnotes section: a top divider line
+/// followed by every footnote definition in document order.
+pub(crate) fn render_preview_footnotes_section(
+    footnotes: &[Entity<Block>],
+    theme: &Theme,
+    window: &mut Window,
+    cx: &App,
+) -> AnyElement {
+    let c = &theme.colors;
+    let d = &theme.dimensions;
+
+    let rows: Vec<AnyElement> = footnotes
+        .iter()
+        .map(|entity| super::render_preview_block(entity.read(cx), 0, 0, theme, window, cx))
+        .collect();
+
+    div()
+        .w_full()
+        .flex_shrink_0()
+        .mt(px(d.block_gap * 2.0))
+        .pt(px(8.0))
+        .border_t(px(1.0))
+        .border_color(c.footnote_border)
+        .children(rows)
+        .into_any_element()
 }

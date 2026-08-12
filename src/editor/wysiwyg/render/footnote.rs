@@ -19,12 +19,6 @@ pub(crate) fn render_footnote_definition(
     let d = &theme.dimensions;
     let t = &theme.typography;
 
-    let ordinal = block.footnote_definition_ordinal();
-    let badge = ordinal
-        .map(|ordinal| ordinal.to_string())
-        .unwrap_or_else(|| "?".to_string());
-    let badge_text_size = px((t.code_size - 1.0).max(10.0));
-
     let header = focused_base
         .w_full()
         .flex()
@@ -33,17 +27,7 @@ pub(crate) fn render_footnote_definition(
         .gap(px(d.list_marker_gap))
         .text_size(px(t.code_size))
         .text_color(c.text_quote)
-        .child(
-            div()
-                .px(px(d.footnote_badge_padding_x))
-                .py(px(d.footnote_badge_padding_y))
-                .rounded(px(999.0))
-                .bg(c.footnote_badge_bg)
-                .text_size(badge_text_size)
-                .text_color(c.footnote_badge_text)
-                .font_weight(FontWeight::SEMIBOLD)
-                .child(SharedString::from(badge)),
-        )
+        .on_hover(cx.listener(Block::on_footnote_header_hover))
         .child(
             div()
                 .min_w(px(0.0))
@@ -67,7 +51,7 @@ pub(crate) fn render_footnote_definition(
             .child(
                 div()
                     .text_color(c.footnote_backref)
-                    .hover(|this| this.text_color(c.text_link))
+                    .hover(|this| this.underline().text_color(c.text_link))
                     .cursor_pointer()
                     .on_mouse_down(
                         MouseButton::Left,

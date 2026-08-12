@@ -51,6 +51,9 @@ impl Editor {
         if *hovered {
             self.bump_scrollbar_visibility(pane_id, cx);
         } else {
+            // Pointer left the editor: dismiss the footnote tooltip so it does
+            // not linger when there is no further mouse-move to clear it.
+            self.footnote_tooltip = None;
             cx.notify();
         }
     }

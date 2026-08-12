@@ -49,12 +49,26 @@ impl Editor {
         let block_elements: Vec<AnyElement> = self
             .pane_state_ref(pane_id)
             .map(|state| {
-                state
+                let mut elements: Vec<AnyElement> = state
                     .preview
                     .blocks
                     .iter()
+                    .filter(|entity| {
+                        !matches!(entity.read(cx).kind(), BlockKind::FootnoteDefinition)
+                    })
                     .map(|entity| render_preview_block(entity.read(cx), 0, 0, theme, window, cx))
-                    .collect()
+                    .collect();
+                // Footnote definitions are collected out of the body flow and
+                // rendered as one GitHub-style section at the bottom, behind a
+                // divider line from the main content.
+                let mut footnotes: Vec<Entity<Block>> = Vec::new();
+                collect_preview_footnote_definitions(&state.preview.blocks, &mut footnotes, cx);
+                if !footnotes.is_empty() {
+                    elements.push(footnote::render_preview_footnotes_section(
+                        &footnotes, theme, window, cx,
+                    ));
+                }
+                elements
             })
             .unwrap_or_default();
 
@@ -151,10 +165,12 @@ pub(crate) fn render_preview_block(
 
     // Container blocks (blockquote, callout, list item, footnote) render their
     // own content line above; their nested children render below as indented
-    // rows, matching the flattened WYSIWYG layout.
+    // rows, matching the flattened WYSIWYG layout. Footnote definitions are
+    // excluded here as well — they are collected into the bottom section.
     let children_elements: Vec<AnyElement> = block
         .children
         .iter()
+        .filter(|child| !matches!(child.read(cx).kind(), BlockKind::FootnoteDefinition))
         .map(|child| {
             render_preview_block(
                 child.read(cx),
@@ -197,6 +213,23 @@ pub(crate) fn preview_centered_column_width(
     (available_content_width * ratio)
         .max(320.0)
         .min(available_content_width)
+}
+
+/// Collects every footnote definition block in the preview tree in document
+/// order — including definitions nested inside quotes, callouts, or lists — so
+/// the preview can render them in a single bottom section.
+fn collect_preview_footnote_definitions(
+    roots: &[Entity<Block>],
+    out: &mut Vec<Entity<Block>>,
+    cx: &App,
+) {
+    for entity in roots {
+        let block = entity.read(cx);
+        if block.kind() == BlockKind::FootnoteDefinition {
+            out.push(entity.clone());
+        }
+        collect_preview_footnote_definitions(&block.children, out, cx);
+    }
 }
 
 /// Wraps content with the quote guide lines at the given depth, mirroring

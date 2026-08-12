@@ -11,10 +11,10 @@ use gpui::*;
 
 use crate::editor::controller::Editor;
 use crate::editor::tree::block::Block;
-use crate::model::parse::{BlockId, BlockKind};
 use crate::model::block::CalloutKind;
 use crate::model::block::image::parse_standalone_image;
 use crate::model::block::table::serialize_table_markdown_lines;
+use crate::model::parse::{BlockId, BlockKind};
 
 /// A block together with its position in the flattened document (DFS) order.
 #[derive(Clone)]
@@ -583,33 +583,31 @@ impl Document {
             }
             BlockKind::FootnoteDefinition => {
                 let indentation = "  ".repeat(list_depth);
-                let id = block_ref.data.text.plain_text();
-                if block_ref.children.is_empty() {
-                    lines.push(format!("{indentation}[^{}]:", id));
+                let full_text = block_ref.data.text_markdown();
+                let (id, first_line) =
+                    crate::model::block::footnote::split_footnote_definition_text(&full_text);
+                if first_line.is_empty() && block_ref.children.is_empty() {
+                    lines.push(format!("{indentation}[^{id}]:"));
                     return;
                 }
 
-                let first_child = block_ref.children.first().cloned().expect("checked");
-                let first_is_paragraph = first_child.read(cx).kind() == BlockKind::Paragraph;
-                if first_is_paragraph {
-                    let first_text = first_child.read(cx).data.text_markdown();
-                    let mut first_lines = first_text.split('\n');
-                    let first_line = first_lines.next().unwrap_or_default();
-                    lines.push(format!("{indentation}[^{}]: {}", id, first_line));
-                    for line in first_lines {
-                        if line.is_empty() {
-                            lines.push(String::new());
-                        } else {
-                            lines.push(format!("{indentation}    {line}"));
-                        }
-                    }
-
-                    if block_ref.children.len() > 1 {
-                        lines.push(String::new());
-                        Self::collect_markdown_lines(&block_ref.children[1..], 2, cx, lines, true);
-                    }
+                let mut first_lines = first_line.split('\n');
+                let first = first_lines.next().unwrap_or_default();
+                if first.is_empty() {
+                    lines.push(format!("{indentation}[^{id}]:"));
                 } else {
-                    lines.push(format!("{indentation}[^{}]:", id));
+                    lines.push(format!("{indentation}[^{id}]: {first}"));
+                }
+                for line in first_lines {
+                    if line.is_empty() {
+                        lines.push(String::new());
+                    } else {
+                        lines.push(format!("{indentation}    {line}"));
+                    }
+                }
+
+                if !block_ref.children.is_empty() {
+                    lines.push(String::new());
                     Self::collect_markdown_lines(&block_ref.children, 2, cx, lines, true);
                 }
             }

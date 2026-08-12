@@ -32,7 +32,6 @@ use crate::editor::tree::document::BlockEntry;
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::infra::theme::{Theme, ThemeDimensions, ThemeManager};
 use crate::model::block::CalloutKind;
-use crate::ui::menu_bar::footnote_group_shell;
 
 // ── Constants ────────────────────────────────────────────────────────────
 
@@ -394,6 +393,12 @@ impl Render for Editor {
             .child(self.render_editor_bottombar(&theme, &strings, cx));
         let base = if let Some(context_menu) = self.render_context_menu_overlay(&theme, cx) {
             base.child(context_menu)
+        } else {
+            base
+        };
+        let base = if let Some(footnote_tooltip) = self.render_footnote_tooltip(&theme, window, cx)
+        {
+            base.child(footnote_tooltip)
         } else {
             base
         };
@@ -990,7 +995,8 @@ impl Editor {
                     .child(entity.clone());
                 attach_context_menu(row, entity_id).into_any_element()
             }
-            // Plain footnote group.
+            // Plain footnote group: footnote definitions render as simple text
+            // rows without the former card shell.
             (None, false) => {
                 let mut children = Vec::new();
                 let mut block_offset = plan.start;
@@ -1014,7 +1020,7 @@ impl Editor {
                     .max_w(relative(1.0))
                     .flex_shrink_0()
                     .mt(px(plan.outer_gap))
-                    .child(footnote_group_shell(children, theme, d))
+                    .children(children)
                     .into_any_element()
             }
             // Callout group (possibly with footnote subgroups inside).
@@ -1055,7 +1061,7 @@ impl Editor {
                                     .w_full()
                                     .flex_shrink_0()
                                     .mt(px(*gap))
-                                    .child(footnote_group_shell(footnote_children, theme, d))
+                                    .children(footnote_children)
                                     .into_any_element(),
                             );
                         }

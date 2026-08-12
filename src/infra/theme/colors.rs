@@ -58,15 +58,9 @@ pub struct ThemeColors {
     pub callout_caution_bg: Hsla,
     /// Caution callout accent border/text colour.
     pub callout_caution_border: Hsla,
-    /// Background of footnote definition grouping shells.
-    pub footnote_bg: Hsla,
-    /// Border colour of footnote definition grouping shells.
+    /// Border colour of the collected footnotes section divider in preview.
     pub footnote_border: Hsla,
-    /// Background of the footnote ordinal badge.
-    pub footnote_badge_bg: Hsla,
-    /// Text colour of the footnote ordinal badge.
-    pub footnote_badge_text: Hsla,
-    /// Back-reference colour inside footnote headers.
+    /// Back-reference colour inside footnote rows.
     pub footnote_backref: Hsla,
     /// Border colour of interactive task-list checkboxes.
     pub task_checkbox_border: Hsla,
@@ -230,10 +224,7 @@ struct ThemeColorsDe {
     callout_warning_border: Option<Hsla>,
     callout_caution_bg: Option<Hsla>,
     callout_caution_border: Option<Hsla>,
-    footnote_bg: Option<Hsla>,
     footnote_border: Option<Hsla>,
-    footnote_badge_bg: Option<Hsla>,
-    footnote_badge_text: Option<Hsla>,
     footnote_backref: Option<Hsla>,
     task_checkbox_border: Option<Hsla>,
     task_checkbox_bg: Option<Hsla>,
@@ -364,18 +355,9 @@ impl<'de> Deserialize<'de> for ThemeColors {
             callout_caution_border: raw
                 .callout_caution_border
                 .unwrap_or_else(|| Hsla::from(rgba(0xf87171ff))),
-            footnote_bg: raw
-                .footnote_bg
-                .unwrap_or_else(|| Hsla::from(rgba(0x212124ff))),
             footnote_border: raw
                 .footnote_border
                 .unwrap_or_else(|| Hsla::from(rgba(0x71717a52))),
-            footnote_badge_bg: raw
-                .footnote_badge_bg
-                .unwrap_or_else(|| Hsla::from(rgba(0xa1a1aa24))),
-            footnote_badge_text: raw
-                .footnote_badge_text
-                .unwrap_or_else(|| Hsla::from(rgba(0xd4d4d8cc))),
             footnote_backref: raw
                 .footnote_backref
                 .unwrap_or_else(|| Hsla::from(rgba(0xa1a1aaff))),

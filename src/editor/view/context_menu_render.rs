@@ -58,6 +58,46 @@ impl Editor {
         }
     }
 
+    /// Renders the footnote content tooltip floating near the pointer when a
+    /// footnote reference or definition header is hovered.
+    pub(crate) fn render_footnote_tooltip(
+        &self,
+        theme: &Theme,
+        window: &Window,
+        _cx: &App,
+    ) -> Option<AnyElement> {
+        let tooltip = self.footnote_tooltip.as_ref()?;
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        let origin = self.panel_rect.map(|rect| rect.origin).unwrap_or_default();
+        let left = tooltip.position.x - origin.x + px(14.0);
+        let top = tooltip.position.y - origin.y + px(18.0);
+
+        let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
+        let max_width = (viewport_width - f32::from(left)).max(160.0);
+
+        Some(
+            div()
+                .absolute()
+                .occlude()
+                .left(left)
+                .top(top)
+                .max_w(px(max_width.min(420.0)))
+                .px(px(10.0))
+                .py(px(8.0))
+                .rounded(px(d.menu_panel_radius))
+                .bg(c.dialog_surface)
+                .border(px(1.0))
+                .border_color(c.dialog_border)
+                .shadow_lg()
+                .text_size(px(d.menu_text_size))
+                .text_color(c.dialog_body)
+                .line_height(rems(theme.typography.text_line_height))
+                .child(tooltip.content.clone())
+                .into_any_element(),
+        )
+    }
+
     pub(crate) fn render_context_menu_overlay(
         &self,
         theme: &Theme,

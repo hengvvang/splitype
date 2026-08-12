@@ -7,10 +7,10 @@
 use std::ops::Range;
 use std::path::PathBuf;
 
-use gpui::{Image, Pixels, Point};
+use gpui::{Image, Pixels, Point, SharedString};
 
-use crate::model::inline::text::BlockText;
 use crate::model::block::table::TableAxisKind;
+use crate::model::inline::text::BlockText;
 
 /// Image payload extracted from GPUI's clipboard abstraction.
 ///
@@ -102,6 +102,16 @@ pub enum BlockAction {
     RequestJumpToFootnoteDefinition { id: String },
     /// Jump from an in-place footnote definition back to its first reference.
     RequestJumpToFootnoteBackref { id: String },
+    /// Show or hide the footnote content tooltip. `content` carries the
+    /// definition text when the hovered element is a definition header;
+    /// reference hovers leave it empty and the editor resolves it from the
+    /// footnote binding (no tooltip when the definition is missing).
+    RequestFootnoteTooltip {
+        id: String,
+        content: Option<SharedString>,
+        position: Point<Pixels>,
+        show: bool,
+    },
     /// Move focus horizontally across native table cells.
     RequestTableCellMoveHorizontal { delta: i32 },
     /// Move focus vertically across native table cells.

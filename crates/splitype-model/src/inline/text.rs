@@ -9,14 +9,14 @@ use std::ops::Range;
 
 use super::markdown::{NormalizeBuilder, flatten_tokens, parse_until};
 use super::serialize::{clamp_to_char_boundary, serialize_fragment_run_with_offset_map};
-use crate::inline::footnote::{InlineFootnoteReference, superscript_ordinal};
+use crate::block::link::LinkReferenceDefinitions;
+use crate::inline::footnote::InlineFootnoteReference;
+use crate::inline::html::HtmlInlineStyle;
 use crate::inline::latex::InlineLatex;
 use crate::inline::link::InlineLink;
 use crate::inline::offsets::{InlineEditResult, SourceOffsetMap};
 use crate::inline::render_cache::InlineRenderCache;
 use crate::inline::style::{InlineStyle, StyleFlag, set_style_flag, style_flag_enabled};
-use crate::inline::html::HtmlInlineStyle;
-use crate::block::link::LinkReferenceDefinitions;
 
 /// A contiguous run of text with a uniform [`InlineStyle`].
 ///
@@ -164,23 +164,23 @@ impl BlockText {
             .any(|fragment| fragment.footnote.is_some())
     }
 
+    /// Resolves footnote references against the document registry: every
+    /// reference renders as its real id (superscript) with the same style,
+    /// resolved or not; `resolve` returns the occurrence index when the id
+    /// has a definition so jumps can locate the exact reference.
     pub fn apply_footnote_reference_state(
         &mut self,
-        mut resolve: impl FnMut(&str) -> Option<(usize, usize)>,
+        mut resolve: impl FnMut(&str) -> Option<usize>,
     ) {
+        use crate::inline::style::InlineScript;
+
         for fragment in &mut self.fragments {
             let Some(footnote) = fragment.footnote.as_mut() else {
                 continue;
             };
-            if let Some((ordinal, occurrence_index)) = resolve(&footnote.id) {
-                footnote.ordinal = Some(ordinal);
-                footnote.occurrence_index = occurrence_index;
-                fragment.text = superscript_ordinal(ordinal);
-            } else {
-                footnote.ordinal = None;
-                footnote.occurrence_index = 0;
-                fragment.text = footnote.raw_markdown();
-            }
+            footnote.occurrence_index = resolve(&footnote.id).unwrap_or(0);
+            fragment.text = footnote.id.clone();
+            fragment.style.script = InlineScript::Superscript;
         }
         self.normalize_fragments();
     }

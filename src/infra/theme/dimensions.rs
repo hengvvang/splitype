@@ -59,16 +59,6 @@ pub struct ThemeDimensions {
     pub callout_header_gap: f32,
     /// Vertical margin between the callout header row and the first body row.
     pub callout_header_margin_bottom: f32,
-    /// Horizontal padding inside footnote grouping shells.
-    pub footnote_padding_x: f32,
-    /// Vertical padding inside footnote grouping shells.
-    pub footnote_padding_y: f32,
-    /// Corner radius of footnote grouping shells.
-    pub footnote_radius: f32,
-    /// Horizontal padding inside the footnote ordinal badge.
-    pub footnote_badge_padding_x: f32,
-    /// Vertical padding inside the footnote ordinal badge.
-    pub footnote_badge_padding_y: f32,
     /// Thickness of the separator block line.
     pub separator_thickness: f32,
     /// Extra horizontal inset applied to separator blocks.
@@ -263,11 +253,6 @@ struct ThemeDimensionsDe {
     callout_border_width: Option<f32>,
     callout_header_gap: Option<f32>,
     callout_header_margin_bottom: Option<f32>,
-    footnote_padding_x: Option<f32>,
-    footnote_padding_y: Option<f32>,
-    footnote_radius: Option<f32>,
-    footnote_badge_padding_x: Option<f32>,
-    footnote_badge_padding_y: Option<f32>,
     separator_thickness: Option<f32>,
     separator_inset_x: Option<f32>,
     separator_margin_y: Option<f32>,
@@ -386,11 +371,6 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             callout_border_width: raw.callout_border_width.unwrap_or(3.0),
             callout_header_gap: raw.callout_header_gap.unwrap_or(6.0),
             callout_header_margin_bottom: raw.callout_header_margin_bottom.unwrap_or(6.0),
-            footnote_padding_x: raw.footnote_padding_x.unwrap_or(10.0),
-            footnote_padding_y: raw.footnote_padding_y.unwrap_or(6.0),
-            footnote_radius: raw.footnote_radius.unwrap_or(6.0),
-            footnote_badge_padding_x: raw.footnote_badge_padding_x.unwrap_or(4.0),
-            footnote_badge_padding_y: raw.footnote_badge_padding_y.unwrap_or(1.0),
             separator_thickness: raw.separator_thickness.unwrap_or(4.0),
             separator_inset_x: raw.separator_inset_x.unwrap_or(40.0),
             separator_margin_y: raw.separator_margin_y.unwrap_or(10.0),

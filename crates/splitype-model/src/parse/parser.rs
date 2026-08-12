@@ -6,16 +6,7 @@
 //! entirely on the plain data types in `crate::block` and `crate::inline`.
 
 use crate::block::callout::CalloutKind;
-use crate::parse::data::BlockData;
-use crate::parse::fence::CodeFenceOpening;
-use crate::parse::kind::BlockKind;
-use crate::inline::text::BlockText;
-use crate::parse::indent::{
-    collect_until_blank_line, dedent_lines, display_columns, is_quote_start,
-    leading_indent_columns_and_bytes, strip_fence_indent, strip_indented_code_prefix,
-    strip_leading_columns, strip_one_quote_level,
-};
-use crate::block::footnote::parse_footnote_definition_head;
+use crate::block::footnote::{is_valid_footnote_id, parse_footnote_definition_head};
 use crate::block::html::{HtmlBlockStart, HtmlSafetyClass, parse_html_document};
 use crate::block::image::parse_standalone_image;
 use crate::block::math::parse_display_math_source;
@@ -25,6 +16,15 @@ use crate::block::table::{
     collect_table_candidate_region, is_root_table_candidate_line, is_table_candidate_line,
     parse_root_table_region, parse_table_region,
 };
+use crate::inline::text::BlockText;
+use crate::parse::data::BlockData;
+use crate::parse::fence::CodeFenceOpening;
+use crate::parse::indent::{
+    collect_until_blank_line, dedent_lines, display_columns, is_quote_start,
+    leading_indent_columns_and_bytes, strip_fence_indent, strip_indented_code_prefix,
+    strip_leading_columns, strip_one_quote_level,
+};
+use crate::parse::kind::BlockKind;
 
 // ---------------------------------------------------------------------------
 // Local types
@@ -758,15 +758,21 @@ fn collect_paragraph_block(lines: &[String], start: usize) -> (BlockData, usize)
 
 fn build_native_footnote_definition_block(lines: &[String]) -> Option<Vec<BlockData>> {
     let (id, first_line) = parse_footnote_definition_head(lines.first()?)?;
+    // A definition line can carry several `[^id]:` heads on one line
+    // (e.g. `[^a]: x [^b]: y`); split them into separate definitions. The
+    // first content line of each lives in its block text as `id: content`,
+    // so the rendered row shows the whole definition on a single editable
+    // line; remaining lines become children of the last definition.
+    let heads = split_inline_footnote_heads(id, &first_line);
     let mut body_lines = Vec::new();
-    if !first_line.is_empty() {
-        body_lines.push(first_line);
-    }
-
+    let mut seen_non_blank = false;
     for line in lines.iter().skip(1) {
         if line.trim().is_empty() {
-            body_lines.push(String::new());
+            if seen_non_blank {
+                body_lines.push(String::new());
+            }
         } else {
+            seen_non_blank = true;
             body_lines.push(
                 strip_leading_columns(line, 4)
                     .unwrap_or(line.as_str())
@@ -776,13 +782,48 @@ fn build_native_footnote_definition_block(lines: &[String]) -> Option<Vec<BlockD
     }
 
     let mut children = build_blocks_from_lines_internal(&body_lines, false);
-    let mut block = BlockData::with_plain_text(BlockKind::FootnoteDefinition, id);
-
-    attach_child_blocks(&mut block, &mut children);
-
-    let mut result = vec![block];
+    let head_count = heads.len();
+    let mut result = Vec::new();
+    for (index, (head_id, head_content)) in heads.into_iter().enumerate() {
+        let mut text = BlockText::plain(format!("{head_id}: "));
+        text.fragments
+            .extend(BlockText::from_markdown(&head_content).fragments);
+        let mut block = BlockData::new(BlockKind::FootnoteDefinition, text);
+        if index + 1 == head_count {
+            attach_child_blocks(&mut block, &mut children);
+        }
+        result.push(block);
+    }
     result.extend(children);
     Some(result)
+}
+
+/// Splits a definition head line that contains additional inline `[^id]:`
+/// heads (e.g. `[^a]: x [^b]: y`) into one `(id, content)` pair per head.
+fn split_inline_footnote_heads(id: String, first_line: &str) -> Vec<(String, String)> {
+    let mut result = Vec::new();
+    let mut current_id = id;
+    let mut rest = first_line;
+    loop {
+        let Some(open) = rest.find("[^") else {
+            result.push((current_id, rest.to_string()));
+            break;
+        };
+        let after_open = &rest[open + 2..];
+        let Some(close) = after_open.find("]:") else {
+            result.push((current_id, rest.to_string()));
+            break;
+        };
+        let next_id = &after_open[..close];
+        if !is_valid_footnote_id(next_id) {
+            result.push((current_id, rest.to_string()));
+            break;
+        }
+        result.push((current_id, rest[..open].trim_end().to_string()));
+        current_id = next_id.to_string();
+        rest = after_open[close + 2..].trim_start();
+    }
+    result
 }
 
 fn collect_quote_block(lines: &[String], start: usize) -> (Vec<BlockData>, usize) {

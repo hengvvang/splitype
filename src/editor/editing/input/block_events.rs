@@ -5,8 +5,43 @@ use gpui::*;
 
 use crate::editor::block_protocol::BlockAction;
 use crate::editor::controller::*;
+use crate::editor::view::context_menu::FootnoteTooltipState;
 
 impl Editor {
+    /// Updates the footnote content tooltip for a hovered footnote reference
+    /// or definition header. Reference hovers resolve the definition text
+    /// from the footnote binding; without a definition the tooltip hides.
+    pub(crate) fn update_footnote_tooltip(
+        &mut self,
+        id: &str,
+        content: Option<SharedString>,
+        position: Point<Pixels>,
+        show: bool,
+        cx: &mut Context<Self>,
+    ) {
+        let next = if !show {
+            None
+        } else if let Some(text) = content {
+            Some(FootnoteTooltipState {
+                content: text,
+                position,
+            })
+        } else {
+            self.tab()
+                .references
+                .footnotes
+                .binding(id)
+                .and_then(|binding| self.focusable_entity_by_id(binding.definition_entity_id))
+                .map(|entity| FootnoteTooltipState {
+                    content: entity.read(cx).data.text.plain_text().into(),
+                    position,
+                })
+        };
+        if self.footnote_tooltip != next {
+            self.footnote_tooltip = next;
+            cx.notify();
+        }
+    }
     /// Whether the given action should dismiss any active cross-block text
     /// selection (typing, structural edits, and paste all replace it).
     pub(crate) fn block_event_clears_cross_block_selection(event: &BlockAction) -> bool {
@@ -634,6 +669,14 @@ impl Editor {
             BlockAction::RequestJumpToFootnoteBackref { id } => {
                 let _ = self.jump_to_footnote_backref(id, cx);
                 cx.notify();
+            }
+            BlockAction::RequestFootnoteTooltip {
+                id,
+                content,
+                position,
+                show,
+            } => {
+                self.update_footnote_tooltip(id, content.clone(), *position, *show, cx);
             }
             BlockAction::RequestAppendTableColumn => {
                 if block.read(cx).kind() == BlockKind::Table {

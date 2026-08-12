@@ -6,10 +6,9 @@
 //! No editor or model imports: reusable UI components must stay below the
 //! application layers (see `crate::ui` module docs).
 
-use gpui::prelude::*;
-use gpui::{AnyElement, OwnedMenuItem, div, px};
+use gpui::OwnedMenuItem;
 
-use crate::infra::theme::{Theme, ThemeDimensions};
+use crate::infra::theme::ThemeDimensions;
 
 // ── Character width estimation ────────────────────────────────────────────
 
@@ -227,31 +226,10 @@ pub fn submenu_bridge_geometry<S: AsRef<str>, T: AsRef<str>>(
 
 // ── Shared chrome ─────────────────────────────────────────────────────────
 
-/// Footnote group shell shared by the editor's footnote rendering.
-pub fn footnote_group_shell(
-    children: Vec<AnyElement>,
-    theme: &Theme,
-    dimensions: &ThemeDimensions,
-) -> AnyElement {
-    div()
-        .w_full()
-        .flex_shrink_0()
-        .flex()
-        .flex_col()
-        .gap(px(0.0))
-        .px(px(dimensions.footnote_padding_x))
-        .py(px(dimensions.footnote_padding_y))
-        .rounded(px(dimensions.footnote_radius))
-        .border(px(1.0))
-        .border_color(theme.colors.footnote_border)
-        .bg(theme.colors.footnote_bg)
-        .children(children)
-        .into_any_element()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::infra::theme::Theme;
     use gpui::{OwnedMenu, OwnedMenuItem};
 
     gpui::actions!(test_ui, [DummyMenuAction]);

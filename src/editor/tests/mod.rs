@@ -16,6 +16,7 @@ use crate::infra::theme::ThemeManager;
 mod about;
 mod drop;
 mod editing;
+mod footnote_parsing;
 mod footnotes;
 mod geometry;
 mod image_handles;
@@ -113,4 +114,3 @@ fn focus_first_block(editor: &gpui::Entity<Editor>, cx: &mut gpui::VisualTestCon
 fn uniform_strides(count: usize, height: f32) -> Vec<f32> {
     vec![height; count]
 }
-

@@ -66,10 +66,7 @@ impl Theme {
                 callout_warning_border: Hsla::from(rgba(0xfb7185ff)),
                 callout_caution_bg: Hsla::from(rgba(0xdc26261f)),
                 callout_caution_border: Hsla::from(rgba(0xf87171ff)),
-                footnote_bg: Hsla::from(rgba(0x212124ff)),
                 footnote_border: Hsla::from(rgba(0x71717a52)),
-                footnote_badge_bg: Hsla::from(rgba(0xa1a1aa24)),
-                footnote_badge_text: Hsla::from(rgba(0xd4d4d8cc)),
                 footnote_backref: Hsla::from(rgba(0xa1a1aaff)),
                 task_checkbox_border: Hsla::from(rgba(0xffffff66)),
                 task_checkbox_bg: Hsla::from(rgba(0x00000000)),
@@ -170,11 +167,6 @@ impl Theme {
                 callout_border_width: 3.0,
                 callout_header_gap: 6.0,
                 callout_header_margin_bottom: 6.0,
-                footnote_padding_x: 10.0,
-                footnote_padding_y: 6.0,
-                footnote_radius: 6.0,
-                footnote_badge_padding_x: 4.0,
-                footnote_badge_padding_y: 1.0,
                 separator_thickness: 4.0,
                 separator_inset_x: 40.0,
                 separator_margin_y: 10.0,
@@ -322,10 +314,7 @@ impl Theme {
                 callout_warning_border: Hsla::from(rgba(0xf97316ff)),
                 callout_caution_bg: Hsla::from(rgba(0xdc262614)),
                 callout_caution_border: Hsla::from(rgba(0xdc2626ff)),
-                footnote_bg: Hsla::from(rgba(0xffffffff)),
                 footnote_border: Hsla::from(rgba(0xcbd5e1ff)),
-                footnote_badge_bg: Hsla::from(rgba(0xe2e8f0ff)),
-                footnote_badge_text: Hsla::from(rgba(0x334155ff)),
                 footnote_backref: Hsla::from(rgba(0x2563ebff)),
                 task_checkbox_border: Hsla::from(rgba(0x2b2b2bff)),
                 task_checkbox_bg: Hsla::from(rgba(0xffffffff)),
@@ -740,35 +729,14 @@ mod tests {
             .get_mut("colors")
             .and_then(|colors| colors.as_object_mut())
             .expect("theme should include colors");
-        colors.remove("footnote_bg");
         colors.remove("footnote_border");
-        colors.remove("footnote_badge_bg");
-        colors.remove("footnote_badge_text");
         colors.remove("footnote_backref");
-
-        let dimensions = object
-            .get_mut("dimensions")
-            .and_then(|dimensions| dimensions.as_object_mut())
-            .expect("theme should include dimensions");
-        dimensions.remove("footnote_padding_x");
-        dimensions.remove("footnote_padding_y");
-        dimensions.remove("footnote_radius");
-        dimensions.remove("footnote_badge_padding_x");
-        dimensions.remove("footnote_badge_padding_y");
 
         let json = serde_json::to_string(&object).expect("theme json should serialize");
         let theme = Theme::from_json(&json).expect("theme without footnote tokens should load");
 
-        assert_eq!(theme.colors.footnote_bg, rgba(0x212124ff).into());
         assert_eq!(theme.colors.footnote_border, rgba(0x71717a52).into());
-        assert_eq!(theme.colors.footnote_badge_bg, rgba(0xa1a1aa24).into());
-        assert_eq!(theme.colors.footnote_badge_text, rgba(0xd4d4d8cc).into());
         assert_eq!(theme.colors.footnote_backref, rgba(0xa1a1aaff).into());
-        assert_eq!(theme.dimensions.footnote_padding_x, 10.0);
-        assert_eq!(theme.dimensions.footnote_padding_y, 6.0);
-        assert_eq!(theme.dimensions.footnote_radius, 6.0);
-        assert_eq!(theme.dimensions.footnote_badge_padding_x, 4.0);
-        assert_eq!(theme.dimensions.footnote_badge_padding_y, 1.0);
     }
 
     #[test]
@@ -822,8 +790,6 @@ mod tests {
             rgba(0xa78bfaff).into()
         );
         assert_eq!(theme.dimensions.block_gap, 6.0);
-        assert_eq!(theme.colors.footnote_bg, rgba(0x212124ff).into());
-        assert_eq!(theme.dimensions.footnote_padding_x, 10.0);
         assert_eq!(theme.colors.code_bg, rgba(0x23272eff).into());
         assert_eq!(theme.colors.code_language_input_bg, rgba(0x343941ff).into());
         assert_eq!(

@@ -8,12 +8,12 @@
 
 use super::id::BlockId;
 use super::kind::BlockKind;
-use crate::inline::text::BlockText;
 use crate::block::html::{HtmlDocument, parse_html_document};
 use crate::block::image::parse_standalone_image;
 use crate::block::math::parse_display_math_source;
 use crate::block::mermaid::parse_mermaid_fence_source;
 use crate::block::table::TableData;
+use crate::inline::text::BlockText;
 
 /// Persistent data of a single block in the document tree.
 #[derive(Debug, Clone)]
@@ -201,7 +201,13 @@ impl BlockData {
                 format!("{indentation}> {}", variant.header_markdown(&text_markdown))
             }
             BlockKind::FootnoteDefinition => {
-                format!("{indentation}[^{}]: ", self.text.plain_text())
+                let (id, content) =
+                    crate::block::footnote::split_footnote_definition_text(&text_markdown);
+                if content.is_empty() {
+                    format!("{indentation}[^{id}]:")
+                } else {
+                    format!("{indentation}[^{id}]: {content}")
+                }
             }
             BlockKind::Table => String::new(),
             BlockKind::CodeBlock { .. } => text_markdown,
@@ -295,8 +301,14 @@ mod tests {
 
     #[test]
     fn serializes_supported_block_kinds() {
-        let list = BlockData::new(BlockKind::BulletListItem, BlockText::from_markdown("*item*"));
-        let numbered = BlockData::new(BlockKind::NumberedListItem, BlockText::from_markdown("step"));
+        let list = BlockData::new(
+            BlockKind::BulletListItem,
+            BlockText::from_markdown("*item*"),
+        );
+        let numbered = BlockData::new(
+            BlockKind::NumberedListItem,
+            BlockText::from_markdown("step"),
+        );
         let task = BlockData::new(
             BlockKind::TaskListItem { checked: true },
             BlockText::from_markdown("done"),

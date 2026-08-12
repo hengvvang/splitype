@@ -505,7 +505,6 @@ pub(crate) fn parse_footnote_reference(
         link: None,
         footnote: Some(InlineFootnoteReference {
             id,
-            ordinal: None,
             occurrence_index: 0,
         }),
         math: None,

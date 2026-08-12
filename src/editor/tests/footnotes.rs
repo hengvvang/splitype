@@ -1,16 +1,40 @@
-//! Footnote numbering and reference binding.
+//! Footnote reference binding and real-id display.
 
-use gpui::{AppContext, TestAppContext};
+use gpui::{AppContext, Point, TestAppContext, px};
 
 use crate::editor::controller::Editor;
 use crate::model::parse::BlockKind;
-use crate::model::inline::footnote::superscript_ordinal;
-
 
 #[gpui::test]
-async fn root_level_footnotes_number_by_first_reference_and_render_in_place(
-    cx: &mut TestAppContext,
-) {
+async fn footnote_tooltip_resolves_definition_content_only_when_bound(cx: &mut TestAppContext) {
+    let markdown = "引用[^a]和缺失[^missing]。\n\n[^a]: A 脚注内容".to_string();
+    let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
+
+    editor.update(cx, |editor, cx| {
+        let position = Point::new(px(100.0), px(100.0));
+        // Reference with a definition resolves the definition text.
+        editor.update_footnote_tooltip("a", None, position, true, cx);
+        assert_eq!(
+            editor
+                .footnote_tooltip
+                .as_ref()
+                .map(|t| t.content.to_string()),
+            Some("a: A 脚注内容".to_string())
+        );
+        // Reference without a definition hides the tooltip.
+        editor.update_footnote_tooltip("missing", None, position, true, cx);
+        assert!(editor.footnote_tooltip.is_none());
+        // Definition headers carry their own text directly.
+        editor.update_footnote_tooltip("a", Some("a: A 脚注内容".into()), position, true, cx);
+        assert!(editor.footnote_tooltip.is_some());
+        // Hiding clears it.
+        editor.update_footnote_tooltip("a", None, position, false, cx);
+        assert!(editor.footnote_tooltip.is_none());
+    });
+}
+
+#[gpui::test]
+async fn root_level_footnotes_render_real_ids_and_keep_in_place(cx: &mut TestAppContext) {
     let markdown = [
         "Here is a footnote reference.[^1]",
         "",
@@ -63,7 +87,7 @@ async fn root_level_footnotes_number_by_first_reference_and_render_in_place(
             .clone();
         assert_eq!(
             first_ref.read(cx).display_text(),
-            format!("Here is a footnote reference.{}", superscript_ordinal(1))
+            "Here is a footnote reference.1"
         );
 
         let second_ref = entries
@@ -80,10 +104,7 @@ async fn root_level_footnotes_number_by_first_reference_and_render_in_place(
             .clone();
         assert_eq!(
             second_ref.read(cx).display_text(),
-            format!(
-                "Here is another footnote reference.{}",
-                superscript_ordinal(2)
-            )
+            "Here is another footnote reference.longnote"
         );
 
         let footnote_defs = entries
@@ -94,15 +115,13 @@ async fn root_level_footnotes_number_by_first_reference_and_render_in_place(
             })
             .collect::<Vec<_>>();
         assert_eq!(footnote_defs.len(), 2);
-        assert_eq!(footnote_defs[0].read(cx).display_text(), "1");
         assert_eq!(
-            footnote_defs[0].read(cx).footnote_definition_ordinal(),
-            Some(1)
+            footnote_defs[0].read(cx).display_text(),
+            "1: Footnote text."
         );
-        assert_eq!(footnote_defs[1].read(cx).display_text(), "longnote");
         assert_eq!(
-            footnote_defs[1].read(cx).footnote_definition_ordinal(),
-            Some(2)
+            footnote_defs[1].read(cx).display_text(),
+            "longnote: Footnote text with bold, code, and a nested list:"
         );
 
         assert_eq!(editor.doc().serialize_markdown(cx), canonical_markdown);
@@ -138,7 +157,7 @@ async fn callout_footnotes_number_and_render_in_place(cx: &mut TestAppContext) {
             .clone();
         assert_eq!(
             reference_block.read(cx).display_text(),
-            format!("Callout footnote reference.{}", superscript_ordinal(1))
+            "Callout footnote reference.final"
         );
 
         let definition = entries
@@ -147,9 +166,11 @@ async fn callout_footnotes_number_and_render_in_place(cx: &mut TestAppContext) {
             .expect("callout footnote definition")
             .entity
             .clone();
-        assert_eq!(definition.read(cx).display_text(), "final");
+        assert_eq!(
+            definition.read(cx).display_text(),
+            "final: Nested footnote text."
+        );
         assert_eq!(definition.read(cx).quote_depth, 1);
-        assert_eq!(definition.read(cx).footnote_definition_ordinal(), Some(1));
         assert_eq!(editor.doc().serialize_markdown(cx), markdown);
     });
 }
@@ -170,7 +191,7 @@ async fn root_reference_binds_to_nested_quote_footnote_definition(cx: &mut TestA
             .clone();
         assert_eq!(
             root_reference.read(cx).display_text(),
-            format!("Root reference.{}", superscript_ordinal(1))
+            "Root reference.note"
         );
 
         let definition = entries
@@ -179,27 +200,25 @@ async fn root_reference_binds_to_nested_quote_footnote_definition(cx: &mut TestA
             .expect("nested quote footnote definition")
             .entity
             .clone();
-        assert_eq!(definition.read(cx).display_text(), "note");
+        assert_eq!(
+            definition.read(cx).display_text(),
+            "note: Nested quote footnote"
+        );
         assert_eq!(definition.read(cx).quote_depth, 1);
-        assert_eq!(definition.read(cx).footnote_definition_ordinal(), Some(1));
         assert_eq!(editor.doc().serialize_markdown(cx), markdown);
     });
 }
 
 #[gpui::test]
-async fn unresolved_footnote_reference_stays_literal_and_unlinked(cx: &mut TestAppContext) {
+async fn unresolved_footnote_reference_renders_real_id_without_binding(cx: &mut TestAppContext) {
     let markdown = "Missing footnote[^missing].".to_string();
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
     editor.read_with(cx, |editor, cx| {
         let block = editor.doc().first_root().expect("root paragraph").clone();
-        assert_eq!(block.read(cx).display_text(), markdown);
-        assert!(
-            block
-                .read(cx)
-                .inline_footnote_hit_at("Missing footnote".len())
-                .is_none()
-        );
+        // The reference still renders its real id with the normal style;
+        // only the definition binding (jump target, hover content) is absent.
+        assert_eq!(block.read(cx).display_text(), "Missing footnotemissing.");
         assert!(
             editor
                 .tab()
@@ -211,4 +230,3 @@ async fn unresolved_footnote_reference_stays_literal_and_unlinked(cx: &mut TestA
         assert_eq!(editor.doc().serialize_markdown(cx), markdown);
     });
 }
-

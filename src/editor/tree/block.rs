@@ -159,6 +159,9 @@ pub struct Block {
     pub(crate) image_reference_definitions: Arc<ImageReferenceDefinitions>,
     pub(crate) link_reference_definitions: Arc<LinkReferenceDefinitions>,
     pub(crate) footnote_registry: Arc<FootnoteMap>,
+    /// Footnote id currently hovered inside this block's text (reference
+    /// hovers), used to avoid re-emitting tooltip events on every move.
+    pub(crate) hovered_footnote_id: Option<String>,
     pub(crate) list_group_separator_candidate: bool,
     pub(crate) numbered_list_restart_requested: bool,
     pub(crate) quote_reparse_requested: bool,
@@ -353,6 +356,7 @@ impl Block {
             image_reference_definitions: Arc::default(),
             link_reference_definitions: Arc::default(),
             footnote_registry: Arc::default(),
+            hovered_footnote_id: None,
             list_group_separator_candidate: false,
             numbered_list_restart_requested: false,
             quote_reparse_requested: false,
@@ -487,15 +491,13 @@ impl Block {
     }
 
     pub(crate) fn footnote_definition_id(&self) -> Option<String> {
-        self.kind()
-            .is_footnote_definition()
-            .then(|| self.data.text.plain_text())
-    }
-
-    pub(crate) fn footnote_definition_ordinal(&self) -> Option<usize> {
-        self.footnote_definition_id()
-            .as_deref()
-            .and_then(|id| self.footnote_registry.ordinal(id))
+        self.kind().is_footnote_definition().then(|| {
+            crate::model::block::footnote::split_footnote_definition_text(
+                &self.data.text.plain_text(),
+            )
+            .0
+            .to_string()
+        })
     }
 
     pub(crate) fn footnote_definition_has_backref(&self) -> bool {
@@ -694,11 +696,14 @@ impl Block {
             .unwrap_or(&[])
             .iter();
         next_text.apply_footnote_reference_state(|id| {
+            if self.footnote_registry.binding(id).is_none() {
+                return None;
+            }
             let occurrence = occurrence_iter.next()?;
             if occurrence.id != id {
                 return None;
             }
-            Some((occurrence.ordinal?, occurrence.occurrence_index))
+            Some(occurrence.occurrence_index)
         });
         if self.data.text == next_text {
             return true;
@@ -1283,7 +1288,11 @@ impl Block {
         {
             Ok(idx) | Err(idx) => idx,
         };
-        ranges[line_idx].start + offset_in_line
+        // The layout was built from the text at the last paint; if the text
+        // has since gained or lost hard line breaks (e.g. reference text was
+        // replaced), clamp to the last known hard line instead of panicking.
+        let hard_line_idx = line_idx.min(ranges.len().saturating_sub(1));
+        ranges[hard_line_idx].start + offset_in_line
     }
 
     pub(crate) fn active_range_or_cursor_bounds(&self) -> Option<Bounds<Pixels>> {

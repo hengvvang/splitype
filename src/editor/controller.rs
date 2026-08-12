@@ -28,7 +28,7 @@ pub(crate) use crate::editor::tree::document::Document;
 pub(crate) use crate::editor::tree::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
-pub(crate) use crate::editor::view::context_menu::ContextMenuState;
+pub(crate) use crate::editor::view::context_menu::{ContextMenuState, FootnoteTooltipState};
 pub(crate) use crate::editor::view::dialogs::TableInsertDialogState;
 pub(crate) use crate::model::block::image::{
     ImageReferenceDefinitions, parse_image_reference_definitions,
@@ -272,6 +272,9 @@ pub struct Editor {
     /// Rendered-mode context menu currently open in the editor.
     pub(crate) context_menu: Option<ContextMenuState>,
     pub(crate) context_menu_submenu_close_task: Option<Task<()>>,
+    /// Footnote content tooltip shown while the pointer hovers a footnote
+    /// reference or definition header.
+    pub(crate) footnote_tooltip: Option<FootnoteTooltipState>,
     /// Table insertion dialog opened from the context menu.
     pub(crate) table_insert_dialog: Option<TableInsertDialogState>,
     /// Timestamp of the last welcome-prompt click, used to detect a
@@ -465,6 +468,7 @@ impl Editor {
             outline: OutlinePanelState::default(),
             context_menu: None,
             context_menu_submenu_close_task: None,
+            footnote_tooltip: None,
             table_insert_dialog: None,
             welcome_last_click: None,
             focused_pane: None,
@@ -494,6 +498,7 @@ impl Editor {
             outline: OutlinePanelState::default(),
             context_menu: None,
             context_menu_submenu_close_task: None,
+            footnote_tooltip: None,
             table_insert_dialog: None,
             welcome_last_click: None,
             focused_pane: None,

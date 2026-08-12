@@ -79,15 +79,9 @@
       "callout_caution_bg": null,
       // Accent border and icon color for CAUTION callout blocks.
       "callout_caution_border": null,
-      // Background of footnote definition grouping shells.
-      "footnote_bg": null,
-      // Border color of footnote definition grouping shells.
+      // Border color of the collected footnotes section divider in preview.
       "footnote_border": null,
-      // Background of the footnote ordinal badge.
-      "footnote_badge_bg": null,
-      // Text color of the footnote ordinal badge.
-      "footnote_badge_text": null,
-      // Back-reference link color inside footnote headers.
+      // Back-reference link color inside footnote rows.
       "footnote_backref": null,
       // Border color of interactive task-list checkboxes.
       "task_checkbox_border": null,
@@ -261,16 +255,6 @@
       "callout_header_gap": null,
       // Margin between a callout header and its first body row.
       "callout_header_margin_bottom": null,
-      // Horizontal padding inside footnote grouping shells.
-      "footnote_padding_x": null,
-      // Vertical padding inside footnote grouping shells.
-      "footnote_padding_y": null,
-      // Corner radius of footnote grouping shells.
-      "footnote_radius": null,
-      // Horizontal padding inside footnote ordinal badges.
-      "footnote_badge_padding_x": null,
-      // Vertical padding inside footnote ordinal badges.
-      "footnote_badge_padding_y": null,
       // Thickness of separator block lines.
       "separator_thickness": null,
       // Horizontal inset applied to separator block lines.

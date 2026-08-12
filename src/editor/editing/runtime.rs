@@ -156,7 +156,13 @@ impl Editor {
             }
 
             definitions
-                .entry(block.data.text.plain_text().to_string())
+                .entry(
+                    crate::model::block::footnote::split_footnote_definition_text(
+                        &block.data.text.plain_text(),
+                    )
+                    .0
+                    .to_string(),
+                )
                 .or_insert(entry.entity.entity_id());
         }
 
@@ -165,14 +171,12 @@ impl Editor {
             bindings.insert(
                 id,
                 FootnoteDefinitionBinding {
-                    ordinal: None,
                     definition_entity_id: entity_id,
                     first_reference: None,
                 },
             );
         }
 
-        let mut next_ordinal = 1usize;
         let mut occurrence_index = 0usize;
         let mut block_occurrences = HashMap::<BlockId, Vec<FootnoteResolvedOccurrence>>::new();
         for entry in entries {
@@ -182,33 +186,21 @@ impl Editor {
                 let Some(footnote) = fragment.footnote.as_ref() else {
                     continue;
                 };
-                let ordinal = if let Some(binding) = bindings.get_mut(&footnote.id) {
-                    if binding.ordinal.is_none() {
-                        binding.ordinal = Some(next_ordinal);
-                        next_ordinal += 1;
-                    }
-                    if binding.first_reference.is_none() {
-                        binding.first_reference = Some(FootnoteReferenceLocation {
-                            entity_id: entry.entity.entity_id(),
-                            occurrence_index,
-                        });
-                    }
-                    binding.ordinal
-                } else {
-                    None
-                };
+                if let Some(binding) = bindings.get_mut(&footnote.id)
+                    && binding.first_reference.is_none()
+                {
+                    binding.first_reference = Some(FootnoteReferenceLocation {
+                        entity_id: entry.entity.entity_id(),
+                        occurrence_index,
+                    });
+                }
                 block_occurrences
                     .entry(block_id)
                     .or_default()
                     .push(FootnoteResolvedOccurrence {
                         id: footnote.id.clone(),
-                        ordinal,
                         occurrence_index,
                     });
-                if ordinal.is_none() {
-                    occurrence_index += 1;
-                    continue;
-                }
                 occurrence_index += 1;
             }
         }

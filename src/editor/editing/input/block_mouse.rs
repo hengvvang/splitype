@@ -189,6 +189,50 @@ impl Block {
             }
             self.select_to(self.index_for_mouse_position(event.position), cx);
         }
+
+        // Footnote reference hover: surface the definition content in a
+        // tooltip while the pointer rests on a rendered reference.
+        let hovered = self
+            .last_paint_at(event.position)
+            .and_then(|paint| {
+                crate::editor::geometry::text_layout::footnote_at_position(
+                    self,
+                    &paint.layout,
+                    paint.bounds,
+                    paint.line_height,
+                    event.position,
+                )
+            })
+            .map(|footnote| footnote.id.clone());
+        if hovered != self.hovered_footnote_id {
+            let show = hovered.is_some();
+            self.hovered_footnote_id = hovered.clone();
+            cx.emit(BlockAction::RequestFootnoteTooltip {
+                id: hovered.unwrap_or_default(),
+                content: None,
+                position: event.position,
+                show,
+            });
+        }
+    }
+
+    /// Show the definition content tooltip while the pointer hovers a
+    /// footnote definition header; hide it when the pointer leaves.
+    pub(crate) fn on_footnote_header_hover(
+        &mut self,
+        hovered: &bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.hovered_footnote_id.is_some() {
+            self.hovered_footnote_id = None;
+        }
+        cx.emit(BlockAction::RequestFootnoteTooltip {
+            id: self.footnote_definition_id().unwrap_or_default(),
+            content: (*hovered).then(|| self.data.text.plain_text().into()),
+            position: window.mouse_position(),
+            show: *hovered,
+        });
     }
 
     pub(crate) fn on_task_checkbox_mouse_down(

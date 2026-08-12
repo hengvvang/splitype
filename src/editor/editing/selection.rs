@@ -969,6 +969,7 @@ mod tests {
     use crate::editor::editing::input::actions::{Cut, Undo};
     use crate::infra::i18n::I18nManager;
     use crate::infra::theme::ThemeManager;
+    use crate::model::parse::BlockKind;
 
     fn init_editor_test_app(cx: &mut TestAppContext) {
         cx.update(|cx| {
@@ -1139,6 +1140,53 @@ mod tests {
                 let block = entries.entity.read(cx);
                 assert_eq!(block.editor_selection_range, Some(0..block.display_len()));
             }
+        });
+        cx.quit();
+    }
+
+    #[test]
+    fn cross_block_selection_with_chinese_footnote_definitions_maps_source_correctly() {
+        let mut cx = TestAppContext::single();
+        init_editor_test_app(&mut cx);
+        let editor = cx.new(|cx| {
+            Editor::from_markdown(
+                cx,
+                "正文段落测试[^note]\n\n[^note]: 脚注内容测试文字".to_string(),
+                None,
+            )
+        });
+
+        editor.update(&mut cx, |editor, cx| {
+            let entries = editor.doc().blocks().to_vec();
+            let last_index = entries.len() - 1;
+            let end_len = entries[last_index].entity.read(cx).display_len();
+            // Full-block selection including the footnote definition: the
+            // source mapping must slice the serialized source on char
+            // boundaries even with multibyte (CJK) text.
+            set_selection(editor, 0, 0, last_index, end_len, cx);
+            assert_eq!(
+                editor.cross_block_selected_markdown(cx).as_deref(),
+                Some("正文段落测试[^note]\n\n[^note]: 脚注内容测试文字")
+            );
+
+            // Partial selection inside the footnote definition row.
+            let def_index = entries
+                .iter()
+                .position(|entries| entries.entity.read(cx).kind() == BlockKind::FootnoteDefinition)
+                .expect("footnote definition");
+            // Selecting part of the id maps into the `[^…]` label.
+            set_selection(editor, def_index, 0, def_index, 4, cx);
+            assert_eq!(
+                editor.cross_block_selected_markdown(cx).as_deref(),
+                Some("[^note")
+            );
+            // Selecting part of the content maps after `]: `. Byte offsets:
+            // `note: ` is 6 bytes, each CJK char is 3 bytes.
+            set_selection(editor, def_index, 6, def_index, 18, cx);
+            assert_eq!(
+                editor.cross_block_selected_markdown(cx).as_deref(),
+                Some("脚注内容")
+            );
         });
         cx.quit();
     }
