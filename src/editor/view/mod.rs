@@ -89,22 +89,26 @@ pub(crate) fn open_discussions(cx: &mut App) {
 }
 
 use crate::editor::wysiwyg::render::layout::{
-    RowSpacingInfo, callout_colors, callout_row_top_gap, editor_text_font,
-    footnote_row_top_gap, row_top_gap,
+    RowSpacingInfo, callout_colors, callout_row_top_gap, editor_text_font, footnote_row_top_gap,
+    row_top_gap,
 };
 
 // ── Export methods ────────────────────────────────────────────────────────
 
 impl Editor {
-    fn apply_pending_focus(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(entity_id) = self.tab_mut().focus.pending.take()
+    /// Apply the pane's pending focus to the window keyboard focus. Only
+    /// the active pane's pending focus is applied — the window focus sits
+    /// in exactly one pane, and other panes' pending targets stay queued
+    /// until their pane becomes active.
+    fn apply_pending_focus(&mut self, pane_id: usize, window: &mut Window, cx: &mut Context<Self>) {
+        if let Some(entity_id) = self.pane_state(pane_id).focus.pending.take()
             && let Some(block) = self.focusable_entity_by_id(entity_id)
         {
             block.read(cx).focus_handle.focus(window);
         }
     }
 
-    fn ensure_focused_caret_visible(&mut self, window: &Window, cx: &App) -> bool {
+    fn ensure_focused_caret_visible(&mut self, pane_id: usize, window: &Window, cx: &App) -> bool {
         let Some(focused_block) = self.focused_edit_target(window, cx) else {
             return false;
         };
@@ -114,11 +118,15 @@ impl Editor {
             return false;
         };
 
-        let viewport = self.tab().scroll.handle.bounds();
+        let scroll = &self
+            .pane_state_ref(pane_id)
+            .expect("pane state exists")
+            .scroll;
+        let viewport = scroll.handle.bounds();
         let padding = px(20.0);
         let top_limit = viewport.top() + padding;
         let bottom_limit = viewport.bottom() - padding;
-        let mut offset = self.tab().scroll.handle.offset();
+        let mut offset = scroll.handle.offset();
         let mut changed = false;
 
         if active_bounds.top() < top_limit {
@@ -130,47 +138,65 @@ impl Editor {
         }
 
         if changed {
-            let max_offset_y = self.tab().scroll.handle.max_offset().height.max(px(0.0));
+            let max_offset_y = scroll.handle.max_offset().height.max(px(0.0));
             offset.y = offset.y.min(px(0.0)).max(-max_offset_y);
-            self.tab().scroll.handle.set_offset(offset);
+            let scroll = &mut self.pane_state(pane_id).scroll;
+            scroll.handle.set_offset(offset);
         }
 
         true
     }
 
-    fn apply_pending_scroll_into_view(&mut self, window: &Window, cx: &mut Context<Self>) {
-        if self.tab().scroll.scrollbar_drag.is_some() {
+    fn apply_pending_scroll_into_view(
+        &mut self,
+        pane_id: usize,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self
+            .pane_state_ref(pane_id)
+            .is_none_or(|state| state.scroll.scrollbar_drag.is_some())
+        {
             return;
         }
 
-        if !self.tab().focus.pending_scroll_active_block_into_view {
+        if !self
+            .pane_state_ref(pane_id)
+            .is_some_and(|state| state.focus.pending_scroll_active_block_into_view)
+        {
             return;
         }
 
         // scroll_to_item indexed children by position, which the spacers break;
         // the focused block is always mounted, so pixel math on its bounds works.
-        let has_bounds = self.ensure_focused_caret_visible(window, cx);
-        if self.tab().focus.pending_scroll_recheck_after_layout {
-            self.tab_mut().focus.pending_scroll_recheck_after_layout = false;
-            self.schedule_scroll_recheck(cx);
+        let has_bounds = self.ensure_focused_caret_visible(pane_id, window, cx);
+        if self
+            .pane_state_ref(pane_id)
+            .is_some_and(|state| state.focus.pending_scroll_recheck_after_layout)
+        {
+            let state = self.pane_state(pane_id);
+            state.focus.pending_scroll_recheck_after_layout = false;
+            self.schedule_scroll_recheck(pane_id, cx);
             return;
         }
 
         if !has_bounds {
-            self.schedule_scroll_recheck(cx);
+            self.schedule_scroll_recheck(pane_id, cx);
             return;
         }
 
-        self.tab_mut().focus.pending_scroll_active_block_into_view = false;
-        self.tab_mut().scroll.scroll_recheck_task = None;
+        let state = self.pane_state(pane_id);
+        state.focus.pending_scroll_active_block_into_view = false;
+        state.scroll.scroll_recheck_task = None;
     }
 
     /// Requests a repaint one frame out so a still-pending scroll-into-view can
     /// retry once the target block has been laid out. `cx.notify()` is swallowed
     /// when called from within `render`, so without this the retry would wait
     /// for the next external notify (e.g. the cursor blink, ~0.5s later).
-    fn schedule_scroll_recheck(&mut self, cx: &mut Context<Self>) {
-        self.tab_mut().scroll.scroll_recheck_task =
+    fn schedule_scroll_recheck(&mut self, pane_id: usize, cx: &mut Context<Self>) {
+        let state = self.pane_state(pane_id);
+        state.scroll.scroll_recheck_task =
             Some(cx.spawn(async move |this: WeakEntity<Self>, cx| {
                 cx.background_executor()
                     .timer(Duration::from_millis(16))
@@ -231,15 +257,25 @@ impl Editor {
         }
     }
 
-    fn sync_scroll_viewport(&mut self, viewport_size: Size<Pixels>, cx: &mut Context<Self>) {
-        match self.tab().scroll.last_viewport_size {
+    fn sync_scroll_viewport(
+        &mut self,
+        pane_id: usize,
+        viewport_size: Size<Pixels>,
+        cx: &mut Context<Self>,
+    ) {
+        let previous = self
+            .pane_state_ref(pane_id)
+            .and_then(|state| state.scroll.last_viewport_size);
+        match previous {
             Some(previous) if Self::viewport_size_changed(previous, viewport_size) => {
-                self.tab_mut().scroll.last_viewport_size = Some(viewport_size);
-                self.request_active_block_scroll_into_view(cx);
+                let state = self.pane_state(pane_id);
+                state.scroll.last_viewport_size = Some(viewport_size);
+                self.request_active_block_scroll_into_view(pane_id, cx);
             }
             Some(_) => {}
             None => {
-                self.tab_mut().scroll.last_viewport_size = Some(viewport_size);
+                let state = self.pane_state(pane_id);
+                state.scroll.last_viewport_size = Some(viewport_size);
             }
         }
     }
@@ -263,8 +299,12 @@ impl Render for Editor {
         // to this editor's own session.
 
         if self.has_active_tab() {
-            self.apply_pending_focus(window, cx);
-            self.apply_pending_scroll_into_view(window, cx);
+            // The window keyboard focus sits in exactly one pane; pending
+            // focus and scroll-into-view apply to the active pane here (and
+            // again inside its document view once layout is measurable).
+            let active_pane = self.active_pane_id();
+            self.apply_pending_focus(active_pane, window, cx);
+            self.apply_pending_scroll_into_view(active_pane, window, cx);
             self.tab_mut().undo.last_selection_snapshot =
                 self.capture_source_selection_snapshot(cx);
             self.sync_pending_save(window, cx);
@@ -379,28 +419,39 @@ impl Editor {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let panel_id = self.panel_id;
-        let viewport_bounds = self.tab().scroll.handle.bounds();
         // A tab that has never been rendered has an unbound scroll handle
         // (0×0 bounds). Window the first frame against the window viewport
         // instead of a 1px sliver, so the switch shows a full screen of rows
         // immediately; `track_scroll` binds the real bounds during layout
         // and later frames use them.
+        let viewport_bounds = self
+            .pane_state_ref(pane_id)
+            .map(|state| state.scroll.handle.bounds())
+            .unwrap_or_default();
         let viewport_size =
             if viewport_bounds.size.width == px(0.0) || viewport_bounds.size.height == px(0.0) {
                 window.viewport_size()
             } else {
                 viewport_bounds.size
             };
-        self.apply_pending_focus(window, cx);
-        self.apply_pending_scroll_into_view(window, cx);
-        self.sync_scroll_viewport(viewport_size, cx);
+        // The window keyboard focus sits in exactly one pane, so pending
+        // focus and scroll-into-view only apply to the active pane; other
+        // panes keep theirs queued until they become active.
+        if pane_id == self.active_pane_id() {
+            self.apply_pending_focus(pane_id, window, cx);
+            self.apply_pending_scroll_into_view(pane_id, window, cx);
+        }
+        self.sync_scroll_viewport(pane_id, viewport_size, cx);
 
         let theme = cx.global::<ThemeManager>().current_arc();
         let d = &theme.dimensions;
         let blocks = self.doc().blocks().to_vec();
         let editor = cx.entity().downgrade();
         let scroll_trigger_padding = (d.block_min_height * 0.75).max(16.0);
-        let max_scroll_y = f32::from(self.tab().scroll.handle.max_offset().height.max(px(0.0)));
+        let max_scroll_y = self
+            .pane_state_ref(pane_id)
+            .map(|state| f32::from(state.scroll.handle.max_offset().height.max(px(0.0))))
+            .unwrap_or(0.0);
         let viewport_height = f32::from(viewport_bounds.size.height.max(px(1.0)));
         // Extra room below the last block so the lowest line can be scrolled up
         // to the viewport center instead of being pinned to the bottom edge.
@@ -409,8 +460,10 @@ impl Editor {
         let has_overflow = max_scroll_y > 0.5;
 
         let centered_width = Self::centered_column_width(viewport_width, &theme.dimensions);
-        let current_scroll_y =
-            (-f32::from(self.tab().scroll.handle.offset().y)).clamp(0.0, max_scroll_y);
+        let current_scroll_y = self
+            .pane_state_ref(pane_id)
+            .map(|state| (-f32::from(state.scroll.handle.offset().y)).clamp(0.0, max_scroll_y))
+            .unwrap_or(0.0);
         let scrollbar_geometry =
             Self::scrollbar_geometry(viewport_height, max_scroll_y, current_scroll_y);
         let track_height = scrollbar_geometry.track_height;
@@ -418,9 +471,11 @@ impl Editor {
         let thumb_top = scrollbar_geometry.thumb_top;
 
         let show_custom_scrollbar = has_overflow
-            && (self.tab().scroll.scrollbar_drag.is_some()
-                || self.tab().scroll.scrollbar_hovered
-                || Instant::now() <= self.tab().scroll.scrollbar_visible_until);
+            && self.pane_state_ref(pane_id).is_some_and(|state| {
+                state.scroll.scrollbar_drag.is_some()
+                    || state.scroll.scrollbar_hovered
+                    || Instant::now() <= state.scroll.scrollbar_visible_until
+            });
 
         // Spacing metadata is read on demand instead of pre-collected into a
         // Vec<RowSpacingInfo> sized to all visible blocks. For long
@@ -445,9 +500,10 @@ impl Editor {
             let first_spacing = spacing_for(index);
             let top_gap = row_top_gap(previous_row_spacing, first_spacing, d.block_gap);
 
-            if let (Some(callout_group_id), Some(callout_variant)) =
-                (first_spacing.callout_group_id, first_spacing.callout_variant)
-            {
+            if let (Some(callout_group_id), Some(callout_variant)) = (
+                first_spacing.callout_group_id,
+                first_spacing.callout_variant,
+            ) {
                 let mut segments = Vec::new();
                 let mut group_end = index;
                 let mut previous_callout_row = None;
@@ -461,7 +517,8 @@ impl Editor {
                         let mut row_gaps = Vec::new();
                         while footnote_end < blocks.len()
                             && spacing_for(footnote_end).callout_group_id == Some(callout_group_id)
-                            && spacing_for(footnote_end).footnote_group_id == Some(footnote_group_id)
+                            && spacing_for(footnote_end).footnote_group_id
+                                == Some(footnote_group_id)
                         {
                             let footnote_spacing = spacing_for(footnote_end);
                             row_gaps.push(footnote_row_top_gap(previous_footnote_row, d.block_gap));
@@ -568,36 +625,46 @@ impl Editor {
         let row_tops: Vec<Option<f32>> = row_starts
             .iter()
             .map(|&start| {
-                blocks[start]
-                    .entity
-                    .read_with(cx, |block, _cx| block.last_bounds)
-                    .map(|bounds| f32::from(bounds.top()))
+                blocks[start].entity.read_with(cx, |block, _cx| {
+                    block
+                        .last_paint()
+                        .map(|paint| f32::from(paint.bounds.top()))
+                })
             })
             .collect();
 
         // On a structural edit the row indices no longer match last frame, so the
         // cache refresh below is skipped; its block-keyed entries still hold.
-        let structural_change = blocks.len() != self.tab().scroll.prev_block_ids.len()
-            || blocks
-                .iter()
-                .zip(&self.tab().scroll.prev_block_ids)
-                .any(|(visible, prev)| visible.entity.entity_id() != *prev);
+        let structural_change = self
+            .pane_state_ref(pane_id)
+            .map(|state| {
+                blocks.len() != state.scroll.prev_block_ids.len()
+                    || blocks
+                        .iter()
+                        .zip(&state.scroll.prev_block_ids)
+                        .any(|(visible, prev)| visible.entity.entity_id() != *prev)
+            })
+            .unwrap_or(true);
         if structural_change {
-            self.tab_mut().scroll.prev_block_ids =
-                blocks.iter().map(|v| v.entity.entity_id()).collect();
+            let state = self.pane_state(pane_id);
+            state.scroll.prev_block_ids = blocks.iter().map(|v| v.entity.entity_id()).collect();
         }
 
         // Rows mounted together last frame shared one scroll offset, so their
         // adjacent painted-top differences are scroll-free heights. Caching those,
         // not raw positions, is what keeps the window stable while scrolling.
         if !structural_change {
-            if let Some((prev_start, prev_end)) = self.tab().scroll.prev_row_band {
+            if let Some((prev_start, prev_end)) = self
+                .pane_state_ref(pane_id)
+                .and_then(|state| state.scroll.prev_row_band)
+            {
                 let prev_end = prev_end.min(row_first_ids.len());
                 for row in prev_start..prev_end.saturating_sub(1) {
                     if let (Some(top), Some(next_top)) = (row_tops[row], row_tops[row + 1]) {
                         let stride = next_top - top;
                         if stride > 0.0 && stride.is_finite() {
-                            self.tab_mut()
+                            let state = self.pane_state(pane_id);
+                            state
                                 .scroll
                                 .row_stride_cache
                                 .insert(row_first_ids[row], stride);
@@ -613,19 +680,20 @@ impl Editor {
         let strides: Vec<f32> = row_first_ids
             .iter()
             .map(|id| {
-                self.tab()
-                    .scroll
-                    .row_stride_cache
-                    .get(id)
+                self.pane_state_ref(pane_id)
+                    .and_then(|state| state.scroll.row_stride_cache.get(id))
                     .copied()
                     .unwrap_or(estimate)
             })
             .collect();
 
         // Bound the cache against block churn, only when it outgrows the live rows.
-        if self.tab().scroll.row_stride_cache.len() > row_first_ids.len().saturating_mul(2) {
+        if self.pane_state_ref(pane_id).is_some_and(|state| {
+            state.scroll.row_stride_cache.len() > row_first_ids.len().saturating_mul(2)
+        }) {
             let live: std::collections::HashSet<EntityId> = row_first_ids.iter().copied().collect();
-            self.tab_mut()
+            let state = self.pane_state(pane_id);
+            state
                 .scroll
                 .row_stride_cache
                 .retain(|id, _| live.contains(id));
@@ -638,8 +706,8 @@ impl Editor {
             RENDER_OVERDRAW_PX,
             focus_row,
         );
-        self.tab_mut().scroll.prev_row_band =
-            Some((band.run_start, band.run_end));
+        let state = self.pane_state(pane_id);
+        state.scroll.prev_row_band = Some((band.run_start, band.run_end));
 
         // The first mounted row re-applies its `mt`, so drop it from the top
         // spacer to avoid shifting content down by a gap.
@@ -647,8 +715,7 @@ impl Editor {
             Some(gap) => (band.top_h - gap).max(0.0),
             None => band.top_h,
         };
-        let mut block_rows: Vec<AnyElement> =
-            Vec::with_capacity(band.run_end - band.run_start + 2);
+        let mut block_rows: Vec<AnyElement> = Vec::with_capacity(band.run_end - band.run_start + 2);
         if top_h > 0.5 {
             block_rows.push(
                 div()
@@ -682,6 +749,10 @@ impl Editor {
             );
         }
 
+        let scroll_handle = self
+            .pane_state_ref(pane_id)
+            .map(|state| state.scroll.handle.clone())
+            .unwrap_or_default();
         let scroll_content = div()
             .id(ElementId::Name(
                 format!("editor-scroll-inner-{panel_id}-{pane_id}").into(),
@@ -694,7 +765,7 @@ impl Editor {
             .bg(theme.colors.editor_background)
             .overflow_y_scroll()
             .scrollbar_width(px(0.0))
-            .track_scroll(&self.tab().scroll.handle)
+            .track_scroll(&scroll_handle)
             .can_drop(|dragged, _window, _cx| dragged.is::<ExternalPaths>())
             .on_drop::<ExternalPaths>(cx.listener(move |this, paths, window, cx| {
                 // Dropping into this editor activates it and routes the
@@ -707,10 +778,10 @@ impl Editor {
                 }
             }))
             .on_hover(cx.listener(move |this, hovered, window, cx| {
-                this.on_editor_hover(hovered, window, cx);
+                this.on_editor_hover(pane_id, hovered, window, cx);
             }))
             .capture_any_mouse_down(cx.listener(move |this, event, window, cx| {
-                this.on_editor_capture_mouse_down(event, window, cx);
+                this.on_editor_capture_mouse_down(pane_id, event, window, cx);
             }))
             .on_mouse_down(
                 MouseButton::Left,
@@ -722,22 +793,22 @@ impl Editor {
                 }),
             )
             .on_mouse_move(cx.listener(move |this, event, window, cx| {
-                this.on_editor_mouse_move(event, window, cx);
+                this.on_editor_mouse_move(pane_id, event, window, cx);
             }))
             .on_mouse_up(
                 MouseButton::Left,
                 cx.listener(move |this, event, window, cx| {
-                    this.on_editor_mouse_up(event, window, cx);
+                    this.on_editor_mouse_up(pane_id, event, window, cx);
                 }),
             )
             .on_mouse_up_out(
                 MouseButton::Left,
                 cx.listener(move |this, event, window, cx| {
-                    this.on_editor_mouse_up(event, window, cx);
+                    this.on_editor_mouse_up(pane_id, event, window, cx);
                 }),
             )
             .on_scroll_wheel(cx.listener(move |this, event, window, cx| {
-                this.on_editor_scroll_wheel(event, window, cx);
+                this.on_editor_scroll_wheel(pane_id, event, window, cx);
             }))
             .p(px(d.editor_padding))
             .pb(px(d.editor_padding
@@ -788,7 +859,7 @@ impl Editor {
                     .bg(theme.colors.scrollbar_thumb)
                     .cursor_pointer()
                     .on_hover(cx.listener(move |this, hovered, window, cx| {
-                        this.on_editor_hover(hovered, window, cx);
+                        this.on_editor_hover(pane_id, hovered, window, cx);
                     }))
                     .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                         let pointer_offset_y =
@@ -800,6 +871,7 @@ impl Editor {
                                     shell.activate_panel(panel_id, cx);
                                 });
                                 editor.start_scrollbar_drag(
+                                    pane_id,
                                     pointer_offset_y,
                                     track_height,
                                     thumb_height,
@@ -820,7 +892,7 @@ impl Editor {
                                             return;
                                         }
                                         let _ = editor.update(cx, |editor, cx| {
-                                            editor.end_scrollbar_drag(cx);
+                                            editor.end_scrollbar_drag(pane_id, cx);
                                         });
                                     }
                                 });
@@ -835,7 +907,11 @@ impl Editor {
                                         let pointer_y_in_track =
                                             f32::from(event.position.y) - track_origin_y;
                                         let _ = editor.update(cx, |editor, cx| {
-                                            editor.update_scrollbar_drag(pointer_y_in_track, cx);
+                                            editor.update_scrollbar_drag(
+                                                pane_id,
+                                                pointer_y_in_track,
+                                                cx,
+                                            );
                                         });
                                     }
                                 });

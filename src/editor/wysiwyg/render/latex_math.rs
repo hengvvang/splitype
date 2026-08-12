@@ -24,8 +24,7 @@ pub(crate) fn render_latex_math(
     let math_preview = block.render_math_content(theme);
 
     if !focused {
-        block.last_layout = None;
-        block.last_bounds = None;
+        block.last_paints.clear();
         block.latex_template_picker_open = false;
 
         // Unfocused: outer rect (no border, no rounded, transparent)

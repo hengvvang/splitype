@@ -19,6 +19,7 @@ pub(crate) use gpui::*;
 pub(crate) use crate::app::shell::Shell;
 pub(crate) use crate::app::window_panels::DEFAULT_EDITOR_PANEL_ID;
 pub(crate) use crate::app::window_panels::WindowPanelKind;
+pub(crate) use crate::editor::PreviewState;
 pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
 pub(crate) use crate::editor::outline::state::OutlinePanelState;
 pub(crate) use crate::editor::session::{EditorPaneKind, EditorSession, EditorTabList};
@@ -29,9 +30,6 @@ pub(crate) use crate::editor::tree::footnotes::{
 };
 pub(crate) use crate::editor::view::context_menu::ContextMenuState;
 pub(crate) use crate::editor::view::dialogs::TableInsertDialogState;
-pub(crate) use crate::editor::{PreviewState, SourceCodePaneState};
-pub(crate) use crate::model::parse::{BlockData, BlockId, BlockKind};
-pub(crate) use crate::model::inline::text::BlockText;
 pub(crate) use crate::model::block::image::{
     ImageReferenceDefinitions, parse_image_reference_definitions,
 };
@@ -43,6 +41,8 @@ pub(crate) use crate::model::block::table::{
     TableAxisHighlight, TableAxisKind, TableAxisMarker, TableColumnAlignment, TableData,
     serialize_table_cell_markdown,
 };
+pub(crate) use crate::model::inline::text::BlockText;
+pub(crate) use crate::model::parse::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::splitter::tree::NodeId;
 pub(crate) use splitype_splitter::root::SplitterRoot;
 
@@ -175,8 +175,8 @@ impl Default for ScrollState {
 /// One document tab: the document and all of its document-level state.
 ///
 /// A tab whose `file.path` is `None` is an untitled temporary document.
-/// Switching tabs swaps the whole context, so undo history, scroll
-/// position, selection, and previews are preserved per file.
+/// Switching tabs swaps the whole context, so undo history and per-pane
+/// view states are preserved per file.
 pub(crate) struct DocumentTab {
     pub(crate) document: Document,
     /// Bumped whenever the document text may have changed; derived views
@@ -185,13 +185,47 @@ pub(crate) struct DocumentTab {
     /// Which view this tab is currently presenting.
     pub(crate) mode: EditorMode,
     pub(crate) file: FileState,
-    pub(crate) focus: FocusState,
-    pub(crate) selection: SelectionState,
     pub(crate) undo: UndoHistory,
     pub(crate) references: ReferenceRegistries,
     pub(crate) tables: TableGrids,
-    pub(crate) preview: PreviewState,
+    /// Per-pane view states, keyed by pane id. Every pane is fully
+    /// independent — its own scroll position, focus target, selection, and
+    /// preview — while all panes render the same shared `document`. Pane
+    /// states travel with the tab, so each tab remembers where every pane
+    /// was.
+    pub(crate) panes: HashMap<usize, PaneState>,
+}
+
+/// The independent view state of one pane inside an editor area.
+///
+/// Panes share the tab's document (the single source of truth) but nothing
+/// else: each Wysiwyg pane scrolls and focuses independently, each Source
+/// pane owns its own raw block entity, and each Preview pane keeps its own
+/// rendered copy. This keeps the model simple — there is no state to
+/// synchronize between panes because there is no shared view state.
+#[derive(Default)]
+pub(crate) struct PaneState {
     pub(crate) scroll: ScrollState,
+    pub(crate) focus: FocusState,
+    pub(crate) selection: SelectionState,
+    pub(crate) preview: PreviewState,
+    /// The pane's own raw-source block entity (Source panes only). The
+    /// owning area is captured by the subscription closure, so it is not
+    /// stored here.
+    pub(crate) source_block: Option<Entity<Block>>,
+    /// Fingerprint of the document at the last source sync: when the
+    /// document is changed externally (e.g. by a Wysiwyg pane), the block
+    /// is rebuilt from it. The block itself keeps the user's raw bytes in
+    /// between.
+    pub(crate) synced_doc_hash: u64,
+    /// Document revision the pane block was last synced at; `None` until
+    /// the first sync.
+    pub(crate) synced_revision: Option<u64>,
+    /// Active tab index the pane block was last synced at. `document_revision`
+    /// is per-tab and every fresh tab starts at the same value, so a tab
+    /// switch alone must force a rebuild — otherwise two unedited tabs keep
+    /// showing the first tab's source.
+    pub(crate) synced_tab_index: Option<usize>,
 }
 
 /// Top-level controller that owns editor-wide state and delegates tree
@@ -245,14 +279,11 @@ pub struct Editor {
     /// closures) every frame, so the timestamp must live in editor state
     /// rather than in a click-handler closure.
     pub(crate) welcome_last_click: Option<Instant>,
-    /// Currently focused pane id — the status-bar action target.
-    /// One Editor entity serves one area, so the area (panel) id alone
-    /// identifies it.
+    /// Currently focused pane id — the status-bar action target and the
+    /// routing target for events without a pane context (block events,
+    /// keyboard commands). One Editor entity serves one area, so the area
+    /// (panel) id alone identifies it.
     pub(crate) focused_pane: Option<usize>,
-    /// Per-SourceCode-pane editing states, keyed by the pane id. Each
-    /// source pane owns its own block entity so multiple source panels edit
-    /// independently; see `SourceCodePaneState`.
-    pub(crate) source_pane_states: HashMap<usize, SourceCodePaneState>,
 }
 
 /// Binding between a table block and one cell editor.
@@ -437,7 +468,6 @@ impl Editor {
             table_insert_dialog: None,
             welcome_last_click: None,
             focused_pane: None,
-            source_pane_states: HashMap::new(),
         };
         this
     }
@@ -467,14 +497,16 @@ impl Editor {
             table_insert_dialog: None,
             welcome_last_click: None,
             focused_pane: None,
-            source_pane_states: HashMap::new(),
         };
         editor.session.tab_list.tabs.push(tab);
         editor.rebuild_table_grids(cx);
         editor.rebuild_reference_registries(cx);
-        editor.refresh_preview_blocks(cx);
-        editor.tab_mut().focus.pending = editor.first_focusable_entity_id(cx);
-        editor.tab_mut().focus.active_entity = editor.tab().focus.pending;
+        let pane_id = editor.active_pane_id();
+        editor.refresh_preview_blocks(pane_id, cx);
+        let pending_focus = editor.first_focusable_entity_id(cx);
+        let pane = editor.pane_state(pane_id);
+        pane.focus.pending = pending_focus;
+        pane.focus.active_entity = pending_focus;
         editor.refresh_stable_document_snapshot(cx);
         editor
     }
@@ -496,7 +528,6 @@ impl Editor {
 
         let mut document = Document::new(roots);
         document.rebuild_metadata_and_snapshot(cx);
-        let pending_focus = document.first_root().map(|block| block.entity_id());
 
         DocumentTab {
             document,
@@ -506,42 +537,37 @@ impl Editor {
                 path: file_path,
                 ..FileState::default()
             },
-            focus: FocusState {
-                pending: pending_focus,
-                active_entity: pending_focus,
-                pending_scroll_active_block_into_view: true,
-                pending_scroll_recheck_after_layout: true,
-            },
-            selection: SelectionState::default(),
             undo: UndoHistory {
                 last_stable_source_text: normalized,
                 ..UndoHistory::default()
             },
             references: ReferenceRegistries::default(),
             tables: TableGrids::default(),
-            preview: PreviewState::default(),
-            scroll: ScrollState::default(),
+            panes: HashMap::new(),
         }
     }
 
     /// Activates the tab at `index`, restoring its focus and window
     /// chrome.
     pub(crate) fn activate_tab(&mut self, index: usize, cx: &mut Context<Self>) {
-        let list = &mut self.session.tab_list;
-        if index >= list.tabs.len() {
-            return;
+        {
+            let list = &mut self.session.tab_list;
+            if index >= list.tabs.len() {
+                return;
+            }
+            // Also reachable right after the first tab is pushed onto an empty
+            // editor (welcome state) — notify so the new document renders.
+            if index == list.active_tab {
+                cx.notify();
+                return;
+            }
+            list.active_tab = index;
         }
-        // Also reachable right after the first tab is pushed onto an empty
-        // editor (welcome state) — notify so the new document renders.
-        if index == list.active_tab {
-            cx.notify();
-            return;
+        let pane = self.active_pane_state();
+        if pane.focus.pending.is_none() {
+            pane.focus.pending = pane.focus.active_entity;
         }
-        list.active_tab = index;
-        let tab = &mut list.tabs[index];
-        if tab.focus.pending.is_none() {
-            tab.focus.pending = tab.focus.active_entity;
-        }
+        let tab = &mut self.session.tab_list.tabs[index];
         tab.file.pending_window_title_refresh = true;
         tab.file.pending_window_edited = true;
         cx.notify();
@@ -636,16 +662,73 @@ impl Editor {
         }
         if was_active {
             list.active_tab = index.min(list.tabs.len() - 1);
-            let tab = &mut list.tabs[list.active_tab];
-            if tab.focus.pending.is_none() {
-                tab.focus.pending = tab.focus.active_entity;
-            }
-            tab.file.pending_window_title_refresh = true;
-            tab.file.pending_window_edited = true;
         } else if index < list.active_tab {
             list.active_tab -= 1;
         }
+        let pane = self.active_pane_state();
+        if pane.focus.pending.is_none() {
+            pane.focus.pending = pane.focus.active_entity;
+        }
+        let tab = &mut self.session.tab_list.tabs[self.session.tab_list.active_tab];
+        tab.file.pending_window_title_refresh = true;
+        tab.file.pending_window_edited = true;
         cx.notify();
+    }
+}
+
+impl Editor {
+    // ------------------------------------------------------------------
+    // Pane view state access
+    // ------------------------------------------------------------------
+
+    /// The active pane id: the explicitly focused pane, or the first pane
+    /// of the layout tree before any focus was set. Events without a pane
+    /// context (block events, keyboard commands) route here, because the
+    /// window keyboard focus sits in exactly one pane at a time.
+    pub(crate) fn active_pane_id(&self) -> usize {
+        if let Some(pane_id) = self.focused_pane {
+            return pane_id;
+        }
+        let mut ids = Vec::new();
+        self.session.root.tree.leaf_ids(&mut ids);
+        ids.first().copied().unwrap_or(0)
+    }
+
+    /// The active pane's view state, creating it lazily.
+    pub(crate) fn active_pane_state(&mut self) -> &mut PaneState {
+        let pane_id = self.active_pane_id();
+        self.pane_state(pane_id)
+    }
+
+    /// The view state of the pane with `pane_id`, creating it lazily.
+    pub(crate) fn pane_state(&mut self, pane_id: usize) -> &mut PaneState {
+        let tab_index = self.session.tab_list.active_tab;
+        self.session.tab_list.tabs[tab_index]
+            .panes
+            .entry(pane_id)
+            .or_default()
+    }
+
+    /// The view state of the pane with `pane_id`, if it exists.
+    pub(crate) fn pane_state_ref(&self, pane_id: usize) -> Option<&PaneState> {
+        let tab = &self.session.tab_list.tabs[self.session.tab_list.active_tab];
+        tab.panes.get(&pane_id)
+    }
+
+    /// The active pane's focus state — the routing target for events
+    /// without a pane context.
+    pub(crate) fn active_pane_focus(&self) -> &FocusState {
+        &self.tab().panes[&self.active_pane_id()].focus
+    }
+
+    /// The active pane's selection state.
+    pub(crate) fn active_pane_selection(&self) -> &SelectionState {
+        &self.tab().panes[&self.active_pane_id()].selection
+    }
+
+    /// The active pane's scroll state.
+    pub(crate) fn active_pane_scroll(&self) -> &ScrollState {
+        &self.tab().panes[&self.active_pane_id()].scroll
     }
 }
 
@@ -706,9 +789,8 @@ impl Editor {
                 Some(EditorPaneKind::SourceCode) => {
                     self.sync_source_pane(pane_id, cx);
                     if let Some(block) = self
-                        .source_pane_states
-                        .get(&pane_id)
-                        .and_then(|state| state.block.clone())
+                        .pane_state_ref(pane_id)
+                        .and_then(|state| state.source_block.clone())
                     {
                         block.read(cx).focus_handle.focus(window);
                     }
@@ -717,9 +799,8 @@ impl Editor {
                 // (falling back to the first block when it was rebuilt).
                 Some(EditorPaneKind::Wysiwyg) => {
                     let target = self
-                        .tab()
-                        .focus
-                        .active_entity
+                        .pane_state_ref(pane_id)
+                        .and_then(|state| state.focus.active_entity)
                         .filter(|id| self.focusable_entity_by_id(*id).is_some())
                         .or_else(|| self.first_focusable_entity_id(cx));
                     if let Some(id) = target {

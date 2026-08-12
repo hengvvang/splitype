@@ -70,12 +70,19 @@ impl Editor {
         self.sync_table_axis_visuals(cx);
         self.clear_cross_block_selection(cx);
 
-        self.tab_mut().focus.pending_scroll_active_block_into_view = true;
-        self.tab_mut().focus.pending_scroll_recheck_after_layout = true;
-        self.tab_mut().scroll.last_viewport_size = None;
-        self.tab().scroll.handle.set_offset(point(px(0.0), px(0.0)));
-        self.tab_mut().focus.pending = self.first_focusable_entity_id(cx);
-        self.tab_mut().focus.active_entity = self.tab().focus.pending;
+        // The whole document was replaced: every pane starts over at the
+        // first block, scrolled to the top.
+        let pending_focus = self.first_focusable_entity_id(cx);
+        let pane_ids: Vec<usize> = self.tab().panes.keys().copied().collect();
+        for pane_id in pane_ids {
+            let pane = self.pane_state(pane_id);
+            pane.focus.pending_scroll_active_block_into_view = true;
+            pane.focus.pending_scroll_recheck_after_layout = true;
+            pane.scroll.last_viewport_size = None;
+            pane.scroll.handle.set_offset(point(px(0.0), px(0.0)));
+            pane.focus.pending = pending_focus;
+            pane.focus.active_entity = pending_focus;
+        }
 
         self.tab_mut().undo.undo_entries.clear();
         self.tab_mut().undo.redo_entries.clear();

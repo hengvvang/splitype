@@ -30,7 +30,7 @@ async fn request_quote_break_creates_new_root_leaf_quote_group(cx: &mut TestAppC
         assert_eq!(entries[1].entity.read(cx).quote_depth, 1);
         assert_eq!(editor.doc().serialize_markdown(cx), "> first\n\n> ");
         assert_eq!(
-            editor.tab().focus.pending,
+            editor.active_pane_focus().pending,
             Some(entries[1].entity.entity_id())
         );
     });
@@ -90,7 +90,7 @@ async fn footnote_reference_jump_and_backref_follow_in_place_definition(cx: &mut
             },
             cx,
         );
-        assert_eq!(editor.tab().focus.pending, Some(definition.entity_id()));
+        assert_eq!(editor.active_pane_focus().pending, Some(definition.entity_id()));
         assert_eq!(definition.read(cx).selected_range, 0..0);
 
         let expected_backref_range = paragraph
@@ -104,7 +104,7 @@ async fn footnote_reference_jump_and_backref_follow_in_place_definition(cx: &mut
             },
             cx,
         );
-        assert_eq!(editor.tab().focus.pending, Some(paragraph.entity_id()));
+        assert_eq!(editor.active_pane_focus().pending, Some(paragraph.entity_id()));
         assert_eq!(paragraph.read(cx).selected_range, expected_backref_range);
     });
 }
@@ -189,7 +189,7 @@ async fn typing_callout_shortcut_materializes_body_and_focuses_it(cx: &mut TestA
         assert_eq!(entries[1].entity.read(cx).quote_depth, 1);
         assert_eq!(editor.doc().serialize_markdown(cx), "> [!NOTE]\n> ");
         assert_eq!(
-            editor.tab().focus.pending,
+            editor.active_pane_focus().pending,
             Some(entries[1].entity.entity_id())
         );
     });
@@ -1021,7 +1021,7 @@ async fn table_cell_enter_still_moves_to_next_row(cx: &mut TestAppContext) {
 
     editor.update(cx, |editor, _cx| {
         assert_eq!(editor.doc().blocks().len(), 1);
-        assert_eq!(editor.tab().focus.pending, next_cell_id);
+        assert_eq!(editor.active_pane_focus().pending, next_cell_id);
     });
 }
 
@@ -1061,7 +1061,7 @@ async fn table_cell_exit_shortcut_inserts_sibling_after_table(cx: &mut TestAppCo
         assert_eq!(children[0].read(cx).kind(), BlockKind::Table);
         assert_eq!(children[1].read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(children[1].read(cx).display_text(), "");
-        assert_eq!(editor.tab().focus.pending, Some(children[1].entity_id()));
+        assert_eq!(editor.active_pane_focus().pending, Some(children[1].entity_id()));
     });
 }
 
@@ -1100,7 +1100,7 @@ async fn arrow_down_from_last_row_exits_table_to_following_block(cx: &mut TestAp
 
         let following = editor.doc().blocks()[1].entity.clone();
         assert_eq!(following.read(cx).display_text(), "after");
-        assert_eq!(editor.tab().focus.pending, Some(following.entity_id()));
+        assert_eq!(editor.active_pane_focus().pending, Some(following.entity_id()));
     });
 }
 
@@ -1128,7 +1128,7 @@ async fn arrow_up_from_header_exits_table_to_preceding_block(cx: &mut TestAppCon
 
         let preceding = editor.doc().blocks()[0].entity.clone();
         assert_eq!(preceding.read(cx).display_text(), "before");
-        assert_eq!(editor.tab().focus.pending, Some(preceding.entity_id()));
+        assert_eq!(editor.active_pane_focus().pending, Some(preceding.entity_id()));
     });
 }
 
@@ -1153,7 +1153,7 @@ async fn arrow_down_into_table_focuses_header_cell(cx: &mut TestAppContext) {
             .header
             .first()
             .map(|cell| cell.entity_id());
-        assert_eq!(editor.tab().focus.pending, header_cell);
+        assert_eq!(editor.active_pane_focus().pending, header_cell);
     });
 }
 
@@ -1180,7 +1180,7 @@ async fn arrow_up_into_table_focuses_last_row_cell(cx: &mut TestAppContext) {
             .last()
             .and_then(|row| row.first())
             .map(|cell| cell.entity_id());
-        assert_eq!(editor.tab().focus.pending, last_row_cell);
+        assert_eq!(editor.active_pane_focus().pending, last_row_cell);
     });
 }
 
@@ -1206,7 +1206,7 @@ async fn block_up_from_table_cell_exits_to_preceding_block(cx: &mut TestAppConte
 
         let preceding = editor.doc().blocks()[0].entity.clone();
         assert_eq!(preceding.read(cx).display_text(), "before");
-        assert_eq!(editor.tab().focus.pending, Some(preceding.entity_id()));
+        assert_eq!(editor.active_pane_focus().pending, Some(preceding.entity_id()));
     });
 }
 
@@ -1227,7 +1227,7 @@ async fn block_down_into_table_focuses_header_cell(cx: &mut TestAppContext) {
             .header
             .first()
             .map(|cell| cell.entity_id());
-        assert_eq!(editor.tab().focus.pending, header_cell);
+        assert_eq!(editor.active_pane_focus().pending, header_cell);
     });
 }
 
@@ -1250,7 +1250,7 @@ async fn down_out_of_code_block_focuses_following_block(cx: &mut TestAppContext)
         let following = editor.doc().blocks()[1].entity.clone();
         assert_eq!(following.read(cx).display_text(), "after");
         assert_eq!(editor.doc().root_count(), 2);
-        assert_eq!(editor.tab().focus.pending, Some(following.entity_id()));
+        assert_eq!(editor.active_pane_focus().pending, Some(following.entity_id()));
     });
 }
 
@@ -1271,7 +1271,7 @@ async fn down_out_of_trailing_code_block_creates_and_focuses_paragraph(cx: &mut 
         assert_eq!(roots.len(), 2);
         assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(roots[1].read(cx).display_text(), "");
-        assert_eq!(editor.tab().focus.pending, Some(roots[1].entity_id()));
+        assert_eq!(editor.active_pane_focus().pending, Some(roots[1].entity_id()));
     });
 }
 
@@ -1292,7 +1292,7 @@ async fn down_out_of_trailing_math_block_creates_and_focuses_paragraph(cx: &mut 
         let roots = editor.doc().root_blocks();
         assert_eq!(roots.len(), 2);
         assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(editor.tab().focus.pending, Some(roots[1].entity_id()));
+        assert_eq!(editor.active_pane_focus().pending, Some(roots[1].entity_id()));
     });
 }
 
@@ -1921,7 +1921,7 @@ async fn request_quote_break_creates_nested_leaf_quote_group(cx: &mut TestAppCon
         assert_eq!(entries[3].entity.read(cx).quote_depth, 2);
         assert_eq!(editor.doc().serialize_markdown(cx), "> outer\n> > inner\n> \n> > ");
         assert_eq!(
-            editor.tab().focus.pending,
+            editor.active_pane_focus().pending,
             Some(entries[3].entity.entity_id())
         );
     });
@@ -2128,7 +2128,7 @@ async fn callout_exit_break_creates_plain_text_block(cx: &mut TestAppContext) {
         assert_eq!(entries[2].entity.read(cx).quote_depth, 0);
         assert_eq!(editor.doc().serialize_markdown(cx), "> [!TIP]\n> body\n\n");
         assert_eq!(
-            editor.tab().focus.pending,
+            editor.active_pane_focus().pending,
             Some(entries[2].entity.entity_id())
         );
     });

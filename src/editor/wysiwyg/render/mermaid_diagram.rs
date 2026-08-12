@@ -25,8 +25,7 @@ pub(crate) fn render_mermaid_diagram(
     let mermaid_preview = block.render_mermaid_content(theme, window);
 
     if !focused {
-        block.last_layout = None;
-        block.last_bounds = None;
+        block.last_paints.clear();
 
         // Unfocused: outer rect (no border, no rounded, transparent)
         // with inner fitted diagram padded inside

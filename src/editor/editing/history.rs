@@ -267,8 +267,11 @@ impl Editor {
                     block.cursor_blink_epoch = Instant::now();
                     cx.notify();
                 });
-                self.tab_mut().focus.pending = Some(block.entity_id());
-                self.tab_mut().focus.active_entity = Some(block.entity_id());
+                {
+                    let pane = self.active_pane_state();
+                    pane.focus.pending = Some(block.entity_id());
+                    pane.focus.active_entity = Some(block.entity_id());
+                }
             }
             EditorMode::Wysiwyg => {
                 if let Some(anchor) = &snapshot.block_anchor
@@ -286,8 +289,11 @@ impl Editor {
                         block.cursor_blink_epoch = Instant::now();
                         cx.notify();
                     });
-                    self.tab_mut().focus.pending = Some(entity_id);
-                    self.tab_mut().focus.active_entity = Some(entity_id);
+                    {
+                        let pane = self.active_pane_state();
+                        pane.focus.pending = Some(entity_id);
+                        pane.focus.active_entity = Some(entity_id);
+                    }
                     return;
                 }
 
@@ -340,8 +346,11 @@ impl Editor {
                         block.cursor_blink_epoch = Instant::now();
                         cx.notify();
                     });
-                    self.tab_mut().focus.pending = Some(mapping.entity.entity_id());
-                    self.tab_mut().focus.active_entity = Some(mapping.entity.entity_id());
+                    {
+                        let pane = self.active_pane_state();
+                        pane.focus.pending = Some(mapping.entity.entity_id());
+                        pane.focus.active_entity = Some(mapping.entity.entity_id());
+                    }
                     return;
                 }
 
@@ -350,8 +359,10 @@ impl Editor {
                     Self::source_offset_distance(&mapping.full_source_range, caret_offset)
                 });
                 let Some(mapping) = best else {
-                    self.tab_mut().focus.pending = self.first_focusable_entity_id(cx);
-                    self.tab_mut().focus.active_entity = self.tab().focus.pending;
+                    let pending = self.first_focusable_entity_id(cx);
+                    let pane = self.active_pane_state();
+                    pane.focus.pending = pending;
+                    pane.focus.active_entity = pending;
                     return;
                 };
                 let local_source = if caret_offset <= mapping.full_source_range.start {
@@ -377,8 +388,11 @@ impl Editor {
                     block.cursor_blink_epoch = Instant::now();
                     cx.notify();
                 });
-                self.tab_mut().focus.pending = Some(mapping.entity.entity_id());
-                self.tab_mut().focus.active_entity = Some(mapping.entity.entity_id());
+                {
+                    let pane = self.active_pane_state();
+                    pane.focus.pending = Some(mapping.entity.entity_id());
+                    pane.focus.active_entity = Some(mapping.entity.entity_id());
+                }
             }
         }
     }
@@ -405,9 +419,12 @@ impl Editor {
         self.rebuild_document_from_markdown(&entry.source_text, cx);
 
         self.apply_selection_snapshot_in_current_mode(&entry.selection, cx);
-        self.tab_mut().focus.pending_scroll_active_block_into_view = true;
-        self.tab_mut().focus.pending_scroll_recheck_after_layout = true;
-        self.tab_mut().scroll.last_viewport_size = None;
+        {
+            let pane = self.active_pane_state();
+            pane.focus.pending_scroll_active_block_into_view = true;
+            pane.focus.pending_scroll_recheck_after_layout = true;
+            pane.scroll.last_viewport_size = None;
+        }
         self.refresh_stable_document_snapshot(cx);
     }
 

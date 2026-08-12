@@ -81,7 +81,8 @@ impl Editor {
         }
 
         if Self::block_event_clears_cross_block_selection(event) {
-            self.tab_mut().selection.select_all_cycle = None;
+            let state = self.active_pane_state();
+            state.selection.select_all_cycle = None;
             self.clear_cross_block_selection(cx);
         }
 
@@ -118,7 +119,7 @@ impl Editor {
                     self.focus_block(focus_id);
                 }
                 self.mark_dirty(cx);
-                self.request_active_block_scroll_into_view(cx);
+                self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
                 self.finalize_pending_undo_capture(cx);
             }
             BlockAction::RequestNewline {
@@ -616,7 +617,7 @@ impl Editor {
                     cx.notify();
                 });
                 self.mark_dirty(cx);
-                self.request_active_block_scroll_into_view(cx);
+                self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }

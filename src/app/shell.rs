@@ -330,7 +330,8 @@ impl Shell {
             if !editor.session.tab_list.tabs.is_empty() {
                 editor.rebuild_table_grids(cx);
                 editor.rebuild_reference_registries(cx);
-                editor.refresh_preview_blocks(cx);
+                let pane_id = editor.active_pane_id();
+                editor.refresh_preview_blocks(pane_id, cx);
                 editor.refresh_stable_document_snapshot(cx);
             }
         });
@@ -489,9 +490,12 @@ impl Shell {
             return;
         };
         let _ = editor.update(cx, |editor, cx| {
+            let restore_focus = editor
+                .pane_state_ref(editor.active_pane_id())
+                .and_then(|state| state.focus.active_entity);
             let tab = &mut editor.session.tab_list.tabs[index];
             tab.file.show_unsaved_changes_dialog = true;
-            tab.file.close_dialog_restore_focus = tab.focus.active_entity;
+            tab.file.close_dialog_restore_focus = restore_focus;
             cx.notify();
         });
     }

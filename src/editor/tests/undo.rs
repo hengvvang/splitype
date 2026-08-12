@@ -11,7 +11,7 @@ async fn undo_reverts_recent_rendered_typing(cx: &mut TestAppContext) {
 
     editor.update(cx, |editor, cx| {
         let block = editor.doc().first_root().expect("root").clone();
-        editor.tab_mut().focus.active_entity = Some(block.entity_id());
+        editor.active_pane_state().focus.active_entity = Some(block.entity_id());
         block.update(cx, |block, cx| {
             block.prepare_undo_capture(
                 crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
@@ -35,7 +35,7 @@ async fn consecutive_text_edits_within_window_coalesce_into_one_undo(cx: &mut Te
 
     editor.update(cx, |editor, cx| {
         let block = editor.doc().first_root().expect("root").clone();
-        editor.tab_mut().focus.active_entity = Some(block.entity_id());
+        editor.active_pane_state().focus.active_entity = Some(block.entity_id());
 
         block.update(cx, |block, cx| {
             block.prepare_undo_capture(
@@ -68,7 +68,7 @@ async fn redo_restores_text_reverted_by_undo(cx: &mut TestAppContext) {
 
     editor.update(cx, |editor, cx| {
         let block = editor.doc().first_root().expect("root").clone();
-        editor.tab_mut().focus.active_entity = Some(block.entity_id());
+        editor.active_pane_state().focus.active_entity = Some(block.entity_id());
         block.update(cx, |block, cx| {
             block.prepare_undo_capture(
                 crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,
@@ -95,7 +95,7 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
 
     editor.update(cx, |editor, cx| {
         let block = editor.doc().first_root().expect("root").clone();
-        editor.tab_mut().focus.active_entity = Some(block.entity_id());
+        editor.active_pane_state().focus.active_entity = Some(block.entity_id());
         block.update(cx, |block, cx| {
             block.prepare_undo_capture(
                 crate::editor::block_protocol::UndoCaptureKind::CoalescibleText,

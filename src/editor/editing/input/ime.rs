@@ -185,21 +185,28 @@ impl EntityInputHandler for Block {
         _cx: &mut Context<Self>,
     ) -> Option<Bounds<Pixels>> {
         if self.code_language_focus_handle.is_focused(_window) {
-            let line = self.code_language_last_layout.as_ref()?;
+            let paint = self.code_language_paint()?;
             let range = self.code_language_range_from_utf16(&range_utf16);
-            let start_x = line.x_for_index(range.start);
-            let end_x = line.x_for_index(range.end);
+            let start_x = paint.line.x_for_index(range.start);
+            let end_x = paint.line.x_for_index(range.end);
             return Some(Bounds::from_corners(
                 point(bounds.left() + start_x, bounds.top()),
                 point(bounds.left() + end_x, bounds.bottom()),
             ));
         }
 
-        let lines = self.last_layout.as_ref()?;
+        let paint = self.last_paint()?;
         let range = self.range_from_utf16(&range_utf16);
-        let line_height = self.last_line_height;
+        let line_height = paint.line_height;
         let text = self.display_text();
-        element::range_bounds(lines, bounds, line_height, text, range, self.text_align())
+        element::range_bounds(
+            &paint.layout,
+            bounds,
+            line_height,
+            text,
+            range,
+            self.text_align(),
+        )
     }
 
     fn character_index_for_point(
@@ -216,8 +223,9 @@ impl EntityInputHandler for Block {
             ));
         }
 
-        let bounds = self.last_bounds?;
-        let lines = self.last_layout.as_ref()?;
+        let paint = self.last_paint_at(pt)?;
+        let bounds = paint.bounds;
+        let lines = &paint.layout;
         let text = self.display_text();
         let ranges = element::hard_line_ranges(text);
         let relative = Point {
@@ -225,11 +233,11 @@ impl EntityInputHandler for Block {
             y: pt.y - bounds.top(),
         };
         let (line_idx, y_in_line) =
-            element::wrapped_line_for_y(lines, self.last_line_height, relative.y)?;
+            element::wrapped_line_for_y(lines, paint.line_height, relative.y)?;
         let layout = &lines[line_idx];
         let origin_x = element::aligned_line_left(layout, bounds, self.text_align());
         let utf8_offset_in_line = match layout
-            .closest_index_for_position(point(pt.x - origin_x, y_in_line), self.last_line_height)
+            .closest_index_for_position(point(pt.x - origin_x, y_in_line), paint.line_height)
         {
             Ok(idx) | Err(idx) => idx,
         };

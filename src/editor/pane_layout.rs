@@ -39,11 +39,13 @@ impl Editor {
         self.tab_list_mut();
         let inner_tree = self.session.root.tree.clone();
 
-        // Drop runtimes of panes that were closed or joined. (One Editor
+        // Drop view states of panes that were closed or joined. (One Editor
         // entity serves one panel, so all runtimes here belong to this
         // render pass.)
-        self.source_pane_states
-            .retain(|pane, _| self.session.root.tree.contains_leaf(*pane));
+        if self.has_active_tab() {
+            let tab = self.tab_mut();
+            tab.panes.retain(|pane, _| inner_tree.contains_leaf(*pane));
+        }
 
         // Derive the focused pane from the keyboard focus when nothing is
         // focused yet — clicking inside a block or Tab navigation never
@@ -54,9 +56,9 @@ impl Editor {
             && self.panel_mode().is_editing()
             && let Some(target_id) = self.focused_edit_target_entity_id(window, cx)
         {
-            if let Some((pane_id, _)) = self.source_pane_states.iter().find(|(_, state)| {
+            if let Some((pane_id, _)) = self.tab().panes.iter().find(|(_, state)| {
                 state
-                    .block
+                    .source_block
                     .as_ref()
                     .is_some_and(|block| block.entity_id() == target_id)
             }) {
@@ -565,6 +567,11 @@ impl Editor {
                             .border_color(c.dialog_border)
                             .shadow_lg()
                             .child(div().w_full().flex_1().min_h(px(0.0)).child(inner_body))
+                            // Bubble phase is safe here: block mouse-downs emit
+                            // RequestFocus, and gpui delivers entity events at
+                            // the END of the update — after this handler set
+                            // `focused_pane` — so focus_block always routes to
+                            // the newly clicked pane.
                             .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
                                 let _ = focus_editor.update(cx, |ed, cx| {
                                     // Select this panel and move the keyboard edit

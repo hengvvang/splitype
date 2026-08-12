@@ -31,7 +31,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).quote_depth, 1);
             assert_eq!(editor.doc().serialize_markdown(cx), "> first\n\n> ");
             assert_eq!(
-                editor.tab().focus.pending,
+                editor.active_pane_focus().pending,
                 Some(entries[1].entity.entity_id())
             );
         });
@@ -93,7 +93,7 @@ mod tests {
                 },
                 cx,
             );
-            assert_eq!(editor.tab().focus.pending, Some(definition.entity_id()));
+            assert_eq!(editor.active_pane_focus().pending, Some(definition.entity_id()));
             assert_eq!(definition.read(cx).selected_range, 0..0);
 
             let expected_backref_range = paragraph
@@ -107,7 +107,7 @@ mod tests {
                 },
                 cx,
             );
-            assert_eq!(editor.tab().focus.pending, Some(paragraph.entity_id()));
+            assert_eq!(editor.active_pane_focus().pending, Some(paragraph.entity_id()));
             assert_eq!(paragraph.read(cx).selected_range, expected_backref_range);
         });
     }
@@ -193,7 +193,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).quote_depth, 1);
             assert_eq!(editor.doc().serialize_markdown(cx), "> [!NOTE]\n> ");
             assert_eq!(
-                editor.tab().focus.pending,
+                editor.active_pane_focus().pending,
                 Some(entries[1].entity.entity_id())
             );
         });
@@ -1124,7 +1124,7 @@ mod tests {
 
         editor.update(cx, |editor, _cx| {
             assert_eq!(editor.doc().blocks().len(), 1);
-            assert_eq!(editor.tab().focus.pending, next_cell_id);
+            assert_eq!(editor.active_pane_focus().pending, next_cell_id);
         });
     }
 
@@ -1159,7 +1159,7 @@ mod tests {
             assert_eq!(children[0].read(cx).kind(), BlockKind::Table);
             assert_eq!(children[1].read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(children[1].read(cx).display_text(), "");
-            assert_eq!(editor.tab().focus.pending, Some(children[1].entity_id()));
+            assert_eq!(editor.active_pane_focus().pending, Some(children[1].entity_id()));
         });
     }
 }

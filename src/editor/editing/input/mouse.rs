@@ -11,21 +11,26 @@ use gpui::*;
 use crate::editor::controller::*;
 
 impl Editor {
-    pub(crate) fn bump_scrollbar_visibility(&mut self, cx: &mut Context<Self>) {
-        // One Editor entity serves one area; the scrollbar belongs to this
-        // editor's own document view. The fade task captures the area id so
-        // it clears the right fade task later.
+    pub(crate) fn bump_scrollbar_visibility(&mut self, pane_id: usize, cx: &mut Context<Self>) {
+        // One Editor entity serves one area; the scrollbar belongs to the
+        // pane's own document view. The fade task captures the pane id so it
+        // clears the right fade task later.
         let duration = Duration::from_millis(900);
-        self.tab_mut().scroll.scrollbar_visible_until = Instant::now() + duration;
+        {
+            let state = self.pane_state(pane_id);
+            state.scroll.scrollbar_visible_until = Instant::now() + duration;
+        }
 
         let weak_editor = cx.entity().downgrade();
-        self.tab_mut().scroll.scrollbar_fade_task = Some(cx.spawn(
+        let state = self.pane_state(pane_id);
+        state.scroll.scrollbar_fade_task = Some(cx.spawn(
             async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
                 cx.background_executor()
                     .timer(duration + Duration::from_millis(50))
                     .await;
                 let _ = weak_editor.update(cx, |this, cx| {
-                    this.tab_mut().scroll.scrollbar_fade_task = None;
+                    let state = this.pane_state(pane_id);
+                    state.scroll.scrollbar_fade_task = None;
                     cx.notify();
                 });
             },
@@ -36,13 +41,15 @@ impl Editor {
 
     pub(crate) fn on_editor_hover(
         &mut self,
+        pane_id: usize,
         hovered: &bool,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.tab_mut().scroll.scrollbar_hovered = *hovered;
+        let state = self.pane_state(pane_id);
+        state.scroll.scrollbar_hovered = *hovered;
         if *hovered {
-            self.bump_scrollbar_visibility(cx);
+            self.bump_scrollbar_visibility(pane_id, cx);
         } else {
             cx.notify();
         }
@@ -62,40 +69,48 @@ impl Editor {
 
     pub(crate) fn on_editor_scroll_wheel(
         &mut self,
+        pane_id: usize,
         _event: &ScrollWheelEvent,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.bump_scrollbar_visibility(cx);
+        self.bump_scrollbar_visibility(pane_id, cx);
     }
 
     pub(crate) fn start_scrollbar_drag(
         &mut self,
+        pane_id: usize,
         pointer_offset_y: f32,
         track_height: f32,
         thumb_height: f32,
         max_scroll_y: f32,
         cx: &mut Context<Self>,
     ) {
-        self.tab_mut().scroll.scrollbar_drag =
-            Some(crate::editor::controller::ScrollbarDragSession {
+        {
+            let state = self.pane_state(pane_id);
+            state.scroll.scrollbar_drag = Some(crate::editor::controller::ScrollbarDragSession {
                 pointer_offset_y: pointer_offset_y.clamp(0.0, thumb_height.max(0.0)),
                 track_height,
                 thumb_height,
                 max_scroll_y,
             });
-        self.tab_mut().focus.pending_scroll_active_block_into_view = false;
-        self.tab_mut().focus.pending_scroll_recheck_after_layout = false;
-        self.bump_scrollbar_visibility(cx);
+            state.focus.pending_scroll_active_block_into_view = false;
+            state.focus.pending_scroll_recheck_after_layout = false;
+        }
+        self.bump_scrollbar_visibility(pane_id, cx);
         cx.notify();
     }
 
     pub(crate) fn update_scrollbar_drag(
         &mut self,
+        pane_id: usize,
         pointer_y_in_track: f32,
         cx: &mut Context<Self>,
     ) {
-        let Some(drag) = self.tab().scroll.scrollbar_drag else {
+        let Some(drag) = self
+            .pane_state_ref(pane_id)
+            .and_then(|state| state.scroll.scrollbar_drag)
+        else {
             return;
         };
 
@@ -108,16 +123,23 @@ impl Editor {
             drag.max_scroll_y,
         );
 
-        let mut offset = self.tab().scroll.handle.offset();
+        let mut offset = self
+            .pane_state_ref(pane_id)
+            .map(|state| state.scroll.handle.offset())
+            .unwrap_or_default();
         offset.y = -px(scroll_y);
-        self.tab().scroll.handle.set_offset(offset);
-        self.bump_scrollbar_visibility(cx);
+        {
+            let state = self.pane_state(pane_id);
+            state.scroll.handle.set_offset(offset);
+        }
+        self.bump_scrollbar_visibility(pane_id, cx);
         cx.notify();
     }
 
-    pub(crate) fn end_scrollbar_drag(&mut self, cx: &mut Context<Self>) {
-        if self.tab_mut().scroll.scrollbar_drag.take().is_some() {
-            self.bump_scrollbar_visibility(cx);
+    pub(crate) fn end_scrollbar_drag(&mut self, pane_id: usize, cx: &mut Context<Self>) {
+        let state = self.pane_state(pane_id);
+        if state.scroll.scrollbar_drag.take().is_some() {
+            self.bump_scrollbar_visibility(pane_id, cx);
             cx.notify();
         }
     }

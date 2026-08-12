@@ -8,16 +8,16 @@ use super::actions::{JumpToBottom, JumpToTop, PageDown, PageUp};
 use crate::editor::block_protocol::BlockAction;
 use crate::editor::controller::*;
 use crate::editor::tree::block::CollapsedCaretAffinity;
-use crate::model::parse::BlockKind;
 use crate::model::block::table::TableCellPosition;
+use crate::model::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn on_page_up(&mut self, _: &PageUp, _window: &mut Window, cx: &mut Context<Self>) {
         if !self.has_active_tab() {
             return;
         }
-        let page = self.tab().scroll.handle.bounds().size.height;
-        self.scroll_viewport_by(page, cx);
+        let page = self.active_pane_scroll().handle.bounds().size.height;
+        self.scroll_viewport_by(self.active_pane_id(), page, cx);
     }
 
     pub(crate) fn on_page_down(
@@ -29,8 +29,8 @@ impl Editor {
         if !self.has_active_tab() {
             return;
         }
-        let page = self.tab().scroll.handle.bounds().size.height;
-        self.scroll_viewport_by(-page, cx);
+        let page = self.active_pane_scroll().handle.bounds().size.height;
+        self.scroll_viewport_by(self.active_pane_id(), -page, cx);
     }
 
     pub(crate) fn on_jump_to_top(
@@ -42,7 +42,7 @@ impl Editor {
         if !self.has_active_tab() {
             return;
         }
-        self.set_vertical_scroll_offset(px(0.0), cx);
+        self.set_vertical_scroll_offset(self.active_pane_id(), px(0.0), cx);
     }
 
     pub(crate) fn on_jump_to_bottom(
@@ -54,30 +54,57 @@ impl Editor {
         if !self.has_active_tab() {
             return;
         }
-        let max_offset_y = self.tab().scroll.handle.max_offset().height.max(px(0.0));
-        self.set_vertical_scroll_offset(-max_offset_y, cx);
+        let max_offset_y = self
+            .active_pane_scroll()
+            .handle
+            .max_offset()
+            .height
+            .max(px(0.0));
+        self.set_vertical_scroll_offset(self.active_pane_id(), -max_offset_y, cx);
     }
 
     /// Scrolls the viewport vertically by `delta`. A positive `delta` moves
     /// toward the start of the document; a negative one moves toward the end.
     /// One page is the current viewport height, so the step tracks window size.
-    pub(crate) fn scroll_viewport_by(&mut self, delta: Pixels, cx: &mut Context<Self>) {
-        let target = self.tab().scroll.handle.offset().y + delta;
-        self.set_vertical_scroll_offset(target, cx);
+    pub(crate) fn scroll_viewport_by(
+        &mut self,
+        pane_id: usize,
+        delta: Pixels,
+        cx: &mut Context<Self>,
+    ) {
+        let target = self
+            .pane_state_ref(pane_id)
+            .map(|state| state.scroll.handle.offset().y + delta)
+            .unwrap_or_default();
+        self.set_vertical_scroll_offset(pane_id, target, cx);
     }
 
     /// Applies an absolute vertical scroll offset, clamped to the scrollable
     /// range. Offsets run from 0 at the top to `-max_offset` at the bottom.
-    pub(crate) fn set_vertical_scroll_offset(&mut self, target_y: Pixels, cx: &mut Context<Self>) {
-        let max_offset_y = self.tab().scroll.handle.max_offset().height.max(px(0.0));
-        let mut offset = self.tab().scroll.handle.offset();
+    pub(crate) fn set_vertical_scroll_offset(
+        &mut self,
+        pane_id: usize,
+        target_y: Pixels,
+        cx: &mut Context<Self>,
+    ) {
+        let max_offset_y = self
+            .pane_state_ref(pane_id)
+            .map(|state| state.scroll.handle.max_offset().height.max(px(0.0)))
+            .unwrap_or_default();
+        let mut offset = self
+            .pane_state_ref(pane_id)
+            .map(|state| state.scroll.handle.offset())
+            .unwrap_or_default();
         offset.y = target_y.min(px(0.0)).max(-max_offset_y);
-        self.tab().scroll.handle.set_offset(offset);
-        // A direct viewport scroll should stick, so cancel any queued pass that
-        // would otherwise re-center the active block on the next frame.
-        self.tab_mut().focus.pending_scroll_active_block_into_view = false;
-        self.tab_mut().focus.pending_scroll_recheck_after_layout = false;
-        self.bump_scrollbar_visibility(cx);
+        {
+            let state = self.pane_state(pane_id);
+            state.scroll.handle.set_offset(offset);
+            // A direct viewport scroll should stick, so cancel any queued pass that
+            // would otherwise re-center the active block on the next frame.
+            state.focus.pending_scroll_active_block_into_view = false;
+            state.focus.pending_scroll_recheck_after_layout = false;
+        }
+        self.bump_scrollbar_visibility(pane_id, cx);
         cx.notify();
     }
 
@@ -255,7 +282,8 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         if Self::block_event_clears_cross_block_selection(event) {
-            self.tab_mut().selection.select_all_cycle = None;
+            let state = self.active_pane_state();
+            state.selection.select_all_cycle = None;
             self.clear_cross_block_selection(cx);
         }
 
@@ -264,7 +292,7 @@ impl Editor {
                 self.sync_table_data_from_grid(&binding.table_block, cx);
                 self.sync_references_after_block_change(&binding.cell, cx);
                 self.mark_dirty(cx);
-                self.request_active_block_scroll_into_view(cx);
+                self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
                 self.finalize_pending_undo_capture(cx);
             }
             BlockAction::RequestOpenLink {
@@ -319,7 +347,7 @@ impl Editor {
                 self.rebuild_reference_registries(cx);
                 self.focus_block(new_block.entity_id());
                 self.mark_dirty(cx);
-                self.request_active_block_scroll_into_view(cx);
+                self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }

@@ -19,29 +19,39 @@ pub(crate) struct PreviewState {
 }
 
 impl Editor {
-    /// Rebuild the preview block tree whenever the document source changes.
+    /// Rebuild the preview block tree of ONE pane whenever the document
+    /// source changes.
     ///
     /// The document revision guards the expensive whole-document
     /// serialization: it only runs after an edit bumped the revision, never
     /// on unchanged frames.
-    pub(crate) fn refresh_preview_blocks(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn refresh_preview_blocks(&mut self, pane_id: usize, cx: &mut Context<Self>) {
         let revision = self.tab().document_revision;
-        let synced = self.tab().preview.synced_revision;
-        let blocks_empty = self.tab().preview.blocks.is_empty();
+        let synced = self
+            .pane_state_ref(pane_id)
+            .map(|state| state.preview.synced_revision)
+            .flatten();
+        let blocks_empty = self
+            .pane_state_ref(pane_id)
+            .map_or(true, |state| state.preview.blocks.is_empty());
         if synced == Some(revision) && !blocks_empty {
             return;
         }
         let source = self.doc().serialize_markdown(cx);
         let hash = Self::hash_str(&source);
-        if hash != self.tab().preview.source_hash || self.tab().preview.blocks.is_empty() {
+        let needs_rebuild = self.pane_state_ref(pane_id).map_or(true, |state| {
+            state.preview.source_hash != hash || state.preview.blocks.is_empty()
+        });
+        let state = self.pane_state(pane_id);
+        if needs_rebuild {
             let mut roots = Self::parse_document(cx, &source);
             if roots.is_empty() {
                 roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
             }
-            self.tab_mut().preview.blocks = roots;
-            self.tab_mut().preview.source_hash = hash;
+            state.preview.blocks = roots;
+            state.preview.source_hash = hash;
         }
-        self.tab_mut().preview.synced_revision = Some(revision);
+        state.preview.synced_revision = Some(revision);
     }
 
     pub(crate) fn hash_str(s: &str) -> u64 {

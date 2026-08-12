@@ -1,7 +1,8 @@
 //! Block focus management — pending focus, cursor reset, and range focus.
 //!
-//! Focus state lives on the active tab (`FocusState`); these helpers route
-//! focus requests from block input handlers and structural edits.
+//! Focus state lives on the active pane (`PaneState::focus`); these helpers
+//! route focus requests from block input handlers and structural edits to
+//! the pane that owns the window keyboard focus.
 
 use std::time::Instant;
 
@@ -12,9 +13,10 @@ use crate::editor::tree::block::Block;
 
 impl Editor {
     pub(crate) fn focus_block(&mut self, entity_id: EntityId) {
-        self.tab_mut().focus.pending = Some(entity_id);
-        self.tab_mut().focus.active_entity = Some(entity_id);
-        self.tab_mut().focus.pending_scroll_active_block_into_view = true;
+        let pane = self.active_pane_state();
+        pane.focus.pending = Some(entity_id);
+        pane.focus.active_entity = Some(entity_id);
+        pane.focus.pending_scroll_active_block_into_view = true;
     }
 
     pub(crate) fn reset_block_cursor(block: &Entity<Block>, cursor: usize, cx: &mut Context<Self>) {

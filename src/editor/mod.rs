@@ -45,7 +45,6 @@ pub(crate) mod view;
 pub mod wysiwyg;
 
 pub(crate) use preview::PreviewState;
-pub(crate) use source_code::SourceCodePaneState;
 
 #[cfg(test)]
 mod tests;

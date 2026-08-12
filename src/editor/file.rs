@@ -248,8 +248,9 @@ impl Editor {
         let restore_focus = self.tab_mut().file.drop_replace_restore_focus.take();
         self.clear_pending_drop_replace_state(cx);
         if let Some(focus_id) = restore_focus {
-            self.tab_mut().focus.pending = Some(focus_id);
-            self.tab_mut().focus.pending_scroll_active_block_into_view = true;
+            let pane = self.active_pane_state();
+            pane.focus.pending = Some(focus_id);
+            pane.focus.pending_scroll_active_block_into_view = true;
         }
         cx.notify();
     }
@@ -437,8 +438,9 @@ impl Editor {
         self.tab_mut().file.pending_drop_replace_path = None;
         let restore_focus = self.tab_mut().file.drop_replace_restore_focus.take();
         if let Some(focus_id) = restore_focus {
-            self.tab_mut().focus.pending = Some(focus_id);
-            self.tab_mut().focus.pending_scroll_active_block_into_view = true;
+            let pane = self.active_pane_state();
+            pane.focus.pending = Some(focus_id);
+            pane.focus.pending_scroll_active_block_into_view = true;
         }
         cx.notify();
     }

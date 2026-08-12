@@ -130,7 +130,7 @@ impl Editor {
         self.end_block_pointer_selection_sessions(cx);
         let selection_snapshot = self.capture_source_selection_snapshot_global(cx);
         self.clear_cross_block_selection(cx);
-        self.tab_mut().selection.select_all_cycle = None;
+        self.active_pane_state().selection.select_all_cycle = None;
         match self.tab().mode {
             EditorMode::Wysiwyg => {
                 let markdown = self.doc().serialize_markdown(cx);
@@ -145,9 +145,13 @@ impl Editor {
         }
 
         self.apply_selection_snapshot_in_current_mode(&selection_snapshot, cx);
-        self.tab_mut().focus.pending_scroll_active_block_into_view = true;
-        self.tab_mut().focus.pending_scroll_recheck_after_layout = true;
-        self.tab_mut().scroll.last_viewport_size = None;
+        {
+            let pane_id = self.active_pane_id();
+            let state = self.pane_state(pane_id);
+            state.focus.pending_scroll_active_block_into_view = true;
+            state.focus.pending_scroll_recheck_after_layout = true;
+            state.scroll.last_viewport_size = None;
+        }
         self.tab_mut().file.pending_window_title_refresh = true;
         self.tab_mut().file.close_dialog_restore_focus = None;
         self.tab_mut().tables.axis_preview = None;

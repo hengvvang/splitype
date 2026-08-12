@@ -9,25 +9,6 @@ use crate::editor::controller::Editor;
 use crate::editor::tree::block::Block;
 use crate::model::parse::BlockData;
 
-/// The standalone raw-source block backing ONE source-code panel.
-///
-/// Every `Editing(SourceCode)` panel owns its own pane state (its own block
-/// entity, cursor, and subscription) so multiple source panels edit
-/// independently; the document content itself stays shared. The owning
-/// area is captured by the subscription closure, so it is not stored here.
-#[derive(Default)]
-pub(crate) struct SourceCodePaneState {
-    /// The panel's own raw-source block entity.
-    pub(crate) block: Option<Entity<Block>>,
-    /// Fingerprint of the document at the last sync: when the document is
-    /// changed externally (e.g. by a Wysiwyg panel), the block is rebuilt
-    /// from it. The block itself keeps the user's raw bytes in between.
-    pub(crate) synced_doc_hash: u64,
-    /// Document revision the pane block was last synced at; `None` until
-    /// the first sync.
-    pub(crate) synced_revision: Option<u64>,
-}
-
 impl Editor {
     /// Ensure the Source pane's interactive editor block exists. Only
     /// rebuilds when the document was changed by an external source
@@ -36,10 +17,18 @@ impl Editor {
     ///
     /// The block is created as a standalone entity with a minimal
     /// subscription that only syncs Changed events back to the document.
+    /// Each Source pane keeps its own block in its own [`PaneState`], so
+    /// multiple source panels edit independently; the document content
+    /// itself stays shared.
     pub(crate) fn sync_source_pane(&mut self, pane_id: usize, cx: &mut Context<Self>) {
+        let tab_index = self.session.tab_list.active_tab;
         let revision = self.tab().document_revision;
-        let needs_sync = match self.source_pane_states.get(&pane_id) {
-            Some(state) => state.synced_revision != Some(revision) || state.block.is_none(),
+        let needs_sync = match self.pane_state_ref(pane_id) {
+            Some(state) => {
+                state.synced_tab_index != Some(tab_index)
+                    || state.synced_revision != Some(revision)
+                    || state.source_block.is_none()
+            }
             None => true,
         };
         if !needs_sync {
@@ -48,16 +37,9 @@ impl Editor {
         let doc_text = self.doc().serialize_markdown(cx);
         let doc_hash = Self::hash_str(&doc_text);
 
-        let state = self
-            .source_pane_states
-            .entry(pane_id)
-            .or_insert_with(|| SourceCodePaneState {
-                block: None,
-                synced_doc_hash: 0,
-                synced_revision: None,
-            });
-        if state.block.is_none() || doc_hash != state.synced_doc_hash {
-            state.block = None;
+        let state = self.pane_state(pane_id);
+        if state.source_block.is_none() || doc_hash != state.synced_doc_hash {
+            state.source_block = None;
             let block = Self::new_standalone_block(cx, BlockData::paragraph(doc_text));
             block.update(cx, |block, _cx| block.set_source_document_mode());
             let panel = pane_id;
@@ -65,10 +47,11 @@ impl Editor {
                 this.on_source_pane_changed(panel, block, event, cx);
             })
             .detach();
-            state.block = Some(block);
+            state.source_block = Some(block);
             state.synced_doc_hash = doc_hash;
         }
         state.synced_revision = Some(revision);
+        state.synced_tab_index = Some(tab_index);
     }
 
     /// Minimal event handler for a Source pane block. Only syncs text
@@ -84,12 +67,24 @@ impl Editor {
         if !matches!(event, BlockAction::Changed) {
             return;
         }
+        // Only the pane's CURRENT block may write into the document. When a
+        // tab switch rebuilds the block, the replaced block can stay alive
+        // (mounted, even focused) for a frame or two, and a late event from
+        // it must not replace the active tab's document with stale text.
+        let current = self
+            .pane_state_ref(pane_id)
+            .and_then(|state| state.source_block.as_ref())
+            .map(|block| block.entity_id());
+        if current != Some(block.entity_id()) {
+            return;
+        }
         let text = block.read(cx).display_text().to_string();
         let doc = self.doc().serialize_markdown(cx);
         if text == doc {
             return;
         }
         self.rebuild_document_from_markdown(&text, cx);
+        self.mark_dirty(cx);
         // Record the fingerprint of the synced document, not of the user's
         // raw bytes: markdown parsing normalizes the text (a trailing
         // newline, for instance, does not survive a parse round-trip), so
@@ -98,10 +93,10 @@ impl Editor {
         // user's bytes; the document is the parsed form.
         let synced_hash = Self::hash_str(&self.doc().serialize_markdown(cx));
         let revision = self.tab().document_revision;
-        self.mark_dirty(cx);
-        if let Some(state) = self.source_pane_states.get_mut(&pane_id) {
-            state.synced_doc_hash = synced_hash;
-            state.synced_revision = Some(revision);
-        }
+        let tab_index = self.session.tab_list.active_tab;
+        let state = self.pane_state(pane_id);
+        state.synced_doc_hash = synced_hash;
+        state.synced_revision = Some(revision);
+        state.synced_tab_index = Some(tab_index);
     }
 }

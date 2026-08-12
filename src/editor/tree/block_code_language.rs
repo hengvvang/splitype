@@ -23,9 +23,7 @@ impl Block {
                 language.as_deref().map(|value| &**value),
                 self.render_cache.text(),
             ),
-            BlockKind::MathBlock => {
-                highlight_code_block(Some("math"), self.render_cache.text())
-            }
+            BlockKind::MathBlock => highlight_code_block(Some("math"), self.render_cache.text()),
             BlockKind::MermaidBlock => {
                 highlight_code_block(Some("mermaid"), self.render_cache.text())
             }
@@ -263,24 +261,22 @@ impl Block {
             return 0;
         }
 
-        let (Some(bounds), Some(line)) = (
-            self.code_language_last_bounds.as_ref(),
-            self.code_language_last_layout.as_ref(),
-        ) else {
+        let Some(paint) = self.code_language_paint_at(position) else {
             return 0;
         };
-        if position.x <= bounds.left() {
+        if position.x <= paint.bounds.left() {
             return 0;
         }
-        if position.x >= bounds.right() {
+        if position.x >= paint.bounds.right() {
             return text.len();
         }
-        line.closest_index_for_x(position.x - bounds.left())
+        paint
+            .line
+            .closest_index_for_x(position.x - paint.bounds.left())
     }
 
     pub(crate) fn reset_code_language_input_layout(&mut self) {
-        self.code_language_last_layout = None;
-        self.code_language_last_bounds = None;
+        self.code_language_paints.clear();
         self.code_language_is_selecting = false;
     }
 

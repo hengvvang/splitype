@@ -37,9 +37,8 @@ impl Editor {
         };
 
         if let Some(block) = self
-            .tab()
-            .focus
-            .active_entity
+            .pane_state_ref(self.active_pane_id())
+            .and_then(|state| state.focus.active_entity)
             .and_then(|entity_id| self.focusable_entity_by_id(entity_id))
             .filter(is_focused)
         {

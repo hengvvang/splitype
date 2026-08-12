@@ -11,13 +11,12 @@ use crate::editor::tree::block::Block;
 
 impl Editor {
     pub(crate) fn current_edit_target_entity_id_from_state(&self, cx: &App) -> Option<EntityId> {
-        self.tab()
-            .focus
+        let focus = self.active_pane_focus();
+        focus
             .active_entity
             .filter(|entity_id| self.focusable_entity_by_id(*entity_id).is_some())
             .or_else(|| {
-                self.tab()
-                    .focus
+                focus
                     .pending
                     .filter(|entity_id| self.focusable_entity_by_id(*entity_id).is_some())
             })

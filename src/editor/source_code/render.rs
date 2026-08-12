@@ -16,9 +16,8 @@ impl Editor {
         let d = &theme.dimensions;
 
         let content: AnyElement = if let Some(block) = self
-            .source_pane_states
-            .get(&pane_id)
-            .and_then(|state| state.block.clone())
+            .pane_state_ref(pane_id)
+            .and_then(|state| state.source_block.clone())
         {
             div()
                 .w_full()

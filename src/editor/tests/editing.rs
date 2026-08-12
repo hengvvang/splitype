@@ -21,7 +21,7 @@ async fn toggle_view_mode_preserves_paragraph_caret_position(cx: &mut TestAppCon
         target.update(cx, |block, _cx| {
             block.selected_range = 2..2;
         });
-        editor.tab_mut().focus.active_entity = Some(target.entity_id());
+        editor.active_pane_state().focus.active_entity = Some(target.entity_id());
 
         editor.toggle_view_mode(cx);
         assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
@@ -41,7 +41,7 @@ async fn toggle_view_mode_preserves_paragraph_caret_position(cx: &mut TestAppCon
         assert_eq!(entries[1].entity.read(cx).display_text(), "beta");
         assert_eq!(entries[1].entity.read(cx).selected_range, 2..2);
         assert_eq!(
-            editor.tab().focus.pending,
+            editor.active_pane_focus().pending,
             Some(entries[1].entity.entity_id())
         );
     });
@@ -59,7 +59,7 @@ async fn toggle_view_mode_ends_stale_code_block_pointer_selection(cx: &mut TestA
             block.is_selecting = true;
             block.code_language_is_selecting = true;
         });
-        editor.tab_mut().focus.active_entity = Some(target.entity_id());
+        editor.active_pane_state().focus.active_entity = Some(target.entity_id());
 
         editor.toggle_view_mode(cx);
 
@@ -118,7 +118,7 @@ async fn ctrl_a_selects_entire_source_document_in_source_mode(cx: &mut TestAppCo
     editor.read_with(cx, |editor, cx| {
         let source = editor.doc().blocks()[0].entity.read(cx);
         assert_eq!(source.selected_range, 0..source.display_len());
-        assert!(editor.tab().selection.cross_block.is_none());
+        assert!(editor.active_pane_selection().cross_block.is_none());
     });
 }
 
@@ -146,7 +146,7 @@ async fn ctrl_a_selects_only_focused_block_text_in_rendered_mode(cx: &mut TestAp
         let second = editor.doc().blocks()[1].entity.read(cx);
         assert_eq!(first.selected_range, 0..0);
         assert_eq!(second.selected_range, 0..second.display_len());
-        assert!(editor.tab().selection.cross_block.is_none());
+        assert!(editor.active_pane_selection().cross_block.is_none());
     });
 }
 
@@ -175,7 +175,7 @@ async fn repeated_ctrl_a_selects_all_rendered_blocks(cx: &mut TestAppContext) {
     editor.read_with(cx, |editor, cx| {
         let first = editor.doc().blocks()[0].entity.read(cx);
         assert_eq!(first.selected_range, 0..first.display_len());
-        assert!(editor.tab().selection.cross_block.is_none());
+        assert!(editor.active_pane_selection().cross_block.is_none());
     });
 
     cx.simulate_keystrokes("ctrl-a");
@@ -188,8 +188,7 @@ async fn repeated_ctrl_a_selects_all_rendered_blocks(cx: &mut TestAppContext) {
         let last_id = last.entity.entity_id();
         let last_len = last.entity.read(cx).display_len();
         let selection = editor
-            .tab()
-            .selection
+            .active_pane_selection()
             .cross_block
             .expect("second Ctrl+A should select the rendered document");
         assert_eq!(selection.anchor.entity_id, first_id);
@@ -206,13 +205,13 @@ async fn repeated_ctrl_a_selects_all_rendered_blocks(cx: &mut TestAppContext) {
     });
 
     let selected_after_second =
-        editor.read_with(cx, |editor, _cx| editor.tab().selection.cross_block);
+        editor.read_with(cx, |editor, _cx| editor.active_pane_selection().cross_block);
     cx.simulate_keystrokes("ctrl-a");
     redraw(cx);
 
     editor.read_with(cx, |editor, cx| {
         assert_eq!(
-            editor.tab().selection.cross_block,
+            editor.active_pane_selection().cross_block,
             selected_after_second,
             "third Ctrl+A should keep the full rendered document selected"
         );
@@ -251,7 +250,7 @@ async fn rendered_ctrl_a_cycle_expires_before_second_press(cx: &mut TestAppConte
             block.selected_range = 1..1;
         });
         let cycle = editor
-            .tab_mut()
+            .active_pane_state()
             .selection
             .select_all_cycle
             .as_mut()
@@ -266,11 +265,10 @@ async fn rendered_ctrl_a_cycle_expires_before_second_press(cx: &mut TestAppConte
     editor.read_with(cx, |editor, cx| {
         let second = editor.doc().blocks()[1].entity.read(cx);
         assert_eq!(second.selected_range, 0..second.display_len());
-        assert!(editor.tab().selection.cross_block.is_none());
+        assert!(editor.active_pane_selection().cross_block.is_none());
         assert_eq!(
             editor
-                .tab()
-                .selection
+                .active_pane_selection()
                 .select_all_cycle
                 .expect("cycle should be reset by expired second press")
                 .count,
@@ -570,7 +568,10 @@ async fn tab_key_keeps_table_cell_navigation(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.update(cx, |editor, _cx| {
-        assert_eq!(editor.tab().focus.active_entity, Some(second_cell_id));
+        assert_eq!(
+            editor.active_pane_focus().active_entity,
+            Some(second_cell_id)
+        );
     });
 }
 
@@ -602,7 +603,10 @@ async fn right_arrow_at_cell_end_moves_to_next_cell(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.update(cx, |editor, _cx| {
-        assert_eq!(editor.tab().focus.active_entity, Some(second_cell_id));
+        assert_eq!(
+            editor.active_pane_focus().active_entity,
+            Some(second_cell_id)
+        );
     });
 }
 
@@ -634,7 +638,10 @@ async fn left_arrow_at_cell_start_moves_to_previous_cell(cx: &mut TestAppContext
     redraw(cx);
 
     editor.update(cx, |editor, _cx| {
-        assert_eq!(editor.tab().focus.active_entity, Some(first_cell_id));
+        assert_eq!(
+            editor.active_pane_focus().active_entity,
+            Some(first_cell_id)
+        );
     });
 }
 
@@ -710,13 +717,7 @@ async fn ctrl_enter_exits_focused_table_cell(cx: &mut TestAppContext) {
 
     let cell = editor.update(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
-        let cell = table
-            .read(cx)
-            .table_grid
-            .as_ref()
-            .expect("table grid")
-            .rows[0][0]
-            .clone();
+        let cell = table.read(cx).table_grid.as_ref().expect("table grid").rows[0][0].clone();
         cell.update(cx, |block, block_cx| {
             block.move_to(block.display_len(), block_cx);
         });
@@ -734,7 +735,7 @@ async fn ctrl_enter_exits_focused_table_cell(cx: &mut TestAppContext) {
         assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(entries[1].entity.read(cx).display_text(), "");
         assert_eq!(
-            editor.tab().focus.active_entity,
+            editor.active_pane_focus().active_entity,
             Some(entries[1].entity.entity_id())
         );
     });
@@ -752,7 +753,7 @@ async fn ending_editor_pointer_selection_sessions_keeps_normal_selection(cx: &mu
             block.marked_range = Some(4..6);
             block.is_selecting = true;
         });
-        editor.tab_mut().focus.active_entity = Some(target.entity_id());
+        editor.active_pane_state().focus.active_entity = Some(target.entity_id());
 
         assert!(editor.end_block_pointer_selection_sessions(cx));
         target.read_with(cx, |block, _cx| {
@@ -772,17 +773,11 @@ async fn toggle_view_mode_preserves_table_cell_position(cx: &mut TestAppContext)
 
     editor.update(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
-        let cell = table
-            .read(cx)
-            .table_grid
-            .as_ref()
-            .expect("table grid")
-            .rows[0][1]
-            .clone();
+        let cell = table.read(cx).table_grid.as_ref().expect("table grid").rows[0][1].clone();
         cell.update(cx, |block, _cx| {
             block.selected_range = 2..2;
         });
-        editor.tab_mut().focus.active_entity = Some(cell.entity_id());
+        editor.active_pane_state().focus.active_entity = Some(cell.entity_id());
 
         editor.toggle_view_mode(cx);
         assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
@@ -799,7 +794,10 @@ async fn toggle_view_mode_preserves_table_cell_position(cx: &mut TestAppContext)
             .clone();
         assert_eq!(restored_cell.read(cx).display_text(), "beta");
         assert_eq!(restored_cell.read(cx).selected_range, 2..2);
-        assert_eq!(editor.tab().focus.pending, Some(restored_cell.entity_id()));
+        assert_eq!(
+            editor.active_pane_focus().pending,
+            Some(restored_cell.entity_id())
+        );
     });
 }
 
@@ -823,17 +821,11 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
             .find(|child| child.read(cx).kind() == BlockKind::Table)
             .expect("nested table child")
             .clone();
-        let cell = table
-            .read(cx)
-            .table_grid
-            .as_ref()
-            .expect("table grid")
-            .rows[0][1]
-            .clone();
+        let cell = table.read(cx).table_grid.as_ref().expect("table grid").rows[0][1].clone();
         cell.update(cx, |block, _cx| {
             block.selected_range = 2..2;
         });
-        editor.tab_mut().focus.active_entity = Some(cell.entity_id());
+        editor.active_pane_state().focus.active_entity = Some(cell.entity_id());
 
         editor.toggle_view_mode(cx);
         assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
@@ -857,6 +849,9 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
             .clone();
         assert_eq!(restored_cell.read(cx).display_text(), "beta");
         assert_eq!(restored_cell.read(cx).selected_range, 2..2);
-        assert_eq!(editor.tab().focus.pending, Some(restored_cell.entity_id()));
+        assert_eq!(
+            editor.active_pane_focus().pending,
+            Some(restored_cell.entity_id())
+        );
     });
 }

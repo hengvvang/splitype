@@ -398,8 +398,7 @@ impl Element for CodeLanguageInputElement {
         }
 
         self.input.update(cx, |input, _cx| {
-            input.code_language_last_layout = Some(line);
-            input.code_language_last_bounds = Some(bounds);
+            input.push_code_language_paint(bounds, line);
         });
     }
 }
@@ -838,9 +837,7 @@ impl Element for BlockTextElement {
         }
 
         self.input.update(cx, |input, _cx| {
-            input.last_layout = Some(lines);
-            input.last_bounds = Some(text_bounds);
-            input.last_line_height = line_height;
+            input.push_last_paint(text_bounds, lines, line_height);
         });
     }
 }
@@ -852,9 +849,9 @@ mod tests {
         source_text_bounds, wrapped_line_height,
     };
     use crate::editor::tree::block::Block;
-    use crate::model::parse::{BlockData, BlockKind};
-    use crate::model::inline::text::BlockText;
     use crate::model::block::table::TableCellPosition;
+    use crate::model::inline::text::BlockText;
+    use crate::model::parse::{BlockData, BlockKind};
     use gpui::{
         AppContext, Bounds, Hsla, Modifiers, MouseButton, MouseDownEvent, SharedString,
         TestAppContext, TextAlign, TextRun, VisualTestContext, font, point, px, rgba, size,
@@ -1003,9 +1000,7 @@ mod tests {
         });
 
         block.update(cx, |block, _cx| {
-            block.last_layout = Some(lines.clone());
-            block.last_bounds = Some(bounds);
-            block.last_line_height = px(20.0);
+            block.push_last_paint(bounds, lines.clone(), px(20.0));
             block.selected_range = 0..0;
         });
 

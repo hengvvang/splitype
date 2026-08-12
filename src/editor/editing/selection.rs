@@ -12,8 +12,8 @@ use crate::editor::controller::{
 };
 use crate::editor::editing::input::actions::{Copy, Cut, Delete, DeleteBack};
 use crate::editor::tree::block::Block;
-use crate::model::parse::BlockKind;
 use crate::model::block::table::serialize_table_markdown_lines;
+use crate::model::parse::BlockKind;
 
 /// Cross-block selection with endpoints ordered by document position.
 #[derive(Clone, Copy)]
@@ -40,8 +40,9 @@ impl Editor {
     }
 
     pub(crate) fn clear_cross_block_selection(&mut self, cx: &mut Context<Self>) {
-        let had_selection = self.tab_mut().selection.cross_block.take().is_some();
-        self.tab_mut().selection.cross_block_drag = None;
+        let selection = &mut self.active_pane_state().selection;
+        let had_selection = selection.cross_block.take().is_some();
+        selection.cross_block_drag = None;
         // Visual ranges are only ever written while a cross-block selection
         // (or drag) is active, so when there was none the all-blocks scan
         // below has nothing to clear. Skipping it removes an O(blocks) entity
@@ -57,13 +58,24 @@ impl Editor {
         }
     }
 
-    fn begin_cross_block_drag_at_point(&mut self, position: Point<Pixels>, cx: &mut Context<Self>) {
-        let had_selection = self.tab_mut().selection.cross_block.take().is_some();
+    fn begin_cross_block_drag_at_point(
+        &mut self,
+        pane_id: usize,
+        position: Point<Pixels>,
+        cx: &mut Context<Self>,
+    ) {
+        let had_selection = self
+            .pane_state_ref(pane_id)
+            .and_then(|state| state.selection.cross_block)
+            .is_some();
         let changed_visuals = self.clear_cross_block_selection_visuals(cx);
         let changed = had_selection || changed_visuals;
-        self.tab_mut().selection.cross_block_drag = self
+        let drag = self
             .cross_block_endpoint_for_point(position, cx)
             .map(|anchor| CrossBlockDrag { anchor });
+        let selection = &mut self.pane_state(pane_id).selection;
+        selection.cross_block = None;
+        selection.cross_block_drag = drag;
         if changed {
             cx.notify();
         }
@@ -71,6 +83,7 @@ impl Editor {
 
     pub(crate) fn on_editor_capture_mouse_down(
         &mut self,
+        pane_id: usize,
         event: &MouseDownEvent,
         _window: &mut Window,
         cx: &mut Context<Self>,
@@ -85,13 +98,15 @@ impl Editor {
             return;
         }
 
-        self.tab_mut().selection.select_all_cycle = None;
-        self.begin_cross_block_drag_at_point(event.position, cx);
+        let state = self.pane_state(pane_id);
+        state.selection.select_all_cycle = None;
+        self.begin_cross_block_drag_at_point(pane_id, event.position, cx);
         cx.propagate();
     }
 
     pub(crate) fn on_editor_mouse_move(
         &mut self,
+        pane_id: usize,
         event: &MouseMoveEvent,
         _window: &mut Window,
         cx: &mut Context<Self>,
@@ -99,14 +114,22 @@ impl Editor {
         if !event.dragging() {
             return;
         }
-        let Some(drag) = self.tab().selection.cross_block_drag else {
+        let Some(drag) = self
+            .pane_state_ref(pane_id)
+            .and_then(|state| state.selection.cross_block_drag)
+        else {
             return;
         };
         let Some(focus) = self.cross_block_endpoint_for_point(event.position, cx) else {
             return;
         };
 
-        if self.tab().selection.cross_block.is_none() && drag.anchor.entity_id == focus.entity_id {
+        if self
+            .pane_state_ref(pane_id)
+            .and_then(|state| state.selection.cross_block)
+            .is_none()
+            && drag.anchor.entity_id == focus.entity_id
+        {
             return;
         }
 
@@ -114,10 +137,12 @@ impl Editor {
             anchor: drag.anchor,
             focus,
         };
-        if self.cross_block_selection_is_empty(selection) {
-            self.tab_mut().selection.cross_block = None;
+        let is_empty = self.cross_block_selection_is_empty(selection);
+        let state = self.pane_state(pane_id);
+        if is_empty {
+            state.selection.cross_block = None;
         } else {
-            self.tab_mut().selection.cross_block = Some(selection);
+            state.selection.cross_block = Some(selection);
         }
         self.sync_cross_block_selection_visuals(cx);
         cx.notify();
@@ -125,11 +150,15 @@ impl Editor {
 
     pub(crate) fn on_editor_mouse_up(
         &mut self,
+        pane_id: usize,
         _event: &MouseUpEvent,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.tab_mut().selection.cross_block_drag = None;
+        {
+            let state = self.pane_state(pane_id);
+            state.selection.cross_block_drag = None;
+        }
         self.end_block_pointer_selection_sessions(cx);
     }
 
@@ -207,7 +236,7 @@ impl Editor {
         let Some(last) = entries.last() else {
             return false;
         };
-        let Some(selection) = self.tab().selection.cross_block else {
+        let Some(selection) = self.active_pane_selection().cross_block else {
             return false;
         };
         let last_len = last.entity.read(cx).display_len();
@@ -241,7 +270,8 @@ impl Editor {
             block.cursor_blink_epoch = std::time::Instant::now();
             cx.notify();
         });
-        self.tab_mut().focus.active_entity = Some(block.entity_id());
+        let pane = self.active_pane_state();
+        pane.focus.active_entity = Some(block.entity_id());
         cx.notify();
     }
 
@@ -276,17 +306,20 @@ impl Editor {
             });
         }
 
-        self.tab_mut().selection.cross_block_drag = None;
-        self.tab_mut().selection.cross_block = Some(CrossBlockSelection {
-            anchor: CrossBlockSelectionEndpoint {
-                entity_id: first_id,
-                offset: 0,
-            },
-            focus: CrossBlockSelectionEndpoint {
-                entity_id: last_id,
-                offset: last_len,
-            },
-        });
+        {
+            let selection = &mut self.active_pane_state().selection;
+            selection.cross_block_drag = None;
+            selection.cross_block = Some(CrossBlockSelection {
+                anchor: CrossBlockSelectionEndpoint {
+                    entity_id: first_id,
+                    offset: 0,
+                },
+                focus: CrossBlockSelectionEndpoint {
+                    entity_id: last_id,
+                    offset: last_len,
+                },
+            });
+        }
         self.sync_cross_block_selection_visuals(cx);
         cx.notify();
     }
@@ -297,13 +330,14 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         if self.tab().mode != EditorMode::Wysiwyg {
-            self.tab_mut().selection.select_all_cycle = None;
+            let state = self.active_pane_state();
+            state.selection.select_all_cycle = None;
             return;
         }
 
         let now = std::time::Instant::now();
         let block_id = block.entity_id();
-        let count = match self.tab().selection.select_all_cycle {
+        let count = match self.active_pane_selection().select_all_cycle {
             Some(cycle)
                 if cycle.entity_id == block_id
                     && now.duration_since(cycle.last_pressed_at)
@@ -315,7 +349,8 @@ impl Editor {
         }
         .min(3);
 
-        self.tab_mut().selection.select_all_cycle =
+        let state = self.active_pane_state();
+        state.selection.select_all_cycle =
             Some(crate::editor::controller::RenderedSelectAllCycle {
                 entity_id: block_id,
                 count,
@@ -369,18 +404,21 @@ impl Editor {
             return false;
         }
 
-        self.tab_mut().selection.cross_block = Some(if snapshot.reversed {
-            CrossBlockSelection {
-                anchor: end,
-                focus: start,
-            }
-        } else {
-            CrossBlockSelection {
-                anchor: start,
-                focus: end,
-            }
-        });
-        self.tab_mut().selection.cross_block_drag = None;
+        {
+            let selection = &mut self.active_pane_state().selection;
+            selection.cross_block = Some(if snapshot.reversed {
+                CrossBlockSelection {
+                    anchor: end,
+                    focus: start,
+                }
+            } else {
+                CrossBlockSelection {
+                    anchor: start,
+                    focus: end,
+                }
+            });
+            selection.cross_block_drag = None;
+        }
         self.sync_cross_block_selection_visuals(cx);
         let focus = if snapshot.reversed { start } else { end };
         self.focus_block(focus.entity_id);
@@ -396,8 +434,11 @@ impl Editor {
         let mut previous: Option<(Entity<Block>, Bounds<Pixels>)> = None;
         for entries in self.doc().blocks() {
             let entity = entries.entity.clone();
-            let bounds = entity.read(cx).last_bounds;
-            let Some(bounds) = bounds else {
+            let Some(bounds) = entity
+                .read(cx)
+                .last_paint_at(position)
+                .map(|paint| paint.bounds)
+            else {
                 continue;
             };
 
@@ -433,23 +474,17 @@ impl Editor {
     }
 
     fn cross_block_selection_is_empty(&self, selection: CrossBlockSelection) -> bool {
-        let Some(anchor_index) = self
-            .doc()
-            .index_for_entity_id(selection.anchor.entity_id)
-        else {
+        let Some(anchor_index) = self.doc().index_for_entity_id(selection.anchor.entity_id) else {
             return true;
         };
-        let Some(focus_index) = self
-            .doc()
-            .index_for_entity_id(selection.focus.entity_id)
-        else {
+        let Some(focus_index) = self.doc().index_for_entity_id(selection.focus.entity_id) else {
             return true;
         };
         anchor_index == focus_index && selection.anchor.offset == selection.focus.offset
     }
 
     fn normalized_cross_block_selection(&self, cx: &App) -> Option<NormalizedCrossBlockSelection> {
-        let selection = self.tab().selection.cross_block?;
+        let selection = self.active_pane_selection().cross_block?;
         let anchor = self.clamp_cross_block_endpoint(selection.anchor, cx)?;
         let focus = self.clamp_cross_block_endpoint(selection.focus, cx)?;
         let anchor_index = self.doc().index_for_entity_id(anchor.entity_id)?;
@@ -667,8 +702,11 @@ impl Editor {
         let start = source_range.start.min(source.len());
         let end = source_range.end.min(source.len());
         source.replace_range(start..end, new_text);
-        self.tab_mut().selection.cross_block = None;
-        self.tab_mut().selection.cross_block_drag = None;
+        {
+            let selection = &mut self.active_pane_state().selection;
+            selection.cross_block = None;
+            selection.cross_block_drag = None;
+        }
 
         let inserted_start = start;
         let inserted_end = inserted_start + new_text.len();
@@ -698,7 +736,7 @@ impl Editor {
         self.sync_table_axis_visuals(cx);
         self.dismiss_contextual_overlays(cx);
         self.sync_cross_block_selection_visuals(cx);
-        self.request_active_block_scroll_into_view(cx);
+        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
         cx.notify();
         true
     }
@@ -856,8 +894,11 @@ impl Editor {
         let start = source_range.start.min(source.len());
         let end = source_range.end.min(source.len());
         source.replace_range(start..end, "");
-        self.tab_mut().selection.cross_block = None;
-        self.tab_mut().selection.cross_block_drag = None;
+        {
+            let selection = &mut self.active_pane_state().selection;
+            selection.cross_block = None;
+            selection.cross_block_drag = None;
+        }
 
         self.rebuild_after_cross_block_source_edit(source, cx);
 
@@ -953,7 +994,7 @@ mod tests {
         let entries = editor.doc().blocks().to_vec();
         let start = entries[start_index].entity.entity_id();
         let end = entries[end_index].entity.entity_id();
-        editor.tab_mut().selection.cross_block = Some(CrossBlockSelection {
+        editor.active_pane_state().selection.cross_block = Some(CrossBlockSelection {
             anchor: CrossBlockSelectionEndpoint {
                 entity_id: start,
                 offset: start_offset,
@@ -969,10 +1010,14 @@ mod tests {
     fn assign_visible_block_bounds(editor: &mut Editor, cx: &mut Context<Editor>) {
         for (index, entries) in editor.doc().blocks().to_vec().into_iter().enumerate() {
             entries.entity.update(cx, move |block, _cx| {
-                block.last_bounds = Some(Bounds::new(
-                    point(px(0.0), px(index as f32 * 32.0)),
-                    size(px(400.0), px(24.0)),
-                ));
+                block.push_last_paint(
+                    Bounds::new(
+                        point(px(0.0), px(index as f32 * 32.0)),
+                        size(px(400.0), px(24.0)),
+                    ),
+                    Vec::new(),
+                    px(24.0),
+                );
             });
         }
     }
@@ -987,7 +1032,7 @@ mod tests {
         editor.update(&mut cx, |editor, cx| {
             assign_visible_block_bounds(editor, cx);
             set_selection(editor, 0, 0, 2, 2, cx);
-            assert!(editor.tab().selection.cross_block.is_some());
+            assert!(editor.active_pane_selection().cross_block.is_some());
             assert!(
                 editor.doc().blocks().iter().any(|entries| entries
                     .entity
@@ -996,10 +1041,14 @@ mod tests {
                     .is_some())
             );
 
-            editor.begin_cross_block_drag_at_point(point(px(8.0), px(4.0)), cx);
+            editor.begin_cross_block_drag_at_point(
+                editor.active_pane_id(),
+                point(px(8.0), px(4.0)),
+                cx,
+            );
 
-            assert!(editor.tab().selection.cross_block.is_none());
-            assert!(editor.tab().selection.cross_block_drag.is_some());
+            assert!(editor.active_pane_selection().cross_block.is_none());
+            assert!(editor.active_pane_selection().cross_block_drag.is_some());
             assert!(
                 editor.doc().blocks().iter().all(|entries| entries
                     .entity
@@ -1029,8 +1078,8 @@ mod tests {
             ));
 
             assert_eq!(editor.doc().serialize_markdown(cx), "alXmma");
-            assert!(editor.tab().selection.cross_block.is_none());
-            assert!(editor.tab().selection.cross_block_drag.is_none());
+            assert!(editor.active_pane_selection().cross_block.is_none());
+            assert!(editor.active_pane_selection().cross_block_drag.is_none());
             let block = editor.doc().blocks()[0].entity.read(cx);
             assert_eq!(block.selected_range, 3..3);
             assert!(block.marked_range.is_none());

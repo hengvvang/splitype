@@ -34,7 +34,8 @@ impl Editor {
         self.tab_mut().file.show_unsaved_changes_dialog = false;
         self.tab_mut().file.pending_close_after_save = false;
         if let Some(restore) = self.tab_mut().file.close_dialog_restore_focus.take() {
-            self.tab_mut().focus.active_entity = Some(restore);
+            let pane = self.active_pane_state();
+            pane.focus.active_entity = Some(restore);
         }
         cx.notify();
     }

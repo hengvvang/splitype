@@ -55,11 +55,11 @@ use crate::editor::wysiwyg::render::{
 };
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::infra::theme::{Theme, ThemeDimensions, ThemeManager};
-use crate::model::parse::BlockKind;
 use crate::model::block::image::ImageResolvedSource;
 use crate::model::block::math::parse_display_math_source;
 use crate::model::block::mermaid::parse_mermaid_fence_source;
 use crate::model::block::table::{TableAxisHighlight, TableAxisKind};
+use crate::model::parse::BlockKind;
 
 pub(crate) fn render_custom_bullet_marker(depth: usize, color: Hsla) -> AnyElement {
     match depth % 3 {
@@ -1294,9 +1294,9 @@ mod tests {
     };
     use crate::infra::i18n::I18nManager;
     use crate::infra::theme::{Theme, ThemeManager};
-    use crate::model::parse::{BlockData, BlockKind};
-    use crate::model::inline::text::BlockText;
     use crate::model::block::html::parse_html_document;
+    use crate::model::inline::text::BlockText;
+    use crate::model::parse::{BlockData, BlockKind};
     use gpui::{Hsla, Rgba, TestAppContext, px};
 
     fn assert_color_near(color: Hsla, red: u8, green: u8, blue: u8, alpha: u8) {
@@ -1406,9 +1406,13 @@ mod tests {
 
         let (text_bounds, language_bounds) = block.read_with(cx, |block, _cx| {
             (
-                block.last_bounds.expect("code text should render"),
                 block
-                    .code_language_last_bounds
+                    .last_paint()
+                    .map(|paint| paint.bounds)
+                    .expect("code text should render"),
+                block
+                    .code_language_paint()
+                    .map(|paint| paint.bounds)
                     .expect("language input should render"),
             )
         });

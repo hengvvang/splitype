@@ -16,19 +16,19 @@ use crate::editor::render::code_highlight::highlight::CodeHighlightResult;
 use crate::editor::render::mermaid_render::MermaidSvgRender;
 use crate::editor::tree::block_edit_mode::BlockEditMode;
 use crate::editor::tree::footnotes::FootnoteMap;
-use crate::model::parse::{BlockData, BlockId, BlockKind};
 use crate::model::block::CalloutKind;
+use crate::model::block::image::ImageReferenceDefinitions;
+use crate::model::block::image::ImageResolvedSource;
+use crate::model::block::link::LinkReferenceDefinitions;
+use crate::model::block::table::TableCellPosition;
+use crate::model::block::table::{TableAxisHighlight, TableAxisMarker, TableColumnAlignment};
 #[cfg(test)]
 use crate::model::inline::footnote::InlineFootnoteHit;
 use crate::model::inline::render_cache::{InlineRenderCache, InlineSpan};
 #[cfg(test)]
 use crate::model::inline::style::InlineStyle;
 use crate::model::inline::text::BlockText;
-use crate::model::block::image::ImageReferenceDefinitions;
-use crate::model::block::image::ImageResolvedSource;
-use crate::model::block::link::LinkReferenceDefinitions;
-use crate::model::block::table::TableCellPosition;
-use crate::model::block::table::{TableAxisHighlight, TableAxisMarker, TableColumnAlignment};
+use crate::model::parse::{BlockData, BlockId, BlockKind};
 
 // ---------------------------------------------------------------------------
 // View-local types
@@ -81,8 +81,9 @@ pub struct Block {
     pub(crate) code_language_selected_range: Range<usize>,
     pub(crate) code_language_selection_reversed: bool,
     pub(crate) code_language_marked_range: Option<Range<usize>>,
-    pub(crate) code_language_last_layout: Option<ShapedLine>,
-    pub(crate) code_language_last_bounds: Option<Bounds<Pixels>>,
+    /// Per-pane paints of the code-language input, resolved by pointer
+    /// containment like [`Block::last_paints`].
+    pub(crate) code_language_paints: Vec<CodeLanguageLastPaint>,
     pub(crate) code_language_is_selecting: bool,
     pub(crate) code_toolbar_hovered: bool,
     pub(crate) code_language_picker_open: bool,
@@ -92,9 +93,12 @@ pub struct Block {
     pub selection_reversed: bool,
     pub(crate) editor_selection_range: Option<Range<usize>>,
     pub marked_range: Option<Range<usize>>,
-    pub last_layout: Option<Vec<WrappedLine>>,
-    pub last_bounds: Option<Bounds<Pixels>>,
-    pub last_line_height: Pixels,
+    /// Geometry and layout of the last frame's paints, one entry per pane
+    /// that rendered this block. The same block entity renders in every
+    /// Wysiwyg pane, so a single `(bounds, layout)` pair would only match
+    /// the pane painted last; pointer hit-testing resolves the entry whose
+    /// bounds contain the pointer instead.
+    pub(crate) last_paints: Vec<BlockLastPaint>,
     pub render_depth: usize,
     pub quote_depth: usize,
     pub(crate) quote_group_id: Option<BlockId>,
@@ -168,7 +172,117 @@ pub struct Block {
     pub(crate) mermaid_render_cache: Option<(u64, u32, u32, MermaidSvgRender)>,
 }
 
+/// Geometry and text layout of one pane's paint of a block during the last
+/// frame.
+///
+/// The same block entity renders in every Wysiwyg pane, so `Block` keeps one
+/// entry per pane instead of a single `(bounds, layout)` pair — the single
+/// pair would only ever match the pane painted last, breaking pointer
+/// hit-testing in every other pane.
+pub(crate) struct BlockLastPaint {
+    pub bounds: Bounds<Pixels>,
+    pub layout: Vec<WrappedLine>,
+    pub line_height: Pixels,
+}
+
+/// Geometry and shaped line of one pane's paint of the code-language input.
+///
+/// The same block entity renders in every Wysiwyg pane, so the input keeps
+/// one entry per pane, resolved by pointer containment like
+/// [`BlockLastPaint`].
+pub(crate) struct CodeLanguageLastPaint {
+    pub bounds: Bounds<Pixels>,
+    pub line: ShapedLine,
+}
+
+/// Upper bound on retained paint entries; pane counts are tiny (typically
+/// 1–2) and mirror panes scroll together, so eviction only ever drops stale
+/// geometry.
+const MAX_LAST_PAINTS: usize = 8;
+
 impl Block {
+    /// Record one pane's paint of this block. Replaces an entry with the
+    /// same bounds (the pane re-painted unchanged geometry) and otherwise
+    /// appends, bounding the retained history to the most recent paints.
+    pub(crate) fn push_last_paint(
+        &mut self,
+        bounds: Bounds<Pixels>,
+        layout: Vec<WrappedLine>,
+        line_height: Pixels,
+    ) {
+        if let Some(entry) = self
+            .last_paints
+            .iter_mut()
+            .find(|entry| entry.bounds == bounds)
+        {
+            *entry = BlockLastPaint {
+                bounds,
+                layout,
+                line_height,
+            };
+            return;
+        }
+        self.last_paints.push(BlockLastPaint {
+            bounds,
+            layout,
+            line_height,
+        });
+        if self.last_paints.len() > MAX_LAST_PAINTS {
+            self.last_paints.remove(0);
+        }
+    }
+
+    /// The paint entry whose bounds contain `position` — the pane the
+    /// pointer is inside. Falls back to the newest entry.
+    pub(crate) fn last_paint_at(&self, position: Point<Pixels>) -> Option<&BlockLastPaint> {
+        self.last_paints
+            .iter()
+            .rev()
+            .find(|entry| entry.bounds.contains(&position))
+            .or_else(|| self.last_paints.last())
+    }
+
+    /// The newest paint entry (any pane). Used where no pointer position is
+    /// available — keyboard navigation, IME popup placement, row strides.
+    pub(crate) fn last_paint(&self) -> Option<&BlockLastPaint> {
+        self.last_paints.last()
+    }
+
+    /// Record one pane's paint of the code-language input, mirroring
+    /// [`Self::push_last_paint`].
+    pub(crate) fn push_code_language_paint(&mut self, bounds: Bounds<Pixels>, line: ShapedLine) {
+        if let Some(entry) = self
+            .code_language_paints
+            .iter_mut()
+            .find(|entry| entry.bounds == bounds)
+        {
+            *entry = CodeLanguageLastPaint { bounds, line };
+            return;
+        }
+        self.code_language_paints
+            .push(CodeLanguageLastPaint { bounds, line });
+        if self.code_language_paints.len() > MAX_LAST_PAINTS {
+            self.code_language_paints.remove(0);
+        }
+    }
+
+    /// The code-language input paint whose bounds contain `position`.
+    pub(crate) fn code_language_paint_at(
+        &self,
+        position: Point<Pixels>,
+    ) -> Option<&CodeLanguageLastPaint> {
+        self.code_language_paints
+            .iter()
+            .rev()
+            .find(|entry| entry.bounds.contains(&position))
+            .or_else(|| self.code_language_paints.last())
+    }
+
+    /// The newest code-language input paint (any pane).
+    pub(crate) fn code_language_paint(&self) -> Option<&CodeLanguageLastPaint> {
+        self.code_language_paints.last()
+    }
+
     pub fn with_data(cx: &mut Context<Self>, data: BlockData) -> Self {
         let edit_mode = BlockEditMode::for_kind(&data.kind);
         let render_cache = data.text.render_cache();
@@ -182,8 +296,7 @@ impl Block {
             code_language_selected_range: 0..0,
             code_language_selection_reversed: false,
             code_language_marked_range: None,
-            code_language_last_layout: None,
-            code_language_last_bounds: None,
+            code_language_paints: Vec::new(),
             code_language_is_selecting: false,
             code_toolbar_hovered: false,
             code_language_picker_open: false,
@@ -193,9 +306,7 @@ impl Block {
             selection_reversed: false,
             editor_selection_range: None,
             marked_range: None,
-            last_layout: None,
-            last_bounds: None,
-            last_line_height: px(20.0),
+            last_paints: Vec::new(),
             render_depth: 0,
             quote_depth: 0,
             quote_group_id: None,
@@ -816,12 +927,12 @@ impl Block {
     }
 
     fn current_line_layout_and_offset(&self) -> Option<(&WrappedLine, usize)> {
-        let lines = self.last_layout.as_ref()?;
+        let paint = self.last_paint()?;
         let text = self.display_text();
         let ranges = element::hard_line_ranges(text);
         let (line_idx, offset_in_line) =
             element::line_index_for_offset(&ranges, self.cursor_offset());
-        Some((lines.get(line_idx)?, offset_in_line))
+        Some((paint.layout.get(line_idx)?, offset_in_line))
     }
 
     pub(crate) fn vertical_anchor_x(&self) -> Pixels {
@@ -832,7 +943,7 @@ impl Block {
                         element::position_for_offset(
                             layout,
                             offset_in_line,
-                            self.last_line_height,
+                            self.last_paint().map_or(px(0.0), |p| p.line_height),
                             true,
                         )
                         .map(|position| position.x)
@@ -850,9 +961,11 @@ impl Block {
         preferred_x: Pixels,
         cx: &mut Context<Self>,
     ) -> bool {
-        let Some(lines) = self.last_layout.as_ref() else {
+        let Some(paint) = self.last_paint() else {
             return false;
         };
+        let lines = &paint.layout;
+        let line_height = paint.line_height;
 
         let text = self.display_text();
         let ranges = element::hard_line_ranges(text);
@@ -861,42 +974,39 @@ impl Block {
         let Some(current_layout) = lines.get(current_line_idx) else {
             return false;
         };
-        let Some(current_position) = element::position_for_offset(
-            current_layout,
-            offset_in_line,
-            self.last_line_height,
-            true,
-        ) else {
+        let Some(current_position) =
+            element::position_for_offset(current_layout, offset_in_line, line_height, true)
+        else {
             return false;
         };
 
-        let current_y = element::wrapped_line_top(lines, self.last_line_height, current_line_idx)
-            + current_position.y;
+        let current_y =
+            element::wrapped_line_top(lines, line_height, current_line_idx) + current_position.y;
         let target_y = if direction < 0 {
-            current_y - self.last_line_height + self.last_line_height / 2.0
+            current_y - line_height + line_height / 2.0
         } else {
-            current_y + self.last_line_height + self.last_line_height / 2.0
+            current_y + line_height + line_height / 2.0
         };
         if target_y < px(0.0) {
             return false;
         }
 
         let total_height = lines.iter().fold(px(0.0), |height, line| {
-            height + element::wrapped_line_height(line, self.last_line_height)
+            height + element::wrapped_line_height(line, line_height)
         });
         if target_y >= total_height {
             return false;
         }
 
         let Some((target_line_idx, target_y_in_line)) =
-            element::wrapped_line_for_y(lines, self.last_line_height, target_y)
+            element::wrapped_line_for_y(lines, line_height, target_y)
         else {
             return false;
         };
         let target_layout = &lines[target_line_idx];
         let target_point = point(preferred_x, target_y_in_line);
         let target_offset_in_line =
-            match target_layout.closest_index_for_position(target_point, self.last_line_height) {
+            match target_layout.closest_index_for_position(target_point, line_height) {
                 Ok(idx) | Err(idx) => idx,
             };
 
@@ -914,13 +1024,15 @@ impl Block {
         prefer_last_line: bool,
         preferred_x: Option<Pixels>,
     ) -> usize {
-        let Some(lines) = self.last_layout.as_ref() else {
+        let Some(paint) = self.last_paint() else {
             return if prefer_last_line {
                 self.display_len()
             } else {
                 0
             };
         };
+        let lines = &paint.layout;
+        let line_height = paint.line_height;
 
         let text = self.display_text();
         let ranges = element::hard_line_ranges(text);
@@ -928,14 +1040,13 @@ impl Block {
         let target_layout = &lines[target_line_idx];
         let target_x = preferred_x.unwrap_or(px(0.0));
         let target_y = if prefer_last_line {
-            element::wrapped_line_height(target_layout, self.last_line_height)
-                - self.last_line_height / 2.0
+            element::wrapped_line_height(target_layout, line_height) - line_height / 2.0
         } else {
-            self.last_line_height / 2.0
+            line_height / 2.0
         };
 
         let offset_in_line = match target_layout
-            .closest_index_for_position(point(target_x, target_y), self.last_line_height)
+            .closest_index_for_position(point(target_x, target_y), line_height)
         {
             Ok(idx) | Err(idx) => idx,
         };
@@ -1140,10 +1251,14 @@ impl Block {
             return 0;
         }
 
-        let (Some(bounds), Some(lines)) = (self.last_bounds.as_ref(), self.last_layout.as_ref())
-        else {
+        // The pointer selects the pane it is inside: with multiple Wysiwyg
+        // panes the same block paints once per pane with different bounds.
+        let Some(paint) = self.last_paint_at(position) else {
             return 0;
         };
+        let bounds = paint.bounds;
+        let lines = &paint.layout;
+        let line_height = paint.line_height;
 
         if position.y < bounds.top() {
             return 0;
@@ -1156,26 +1271,26 @@ impl Block {
         let ranges = element::hard_line_ranges(text);
         let relative_y = position.y - bounds.top();
         let Some((line_idx, y_in_line)) =
-            element::wrapped_line_for_y(lines, self.last_line_height, relative_y)
+            element::wrapped_line_for_y(lines, line_height, relative_y)
         else {
             return 0;
         };
         let layout = &lines[line_idx];
-        let origin_x = element::aligned_line_left(layout, *bounds, self.text_align());
+        let origin_x = element::aligned_line_left(layout, bounds, self.text_align());
 
-        let offset_in_line = match layout.closest_index_for_position(
-            point(position.x - origin_x, y_in_line),
-            self.last_line_height,
-        ) {
+        let offset_in_line = match layout
+            .closest_index_for_position(point(position.x - origin_x, y_in_line), line_height)
+        {
             Ok(idx) | Err(idx) => idx,
         };
         ranges[line_idx].start + offset_in_line
     }
 
     pub(crate) fn active_range_or_cursor_bounds(&self) -> Option<Bounds<Pixels>> {
-        let bounds = self.last_bounds?;
-        let lines = self.last_layout.as_ref()?;
-        let line_height = self.last_line_height;
+        let paint = self.last_paint()?;
+        let bounds = paint.bounds;
+        let lines = &paint.layout;
+        let line_height = paint.line_height;
         let text = self.display_text();
         let active_range = self
             .marked_range

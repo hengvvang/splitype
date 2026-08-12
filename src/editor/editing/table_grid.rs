@@ -199,7 +199,7 @@ impl Editor {
             self.focus_block(cell.entity_id());
         }
         self.mark_dirty(cx);
-        self.request_active_block_scroll_into_view(cx);
+        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
         if started_local_capture {
             self.finalize_pending_undo_capture(cx);
         }
@@ -234,7 +234,7 @@ impl Editor {
             self.focus_block(cell.entity_id());
         }
         self.mark_dirty(cx);
-        self.request_active_block_scroll_into_view(cx);
+        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
         if started_local_capture {
             self.finalize_pending_undo_capture(cx);
         }
@@ -325,7 +325,7 @@ impl Editor {
         self.set_table_axis_selection(Some(selection), cx);
         self.focus_table_cell_position(table_block, TableCellPosition { row: 0, column }, cx);
         self.mark_dirty(cx);
-        self.request_active_block_scroll_into_view(cx);
+        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
         if started_local_capture {
             self.finalize_pending_undo_capture(cx);
         }
@@ -382,7 +382,7 @@ impl Editor {
             cx,
         );
         self.mark_dirty(cx);
-        self.request_active_block_scroll_into_view(cx);
+        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
         if started_local_capture {
             self.finalize_pending_undo_capture(cx);
         }
@@ -437,7 +437,7 @@ impl Editor {
             cx,
         );
         self.mark_dirty(cx);
-        self.request_active_block_scroll_into_view(cx);
+        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
         if started_local_capture {
             self.finalize_pending_undo_capture(cx);
         }
@@ -498,7 +498,7 @@ impl Editor {
             cx,
         );
         self.mark_dirty(cx);
-        self.request_active_block_scroll_into_view(cx);
+        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
         if started_local_capture {
             self.finalize_pending_undo_capture(cx);
         }
@@ -533,7 +533,7 @@ impl Editor {
         self.clear_table_axis_selection(cx);
         self.focus_table_cell_position(table_block, TableCellPosition { row: 0, column: 0 }, cx);
         self.mark_dirty(cx);
-        self.request_active_block_scroll_into_view(cx);
+        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
         if started_local_capture {
             self.finalize_pending_undo_capture(cx);
         }
@@ -580,7 +580,7 @@ impl Editor {
             cx,
         );
         self.mark_dirty(cx);
-        self.request_active_block_scroll_into_view(cx);
+        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
         if started_local_capture {
             self.finalize_pending_undo_capture(cx);
         }
@@ -621,7 +621,7 @@ impl Editor {
         self.clear_table_axis_selection(cx);
         self.focus_block(paragraph.entity_id());
         self.mark_dirty(cx);
-        self.request_active_block_scroll_into_view(cx);
+        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
         if started_local_capture {
             self.finalize_pending_undo_capture(cx);
         }

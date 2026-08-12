@@ -63,7 +63,7 @@ async fn append_column_updates_table_and_focuses_new_header_cell(cx: &mut TestAp
 
         let grid = table.read(cx).table_grid.as_ref().expect("rebuilt grid");
         let focused = grid.header[2].entity_id();
-        assert_eq!(editor.tab().focus.pending, Some(focused));
+        assert_eq!(editor.active_pane_focus().pending, Some(focused));
     });
 }
 
@@ -92,7 +92,7 @@ async fn append_row_updates_table_and_focuses_first_cell_of_new_row(cx: &mut Tes
 
         let grid = table.read(cx).table_grid.as_ref().expect("rebuilt grid");
         let focused = grid.rows[1][0].entity_id();
-        assert_eq!(editor.tab().focus.pending, Some(focused));
+        assert_eq!(editor.active_pane_focus().pending, Some(focused));
     });
 }
 
@@ -144,7 +144,7 @@ async fn moving_table_row_updates_focus_and_selection(cx: &mut TestAppContext) {
 
         let grid = table.read(cx).table_grid.as_ref().expect("rebuilt grid");
         assert_eq!(
-            editor.tab().focus.pending,
+            editor.active_pane_focus().pending,
             Some(grid.rows[0][0].entity_id())
         );
     });
@@ -320,7 +320,7 @@ async fn deleting_table_header_promotes_next_row(cx: &mut TestAppContext) {
         assert!(table_data.rows.is_empty());
 
         let grid = table.read(cx).table_grid.as_ref().expect("rebuilt grid");
-        assert_eq!(editor.tab().focus.pending, Some(grid.header[0].entity_id()));
+        assert_eq!(editor.active_pane_focus().pending, Some(grid.header[0].entity_id()));
     });
 }
 
@@ -368,7 +368,7 @@ async fn removing_table_block_replaces_it_with_empty_paragraph(cx: &mut TestAppC
         assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(roots[1].read(cx).display_text(), "");
         assert_eq!(roots[2].read(cx).display_text(), "outro");
-        assert_eq!(editor.tab().focus.pending, Some(roots[1].entity_id()));
+        assert_eq!(editor.active_pane_focus().pending, Some(roots[1].entity_id()));
     });
 }
 

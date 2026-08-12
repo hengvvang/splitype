@@ -395,7 +395,7 @@ impl Editor {
             self.focus_block(first_cell.entity_id());
         }
         self.mark_dirty(cx);
-        self.request_active_block_scroll_into_view(cx);
+        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
         cx.notify();
     }
 }

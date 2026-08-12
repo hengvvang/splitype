@@ -64,15 +64,13 @@ impl Block {
         &self,
         position: Point<Pixels>,
     ) -> Option<crate::model::inline::link::InlineLinkHit> {
-        self.last_layout
-            .as_ref()
-            .zip(self.last_bounds)
-            .and_then(|(lines, bounds)| {
+        self.last_paint_at(position)
+            .and_then(|paint| {
                 crate::editor::geometry::text_layout::link_at_position(
                     self,
-                    lines,
-                    bounds,
-                    self.last_line_height,
+                    &paint.layout,
+                    paint.bounds,
+                    paint.line_height,
                     position,
                 )
             })
@@ -127,15 +125,13 @@ impl Block {
 
         if event.click_count >= 2 {
             let footnote = self
-                .last_layout
-                .as_ref()
-                .zip(self.last_bounds)
-                .and_then(|(lines, bounds)| {
+                .last_paint_at(event.position)
+                .and_then(|paint| {
                     crate::editor::geometry::text_layout::footnote_at_position(
                         self,
-                        lines,
-                        bounds,
-                        self.last_line_height,
+                        &paint.layout,
+                        paint.bounds,
+                        paint.line_height,
                         event.position,
                     )
                 })

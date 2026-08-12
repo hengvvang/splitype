@@ -156,10 +156,15 @@ impl Editor {
             .min(available_content_width)
     }
 
-    pub(crate) fn request_active_block_scroll_into_view(&mut self, cx: &mut Context<Self>) {
-        self.tab_mut().focus.pending_scroll_recheck_after_layout = true;
-        if !self.tab().focus.pending_scroll_active_block_into_view {
-            self.tab_mut().focus.pending_scroll_active_block_into_view = true;
+    pub(crate) fn request_active_block_scroll_into_view(
+        &mut self,
+        pane_id: usize,
+        cx: &mut Context<Self>,
+    ) {
+        let state = self.pane_state(pane_id);
+        state.focus.pending_scroll_recheck_after_layout = true;
+        if !state.focus.pending_scroll_active_block_into_view {
+            state.focus.pending_scroll_active_block_into_view = true;
             cx.notify();
         }
     }

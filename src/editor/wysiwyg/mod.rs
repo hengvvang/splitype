@@ -25,8 +25,11 @@ impl Editor {
         let source = self.doc().serialize_markdown(cx);
         self.rebuild_document_from_markdown(&source, cx);
         self.apply_selection_snapshot_in_current_mode(&selection_snapshot, cx);
-        self.tab_mut().focus.pending_scroll_active_block_into_view = true;
-        self.tab_mut().focus.pending_scroll_recheck_after_layout = true;
-        self.tab_mut().scroll.last_viewport_size = None;
+        {
+            let pane = self.active_pane_state();
+            pane.focus.pending_scroll_active_block_into_view = true;
+            pane.focus.pending_scroll_recheck_after_layout = true;
+            pane.scroll.last_viewport_size = None;
+        }
     }
 }

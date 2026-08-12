@@ -41,18 +41,22 @@ impl Editor {
         let c = &theme.colors;
         let d = &theme.dimensions;
 
-        self.refresh_preview_blocks(cx);
+        self.refresh_preview_blocks(pane_id, cx);
 
         // Render each snapshot root through the dedicated read-only preview
         // renderers. No GPUI view mounting, no event suppression needed: the
         // preview elements carry no interaction handlers at all.
         let block_elements: Vec<AnyElement> = self
-            .tab()
-            .preview
-            .blocks
-            .iter()
-            .map(|entity| render_preview_block(entity.read(cx), 0, 0, theme, window, cx))
-            .collect();
+            .pane_state_ref(pane_id)
+            .map(|state| {
+                state
+                    .preview
+                    .blocks
+                    .iter()
+                    .map(|entity| render_preview_block(entity.read(cx), 0, 0, theme, window, cx))
+                    .collect()
+            })
+            .unwrap_or_default();
 
         div()
             .w_full()
