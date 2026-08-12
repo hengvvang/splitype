@@ -1,99 +1,97 @@
-# Editor Showcase
+# Showcase
 
-[Go to README](../../README.md)
+<p align="right">
+    <a href="../../README.md">README ↩️</a>
+</p>
 
-**Note that the syntax supported in the plan, as well as some less common syntax, is not yet supported for rendering and will be displayed in plain text style:**
+> **Note that the syntax supported in the plan, as well as some less common syntax, is not yet supported for rendering and will be displayed in plain text style:**
 
-- Paragraphs, line breaks, blank lines:
+| Paragraphs, line breaks, blank lines |
+| ------------------------------------ |
+|![1](1.png)                           |
 
-![1](1.png)
+| Headings |
+| -------- |
+|![2](2.png)                           |
 
-- Headings:
+| Emphasis, strong, nested emphasis, and edge cases |
+| ------------------------------------------------- |
+|![3](3.png)                                        |
 
-![2](2.png)
+| Inline code and code span |
+| ------------------------- |
+|![4](4.png)                |
 
-- Emphasis, strong, nested emphasis, and edge cases:
+| Links, images, autolinks, reference links |
+| ----------------------------------------- |
+|![5](5.png)                                |
 
-![3](3.png)
+| Lists |
+| ----- |
+|![6](6.png)    |
+|![61](6_1.png) |
 
-- Inline code and code span:
+| Blockquotes |
+| ----------- |
+|![7](7.png)  |
 
-![4](4.png)
+| Code blocks |
+| ----------- |
+|![8](8.png)    |
+|![81](8_1.png) |
+|![82](8_2.png) |
 
-- Links, images, autolinks, reference links:
+| Horizontal rules |
+| ---------------- |
+|![9](9.png)       |
 
-![5](5.png)
+| HTML blocks |
+| ----------- |
+|![10](10.png) |
 
-- Lists:
+| Escapes and entities |
+| -------------------- |
+|![11](11.png)         |
 
-![6](6.png)
+| Table block |
+| ----------- |
+|![12](12.png) |
 
-![61](6_1.png)
+| Task lists |
+| ---------- |
+|![13](13.png) |
 
-- Blockquotes:
+| Footnotes |
+| --------- |
+|![14](14.png) |
 
-![7](7.png)
+| Strikethrough |
+| ------------- |
+|![15](15.png)  |
 
-- Code blocks:
+| Definition list style |
+| --------------------- |
+|![16](16.png)          |
 
-![8](8.png)
+| Superscript and subscript style |
+| ------------------------------- |
+|![17](17.png)                    |
 
-![81](8_1.png)
-
-![82](8_2.png)
-
-- Horizontal rules:
-
-![9](9.png)
-
-- HTML blocks:
-
-![10](10.png)
-
-- Escapes and entities:
-
-![11](11.png)
-
-- Table block:
-
-![12](12.png)
-
-- Task lists:
-
-![13](13.png)
-
-- Footnotes:
-
-![14](14.png)
-
-- Strikethrought:
-
-![15](15.png)
-
-- Definition list style:
-
-![16](16.png)
-
-- Superscript and subscript style:
-
-![17](17.png)
-
-- Emoji and mention style:
+| Emoji and mention style |
+| ----------------------- |
+|![18](18.png)            |
 
 > Tip: The Emoji index has not been created, but directly entering Emoji characters is supported for rendering.
 
-![18](18.png)
+| Math style (LaTeX) |
+| ------------------ |
+|![19](19.png)       |
 
-- Math style(LaTex):
+| Callout style |
+| ------------- |
+|![20](20.png)  |
 
-![19](19.png)
-
-- Callout style:
-
-![20](20.png)
-
-- Mixed tests:
-
-![21](21.png)
-
-![211](21_1.png)
+| Mixed tests |
+| ----------- |
+|![21](21.png)    |
+|![211](21_1.png) |

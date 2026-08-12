@@ -1,38 +1,45 @@
-# splitype
+<p align="right">
+  <a href="README.md">English</a> | <a href="docs/README.zh-CN.md">中文</a>
+</p>
 
-<div align="center">
+<h1 align="left">
+  Splitype
+</h1>
 
-![splitype banner](./assets/identity/banner.png)
+<h3 align="right">
+  A fast, native Markdown editor, built with Rust and GPUI.
+</h3>
 
-**A fast, native Markdown editor with WYSIWYG and source-code modes, built with Rust and GPUI.**
 
-[Editor Showcase](./assets/showcase/showcase.md)
+<p align="right">
+    <a href="./assets/showcase/showcase.md">Showcase</a>
+</p>
 
-[English](README.md) | [中文](docs/README.zh-CN.md)
-
-[![Rust](https://img.shields.io/badge/Rust-2024-f74c00?logo=rust&logoColor=white)](https://www.rust-lang.org/)
-[![GPUI](https://img.shields.io/badge/GUI-GPUI%200.2-4b7bec)](https://gpui.rs/)
-[![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-2ea44f)](#quick-start)
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE-APACHE)
-
-</div>
-
-splitype is a block-based Markdown editor: Markdown is parsed into an editable block tree and rendered natively with [GPUI](https://gpui.rs/) — no Electron, no WebView. Switch between rendered editing (WYSIWYG) and raw source code at any time, and split the editor into as many panes as you need.
 
 ## Features
 
-- **🧱 Block model** — Markdown becomes structured, editable blocks; no preview-pane sync loop
-- **✍️ Two editing modes** — WYSIWYG rendered editing and raw Markdown source editing
-- **🪟 Split layout** — window-level panes (explorer / editor / settings) and editor-inner panels (outline / preview / source / wysiwyg) share one tiled split engine
-- **📤 Export** — HTML and PDF export with the active theme mapped into the output
-- **🎨 Theme & language packs** — partial-config JSONC files override colors, typography, layout tokens, or UI strings
-- **📦 Portable** — single native binary for Windows, Linux, and macOS
+### Split editing
+|       SPLIT                     |
+| -------------------------------- |
+| ![Preview](./assets/showcase/split.png) | 
+
+### Multi-modal editing
+| Source editing                 | WYSIWYG editing                |              Preview           |
+| -------------------------------- | --------------------------------- | -------------------------------- |
+| ![Preview](./assets/showcase/source_code.png) | ![Preview](./assets/showcase/wysiwyg.png) | ![Preview](./assets/showcase/preview.png) |
+
+
 
 ## Quick Start
 
-**Download a release** from the [Releases](https://github.com/hengvvang/splitype/releases) page — unzip and run. On macOS, either use the `.app` bundle or the `.pkg` installer (which also sets up the `splitype` CLI command).
+### Download a prebuilt release
+Grab the build for your platform from the [Releases](https://github.com/hengvvang/splitype/releases) page:
+- **macOS**: a `.app` bundle or a `.pkg` installer (the installer also sets up the `splitype` CLI command).
+- **Windows / Linux**: download the archive for your platform and run it directly after extracting.
 
-**Build from source:**
+### Build from source
+
+Make sure the Rust toolchain (Edition 2024) is installed, then run:
 
 ```bash
 git clone https://github.com/hengvvang/splitype.git
@@ -40,18 +47,14 @@ cd splitype
 cargo build --release
 ```
 
-## Customization
+The compiled binary is located at `./target/release/splitype`.
 
-splitype separates visual themes from UI language packs. A theme file can override global colors, fonts, spacing, menus, dialogs, code highlighting, and layout tokens; missing fields inherit from the built-in base theme (`splitype` or `splitype-light`). Language packs use the same partial-config strategy, falling back to English.
-
-Start with the examples, then import them via **Theme → Add Theme Config** or **Language → Add Language Config**:
-
-- [Custom theme JSONC](assets/examples/custom-theme.example.jsonc)
-- [Custom language JSONC](assets/examples/custom-language.example.jsonc)
 
 ## Acknowledgements
 
-Special thanks to the [velotype](https://github.com/hengvvang/velotype) project and its author for the original codebase that made this project possible.
+Special thanks to the [velotype](https://github.com/manyougz/velotype) project and its author for the original codebase that made this project possible.
+Special thanks to the [zed](https://github.com/zed-industries/zed) project and its authors for the base codebase — splitype largely ports zed's explorer design.
+Special thanks to the [blender](https://github.com/blender/blender) project and its authors for the base codebase — splitype's split layout design is inspired by blender.
 
 ## License
 
