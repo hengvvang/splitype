@@ -7,7 +7,7 @@ use crate::model::inline::link::InlineLink;
 use crate::model::inline::render_cache::InlineRenderCache;
 use crate::model::inline::serialize::can_use_markdown_script_delimiters;
 use crate::model::inline::style::{InlineScript, InlineStyle, StyleFlag};
-use crate::model::inline::text::{InlineFragment, BlockText};
+use crate::model::inline::text::{BlockText, InlineFragment};
 
 use crate::editor::tree::block::CollapsedCaretAffinity;
 
@@ -246,7 +246,7 @@ impl ExpandedInlineProjection {
                     let open_len = open_marker.len();
                     projected_fragments.push(InlineFragment {
                         text: open_marker,
-                        style: InlineStyle::default(),
+                        style: fragment.style,
                         html_style: None,
                         link: None,
                         footnote: None,
@@ -303,7 +303,7 @@ impl ExpandedInlineProjection {
                     let close_len = close_marker.len();
                     projected_fragments.push(InlineFragment {
                         text: close_marker,
-                        style: InlineStyle::default(),
+                        style: fragment.style,
                         html_style: None,
                         link: None,
                         footnote: None,
@@ -854,16 +854,10 @@ impl ExpandedInlineProjection {
     }
 }
 
-fn marker_style_for_projection(mut style: InlineStyle, kind: ExpandedInlineKind) -> InlineStyle {
-    if matches!(
-        kind,
-        ExpandedInlineKind::SuperscriptMarkdown
-            | ExpandedInlineKind::SuperscriptHtml
-            | ExpandedInlineKind::SubscriptMarkdown
-            | ExpandedInlineKind::SubscriptHtml
-    ) {
-        style.script = InlineScript::Normal;
-    }
+fn marker_style_for_projection(style: InlineStyle, _kind: ExpandedInlineKind) -> InlineStyle {
+    // Delimiters keep the fragment's own style so editing a script still
+    // shows its `^…^` / `~…~` markers at the superscript/subscript size and
+    // vertical offset instead of popping back to normal text.
     style
 }
 
