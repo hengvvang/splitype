@@ -181,6 +181,7 @@ impl ExpandedInlineProjection {
         plain_selected: Range<usize>,
         plain_marked: Option<Range<usize>>,
         block_prefix: Option<&str>,
+        footnote_head_len: Option<usize>,
     ) -> Option<Self> {
         let plain_len = fragments
             .iter()
@@ -197,6 +198,7 @@ impl ExpandedInlineProjection {
         let mut any_expanded = false;
         let mut block_prefix_range = None;
         let mut fragment_index = 0usize;
+        let mut footnote_head_closed = footnote_head_len.is_none();
 
         if let Some(prefix) = block_prefix.filter(|prefix| !prefix.is_empty()) {
             let prefix_len = prefix.len();
@@ -220,7 +222,13 @@ impl ExpandedInlineProjection {
             }
             plain_to_display_cursor.fill(prefix_len);
             display_cursor = prefix_len;
-            block_prefix_range = Some(0..prefix_len);
+            // `block_prefix_range` is the heading-prefix edit target. Footnote
+            // definitions also use `block_prefix` for their `[^` marker, but
+            // that marker must not be treated as a heading prefix, so leave
+            // the range unset for them.
+            if footnote_head_len.is_none() {
+                block_prefix_range = Some(0..prefix_len);
+            }
             any_expanded = true;
         }
 
@@ -523,6 +531,98 @@ impl ExpandedInlineProjection {
             }
 
             let plain_range = plain_cursor..plain_cursor + fragment_len;
+
+            // Footnote definitions split their leading `id:` fragment so the
+            // projected `]` sits directly after the id. The id is always the
+            // plain prefix up to `footnote_head_len` (the first `:`).
+            let head_split = if !footnote_head_closed
+                && let Some(head_len) = footnote_head_len
+                && plain_range.start < head_len
+                && head_len < plain_range.end
+            {
+                Some(head_len)
+            } else {
+                None
+            };
+
+            if let Some(head_len) = head_split {
+                let split_offset = head_len - plain_range.start;
+                let head_fragment = InlineFragment {
+                    text: fragment.text[..split_offset].to_string(),
+                    style: fragment.style,
+                    html_style: fragment.html_style,
+                    link: fragment.link.clone(),
+                    footnote: fragment.footnote.clone(),
+                    math: fragment.math.clone(),
+                };
+                let tail_fragment = InlineFragment {
+                    text: fragment.text[split_offset..].to_string(),
+                    style: fragment.style,
+                    html_style: fragment.html_style,
+                    link: fragment.link.clone(),
+                    footnote: fragment.footnote.clone(),
+                    math: fragment.math.clone(),
+                };
+
+                push_projected_fragment(
+                    &head_fragment,
+                    fragment_index,
+                    plain_range.start..head_len,
+                    &[],
+                    None,
+                    false,
+                    &mut projected_fragments,
+                    &mut segments,
+                    &mut plain_to_display_cursor,
+                    &mut display_to_plain,
+                    &mut display_cursor,
+                    &mut any_expanded,
+                );
+
+                let suffix = "]";
+                let suffix_len = suffix.len();
+                projected_fragments.push(InlineFragment {
+                    text: suffix.to_string(),
+                    style: InlineStyle::default(),
+                    html_style: None,
+                    link: None,
+                    footnote: None,
+                    math: None,
+                });
+                segments.push(ExpandedInlineSegment {
+                    display_range: display_cursor..display_cursor + suffix_len,
+                    plain_range: head_len..head_len,
+                    fragment_index,
+                    link_group: None,
+                    kind: ExpandedInlineSegmentKind::BlockPrefix,
+                });
+                for _ in 0..suffix_len {
+                    display_to_plain.push(head_len);
+                }
+                display_cursor += suffix_len;
+                footnote_head_closed = true;
+                any_expanded = true;
+
+                push_projected_fragment(
+                    &tail_fragment,
+                    fragment_index,
+                    head_len..plain_range.end,
+                    &[],
+                    None,
+                    false,
+                    &mut projected_fragments,
+                    &mut segments,
+                    &mut plain_to_display_cursor,
+                    &mut display_to_plain,
+                    &mut display_cursor,
+                    &mut any_expanded,
+                );
+
+                plain_cursor = plain_range.end;
+                fragment_index += 1;
+                continue;
+            }
+
             let expanded_kinds = Self::expanded_kinds_for_fragment(
                 fragments,
                 fragment_index,

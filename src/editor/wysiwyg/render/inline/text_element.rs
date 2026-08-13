@@ -3,6 +3,7 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use gpui::*;
 
@@ -11,6 +12,18 @@ use crate::editor::render::code_highlight::highlight::code_highlight_color;
 use crate::editor::tree::block::Block;
 use crate::infra::theme::{ThemeColors, ThemeManager};
 use crate::model::inline::html::html_css_color_to_hsla;
+use crate::model::inline::style::InlineScript;
+
+/// OpenType `sups`/`subs` features keep superscript/subscript runs at their
+/// scripted size and baseline offset inside the shaped-text path, which shapes
+/// a whole line at one font size.
+fn script_font_features(script: InlineScript) -> FontFeatures {
+    match script {
+        InlineScript::Superscript => FontFeatures(Arc::new(vec![("sups".to_string(), 1)])),
+        InlineScript::Subscript => FontFeatures(Arc::new(vec![("subs".to_string(), 1)])),
+        InlineScript::Normal => FontFeatures::default(),
+    }
+}
 
 fn build_text_runs(
     input: &Block,
@@ -67,6 +80,9 @@ fn build_text_runs(
         }
         if inline_style.italic {
             font.style = FontStyle::Italic;
+        }
+        if inline_style.has_script() {
+            font.features = script_font_features(inline_style.script);
         }
 
         let mut run_color = if is_link || is_footnote {

@@ -4,6 +4,7 @@ use gpui::{AppContext, TestAppContext};
 
 use crate::editor::controller::Editor;
 use crate::model::inline::style::InlineScript;
+use crate::model::parse::BlockKind;
 
 #[gpui::test]
 async fn script_delimiters_keep_script_style_while_editing(cx: &mut TestAppContext) {
@@ -75,6 +76,35 @@ async fn footnote_reference_delimiters_keep_superscript_style_while_editing(
             assert!(
                 saw_bracket_superscript,
                 "`[^` / `]` markers should keep superscript style"
+            );
+        });
+    });
+}
+
+#[gpui::test]
+async fn footnote_definition_head_projects_markers_while_editing(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| {
+        Editor::from_markdown(cx, "正文[^note]。\n\n[^note]: 脚注内容".to_string(), None)
+    });
+
+    editor.update(cx, |editor, cx| {
+        let definition = editor
+            .doc()
+            .blocks()
+            .iter()
+            .find(|entry| entry.entity.read(cx).kind() == BlockKind::FootnoteDefinition)
+            .expect("footnote definition block")
+            .entity
+            .clone();
+        definition.update(cx, |block, _cx| {
+            let len = block.display_len();
+            block.selected_range = 0..len;
+            block.rebuild_inline_projection(0..len, None);
+
+            let text = block.display_cache().text().to_string();
+            assert_eq!(
+                text, "[^note]: 脚注内容",
+                "footnote definition head should reveal its markers"
             );
         });
     });

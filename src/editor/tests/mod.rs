@@ -21,6 +21,7 @@ mod footnotes;
 mod geometry;
 mod image_handles;
 mod multi_panel;
+mod projection_styles;
 mod save_export;
 mod table_ops;
 mod undo;

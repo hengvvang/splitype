@@ -147,12 +147,27 @@ impl Block {
             plain_selected.clone(),
             plain_marked.clone(),
         ));
-        let block_prefix = heading_level.map(|level| format!("{} ", "#".repeat(level as usize)));
+        let (block_prefix, footnote_head_len) = match self.kind() {
+            BlockKind::Heading { level } => {
+                (Some(format!("{} ", "#".repeat(level as usize))), None)
+            }
+            BlockKind::FootnoteDefinition => {
+                let head_len = self
+                    .data
+                    .text
+                    .plain_text()
+                    .find(':')
+                    .unwrap_or_else(|| self.data.text.plain_len());
+                (Some("[^".to_string()), Some(head_len))
+            }
+            _ => (None, None),
+        };
         self.projection = ExpandedInlineProjection::build_with_prefix(
             &self.data.text.fragments,
             plain_selected,
             plain_marked,
             block_prefix.as_deref(),
+            footnote_head_len,
         );
         self.refresh_cached_display_text();
     }
