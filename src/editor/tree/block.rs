@@ -22,8 +22,6 @@ use crate::model::block::image::ImageResolvedSource;
 use crate::model::block::link::LinkReferenceDefinitions;
 use crate::model::block::table::TableCellPosition;
 use crate::model::block::table::{TableAxisHighlight, TableAxisMarker, TableColumnAlignment};
-#[cfg(test)]
-use crate::model::inline::footnote::InlineFootnoteHit;
 use crate::model::inline::render_cache::{InlineRenderCache, InlineSpan};
 #[cfg(test)]
 use crate::model::inline::style::InlineStyle;
@@ -479,11 +477,6 @@ impl Block {
     #[cfg(test)]
     pub(crate) fn inline_link_at(&self, offset: usize) -> Option<&str> {
         self.display_cache().link_at(offset)
-    }
-
-    #[cfg(test)]
-    pub(crate) fn inline_footnote_hit_at(&self, offset: usize) -> Option<&InlineFootnoteHit> {
-        self.display_cache().footnote_hit_at(offset)
     }
 
     pub(crate) fn has_mixed_inline_visuals(&self) -> bool {

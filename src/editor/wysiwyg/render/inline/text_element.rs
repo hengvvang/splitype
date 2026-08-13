@@ -3,7 +3,6 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::sync::Arc;
 
 use gpui::*;
 
@@ -12,17 +11,16 @@ use crate::editor::render::code_highlight::highlight::code_highlight_color;
 use crate::editor::tree::block::Block;
 use crate::infra::theme::{ThemeColors, ThemeManager};
 use crate::model::inline::html::html_css_color_to_hsla;
-use crate::model::inline::style::InlineScript;
 
-/// OpenType `sups`/`subs` features keep superscript/subscript runs at their
-/// scripted size and baseline offset inside the shaped-text path, which shapes
-/// a whole line at one font size.
-fn script_font_features(script: InlineScript) -> FontFeatures {
-    match script {
-        InlineScript::Superscript => FontFeatures(Arc::new(vec![("sups".to_string(), 1)])),
-        InlineScript::Subscript => FontFeatures(Arc::new(vec![("subs".to_string(), 1)])),
-        InlineScript::Normal => FontFeatures::default(),
-    }
+/// The block's text-style line height without gpui's internal `.round()`. The
+/// flex layout used by the unfocused mixed-visual path resolves `rems(1.6)`
+/// unrounded, so rounding here would make a script/footnote block change its
+/// height by a fraction of a pixel the moment it gains focus.
+fn unrounded_line_height(window: &Window) -> Pixels {
+    let style = window.text_style();
+    style
+        .line_height
+        .to_pixels(style.font_size, window.rem_size())
 }
 
 fn build_text_runs(
@@ -31,10 +29,13 @@ fn build_text_runs(
     base_run: &TextRun,
     underline_thickness: Pixels,
     link_color: Hsla,
+    marker_color: Hsla,
+    footnote_color: Hsla,
     code_bg: Hsla,
     show_inline_code_backgrounds: bool,
 ) -> Vec<TextRun> {
     let spans = input.inline_spans();
+    let delimiter_ranges = input.projected_delimiter_ranges();
     let mut boundaries = vec![0, display_text.len()];
     for span in spans {
         boundaries.push(span.range.start);
@@ -70,6 +71,15 @@ fn build_text_runs(
         let html_style = active_span.and_then(|s| s.html_style);
         let is_link = active_span.map(|s| s.link.is_some()).unwrap_or(false);
         let is_footnote = active_span.map(|s| s.footnote.is_some()).unwrap_or(false);
+        // Projected delimiter markers (revealed Markdown syntax) render in the
+        // dedicated marker color so the source reads as syntax-highlighted.
+        let is_delimiter = active_span
+            .map(|span| {
+                delimiter_ranges
+                    .iter()
+                    .any(|range| range.start <= span.range.start && span.range.end <= range.end)
+            })
+            .unwrap_or(false);
         let is_marked = marked_range
             .map(|range| start < range.end && range.start < end)
             .unwrap_or(false);
@@ -81,11 +91,12 @@ fn build_text_runs(
         if inline_style.italic {
             font.style = FontStyle::Italic;
         }
-        if inline_style.has_script() {
-            font.features = script_font_features(inline_style.script);
-        }
 
-        let mut run_color = if is_link || is_footnote {
+        let mut run_color = if is_delimiter {
+            marker_color
+        } else if is_footnote {
+            footnote_color
+        } else if is_link {
             link_color
         } else {
             base_run.color
@@ -95,13 +106,12 @@ fn build_text_runs(
         {
             run_color = html_css_color_to_hsla(color, run_color);
         }
-        let underline = (inline_style.underline || is_marked || is_link || is_footnote).then_some(
-            UnderlineStyle {
+        let underline =
+            (inline_style.underline || is_marked || is_link).then_some(UnderlineStyle {
                 color: Some(run_color),
                 thickness: underline_thickness,
                 wavy: false,
-            },
-        );
+            });
         let strikethrough = inline_style.strikethrough.then_some(StrikethroughStyle {
             color: Some(run_color),
             thickness: underline_thickness,
@@ -529,6 +539,8 @@ impl Element for BlockTextElement {
                     &run,
                     px(theme.dimensions.underline_thickness),
                     theme.colors.text_link,
+                    theme.colors.markdown_marker,
+                    theme.colors.text_quote,
                     theme.colors.code_bg,
                     show_inline_code_backgrounds,
                 )
@@ -538,7 +550,7 @@ impl Element for BlockTextElement {
         };
 
         let font_size = style.font_size.to_pixels(window.rem_size());
-        let line_height = window.line_height();
+        let line_height = unrounded_line_height(window);
         let source_line_number_gutter_width = show_source_line_numbers
             .then(|| source_line_number_gutter_width(source_line_count, font_size))
             .unwrap_or(px(0.0));
@@ -608,7 +620,7 @@ impl Element for BlockTextElement {
             .clone()
             .unwrap_or_else(|| input.selected_range.clone());
         let cursor = input.cursor_offset();
-        let line_height = window.line_height();
+        let line_height = unrounded_line_height(window);
         let focused = input.focus_handle.is_focused(window);
         let show_inline_code_backgrounds = !input.is_verbatim_mode();
         let show_source_line_numbers = input.show_source_line_numbers();
@@ -1129,6 +1141,8 @@ mod tests {
                 &base_run,
                 px(1.0),
                 Hsla::from(rgba(0x0066ccff)),
+                Hsla::from(rgba(0x00ff88ff)),
+                Hsla::from(rgba(0x9aa5ceff)),
                 Hsla::from(rgba(0x111111ff)),
                 true,
             );
@@ -1141,6 +1155,121 @@ mod tests {
                 marked_run.background_color,
                 Some(Hsla::from(rgba(0xffff00ff)))
             );
+        });
+    }
+
+    #[gpui::test]
+    async fn projected_delimiter_markers_render_in_marker_color(cx: &mut TestAppContext) {
+        let block = cx.new(|cx| {
+            Block::with_data(
+                cx,
+                BlockData::new(
+                    BlockKind::Paragraph,
+                    BlockText::from_markdown("x^2^ 与[^note]"),
+                ),
+            )
+        });
+        block.update(cx, |block, _cx| {
+            let len = block.display_len();
+            block.selected_range = 0..len;
+            block.rebuild_inline_projection(0..len, None);
+        });
+
+        block.read_with(cx, |block, _cx| {
+            let display_text: SharedString = block.display_text().to_string().into();
+            let base_run = TextRun {
+                len: display_text.len(),
+                font: font(".SystemUIFont"),
+                color: Hsla::from(rgba(0xffffffff)),
+                background_color: None,
+                underline: None,
+                strikethrough: None,
+            };
+            let marker_color = Hsla::from(rgba(0x00ff88ff));
+            let runs = super::build_text_runs(
+                block,
+                &display_text,
+                &base_run,
+                px(1.0),
+                Hsla::from(rgba(0x0066ccff)),
+                marker_color,
+                Hsla::from(rgba(0x9aa5ceff)),
+                Hsla::from(rgba(0x111111ff)),
+                true,
+            );
+
+            let mut offset = 0usize;
+            let mut saw_marker = false;
+            for run in runs {
+                let segment = &display_text[offset..offset + run.len];
+                if matches!(segment, "^" | "[^" | "]") {
+                    assert_eq!(run.color, marker_color, "marker {segment:?} not colored");
+                    saw_marker = true;
+                }
+                offset += run.len;
+            }
+            assert!(saw_marker, "no delimiter markers found in {display_text:?}");
+        });
+    }
+
+    #[gpui::test]
+    async fn footnote_reference_id_renders_in_footnote_color(cx: &mut TestAppContext) {
+        let block = cx.new(|cx| {
+            Block::with_data(
+                cx,
+                BlockData::new(
+                    BlockKind::Paragraph,
+                    BlockText::from_markdown("引用[^note]"),
+                ),
+            )
+        });
+        block.update(cx, |block, _cx| {
+            let len = block.display_len();
+            block.selected_range = 0..len;
+            block.rebuild_inline_projection(0..len, None);
+        });
+
+        block.read_with(cx, |block, _cx| {
+            let display_text: SharedString = block.display_text().to_string().into();
+            assert_eq!(display_text.as_ref(), "引用[^note]");
+            let base_run = TextRun {
+                len: display_text.len(),
+                font: font(".SystemUIFont"),
+                color: Hsla::from(rgba(0xffffffff)),
+                background_color: None,
+                underline: None,
+                strikethrough: None,
+            };
+            let marker_color = Hsla::from(rgba(0x00ff88ff));
+            let footnote_color = Hsla::from(rgba(0x9aa5ceff));
+            let runs = super::build_text_runs(
+                block,
+                &display_text,
+                &base_run,
+                px(1.0),
+                Hsla::from(rgba(0x0066ccff)),
+                marker_color,
+                footnote_color,
+                Hsla::from(rgba(0x111111ff)),
+                true,
+            );
+
+            let mut offset = 0usize;
+            let mut saw_id = false;
+            for run in runs {
+                let segment = &display_text[offset..offset + run.len];
+                if segment == "note" {
+                    assert_eq!(
+                        run.color, footnote_color,
+                        "footnote id should share the definition head color"
+                    );
+                    saw_id = true;
+                } else if matches!(segment, "[^" | "]") {
+                    assert_eq!(run.color, marker_color);
+                }
+                offset += run.len;
+            }
+            assert!(saw_id, "footnote id not found in {display_text:?}");
         });
     }
 

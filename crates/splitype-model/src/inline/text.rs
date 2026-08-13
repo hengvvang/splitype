@@ -152,6 +152,12 @@ impl BlockText {
             .any(|fragment| matches!(fragment.link, Some(InlineLink::Inline { .. })))
     }
 
+    /// Whether any fragment carries an inline math or script span. These need
+    /// the display-only mixed-visual rendering path: math renders as an SVG,
+    /// and script (superscript/subscript, footnote references) as smaller text
+    /// with a baseline offset — the single-font-size shaped-text editor cannot
+    /// express either per run. Once focused the text element takes over for
+    /// editing, so both layouts must agree on line height to avoid a jump.
     pub fn has_mixed_inline_visuals(&self) -> bool {
         self.fragments
             .iter()

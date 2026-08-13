@@ -37,6 +37,9 @@
       "text_default": null,
       // Link text color in rendered Markdown and safe HTML content.
       "text_link": null,
+      // Color of projected Markdown delimiter markers revealed while editing
+      // a focused block's source (`**`, `~`, `^`, `[^`, backticks).
+      "markdown_marker": null,
       // Placeholder text color for empty focused blocks and inputs.
       "text_placeholder": null,
       // H1 heading text color.

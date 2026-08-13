@@ -109,3 +109,49 @@ async fn footnote_definition_head_projects_markers_while_editing(cx: &mut TestAp
         });
     });
 }
+
+#[gpui::test]
+async fn projected_delimiter_ranges_cover_script_and_footnote_markers(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| {
+        Editor::from_markdown(
+            cx,
+            "H~2~O 和 x^2^ 引用[^note]结尾。\n\n[^note]: 脚注内容".to_string(),
+            None,
+        )
+    });
+
+    editor.update(cx, |editor, cx| {
+        let paragraph = editor.doc().first_root().expect("root paragraph").clone();
+        paragraph.update(cx, |block, _cx| {
+            let len = block.display_len();
+            block.selected_range = 0..len;
+            block.rebuild_inline_projection(0..len, None);
+
+            let text = block.display_cache().text();
+            let ranges = block.projected_delimiter_ranges();
+            let markers: Vec<&str> = ranges.iter().map(|range| &text[range.clone()]).collect();
+            for marker in &markers {
+                assert!(
+                    matches!(*marker, "~" | "^" | "[^" | "]"),
+                    "unexpected marker {marker:?}"
+                );
+            }
+            assert!(
+                markers.iter().any(|m| *m == "~"),
+                "subscript delimiters missing: {markers:?}"
+            );
+            assert!(
+                markers.iter().any(|m| *m == "^"),
+                "superscript delimiters missing: {markers:?}"
+            );
+            assert!(
+                markers.iter().any(|m| *m == "[^"),
+                "footnote open marker missing: {markers:?}"
+            );
+            assert!(
+                markers.iter().any(|m| *m == "]"),
+                "footnote close marker missing: {markers:?}"
+            );
+        });
+    });
+}

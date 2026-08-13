@@ -7,7 +7,7 @@ use crate::model::parse::BlockKind;
 
 #[gpui::test]
 async fn adjacent_lines_reference_then_definition_both_recognized(cx: &mut TestAppContext) {
-    let markdown = "正文引用[^a]\n\n[^a]: 脚注内容".to_string();
+    let markdown = "正文引用[^a]\n[^a]: 脚注内容".to_string();
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
     editor.read_with(cx, |editor, cx| {
@@ -22,7 +22,7 @@ async fn adjacent_lines_reference_then_definition_both_recognized(cx: &mut TestA
 
 #[gpui::test]
 async fn two_references_on_one_line_both_render_real_ids(cx: &mut TestAppContext) {
-    let markdown = "引用[^a]和[^b]都在一行。\n\n[^a]: A 内容\n\n[^b]: B 内容".to_string();
+    let markdown = "引用[^a]和[^b]都在一行。\n[^a]: A 内容\n[^b]: B 内容".to_string();
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
     editor.read_with(cx, |editor, cx| {
@@ -52,7 +52,7 @@ async fn two_definitions_on_one_line_both_recognized(cx: &mut TestAppContext) {
         assert_eq!(definitions[1].entity.read(cx).display_text(), "b: B 内容");
         assert_eq!(
             editor.doc().serialize_markdown(cx),
-            "[^a]: A 内容\n\n[^b]: B 内容"
+            "[^a]: A 内容\n[^b]: B 内容"
         );
     });
 }
@@ -73,7 +73,7 @@ async fn three_definitions_on_one_line_keep_trailing_content(cx: &mut TestAppCon
         assert_eq!(definitions, vec!["a: A", "b: B", "c: C 尾部"]);
         assert_eq!(
             editor.doc().serialize_markdown(cx),
-            "[^a]: A\n\n[^b]: B\n\n[^c]: C 尾部"
+            "[^a]: A\n[^b]: B\n[^c]: C 尾部"
         );
     });
 }
@@ -95,6 +95,80 @@ async fn reference_without_definition_renders_real_id_like_resolved(cx: &mut Tes
                 .footnotes
                 .binding("missing")
                 .is_none()
+        );
+        assert_eq!(editor.doc().serialize_markdown(cx), markdown);
+    });
+}
+
+#[gpui::test]
+async fn multiline_first_definition_with_adjacent_second_definition(cx: &mut TestAppContext) {
+    let markdown = [
+        "正文内容[^note1]。",
+        "",
+        "",
+        "这是第二个引用[^note2]。",
+        "",
+        "",
+        "[^note1]: 这里是脚注的实际内容，可以换行，可以写链接、加粗等**markdown语法**",
+        "[^note2]: 第二个脚注内容。",
+    ]
+    .join("\n");
+    let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
+
+    editor.read_with(cx, |editor, cx| {
+        let definitions = editor
+            .doc()
+            .blocks()
+            .iter()
+            .filter(|entry| entry.entity.read(cx).kind() == BlockKind::FootnoteDefinition)
+            .map(|entry| entry.entity.read(cx).display_text().to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            definitions,
+            vec![
+                "note1: 这里是脚注的实际内容，可以换行，可以写链接、加粗等markdown语法",
+                "note2: 第二个脚注内容。"
+            ],
+            "both adjacent definitions must be recognized"
+        );
+        assert!(editor.tab().references.footnotes.binding("note2").is_some());
+    });
+}
+
+#[gpui::test]
+async fn adjacent_definitions_without_blank_line(cx: &mut TestAppContext) {
+    let markdown = "[^a]: A 内容\n[^b]: B 内容".to_string();
+    let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
+
+    editor.read_with(cx, |editor, cx| {
+        let definitions = editor
+            .doc()
+            .blocks()
+            .iter()
+            .filter(|entry| entry.entity.read(cx).kind() == BlockKind::FootnoteDefinition)
+            .map(|entry| entry.entity.read(cx).display_text().to_string())
+            .collect::<Vec<_>>();
+        assert_eq!(definitions, vec!["a: A 内容", "b: B 内容"]);
+        assert_eq!(editor.doc().serialize_markdown(cx), markdown);
+    });
+}
+
+#[gpui::test]
+async fn reference_and_definition_without_blank_line(cx: &mut TestAppContext) {
+    let markdown = "正文引用[^a]\n[^a]: 脚注内容".to_string();
+    let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
+
+    editor.read_with(cx, |editor, cx| {
+        let blocks = editor
+            .doc()
+            .blocks()
+            .iter()
+            .map(|entry| entry.entity.read(cx))
+            .collect::<Vec<_>>();
+        let kinds = blocks.iter().map(|block| block.kind()).collect::<Vec<_>>();
+        assert!(
+            kinds.contains(&BlockKind::FootnoteDefinition),
+            "kinds: {kinds:?}"
         );
         assert_eq!(editor.doc().serialize_markdown(cx), markdown);
     });

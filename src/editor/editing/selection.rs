@@ -793,9 +793,12 @@ impl Editor {
             }
 
             let current_is_list_item = block.kind().is_list_item();
+            let current_is_footnote = block.kind() == BlockKind::FootnoteDefinition;
             if wrote_chunk {
                 let separator_lines = if previous_was_list_item && current_is_list_item {
                     pending_empty
+                } else if current_is_footnote && pending_empty == 0 {
+                    0
                 } else {
                     pending_empty + 1
                 };
@@ -1166,7 +1169,7 @@ mod tests {
             set_selection(editor, 0, 0, last_index, end_len, cx);
             assert_eq!(
                 editor.cross_block_selected_markdown(cx).as_deref(),
-                Some("正文段落测试[^note]\n\n[^note]: 脚注内容测试文字")
+                Some("正文段落测试[^note]\n[^note]: 脚注内容测试文字")
             );
 
             // Partial selection inside the footnote definition row.

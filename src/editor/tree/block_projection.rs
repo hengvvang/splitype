@@ -179,6 +179,15 @@ impl Block {
             .unwrap_or(&[])
     }
 
+    /// Display ranges of the projected delimiter markers, used to color the
+    /// revealed source syntax while editing. Empty when no projection is active.
+    pub(crate) fn projected_delimiter_ranges(&self) -> Vec<std::ops::Range<usize>> {
+        self.projection
+            .as_ref()
+            .map(|projection| projection.delimiter_ranges())
+            .unwrap_or_default()
+    }
+
     pub(crate) fn projected_link_span_fully_covering_range(
         &self,
         range: &Range<usize>,

@@ -60,8 +60,10 @@ pub(crate) fn render_preview_span(
     font_weight: FontWeight,
     theme: &Theme,
 ) -> AnyElement {
-    let color = if span.link.is_some() || span.footnote.is_some() {
+    let color = if span.link.is_some() {
         theme.colors.text_link
+    } else if span.footnote.is_some() {
+        theme.colors.text_quote
     } else {
         base_color
     };
@@ -71,7 +73,9 @@ pub(crate) fn render_preview_span(
         InlineScript::Superscript => -font_size * 0.28,
         InlineScript::Subscript => font_size * 0.22,
     };
-    let display_font_size = if span.style.has_script() {
+    let display_font_size = if span.footnote.is_some() {
+        theme.typography.code_size
+    } else if span.style.has_script() {
         (font_size * 0.72).max(6.0)
     } else {
         font_size
@@ -93,7 +97,7 @@ pub(crate) fn render_preview_span(
         element = element.relative().top(px(script_offset));
     }
 
-    if span.style.underline || span.link.is_some() || span.footnote.is_some() {
+    if span.style.underline || span.link.is_some() {
         element = element.underline();
     }
     if span.style.italic {

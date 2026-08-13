@@ -481,9 +481,15 @@ impl Document {
             }
 
             let current_is_list_item = block_ref.kind().is_list_item();
+            let current_is_footnote = block_ref.kind() == BlockKind::FootnoteDefinition;
             if wrote_non_empty_root {
                 let separator_count = if previous_was_list_item && current_is_list_item {
                     pending_empty_roots
+                } else if current_is_footnote && pending_empty_roots == 0 {
+                    // Adjacent footnote definitions (or a definition directly
+                    // after a paragraph) stay tight: no blank line is forced
+                    // between them, so `[^a]: x\n[^b]: y` round-trips.
+                    0
                 } else {
                     pending_empty_roots + 1
                 };

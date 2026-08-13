@@ -952,6 +952,23 @@ impl ExpandedInlineProjection {
             span.display_range.start <= range.start && range.end <= span.display_range.end
         })
     }
+
+    /// Display ranges of projected Markdown delimiter markers (`**`, `~`, `^`,
+    /// `[^`, `]`, backticks, heading prefixes). The shaped-text editor colors
+    /// these runs distinctly so revealed source reads as syntax-highlighted
+    /// Markdown instead of plain text.
+    pub(crate) fn delimiter_ranges(&self) -> Vec<Range<usize>> {
+        self.segments
+            .iter()
+            .filter_map(|segment| match segment.kind {
+                ExpandedInlineSegmentKind::OpeningDelimiter(_)
+                | ExpandedInlineSegmentKind::ClosingDelimiter(_)
+                | ExpandedInlineSegmentKind::MiddleDelimiter(_)
+                | ExpandedInlineSegmentKind::BlockPrefix => Some(segment.display_range.clone()),
+                _ => None,
+            })
+            .collect()
+    }
 }
 
 fn marker_style_for_projection(style: InlineStyle, _kind: ExpandedInlineKind) -> InlineStyle {

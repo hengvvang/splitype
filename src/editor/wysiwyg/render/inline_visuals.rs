@@ -2,20 +2,20 @@
 
 use gpui::*;
 
+use crate::editor::render::latex_render::{inline_math_font_size, render_inline_math_svg};
+use crate::editor::tree::block::{Block, ImageHandle};
 use crate::editor::wysiwyg::render::LinkFollowCursor;
 use crate::editor::wysiwyg::render::inline::text_element::BlockTextElement;
 use crate::editor::wysiwyg::render::inline_word_chunks;
 use crate::editor::wysiwyg::render::render_image_placeholder;
 use crate::editor::wysiwyg::render::render_loading_placeholder;
-use crate::editor::render::latex_render::{inline_math_font_size, render_inline_math_svg};
-use crate::editor::tree::block::{Block, ImageHandle};
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
-use crate::model::inline::style::InlineScript;
-use crate::model::inline::html::html_css_color_to_hsla;
 use crate::model::block::image::{
     ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
 };
+use crate::model::inline::html::html_css_color_to_hsla;
+use crate::model::inline::style::InlineScript;
 
 impl Block {
     pub(crate) fn render_text_or_mixed_inline_visuals(
@@ -222,8 +222,12 @@ impl Block {
             return div().into_any_element();
         }
 
-        let mut color = if span.link.is_some() || span.footnote.is_some() {
+        let mut color = if span.link.is_some() {
             theme.colors.text_link
+        } else if span.footnote.is_some() {
+            // Footnote references share the definition head's muted gray so the
+            // body superscript and its `[^id]:` row read as one unit.
+            theme.colors.text_quote
         } else {
             base_color
         };
@@ -238,7 +242,12 @@ impl Block {
             InlineScript::Superscript => -font_size * 0.28,
             InlineScript::Subscript => font_size * 0.22,
         };
-        let display_font_size = if span.style.has_script() {
+        let display_font_size = if span.footnote.is_some() {
+            // Footnote references share the definition row's typographic size
+            // (`code_size`) and muted gray, so `[^id]` in the body and its
+            // `[^id]:` row read as one unit.
+            theme.typography.code_size
+        } else if span.style.has_script() {
             (font_size * 0.72).max(6.0)
         } else {
             font_size
@@ -260,7 +269,7 @@ impl Block {
             element = element.relative().top(px(script_offset));
         }
 
-        if span.style.underline || span.link.is_some() || span.footnote.is_some() {
+        if span.style.underline || span.link.is_some() {
             element = element.underline();
         }
         if span.style.code {

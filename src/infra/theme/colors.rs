@@ -16,6 +16,9 @@ pub struct ThemeColors {
     pub text_default: Hsla,
     /// Inline link text colour in rendered mode.
     pub text_link: Hsla,
+    /// Colour of projected Markdown delimiter markers (`**`, `~`, `^`, `[^`,
+    /// backticks) revealed while editing the source of a focused block.
+    pub markdown_marker: Hsla,
     /// Placeholder text shown in empty focused blocks.
     pub text_placeholder: Hsla,
     /// H1 heading text colour.
@@ -203,6 +206,7 @@ struct ThemeColorsDe {
     comment_bg: Option<Hsla>,
     text_default: Hsla,
     text_link: Option<Hsla>,
+    markdown_marker: Option<Hsla>,
     text_placeholder: Hsla,
     text_h1: Hsla,
     text_h2: Hsla,
@@ -312,6 +316,9 @@ impl<'de> Deserialize<'de> for ThemeColors {
             text_link: raw
                 .text_link
                 .unwrap_or_else(|| Hsla::from(rgba(0x60a5faff))),
+            markdown_marker: raw
+                .markdown_marker
+                .unwrap_or_else(|| Hsla::from(rgba(0x89ddffff))),
             text_placeholder: raw.text_placeholder,
             text_h1: raw.text_h1,
             text_h2: raw.text_h2,

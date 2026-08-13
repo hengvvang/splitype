@@ -754,11 +754,12 @@ impl Editor {
         let mut previous_was_list_item = false;
 
         for block in self.doc().root_blocks() {
-            let (is_empty_root, current_is_list_item) = {
+            let (is_empty_root, current_is_list_item, current_is_footnote) = {
                 let block_ref = block.read(cx);
                 (
                     Self::is_empty_root_paragraph(block_ref),
                     block_ref.kind().is_list_item(),
+                    block_ref.kind() == BlockKind::FootnoteDefinition,
                 )
             };
             if is_empty_root {
@@ -779,6 +780,10 @@ impl Editor {
                     } else {
                         pending_empty_roots + 1
                     }
+                } else if current_is_footnote && pending_empty_roots == 0 {
+                    // Mirrors collect_root_markdown_lines: a footnote definition
+                    // directly after another block stays tight (no blank line).
+                    0
                 } else {
                     pending_empty_roots + 1
                 };
