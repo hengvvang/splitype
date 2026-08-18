@@ -7,6 +7,10 @@
   Splitype
 </h1>
 
+<p align="center">
+  <img src="assets/identity/banner.png" alt="Splitype" />
+</p>
+
 <h3 align="right">
   A fast, native Markdown editor, built with Rust and GPUI.
 </h3>
