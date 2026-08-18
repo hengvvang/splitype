@@ -465,10 +465,12 @@ impl Shell {
                                 // source renders as a monochrome mask and
                                 // loses the line art.
                                 div().child(
-                                    img("identity/logo.png")
-                                        .w(px(56.0))
-                                        .h(px(64.0))
-                                        .object_fit(ObjectFit::Contain),
+                                    img(ImageSource::Resource(Resource::Embedded(
+                                        "identity/logo.png".into(),
+                                    )))
+                                    .w(px(56.0))
+                                    .h(px(64.0))
+                                    .object_fit(ObjectFit::Contain),
                                 ),
                             )
                             .child(

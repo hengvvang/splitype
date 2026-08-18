@@ -421,7 +421,7 @@ pub enum EditorMode {
 }
 
 /// The informational dialogs that can be shown from the Help menu.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum InfoDialogKind {
     /// Dialog describing update-check availability.
     CheckForUpdates,
