@@ -220,7 +220,7 @@ impl Theme {
                 menu_bar_button_height: 24.0,
                 menu_bar_button_padding_x: 8.0,
                 menu_bar_button_radius: 3.0,
-                menu_text_size: 12.0,
+                menu_text_size: 11.0,
                 menu_panel_top: 2.0,
                 menu_panel_width: 180.0,
                 menu_panel_padding: 4.0,

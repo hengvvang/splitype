@@ -302,18 +302,19 @@ impl Shell {
             .px(px(6.0));
 
         let app_button_shell = shell.clone();
-        // Sized to hug the 14px glyph (compact hit target) rather than the
-        // 46px-wide window-control buttons; the glyph itself stays the
-        // unmodified Segoe GlobalNavButton SVG.
+        // Sized as a square with side length equal to menu_bar_button_height,
+        // matching the height and corner radius of the adjacent menu buttons.
         let app_button = div()
             .id("titlebar-app-icon-button")
-            .w(px(34.0))
-            .h_full()
+            .w(px(d.menu_bar_button_height))
+            .h(px(d.menu_bar_button_height))
+            .flex_shrink_0()
             .flex()
             .items_center()
             .justify_center()
+            .rounded(px(d.menu_bar_button_radius))
             .hover(|this| this.bg(c.dialog_secondary_button_hover))
-            .active(|this| this.opacity(0.88))
+            .active(|this| this.opacity(0.92))
             .cursor_pointer()
             .child(
                 svg()

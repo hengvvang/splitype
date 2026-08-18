@@ -423,7 +423,7 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             menu_bar_button_height: raw.menu_bar_button_height.unwrap_or(24.0),
             menu_bar_button_padding_x: raw.menu_bar_button_padding_x.unwrap_or(8.0),
             menu_bar_button_radius: raw.menu_bar_button_radius.unwrap_or(3.0),
-            menu_text_size: raw.menu_text_size.unwrap_or(12.0),
+            menu_text_size: raw.menu_text_size.unwrap_or(11.0),
             menu_panel_top: raw.menu_panel_top.unwrap_or(2.0),
             menu_panel_width: raw.menu_panel_width.unwrap_or(180.0),
             menu_panel_padding: raw.menu_panel_padding.unwrap_or(4.0),

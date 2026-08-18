@@ -258,7 +258,7 @@ mod tests {
             Theme::default_theme().colors.editor_background
         );
         assert_eq!(manager.current().dimensions.block_gap, 12.0);
-        assert_eq!(manager.current().dimensions.menu_text_size, 12.0);
+        assert_eq!(manager.current().dimensions.menu_text_size, 11.0);
         assert!(
             manager
                 .available_themes()
