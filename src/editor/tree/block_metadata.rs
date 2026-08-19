@@ -35,7 +35,7 @@ impl Block {
 
     /// Whether the kind-derived metadata (quote depth, anchors, ordinals)
     /// stored on this block matches its current kind traits.
-    pub(crate) fn tree_metadata_is_current(&self) -> bool {
+    pub(crate) fn is_tree_metadata_current(&self) -> bool {
         self.tree_metadata_flags == self.kind_metadata_flags()
     }
 }

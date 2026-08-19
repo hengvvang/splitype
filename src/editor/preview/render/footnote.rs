@@ -39,7 +39,7 @@ pub(crate) fn render_preview_footnote_definition(
                 )),
         );
 
-    if block.footnote_definition_has_backref() {
+    if block.has_footnote_definition_backref() {
         header = header.child(
             div()
                 .text_color(c.footnote_backref)

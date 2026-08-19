@@ -41,8 +41,8 @@ impl Editor {
 
     /// Splits a pane via the status-bar buttons. The new pane inherits the
     /// target pane's kind so the split keeps the same view style.
-    pub fn split_pane(&mut self, pane_id: NodeId, direction: Axis) {
-        self.split_pane_with_ratio(pane_id, direction, 0.5);
+    pub fn split_pane(&mut self, pane_id: NodeId, axis: Axis) {
+        self.split_pane_with_ratio(pane_id, axis, 0.5);
     }
 
     pub fn close_pane(&mut self, pane_id: NodeId) {
@@ -63,8 +63,8 @@ impl Editor {
 
     /// Inner split created via corner drag. The new pane inherits the
     /// dragged pane's kind so both sides keep the same view style.
-    pub fn split_pane_with_ratio(&mut self, pane_id: NodeId, direction: Axis, ratio: f32) {
-        self.session.root.split_leaf(pane_id, direction, ratio);
+    pub fn split_pane_with_ratio(&mut self, pane_id: NodeId, axis: Axis, ratio: f32) {
+        self.session.root.split_leaf(pane_id, axis, ratio);
     }
 
     /// Swap pane kinds between two panes.

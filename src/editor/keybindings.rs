@@ -13,7 +13,7 @@ use crate::app::actions::{CloseWindow, NewWindow, OpenFile, QuitApplication, Tog
 use crate::editor::actions::{SaveDocument, SaveDocumentAs, ToggleViewMode};
 use crate::editor::editing::input::actions::{
     BlockDown, BlockUp, BoldSelection, CodeSelection, Copy, Cut, Delete, DeleteBack,
-    DismissTransientUi, End, ExitCodeBlock, FocusNext, FocusPrev, Home, IndentBlock,
+    DismissTransientUi, End, ExitCodeBlock, FocusNext, FocusPrevious, Home, IndentBlock,
     ItalicSelection, JumpToBottom, JumpToTop, MoveLeft, MoveRight, Newline, OutdentBlock, PageDown,
     PageUp, Paste, Redo, SelectAll, SelectEnd, SelectHome, SelectLeft, SelectRight,
     UnderlineSelection, Undo, WordDeleteBack, WordDeleteForward, WordMoveLeft, WordMoveRight,
@@ -34,7 +34,7 @@ fn key_binding_for(
         ShortcutCommand::Delete => KeyBinding::new(key, Delete, context),
         ShortcutCommand::WordDeleteBack => KeyBinding::new(key, WordDeleteBack, context),
         ShortcutCommand::WordDeleteForward => KeyBinding::new(key, WordDeleteForward, context),
-        ShortcutCommand::FocusPrev => KeyBinding::new(key, FocusPrev, context),
+        ShortcutCommand::FocusPrevious => KeyBinding::new(key, FocusPrevious, context),
         ShortcutCommand::FocusNext => KeyBinding::new(key, FocusNext, context),
         ShortcutCommand::MoveLeft => KeyBinding::new(key, MoveLeft, context),
         ShortcutCommand::MoveRight => KeyBinding::new(key, MoveRight, context),

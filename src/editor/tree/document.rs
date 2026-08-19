@@ -86,7 +86,7 @@ impl Document {
 
     /// Whether the cached tree metadata was rebuilt for the current
     /// structure. Text-only edits leave it true.
-    pub(crate) fn metadata_is_current(&self) -> bool {
+    pub(crate) fn is_metadata_current(&self) -> bool {
         self.metadata_rebuild_version == self.structure_version
     }
 

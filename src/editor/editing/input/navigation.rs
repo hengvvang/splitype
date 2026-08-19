@@ -357,7 +357,7 @@ impl Editor {
                 self.focus_block(binding.cell.entity_id());
                 cx.notify();
             }
-            BlockAction::RequestFocusPrev { .. } => {
+            BlockAction::RequestFocusPrevious { .. } => {
                 self.focus_table_cell_vertical_neighbor(
                     &binding.table_block,
                     binding.position,

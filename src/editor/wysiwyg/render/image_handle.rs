@@ -86,7 +86,7 @@ impl Block {
         false
     }
 
-    pub(crate) fn showing_rendered_image(&self) -> bool {
+    pub(crate) fn is_showing_rendered_image(&self) -> bool {
         self.image_handle.is_some() && !self.is_verbatim_mode()
     }
 }

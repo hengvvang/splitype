@@ -60,12 +60,12 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     /// the leaf's container is replaced by a `Split` node holding the
     /// original container and a freshly created one. Returns the new
     /// leaf's id.
-    pub fn split_leaf(&mut self, target_id: usize, direction: Axis, ratio: f32) -> Option<usize> {
+    pub fn split_leaf(&mut self, target_id: usize, axis: Axis, ratio: f32) -> Option<usize> {
         let kind = self.tree.find_leaf_kind(target_id)?;
         let new_id = self.next_node_id;
         self.next_node_id += 1;
         self.tree
-            .split_leaf_with_ratio(target_id, new_id, direction, ratio, kind);
+            .split_leaf_with_ratio(target_id, new_id, axis, ratio, kind);
         self.active_border_menu = None;
         Some(new_id)
     }
@@ -438,7 +438,7 @@ mod tests {
 
         root.active_splitter_drag = Some(SplitterDragSession {
             split_id: 1,
-            direction: Axis::Horizontal,
+            axis: Axis::Horizontal,
             start_pointer_pos: 100.0,
             start_ratio: 0.5,
             total_span: 1000.0,

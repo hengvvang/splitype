@@ -22,8 +22,8 @@ fn remap_explorer_selection(
     fallback: ExplorerSelection,
 ) -> ExplorerSelection {
     match sel {
-        ExplorerSelection::File { root, entry: _ } if root == removed => fallback,
-        ExplorerSelection::File { root, entry } if root > removed => ExplorerSelection::File {
+        ExplorerSelection::Entry { root, entry: _ } if root == removed => fallback,
+        ExplorerSelection::Entry { root, entry } if root > removed => ExplorerSelection::Entry {
             root: root - 1,
             entry,
         },
@@ -162,7 +162,7 @@ impl Shell {
         // Resolve the fallback selection before touching any field so the
         // remap closure never aliases `explorer` (a worktree removal leaves
         // the last remaining worktree's root selected).
-        let fallback = ExplorerSelection::File {
+        let fallback = ExplorerSelection::Entry {
             root: explorer.worktrees.len().saturating_sub(1),
             entry: explorer
                 .trees_cache
@@ -209,7 +209,7 @@ impl Shell {
         explorer.expanded = reindexed;
         // Re-key selections, marks and pending selects.
         let remap = |sel: &ExplorerSelection| match sel {
-            ExplorerSelection::File { root, entry } => ExplorerSelection::File {
+            ExplorerSelection::Entry { root, entry } => ExplorerSelection::Entry {
                 root: remap_explorer_root_after_move(*root, from, to),
                 entry: *entry,
             },

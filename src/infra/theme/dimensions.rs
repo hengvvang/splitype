@@ -217,7 +217,7 @@ pub struct ThemeDimensions {
     pub bottombar_item_gap: f32,
     /// Font size for status bar text.
     pub bottombar_text_size: f32,
-    pub area_tile_gap: f32,
+    pub panel_tile_gap: f32,
     /// Uniform inset of a pane inside its split panel.
     pub pane_gap: f32,
     pub panel_tile_radius: f32,
@@ -332,6 +332,7 @@ struct ThemeDimensionsDe {
     bottombar_padding_x: Option<f32>,
     bottombar_item_gap: Option<f32>,
     bottombar_text_size: Option<f32>,
+    panel_tile_gap: Option<f32>,
     area_tile_gap: Option<f32>,
     pane_gap: Option<f32>,
     panel_tile_radius: Option<f32>,
@@ -454,7 +455,7 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             bottombar_padding_x: raw.bottombar_padding_x.unwrap_or(12.0),
             bottombar_item_gap: raw.bottombar_item_gap.unwrap_or(12.0),
             bottombar_text_size: raw.bottombar_text_size.unwrap_or(11.0),
-            area_tile_gap: raw.area_tile_gap.unwrap_or(6.0),
+            panel_tile_gap: raw.panel_tile_gap.or(raw.area_tile_gap).unwrap_or(6.0),
             pane_gap: raw.pane_gap.unwrap_or(3.0),
             panel_tile_radius: raw.panel_tile_radius.unwrap_or(3.0),
         })

@@ -16,7 +16,7 @@ actions!(
         Delete,
         WordDeleteBack,
         WordDeleteForward,
-        FocusPrev,
+        FocusPrevious,
         FocusNext,
         MoveLeft,
         MoveRight,

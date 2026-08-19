@@ -1167,7 +1167,7 @@ async fn arrow_up_into_table_focuses_last_row_cell(cx: &mut TestAppContext) {
         assert_eq!(paragraph.read(cx).display_text(), "after");
         editor.on_block_event(
             paragraph,
-            &BlockAction::RequestFocusPrev { preferred_x: None },
+            &BlockAction::RequestFocusPrevious { preferred_x: None },
             cx,
         );
 

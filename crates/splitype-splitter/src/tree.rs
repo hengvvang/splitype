@@ -58,7 +58,7 @@ pub enum SplitTree<T: Copy> {
     Leaf(SplitterContainer<T>),
     Split {
         id: usize,
-        direction: Axis,
+        axis: Axis,
         ratio: f32,
         first: Box<SplitTree<T>>,
         second: Box<SplitTree<T>>,
@@ -72,14 +72,14 @@ impl<T: Copy + PartialEq> PartialEq for SplitTree<T> {
             (
                 Self::Split {
                     id: id1,
-                    direction: d1,
+                    axis: d1,
                     ratio: r1,
                     first: f1,
                     second: s1,
                 },
                 Self::Split {
                     id: id2,
-                    direction: d2,
+                    axis: d2,
                     ratio: r2,
                     first: f2,
                     second: s2,
@@ -178,14 +178,14 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                 });
             }
             Self::Split {
-                direction,
+                axis,
                 ratio,
                 first,
                 second,
                 ..
             } => {
                 let r = ratio.clamp(0.0, 1.0);
-                match direction {
+                match axis {
                     Axis::Horizontal => {
                         first.collect_leaf_rects(x, y, w * r, h, out);
                         second.collect_leaf_rects(x + w * r, y, w * (1.0 - r), h, out);
@@ -212,20 +212,20 @@ impl<T: Copy + PartialEq> SplitTree<T> {
             Self::Leaf { .. } => None,
             Self::Split {
                 id,
-                direction,
+                axis,
                 ratio,
                 first,
                 second,
             } => {
                 if *id == target_split_id {
-                    let span = match direction {
+                    let span = match axis {
                         Axis::Horizontal => w,
                         Axis::Vertical => h,
                     };
-                    return Some((*direction, span));
+                    return Some((*axis, span));
                 }
                 let r = ratio.clamp(0.0, 1.0);
-                match direction {
+                match axis {
                     Axis::Horizontal => first
                         .find_split_span(target_split_id, x, y, w * r, h)
                         .or_else(|| {
@@ -248,7 +248,7 @@ impl<T: Copy + PartialEq> SplitTree<T> {
         &mut self,
         target_id: usize,
         new_id: usize,
-        direction: Axis,
+        axis: Axis,
         ratio: f32,
         next_kind: T,
     ) -> bool {
@@ -259,7 +259,7 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                     let original = container.clone();
                     *self = Self::Split {
                         id: new_id,
-                        direction,
+                        axis,
                         ratio,
                         first: Box::new(Self::Leaf(original)),
                         second: Box::new(Self::Leaf(SplitterContainer::new(new_id, next_kind))),
@@ -270,8 +270,8 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                 }
             }
             Self::Split { first, second, .. } => {
-                first.split_leaf_with_ratio(target_id, new_id, direction, ratio, next_kind)
-                    || second.split_leaf_with_ratio(target_id, new_id, direction, ratio, next_kind)
+                first.split_leaf_with_ratio(target_id, new_id, axis, ratio, next_kind)
+                    || second.split_leaf_with_ratio(target_id, new_id, axis, ratio, next_kind)
             }
         }
     }
@@ -384,7 +384,7 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                 Self::Leaf(SplitterContainer::new(id, container.kind))
             }
             Self::Split {
-                direction,
+                axis,
                 ratio,
                 first,
                 second,
@@ -394,7 +394,7 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                 *next_id += 1;
                 Self::Split {
                     id,
-                    direction: *direction,
+                    axis: *axis,
                     ratio: *ratio,
                     first: Box::new(first.clone_with_new_ids(next_id)),
                     second: Box::new(second.clone_with_new_ids(next_id)),

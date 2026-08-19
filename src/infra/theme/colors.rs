@@ -74,7 +74,7 @@ pub struct ThemeColors {
     /// Checkmark colour inside checked task-list checkboxes.
     pub task_checkbox_check: Hsla,
     /// Colour of the separator block line.
-    pub separator_color: Hsla,
+    pub separator: Hsla,
     /// Background of inline code and code-block quads.
     pub code_bg: Hsla,
     /// Text colour inside code blocks.
@@ -234,6 +234,7 @@ struct ThemeColorsDe {
     task_checkbox_bg: Option<Hsla>,
     task_checkbox_checked_bg: Option<Hsla>,
     task_checkbox_check: Option<Hsla>,
+    separator: Option<Hsla>,
     separator_color: Option<Hsla>,
     code_bg: Option<Hsla>,
     code_text: Hsla,
@@ -380,8 +381,9 @@ impl<'de> Deserialize<'de> for ThemeColors {
             task_checkbox_check: raw
                 .task_checkbox_check
                 .unwrap_or_else(|| Hsla::from(rgba(0x18181bff))),
-            separator_color: raw
-                .separator_color
+            separator: raw
+                .separator
+                .or(raw.separator_color)
                 .unwrap_or_else(|| Hsla::from(rgba(0xd1d1d8ff))),
             code_bg: raw.code_bg.unwrap_or_else(|| Hsla::from(rgba(0x111827ff))),
             code_text: raw.code_text,

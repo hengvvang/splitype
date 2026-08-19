@@ -79,6 +79,10 @@ impl InlineRenderCache {
         self.text.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.text.is_empty()
+    }
+
     pub fn style_at(&self, offset: usize) -> InlineStyle {
         self.spans
             .iter()

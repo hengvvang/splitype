@@ -621,7 +621,7 @@ impl Shell {
     // ── Update check ────────────────────────────────────────────────────
 
     pub(crate) fn request_check_updates(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.unsaved_dialog_open(cx) {
+        if self.is_unsaved_dialog_open(cx) {
             return;
         }
         if self.update_check_in_progress {

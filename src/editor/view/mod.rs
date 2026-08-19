@@ -341,7 +341,7 @@ impl Render for Editor {
         // layout, and bottom status bar. The outer split tree (rendered by
         // the Shell) embeds this tile as one leaf.
         let base = div()
-            .id(("editor-area-tile", panel_id))
+            .id(("editor-panel-tile", panel_id))
             .w_full()
             .h_full()
             .flex()

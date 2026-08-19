@@ -161,7 +161,7 @@ impl Shell {
             return true;
         }
         match payload.active() {
-            Some(ExplorerSelection::File { entry, .. }) => !self
+            Some(ExplorerSelection::Entry { entry, .. }) => !self
                 .panels
                 .explorer
                 .trees_cache
@@ -383,7 +383,7 @@ impl Shell {
         // directory or its sibling files.
         if let Some(drag) = drag
             && drag.selections.len() == 1
-            && let Some(ExplorerSelection::File {
+            && let Some(ExplorerSelection::Entry {
                 entry: active_id, ..
             }) = drag.active()
             && let Some(active) = self.explorer_entry_by_id(*active_id)
@@ -432,8 +432,8 @@ impl Shell {
         // each root's current index by id because earlier moves shift the
         // list (and re-resolve the destination for the same reason).
         for selection in &payload.selections {
-            if let ExplorerSelection::File { entry, .. } = selection
-                && self.explorer_is_root_entry(*entry)
+            if let ExplorerSelection::Entry { entry, .. } = selection
+                && self.is_explorer_root_entry(*entry)
             {
                 let to = self.root_for_explorer_entry(entry_id).unwrap_or(0);
                 if let Some(from) = self
@@ -455,8 +455,8 @@ impl Shell {
             .selections
             .iter()
             .filter(|selection| {
-                !matches!(selection, ExplorerSelection::File { entry, .. }
-                    if self.explorer_is_root_entry(*entry))
+                !matches!(selection, ExplorerSelection::Entry { entry, .. }
+                    if self.is_explorer_root_entry(*entry))
             })
             .filter_map(|selection| {
                 self.explorer_entry_for_selection(selection)
@@ -488,8 +488,8 @@ impl Shell {
         // Root rows dragged onto the background move to the end of the list.
         let last_index = self.panels.explorer.worktrees.len().saturating_sub(1);
         for selection in &payload.selections {
-            if let ExplorerSelection::File { entry, .. } = selection
-                && self.explorer_is_root_entry(*entry)
+            if let ExplorerSelection::Entry { entry, .. } = selection
+                && self.is_explorer_root_entry(*entry)
             {
                 if let Some(from) = self
                     .panels
@@ -506,8 +506,8 @@ impl Shell {
             .selections
             .iter()
             .filter(|selection| {
-                !matches!(selection, ExplorerSelection::File { entry, .. }
-                    if self.explorer_is_root_entry(*entry))
+                !matches!(selection, ExplorerSelection::Entry { entry, .. }
+                    if self.is_explorer_root_entry(*entry))
             })
             .filter_map(|selection| {
                 self.explorer_entry_for_selection(selection)

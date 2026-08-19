@@ -182,7 +182,7 @@ impl Editor {
             };
             let origin = outer_rect.origin;
             let rect_size = outer_rect.size;
-            let current_pos = match drag.direction {
+            let current_pos = match drag.axis {
                 Axis::Horizontal => f32::from(pos.x) - f32::from(origin.x),
                 Axis::Vertical => f32::from(pos.y) - f32::from(origin.y),
             };
@@ -190,7 +190,7 @@ impl Editor {
             let span = session
                 .root
                 .split_pixel_span(drag.split_id, inner_size)
-                .unwrap_or_else(|| match drag.direction {
+                .unwrap_or_else(|| match drag.axis {
                     Axis::Horizontal => f32::from(rect_size.width),
                     Axis::Vertical => f32::from(rect_size.height),
                 });
@@ -587,20 +587,20 @@ impl Editor {
             }
             SplitTree::Split {
                 id,
-                direction,
+                axis,
                 ratio,
                 first,
                 second,
             } => {
                 let split_id = *id;
-                let dir = *direction;
+                let split_axis = *axis;
                 let r = *ratio;
                 let first_elem = self.render_editor_pane_node(first, theme, strings, window, cx);
                 let second_elem = self.render_editor_pane_node(second, theme, strings, window, cx);
 
                 let inner_editor = cx.entity().downgrade();
 
-                match direction {
+                match axis {
                     Axis::Horizontal => {
                         let bar_editor = inner_editor.clone();
                         let menu_editor = inner_editor.clone();
@@ -677,7 +677,7 @@ impl Editor {
                                             splitype_splitter::interaction::open_border_menu(
                                                 &mut session.root,
                                                 split_id,
-                                                dir,
+                                                split_axis,
                                                 pos,
                                             );
                                             cx.notify();
@@ -762,7 +762,7 @@ impl Editor {
                                             splitype_splitter::interaction::open_border_menu(
                                                 &mut session.root,
                                                 split_id,
-                                                dir,
+                                                split_axis,
                                                 pos,
                                             );
                                             cx.notify();

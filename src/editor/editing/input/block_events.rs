@@ -315,8 +315,8 @@ impl Editor {
                     return;
                 }
                 let prev = entries_before[current_entry_index - 1].entity.clone();
-                let quote_related = self.block_is_quote_structure_related(&block, cx)
-                    || self.block_is_quote_structure_related(&prev, cx);
+                let quote_related = self.is_block_quote_structure_related(&block, cx)
+                    || self.is_block_quote_structure_related(&prev, cx);
                 self.prepare_undo_capture(
                     crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
@@ -367,7 +367,7 @@ impl Editor {
                 if lines.is_empty() {
                     return;
                 }
-                let quote_related = self.block_is_quote_structure_related(&block, cx);
+                let quote_related = self.is_block_quote_structure_related(&block, cx);
                 self.prepare_undo_capture(
                     crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
@@ -733,7 +733,7 @@ impl Editor {
             }
             BlockAction::RequestTableCellMoveHorizontal { .. }
             | BlockAction::RequestTableCellMoveVertical { .. } => {}
-            BlockAction::RequestFocusPrev { preferred_x } => {
+            BlockAction::RequestFocusPrevious { preferred_x } => {
                 if current_entry_index == 0 {
                     return;
                 }
@@ -830,7 +830,7 @@ impl Editor {
                 if self.downgrade_empty_callout_body_to_quote(&block, cx) {
                     return;
                 }
-                let quote_related = self.block_is_quote_structure_related(&block, cx);
+                let quote_related = self.is_block_quote_structure_related(&block, cx);
                 let is_last_visible_leaf =
                     entries_before.len() == 1 && block.read(cx).children.is_empty();
                 if is_last_visible_leaf {

@@ -310,13 +310,13 @@ impl Shell {
             ),
             SplitTree::Split {
                 id,
-                direction,
+                axis,
                 ratio,
                 first,
                 second,
             } => {
                 let split_id = *id;
-                let dir = *direction;
+                let split_axis = *axis;
                 let r = *ratio;
 
                 let first_elem =
@@ -324,7 +324,7 @@ impl Shell {
                 let second_elem =
                     self.render_window_panel_node(second, theme, strings, leaf_count, window, cx);
 
-                match direction {
+                match axis {
                     Axis::Horizontal => {
                         let bar_shell = shell.clone();
                         let menu_shell = shell.clone();
@@ -397,7 +397,7 @@ impl Shell {
                                             splitype_splitter::interaction::open_border_menu(
                                                 &mut shell.panels.layout,
                                                 split_id,
-                                                dir,
+                                                split_axis,
                                                 pos,
                                             );
                                             cx.notify();
@@ -477,7 +477,7 @@ impl Shell {
                                             splitype_splitter::interaction::open_border_menu(
                                                 &mut shell.panels.layout,
                                                 split_id,
-                                                dir,
+                                                split_axis,
                                                 pos,
                                             );
                                             cx.notify();
@@ -504,7 +504,7 @@ impl Shell {
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let gap = d.area_tile_gap;
+        let gap = d.panel_tile_gap;
         let radius = d.panel_tile_radius;
 
         // Tile card: an Editor leaf renders its own card (top bar, panes,
@@ -563,7 +563,7 @@ impl Shell {
 
             // Tile card with overflow hidden (no corner handles inside, to avoid clipping).
             let mut tile_card = div()
-                .id(("tiled-area-card", leaf_id))
+                .id(("panel-card", leaf_id))
                 .w_full()
                 .h_full()
                 .flex()
@@ -589,7 +589,7 @@ impl Shell {
         let tile_focus = cx.entity().downgrade();
         // Wrap in a padded container so the gap is uniform.
         let mut wrapped = div()
-            .id(("tiled-area-wrapper", leaf_id))
+            .id(("panel-wrapper", leaf_id))
             .w_full()
             .h_full()
             .min_w(px(0.0))
@@ -610,7 +610,7 @@ impl Shell {
         // Corner drag handles positioned at the four outer corners of the tile card.
         let shell_corner = cx.entity().downgrade();
         let corner_handles = splitype_splitter::interaction::corner_drag_handles(
-            "area-corner",
+            "panel-corner",
             leaf_id,
             gap,
             20.0,
@@ -655,7 +655,7 @@ impl Shell {
         let available_kinds = WindowPanelKind::all();
 
         menu_panel(c, d)
-            .id(("area-dropdown-overlay", leaf_id))
+            .id(("panel-dropdown-overlay", leaf_id))
             .absolute()
             .occlude()
             .top(px(28.0))
@@ -665,7 +665,7 @@ impl Shell {
                 let kind = *kind;
                 let is_current = kind == current_kind;
                 let option_shell = shell.clone();
-                menu_item(("area-type-opt", idx), c, d)
+                menu_item(("panel-type-opt", idx), c, d)
                     .w_full()
                     .justify_between()
                     .bg(if is_current {

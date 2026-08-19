@@ -488,7 +488,7 @@ impl Block {
         })
     }
 
-    pub(crate) fn footnote_definition_has_backref(&self) -> bool {
+    pub(crate) fn has_footnote_definition_backref(&self) -> bool {
         self.footnote_definition_id().as_deref().is_some_and(|id| {
             self.footnote_registry
                 .binding(id)

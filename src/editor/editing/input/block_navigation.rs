@@ -5,15 +5,15 @@ use gpui::*;
 
 use crate::editor::block_protocol::BlockAction;
 use crate::editor::editing::input::actions::{
-    BlockDown, BlockUp, End, FocusNext, FocusPrev, Home, MoveLeft, MoveRight, SelectAll, SelectEnd,
+    BlockDown, BlockUp, End, FocusNext, FocusPrevious, Home, MoveLeft, MoveRight, SelectAll, SelectEnd,
     SelectHome, SelectLeft, SelectRight, WordMoveLeft, WordMoveRight, WordSelectLeft,
     WordSelectRight,
 };
 use crate::editor::tree::block::Block;
 impl Block {
-    pub(crate) fn on_focus_prev(
+    pub(crate) fn on_focus_previous(
         &mut self,
-        _: &FocusPrev,
+        _: &FocusPrevious,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -23,7 +23,7 @@ impl Block {
                 cx.emit(BlockAction::RequestTableCellMoveVertical { delta: -1 });
                 return;
             }
-            cx.emit(BlockAction::RequestFocusPrev {
+            cx.emit(BlockAction::RequestFocusPrevious {
                 preferred_x: Some(f32::from(preferred_x)),
             });
         }

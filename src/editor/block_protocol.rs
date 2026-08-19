@@ -140,7 +140,7 @@ pub enum BlockAction {
     },
     /// Cursor reached the top of this block; move focus to the previous
     /// visible block, preserving the preferred horizontal position.
-    RequestFocusPrev { preferred_x: Option<f32> },
+    RequestFocusPrevious { preferred_x: Option<f32> },
     /// Cursor reached the bottom of this block; move focus to the next
     /// visible block, preserving the preferred horizontal position.
     RequestFocusNext { preferred_x: Option<f32> },

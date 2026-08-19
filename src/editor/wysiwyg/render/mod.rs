@@ -689,7 +689,7 @@ impl Block {
             .on_action(cx.listener(Self::on_delete))
             .on_action(cx.listener(Self::on_word_delete_back))
             .on_action(cx.listener(Self::on_word_delete_forward))
-            .on_action(cx.listener(Self::on_focus_prev))
+            .on_action(cx.listener(Self::on_focus_previous))
             .on_action(cx.listener(Self::on_focus_next))
             .on_action(cx.listener(Self::on_move_left))
             .on_action(cx.listener(Self::on_move_right))
@@ -757,7 +757,7 @@ impl Render for Block {
             cx.notify();
         }
 
-        let showing_rendered_image = self.showing_rendered_image();
+        let showing_rendered_image = self.is_showing_rendered_image();
         // Inline math stays in the projected view while focused (its `$...$`
         // source shows as editable text), so links and other styling in the same
         // block keep their attributes instead of collapsing to raw Markdown, the

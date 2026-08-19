@@ -91,7 +91,7 @@ impl BlockData {
 
     /// Create a LaTeX math block. The stored text is the formula body between
     /// the display delimiters; the `$$` fences are rebuilt on serialization.
-    pub fn latex_math(markdown: impl Into<String>) -> Self {
+    pub fn math_block(markdown: impl Into<String>) -> Self {
         let markdown = markdown.into();
         let body = parse_display_math_source(&markdown)
             .map(|source| source.body)
@@ -99,14 +99,24 @@ impl BlockData {
         Self::with_plain_text(BlockKind::MathBlock, body)
     }
 
+    /// Alias for `math_block`.
+    pub fn latex_math(markdown: impl Into<String>) -> Self {
+        Self::math_block(markdown)
+    }
+
     /// Create a Mermaid diagram block. The stored text is the diagram source
     /// between the fences; the fences are rebuilt on serialization.
-    pub fn mermaid_diagram(markdown: impl Into<String>) -> Self {
+    pub fn mermaid_block(markdown: impl Into<String>) -> Self {
         let markdown = markdown.into();
         let body = parse_mermaid_fence_source(&markdown)
             .map(|source| source.body)
             .unwrap_or(markdown);
         Self::with_plain_text(BlockKind::MermaidBlock, body)
+    }
+
+    /// Alias for `mermaid_block`.
+    pub fn mermaid_diagram(markdown: impl Into<String>) -> Self {
+        Self::mermaid_block(markdown)
     }
 
     /// Create a table block from existing table data.

@@ -124,7 +124,7 @@ pub struct VisibleExplorerEntry {
 /// selections live in the outline panel state instead.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ExplorerSelection {
-    File { root: usize, entry: ExplorerEntryId },
+    Entry { root: usize, entry: ExplorerEntryId },
 }
 
 /// Validation feedback for the inline filename editor.
@@ -665,11 +665,11 @@ mod tests {
             is_expanded: true,
             has_children: true,
         }));
-        state.selected = Some(ExplorerSelection::File {
+        state.selected = Some(ExplorerSelection::Entry {
             root: 0,
             entry: entry_id,
         });
-        state.clipboard = Some(ExplorerClipboard::Copied(vec![ExplorerSelection::File {
+        state.clipboard = Some(ExplorerClipboard::Copied(vec![ExplorerSelection::Entry {
             root: 0,
             entry: entry_id,
         }]));

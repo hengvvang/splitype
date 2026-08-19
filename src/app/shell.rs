@@ -184,7 +184,7 @@ impl Shell {
     /// Shows the Help-menu informational dialog (About / update check),
     /// unless the unsaved-changes dialog is open.
     pub(crate) fn show_info_dialog(&mut self, kind: InfoDialogKind, cx: &mut Context<Self>) {
-        if self.unsaved_dialog_open(cx) {
+        if self.is_unsaved_dialog_open(cx) {
             return;
         }
         self.info_dialog = Some(kind);
@@ -200,7 +200,7 @@ impl Shell {
 
     /// True when any editor area's active tab shows the unsaved-changes
     /// dialog (which must not overlap the info dialog).
-    pub(crate) fn unsaved_dialog_open(&self, cx: &App) -> bool {
+    pub(crate) fn is_unsaved_dialog_open(&self, cx: &App) -> bool {
         self.panel_contents.values().any(|content| match content {
             PanelContent::Editor(entity) => entity
                 .read(cx)
@@ -224,12 +224,12 @@ impl Shell {
     pub(crate) fn split_panel(
         &mut self,
         panel_id: NodeId,
-        direction: Axis,
+        axis: Axis,
         ratio: f32,
         copy_content: bool,
         cx: &mut Context<Self>,
     ) -> Option<NodeId> {
-        let new_id = self.panels.layout.split_leaf(panel_id, direction, ratio)?;
+        let new_id = self.panels.layout.split_leaf(panel_id, axis, ratio)?;
         if self.panels.layout.tree.find_leaf_kind(panel_id) == Some(WindowPanelKind::Editor) {
             let session = if copy_content {
                 self.primary_editor()

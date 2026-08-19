@@ -45,7 +45,7 @@ pub(crate) fn render_footnote_definition(
                 )),
         );
 
-    if block.footnote_definition_has_backref() {
+    if block.has_footnote_definition_backref() {
         header
             .child(
                 div()

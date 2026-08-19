@@ -137,7 +137,7 @@ impl Editor {
             anchor: drag.anchor,
             focus,
         };
-        let is_empty = self.cross_block_selection_is_empty(selection);
+        let is_empty = self.is_cross_block_selection_empty(selection);
         let state = self.pane_state(pane_id);
         if is_empty {
             state.selection.cross_block = None;
@@ -228,7 +228,7 @@ impl Editor {
         cx.stop_propagation();
     }
 
-    fn rendered_document_is_fully_selected(&self, cx: &App) -> bool {
+    fn is_rendered_document_fully_selected(&self, cx: &App) -> bool {
         let entries = self.doc().blocks().to_vec();
         let Some(first) = entries.first() else {
             return false;
@@ -276,7 +276,7 @@ impl Editor {
     }
 
     fn select_all_rendered_document(&mut self, cx: &mut Context<Self>) {
-        if self.rendered_document_is_fully_selected(cx) {
+        if self.is_rendered_document_fully_selected(cx) {
             return;
         }
 
@@ -473,7 +473,7 @@ impl Editor {
         })
     }
 
-    fn cross_block_selection_is_empty(&self, selection: CrossBlockSelection) -> bool {
+    fn is_cross_block_selection_empty(&self, selection: CrossBlockSelection) -> bool {
         let Some(anchor_index) = self.doc().index_for_entity_id(selection.anchor.entity_id) else {
             return true;
         };

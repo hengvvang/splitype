@@ -12,7 +12,7 @@ impl Block {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.showing_rendered_image() {
+        if self.is_showing_rendered_image() {
             let offset = self.index_for_mouse_position(event.position);
             let was_focused = self.focus_handle.is_focused(window);
 

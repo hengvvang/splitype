@@ -176,7 +176,7 @@ impl Shell {
     /// selected file, or the last worktree root.
     fn explorer_paste_target_dir(&self) -> Option<PathBuf> {
         match &self.panels.explorer.selected {
-            Some(ExplorerSelection::File { entry, .. }) => {
+            Some(ExplorerSelection::Entry { entry, .. }) => {
                 let entry = self.explorer_entry_by_id(*entry)?;
                 if entry.kind == ExplorerEntryKind::Directory {
                     Some(entry.path.clone())

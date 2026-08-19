@@ -21,7 +21,7 @@ impl Shell {
         let (root, id) = self
             .explorer_id_for_path(&path)
             .unwrap_or_else(|| (0, ExplorerEntryId::for_path(&path)));
-        self.panels.explorer.selected = Some(ExplorerSelection::File { root, entry: id });
+        self.panels.explorer.selected = Some(ExplorerSelection::Entry { root, entry: id });
         // Reveal: expand ancestor directories and center the row.
         self.expand_to_path(&path);
         self.rebuild_explorer_entries();

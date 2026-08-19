@@ -28,7 +28,7 @@ pub enum CornerDragModifier {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SplitterDragSession {
     pub split_id: usize,
-    pub direction: Axis,
+    pub axis: Axis,
     pub start_pointer_pos: f32,
     pub start_ratio: f32,
     pub total_span: f32,
@@ -74,7 +74,7 @@ pub struct CornerDragSession {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BorderMenuState {
     pub split_id: usize,
-    pub direction: Axis,
+    pub axis: Axis,
     pub position: Point<Pixels>,
 }
 

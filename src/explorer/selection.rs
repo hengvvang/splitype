@@ -59,7 +59,7 @@ impl Shell {
         sel: &ExplorerSelection,
     ) -> Option<&VisibleExplorerEntry> {
         match sel {
-            ExplorerSelection::File { entry, .. } => self.explorer_entry_by_id(*entry),
+            ExplorerSelection::Entry { entry, .. } => self.explorer_entry_by_id(*entry),
         }
     }
 
@@ -76,7 +76,7 @@ impl Shell {
             .map(|tree| tree.id)
             .collect();
         let filter = |sel: &ExplorerSelection| match sel {
-            ExplorerSelection::File { entry, .. } => !root_ids.contains(entry),
+            ExplorerSelection::Entry { entry, .. } => !root_ids.contains(entry),
         };
         if self.panels.explorer.marked.is_empty() {
             return match &self.panels.explorer.selected {
@@ -131,7 +131,7 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         let anchor = match &self.panels.explorer.selected {
-            Some(ExplorerSelection::File { entry, .. }) => *entry,
+            Some(ExplorerSelection::Entry { entry, .. }) => *entry,
             _ => target_id,
         };
         let rows = &self.panels.explorer.entries;
@@ -148,7 +148,7 @@ impl Shell {
         let mut target_root = None;
         for row in &rows[anchor_index.min(target_index)..=anchor_index.max(target_index)] {
             if let ExplorerRow::Entry(entry) = row {
-                let selection = ExplorerSelection::File {
+                let selection = ExplorerSelection::Entry {
                     root: entry.root,
                     entry: entry.id,
                 };
@@ -158,7 +158,7 @@ impl Shell {
                 self.panels.explorer.marked.push(selection);
             }
         }
-        self.panels.explorer.selected = Some(ExplorerSelection::File {
+        self.panels.explorer.selected = Some(ExplorerSelection::Entry {
             root: target_root.unwrap_or(0),
             entry: target_id,
         });
@@ -176,7 +176,7 @@ impl Shell {
         let deleted: std::collections::HashSet<ExplorerEntryId> = deleted_selections
             .iter()
             .filter_map(|sel| match sel {
-                ExplorerSelection::File { entry, .. } => Some(*entry),
+                ExplorerSelection::Entry { entry, .. } => Some(*entry),
             })
             .collect();
         let rows = &self.panels.explorer.entries;
@@ -186,7 +186,7 @@ impl Shell {
         for row in &rows[last_deleted + 1..] {
             if let ExplorerRow::Entry(entry) = row {
                 if !deleted.contains(&entry.id) {
-                    return Some(ExplorerSelection::File {
+                    return Some(ExplorerSelection::Entry {
                         root: entry.root,
                         entry: entry.id,
                     });
@@ -196,7 +196,7 @@ impl Shell {
         for row in rows[..last_deleted].iter().rev() {
             if let ExplorerRow::Entry(entry) = row {
                 if !deleted.contains(&entry.id) {
-                    return Some(ExplorerSelection::File {
+                    return Some(ExplorerSelection::Entry {
                         root: entry.root,
                         entry: entry.id,
                     });
@@ -208,7 +208,7 @@ impl Shell {
             && let Some(parent) = last.path.parent()
             && let Some(parent_node) = find_explorer_node(tree, parent)
         {
-            return Some(ExplorerSelection::File {
+            return Some(ExplorerSelection::Entry {
                 root: last.root,
                 entry: parent_node.id,
             });
@@ -219,7 +219,7 @@ impl Shell {
     /// Whether `selections` contains a worktree root (root rows are dragged
     /// to reorder worktrees, not to move files — mirrors Zed's
     /// `entry_is_worktree_root` check in `drag_onto`).
-    pub(crate) fn explorer_is_root_entry(&self, id: ExplorerEntryId) -> bool {
+    pub(crate) fn is_explorer_root_entry(&self, id: ExplorerEntryId) -> bool {
         self.panels
             .explorer
             .trees_cache
@@ -232,7 +232,7 @@ impl Shell {
     /// Row index of the currently selected file entry, if visible.
     fn explorer_selected_row_index(&self) -> Option<usize> {
         match &self.panels.explorer.selected {
-            Some(ExplorerSelection::File { entry, .. }) => {
+            Some(ExplorerSelection::Entry { entry, .. }) => {
                 self.panels.explorer.entries.iter().position(
                     |row| matches!(row, ExplorerRow::Entry(row_entry) if row_entry.id == *entry),
                 )
@@ -252,7 +252,7 @@ impl Shell {
         let Some(ExplorerRow::Entry(entry)) = self.panels.explorer.entries.get(index) else {
             return;
         };
-        let selection = ExplorerSelection::File {
+        let selection = ExplorerSelection::Entry {
             root: entry.root,
             entry: entry.id,
         };

@@ -5,7 +5,7 @@ use gpui::*;
 
 use crate::editor::block_protocol::BlockAction;
 use crate::editor::editing::input::actions::{
-    Copy, Cut, Delete, DeleteBack, DismissTransientUi, End, FocusNext, FocusPrev, Home,
+    Copy, Cut, Delete, DeleteBack, DismissTransientUi, End, FocusNext, FocusPrevious, Home,
     IndentBlock, MoveLeft, MoveRight, Newline, OutdentBlock, Paste, SelectAll, SelectLeft,
     SelectRight,
 };
@@ -321,7 +321,7 @@ impl Block {
 
     pub(crate) fn on_code_language_focus_content(
         &mut self,
-        _: &FocusPrev,
+        _: &FocusPrevious,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {

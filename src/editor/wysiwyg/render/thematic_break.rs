@@ -20,7 +20,7 @@ pub(crate) fn render_thematic_break_unfocused(
     let line = div()
         .w_full()
         .border_b(px(d.separator_thickness))
-        .border_color(c.separator_color);
+        .border_color(c.separator);
 
     focused_base
         .w_full()

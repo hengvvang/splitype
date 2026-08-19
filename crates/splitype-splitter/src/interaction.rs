@@ -167,13 +167,13 @@ pub fn splitter_bar_v(
 pub fn start_splitter_drag<T: Copy + PartialEq>(
     container: &mut SplitterRoot<T>,
     split_id: usize,
-    direction: Axis,
+    axis: Axis,
     start_pointer_pos: f32,
     current_ratio: f32,
 ) {
     container.active_splitter_drag = Some(crate::sessions::SplitterDragSession {
         split_id,
-        direction,
+        axis,
         start_pointer_pos,
         start_ratio: current_ratio,
         total_span: 1000.0,
@@ -184,12 +184,12 @@ pub fn start_splitter_drag<T: Copy + PartialEq>(
 pub fn open_border_menu<T: Copy + PartialEq>(
     container: &mut SplitterRoot<T>,
     split_id: usize,
-    direction: Axis,
+    axis: Axis,
     position: Point<Pixels>,
 ) {
     container.active_border_menu = Some(crate::sessions::BorderMenuState {
         split_id,
-        direction,
+        axis,
         position,
     });
 }
@@ -208,13 +208,13 @@ pub fn update_window_drag<T: Copy + PartialEq>(
     viewport: Size<Pixels>,
 ) -> bool {
     if let Some(drag) = container.active_splitter_drag {
-        let current_pos = match drag.direction {
+        let current_pos = match drag.axis {
             Axis::Horizontal => f32::from(pos.x),
             Axis::Vertical => f32::from(pos.y),
         };
         let span = container
             .split_pixel_span(drag.split_id, viewport)
-            .unwrap_or_else(|| match drag.direction {
+            .unwrap_or_else(|| match drag.axis {
                 Axis::Horizontal => f32::from(viewport.width),
                 Axis::Vertical => f32::from(viewport.height),
             });

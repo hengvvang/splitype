@@ -221,7 +221,7 @@ fn render_preview_html_node(
             .w_full()
             .h(px(d.separator_thickness))
             .my(px(d.separator_margin_y))
-            .bg(c.separator_color)
+            .bg(c.separator)
             .rounded(px(999.0))
             .into_any_element(),
         "blockquote" => {

@@ -14,7 +14,7 @@ pub(crate) fn render_preview_thematic_break(theme: &Theme) -> AnyElement {
     let line = div()
         .w_full()
         .border_b(px(d.separator_thickness))
-        .border_color(c.separator_color);
+        .border_color(c.separator);
 
     div()
         .w_full()

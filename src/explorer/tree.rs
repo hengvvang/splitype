@@ -222,7 +222,7 @@ impl Shell {
             if let Some(tree) = trees.get(root)
                 && let Some(node) = find_explorer_node(tree, &path)
             {
-                self.panels.explorer.selected = Some(ExplorerSelection::File {
+                self.panels.explorer.selected = Some(ExplorerSelection::Entry {
                     root,
                     entry: node.id,
                 });
@@ -233,7 +233,7 @@ impl Shell {
             return;
         }
         // Keep an existing file selection when the entry is still visible.
-        if let Some(ExplorerSelection::File { entry, .. }) = self.panels.explorer.selected {
+        if let Some(ExplorerSelection::Entry { entry, .. }) = self.panels.explorer.selected {
             if trees
                 .iter()
                 .any(|tree| explorer_tree_contains_id(tree, entry))
@@ -248,7 +248,7 @@ impl Shell {
             return;
         };
         if let Some((root, id)) = self.explorer_id_for_path(&path) {
-            self.panels.explorer.selected = Some(ExplorerSelection::File { root, entry: id });
+            self.panels.explorer.selected = Some(ExplorerSelection::Entry { root, entry: id });
         }
     }
 
@@ -284,7 +284,7 @@ impl Shell {
 
     /// Center the selected file row in the virtualized list.
     pub(crate) fn autoscroll_explorer_selection(&self) {
-        let Some(ExplorerSelection::File { entry, .. }) = self.panels.explorer.selected else {
+        let Some(ExplorerSelection::Entry { entry, .. }) = self.panels.explorer.selected else {
             return;
         };
         let Some(index) =

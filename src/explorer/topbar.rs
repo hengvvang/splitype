@@ -28,7 +28,7 @@ impl Shell {
 
         let type_shell = shell.clone();
         let type_button = small_pill_button(c, d)
-            .id(("area-topbar-type", leaf_id))
+            .id(("panel-topbar-type", leaf_id))
             .text_size(px(12.0))
             .text_color(c.text_default)
             .child(kind.name().to_string())
@@ -41,7 +41,7 @@ impl Shell {
 
         let split_h_shell = shell.clone();
         let split_h_button = icon_chip_button(c, d)
-            .id(("area-topbar-split-h", leaf_id))
+            .id(("panel-topbar-split-h", leaf_id))
             .child(
                 svg()
                     .path(panel_topbar_icon(kind, "split-h"))
@@ -58,7 +58,7 @@ impl Shell {
 
         let split_v_shell = shell.clone();
         let split_v_button = icon_chip_button(c, d)
-            .id(("area-topbar-split-v", leaf_id))
+            .id(("panel-topbar-split-v", leaf_id))
             .child(
                 svg()
                     .path(panel_topbar_icon(kind, "split-v"))
@@ -83,7 +83,7 @@ impl Shell {
         if leaf_count > 1 {
             let max_shell = shell.clone();
             let max_button = icon_chip_button(c, d)
-                .id(("area-topbar-max", leaf_id))
+                .id(("panel-topbar-max", leaf_id))
                 .child(
                     svg()
                         .path(if is_maximized {
@@ -103,7 +103,7 @@ impl Shell {
 
             let close_shell = shell.clone();
             let close_button = icon_chip_button(c, d)
-                .id(("area-topbar-close", leaf_id))
+                .id(("panel-topbar-close", leaf_id))
                 .child(
                     svg()
                         .path(panel_topbar_icon(kind, "close"))
@@ -121,7 +121,7 @@ impl Shell {
         }
 
         topbar_container(c, d.topbar_height, 8.0)
-            .id(("area-topbar", leaf_id))
+            .id(("panel-topbar", leaf_id))
             .child(div().flex().items_center().gap(px(8.0)).child(type_button))
             .child(div().flex().items_center().gap(px(6.0)).child(actions))
             .into_any_element()

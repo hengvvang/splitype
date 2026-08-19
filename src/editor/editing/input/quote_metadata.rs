@@ -14,7 +14,7 @@ use crate::editor::tree::block::Block;
 use crate::model::parse::BlockKind;
 
 impl Editor {
-    pub(crate) fn block_is_quote_structure_related(&self, block: &Entity<Block>, cx: &App) -> bool {
+    pub(crate) fn is_block_quote_structure_related(&self, block: &Entity<Block>, cx: &App) -> bool {
         if self.tab().mode != EditorMode::Wysiwyg {
             return false;
         }
@@ -30,11 +30,11 @@ impl Editor {
         block: &Entity<Block>,
         cx: &mut Context<Self>,
     ) {
-        if !self.block_is_quote_structure_related(block, cx) {
+        if !self.is_block_quote_structure_related(block, cx) {
             return;
         }
 
-        if self.doc().metadata_is_current() && block.read(cx).tree_metadata_is_current() {
+        if self.doc().is_metadata_current() && block.read(cx).is_tree_metadata_current() {
             return;
         }
         self.doc_mut().rebuild_metadata_and_snapshot(cx);
