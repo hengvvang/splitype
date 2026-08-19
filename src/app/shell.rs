@@ -298,11 +298,36 @@ impl Shell {
     }
 
     /// The editor area that a file open should target: the active area
-    /// when it is an Editor area.
+    /// when it is an Editor area, or falls back to the sole foreground
+    /// Editor (when only one exists) or the most recently activated Editor.
     pub(crate) fn active_editor_panel(&self) -> Option<NodeId> {
-        let panel = self.panels.layout.active_leaf?;
-        (self.panels.layout.tree.find_leaf_kind(panel) == Some(WindowPanelKind::Editor))
-            .then_some(panel)
+        if let Some(panel) = self.panels.layout.active_leaf {
+            if self.panels.layout.tree.find_leaf_kind(panel) == Some(WindowPanelKind::Editor) {
+                return Some(panel);
+            }
+        }
+
+        let mut editor_leaves = Vec::new();
+        let mut all_leaves = Vec::new();
+        self.panels.layout.tree.leaf_ids(&mut all_leaves);
+        for id in all_leaves {
+            if self.panels.layout.tree.find_leaf_kind(id) == Some(WindowPanelKind::Editor) {
+                editor_leaves.push(id);
+            }
+        }
+
+        if editor_leaves.len() == 1 {
+            return Some(editor_leaves[0]);
+        }
+
+        self.panels
+            .layout
+            .activation_history
+            .iter()
+            .rev()
+            .copied()
+            .find(|id| self.panels.layout.tree.find_leaf_kind(*id) == Some(WindowPanelKind::Editor))
+            .or_else(|| editor_leaves.first().copied())
     }
 
     /// Opens `path` in the active editor's tab list, if an active editor
@@ -316,6 +341,7 @@ impl Shell {
         let Some(panel_id) = self.active_editor_panel() else {
             return false;
         };
+        self.panels.layout.activate_leaf(panel_id);
         let Some(editor) = self.editor_for(panel_id) else {
             return false;
         };

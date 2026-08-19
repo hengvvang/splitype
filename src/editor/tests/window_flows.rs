@@ -616,3 +616,59 @@ async fn editor_type_dropdown_switches_panel_kind(cx: &mut TestAppContext) {
         .expect("window update");
     assert_eq!(kind, Some(WindowPanelKind::Settings));
 }
+
+#[gpui::test]
+async fn sole_editor_fallback_and_multi_editor_activation_routing(cx: &mut TestAppContext) {
+    init_editor_test_app(cx);
+
+    let window =
+        cx.update(|cx| crate::app::window::open_editor_window(cx, String::new(), None));
+    cx.run_until_parked();
+
+    // 1. Single editor without explicit click: active_editor_panel should resolve to DEFAULT_EDITOR_PANEL_ID
+    let target = window
+        .update(cx, |shell, _window, _cx| {
+            shell.active_editor_panel()
+        })
+        .expect("window update");
+    assert_eq!(target, Some(DEFAULT_EDITOR_PANEL_ID));
+
+    // 2. Split into a second editor: active_editor_panel should resolve to the new split leaf
+    let new_panel_id = window
+        .update(cx, |shell, _window, cx| {
+            let split_id = shell.split_panel(
+                DEFAULT_EDITOR_PANEL_ID,
+                crate::splitter::Axis::Horizontal,
+                0.5,
+                false,
+                cx,
+            );
+            if let Some(id) = split_id {
+                shell.panels.layout.activate_leaf(id);
+            }
+            split_id
+        })
+        .expect("window update")
+        .expect("split panel created");
+
+    let active_panel = window
+        .update(cx, |shell, _window, _cx| {
+            shell.active_editor_panel()
+        })
+        .expect("window update");
+    assert_eq!(active_panel, Some(new_panel_id));
+
+    // 3. Switch active leaf back to the first editor: active_editor_panel should follow
+    window
+        .update(cx, |shell, _window, _cx| {
+            shell.panels.layout.activate_leaf(DEFAULT_EDITOR_PANEL_ID);
+        })
+        .expect("window update");
+
+    let switched_panel = window
+        .update(cx, |shell, _window, _cx| {
+            shell.active_editor_panel()
+        })
+        .expect("window update");
+    assert_eq!(switched_panel, Some(DEFAULT_EDITOR_PANEL_ID));
+}

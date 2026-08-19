@@ -28,7 +28,7 @@ impl Shell {
         self.autoscroll_explorer_selection();
         // Explorer interacts with the ACTIVE editor: the file opens in its
         // tab bar. With no Editor area present the click is ignored.
-        if self.panels.layout.active_leaf.is_none() {
+        if self.active_editor_panel().is_none() {
             return;
         }
         self.open_file_in_active_editor(&path, window, cx);

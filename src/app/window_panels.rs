@@ -105,8 +105,8 @@ pub fn default_layout() -> WindowLayout {
         next_node_id: 3,
         active_splitter_drag: None,
         active_border_menu: None,
-        active_leaf: None,
-        activation_history: Vec::new(),
+        active_leaf: Some(DEFAULT_EDITOR_PANEL_ID),
+        activation_history: vec![DEFAULT_EDITOR_PANEL_ID],
         focused_leaf: None,
     }
 }
