@@ -50,6 +50,13 @@ pub struct NormalizeBuilder {
     normalized_len: usize,
 }
 
+#[derive(Clone)]
+pub(crate) struct NormalizeBuilderCheckpoint {
+    fragments: Vec<InlineFragment>,
+    visible_to_normalized: Vec<usize>,
+    normalized_len: usize,
+}
+
 impl NormalizeBuilder {
     pub fn new(input_len: usize) -> Self {
         Self {
@@ -57,6 +64,20 @@ impl NormalizeBuilder {
             visible_to_normalized: vec![0; input_len + 1],
             normalized_len: 0,
         }
+    }
+
+    pub(crate) fn checkpoint(&self) -> NormalizeBuilderCheckpoint {
+        NormalizeBuilderCheckpoint {
+            fragments: self.fragments.clone(),
+            visible_to_normalized: self.visible_to_normalized.clone(),
+            normalized_len: self.normalized_len,
+        }
+    }
+
+    pub(crate) fn restore(&mut self, checkpoint: NormalizeBuilderCheckpoint) {
+        self.fragments = checkpoint.fragments;
+        self.visible_to_normalized = checkpoint.visible_to_normalized;
+        self.normalized_len = checkpoint.normalized_len;
     }
 
     fn drop_token(&mut self, token: &CharToken) {
@@ -74,9 +95,14 @@ impl NormalizeBuilder {
         let mut style = token.style;
         if extra_style.bold {
             style.bold = true;
+            style.bold_marker = extra_style.bold_marker;
         }
         if extra_style.italic {
             style.italic = true;
+            style.italic_marker = extra_style.italic_marker;
+        }
+        if extra_style.bold && extra_style.italic {
+            style.italic_outer = extra_style.italic_outer;
         }
         if extra_style.underline {
             style.underline = true;
@@ -301,6 +327,7 @@ pub(crate) fn parse_until(
 
             if let Some(delimiter) = match_open_delimiter(tokens, index) {
                 if has_closing_delimiter(tokens, index, delimiter) {
+                    let checkpoint = builder.checkpoint();
                     for token in &tokens[index..index + delimiter.token_len()] {
                         builder.drop_token(token);
                     }
@@ -320,6 +347,7 @@ pub(crate) fn parse_until(
                         index = parsed.next_index;
                         continue;
                     }
+                    builder.restore(checkpoint);
                 } else if delimiter.token_len() > 1 {
                     // Keep an unclosed multi-character opener (`**`, `__`, `~~`,
                     // backtick run) literal as one unit. Emitting just its first
@@ -1131,9 +1159,14 @@ fn apply_extra_style_to_fragments(
     for fragment in fragments {
         if extra_style.bold {
             fragment.style.bold = true;
+            fragment.style.bold_marker = extra_style.bold_marker;
         }
         if extra_style.italic {
             fragment.style.italic = true;
+            fragment.style.italic_marker = extra_style.italic_marker;
+        }
+        if extra_style.bold && extra_style.italic {
+            fragment.style.italic_outer = extra_style.italic_outer;
         }
         if extra_style.underline {
             fragment.style.underline = true;

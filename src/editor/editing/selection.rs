@@ -699,8 +699,21 @@ impl Editor {
 
         self.prepare_undo_capture(undo_kind, cx);
         let mut source = self.serialize_document_for_mode(cx);
-        let start = source_range.start.min(source.len());
-        let end = source_range.end.min(source.len());
+        let (start, end) = (
+            source_range.start.min(source_range.end).min(source.len()),
+            source_range.start.max(source_range.end).min(source.len()),
+        );
+        let start = if source.is_char_boundary(start) {
+            start
+        } else {
+            source.floor_char_boundary(start)
+        };
+        let end = if source.is_char_boundary(end) {
+            end
+        } else {
+            source.ceil_char_boundary(end)
+        };
+        let end = end.min(source.len());
         source.replace_range(start..end, new_text);
         {
             let selection = &mut self.active_pane_state().selection;
@@ -820,6 +833,28 @@ impl Editor {
         Some(result)
     }
 
+    pub(crate) fn safe_source_slice(source: &str, range: Range<usize>) -> &str {
+        let (start, end) = (range.start.min(range.end), range.start.max(range.end));
+        let start = start.min(source.len());
+        let end = end.min(source.len());
+        let start = if source.is_char_boundary(start) {
+            start
+        } else {
+            source.floor_char_boundary(start)
+        };
+        let end = if source.is_char_boundary(end) {
+            end
+        } else {
+            source.ceil_char_boundary(end)
+        };
+        let end = end.min(source.len());
+        if start <= end {
+            &source[start..end]
+        } else {
+            ""
+        }
+    }
+
     fn markdown_chunk_for_block(
         &self,
         entity: &Entity<Block>,
@@ -831,7 +866,7 @@ impl Editor {
     ) -> String {
         if let Some(mapping) = mappings.get(&entity.entity_id()) {
             if full_block {
-                return source[mapping.full_source_range.clone()].to_string();
+                return Self::safe_source_slice(source, mapping.full_source_range.clone()).to_string();
             }
 
             let start = self
@@ -854,7 +889,7 @@ impl Editor {
                     cx,
                 )
                 .unwrap_or(mapping.full_source_range.end);
-            return source[start.min(end)..start.max(end)].to_string();
+            return Self::safe_source_slice(source, start.min(end)..start.max(end)).to_string();
         }
 
         let block = entity.read(cx);
@@ -894,8 +929,21 @@ impl Editor {
 
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         let mut source = self.serialize_document_for_mode(cx);
-        let start = source_range.start.min(source.len());
-        let end = source_range.end.min(source.len());
+        let (start, end) = (
+            source_range.start.min(source_range.end).min(source.len()),
+            source_range.start.max(source_range.end).min(source.len()),
+        );
+        let start = if source.is_char_boundary(start) {
+            start
+        } else {
+            source.floor_char_boundary(start)
+        };
+        let end = if source.is_char_boundary(end) {
+            end
+        } else {
+            source.ceil_char_boundary(end)
+        };
+        let end = end.min(source.len());
         source.replace_range(start..end, "");
         {
             let selection = &mut self.active_pane_state().selection;
@@ -1437,6 +1485,28 @@ mod tests {
             let text = editor.doc().serialize_markdown(cx);
             assert!(!text.contains('|'), "table should be gone: {text:?}");
             assert_eq!(text.trim(), "gamma");
+        });
+        cx.quit();
+    }
+
+    #[test]
+    fn cross_block_selected_markdown_with_cjk_characters() {
+        let mut cx = TestAppContext::single();
+        init_editor_test_app(&mut cx);
+        let doc = "# 标题一\n\n- 项目一\n  - 嵌套项目 1.1\n- 项目二\n\n### 2.4 定义列表\n\n术语一\n: 这是术语一的定义描述\n\n术语二\n: 这是术语二的第一行定义";
+        let editor = cx.new(|cx| Editor::from_markdown(cx, doc.to_string(), None));
+
+        editor.update(&mut cx, |editor, cx| {
+            let entries = editor.doc().blocks().to_vec();
+            assert!(entries.len() >= 4);
+
+            // Select across multiple blocks containing Chinese characters
+            set_selection(editor, 0, 0, entries.len() - 1, 1, cx);
+
+            let selected = editor.selected_markdown_text(cx);
+            assert!(selected.is_some());
+            let selected_text = selected.unwrap();
+            assert!(!selected_text.is_empty());
         });
         cx.quit();
     }

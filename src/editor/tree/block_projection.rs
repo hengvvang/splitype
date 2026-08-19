@@ -18,7 +18,6 @@ use crate::editor::editing::projection::{
 };
 use crate::editor::tree::block::Block;
 use crate::model::inline::render_cache::InlineRenderCache;
-use crate::model::inline::style::StyleFlag;
 use crate::model::inline::text::{BlockText, InlineFragment, InlineInsertionAttributes};
 use crate::model::parse::BlockKind;
 
@@ -331,74 +330,228 @@ impl Block {
         self.display_to_plain_range(self.selected_range.clone())
     }
 
-    pub(crate) fn display_range_to_source_range(&self, range: Range<usize>) -> Range<usize> {
+    pub(crate) fn display_offset_to_source_offset(&self, display_offset: usize) -> usize {
         if self.edits_verbatim_text() || self.kind().is_code_block() {
-            return range.start.min(self.display_len())..range.end.min(self.display_len());
+            return display_offset.min(self.display_len());
         }
 
-        if let Some(link_span) = self.projected_link_span_fully_covering_range(&range) {
+        if let Some(link_span) =
+            self.projected_link_span_fully_covering_range(&(display_offset..display_offset))
+        {
             let map = self.data.text.source_offset_map();
             let label_source_start = map.plain_to_source_offset(link_span.plain_range.start);
             let span_source_start =
                 label_source_start.saturating_sub(link_span.link.open_marker().len());
-            let start = span_source_start
-                + range
-                    .start
-                    .saturating_sub(link_span.display_range.start)
-                    .min(link_span.display_range.len());
-            let end = span_source_start
-                + range
-                    .end
-                    .saturating_sub(link_span.display_range.start)
-                    .min(link_span.display_range.len());
-            return start..end;
+            let local_display = display_offset
+                .saturating_sub(link_span.display_range.start)
+                .min(link_span.display_range.len());
+            return span_source_start + local_display;
         }
 
         if let Some(footnote_span) = self
             .projection
             .as_ref()
-            .and_then(|projection| projection.footnote_span_fully_covering_range(&range))
+            .and_then(|projection| projection.footnote_span_fully_covering_range(&(display_offset..display_offset)))
         {
             let raw = footnote_span.footnote.raw_markdown();
             let raw_len = raw.len();
-            let local_start = range
-                .start
+            let local_offset = display_offset
                 .saturating_sub(footnote_span.display_range.start)
                 .min(footnote_span.display_range.len());
-            let local_end = range
-                .end
-                .saturating_sub(footnote_span.display_range.start)
-                .min(footnote_span.display_range.len());
-            let mapped_start = (raw_len * local_start) / footnote_span.display_range.len().max(1);
-            let mapped_end = (raw_len * local_end) / footnote_span.display_range.len().max(1);
+            let mapped = (raw_len * local_offset) / footnote_span.display_range.len().max(1);
             let map = self.data.text.source_offset_map();
             let span_source_start = map.plain_to_source_offset(footnote_span.plain_range.start);
-            return span_source_start + mapped_start..span_source_start + mapped_end;
+            return span_source_start + mapped;
         }
 
-        let plain_range = self.display_to_plain_range(range);
+        if let Some(projection) = &self.projection {
+            let map = self.data.text.source_offset_map();
+            let segments = &projection.segments;
+
+            for (seg_idx, segment) in segments.iter().enumerate() {
+                if display_offset >= segment.display_range.start && display_offset <= segment.display_range.end {
+                    let frag_plain_start = self.data.text.fragments[..segment.fragment_index]
+                        .iter()
+                        .map(|f| f.text.len())
+                        .sum::<usize>();
+                    let frag_text_len = self.data.text.fragments
+                        .get(segment.fragment_index)
+                        .map(|f| f.text.len())
+                        .unwrap_or(0);
+                    let source_text_start = map.plain_to_source_offset(frag_plain_start);
+                    let source_text_end = source_text_start + frag_text_len;
+
+                    match segment.kind {
+                        ExpandedInlineSegmentKind::OpeningDelimiter(_) => {
+                            let mut first_open = segment.display_range.start;
+                            let mut last_open = segment.display_range.end;
+                            for prev_seg in segments[..seg_idx].iter().rev() {
+                                if prev_seg.fragment_index == segment.fragment_index
+                                    && matches!(prev_seg.kind, ExpandedInlineSegmentKind::OpeningDelimiter(_))
+                                {
+                                    first_open = prev_seg.display_range.start;
+                                } else {
+                                    break;
+                                }
+                            }
+                            for next_seg in segments[seg_idx + 1..].iter() {
+                                if next_seg.fragment_index == segment.fragment_index
+                                    && matches!(next_seg.kind, ExpandedInlineSegmentKind::OpeningDelimiter(_))
+                                {
+                                    last_open = next_seg.display_range.end;
+                                } else {
+                                    break;
+                                }
+                            }
+                            let total_open_len = last_open - first_open;
+                            let source_open_start = source_text_start.saturating_sub(total_open_len);
+                            return source_open_start + (display_offset - first_open);
+                        }
+                        ExpandedInlineSegmentKind::StyledText => {
+                            return source_text_start + (display_offset - segment.display_range.start);
+                        }
+                        ExpandedInlineSegmentKind::ClosingDelimiter(_) => {
+                            let mut first_close = segment.display_range.start;
+                            for prev_seg in segments[..seg_idx].iter().rev() {
+                                if prev_seg.fragment_index == segment.fragment_index
+                                    && matches!(prev_seg.kind, ExpandedInlineSegmentKind::ClosingDelimiter(_))
+                                {
+                                    first_close = prev_seg.display_range.start;
+                                } else {
+                                    break;
+                                }
+                            }
+                            return source_text_end + (display_offset - first_close);
+                        }
+                        ExpandedInlineSegmentKind::PlainText => {
+                            return source_text_start + (display_offset - segment.display_range.start);
+                        }
+                        ExpandedInlineSegmentKind::BlockPrefix => {
+                            return 0;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        let plain_offset = self.display_to_plain_offset(display_offset);
         self.data
             .text
             .source_offset_map()
-            .plain_to_source_range(plain_range)
+            .plain_to_source_offset(plain_offset)
     }
 
-    pub(crate) fn source_range_to_display_range(&self, range: Range<usize>) -> Range<usize> {
+    pub(crate) fn display_range_to_source_range(&self, range: Range<usize>) -> Range<usize> {
+        let start = self.display_offset_to_source_offset(range.start);
+        let end = self.display_offset_to_source_offset(range.end);
+        start.min(end)..start.max(end)
+    }
+
+    pub(crate) fn source_offset_to_display_offset(&self, source_offset: usize) -> usize {
         if self.edits_verbatim_text() || self.kind().is_code_block() {
-            let len = self.display_len();
-            return range.start.min(len)..range.end.min(len);
+            return source_offset.min(self.display_len());
         }
 
-        let plain_range = self
+        if let Some(projection) = &self.projection {
+            let map = self.data.text.source_offset_map();
+            let segments = &projection.segments;
+
+            for (seg_idx, segment) in segments.iter().enumerate() {
+                let frag_plain_start = self.data.text.fragments[..segment.fragment_index]
+                    .iter()
+                    .map(|f| f.text.len())
+                    .sum::<usize>();
+                let frag_text_len = self.data.text.fragments
+                    .get(segment.fragment_index)
+                    .map(|f| f.text.len())
+                    .unwrap_or(0);
+                let source_text_start = map.plain_to_source_offset(frag_plain_start);
+                let source_text_end = source_text_start + frag_text_len;
+
+                match segment.kind {
+                    ExpandedInlineSegmentKind::OpeningDelimiter(_) => {
+                        let mut first_open = segment.display_range.start;
+                        let mut last_open = segment.display_range.end;
+                        for prev_seg in segments[..seg_idx].iter().rev() {
+                            if prev_seg.fragment_index == segment.fragment_index
+                                && matches!(prev_seg.kind, ExpandedInlineSegmentKind::OpeningDelimiter(_))
+                            {
+                                first_open = prev_seg.display_range.start;
+                            } else {
+                                break;
+                            }
+                        }
+                        for next_seg in segments[seg_idx + 1..].iter() {
+                            if next_seg.fragment_index == segment.fragment_index
+                                && matches!(next_seg.kind, ExpandedInlineSegmentKind::OpeningDelimiter(_))
+                            {
+                                last_open = next_seg.display_range.end;
+                            } else {
+                                break;
+                            }
+                        }
+                        let total_open_len = last_open - first_open;
+                        let source_open_start = source_text_start.saturating_sub(total_open_len);
+                        if source_offset >= source_open_start && source_offset <= source_text_start {
+                            return first_open + (source_offset - source_open_start);
+                        }
+                    }
+                    ExpandedInlineSegmentKind::StyledText => {
+                        if source_offset >= source_text_start && source_offset <= source_text_end {
+                            return segment.display_range.start + (source_offset - source_text_start);
+                        }
+                    }
+                    ExpandedInlineSegmentKind::ClosingDelimiter(_) => {
+                        let mut first_close = segment.display_range.start;
+                        let mut last_close = segment.display_range.end;
+                        for prev_seg in segments[..seg_idx].iter().rev() {
+                            if prev_seg.fragment_index == segment.fragment_index
+                                && matches!(prev_seg.kind, ExpandedInlineSegmentKind::ClosingDelimiter(_))
+                            {
+                                first_close = prev_seg.display_range.start;
+                            } else {
+                                break;
+                            }
+                        }
+                        for next_seg in segments[seg_idx + 1..].iter() {
+                            if next_seg.fragment_index == segment.fragment_index
+                                && matches!(next_seg.kind, ExpandedInlineSegmentKind::ClosingDelimiter(_))
+                            {
+                                last_close = next_seg.display_range.end;
+                            } else {
+                                break;
+                            }
+                        }
+                        let total_close_len = last_close - first_close;
+                        let source_close_end = source_text_end + total_close_len;
+                        if source_offset >= source_text_end && source_offset <= source_close_end {
+                            return first_close + (source_offset - source_text_end);
+                        }
+                    }
+                    ExpandedInlineSegmentKind::PlainText => {
+                        let source_end = source_text_start + segment.display_range.len();
+                        if source_offset >= source_text_start && source_offset <= source_end {
+                            return segment.display_range.start + (source_offset - source_text_start);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        let plain_offset = self
             .data
             .text
             .source_offset_map()
-            .source_to_plain_range(range);
-        self.plain_to_display_range(plain_range)
+            .source_to_plain_offset(source_offset);
+        self.plain_to_display_cursor_offset(plain_offset)
     }
 
-    pub(crate) fn source_offset_to_display_offset(&self, offset: usize) -> usize {
-        self.source_range_to_display_range(offset..offset).start
+    pub(crate) fn source_range_to_display_range(&self, range: Range<usize>) -> Range<usize> {
+        let start = self.source_offset_to_display_offset(range.start);
+        let end = self.source_offset_to_display_offset(range.end);
+        start.min(end)..start.max(end)
     }
 
     pub(crate) fn prepare_undo_capture(&self, kind: UndoCaptureKind, cx: &mut Context<Self>) {
@@ -529,37 +682,6 @@ impl Block {
         removed_prefix_len: usize,
     ) -> Range<usize> {
         range.start.saturating_sub(removed_prefix_len)..range.end.saturating_sub(removed_prefix_len)
-    }
-
-    pub(crate) fn projected_styles_touching_display_range(
-        &self,
-        display_range: &Range<usize>,
-    ) -> Vec<(usize, StyleFlag)> {
-        let mut targets = Vec::new();
-        for segment in self.projection_segments() {
-            let touches = display_range.start < segment.display_range.end
-                && segment.display_range.start < display_range.end;
-            if touches
-                && matches!(
-                    segment.kind,
-                    ExpandedInlineSegmentKind::OpeningDelimiter(_)
-                        | ExpandedInlineSegmentKind::ClosingDelimiter(_)
-                )
-            {
-                let kind = match segment.kind {
-                    ExpandedInlineSegmentKind::OpeningDelimiter(kind)
-                    | ExpandedInlineSegmentKind::ClosingDelimiter(kind) => kind,
-                    _ => continue,
-                };
-                if let Some(flag) = kind.style_flag() {
-                    let target = (segment.fragment_index, flag);
-                    if !targets.contains(&target) {
-                        targets.push(target);
-                    }
-                }
-            }
-        }
-        targets
     }
 
     pub(crate) fn clean_offset_before_fragment_index(
@@ -782,78 +904,6 @@ impl Block {
         self.data
             .text
             .attributes_for_insertion_at(self.display_to_plain_offset(display_offset))
-    }
-
-    pub(crate) fn attributes_for_fragment(fragment: &InlineFragment) -> InlineInsertionAttributes {
-        InlineInsertionAttributes {
-            style: fragment.style,
-            html_style: fragment.html_style,
-            link: fragment.link.clone(),
-            footnote: fragment.footnote.clone(),
-            math: None,
-        }
-    }
-
-    pub(crate) fn replacement_attributes_for_display_range(
-        &self,
-        display_range: &Range<usize>,
-    ) -> InlineInsertionAttributes {
-        if self.edits_verbatim_text() {
-            return InlineInsertionAttributes::default();
-        }
-
-        if display_range.is_empty() {
-            return self.insertion_attributes_for_display_offset(display_range.start);
-        }
-
-        if self.projection.is_some() {
-            return self
-                .projected_replacement_attributes_for_display_range(display_range)
-                .unwrap_or_default();
-        }
-
-        self.fragment_attributes_for_plain_range(self.display_to_plain_range(display_range.clone()))
-            .unwrap_or_default()
-    }
-
-    pub(crate) fn projected_replacement_attributes_for_display_range(
-        &self,
-        display_range: &Range<usize>,
-    ) -> Option<InlineInsertionAttributes> {
-        self.projection_segments().iter().find_map(|segment| {
-            (segment.kind == ExpandedInlineSegmentKind::StyledText
-                && segment.display_range.start <= display_range.start
-                && display_range.end <= segment.display_range.end)
-                .then(|| {
-                    self.data
-                        .text
-                        .fragments
-                        .get(segment.fragment_index)
-                        .map(Self::attributes_for_fragment)
-                })
-                .flatten()
-        })
-    }
-
-    pub(crate) fn fragment_attributes_for_plain_range(
-        &self,
-        plain_range: Range<usize>,
-    ) -> Option<InlineInsertionAttributes> {
-        if plain_range.is_empty() {
-            return None;
-        }
-
-        let mut cursor = 0usize;
-        for fragment in &self.data.text.fragments {
-            let fragment_start = cursor;
-            let fragment_end = fragment_start + fragment.text.len();
-            if fragment_start <= plain_range.start && plain_range.end <= fragment_end {
-                return Some(Self::attributes_for_fragment(fragment));
-            }
-            cursor = fragment_end;
-        }
-
-        None
     }
 
     pub(crate) fn collapsed_caret_inherits_inline_code_style(&self) -> bool {
@@ -1128,8 +1178,6 @@ impl Block {
             return;
         }
 
-        let inserted_attributes = self.replacement_attributes_for_display_range(&display_range);
-
         // Inline `[label](url)` links round-trip through their projected source,
         // so edit them via the link projection even when the block is otherwise
         // source-preserving (for example it also contains inline math). This keeps
@@ -1153,22 +1201,7 @@ impl Block {
             return;
         }
 
-        if self.should_use_source_space_link_edit() {
-            self.apply_source_space_text_edit(
-                display_range,
-                new_text,
-                selected_range_relative,
-                mark_inserted_text,
-                cx,
-            );
-            return;
-        }
-
-        // Editing outside an inline link span would otherwise re-derive the
-        // inline tree from collapsed plain text, which no longer contains the
-        // `[label](url)` markers and silently drops the link. Edit in markdown
-        // space (as source-preserving links already do) so the link round-trips.
-        if !self.edits_verbatim_text() && self.data.text.has_inline_links() {
+        if !self.edits_verbatim_text() {
             self.apply_source_space_text_edit(
                 display_range,
                 new_text,
@@ -1180,48 +1213,13 @@ impl Block {
         }
 
         let plain_range = self.display_to_plain_range(display_range.clone());
-        let mut base_text = self.data.text.clone();
-        let overlaps_delimiters = self.projection.is_some() && !self.edits_verbatim_text();
-        if overlaps_delimiters {
-            let touched_styles = self.projected_styles_touching_display_range(&display_range);
-            if !touched_styles.is_empty() {
-                base_text.unwrap_styles_on_fragments(&touched_styles);
-            }
-        }
+        let base_text = self.data.text.clone();
+        let result = base_text.replace_plain_range_verbatim(
+            plain_range.clone(),
+            new_text,
+            InlineInsertionAttributes::default(),
+        );
 
-        let base_plain_len = base_text.plain_text().len();
-        let replaced_text = self.display_text()[display_range.clone()].to_string();
-        let result = if self.edits_verbatim_text() {
-            base_text.replace_plain_range_verbatim(
-                plain_range.clone(),
-                new_text,
-                InlineInsertionAttributes::default(),
-            )
-        } else {
-            base_text.replace_plain_range_with_link_references(
-                plain_range.clone(),
-                new_text,
-                inserted_attributes,
-                &self.link_reference_definitions,
-            )
-        };
-
-        // A span was closed when re-parsing absorbed delimiters into a style,
-        // leaving the plain text shorter than expected. Skip IME and deletions.
-        let expected_plain_len = base_plain_len.saturating_sub(plain_range.len()) + new_text.len();
-        let caret_may_have_closed_span = !self.edits_verbatim_text()
-            && !new_text.is_empty()
-            && !mark_inserted_text
-            && result.tree.plain_text().len() < expected_plain_len;
-        let quote_structure_edit = !self.edits_verbatim_text()
-            && self.quote_depth > 0
-            && (new_text.contains('\n')
-                || replaced_text.contains('\n')
-                || (self.kind() == BlockKind::Blockquote
-                    && Self::multiline_quote_edit_requires_reparse(&result.tree.plain_text())));
-        if quote_structure_edit {
-            self.quote_reparse_requested = true;
-        }
         let inserted_range = plain_range.start..plain_range.start + new_text.len();
         let marked_range = if mark_inserted_text && !new_text.is_empty() {
             Some(result.map_range(&inserted_range))
@@ -1245,7 +1243,7 @@ impl Block {
             selected_range
                 .as_ref()
                 .and_then(|range| (!range.is_empty()).then_some(false)),
-            caret_may_have_closed_span,
+            false,
             cx,
         );
     }

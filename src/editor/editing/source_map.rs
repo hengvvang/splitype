@@ -712,12 +712,18 @@ impl Editor {
         let child_list_depth = list_depth + usize::from(kind.is_list_item());
         let child_quote_depth = quote_depth + usize::from(kind.is_quote_container());
         let mut total_len = own_len;
-        for child in children {
+        for child in &children {
+            let child_ref = child.read(cx);
+            if kind.is_list_item()
+                && crate::editor::tree::document::Document::list_child_requires_leading_blank_line(child_ref)
+            {
+                total_len += 1;
+            }
             if total_len > 0 {
                 total_len += 1;
             }
             total_len += self.collect_single_block_source_mappings(
-                &child,
+                child,
                 child_list_depth,
                 child_quote_depth,
                 absolute_start + total_len,
@@ -775,11 +781,7 @@ impl Editor {
 
             if wrote_non_empty_root {
                 let separator_count = if previous_was_list_item && current_is_list_item {
-                    if pending_empty_roots == 0 {
-                        0
-                    } else {
-                        pending_empty_roots + 1
-                    }
+                    pending_empty_roots
                 } else if current_is_footnote && pending_empty_roots == 0 {
                     // Mirrors collect_root_markdown_lines: a footnote definition
                     // directly after another block stays tight (no blank line).

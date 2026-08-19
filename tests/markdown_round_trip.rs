@@ -108,6 +108,31 @@ fn inline_formatting_round_trips() {
     assert!(!text.plain_text().is_empty());
 }
 
+/// Bold, italic, and bold-italic preserve their underscore and asterisk delimiter styles.
+#[test]
+fn inline_emphasis_delimiters_preserved() {
+    let cases = [
+        "**asterisk bold**",
+        "__underscore bold__",
+        "*asterisk italic*",
+        "_underscore italic_",
+        "***asterisk bold italic***",
+        "___underscore bold italic___",
+        "**_bold outer italic inner_**",
+        "__*bold outer italic inner*__",
+        "*__italic outer bold inner__*",
+        "_**italic outer bold inner**_",
+        "**粗体** 与 __另一种粗体__",
+        "*斜体* 与 _另一种斜体_",
+        "***粗斜体*** 与 ___另一种粗斜体___",
+    ];
+
+    for markdown in cases {
+        let text = BlockText::from_markdown(markdown);
+        assert_eq!(text.serialize_markdown(), markdown);
+    }
+}
+
 /// Raw HTML blocks preserve their source.
 #[test]
 fn raw_html_block_keeps_source() {

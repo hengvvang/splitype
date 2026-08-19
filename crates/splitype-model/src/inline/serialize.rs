@@ -67,7 +67,7 @@ pub(crate) fn serialize_fragment_run_with_offset_map(
         } else if fragment.style.code {
             escape_code_span_text_with_offset_map(&fragment.text)
         } else {
-            escape_literal_text_with_offset_map(&fragment.text)
+            identity_text_with_offset_map(&fragment.text)
         };
         let escaped_start = output.len();
         output.push_str(escaped.source());
@@ -371,170 +371,7 @@ pub(crate) fn emphasis_requires_body(delimiter: Delimiter) -> bool {
             | Delimiter::Underline
     )
 }
-fn escape_literal_text_with_offset_map(text: &str) -> SourceOffsetMap {
-    let mut escaped = String::new();
-    let mut plain_to_source = vec![0; text.len() + 1];
-    let mut source_to_plain = vec![0];
-    let mut index = 0;
 
-    while index < text.len() {
-        plain_to_source[index] = escaped.len();
-        if text[index..].starts_with("</strong>") {
-            let start = escaped.len();
-            escaped.push('\\');
-            escaped.push_str("</strong>");
-            source_to_plain.resize(escaped.len() + 1, index);
-            for local in 0..=escaped.len() - start {
-                source_to_plain[start + local] = index;
-            }
-            index += 9;
-            continue;
-        }
-
-        if text[index..].starts_with("<strong>") {
-            let start = escaped.len();
-            escaped.push('\\');
-            escaped.push_str("<strong>");
-            source_to_plain.resize(escaped.len() + 1, index);
-            for local in 0..=escaped.len() - start {
-                source_to_plain[start + local] = index;
-            }
-            index += 8;
-            continue;
-        }
-
-        if text[index..].starts_with("</em>") {
-            let start = escaped.len();
-            escaped.push('\\');
-            escaped.push_str("</em>");
-            source_to_plain.resize(escaped.len() + 1, index);
-            for local in 0..=escaped.len() - start {
-                source_to_plain[start + local] = index;
-            }
-            index += 5;
-            continue;
-        }
-
-        if text[index..].starts_with("<em>") {
-            let start = escaped.len();
-            escaped.push('\\');
-            escaped.push_str("<em>");
-            source_to_plain.resize(escaped.len() + 1, index);
-            for local in 0..=escaped.len() - start {
-                source_to_plain[start + local] = index;
-            }
-            index += 4;
-            continue;
-        }
-
-        if text[index..].starts_with("</u>") {
-            let start = escaped.len();
-            escaped.push('\\');
-            escaped.push_str("</u>");
-            source_to_plain.resize(escaped.len() + 1, index);
-            for local in 0..=escaped.len() - start {
-                source_to_plain[start + local] = index;
-            }
-            index += 4;
-            continue;
-        }
-
-        if text[index..].starts_with("<u>") {
-            let start = escaped.len();
-            escaped.push('\\');
-            escaped.push_str("<u>");
-            source_to_plain.resize(escaped.len() + 1, index);
-            for local in 0..=escaped.len() - start {
-                source_to_plain[start + local] = index;
-            }
-            index += 3;
-            continue;
-        }
-
-        if text[index..].starts_with('\\') {
-            let start = escaped.len();
-            escaped.push_str("\\\\");
-            source_to_plain.resize(escaped.len() + 1, index);
-            for local in 0..=escaped.len() - start {
-                source_to_plain[start + local] = index;
-            }
-            index += 1;
-            continue;
-        }
-
-        if text[index..].starts_with('*') {
-            let start = escaped.len();
-            escaped.push_str("\\*");
-            source_to_plain.resize(escaped.len() + 1, index);
-            for local in 0..=escaped.len() - start {
-                source_to_plain[start + local] = index;
-            }
-            index += 1;
-            continue;
-        }
-
-        if text[index..].starts_with('_') {
-            let start = escaped.len();
-            escaped.push_str("\\_");
-            source_to_plain.resize(escaped.len() + 1, index);
-            for local in 0..=escaped.len() - start {
-                source_to_plain[start + local] = index;
-            }
-            index += 1;
-            continue;
-        }
-
-        if text[index..].starts_with('~') {
-            let start = escaped.len();
-            escaped.push_str("\\~");
-            source_to_plain.resize(escaped.len() + 1, index);
-            for local in 0..=escaped.len() - start {
-                source_to_plain[start + local] = index;
-            }
-            index += 1;
-            continue;
-        }
-
-        if text[index..].starts_with('^') {
-            let start = escaped.len();
-            escaped.push_str("\\^");
-            source_to_plain.resize(escaped.len() + 1, index);
-            for local in 0..=escaped.len() - start {
-                source_to_plain[start + local] = index;
-            }
-            index += 1;
-            continue;
-        }
-
-        if text[index..].starts_with('`') {
-            let start = escaped.len();
-            escaped.push_str("\\`");
-            source_to_plain.resize(escaped.len() + 1, index);
-            for local in 0..=escaped.len() - start {
-                source_to_plain[start + local] = index;
-            }
-            index += 1;
-            continue;
-        }
-
-        let ch = text[index..].chars().next().unwrap();
-        let start = escaped.len();
-        escaped.push(ch);
-        source_to_plain.resize(escaped.len() + 1, index);
-        for local in 0..=escaped.len() - start {
-            source_to_plain[start + local] = index;
-        }
-        index += ch.len_utf8();
-    }
-    plain_to_source[text.len()] = escaped.len();
-    source_to_plain[escaped.len()] = text.len();
-
-    SourceOffsetMap {
-        source: escaped,
-        plain_to_source,
-        source_to_plain,
-    }
-}
 
 fn escape_code_span_text_with_offset_map(text: &str) -> SourceOffsetMap {
     let needs_padding = !text.is_empty()
@@ -672,33 +509,72 @@ fn stack_variants(
     let style = fragment.style;
     let code_run_len = style.code.then(|| code_delimiter_run_len(&fragment.text));
     let mut markdown_stack = Vec::new();
-    if style.bold {
-        markdown_stack.push(Delimiter::BoldMarkdown { marker: '*' });
-    }
-    if style.underline {
-        markdown_stack.push(Delimiter::Underline);
-    }
-    if style.strikethrough {
-        markdown_stack.push(Delimiter::StrikethroughMarkdown);
-    }
-    match style.script {
-        InlineScript::Normal => {}
-        InlineScript::Superscript
-            if can_use_markdown_script_delimiters(previous_fragment, fragment) =>
-        {
-            markdown_stack.push(Delimiter::SuperscriptMarkdown)
+
+    let bold_delim = Delimiter::BoldMarkdown {
+        marker: style.bold_marker.char(),
+    };
+    let italic_delim = Delimiter::ItalicMarkdown {
+        marker: style.italic_marker.char(),
+    };
+
+    if style.italic_outer {
+        if style.italic {
+            markdown_stack.push(italic_delim);
         }
-        InlineScript::Superscript => markdown_stack.push(Delimiter::SuperscriptHtml),
-        InlineScript::Subscript
-            if style.strikethrough
-                || !can_use_markdown_script_delimiters(previous_fragment, fragment) =>
-        {
-            markdown_stack.push(Delimiter::SubscriptHtml)
+        if style.underline {
+            markdown_stack.push(Delimiter::Underline);
         }
-        InlineScript::Subscript => markdown_stack.push(Delimiter::SubscriptMarkdown),
-    }
-    if style.italic {
-        markdown_stack.push(Delimiter::ItalicMarkdown { marker: '*' });
+        if style.strikethrough {
+            markdown_stack.push(Delimiter::StrikethroughMarkdown);
+        }
+        match style.script {
+            InlineScript::Normal => {}
+            InlineScript::Superscript
+                if can_use_markdown_script_delimiters(previous_fragment, fragment) =>
+            {
+                markdown_stack.push(Delimiter::SuperscriptMarkdown)
+            }
+            InlineScript::Superscript => markdown_stack.push(Delimiter::SuperscriptHtml),
+            InlineScript::Subscript
+                if style.strikethrough
+                    || !can_use_markdown_script_delimiters(previous_fragment, fragment) =>
+            {
+                markdown_stack.push(Delimiter::SubscriptHtml)
+            }
+            InlineScript::Subscript => markdown_stack.push(Delimiter::SubscriptMarkdown),
+        }
+        if style.bold {
+            markdown_stack.push(bold_delim);
+        }
+    } else {
+        if style.bold {
+            markdown_stack.push(bold_delim);
+        }
+        if style.underline {
+            markdown_stack.push(Delimiter::Underline);
+        }
+        if style.strikethrough {
+            markdown_stack.push(Delimiter::StrikethroughMarkdown);
+        }
+        match style.script {
+            InlineScript::Normal => {}
+            InlineScript::Superscript
+                if can_use_markdown_script_delimiters(previous_fragment, fragment) =>
+            {
+                markdown_stack.push(Delimiter::SuperscriptMarkdown)
+            }
+            InlineScript::Superscript => markdown_stack.push(Delimiter::SuperscriptHtml),
+            InlineScript::Subscript
+                if style.strikethrough
+                    || !can_use_markdown_script_delimiters(previous_fragment, fragment) =>
+            {
+                markdown_stack.push(Delimiter::SubscriptHtml)
+            }
+            InlineScript::Subscript => markdown_stack.push(Delimiter::SubscriptMarkdown),
+        }
+        if style.italic {
+            markdown_stack.push(italic_delim);
+        }
     }
     // Code is always the innermost delimiter so it nests inside emphasis.
     if let Some(run_len) = code_run_len {
@@ -711,22 +587,42 @@ fn stack_variants(
     }
 
     let mut html_stack = Vec::new();
-    if style.bold {
-        html_stack.push(Delimiter::BoldHtml);
-    }
-    if style.underline {
-        html_stack.push(Delimiter::Underline);
-    }
-    if style.strikethrough {
-        html_stack.push(Delimiter::StrikethroughMarkdown);
-    }
-    match style.script {
-        InlineScript::Normal => {}
-        InlineScript::Superscript => html_stack.push(Delimiter::SuperscriptHtml),
-        InlineScript::Subscript => html_stack.push(Delimiter::SubscriptHtml),
-    }
-    if style.italic {
-        html_stack.push(Delimiter::ItalicHtml);
+    if style.italic_outer {
+        if style.italic {
+            html_stack.push(Delimiter::ItalicHtml);
+        }
+        if style.underline {
+            html_stack.push(Delimiter::Underline);
+        }
+        if style.strikethrough {
+            html_stack.push(Delimiter::StrikethroughMarkdown);
+        }
+        match style.script {
+            InlineScript::Normal => {}
+            InlineScript::Superscript => html_stack.push(Delimiter::SuperscriptHtml),
+            InlineScript::Subscript => html_stack.push(Delimiter::SubscriptHtml),
+        }
+        if style.bold {
+            html_stack.push(Delimiter::BoldHtml);
+        }
+    } else {
+        if style.bold {
+            html_stack.push(Delimiter::BoldHtml);
+        }
+        if style.underline {
+            html_stack.push(Delimiter::Underline);
+        }
+        if style.strikethrough {
+            html_stack.push(Delimiter::StrikethroughMarkdown);
+        }
+        match style.script {
+            InlineScript::Normal => {}
+            InlineScript::Superscript => html_stack.push(Delimiter::SuperscriptHtml),
+            InlineScript::Subscript => html_stack.push(Delimiter::SubscriptHtml),
+        }
+        if style.italic {
+            html_stack.push(Delimiter::ItalicHtml);
+        }
     }
     if let Some(run_len) = code_run_len {
         html_stack.push(Delimiter::CodeMarkdown { run_len });
@@ -765,7 +661,10 @@ pub fn can_use_markdown_script_delimiters(
 
 fn styles_match_ignoring_script(left: InlineStyle, right: InlineStyle) -> bool {
     left.bold == right.bold
+        && left.bold_marker == right.bold_marker
         && left.italic == right.italic
+        && left.italic_marker == right.italic_marker
+        && left.italic_outer == right.italic_outer
         && left.underline == right.underline
         && left.strikethrough == right.strikethrough
         && left.code == right.code
@@ -871,7 +770,7 @@ fn longest_star_run(text: &str) -> usize {
 // Common helpers
 // ---------------------------------------------------------------------------
 
-pub(crate) fn clamp_to_char_boundary(text: &str, offset: usize) -> usize {
+pub fn clamp_to_char_boundary(text: &str, offset: usize) -> usize {
     let clamped = offset.min(text.len());
     if text.is_char_boundary(clamped) {
         return clamped;
@@ -913,8 +812,22 @@ pub(crate) fn can_close_emphasis(tokens: &[CharToken], index: usize) -> bool {
 
 pub(crate) fn apply_delimiter_style(style: InlineStyle, delimiter: Delimiter) -> InlineStyle {
     match delimiter {
-        Delimiter::BoldMarkdown { .. } | Delimiter::BoldHtml => style.with_bold(),
-        Delimiter::ItalicMarkdown { .. } | Delimiter::ItalicHtml => style.with_italic(),
+        Delimiter::BoldMarkdown { marker } => {
+            let mut s = style.with_bold_char(marker);
+            if style.italic {
+                s.italic_outer = true;
+            }
+            s
+        }
+        Delimiter::BoldHtml => style.with_bold(),
+        Delimiter::ItalicMarkdown { marker } => {
+            let mut s = style.with_italic_char(marker);
+            if !style.bold {
+                s.italic_outer = true;
+            }
+            s
+        }
+        Delimiter::ItalicHtml => style.with_italic(),
         Delimiter::Underline => style.with_underline(),
         Delimiter::StrikethroughMarkdown => style.with_strikethrough(),
         Delimiter::CodeMarkdown { .. } => style.with_code(),

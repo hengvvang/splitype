@@ -729,10 +729,6 @@ impl Block {
         true
     }
 
-    pub(crate) fn should_use_source_space_link_edit(&self) -> bool {
-        !self.edits_verbatim_text() && self.data.text.has_source_preserving_links()
-    }
-
     pub(crate) fn apply_source_space_text_edit(
         &mut self,
         display_range: Range<usize>,
@@ -744,8 +740,10 @@ impl Block {
         let old_plain_len = self.data.text.plain_text().len();
         let source_range = self.display_range_to_source_range(display_range.clone());
         let mut markdown = self.data.text.serialize_markdown();
-        let replaced_text = markdown[source_range.clone()].to_string();
-        markdown.replace_range(source_range.clone(), new_text);
+        let start = crate::model::inline::serialize::clamp_to_char_boundary(&markdown, source_range.start);
+        let end = crate::model::inline::serialize::clamp_to_char_boundary(&markdown, source_range.end.max(start));
+        let replaced_text = markdown[start..end].to_string();
+        markdown.replace_range(start..end, new_text);
 
         let next_text = BlockText::from_markdown_with_link_references(
             &markdown,
@@ -754,13 +752,13 @@ impl Block {
         let map = next_text.source_offset_map();
         let selected_source = selected_range_relative
             .as_ref()
-            .map(|relative| source_range.start + relative.start..source_range.start + relative.end);
+            .map(|relative| start + relative.start..start + relative.end);
         let cursor_source = selected_source
             .as_ref()
             .map(|range| range.end)
-            .unwrap_or(source_range.start + new_text.len());
+            .unwrap_or(start + new_text.len());
         let marked_source = if mark_inserted_text && !new_text.is_empty() {
-            Some(source_range.start..source_range.start + new_text.len())
+            Some(start..start + new_text.len())
         } else {
             None
         };

@@ -4,6 +4,30 @@
 //! represents the active inline formatting state for a span of text.
 //! It is used throughout the inline text tree and render cache.
 
+/// Emphasis delimiter character variant (`*` vs `_`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum EmphasisMarker {
+    #[default]
+    Asterisk,
+    Underscore,
+}
+
+impl EmphasisMarker {
+    pub fn char(self) -> char {
+        match self {
+            Self::Asterisk => '*',
+            Self::Underscore => '_',
+        }
+    }
+
+    pub fn from_char(ch: char) -> Self {
+        match ch {
+            '_' => Self::Underscore,
+            _ => Self::Asterisk,
+        }
+    }
+}
+
 /// Bitfield of active inline formatting flags for a span of text.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct InlineStyle {
@@ -13,6 +37,9 @@ pub struct InlineStyle {
     pub strikethrough: bool,
     pub code: bool,
     pub script: InlineScript,
+    pub bold_marker: EmphasisMarker,
+    pub italic_marker: EmphasisMarker,
+    pub italic_outer: bool,
 }
 
 /// Vertical script style for Markdown extension syntax (`^superscript^`, `~subscript~`).
@@ -26,12 +53,33 @@ pub enum InlineScript {
 
 impl InlineStyle {
     pub fn with_bold(self) -> Self {
-        Self { bold: true, ..self }
+        Self {
+            bold: true,
+            bold_marker: EmphasisMarker::Asterisk,
+            ..self
+        }
+    }
+
+    pub fn with_bold_char(self, ch: char) -> Self {
+        Self {
+            bold: true,
+            bold_marker: EmphasisMarker::from_char(ch),
+            ..self
+        }
     }
 
     pub fn with_italic(self) -> Self {
         Self {
             italic: true,
+            italic_marker: EmphasisMarker::Asterisk,
+            ..self
+        }
+    }
+
+    pub fn with_italic_char(self, ch: char) -> Self {
+        Self {
+            italic: true,
+            italic_marker: EmphasisMarker::from_char(ch),
             ..self
         }
     }
@@ -90,10 +138,22 @@ pub(crate) fn set_style_flag(style: InlineStyle, flag: StyleFlag, enabled: bool)
     match flag {
         StyleFlag::Bold => InlineStyle {
             bold: enabled,
+            bold_marker: if enabled {
+                style.bold_marker
+            } else {
+                EmphasisMarker::Asterisk
+            },
+            italic_outer: if !enabled { false } else { style.italic_outer },
             ..style
         },
         StyleFlag::Italic => InlineStyle {
             italic: enabled,
+            italic_marker: if enabled {
+                style.italic_marker
+            } else {
+                EmphasisMarker::Asterisk
+            },
+            italic_outer: if !enabled { false } else { style.italic_outer },
             ..style
         },
         StyleFlag::Underline => InlineStyle {

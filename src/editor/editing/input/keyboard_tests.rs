@@ -2270,3 +2270,250 @@ async fn multiline_edit_inside_quote_reparses_into_child_blocks(cx: &mut TestApp
         assert_eq!(editor.doc().serialize_markdown(cx), "> first\n> - item");
     });
 }
+
+#[gpui::test]
+async fn typing_multiple_emphasis_delimiters_progressively_preserves_all_symbols(
+    cx: &mut TestAppContext,
+) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
+
+    editor.update(cx, |editor, cx| {
+        let paragraph = editor.doc().first_root().expect("root paragraph").clone();
+        paragraph.update(cx, |block, cx| {
+            // Type *
+            block.replace_text_in_display_range(0..0, "*", None, false, cx);
+        });
+        assert_eq!(editor.doc().serialize_markdown(cx), "*");
+
+        paragraph.update(cx, |block, cx| {
+            // Type * -> **
+            let len = block.display_len();
+            block.replace_text_in_display_range(len..len, "*", None, false, cx);
+        });
+        assert_eq!(editor.doc().serialize_markdown(cx), "**");
+
+        paragraph.update(cx, |block, cx| {
+            // Type * -> ***
+            let len = block.display_len();
+            block.replace_text_in_display_range(len..len, "*", None, false, cx);
+        });
+        assert_eq!(editor.doc().serialize_markdown(cx), "***");
+
+        paragraph.update(cx, |block, cx| {
+            // Type word -> ***hello
+            let len = block.display_len();
+            block.replace_text_in_display_range(len..len, "hello", None, false, cx);
+        });
+        assert_eq!(editor.doc().serialize_markdown(cx), "***hello");
+
+        paragraph.update(cx, |block, cx| {
+            // Type * -> ***hello*
+            let len = block.display_len();
+            block.replace_text_in_display_range(len..len, "*", None, false, cx);
+        });
+        assert_eq!(editor.doc().serialize_markdown(cx), "***hello*");
+
+        paragraph.update(cx, |block, cx| {
+            // Type ** -> ***hello***
+            let len = block.display_len();
+            block.replace_text_in_display_range(len..len, "**", None, false, cx);
+        });
+        assert_eq!(editor.doc().serialize_markdown(cx), "***hello***");
+    });
+}
+
+#[gpui::test]
+async fn deleting_single_emphasis_delimiter_does_not_delete_matching_pair(
+    cx: &mut TestAppContext,
+) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, "**hello**".to_string(), None));
+
+    editor.update(cx, |editor, cx| {
+        let paragraph = editor.doc().first_root().expect("root paragraph").clone();
+        paragraph.update(cx, |block, cx| {
+            block.sync_inline_projection_for_focus(true);
+            // In projection, display is "**hello**" (len 9).
+            // Backspace deletes last '*' (offset 8..9).
+            block.replace_text_in_display_range(8..9, "", None, false, cx);
+        });
+
+        // Only one '*' was deleted -> serialized markdown should be "**hello*"
+        assert_eq!(editor.doc().serialize_markdown(cx), "**hello*");
+
+        paragraph.update(cx, |block, cx| {
+            // Backspace deletes the remaining closing '*'
+            let len = block.display_len();
+            block.replace_text_in_display_range(len - 1..len, "", None, false, cx);
+        });
+
+        assert_eq!(editor.doc().serialize_markdown(cx), "**hello");
+
+        paragraph.update(cx, |block, cx| {
+            // Backspace deletes the second opening '*'
+            block.replace_text_in_display_range(1..2, "", None, false, cx);
+        });
+
+        assert_eq!(editor.doc().serialize_markdown(cx), "*hello");
+
+        paragraph.update(cx, |block, cx| {
+            // Backspace deletes the remaining opening '*'
+            block.replace_text_in_display_range(0..1, "", None, false, cx);
+        });
+
+        assert_eq!(editor.doc().serialize_markdown(cx), "hello");
+    });
+}
+
+#[gpui::test]
+async fn typing_multiple_underscore_delimiters_progressively_preserves_all_symbols(
+    cx: &mut TestAppContext,
+) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
+
+    editor.update(cx, |editor, cx| {
+        let paragraph = editor.doc().first_root().expect("root paragraph").clone();
+        paragraph.update(cx, |block, cx| {
+            // Type _
+            block.replace_text_in_display_range(0..0, "_", None, false, cx);
+        });
+        assert_eq!(editor.doc().serialize_markdown(cx), "_");
+
+        paragraph.update(cx, |block, cx| {
+            // Type _ -> __
+            let len = block.display_len();
+            block.replace_text_in_display_range(len..len, "_", None, false, cx);
+        });
+        assert_eq!(editor.doc().serialize_markdown(cx), "__");
+
+        paragraph.update(cx, |block, cx| {
+            // Type _ -> ___
+            let len = block.display_len();
+            block.replace_text_in_display_range(len..len, "_", None, false, cx);
+        });
+        assert_eq!(editor.doc().serialize_markdown(cx), "___");
+
+        paragraph.update(cx, |block, cx| {
+            // Type word -> ___hello
+            let len = block.display_len();
+            block.replace_text_in_display_range(len..len, "hello", None, false, cx);
+        });
+        assert_eq!(editor.doc().serialize_markdown(cx), "___hello");
+
+        paragraph.update(cx, |block, cx| {
+            // Type _ -> ___hello_
+            let len = block.display_len();
+            block.replace_text_in_display_range(len..len, "_", None, false, cx);
+        });
+        assert_eq!(editor.doc().serialize_markdown(cx), "___hello_");
+
+        paragraph.update(cx, |block, cx| {
+            // Type __ -> ___hello___
+            let len = block.display_len();
+            block.replace_text_in_display_range(len..len, "__", None, false, cx);
+        });
+        assert_eq!(editor.doc().serialize_markdown(cx), "___hello___");
+    });
+}
+
+#[gpui::test]
+async fn deleting_single_symbol_from_mixed_bold_italic_preserves_remaining_delimiters(
+    cx: &mut TestAppContext,
+) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, "**_hello_**".to_string(), None));
+
+    editor.update(cx, |editor, cx| {
+        let paragraph = editor.doc().first_root().expect("root paragraph").clone();
+        paragraph.update(cx, |block, cx| {
+            block.sync_inline_projection_for_focus(true);
+            // Display is "**_hello_**" (len 11)
+            // Caret is at end, backspace deletes last '*' (offset 10..11)
+            block.replace_text_in_display_range(10..11, "", None, false, cx);
+        });
+
+        // Only one '*' was deleted -> "**_hello_*"
+        assert_eq!(editor.doc().serialize_markdown(cx), "**_hello_*");
+
+        paragraph.update(cx, |block, cx| {
+            block.sync_inline_projection_for_focus(true);
+            // Backspace deletes the remaining closing '*'
+            let len = block.display_len();
+            block.replace_text_in_display_range(len - 1..len, "", None, false, cx);
+        });
+
+        assert_eq!(editor.doc().serialize_markdown(cx), "**_hello_");
+
+        paragraph.update(cx, |block, cx| {
+            block.sync_inline_projection_for_focus(true);
+            // Delete closing '_' at display offset 8..9
+            let len = block.display_len();
+            block.replace_text_in_display_range(len - 1..len, "", None, false, cx);
+        });
+
+        assert_eq!(editor.doc().serialize_markdown(cx), "**_hello");
+    });
+}
+
+
+#[gpui::test]
+async fn editing_bold_italic_surrounded_by_text_does_not_duplicate(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, "before ***text*** after".to_string(), None));
+
+    editor.update(cx, |editor, cx| {
+        let paragraph = editor.doc().first_root().expect("root paragraph").clone();
+        paragraph.update(cx, |block, cx| {
+            // Position cursor inside styled text (plain offset 9, inside "text")
+            block.selected_range = 9..9;
+            block.sync_inline_projection_for_focus(true);
+            // Display is "before ***text*** after" (len 23)
+            // Segments: "before " (0..7), "***" (7..10), "text" (10..14), "***" (14..17), " after" (17..23)
+            // Edit inside text: insert 'x' at offset 12 ("te" -> "tex")
+            block.replace_text_in_display_range(12..12, "x", None, false, cx);
+        });
+
+        assert_eq!(editor.doc().serialize_markdown(cx), "before ***texxt*** after");
+
+        paragraph.update(cx, |block, cx| {
+            block.selected_range = 10..10;
+            block.sync_inline_projection_for_focus(true);
+            // Delete one closing '*' from "***" at display offset 17..18 (the last '*')
+            // Display is now "before ***texxt*** after" (len 24)
+            // closing '***' is at 15..18, deleting offset 17..18 is the last '*'
+            block.replace_text_in_display_range(17..18, "", None, false, cx);
+        });
+
+        assert_eq!(editor.doc().serialize_markdown(cx), "before ***texxt** after");
+    });
+}
+
+#[gpui::test]
+async fn typing_four_underscores_and_three_asterisks_does_not_duplicate(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, "".to_string(), None));
+
+    editor.update(cx, |editor, cx| {
+        let paragraph = editor.doc().first_root().expect("root paragraph").clone();
+
+        paragraph.update(cx, |block, cx| {
+            block.replace_text_in_display_range(0..0, "____", None, false, cx);
+        });
+        assert_eq!(editor.doc().serialize_markdown(cx), "____");
+
+        paragraph.update(cx, |block, cx| {
+            let len = block.display_len();
+            block.replace_text_in_display_range(len..len, " ***", None, false, cx);
+        });
+        assert_eq!(editor.doc().serialize_markdown(cx), "____ ***");
+
+        paragraph.update(cx, |block, cx| {
+            let len = block.display_len();
+            block.replace_text_in_display_range(len..len, " hello", None, false, cx);
+        });
+        assert_eq!(editor.doc().serialize_markdown(cx), "____ *** hello");
+
+        paragraph.update(cx, |block, cx| {
+            // Delete last character 'o'
+            let len = block.display_len();
+            block.replace_text_in_display_range(len - 1..len, "", None, false, cx);
+        });
+        assert_eq!(editor.doc().serialize_markdown(cx), "____ *** hell");
+    });
+}

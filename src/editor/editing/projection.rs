@@ -6,7 +6,7 @@ use crate::model::inline::footnote::InlineFootnoteReference;
 use crate::model::inline::link::InlineLink;
 use crate::model::inline::render_cache::InlineRenderCache;
 use crate::model::inline::serialize::can_use_markdown_script_delimiters;
-use crate::model::inline::style::{InlineScript, InlineStyle, StyleFlag};
+use crate::model::inline::style::{InlineScript, InlineStyle};
 use crate::model::inline::text::{BlockText, InlineFragment};
 
 use crate::editor::tree::block::CollapsedCaretAffinity;
@@ -27,9 +27,9 @@ pub(crate) enum ExpandedInlineKind {
     /// Link label and target syntax.
     Link,
     /// Bold Markdown delimiters.
-    BoldMarkdown,
+    BoldMarkdown { marker: char },
     /// Italic Markdown delimiters.
-    ItalicMarkdown,
+    ItalicMarkdown { marker: char },
     /// Strikethrough delimiters.
     Strikethrough,
     /// Code span backtick delimiters.
@@ -48,8 +48,8 @@ impl ExpandedInlineKind {
     fn applies_to(self, style: InlineStyle) -> bool {
         match self {
             Self::Link => false,
-            Self::BoldMarkdown => style.bold,
-            Self::ItalicMarkdown => style.italic,
+            Self::BoldMarkdown { .. } => style.bold,
+            Self::ItalicMarkdown { .. } => style.italic,
             Self::Strikethrough => style.strikethrough,
             Self::Code => style.code,
             Self::SuperscriptMarkdown | Self::SuperscriptHtml => {
@@ -64,14 +64,17 @@ impl ExpandedInlineKind {
     fn open_marker(self) -> &'static str {
         match self {
             Self::Link => "[",
-            Self::BoldMarkdown => "**",
-            Self::ItalicMarkdown => "*",
+            Self::BoldMarkdown { marker: '*' } => "**",
+            Self::BoldMarkdown { marker: '_' } => "__",
+            Self::ItalicMarkdown { marker: '*' } => "*",
+            Self::ItalicMarkdown { marker: '_' } => "_",
             Self::Strikethrough => "~~",
             Self::Code => "`",
             Self::SuperscriptMarkdown => "^",
             Self::SuperscriptHtml => "<sup>",
             Self::SubscriptMarkdown => "~",
             Self::SubscriptHtml => "<sub>",
+            _ => "**",
         }
     }
 
@@ -81,32 +84,6 @@ impl ExpandedInlineKind {
             Self::SuperscriptHtml => "</sup>",
             Self::SubscriptHtml => "</sub>",
             _ => self.open_marker(),
-        }
-    }
-
-    pub(crate) fn style_flag(self) -> Option<StyleFlag> {
-        match self {
-            Self::Link => None,
-            Self::BoldMarkdown => Some(StyleFlag::Bold),
-            Self::ItalicMarkdown => Some(StyleFlag::Italic),
-            Self::Strikethrough => Some(StyleFlag::Strikethrough),
-            Self::Code => Some(StyleFlag::Code),
-            Self::SuperscriptMarkdown | Self::SuperscriptHtml => Some(StyleFlag::Superscript),
-            Self::SubscriptMarkdown | Self::SubscriptHtml => Some(StyleFlag::Subscript),
-        }
-    }
-
-    fn projection_rank(self) -> u8 {
-        match self {
-            Self::Link => 0,
-            Self::BoldMarkdown => 1,
-            Self::Strikethrough => 2,
-            Self::SuperscriptMarkdown
-            | Self::SuperscriptHtml
-            | Self::SubscriptMarkdown
-            | Self::SubscriptHtml => 3,
-            Self::ItalicMarkdown => 4,
-            Self::Code => 5,
         }
     }
 }
@@ -655,10 +632,10 @@ impl ExpandedInlineProjection {
             for segment in &segments {
                 match segment.kind {
                     ExpandedInlineSegmentKind::OpeningDelimiter(
-                        ExpandedInlineKind::BoldMarkdown,
+                        ExpandedInlineKind::BoldMarkdown { .. },
                     )
                     | ExpandedInlineSegmentKind::OpeningDelimiter(
-                        ExpandedInlineKind::ItalicMarkdown,
+                        ExpandedInlineKind::ItalicMarkdown { .. },
                     )
                     | ExpandedInlineSegmentKind::OpeningDelimiter(ExpandedInlineKind::Code)
                     | ExpandedInlineSegmentKind::OpeningDelimiter(
@@ -674,10 +651,10 @@ impl ExpandedInlineProjection {
                             segment.display_range.end;
                     }
                     ExpandedInlineSegmentKind::ClosingDelimiter(
-                        ExpandedInlineKind::BoldMarkdown,
+                        ExpandedInlineKind::BoldMarkdown { .. },
                     )
                     | ExpandedInlineSegmentKind::ClosingDelimiter(
-                        ExpandedInlineKind::ItalicMarkdown,
+                        ExpandedInlineKind::ItalicMarkdown { .. },
                     )
                     | ExpandedInlineSegmentKind::ClosingDelimiter(ExpandedInlineKind::Code)
                     | ExpandedInlineSegmentKind::ClosingDelimiter(
@@ -842,11 +819,22 @@ impl ExpandedInlineProjection {
     ) -> Vec<ExpandedInlineKind> {
         let mut kinds = Vec::new();
         let script_kind = Self::script_projection_kind(fragments, fragment_index);
+        let bold_kind = style.bold.then_some(ExpandedInlineKind::BoldMarkdown {
+            marker: style.bold_marker.char(),
+        });
+        let italic_kind = style.italic.then_some(ExpandedInlineKind::ItalicMarkdown {
+            marker: style.italic_marker.char(),
+        });
+        let (first_emphasis, second_emphasis) = if style.italic_outer {
+            (italic_kind, bold_kind)
+        } else {
+            (bold_kind, italic_kind)
+        };
         for kind in [
-            Some(ExpandedInlineKind::BoldMarkdown),
-            Some(ExpandedInlineKind::ItalicMarkdown),
+            first_emphasis,
             Some(ExpandedInlineKind::Strikethrough),
             script_kind,
+            second_emphasis,
             Some(ExpandedInlineKind::Code),
         ]
         .into_iter()
@@ -858,7 +846,6 @@ impl ExpandedInlineProjection {
                 kinds.push(kind);
             }
         }
-        kinds.sort_by_key(|kind| kind.projection_rank());
         kinds
     }
 
