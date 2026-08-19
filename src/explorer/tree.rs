@@ -207,7 +207,7 @@ impl Shell {
         // selection belongs to the outline; do not steal it with a
         // file-tree reveal.
         if self
-            .primary_editor()
+            .active_editor()
             .is_some_and(|editor| editor.read(cx).outline.selected.is_some())
         {
             self.panels.explorer.pending_select = None;

@@ -47,10 +47,10 @@ impl Shell {
         if focus_editor {
             let area = self.panels.layout.active_leaf;
             let focused_panel = self
-                .primary_editor()
+                .active_editor()
                 .and_then(|editor| editor.read(cx).focused_pane.filter(|_| area.is_some()));
             if let (Some(_), Some(pane_id)) = (area, focused_panel) {
-                if let Some(editor) = self.primary_editor() {
+                if let Some(editor) = self.active_editor() {
                     let _ = editor.update(cx, |editor, cx| {
                         editor.focus_pane(pane_id, window, cx);
                     });
