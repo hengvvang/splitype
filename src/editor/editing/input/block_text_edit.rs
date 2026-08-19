@@ -308,7 +308,7 @@ impl Block {
         }
 
         if self.selected_range.is_empty() && self.cursor_offset() == 0 {
-            cx.emit(BlockAction::RequestMergeIntoPrev {
+            cx.emit(BlockAction::RequestMergeIntoPrevious {
                 content: self.data.text.clone(),
             });
             return;

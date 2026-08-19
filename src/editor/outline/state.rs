@@ -1,4 +1,4 @@
-//! Outline panel state — heading tree, expansion set, and selection.
+//! Outline pane state — heading tree, expansion set, and selection.
 //!
 //! The outline is an editor pane; its state lives here on each
 //! Editor entity (`Editor::outline`) instead of in the explorer sidebar
@@ -35,10 +35,10 @@ pub enum OutlineNodeKind {
     Heading { line: usize, level: u8 },
 }
 
-/// Combined outline panel state: the parsed tree plus which nodes are
+/// Combined outline pane state: the parsed tree plus which nodes are
 /// expanded and selected.
 #[derive(Clone, Debug, Default)]
-pub struct OutlinePanelState {
+pub struct OutlinePaneState {
     pub tree: Vec<OutlineNode>,
     /// Markdown source the tree was built from; `None` until first sync.
     pub source: Option<String>,

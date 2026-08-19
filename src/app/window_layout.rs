@@ -759,7 +759,7 @@ impl Shell {
                     on_activate: swap,
                 },
                 crate::splitter::interaction::BorderMenuItem {
-                    label: "Close Area",
+                    label: "Close Panel",
                     on_activate: close,
                 },
             ],

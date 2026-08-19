@@ -53,7 +53,7 @@ impl Editor {
                 | BlockAction::RequestEnterCalloutBody
                 | BlockAction::RequestQuoteBreak
                 | BlockAction::RequestCalloutBreak
-                | BlockAction::RequestMergeIntoPrev { .. }
+                | BlockAction::RequestMergeIntoPrevious { .. }
                 | BlockAction::RequestPasteMultiline { .. }
                 | BlockAction::RequestPasteImage { .. }
                 | BlockAction::RequestIndent
@@ -310,7 +310,7 @@ impl Editor {
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
-            BlockAction::RequestMergeIntoPrev { content } => {
+            BlockAction::RequestMergeIntoPrevious { content } => {
                 if current_entry_index == 0 {
                     return;
                 }

@@ -52,7 +52,7 @@ pub enum BlockAction {
     RequestCalloutBreak,
     /// The user pressed Backspace at the start of this block; its entire
     /// content should be appended to the previous block.
-    RequestMergeIntoPrev { content: BlockText },
+    RequestMergeIntoPrevious { content: BlockText },
     /// A multi-line paste was detected; the editor must split the pasted
     /// lines into separate blocks and re-attach the leading/trailing text
     /// to the correct positions.

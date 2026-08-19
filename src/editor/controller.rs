@@ -21,7 +21,7 @@ pub(crate) use crate::app::window_panels::DEFAULT_EDITOR_PANEL_ID;
 pub(crate) use crate::app::window_panels::WindowPanelKind;
 pub(crate) use crate::editor::PreviewState;
 pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
-pub(crate) use crate::editor::outline::state::OutlinePanelState;
+pub(crate) use crate::editor::outline::state::OutlinePaneState;
 pub(crate) use crate::editor::session::{EditorPaneKind, EditorSession, EditorTabList};
 pub(crate) use crate::editor::tree::block::Block;
 pub(crate) use crate::editor::tree::document::Document;
@@ -266,9 +266,9 @@ pub struct Editor {
     /// hides the maximize/close controls when only one area exists. Pushed
     /// by the Shell alongside `panel_rect`.
     pub(crate) leaf_count: usize,
-    /// This editor's outline panel state (heading tree of its own active
+    /// This editor's outline pane state (heading tree of its own active
     /// document). Synced during render from the active tab.
-    pub(crate) outline: OutlinePanelState,
+    pub(crate) outline: OutlinePaneState,
     /// Rendered-mode context menu currently open in the editor.
     pub(crate) context_menu: Option<ContextMenuState>,
     pub(crate) context_menu_submenu_close_task: Option<Task<()>>,
@@ -465,7 +465,7 @@ impl Editor {
             is_active_panel: false,
             is_maximized: false,
             leaf_count: 1,
-            outline: OutlinePanelState::default(),
+            outline: OutlinePaneState::default(),
             context_menu: None,
             context_menu_submenu_close_task: None,
             footnote_tooltip: None,
@@ -495,7 +495,7 @@ impl Editor {
             is_active_panel: false,
             is_maximized: false,
             leaf_count: 1,
-            outline: OutlinePanelState::default(),
+            outline: OutlinePaneState::default(),
             context_menu: None,
             context_menu_submenu_close_task: None,
             footnote_tooltip: None,

@@ -7,11 +7,11 @@ use std::collections::HashSet;
 
 use crate::model::parse::BlockKind;
 
-use state::{OutlineNode, OutlineNodeKind, OutlinePanelState};
+use state::{OutlineNode, OutlineNodeKind, OutlinePaneState};
 
 /// Prune expanded-node state and selection that no longer exist in the
 /// current outline tree.
-pub(crate) fn prune_outline_state(outline: &mut OutlinePanelState, nodes: &[OutlineNode]) {
+pub(crate) fn prune_outline_state(outline: &mut OutlinePaneState, nodes: &[OutlineNode]) {
     let mut current_ids = HashSet::new();
     collect_node_ids(nodes, &mut current_ids);
     outline.expanded.retain(|id| current_ids.contains(id));
