@@ -2,7 +2,7 @@
 //! containers plus the tree-level state.
 //!
 //! A root is created when a region is initialized as a split container
-//! (the window body below the titlebar, or an editor's midcontainer).
+//! (the window body below the titlebar, or an editor's inner body).
 //! Every operation of the split library works on the root: splitting a
 //! leaf creates a second [`SplitterContainer`] and both hang on the same
 //! [`SplitTree`]. Panel-level state (corner-drag session, dropdown,
@@ -39,7 +39,7 @@ pub struct SplitterRoot<T: Copy + PartialEq> {
 
 impl<T: Copy + PartialEq> SplitterRoot<T> {
     /// A root with one leaf (one panel container), used to seed editor
-    /// midcontainers.
+    /// inner editor bodies.
     pub fn single_leaf(initial_id: usize, kind: T) -> Self {
         Self {
             tree: SplitTree::Leaf(SplitterContainer::new(initial_id, kind)),
@@ -253,7 +253,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     /// indicator.
     ///
     /// `current_pos` and the container size must share a coordinate system
-    /// (window coords for the outer layout, the midcontainer's local space
+    /// (window coords for the outer layout, the container's local space
     /// for an editor). Returns whether a session was updated.
     pub fn update_corner_drag(
         &mut self,

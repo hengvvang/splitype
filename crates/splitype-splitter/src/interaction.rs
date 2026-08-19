@@ -197,7 +197,7 @@ pub fn open_border_menu<T: Copy + PartialEq>(
 /// Progress the active drag gesture (splitter or corner) of a root.
 ///
 /// Generic over the layout level: the outer window root passes the
-/// pointer and viewport in window coordinates; an editor midcontainer
+/// pointer and viewport in window coordinates; an inner editor body
 /// passes them in its local space. Returns whether a gesture was active
 /// (the host should repaint). The host reads the root's drag sessions to
 /// apply its own policy; `finish_window_drag` returns the corner-drag

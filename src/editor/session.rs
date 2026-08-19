@@ -44,7 +44,7 @@ impl<T> EditorTabList<T> {
 /// or activation logic until its area is back in the foreground.
 pub struct EditorSession {
     pub(crate) tab_list: EditorTabList<crate::editor::controller::DocumentTab>,
-    /// The midcontainer's split root: the pane tree, its
+    /// The inner pane split root: the pane tree, its
     /// operations, and the active drag sessions.
     pub(crate) root: SplitterRoot<EditorPaneKind>,
 }

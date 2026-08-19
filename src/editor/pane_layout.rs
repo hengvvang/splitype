@@ -28,7 +28,7 @@ impl Editor {
     /// - drop runtimes of panels that were closed or joined;
     /// - derive `focused_pane` from the keyboard focus when
     ///   nothing was explicitly selected (projection fallback).
-    pub(crate) fn render_editor_midcontainer(
+    pub(crate) fn render_editor_body(
         &mut self,
         theme: &Theme,
         strings: &I18nStrings,
@@ -112,7 +112,7 @@ impl Editor {
             container = container.child(dropdown);
         }
 
-        // Inner corner-drag preview: rendered inside the midcontainer so
+        // Inner corner-drag preview: rendered inside the body container so
         // the normalized rects position with `relative()` against the
         // layout's initialization region (topbar/bottombar excluded). Host
         // policy: only plain (no-modifier) drags show an indicator.
