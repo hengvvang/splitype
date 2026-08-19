@@ -70,9 +70,9 @@ fn split_window_panel_creates_two_leaves() {
     assert!((right.x - 65.0).abs() < 0.001);
 }
 
-/// Closing an area joins the tree back to the default split.
+/// Closing a panel joins the tree back to the default split.
 #[test]
-fn closing_area_joins_back_to_default_split() {
+fn closing_panel_joins_back_to_default_split() {
     let mut state = layout();
     let new_id = state
         .split_leaf(DEFAULT_EDITOR_PANEL_ID, Axis::Horizontal, 0.5)
@@ -84,9 +84,9 @@ fn closing_area_joins_back_to_default_split() {
     assert_eq!(leaves, vec![ROOT_PANEL_ID, DEFAULT_EDITOR_PANEL_ID]);
 }
 
-/// Area kinds switch on the tree leaves.
+/// Panel kinds switch on the tree leaves.
 #[test]
-fn area_kinds_switch_on_leaves() {
+fn panel_kinds_switch_on_leaves() {
     let mut state = layout();
     state.set_kind(DEFAULT_EDITOR_PANEL_ID, WindowPanelKind::Settings);
     assert_eq!(
@@ -130,9 +130,9 @@ fn window_panel_rects_scale_to_container() {
     assert_eq!(rects[2].x + rects[2].width, 1000.0);
 }
 
-/// Maximizing tracks a single area and can be toggled off.
+/// Maximizing tracks a single panel and can be toggled off.
 #[test]
-fn maximize_toggles_single_area() {
+fn maximize_toggles_single_panel() {
     let mut state = layout();
     let new_id = state
         .split_leaf(DEFAULT_EDITOR_PANEL_ID, Axis::Horizontal, 0.5)

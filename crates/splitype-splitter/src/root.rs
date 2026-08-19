@@ -415,7 +415,7 @@ mod tests {
     }
 
     #[test]
-    fn test_area_layout_suite() {
+    fn test_panel_layout_suite() {
         let mut root = test_root();
         assert_eq!(root.tree.count_leaves(), 1);
 
