@@ -8,14 +8,14 @@ pub(crate) mod render;
 
 use gpui::*;
 
-use crate::editor::controller::{Editor, EditorMode};
+use crate::editor::controller::{Editor, EditorPaneKind};
 
 impl Editor {
     /// Re-parse and replace the rendered tree, preserving selection and
     /// scroll state. Used after edits that can leave quote/container
     /// structures malformed in the rendered view.
     pub(crate) fn normalize_rendered_quote_structure(&mut self, cx: &mut Context<Self>) {
-        if self.tab().mode != EditorMode::Wysiwyg {
+        if self.tab().mode != EditorPaneKind::Wysiwyg {
             return;
         }
 

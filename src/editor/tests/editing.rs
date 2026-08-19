@@ -4,7 +4,7 @@
 use gpui::{AppContext, ClickEvent, KeyDownEvent, Keystroke, TestAppContext};
 use std::time::{Duration, Instant};
 
-use crate::editor::controller::{Editor, EditorMode};
+use crate::editor::controller::{Editor, EditorPaneKind};
 use crate::editor::editing::input::actions::{FocusNext, Newline};
 use crate::editor::view::context_menu::TableInsertTarget;
 use crate::editor::view::dialogs::TableInsertDialogState;
@@ -24,13 +24,13 @@ async fn toggle_view_mode_preserves_paragraph_caret_position(cx: &mut TestAppCon
         editor.active_pane_state().focus.active_entity = Some(target.entity_id());
 
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
+        assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
         let source = editor.doc().first_root().expect("source root").clone();
         assert_eq!(source.read(cx).selected_range, 9..9);
         assert!(source.read(cx).show_source_line_numbers());
 
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.tab().mode, EditorMode::Wysiwyg));
+        assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
         let entries = editor.doc().blocks();
         assert_eq!(entries.len(), 2);
         assert!(
@@ -63,7 +63,7 @@ async fn toggle_view_mode_ends_stale_code_block_pointer_selection(cx: &mut TestA
 
         editor.toggle_view_mode(cx);
 
-        assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
+        assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
         target.read_with(cx, |block, _cx| {
             assert!(!block.is_selecting);
             assert!(!block.code_language_is_selecting);
@@ -83,14 +83,14 @@ async fn ctrl_tab_toggles_view_mode(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.update(cx, |editor, _cx| {
-        assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
+        assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
     });
 
     cx.simulate_keystrokes("ctrl-tab");
     redraw(cx);
 
     editor.update(cx, |editor, _cx| {
-        assert!(matches!(editor.tab().mode, EditorMode::Wysiwyg));
+        assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
     });
 }
 
@@ -103,7 +103,7 @@ async fn ctrl_a_selects_entire_source_document_in_source_mode(cx: &mut TestAppCo
 
     let source = editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
+        assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
         let source = editor.doc().blocks()[0].entity.clone();
         source.update(cx, |block, _cx| {
             block.selected_range = 1..3;
@@ -780,10 +780,10 @@ async fn toggle_view_mode_preserves_table_cell_position(cx: &mut TestAppContext)
         editor.active_pane_state().focus.active_entity = Some(cell.entity_id());
 
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
+        assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
 
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.tab().mode, EditorMode::Wysiwyg));
+        assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
         let restored_table = editor.doc().first_root().expect("restored table").clone();
         let restored_cell = restored_table
             .read(cx)
@@ -828,10 +828,10 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
         editor.active_pane_state().focus.active_entity = Some(cell.entity_id());
 
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.tab().mode, EditorMode::SourceCode));
+        assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
 
         editor.toggle_view_mode(cx);
-        assert!(matches!(editor.tab().mode, EditorMode::Wysiwyg));
+        assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
         let restored_callout = editor.doc().first_root().expect("restored callout").clone();
         let restored_table = restored_callout
             .read(cx)

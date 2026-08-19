@@ -359,7 +359,7 @@ impl Editor {
             cx,
         );
         let can_insert_image_block = self.tab().mode
-            == crate::editor::controller::EditorMode::Wysiwyg
+            == crate::editor::controller::EditorPaneKind::Wysiwyg
             && block.read(cx).kind() == BlockKind::Paragraph
             && self.table_cell_binding(block.entity_id()).is_none()
             && !block.read(cx).edits_verbatim_text();

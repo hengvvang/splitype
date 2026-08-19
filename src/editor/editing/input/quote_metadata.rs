@@ -9,13 +9,13 @@
 
 use gpui::*;
 
-use crate::editor::controller::{Editor, EditorMode};
+use crate::editor::controller::{Editor, EditorPaneKind};
 use crate::editor::tree::block::Block;
 use crate::model::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn is_block_quote_structure_related(&self, block: &Entity<Block>, cx: &App) -> bool {
-        if self.tab().mode != EditorMode::Wysiwyg {
+        if self.tab().mode != EditorPaneKind::Wysiwyg {
             return false;
         }
 

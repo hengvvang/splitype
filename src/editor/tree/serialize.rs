@@ -46,7 +46,7 @@ pub(crate) fn safe_code_fence_with_info(content: &str, info: Option<&str>) -> St
 
 impl Editor {
     pub(crate) fn serialized_document_text(&self, cx: &App) -> String {
-        if self.tab().mode == crate::editor::controller::EditorMode::SourceCode {
+        if self.tab().mode == crate::editor::controller::EditorPaneKind::SourceCode {
             self.doc().serialize_source_text(cx)
         } else {
             self.doc().serialize_markdown(cx)

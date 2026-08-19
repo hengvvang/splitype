@@ -186,7 +186,7 @@ impl Editor {
                     cx,
                     BlockData::new(current_kind.newline_sibling_kind(), trailing.clone()),
                 );
-                if self.tab().mode == crate::editor::controller::EditorMode::SourceCode {
+                if self.tab().mode == crate::editor::controller::EditorPaneKind::SourceCode {
                     new_block.update(cx, |block, _cx| block.set_source_document_mode());
                 }
                 self.doc_mut().insert_blocks_at(
@@ -216,7 +216,7 @@ impl Editor {
                     cx,
                     BlockData::new(BlockKind::Paragraph, BlockText::plain(String::new())),
                 );
-                if self.tab().mode == crate::editor::controller::EditorMode::SourceCode {
+                if self.tab().mode == crate::editor::controller::EditorPaneKind::SourceCode {
                     new_block.update(cx, |block, _cx| block.set_source_document_mode());
                 }
                 self.doc_mut().insert_blocks_at(

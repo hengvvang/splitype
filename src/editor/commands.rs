@@ -132,14 +132,14 @@ impl Editor {
         self.clear_cross_block_selection(cx);
         self.active_pane_state().selection.select_all_cycle = None;
         match self.tab().mode {
-            EditorMode::Wysiwyg => {
+            EditorPaneKind::Wysiwyg => {
                 let markdown = self.doc().serialize_markdown(cx);
-                self.tab_mut().mode = EditorMode::SourceCode;
+                self.tab_mut().mode = EditorPaneKind::SourceCode;
                 self.rebuild_document_from_markdown(&markdown, cx);
             }
-            EditorMode::SourceCode => {
+            EditorPaneKind::SourceCode | EditorPaneKind::Preview | EditorPaneKind::Outline => {
                 let source = self.doc().serialize_source_text(cx);
-                self.tab_mut().mode = EditorMode::Wysiwyg;
+                self.tab_mut().mode = EditorPaneKind::Wysiwyg;
                 self.rebuild_document_from_markdown(&source, cx);
             }
         }

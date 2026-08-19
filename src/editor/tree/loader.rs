@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use gpui::*;
 
-use crate::editor::controller::{Editor, EditorMode};
+use crate::editor::controller::{Editor, EditorPaneKind};
 use crate::editor::tree::block::Block;
 use crate::model::parse::BlockData;
 
@@ -42,7 +42,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         match self.tab().mode {
-            EditorMode::Wysiwyg => {
+            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
                 let mut roots = Self::parse_document(cx, markdown);
                 if roots.is_empty() {
                     roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
@@ -51,7 +51,7 @@ impl Editor {
                 self.rebuild_table_grids(cx);
                 self.rebuild_reference_registries(cx);
             }
-            EditorMode::SourceCode => {
+            EditorPaneKind::SourceCode => {
                 let block = Self::new_block(cx, BlockData::paragraph(markdown.to_string()));
                 block.update(cx, |block, _cx| block.set_source_document_mode());
                 self.doc_mut().replace_blocks(vec![block], cx);

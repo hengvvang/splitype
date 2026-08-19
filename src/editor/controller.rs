@@ -22,7 +22,7 @@ pub(crate) use crate::app::window_panels::WindowPanelKind;
 pub(crate) use crate::editor::PreviewState;
 pub(crate) use crate::editor::block_protocol::UndoCaptureKind;
 pub(crate) use crate::editor::outline::state::OutlinePaneState;
-pub(crate) use crate::editor::session::{EditorPaneKind, EditorSession, EditorTabList};
+pub use crate::editor::session::{EditorPaneKind, EditorSession, EditorTabList};
 pub(crate) use crate::editor::tree::block::Block;
 pub(crate) use crate::editor::tree::document::Document;
 pub(crate) use crate::editor::tree::footnotes::{
@@ -183,7 +183,7 @@ pub(crate) struct DocumentTab {
     /// (preview, source panes) compare against this to skip re-syncing.
     pub(crate) document_revision: u64,
     /// Which view this tab is currently presenting.
-    pub(crate) mode: EditorMode,
+    pub(crate) mode: EditorPaneKind,
     pub(crate) file: FileState,
     pub(crate) undo: UndoHistory,
     pub(crate) references: ReferenceRegistries,
@@ -410,16 +410,6 @@ pub(crate) struct SourceTargetMapping {
     pub(crate) source_to_content: Vec<usize>,
 }
 
-/// The two editing views the editor can present.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EditorMode {
-    /// Rich rendered view where each block is styled by its semantic kind.
-    Wysiwyg,
-    /// Plain source view where the full Markdown document is edited as a
-    /// single raw buffer.
-    SourceCode,
-}
-
 /// The informational dialogs that can be shown from the Help menu.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum InfoDialogKind {
@@ -537,7 +527,7 @@ impl Editor {
         DocumentTab {
             document,
             document_revision: 0,
-            mode: EditorMode::Wysiwyg,
+            mode: EditorPaneKind::Wysiwyg,
             file: FileState {
                 path: file_path,
                 ..FileState::default()
@@ -865,7 +855,7 @@ impl Editor {
     /// The active editor's serialized document text, if any.
     pub(crate) fn active_editor_serialized_text(&self, cx: &App) -> Option<String> {
         let tab = self.active_editor_tab()?;
-        Some(if tab.mode == EditorMode::SourceCode {
+        Some(if tab.mode == EditorPaneKind::SourceCode {
             tab.document.serialize_source_text(cx)
         } else {
             tab.document.serialize_markdown(cx)
@@ -893,7 +883,7 @@ impl Editor {
             active_tab: 0,
         };
         for tab in &self.session.tab_list.tabs {
-            let text = if tab.mode == EditorMode::SourceCode {
+            let text = if tab.mode == EditorPaneKind::SourceCode {
                 tab.document.serialize_source_text(cx)
             } else {
                 tab.document.serialize_markdown(cx)

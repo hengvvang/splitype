@@ -3,7 +3,7 @@
 use std::fs;
 
 
-use crate::editor::controller::{Editor, EditorMode};
+use crate::editor::controller::{Editor, EditorPaneKind};
 use crate::model::parse::BlockKind;
 use crate::model::inline::text::BlockText;
 
@@ -29,7 +29,7 @@ async fn dropped_markdown_replaces_clean_editor_in_current_window(cx: &mut TestA
 
     editor.update(cx, |editor, cx| {
         editor.toggle_view_mode(cx);
-        assert!(editor.tab().mode == EditorMode::SourceCode);
+        assert!(editor.tab().mode == EditorPaneKind::SourceCode);
     });
 
     cx.update(|window, cx| {
@@ -41,7 +41,7 @@ async fn dropped_markdown_replaces_clean_editor_in_current_window(cx: &mut TestA
 
     editor.read_with(cx, |editor, cx| {
         assert_eq!(editor.tab().file.path.as_ref(), Some(&dropped_path));
-        assert!(editor.tab().mode == EditorMode::Wysiwyg);
+        assert!(editor.tab().mode == EditorPaneKind::Wysiwyg);
         assert!(!editor.tab().file.dirty);
         assert!(!editor.tab().file.show_drop_replace_dialog);
         assert_eq!(editor.doc().root_count(), 2);

@@ -1646,12 +1646,12 @@ mod tests {
             editor.toggle_view_mode(cx);
             assert!(matches!(
                 editor.tab().mode,
-                crate::editor::controller::EditorMode::SourceCode
+                crate::editor::controller::EditorPaneKind::SourceCode
             ));
             editor.toggle_view_mode(cx);
             assert!(matches!(
                 editor.tab().mode,
-                crate::editor::controller::EditorMode::Wysiwyg
+                crate::editor::controller::EditorPaneKind::Wysiwyg
             ));
 
             let entries = editor.doc().blocks();
@@ -1805,12 +1805,12 @@ mod tests {
             editor.toggle_view_mode(cx);
             assert!(matches!(
                 editor.tab().mode,
-                crate::editor::controller::EditorMode::SourceCode
+                crate::editor::controller::EditorPaneKind::SourceCode
             ));
             editor.toggle_view_mode(cx);
             assert!(matches!(
                 editor.tab().mode,
-                crate::editor::controller::EditorMode::Wysiwyg
+                crate::editor::controller::EditorPaneKind::Wysiwyg
             ));
 
             let entries = editor.doc().blocks();

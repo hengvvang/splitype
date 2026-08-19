@@ -27,7 +27,7 @@ pub enum WindowPanelKind {
     Explorer,
     /// Application settings panel.
     Settings,
-    /// Editor container – hosts its own pane tree (Source, Wysiwyg,
+    /// Editor container – hosts its own pane tree (SourceCode, Wysiwyg,
     /// Preview, Outline).
     Editor,
 }

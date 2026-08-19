@@ -7,7 +7,7 @@ use gpui::*;
 
 use crate::editor::block_protocol::UndoCaptureKind;
 use crate::editor::controller::{
-    CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, EditorMode,
+    CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, EditorPaneKind,
     SourceTargetMapping, UndoSelectionSnapshot,
 };
 use crate::editor::editing::input::actions::{Copy, Cut, Delete, DeleteBack};
@@ -93,7 +93,7 @@ impl Editor {
             return;
         }
 
-        if self.tab().mode != EditorMode::Wysiwyg {
+        if self.tab().mode != EditorPaneKind::Wysiwyg {
             cx.propagate();
             return;
         }
@@ -329,7 +329,7 @@ impl Editor {
         block: Entity<Block>,
         cx: &mut Context<Self>,
     ) {
-        if self.tab().mode != EditorMode::Wysiwyg {
+        if self.tab().mode != EditorPaneKind::Wysiwyg {
             let state = self.active_pane_state();
             state.selection.select_all_cycle = None;
             return;

@@ -6,7 +6,7 @@ use std::time::Duration;
 
 use gpui::*;
 
-use crate::editor::controller::{Editor, EditorMode, TableAxisSelection};
+use crate::editor::controller::{Editor, EditorPaneKind, TableAxisSelection};
 use crate::editor::editing::input::actions::DismissTransientUi;
 use crate::editor::view::dialogs::TableInsertDialogState;
 use crate::model::block::table::TableData;
@@ -63,7 +63,7 @@ impl Editor {
         target: TableInsertTarget,
         cx: &mut Context<Self>,
     ) {
-        if self.tab().mode != EditorMode::Wysiwyg {
+        if self.tab().mode != EditorPaneKind::Wysiwyg {
             return;
         }
 
@@ -84,7 +84,7 @@ impl Editor {
         selection: TableAxisSelection,
         cx: &mut Context<Self>,
     ) {
-        if self.tab().mode != EditorMode::Wysiwyg {
+        if self.tab().mode != EditorPaneKind::Wysiwyg {
             return;
         }
 
@@ -209,7 +209,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.tab().mode != EditorMode::Wysiwyg {
+        if self.tab().mode != EditorPaneKind::Wysiwyg {
             return;
         }
         cx.stop_propagation();
@@ -223,7 +223,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.tab().mode != EditorMode::Wysiwyg {
+        if self.tab().mode != EditorPaneKind::Wysiwyg {
             return;
         }
         cx.stop_propagation();

@@ -8,7 +8,7 @@ use std::time::Instant;
 use gpui::*;
 
 use crate::editor::controller::{
-    BlockSelectionAnchor, Editor, EditorMode, HistoryEntry, PendingUndoCapture, UndoCaptureKind,
+    BlockSelectionAnchor, Editor, EditorPaneKind, HistoryEntry, PendingUndoCapture, UndoCaptureKind,
     UndoSelectionSnapshot,
 };
 use crate::editor::tree::block::Block;
@@ -27,7 +27,7 @@ impl Editor {
             return snapshot;
         }
 
-        if self.tab().mode == EditorMode::SourceCode {
+        if self.tab().mode == EditorPaneKind::SourceCode {
             return self
                 .doc()
                 .first_root()
@@ -79,7 +79,7 @@ impl Editor {
             return snapshot;
         }
 
-        if self.tab().mode == EditorMode::SourceCode {
+        if self.tab().mode == EditorPaneKind::SourceCode {
             return self
                 .doc()
                 .first_root()
@@ -246,7 +246,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         match self.tab().mode {
-            EditorMode::SourceCode => {
+            EditorPaneKind::SourceCode => {
                 let Some(block) = self.doc().first_root().cloned() else {
                     return;
                 };
@@ -273,7 +273,7 @@ impl Editor {
                     pane.focus.active_entity = Some(block.entity_id());
                 }
             }
-            EditorMode::Wysiwyg => {
+            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
                 if let Some(anchor) = &snapshot.block_anchor
                     && let Some(block) = self.block_entity_by_path(&anchor.path, cx)
                 {
