@@ -1,7 +1,7 @@
 //! Bottom bar of a Settings area.
 //!
 //! Settings panels currently render an empty bottom bar so the panel shell
-//! keeps its uniform topbar / body / bottombar layout across all
+//! keeps its uniform top-bar / midcontainer / bottom-bar layout across all
 //! area kinds. When Settings gains its own bottom-bar widgets, add them
 //! here.
 

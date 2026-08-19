@@ -530,15 +530,15 @@ impl Shell {
                 }
             };
 
-            let body: AnyElement = match kind {
+            let midcontainer: AnyElement = match kind {
                 WindowPanelKind::Editor => {
                     unreachable!("editor leaf without an entity is rendered by its entity")
                 }
                 WindowPanelKind::Explorer => {
-                    self.render_explorer_body(leaf_id, theme, strings, cx)
+                    self.render_explorer_midcontainer(leaf_id, theme, strings, cx)
                 }
                 WindowPanelKind::Settings => {
-                    self.render_settings_body(leaf_id, theme, strings, cx)
+                    self.render_settings_midcontainer(leaf_id, theme, strings, cx)
                 }
             };
 
@@ -554,12 +554,12 @@ impl Shell {
                 }
             };
 
-            let body_container = div()
+            let midcontainer_container = div()
                 .w_full()
                 .flex_1()
                 .min_h(px(0.0))
                 .relative()
-                .child(body);
+                .child(midcontainer);
 
             // Tile card with overflow hidden (no corner handles inside, to avoid clipping).
             let mut tile_card = div()
@@ -575,7 +575,7 @@ impl Shell {
                 .border_color(c.dialog_border)
                 .shadow_lg()
                 .child(topbar)
-                .child(body_container);
+                .child(midcontainer_container);
 
             if let Some(bb) = bottombar {
                 tile_card = tile_card.child(bb);
