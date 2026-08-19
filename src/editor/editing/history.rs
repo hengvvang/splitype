@@ -155,7 +155,7 @@ impl Editor {
 
     pub(crate) fn capture_history_entry(&self, kind: UndoCaptureKind, cx: &App) -> HistoryEntry {
         HistoryEntry {
-            source_text: self.serialize_document_for_mode(cx),
+            source_text: self.serialized_document_text(cx),
             selection: self.capture_source_selection_snapshot(cx),
             timestamp: Instant::now(),
             kind,
@@ -190,7 +190,7 @@ impl Editor {
     }
 
     pub(crate) fn refresh_stable_document_snapshot(&mut self, cx: &App) {
-        let source = self.serialize_document_for_mode(cx);
+        let source = self.serialized_document_text(cx);
         self.refresh_stable_document_snapshot_with_source(source, cx);
     }
 
@@ -212,7 +212,7 @@ impl Editor {
             return;
         };
 
-        let current_source = self.serialize_document_for_mode(cx);
+        let current_source = self.serialized_document_text(cx);
         if current_source == pending.snapshot.source_text {
             self.refresh_stable_document_snapshot_with_source(current_source, cx);
             return;

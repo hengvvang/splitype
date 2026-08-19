@@ -1,5 +1,4 @@
 //! Heading block rendering (H1–H6).
-// Migrated from blocks/render.rs
 
 use gpui::*;
 

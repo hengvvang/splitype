@@ -1,5 +1,4 @@
 //! BlockTextElement — GPUI Element for styled inline text.
-// Migrated from blocks/element.rs
 
 use std::cell::RefCell;
 use std::rc::Rc;

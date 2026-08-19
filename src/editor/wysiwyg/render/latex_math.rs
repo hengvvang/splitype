@@ -1,5 +1,4 @@
 //! LaTeX math block rendering.
-// Migrated from blocks/render.rs
 
 use gpui::*;
 
@@ -25,7 +24,6 @@ pub(crate) fn render_latex_math(
 
     if !focused {
         block.last_paints.clear();
-        block.latex_template_picker_open = false;
 
         // Unfocused: outer rect (no border, no rounded, transparent)
         // with inner fitted image padded inside

@@ -1,5 +1,4 @@
 //! Raw Markdown block rendering (passthrough for unrecognized content).
-// Migrated from blocks/render.rs
 
 use gpui::*;
 

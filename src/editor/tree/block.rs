@@ -1,4 +1,4 @@
-//! BlockView — GPUI View for a single block node in the document tree.
+//! Block — GPUI entity for a single block node in the document tree.
 
 use std::ops::Range;
 use std::path::PathBuf;
@@ -85,7 +85,6 @@ pub struct Block {
     pub(crate) code_language_is_selecting: bool,
     pub(crate) code_toolbar_hovered: bool,
     pub(crate) code_language_picker_open: bool,
-    pub(crate) latex_template_picker_open: bool,
     pub(crate) code_language_query: String,
     pub selected_range: Range<usize>,
     pub selection_reversed: bool,
@@ -301,7 +300,6 @@ impl Block {
             code_language_is_selecting: false,
             code_toolbar_hovered: false,
             code_language_picker_open: false,
-            latex_template_picker_open: false,
             code_language_query: String::new(),
             selected_range: 0..0,
             selection_reversed: false,
@@ -430,10 +428,7 @@ impl Block {
         }
     }
 
-    /// Flags describing the block-kind traits that tree metadata (quote
-    /// depths, anchors, list ordinals, footnote anchors) derives from.
-    /// Written by the tree-metadata rebuild; compared on text edits to detect
-    /// kind changes that require a metadata refresh without a structural edit.
+    /// The current display text of this block (from the inline render cache or projection).
     pub fn display_text(&self) -> &str {
         self.display_cache().text()
     }

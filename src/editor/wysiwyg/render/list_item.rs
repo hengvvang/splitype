@@ -1,5 +1,4 @@
 //! List item block rendering (unordered, ordered, task list).
-// Migrated from blocks/render.rs
 
 use gpui::*;
 

@@ -338,7 +338,7 @@ impl Shell {
         }
     }
 
-    pub(crate) fn refresh_explorer_tree(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn rescan_and_sync_explorer(&mut self, cx: &mut Context<Self>) {
         self.rescan_explorer_worktrees(cx);
         self.sync_explorer_models(cx);
         cx.notify();

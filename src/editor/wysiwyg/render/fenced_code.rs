@@ -1,5 +1,4 @@
 //! Fenced code block rendering.
-// Migrated from blocks/render.rs
 
 use gpui::*;
 

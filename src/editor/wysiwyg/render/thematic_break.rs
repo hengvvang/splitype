@@ -1,5 +1,4 @@
 //! Thematic break (horizontal rule) rendering.
-// Migrated from blocks/render.rs
 
 use gpui::*;
 

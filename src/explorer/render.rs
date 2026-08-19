@@ -395,7 +395,7 @@ impl Shell {
                         )
                         .on_click(move |_ev, _window, cx| {
                             let _ = ed_refresh.update(cx, |ed, cx| {
-                                ed.refresh_explorer_tree(cx);
+                                ed.rescan_and_sync_explorer(cx);
                             });
                             cx.stop_propagation();
                         }),

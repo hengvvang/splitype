@@ -698,7 +698,7 @@ impl Editor {
         };
 
         self.prepare_undo_capture(undo_kind, cx);
-        let mut source = self.serialize_document_for_mode(cx);
+        let mut source = self.serialized_document_text(cx);
         let (start, end) = (
             source_range.start.min(source_range.end).min(source.len()),
             source_range.start.max(source_range.end).min(source.len()),
@@ -756,7 +756,7 @@ impl Editor {
 
     pub(crate) fn cross_block_selected_markdown(&self, cx: &App) -> Option<String> {
         let selection = self.normalized_cross_block_selection(cx)?;
-        let source = self.serialize_document_for_mode(cx);
+        let source = self.serialized_document_text(cx);
         let mappings = self.source_mapping_by_entity_id(cx);
         let entries = self.doc().blocks();
 
@@ -928,7 +928,7 @@ impl Editor {
         }
 
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
-        let mut source = self.serialize_document_for_mode(cx);
+        let mut source = self.serialized_document_text(cx);
         let (start, end) = (
             source_range.start.min(source_range.end).min(source.len()),
             source_range.start.max(source_range.end).min(source.len()),

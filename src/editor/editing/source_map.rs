@@ -6,21 +6,12 @@ use std::ops::Range;
 use crate::editor::controller::*;
 
 impl Editor {
-    pub(crate) fn serialize_document_for_mode(&self, cx: &App) -> String {
-        match self.tab().mode {
-            EditorMode::Wysiwyg => self.doc().serialize_markdown(cx),
-            EditorMode::SourceCode => self.doc().serialize_source_text(cx),
-        }
-    }
-
     pub(crate) fn is_empty_paragraph_separator(block: &Block) -> bool {
-        block.kind() == BlockKind::Paragraph
-            && block.data.text.plain_text().is_empty()
-            && block.children.is_empty()
+        crate::editor::tree::document::Document::is_empty_root_paragraph(block)
     }
 
     pub(crate) fn is_empty_root_paragraph(block: &Block) -> bool {
-        Self::is_empty_paragraph_separator(block)
+        crate::editor::tree::document::Document::is_empty_root_paragraph(block)
     }
 
     pub(crate) fn build_prefixed_content_mapping(

@@ -1,5 +1,4 @@
 //! Callout / admonition block rendering.
-// Migrated from blocks/render.rs
 
 use gpui::*;
 
