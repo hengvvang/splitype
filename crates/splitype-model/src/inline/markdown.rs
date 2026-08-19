@@ -663,7 +663,7 @@ pub(crate) fn parse_autolink(
         style: extra_style,
         html_style: extra_html_style,
         link: Some(InlineLink::Autolink {
-            target: target.clone(),
+            destination: target.clone(),
         }),
         footnote: None,
         math: None,

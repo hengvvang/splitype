@@ -258,6 +258,6 @@ impl Block {
         }
 
         cx.stop_propagation();
-        cx.emit(BlockAction::ToggleTaskChecked);
+        cx.emit(BlockAction::RequestToggleTaskChecked);
     }
 }

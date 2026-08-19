@@ -414,12 +414,12 @@ impl Shell {
         // Zed: `EditorEvent::Blurred` → confirm; an empty, duplicate, or
         // unchanged name drops the edit. Window deactivation never commits
         // nor cancels.
-        cx.on_blur(&focus_handle, window, |editor, window, cx| {
+        cx.on_blur(&focus_handle, window, |shell, window, cx| {
             if !window.is_window_active() {
                 return;
             }
-            if editor.panels.explorer.edit.is_some() && !editor.confirm_explorer_edit(window, cx) {
-                editor.discard_explorer_edit(cx);
+            if shell.panels.explorer.edit.is_some() && !shell.confirm_explorer_edit(window, cx) {
+                shell.discard_explorer_edit(cx);
             }
         })
         .detach();
@@ -503,7 +503,7 @@ impl Shell {
         };
         self.panels.explorer.edit.as_mut().unwrap().processing = true;
 
-        let weak_editor = cx.entity().downgrade();
+        let weak_shell = cx.entity().downgrade();
         let window_handle = window.window_handle();
         let new_path_for_update = new_path.clone();
         let old_path_for_record = old_path.clone();
@@ -542,10 +542,10 @@ impl Shell {
                     }
                 })
                 .await;
-            let _ = weak_editor.update(cx, |editor, cx| {
+            let _ = weak_shell.update(cx, |shell, cx| {
                 match result {
                     Ok(()) => {
-                        editor.panels.explorer.edit = None;
+                        shell.panels.explorer.edit = None;
                         // Record the operation for panel undo/redo.
                         let change = if is_create {
                             ExplorerChange::Created {
@@ -558,19 +558,19 @@ impl Shell {
                                 to: new_path_for_update.clone(),
                             }
                         };
-                        editor.record_explorer_change(change);
-                        editor.panels.explorer.pending_select =
+                        shell.record_explorer_change(change);
+                        shell.panels.explorer.pending_select =
                             Some((root, new_path_for_update.clone()));
-                        editor.rescan_explorer_worktrees(cx);
-                        editor.sync_explorer_models(cx);
+                        shell.rescan_explorer_worktrees(cx);
+                        shell.sync_explorer_models(cx);
                         if is_create && !is_dir {
                             // Opening the freshly created file mirrors the
                             // "auto open on create" behavior.
-                            let weak_editor_for_open = weak_editor.clone();
+                            let weak_shell_for_open = weak_shell.clone();
                             let path_for_open = new_path_for_update.clone();
                             let _ = cx.update_window(window_handle, move |_, window, cx| {
-                                let _ = weak_editor_for_open.update(cx, |editor, cx| {
-                                    editor.open_explorer_file(path_for_open, window, cx);
+                                let _ = weak_shell_for_open.update(cx, |shell, cx| {
+                                    shell.open_explorer_file(path_for_open, window, cx);
                                 });
                             });
                         }
@@ -578,7 +578,7 @@ impl Shell {
                     Err(err) => {
                         // Keep the edit open with the error surfaced so the
                         // user can fix the name; the typed text survives.
-                        if let Some(edit) = editor.panels.explorer.edit.as_mut() {
+                        if let Some(edit) = shell.panels.explorer.edit.as_mut() {
                             edit.processing = false;
                             edit.validation = Some(ExplorerValidation::Error(err));
                         }
@@ -983,8 +983,8 @@ impl Element for ExplorerFilenameInputElement {
         let filename = &edit.filename;
 
         // Remember the bounds for IME hit-testing.
-        self.editor.update(cx, |editor, _cx| {
-            if let Some(edit) = editor.panels.explorer.edit.as_mut() {
+        self.editor.update(cx, |shell, _cx| {
+            if let Some(edit) = shell.panels.explorer.edit.as_mut() {
                 edit.filename.last_bounds = Some(bounds);
             }
         });

@@ -328,10 +328,10 @@ impl Shell {
                 });
         }
 
-        let ed_open = editor.clone();
-        let ed_refresh = editor.clone();
-        let ed_collapse = editor.clone();
-        let ed_hidden = editor.clone();
+        let shell_open = editor.clone();
+        let shell_refresh = editor.clone();
+        let shell_collapse = editor.clone();
+        let shell_hidden = editor.clone();
         let root_index = entry.root;
         let hide_hidden =
             crate::infra::config::settings::ExplorerSettingsStore::settings(cx).hide_hidden;
@@ -346,7 +346,7 @@ impl Shell {
                 .gap(px(2.0))
                 .child(
                     icon_chip_button(c, &theme.dimensions)
-                        .id(("ws-tb-replace", panel_id))
+                        .id(("explorer-tb-replace", panel_id))
                         .child(
                             svg()
                                 .path("icons/explorer/worktree/replace_folder.svg")
@@ -354,15 +354,15 @@ impl Shell {
                                 .text_color(c.text_default),
                         )
                         .on_click(move |_ev, window, cx| {
-                            let _ = ed_open.update(cx, |ed, cx| {
-                                ed.replace_explorer_worktree(root_index, window, cx);
+                            let _ = shell_open.update(cx, |shell, cx| {
+                                shell.replace_explorer_worktree(root_index, window, cx);
                             });
                             cx.stop_propagation();
                         }),
                 )
                 .child(
                     icon_chip_button(c, &theme.dimensions)
-                        .id(("ws-tb-hidden", panel_id))
+                        .id(("explorer-tb-hidden", panel_id))
                         .child(
                             svg()
                                 .path(if hide_hidden {
@@ -378,15 +378,15 @@ impl Shell {
                                 }),
                         )
                         .on_click(move |_ev, _window, cx| {
-                            let _ = ed_hidden.update(cx, |ed, cx| {
-                                ed.toggle_explorer_hidden(cx);
+                            let _ = shell_hidden.update(cx, |shell, cx| {
+                                shell.toggle_explorer_hidden(cx);
                             });
                             cx.stop_propagation();
                         }),
                 )
                 .child(
                     icon_chip_button(c, &theme.dimensions)
-                        .id(("ws-tb-refresh", panel_id))
+                        .id(("explorer-tb-refresh", panel_id))
                         .child(
                             svg()
                                 .path("icons/explorer/worktree/sync_folder.svg")
@@ -394,15 +394,15 @@ impl Shell {
                                 .text_color(c.text_default),
                         )
                         .on_click(move |_ev, _window, cx| {
-                            let _ = ed_refresh.update(cx, |ed, cx| {
-                                ed.rescan_and_sync_explorer(cx);
+                            let _ = shell_refresh.update(cx, |shell, cx| {
+                                shell.rescan_and_sync_explorer(cx);
                             });
                             cx.stop_propagation();
                         }),
                 )
                 .child(
                     icon_chip_button(c, &theme.dimensions)
-                        .id(("ws-tb-collapse", panel_id))
+                        .id(("explorer-tb-collapse", panel_id))
                         .child(
                             svg()
                                 .path("icons/explorer/worktree/collapse-all.svg")
@@ -410,8 +410,8 @@ impl Shell {
                                 .text_color(c.text_default),
                         )
                         .on_click(move |_ev, _window, cx| {
-                            let _ = ed_collapse.update(cx, |ed, cx| {
-                                ed.collapse_all_explorer_nodes(cx);
+                            let _ = shell_collapse.update(cx, |shell, cx| {
+                                shell.collapse_all_explorer_nodes(cx);
                             });
                             cx.stop_propagation();
                         }),

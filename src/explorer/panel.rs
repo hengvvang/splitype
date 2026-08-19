@@ -291,7 +291,7 @@ impl Shell {
             multiple: false,
             prompt: None,
         });
-        let weak_editor = cx.entity().downgrade();
+        let weak_shell = cx.entity().downgrade();
         cx.spawn(async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
             let paths = match prompt.await {
                 Ok(Ok(Some(paths))) => paths,
@@ -309,8 +309,8 @@ impl Shell {
                     eprintln!("failed to update recent folder history: {err}");
                 }
             }
-            let _ = weak_editor.update(cx, |editor, cx| {
-                editor.open_explorer_folder_path(path, cx);
+            let _ = weak_shell.update(cx, |shell, cx| {
+                shell.open_explorer_folder_path(path, cx);
                 cx.notify();
             });
         })
@@ -375,7 +375,7 @@ impl Shell {
             multiple: false,
             prompt: None,
         });
-        let weak_editor = cx.entity().downgrade();
+        let weak_shell = cx.entity().downgrade();
         cx.spawn(async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
             let paths = match prompt.await {
                 Ok(Ok(Some(paths))) => paths,
@@ -388,11 +388,11 @@ impl Shell {
             let Some(path) = paths.into_iter().next() else {
                 return;
             };
-            let _ = weak_editor.update(cx, |editor, cx| {
-                if index < editor.panels.explorer.worktrees.len() {
-                    editor.remove_explorer_worktree(index, cx);
+            let _ = weak_shell.update(cx, |shell, cx| {
+                if index < shell.panels.explorer.worktrees.len() {
+                    shell.remove_explorer_worktree(index, cx);
                 }
-                editor.add_explorer_worktree(path, cx);
+                shell.add_explorer_worktree(path, cx);
                 cx.notify();
             });
         })

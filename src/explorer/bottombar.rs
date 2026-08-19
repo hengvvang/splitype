@@ -22,7 +22,7 @@ impl Shell {
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let ed_add = cx.entity().downgrade();
+        let shell_add = cx.entity().downgrade();
         let worktree_count = self.panels.explorer.worktrees.len();
 
         bottombar_container(c, d.bottombar_height, d.bottombar_padding_x)
@@ -34,7 +34,7 @@ impl Shell {
                     .gap(px(6.0))
                     .child(
                         icon_chip_button(c, d)
-                            .id(("ws-bottombar-add-folder", panel_id))
+                            .id(("explorer-bottombar-add-folder", panel_id))
                             .child(
                                 svg()
                                     .path("icons/explorer/bottombar/new_folder.svg")
@@ -42,8 +42,8 @@ impl Shell {
                                     .text_color(c.text_default),
                             )
                             .on_click(move |_ev, window, cx| {
-                                let _ = ed_add.update(cx, |ed, cx| {
-                                    ed.prompt_open_explorer_folder(window, cx);
+                                let _ = shell_add.update(cx, |shell, cx| {
+                                    shell.prompt_open_explorer_folder(window, cx);
                                 });
                                 cx.stop_propagation();
                             }),

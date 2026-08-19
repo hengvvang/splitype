@@ -89,7 +89,7 @@ pub enum BlockAction {
     /// degrading it into a direct list-child paragraph at the same depth.
     RequestDowngradeNestedListItemToChildParagraph,
     /// Toggle the checked state of a task-list item.
-    ToggleTaskChecked,
+    RequestToggleTaskChecked,
     /// Prompt to open the clicked inline link destination.
     /// `prompt_target` preserves the raw syntax target shown to the user,
     /// while `open_target` is the resolved destination actually opened.

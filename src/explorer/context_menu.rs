@@ -115,28 +115,28 @@ impl Shell {
         if is_dir {
             let p = path.clone();
             items.push(make_item(
-                "ws-ctx-new-file",
+                "explorer-ctx-new-file",
                 s.explorer_new_file.clone(),
                 c.text_default,
                 true,
                 shell.clone(),
-                Box::new(move |ed, window, cx| {
+                Box::new(move |shell, window, cx| {
                     let p = p.clone();
-                    ed.close_explorer_file_menu(cx);
-                    ed.start_inline_create_file(p, window, cx);
+                    shell.close_explorer_file_menu(cx);
+                    shell.start_inline_create_file(p, window, cx);
                 }),
             ));
             let p = path.clone();
             items.push(make_item(
-                "ws-ctx-new-folder",
+                "explorer-ctx-new-folder",
                 s.explorer_new_folder.clone(),
                 c.text_default,
                 true,
                 shell.clone(),
-                Box::new(move |ed, window, cx| {
+                Box::new(move |shell, window, cx| {
                     let p = p.clone();
-                    ed.close_explorer_file_menu(cx);
-                    ed.start_inline_create_folder(p, window, cx);
+                    shell.close_explorer_file_menu(cx);
+                    shell.start_inline_create_folder(p, window, cx);
                 }),
             ));
             items.push(separator());
@@ -145,28 +145,28 @@ impl Shell {
         // Reveal / Open with system / Open in terminal.
         let p = path.clone();
         items.push(make_item(
-            "ws-ctx-reveal",
+            "explorer-ctx-reveal",
             s.explorer_reveal_in_file_manager.clone(),
             c.text_default,
             true,
             shell.clone(),
-            Box::new(move |ed, _window, cx| {
+            Box::new(move |shell, _window, cx| {
                 let p = p.clone();
-                ed.close_explorer_file_menu(cx);
-                ed.reveal_in_file_explorer(&p);
+                shell.close_explorer_file_menu(cx);
+                shell.reveal_in_file_explorer(&p);
             }),
         ));
         let p = path.clone();
         items.push(make_item(
-            "ws-ctx-open-default",
+            "explorer-ctx-open-default",
             s.explorer_open_in_default_app.clone(),
             c.text_default,
             true,
             shell.clone(),
-            Box::new(move |ed, _window, cx| {
+            Box::new(move |shell, _window, cx| {
                 let p = p.clone();
-                ed.close_explorer_file_menu(cx);
-                ed.open_explorer_with_system(&p);
+                shell.close_explorer_file_menu(cx);
+                shell.open_explorer_with_system(&p);
             }),
         ));
         items.push(separator());
@@ -175,69 +175,69 @@ impl Shell {
         // content), then Undo / Redo (disabled when the corresponding stack
         // is empty) — matching Zed's order.
         items.push(make_item(
-            "ws-ctx-cut",
+            "explorer-ctx-cut",
             s.explorer_cut.clone(),
             c.text_default,
             true,
             shell.clone(),
-            Box::new(|ed, _window, cx| {
-                ed.close_explorer_file_menu(cx);
-                ed.explorer_cut(cx);
+            Box::new(|shell, _window, cx| {
+                shell.close_explorer_file_menu(cx);
+                shell.explorer_cut(cx);
             }),
         ));
         items.push(make_item(
-            "ws-ctx-copy",
+            "explorer-ctx-copy",
             s.explorer_copy.clone(),
             c.text_default,
             true,
             shell.clone(),
-            Box::new(|ed, _window, cx| {
-                ed.close_explorer_file_menu(cx);
-                ed.explorer_copy(cx);
+            Box::new(|shell, _window, cx| {
+                shell.close_explorer_file_menu(cx);
+                shell.explorer_copy(cx);
             }),
         ));
         items.push(make_item(
-            "ws-ctx-duplicate",
+            "explorer-ctx-duplicate",
             s.explorer_duplicate.clone(),
             c.text_default,
             true,
             shell.clone(),
-            Box::new(|ed, window, cx| {
-                ed.close_explorer_file_menu(cx);
-                ed.explorer_duplicate(window, cx);
+            Box::new(|shell, window, cx| {
+                shell.close_explorer_file_menu(cx);
+                shell.explorer_duplicate(window, cx);
             }),
         ));
         items.push(make_item(
-            "ws-ctx-paste",
+            "explorer-ctx-paste",
             s.explorer_paste.clone(),
             c.text_default,
             has_pasteable,
             shell.clone(),
-            Box::new(|ed, window, cx| {
-                ed.close_explorer_file_menu(cx);
-                ed.explorer_paste(window, cx);
+            Box::new(|shell, window, cx| {
+                shell.close_explorer_file_menu(cx);
+                shell.explorer_paste(window, cx);
             }),
         ));
         items.push(make_item(
-            "ws-ctx-undo",
+            "explorer-ctx-undo",
             s.explorer_undo.clone(),
             c.text_default,
             can_undo,
             shell.clone(),
-            Box::new(|ed, window, cx| {
-                ed.close_explorer_file_menu(cx);
-                ed.explorer_undo(window, cx);
+            Box::new(|shell, window, cx| {
+                shell.close_explorer_file_menu(cx);
+                shell.explorer_undo(window, cx);
             }),
         ));
         items.push(make_item(
-            "ws-ctx-redo",
+            "explorer-ctx-redo",
             s.explorer_redo.clone(),
             c.text_default,
             can_redo,
             shell.clone(),
-            Box::new(|ed, window, cx| {
-                ed.close_explorer_file_menu(cx);
-                ed.explorer_redo(window, cx);
+            Box::new(|shell, window, cx| {
+                shell.close_explorer_file_menu(cx);
+                shell.explorer_redo(window, cx);
             }),
         ));
         items.push(separator());
@@ -245,28 +245,28 @@ impl Shell {
         // Copy Path / Copy Relative Path.
         let p = path.clone();
         items.push(make_item(
-            "ws-ctx-copy-path",
+            "explorer-ctx-copy-path",
             s.explorer_copy_path.clone(),
             c.text_default,
             true,
             shell.clone(),
-            Box::new(move |ed, _window, cx| {
+            Box::new(move |shell, _window, cx| {
                 let p = p.clone();
-                ed.close_explorer_file_menu(cx);
-                ed.copy_path_to_clipboard(&p, cx);
+                shell.close_explorer_file_menu(cx);
+                shell.copy_path_to_clipboard(&p, cx);
             }),
         ));
         let p = path.clone();
         items.push(make_item(
-            "ws-ctx-copy-relative-path",
+            "explorer-ctx-copy-relative-path",
             s.explorer_copy_relative_path.clone(),
             c.text_default,
             true,
             shell.clone(),
-            Box::new(move |ed, _window, cx| {
+            Box::new(move |shell, _window, cx| {
                 let p = p.clone();
-                ed.close_explorer_file_menu(cx);
-                ed.copy_explorer_relative_path(&p, cx);
+                shell.close_explorer_file_menu(cx);
+                shell.copy_explorer_relative_path(&p, cx);
             }),
         ));
 
@@ -275,37 +275,37 @@ impl Shell {
             items.push(separator());
             let p = path.clone();
             items.push(make_item(
-                "ws-ctx-rename",
+                "explorer-ctx-rename",
                 s.explorer_rename.clone(),
                 c.text_default,
                 true,
                 shell.clone(),
-                Box::new(move |ed, window, cx| {
+                Box::new(move |shell, window, cx| {
                     let p = p.clone();
-                    ed.close_explorer_file_menu(cx);
-                    ed.start_inline_rename(p, window, cx);
+                    shell.close_explorer_file_menu(cx);
+                    shell.start_inline_rename(p, window, cx);
                 }),
             ));
             items.push(make_item(
-                "ws-ctx-trash",
+                "explorer-ctx-trash",
                 s.explorer_trash.clone(),
                 c.text_default,
                 true,
                 shell.clone(),
-                Box::new(|ed, window, cx| {
-                    ed.close_explorer_file_menu(cx);
-                    ed.trash_explorer_selections(window, cx);
+                Box::new(|shell, window, cx| {
+                    shell.close_explorer_file_menu(cx);
+                    shell.trash_explorer_selections(window, cx);
                 }),
             ));
             items.push(make_item(
-                "ws-ctx-delete",
+                "explorer-ctx-delete",
                 s.explorer_delete.clone(),
                 c.dialog_danger_button_bg,
                 true,
                 shell.clone(),
-                Box::new(|ed, window, cx| {
-                    ed.close_explorer_file_menu(cx);
-                    ed.delete_explorer_selections(window, cx);
+                Box::new(|shell, window, cx| {
+                    shell.close_explorer_file_menu(cx);
+                    shell.delete_explorer_selections(window, cx);
                 }),
             ));
         } else {
@@ -314,34 +314,34 @@ impl Shell {
             // from Project").
             items.push(separator());
             items.push(make_item(
-                "ws-ctx-add-folder",
+                "explorer-ctx-add-folder",
                 s.explorer_add_folder.clone(),
                 c.text_default,
                 true,
                 shell.clone(),
-                Box::new(|ed, window, cx| {
-                    ed.close_explorer_file_menu(cx);
-                    ed.prompt_open_explorer_folder(window, cx);
+                Box::new(|shell, window, cx| {
+                    shell.close_explorer_file_menu(cx);
+                    shell.prompt_open_explorer_folder(window, cx);
                 }),
             ));
             let p = path.clone();
             items.push(make_item(
-                "ws-ctx-remove-folder",
+                "explorer-ctx-remove-folder",
                 s.explorer_remove_folder.clone(),
                 c.text_default,
                 true,
                 shell.clone(),
-                Box::new(move |ed, _window, cx| {
+                Box::new(move |shell, _window, cx| {
                     let p = p.clone();
-                    ed.close_explorer_file_menu(cx);
-                    if let Some(index) = ed
+                    shell.close_explorer_file_menu(cx);
+                    if let Some(index) = shell
                         .panels
                         .explorer
                         .worktrees
                         .iter()
                         .position(|worktree| worktree.read(cx).root() == p.as_path())
                     {
-                        ed.remove_explorer_worktree(index, cx);
+                        shell.remove_explorer_worktree(index, cx);
                     }
                 }),
             ));
@@ -353,35 +353,35 @@ impl Shell {
             items.push(separator());
             let entry_id = entry_id;
             items.push(make_item(
-                "ws-ctx-expand-all",
+                "explorer-ctx-expand-all",
                 s.explorer_expand_all.clone(),
                 c.text_default,
                 true,
                 shell.clone(),
-                Box::new(move |ed, _window, cx| {
-                    ed.close_explorer_file_menu(cx);
+                Box::new(move |shell, _window, cx| {
+                    shell.close_explorer_file_menu(cx);
                     match entry_id {
                         Some((_, id)) if !is_root => {
-                            ed.expand_all_explorer_for_entry(id, cx);
+                            shell.expand_all_explorer_for_entry(id, cx);
                         }
-                        _ => ed.expand_all_explorer_nodes(cx),
+                        _ => shell.expand_all_explorer_nodes(cx),
                     }
                 }),
             ));
             let entry_id = entry_id;
             items.push(make_item(
-                "ws-ctx-collapse-all",
+                "explorer-ctx-collapse-all",
                 s.explorer_collapse_all.clone(),
                 c.text_default,
                 true,
                 shell.clone(),
-                Box::new(move |ed, _window, cx| {
-                    ed.close_explorer_file_menu(cx);
+                Box::new(move |shell, _window, cx| {
+                    shell.close_explorer_file_menu(cx);
                     match entry_id {
                         Some((_, id)) if !is_root => {
-                            ed.collapse_all_explorer_for_entry(id, cx);
+                            shell.collapse_all_explorer_for_entry(id, cx);
                         }
-                        _ => ed.collapse_all_explorer_nodes(cx),
+                        _ => shell.collapse_all_explorer_nodes(cx),
                     }
                 }),
             ));

@@ -14,7 +14,7 @@ pub enum InlineLink {
     /// Reference-style link resolved from `[label][ref]` syntax.
     Reference { label: String, destination: String },
     /// Autolink from `<scheme:target>` or email-like syntax.
-    Autolink { target: String },
+    Autolink { destination: String },
 }
 
 /// Link target pair used by hit-testing and open-link prompts.
@@ -30,17 +30,17 @@ impl InlineLink {
     /// The resolved destination URL for this link.
     pub fn open_target(&self) -> &str {
         match self {
-            Self::Inline { destination, .. } | Self::Reference { destination, .. } => destination,
-            Self::Autolink { target } => target,
+            Self::Inline { destination, .. }
+            | Self::Reference { destination, .. }
+            | Self::Autolink { destination } => destination,
         }
     }
 
     /// The raw target as written in source (label for reference links).
     pub fn raw_target(&self) -> &str {
         match self {
-            Self::Inline { destination, .. } => destination,
+            Self::Inline { destination, .. } | Self::Autolink { destination } => destination,
             Self::Reference { label, .. } => label,
-            Self::Autolink { target } => target,
         }
     }
 

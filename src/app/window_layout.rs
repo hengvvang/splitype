@@ -100,9 +100,9 @@ impl Shell {
             }
         } else {
             self.render_window_panel_node(&root, theme, strings, leaf_count, window, cx)
-        };        let root_editor_move = cx.entity().downgrade();
-        let root_editor_up = cx.entity().downgrade();
-        let root_editor_up_out = cx.entity().downgrade();
+        };        let root_shell_move = cx.entity().downgrade();
+        let root_shell_up = cx.entity().downgrade();
+        let root_shell_up_out = cx.entity().downgrade();
 
         let container = div()
             .id("tiled-layout-root")
@@ -114,11 +114,11 @@ impl Shell {
             .relative()
             .on_mouse_move(move |event, window, cx| {
                 let pos = event.position;
-                let _ = root_editor_move.update(cx, |ed, cx| {
+                let _ = root_shell_move.update(cx, |shell, cx| {
                     let mut changed = false;
                     let viewport = window.viewport_size();
                     if splitype_splitter::interaction::update_window_drag(
-                        &mut ed.panels.layout,
+                        &mut shell.panels.layout,
                         pos,
                         viewport,
                     ) {
@@ -132,8 +132,8 @@ impl Shell {
                     // visual indicator.
                     // The corner-drag session lives on the dragging panel
                     // itself; find it via the root.
-                    if let Some(drag_panel) = ed.panels.layout.corner_drag_panel() {
-                        let drag = ed
+                    if let Some(drag_panel) = shell.panels.layout.corner_drag_panel() {
+                        let drag = shell
                             .panels
                             .layout
                             .tree
@@ -143,13 +143,13 @@ impl Shell {
                             if past_shortcut_threshold(&drag)
                                 && drag.modifier == CornerDragModifier::Ctrl
                             {
-                                let rects = ed.panels.layout.leaf_rects(viewport);
+                                let rects = shell.panels.layout.leaf_rects(viewport);
                                 if let Some(over) = id_at_point(&rects, pos) {
                                     if over != drag.target_id {
-                                        ed.swap_panel_kinds(drag.target_id, over, cx);
+                                        shell.swap_panel_kinds(drag.target_id, over, cx);
                                     }
                                 }
-                                ed.panels.layout.end_corner_drag();
+                                shell.panels.layout.end_corner_drag();
                             }
                         }
                     }
@@ -158,7 +158,7 @@ impl Shell {
                     // container API; the handling lives in `panel_layout`.
                     // Forward to every editor entity — only the one with an
                     // active drag reports a change.
-                    let editors: Vec<Entity<crate::editor::controller::Editor>> = ed
+                    let editors: Vec<Entity<crate::editor::controller::Editor>> = shell
                         .panel_contents
                         .values()
                         .filter_map(|content| match content {
@@ -176,10 +176,10 @@ impl Shell {
                 });
             })
             .on_mouse_up(MouseButton::Left, move |_event, window, cx| {
-                let _ = root_editor_up.update(cx, |ed, cx| ed.finish_drag_gestures(window, cx));
+                let _ = root_shell_up.update(cx, |shell, cx| shell.finish_drag_gestures(window, cx));
             })
             .on_mouse_up_out(MouseButton::Left, move |_event, window, cx| {
-                let _ = root_editor_up_out.update(cx, |ed, cx| ed.finish_drag_gestures(window, cx));
+                let _ = root_shell_up_out.update(cx, |shell, cx| shell.finish_drag_gestures(window, cx));
             })
             .child(layout_tree);
 
@@ -295,7 +295,7 @@ impl Shell {
             active: c.focus_accent,
             ..Default::default()
         };
-        let editor = cx.entity().downgrade();
+        let shell = cx.entity().downgrade();
 
         match node {
             SplitTree::Leaf(container) => self.render_window_panel_tile(
@@ -326,8 +326,8 @@ impl Shell {
 
                 match direction {
                     Axis::Horizontal => {
-                        let bar_editor = editor.clone();
-                        let menu_editor = editor.clone();
+                        let bar_shell = shell.clone();
+                        let menu_shell = shell.clone();
                         let bar_active = self
                             .panels
                             .layout
@@ -378,9 +378,9 @@ impl Shell {
                                 )
                                 .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                     let start_pos = f32::from(event.position.x);
-                                    let _ = bar_editor.update(cx, |ed, cx| {
+                                    let _ = bar_shell.update(cx, |shell, cx| {
                                         splitype_splitter::interaction::start_splitter_drag(
-                                            &mut ed.panels.layout,
+                                            &mut shell.panels.layout,
                                             split_id,
                                             Axis::Horizontal,
                                             start_pos,
@@ -393,9 +393,9 @@ impl Shell {
                                     MouseButton::Right,
                                     move |event, _window, cx| {
                                         let pos = event.position;
-                                        let _ = menu_editor.update(cx, |ed, cx| {
+                                        let _ = menu_shell.update(cx, |shell, cx| {
                                             splitype_splitter::interaction::open_border_menu(
-                                                &mut ed.panels.layout,
+                                                &mut shell.panels.layout,
                                                 split_id,
                                                 dir,
                                                 pos,
@@ -408,8 +408,8 @@ impl Shell {
                             .into_any_element()
                     }
                     Axis::Vertical => {
-                        let bar_editor = editor.clone();
-                        let menu_editor = editor.clone();
+                        let bar_shell = shell.clone();
+                        let menu_shell = shell.clone();
                         let bar_active = self
                             .panels
                             .layout
@@ -458,9 +458,9 @@ impl Shell {
                                 )
                                 .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                     let start_pos = f32::from(event.position.y);
-                                    let _ = bar_editor.update(cx, |ed, cx| {
+                                    let _ = bar_shell.update(cx, |shell, cx| {
                                         splitype_splitter::interaction::start_splitter_drag(
-                                            &mut ed.panels.layout,
+                                            &mut shell.panels.layout,
                                             split_id,
                                             Axis::Vertical,
                                             start_pos,
@@ -473,9 +473,9 @@ impl Shell {
                                     MouseButton::Right,
                                     move |event, _window, cx| {
                                         let pos = event.position;
-                                        let _ = menu_editor.update(cx, |ed, cx| {
+                                        let _ = menu_shell.update(cx, |shell, cx| {
                                             splitype_splitter::interaction::open_border_menu(
-                                                &mut ed.panels.layout,
+                                                &mut shell.panels.layout,
                                                 split_id,
                                                 dir,
                                                 pos,
@@ -597,10 +597,10 @@ impl Shell {
             .p(px(gap))
             .relative()
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                let _ = tile_focus.update(cx, |ed, cx| {
-                    ed.panels.layout.focused_leaf = Some(leaf_id);
+                let _ = tile_focus.update(cx, |shell, cx| {
+                    shell.panels.layout.focused_leaf = Some(leaf_id);
                     if kind == crate::app::window_panels::WindowPanelKind::Editor {
-                        ed.panels.layout.activate_leaf(leaf_id);
+                        shell.panels.layout.activate_leaf(leaf_id);
                     }
                     cx.notify();
                 });
@@ -608,7 +608,7 @@ impl Shell {
             .child(tile_card);
 
         // Corner drag handles positioned at the four outer corners of the tile card.
-        let editor_corner = cx.entity().downgrade();
+        let shell_corner = cx.entity().downgrade();
         let corner_handles = splitype_splitter::interaction::corner_drag_handles(
             "area-corner",
             leaf_id,
@@ -617,8 +617,8 @@ impl Shell {
             false,
             false,
             move |modifier, pos, cx| {
-                let _ = editor_corner.update(cx, |ed, cx| {
-                    ed.panels.layout.start_corner_drag(leaf_id, pos, modifier);
+                let _ = shell_corner.update(cx, |shell, cx| {
+                    shell.panels.layout.start_corner_drag(leaf_id, pos, modifier);
                     cx.notify();
                 });
             },
@@ -650,7 +650,7 @@ impl Shell {
         let c = &theme.colors;
         let d = &theme.dimensions;
         let t = &theme.typography;
-        let editor = cx.entity().downgrade();
+        let shell = cx.entity().downgrade();
 
         let available_kinds = WindowPanelKind::all();
 
@@ -664,7 +664,7 @@ impl Shell {
             .children(available_kinds.iter().enumerate().map(|(idx, kind)| {
                 let kind = *kind;
                 let is_current = kind == current_kind;
-                let option_editor = editor.clone();
+                let option_shell = shell.clone();
                 menu_item(("area-type-opt", idx), c, d)
                     .w_full()
                     .justify_between()
@@ -687,8 +687,8 @@ impl Shell {
                         div().w(px(13.0)).into_any_element()
                     })
                     .on_click(move |_event, _window, cx| {
-                        let _ = option_editor.update(cx, |ed, cx| {
-                            ed.change_panel_kind(leaf_id, kind, cx);
+                        let _ = option_shell.update(cx, |shell, cx| {
+                            shell.change_panel_kind(leaf_id, kind, cx);
                             cx.notify();
                         });
                     })
@@ -702,43 +702,43 @@ impl Shell {
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let editor = cx.entity().downgrade();
+        let shell = cx.entity().downgrade();
         let split_id = border_menu.split_id;
 
         let menu_style = border_menu_style(theme);
 
-        let split_h_ed = editor.clone();
+        let split_h_shell = shell.clone();
         let split_h: Box<dyn Fn(&mut App)> = Box::new(move |app| {
-            let _ = split_h_ed.update(app, |ed, cx| {
-                ed.split_panel(split_id, Axis::Horizontal, 0.5, true, cx);
+            let _ = split_h_shell.update(app, |shell, cx| {
+                shell.split_panel(split_id, Axis::Horizontal, 0.5, true, cx);
                 cx.notify();
             });
         });
-        let split_v_ed = editor.clone();
+        let split_v_shell = shell.clone();
         let split_v: Box<dyn Fn(&mut App)> = Box::new(move |app| {
-            let _ = split_v_ed.update(app, |ed, cx| {
-                ed.split_panel(split_id, Axis::Vertical, 0.5, true, cx);
+            let _ = split_v_shell.update(app, |shell, cx| {
+                shell.split_panel(split_id, Axis::Vertical, 0.5, true, cx);
                 cx.notify();
             });
         });
-        let swap_ed = editor.clone();
+        let swap_shell = shell.clone();
         let swap: Box<dyn Fn(&mut App)> = Box::new(move |app| {
-            let _ = swap_ed.update(app, |ed, cx| {
-                ed.panels.layout.swap_split_sides(split_id);
+            let _ = swap_shell.update(app, |shell, cx| {
+                shell.panels.layout.swap_split_sides(split_id);
                 cx.notify();
             });
         });
-        let close_ed = editor.clone();
+        let close_shell = shell.clone();
         let close: Box<dyn Fn(&mut App)> = Box::new(move |app| {
-            let _ = close_ed.update(app, |ed, cx| {
-                ed.close_panel(split_id, cx);
+            let _ = close_shell.update(app, |shell, cx| {
+                shell.close_panel(split_id, cx);
                 cx.notify();
             });
         });
-        let dismiss_ed = editor.clone();
+        let dismiss_shell = shell.clone();
         let dismiss: Box<dyn Fn(&mut App)> = Box::new(move |app| {
-            let _ = dismiss_ed.update(app, |ed, cx| {
-                ed.panels.layout.active_border_menu = None;
+            let _ = dismiss_shell.update(app, |shell, cx| {
+                shell.panels.layout.active_border_menu = None;
                 cx.notify();
             });
         });

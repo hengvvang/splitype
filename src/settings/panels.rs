@@ -34,7 +34,7 @@ impl Shell {
         let mut left_nav_items = Vec::new();
         for (tab_idx, tab) in SettingsTab::all().iter().enumerate() {
             let is_active = active_tab == *tab;
-            let editor = cx.entity().downgrade();
+            let shell = cx.entity().downgrade();
             let tab_item = *tab;
 
             left_nav_items.push(
@@ -70,8 +70,8 @@ impl Shell {
                         .child(tab.name()),
                 )
                 .on_click(move |_event, _window, cx| {
-                    let _ = editor.update(cx, |ed, cx| {
-                        ed.panels.settings.tab = tab_item;
+                    let _ = shell.update(cx, |shell, cx| {
+                        shell.panels.settings.tab = tab_item;
                         cx.notify();
                     });
                 })
@@ -262,11 +262,11 @@ impl Shell {
                 let is_sec1_expanded = self.panels.settings.expanded_sections.contains(sec1_key);
                 let mut sec1_items = Vec::new();
 
-                let theme_ed = cx.entity().downgrade();
+                let theme_shell = cx.entity().downgrade();
                 let available_themes = cx.global::<ThemeManager>().available_themes();
                 let current_theme_name = theme.name.clone();
 
-                let lang_ed = cx.entity().downgrade();
+                let lang_shell = cx.entity().downgrade();
                 let lang_options = [("en-US", "English (en-US)"), ("zh-CN", "简体中文 (zh-CN)")];
                 let current_lang = "English (en-US)";
 
@@ -314,15 +314,15 @@ impl Shell {
                                 ),
                             )
                             .on_click({
-                                let theme_ed = theme_ed.clone();
+                                let theme_shell = theme_shell.clone();
                                 move |_ev, _win, cx| {
-                                    let _ = theme_ed.update(cx, |ed, cx| {
-                                        if ed.panels.settings.open_dropdown.as_deref()
+                                    let _ = theme_shell.update(cx, |shell, cx| {
+                                        if shell.panels.settings.open_dropdown.as_deref()
                                             == Some("theme")
                                         {
-                                            ed.panels.settings.open_dropdown = None;
+                                            shell.panels.settings.open_dropdown = None;
                                         } else {
-                                            ed.panels.settings.open_dropdown =
+                                            shell.panels.settings.open_dropdown =
                                                 Some("theme".to_string());
                                         }
                                         cx.notify();
@@ -337,7 +337,7 @@ impl Shell {
                             let t_id = t_entry.id.clone();
                             let display_label = t_entry.name.clone();
                             let is_selected = display_label == current_theme_name;
-                            let item_ed = theme_ed.clone();
+                            let item_shell = theme_shell.clone();
                             let item_icon = if display_label == "Light" {
                                 "icons/settings/sun.svg"
                             } else {
@@ -379,11 +379,11 @@ impl Shell {
                                     div().w(px(13.0)).into_any_element()
                                 })
                                 .on_click(move |_ev, _win, cx| {
-                                    let _ = item_ed.update(cx, |ed, cx| {
+                                    let _ = item_shell.update(cx, |shell, cx| {
                                         cx.update_global::<ThemeManager, _>(|manager, _cx| {
                                             let _ = manager.set_theme_by_id(&t_id);
                                         });
-                                        ed.panels.settings.open_dropdown = None;
+                                        shell.panels.settings.open_dropdown = None;
                                         cx.notify();
                                     });
                                 })
@@ -417,15 +417,15 @@ impl Shell {
                                 ),
                             )
                             .on_click({
-                                let lang_ed = lang_ed.clone();
+                                let lang_shell = lang_shell.clone();
                                 move |_ev, _win, cx| {
-                                    let _ = lang_ed.update(cx, |ed, cx| {
-                                        if ed.panels.settings.open_dropdown.as_deref()
+                                    let _ = lang_shell.update(cx, |shell, cx| {
+                                        if shell.panels.settings.open_dropdown.as_deref()
                                             == Some("lang")
                                         {
-                                            ed.panels.settings.open_dropdown = None;
+                                            shell.panels.settings.open_dropdown = None;
                                         } else {
-                                            ed.panels.settings.open_dropdown =
+                                            shell.panels.settings.open_dropdown =
                                                 Some("lang".to_string());
                                         }
                                         cx.notify();
@@ -438,7 +438,7 @@ impl Shell {
                         let mut menu_items = Vec::new();
                         for (code, label) in lang_options {
                             let is_selected = label == current_lang;
-                            let item_ed = lang_ed.clone();
+                            let item_shell = lang_shell.clone();
 
                             menu_items.push(
                                 select_option(
@@ -463,8 +463,8 @@ impl Shell {
                                     div().w(px(13.0)).into_any_element()
                                 })
                                 .on_click(move |_ev, _win, cx| {
-                                    let _ = item_ed.update(cx, |ed, cx| {
-                                        ed.panels.settings.open_dropdown = None;
+                                    let _ = item_shell.update(cx, |shell, cx| {
+                                        shell.panels.settings.open_dropdown = None;
                                         cx.notify();
                                     });
                                 })
@@ -485,14 +485,14 @@ impl Shell {
                     ));
                 }
 
-                let sec1_ed = cx.entity().downgrade();
+                let sec1_shell = cx.entity().downgrade();
                 sections.push(make_section(
                     "pref-sec-theme",
                     "Visual Theme & Language",
                     is_sec1_expanded,
                     Box::new(move |_ev, _win, cx| {
-                        let _ = sec1_ed.update(cx, |ed, cx| {
-                            ed.panels.settings.toggle_section(sec1_key);
+                        let _ = sec1_shell.update(cx, |shell, cx| {
+                            shell.panels.settings.toggle_section(sec1_key);
                             cx.notify();
                         });
                     }),
@@ -506,13 +506,13 @@ impl Shell {
                 let mut sec2_items = Vec::new();
 
                 if is_sec2_expanded {
-                    let sub1_ed = cx.entity().downgrade();
+                    let sub1_shell = cx.entity().downgrade();
                     let ctrl_sb_main = Switch::new("switch-sb-main")
                         .checked(self.panels.settings.pref_show_status_bar)
                         .on_click(move |_ev, _win, cx| {
-                            let _ = sub1_ed.update(cx, |ed, cx| {
-                                ed.panels.settings.pref_show_status_bar =
-                                    !ed.panels.settings.pref_show_status_bar;
+                            let _ = sub1_shell.update(cx, |shell, cx| {
+                                shell.panels.settings.pref_show_status_bar =
+                                    !shell.panels.settings.pref_show_status_bar;
                                 cx.notify();
                             });
                         })
@@ -526,13 +526,13 @@ impl Shell {
                         inner_border_color,
                     ));
 
-                    let sub2_ed = cx.entity().downgrade();
+                    let sub2_shell = cx.entity().downgrade();
                     let ctrl_sb_words = Switch::new("switch-sb-words")
                         .checked(self.panels.settings.pref_show_word_count)
                         .on_click(move |_ev, _win, cx| {
-                            let _ = sub2_ed.update(cx, |ed, cx| {
-                                ed.panels.settings.pref_show_word_count =
-                                    !ed.panels.settings.pref_show_word_count;
+                            let _ = sub2_shell.update(cx, |shell, cx| {
+                                shell.panels.settings.pref_show_word_count =
+                                    !shell.panels.settings.pref_show_word_count;
                                 cx.notify();
                             });
                         })
@@ -546,13 +546,13 @@ impl Shell {
                         inner_border_color,
                     ));
 
-                    let sub3_ed = cx.entity().downgrade();
+                    let sub3_shell = cx.entity().downgrade();
                     let ctrl_sb_pos = Switch::new("switch-sb-pos")
                         .checked(self.panels.settings.pref_show_cursor_pos)
                         .on_click(move |_ev, _win, cx| {
-                            let _ = sub3_ed.update(cx, |ed, cx| {
-                                ed.panels.settings.pref_show_cursor_pos =
-                                    !ed.panels.settings.pref_show_cursor_pos;
+                            let _ = sub3_shell.update(cx, |shell, cx| {
+                                shell.panels.settings.pref_show_cursor_pos =
+                                    !shell.panels.settings.pref_show_cursor_pos;
                                 cx.notify();
                             });
                         })
@@ -567,14 +567,14 @@ impl Shell {
                     ));
                 }
 
-                let sec2_ed = cx.entity().downgrade();
+                let sec2_shell = cx.entity().downgrade();
                 sections.push(make_section(
                     "pref-sec-sb",
                     "Status Bar Options",
                     is_sec2_expanded,
                     Box::new(move |_ev, _win, cx| {
-                        let _ = sec2_ed.update(cx, |ed, cx| {
-                            ed.panels.settings.toggle_section(sec2_key);
+                        let _ = sec2_shell.update(cx, |shell, cx| {
+                            shell.panels.settings.toggle_section(sec2_key);
                             cx.notify();
                         });
                     }),
@@ -603,28 +603,28 @@ impl Shell {
                         "px",
                         is_editing_font,
                         Box::new(move |_ev, _win, cx| {
-                            let _ = font_dec.update(cx, |ed, cx| {
-                                ed.panels.settings.editing_stepper = None;
-                                if ed.panels.settings.pref_font_size > 8 {
-                                    ed.panels.settings.pref_font_size -= 1;
+                            let _ = font_dec.update(cx, |shell, cx| {
+                                shell.panels.settings.editing_stepper = None;
+                                if shell.panels.settings.pref_font_size > 8 {
+                                    shell.panels.settings.pref_font_size -= 1;
                                     cx.notify();
                                 }
                             });
                         }),
                         Box::new(move |_ev, _win, cx| {
-                            let _ = font_inc.update(cx, |ed, cx| {
-                                ed.panels.settings.editing_stepper = None;
-                                if ed.panels.settings.pref_font_size < 48 {
-                                    ed.panels.settings.pref_font_size += 1;
+                            let _ = font_inc.update(cx, |shell, cx| {
+                                shell.panels.settings.editing_stepper = None;
+                                if shell.panels.settings.pref_font_size < 48 {
+                                    shell.panels.settings.pref_font_size += 1;
                                     cx.notify();
                                 }
                             });
                         }),
                         Box::new(move |_ev, _win, cx| {
-                            let _ = font_ctr.update(cx, |ed, cx| {
-                                ed.panels.settings.editing_stepper = Some("font".to_string());
-                                ed.panels.settings.pref_font_size =
-                                    match ed.panels.settings.pref_font_size {
+                            let _ = font_ctr.update(cx, |shell, cx| {
+                                shell.panels.settings.editing_stepper = Some("font".to_string());
+                                shell.panels.settings.pref_font_size =
+                                    match shell.panels.settings.pref_font_size {
                                         12 => 14,
                                         14 => 16,
                                         16 => 18,
@@ -661,30 +661,30 @@ impl Shell {
                         "",
                         is_editing_lh,
                         Box::new(move |_ev, _win, cx| {
-                            let _ = lh_dec.update(cx, |ed, cx| {
-                                ed.panels.settings.editing_stepper = None;
-                                if ed.panels.settings.pref_line_height > 1.05 {
-                                    ed.panels.settings.pref_line_height =
-                                        (ed.panels.settings.pref_line_height - 0.1).max(1.0);
+                            let _ = lh_dec.update(cx, |shell, cx| {
+                                shell.panels.settings.editing_stepper = None;
+                                if shell.panels.settings.pref_line_height > 1.05 {
+                                    shell.panels.settings.pref_line_height =
+                                        (shell.panels.settings.pref_line_height - 0.1).max(1.0);
                                     cx.notify();
                                 }
                             });
                         }),
                         Box::new(move |_ev, _win, cx| {
-                            let _ = lh_inc.update(cx, |ed, cx| {
-                                ed.panels.settings.editing_stepper = None;
-                                if ed.panels.settings.pref_line_height < 3.0 {
-                                    ed.panels.settings.pref_line_height =
-                                        (ed.panels.settings.pref_line_height + 0.1).min(3.0);
+                            let _ = lh_inc.update(cx, |shell, cx| {
+                                shell.panels.settings.editing_stepper = None;
+                                if shell.panels.settings.pref_line_height < 3.0 {
+                                    shell.panels.settings.pref_line_height =
+                                        (shell.panels.settings.pref_line_height + 0.1).min(3.0);
                                     cx.notify();
                                 }
                             });
                         }),
                         Box::new(move |_ev, _win, cx| {
-                            let _ = lh_ctr.update(cx, |ed, cx| {
-                                ed.panels.settings.editing_stepper =
+                            let _ = lh_ctr.update(cx, |shell, cx| {
+                                shell.panels.settings.editing_stepper =
                                     Some("line_height".to_string());
-                                ed.panels.settings.pref_line_height = if (ed
+                                shell.panels.settings.pref_line_height = if (shell
                                     .panels
                                     .settings
                                     .pref_line_height
@@ -693,11 +693,11 @@ impl Shell {
                                     < 0.05
                                 {
                                     1.4
-                                } else if (ed.panels.settings.pref_line_height - 1.4).abs() < 0.05 {
+                                } else if (shell.panels.settings.pref_line_height - 1.4).abs() < 0.05 {
                                     1.6
-                                } else if (ed.panels.settings.pref_line_height - 1.6).abs() < 0.05 {
+                                } else if (shell.panels.settings.pref_line_height - 1.6).abs() < 0.05 {
                                     1.8
-                                } else if (ed.panels.settings.pref_line_height - 1.8).abs() < 0.05 {
+                                } else if (shell.panels.settings.pref_line_height - 1.8).abs() < 0.05 {
                                     2.0
                                 } else {
                                     1.2
@@ -717,14 +717,14 @@ impl Shell {
                     ));
                 }
 
-                let sec1_ed = cx.entity().downgrade();
+                let sec1_shell = cx.entity().downgrade();
                 sections.push(make_section(
                     "pref-sec-typo",
                     "Typography & Formatting",
                     is_sec1_expanded,
                     Box::new(move |_ev, _win, cx| {
-                        let _ = sec1_ed.update(cx, |ed, cx| {
-                            ed.panels.settings.toggle_section(sec1_key);
+                        let _ = sec1_shell.update(cx, |shell, cx| {
+                            shell.panels.settings.toggle_section(sec1_key);
                             cx.notify();
                         });
                     }),
@@ -737,7 +737,7 @@ impl Shell {
                 let is_sec2_expanded = self.panels.settings.expanded_sections.contains(sec2_key);
                 let mut sec2_items = Vec::new();
 
-                let img_ed = cx.entity().downgrade();
+                let img_shell = cx.entity().downgrade();
                 let img_options = [
                     (0, "Save to Local Assets"),
                     (1, "Copy to Document Folder"),
@@ -748,16 +748,16 @@ impl Shell {
                 let is_img_open = self.panels.settings.open_dropdown.as_deref() == Some("image");
 
                 if is_sec2_expanded {
-                    let tbl_ed = cx.entity().downgrade();
+                    let tbl_shell = cx.entity().downgrade();
                     let ctrl_tbl = Switch::new("switch-table-headers")
                         .checked(self.panels.settings.pref_show_table_headers)
                         .on_click(move |_ev, _win, cx| {
-                            let _ = tbl_ed.update(cx, |ed, cx| {
-                                ed.panels.settings.pref_show_table_headers =
-                                    !ed.panels.settings.pref_show_table_headers;
+                            let _ = tbl_shell.update(cx, |shell, cx| {
+                                shell.panels.settings.pref_show_table_headers =
+                                    !shell.panels.settings.pref_show_table_headers;
                                 crate::infra::config::settings::EditorSettings::set_show_table_headers(
                                     cx,
-                                    ed.panels.settings.pref_show_table_headers,
+                                    shell.panels.settings.pref_show_table_headers,
                                 );
                                 cx.notify();
                             });
@@ -792,15 +792,15 @@ impl Shell {
                                 ),
                             )
                             .on_click({
-                                let img_ed = img_ed.clone();
+                                let img_shell = img_shell.clone();
                                 move |_ev, _win, cx| {
-                                    let _ = img_ed.update(cx, |ed, cx| {
-                                        if ed.panels.settings.open_dropdown.as_deref()
+                                    let _ = img_shell.update(cx, |shell, cx| {
+                                        if shell.panels.settings.open_dropdown.as_deref()
                                             == Some("image")
                                         {
-                                            ed.panels.settings.open_dropdown = None;
+                                            shell.panels.settings.open_dropdown = None;
                                         } else {
-                                            ed.panels.settings.open_dropdown =
+                                            shell.panels.settings.open_dropdown =
                                                 Some("image".to_string());
                                         }
                                         cx.notify();
@@ -813,7 +813,7 @@ impl Shell {
                         let mut menu_items = Vec::new();
                         for (idx, label) in img_options {
                             let is_selected = idx == curr_img_idx;
-                            let item_ed = img_ed.clone();
+                            let item_shell = img_shell.clone();
 
                             menu_items.push(
                                 select_option(
@@ -838,9 +838,9 @@ impl Shell {
                                     div().w(px(13.0)).into_any_element()
                                 })
                                 .on_click(move |_ev, _win, cx| {
-                                    let _ = item_ed.update(cx, |ed, cx| {
-                                        ed.panels.settings.pref_image_paste_action = idx;
-                                        ed.panels.settings.open_dropdown = None;
+                                    let _ = item_shell.update(cx, |shell, cx| {
+                                        shell.panels.settings.pref_image_paste_action = idx;
+                                        shell.panels.settings.open_dropdown = None;
                                         cx.notify();
                                     });
                                 })
@@ -861,14 +861,14 @@ impl Shell {
                     ));
                 }
 
-                let sec2_ed = cx.entity().downgrade();
+                let sec2_shell = cx.entity().downgrade();
                 sections.push(make_section(
                     "pref-sec-md",
                     "Markdown & Assets",
                     is_sec2_expanded,
                     Box::new(move |_ev, _win, cx| {
-                        let _ = sec2_ed.update(cx, |ed, cx| {
-                            ed.panels.settings.toggle_section(sec2_key);
+                        let _ = sec2_shell.update(cx, |shell, cx| {
+                            shell.panels.settings.toggle_section(sec2_key);
                             cx.notify();
                         });
                     }),
@@ -881,7 +881,7 @@ impl Shell {
                 let is_sec3_expanded = self.panels.settings.expanded_sections.contains(sec3_key);
                 let mut sec3_items = Vec::new();
 
-                let startup_ed = cx.entity().downgrade();
+                let startup_shell = cx.entity().downgrade();
                 let startup_options = [(0, "New Blank Document"), (1, "Open Last Opened File")];
                 let curr_startup_idx =
                     self.panels.settings.pref_startup_option % startup_options.len();
@@ -910,15 +910,15 @@ impl Shell {
                                 ),
                             )
                             .on_click({
-                                let startup_ed = startup_ed.clone();
+                                let startup_shell = startup_shell.clone();
                                 move |_ev, _win, cx| {
-                                    let _ = startup_ed.update(cx, |ed, cx| {
-                                        if ed.panels.settings.open_dropdown.as_deref()
+                                    let _ = startup_shell.update(cx, |shell, cx| {
+                                        if shell.panels.settings.open_dropdown.as_deref()
                                             == Some("startup")
                                         {
-                                            ed.panels.settings.open_dropdown = None;
+                                            shell.panels.settings.open_dropdown = None;
                                         } else {
-                                            ed.panels.settings.open_dropdown =
+                                            shell.panels.settings.open_dropdown =
                                                 Some("startup".to_string());
                                         }
                                         cx.notify();
@@ -931,7 +931,7 @@ impl Shell {
                         let mut menu_items = Vec::new();
                         for (idx, label) in startup_options {
                             let is_selected = idx == curr_startup_idx;
-                            let item_ed = startup_ed.clone();
+                            let item_shell = startup_shell.clone();
 
                             menu_items.push(
                                 select_option(
@@ -956,9 +956,9 @@ impl Shell {
                                     div().w(px(13.0)).into_any_element()
                                 })
                                 .on_click(move |_ev, _win, cx| {
-                                    let _ = item_ed.update(cx, |ed, cx| {
-                                        ed.panels.settings.pref_startup_option = idx;
-                                        ed.panels.settings.open_dropdown = None;
+                                    let _ = item_shell.update(cx, |shell, cx| {
+                                        shell.panels.settings.pref_startup_option = idx;
+                                        shell.panels.settings.open_dropdown = None;
                                         cx.notify();
                                     });
                                 })
@@ -979,14 +979,14 @@ impl Shell {
                     ));
                 }
 
-                let sec3_ed = cx.entity().downgrade();
+                let sec3_shell = cx.entity().downgrade();
                 sections.push(make_section(
                     "pref-sec-startup",
                     "Startup Behavior",
                     is_sec3_expanded,
                     Box::new(move |_ev, _win, cx| {
-                        let _ = sec3_ed.update(cx, |ed, cx| {
-                            ed.panels.settings.toggle_section(sec3_key);
+                        let _ = sec3_shell.update(cx, |shell, cx| {
+                            shell.panels.settings.toggle_section(sec3_key);
                             cx.notify();
                         });
                     }),
@@ -1040,14 +1040,14 @@ impl Shell {
                     }
                 }
 
-                let sec1_ed = cx.entity().downgrade();
+                let sec1_shell = cx.entity().downgrade();
                 sections.push(make_section(
                     "pref-sec-doc-actions",
                     "Document Actions",
                     is_sec1_expanded,
                     Box::new(move |_ev, _win, cx| {
-                        let _ = sec1_ed.update(cx, |ed, cx| {
-                            ed.panels.settings.toggle_section(sec1_key);
+                        let _ = sec1_shell.update(cx, |shell, cx| {
+                            shell.panels.settings.toggle_section(sec1_key);
                             cx.notify();
                         });
                     }),
@@ -1095,14 +1095,14 @@ impl Shell {
                     }
                 }
 
-                let sec2_ed = cx.entity().downgrade();
+                let sec2_shell = cx.entity().downgrade();
                 sections.push(make_section(
                     "pref-sec-view-controls",
                     "Interface & View Controls",
                     is_sec2_expanded,
                     Box::new(move |_ev, _win, cx| {
-                        let _ = sec2_ed.update(cx, |ed, cx| {
-                            ed.panels.settings.toggle_section(sec2_key);
+                        let _ = sec2_shell.update(cx, |shell, cx| {
+                            shell.panels.settings.toggle_section(sec2_key);
                             cx.notify();
                         });
                     }),

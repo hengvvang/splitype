@@ -14,7 +14,7 @@
 //!   the copy modifier; worktree root rows are dragged to reorder
 //!   worktrees (Zed's `move_worktree`). Nested selections are reduced to
 //!   their outermost directories (Zed's `disjoint_entries`), and a
-//!   disambiguated copy opens the inline rename editor.
+//!   disambiguated copy opens the inline rename shell.
 //! - Dropping external files copies them; name collisions prompt for
 //!   confirmation before replacing (Zed's `drop_external_files`).
 
@@ -118,23 +118,23 @@ impl Shell {
             explorer.hover_scroll_generation += 1;
             explorer.hover_scroll_generation
         };
-        let weak_editor = cx.entity().downgrade();
+        let weak_shell = cx.entity().downgrade();
         let task = cx.spawn(async move |_this, cx: &mut AsyncApp| {
             loop {
-                let keep_scrolling = weak_editor
-                    .update(cx, |editor, cx| {
+                let keep_scrolling = weak_shell
+                    .update(cx, |shell, cx| {
                         // The drag ended (mouse released outside the panel,
                         // cancelled, dropped elsewhere): stop scrolling and
                         // clear the leftover drag state so no stale
                         // highlight or task survives.
                         if !cx.has_active_drag() {
-                            editor.clear_explorer_drag(cx);
+                            shell.clear_explorer_drag(cx);
                             return false;
                         }
-                        if editor.panels.explorer.hover_scroll_generation != generation {
+                        if shell.panels.explorer.hover_scroll_generation != generation {
                             return false; // replaced by a newer move
                         }
-                        let handle = editor.panels.explorer.scroll_handle.0.borrow_mut();
+                        let handle = shell.panels.explorer.scroll_handle.0.borrow_mut();
                         let offset = handle.base_handle.offset();
                         handle.base_handle.set_offset(offset + adjustment);
                         cx.notify();
@@ -333,16 +333,16 @@ impl Shell {
         if is_dir && !is_expanded {
             let bounds = event.bounds;
             let window_handle = window.window_handle();
-            let weak_editor = cx.entity().downgrade();
+            let weak_shell = cx.entity().downgrade();
             let task = cx.spawn(async move |_this, cx: &mut AsyncApp| {
                 cx.background_executor()
                     .timer(Duration::from_millis(500))
                     .await;
                 let _ = cx.update_window(window_handle, |_, window, cx| {
-                    let _ = weak_editor.update(cx, |editor, cx| {
-                        editor.panels.explorer.hover_expand_task = None;
+                    let _ = weak_shell.update(cx, |shell, cx| {
+                        shell.panels.explorer.hover_expand_task = None;
                         if cx.has_active_drag()
-                            && editor
+                            && shell
                                 .panels
                                 .explorer
                                 .drag_target
@@ -351,12 +351,12 @@ impl Shell {
                             && bounds.contains(&window.mouse_position())
                             // Only expand a directory that is still folded
                             // (the user may have toggled it meanwhile).
-                            && editor.explorer_entry_by_id(entry_id).is_some_and(|entry| {
+                            && shell.explorer_entry_by_id(entry_id).is_some_and(|entry| {
                                 entry.kind == ExplorerEntryKind::Directory
                                     && !entry.is_expanded
                             })
                         {
-                            editor.toggle_explorer_node(entry_id, cx);
+                            shell.toggle_explorer_node(entry_id, cx);
                         }
                         cx.notify();
                     });
@@ -575,7 +575,7 @@ impl Shell {
             self.perform_entry_ops(paths.to_vec(), target_dir, false, window, cx);
             return;
         }
-        let weak_editor = cx.entity().downgrade();
+        let weak_shell = cx.entity().downgrade();
         let window_handle = window.window_handle();
         let paths = paths.to_vec();
         let _ = cx.spawn(async move |_this, cx: &mut AsyncApp| {
@@ -611,8 +611,8 @@ impl Shell {
                 return;
             }
             let _ = cx.update_window(window_handle, |_, window, cx| {
-                let _ = weak_editor.update(cx, |editor, cx| {
-                    editor.perform_entry_ops(remaining, target_dir, false, window, cx);
+                let _ = weak_shell.update(cx, |shell, cx| {
+                    shell.perform_entry_ops(remaining, target_dir, false, window, cx);
                 });
             });
         });
@@ -654,22 +654,22 @@ impl Shell {
             return;
         }
         let disambiguate = !is_cut;
-        let weak_editor = cx.entity().downgrade();
+        let weak_shell = cx.entity().downgrade();
         let window_handle = window.window_handle();
         let _ = cx.spawn(async move |_this, cx: &mut AsyncApp| {
             let changes = cx
                 .background_executor()
                 .spawn(async move { execute_entry_ops(&paths, &target_dir, is_cut, disambiguate) })
                 .await;
-            let _ = weak_editor.update(cx, |editor, cx| {
-                editor.clear_explorer_drag(cx);
+            let _ = weak_shell.update(cx, |shell, cx| {
+                shell.clear_explorer_drag(cx);
                 for change in &changes {
-                    editor.record_explorer_change(change.clone());
+                    shell.record_explorer_change(change.clone());
                 }
-                editor.rescan_explorer_worktrees(cx);
+                shell.rescan_explorer_worktrees(cx);
                 if let Some(last) = changes.last().and_then(explorer_change_destination) {
-                    let root = editor.root_for_explorer_path(last).unwrap_or(0);
-                    editor.panels.explorer.pending_select = Some((root, last.to_path_buf()));
+                    let root = shell.root_for_explorer_path(last).unwrap_or(0);
+                    shell.panels.explorer.pending_select = Some((root, last.to_path_buf()));
                 }
                 // A disambiguated copy ("name copy.ext") opens the inline
                 // rename editor with the suffix pre-selected (mirrors Zed) —
@@ -679,9 +679,9 @@ impl Shell {
                     && let Some(ExplorerChange::Copied { source, dest }) = changes.first()
                     && source.file_name() != dest.file_name()
                 {
-                    editor.panels.explorer.pending_rename = Some((window_handle, dest.clone()));
+                    shell.panels.explorer.pending_rename = Some((window_handle, dest.clone()));
                 }
-                editor.sync_explorer_models(cx);
+                shell.sync_explorer_models(cx);
                 cx.notify();
             });
         });

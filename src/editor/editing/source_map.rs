@@ -6,10 +6,6 @@ use std::ops::Range;
 use crate::editor::controller::*;
 
 impl Editor {
-    pub(crate) fn is_empty_paragraph_separator(block: &Block) -> bool {
-        crate::editor::tree::document::Document::is_empty_root_paragraph(block)
-    }
-
     pub(crate) fn is_empty_root_paragraph(block: &Block) -> bool {
         crate::editor::tree::document::Document::is_empty_root_paragraph(block)
     }

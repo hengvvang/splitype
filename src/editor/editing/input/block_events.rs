@@ -59,7 +59,7 @@ impl Editor {
                 | BlockAction::RequestIndent
                 | BlockAction::RequestOutdent
                 | BlockAction::RequestDowngradeNestedListItemToChildParagraph
-                | BlockAction::ToggleTaskChecked
+                | BlockAction::RequestToggleTaskChecked
                 | BlockAction::RequestAppendTableColumn
                 | BlockAction::RequestAppendTableRow
                 | BlockAction::RequestExpandTable
@@ -635,7 +635,7 @@ impl Editor {
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
-            BlockAction::ToggleTaskChecked => {
+            BlockAction::RequestToggleTaskChecked => {
                 self.prepare_undo_capture(
                     crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,

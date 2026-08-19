@@ -24,22 +24,22 @@ impl Shell {
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let editor = cx.entity().downgrade();
+        let shell = cx.entity().downgrade();
 
-        let type_editor = editor.clone();
+        let type_shell = shell.clone();
         let type_button = small_pill_button(c, d)
             .id(("area-topbar-type", leaf_id))
             .text_size(px(12.0))
             .text_color(c.text_default)
             .child(kind.name().to_string())
             .on_click(move |_event, _window, cx| {
-                let _ = type_editor.update(cx, |ed, cx| {
-                    ed.panels.layout.toggle_dropdown(leaf_id);
+                let _ = type_shell.update(cx, |shell, cx| {
+                    shell.panels.layout.toggle_dropdown(leaf_id);
                     cx.notify();
                 });
             });
 
-        let split_h_editor = editor.clone();
+        let split_h_shell = shell.clone();
         let split_h_button = icon_chip_button(c, d)
             .id(("area-topbar-split-h", leaf_id))
             .child(
@@ -49,14 +49,14 @@ impl Shell {
                     .text_color(c.dialog_muted),
             )
             .on_click(move |_event, _window, cx| {
-                let _ = split_h_editor.update(cx, |ed, cx| {
+                let _ = split_h_shell.update(cx, |shell, cx| {
                     // Same-kind split; Editor panels deep-copy their tabs.
-                    ed.split_panel(leaf_id, Axis::Horizontal, 0.5, true, cx);
+                    shell.split_panel(leaf_id, Axis::Horizontal, 0.5, true, cx);
                     cx.notify();
                 });
             });
 
-        let split_v_editor = editor.clone();
+        let split_v_shell = shell.clone();
         let split_v_button = icon_chip_button(c, d)
             .id(("area-topbar-split-v", leaf_id))
             .child(
@@ -66,9 +66,9 @@ impl Shell {
                     .text_color(c.dialog_muted),
             )
             .on_click(move |_event, _window, cx| {
-                let _ = split_v_editor.update(cx, |ed, cx| {
+                let _ = split_v_shell.update(cx, |shell, cx| {
                     // Same-kind split; Editor panels deep-copy their tabs.
-                    ed.split_panel(leaf_id, Axis::Vertical, 0.5, true, cx);
+                    shell.split_panel(leaf_id, Axis::Vertical, 0.5, true, cx);
                     cx.notify();
                 });
             });
@@ -81,7 +81,7 @@ impl Shell {
             .child(split_h_button);
 
         if leaf_count > 1 {
-            let max_editor = editor.clone();
+            let max_shell = shell.clone();
             let max_button = icon_chip_button(c, d)
                 .id(("area-topbar-max", leaf_id))
                 .child(
@@ -95,13 +95,13 @@ impl Shell {
                         .text_color(c.dialog_muted),
                 )
                 .on_click(move |_event, _window, cx| {
-                    let _ = max_editor.update(cx, |ed, cx| {
-                        ed.panels.layout.toggle_maximize(leaf_id);
+                    let _ = max_shell.update(cx, |shell, cx| {
+                        shell.panels.layout.toggle_maximize(leaf_id);
                         cx.notify();
                     });
                 });
 
-            let close_editor = editor.clone();
+            let close_shell = shell.clone();
             let close_button = icon_chip_button(c, d)
                 .id(("area-topbar-close", leaf_id))
                 .child(
@@ -111,8 +111,8 @@ impl Shell {
                         .text_color(c.dialog_muted),
                 )
                 .on_click(move |_event, _window, cx| {
-                    let _ = close_editor.update(cx, |ed, cx| {
-                        ed.close_panel(leaf_id, cx);
+                    let _ = close_shell.update(cx, |shell, cx| {
+                        shell.close_panel(leaf_id, cx);
                         cx.notify();
                     });
                 });

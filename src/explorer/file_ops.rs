@@ -48,17 +48,17 @@ impl Shell {
             cx,
         );
 
-        let weak_editor = cx.entity().downgrade();
+        let weak_shell = cx.entity().downgrade();
         let _ = cx.spawn(async move |_this, cx| {
             if prompt.await != Ok(0) {
                 return;
             }
-            let paths: Vec<PathBuf> = weak_editor
-                .update(cx, |editor, _cx| {
+            let paths: Vec<PathBuf> = weak_shell
+                .update(cx, |shell, _cx| {
                     selections
                         .iter()
                         .filter_map(|sel| {
-                            editor
+                            shell
                                 .explorer_entry_for_selection(sel)
                                 .map(|entry| entry.path.clone())
                         })
@@ -74,14 +74,14 @@ impl Shell {
                     }
                 })
                 .await;
-            let _ = weak_editor.update(cx, |editor, cx| {
-                editor.panels.explorer.marked.clear();
-                editor.rescan_explorer_worktrees(cx);
-                if let Some(next) = editor.next_explorer_selection_after_deletion(&selections) {
-                    editor.panels.explorer.selected = Some(next);
+            let _ = weak_shell.update(cx, |shell, cx| {
+                shell.panels.explorer.marked.clear();
+                shell.rescan_explorer_worktrees(cx);
+                if let Some(next) = shell.next_explorer_selection_after_deletion(&selections) {
+                    shell.panels.explorer.selected = Some(next);
                 }
-                editor.sync_explorer_models(cx);
-                editor.autoscroll_explorer_selection();
+                shell.sync_explorer_models(cx);
+                shell.autoscroll_explorer_selection();
                 cx.notify();
             });
         });
@@ -105,7 +105,7 @@ impl Shell {
                     .map(|entry| entry.path.clone())
             })
             .collect();
-        let weak_editor = cx.entity().downgrade();
+        let weak_shell = cx.entity().downgrade();
         let _ = cx.spawn(async move |_this, cx| {
             cx.background_executor()
                 .spawn(async move {
@@ -116,14 +116,14 @@ impl Shell {
                     }
                 })
                 .await;
-            let _ = weak_editor.update(cx, |editor, cx| {
-                editor.panels.explorer.marked.clear();
-                editor.rescan_explorer_worktrees(cx);
-                if let Some(next) = editor.next_explorer_selection_after_deletion(&selections) {
-                    editor.panels.explorer.selected = Some(next);
+            let _ = weak_shell.update(cx, |shell, cx| {
+                shell.panels.explorer.marked.clear();
+                shell.rescan_explorer_worktrees(cx);
+                if let Some(next) = shell.next_explorer_selection_after_deletion(&selections) {
+                    shell.panels.explorer.selected = Some(next);
                 }
-                editor.sync_explorer_models(cx);
-                editor.autoscroll_explorer_selection();
+                shell.sync_explorer_models(cx);
+                shell.autoscroll_explorer_selection();
                 cx.notify();
             });
         });
@@ -212,27 +212,27 @@ impl Shell {
             return;
         }
         let is_cut = clipboard.is_cut();
-        let weak_editor = cx.entity().downgrade();
+        let weak_shell = cx.entity().downgrade();
         let window_handle = window.window_handle();
         let _ = cx.spawn(async move |_this, cx: &mut AsyncApp| {
             let result = cx
                 .background_executor()
                 .spawn(async move { execute_entry_ops(&items, &target_dir, is_cut, true) })
                 .await;
-            let _ = weak_editor.update(cx, |editor, cx| {
+            let _ = weak_shell.update(cx, |shell, cx| {
                 if is_cut {
                     // After the first paste a cut becomes a copy (Zed).
-                    editor.panels.explorer.clipboard = editor
+                    shell.panels.explorer.clipboard = shell
                         .panels
                         .explorer
                         .clipboard
                         .take()
                         .map(ExplorerClipboard::into_copied);
                 }
-                editor.panels.explorer.marked.clear();
-                editor.rescan_explorer_worktrees(cx);
+                shell.panels.explorer.marked.clear();
+                shell.rescan_explorer_worktrees(cx);
                 for change in &result {
-                    editor.record_explorer_change(change.clone());
+                    shell.record_explorer_change(change.clone());
                 }
                 if let Some(path) = result
                     .last()
@@ -240,14 +240,14 @@ impl Shell {
                     .flatten()
                     .map(Path::to_path_buf)
                 {
-                    let root = editor.root_for_explorer_path(&path).unwrap_or(0);
-                    editor.panels.explorer.pending_select = Some((root, path.clone()));
-                    let weak_editor_for_open = weak_editor.clone();
+                    let root = shell.root_for_explorer_path(&path).unwrap_or(0);
+                    shell.panels.explorer.pending_select = Some((root, path.clone()));
+                    let weak_shell_for_open = weak_shell.clone();
                     let _ = cx.update_window(window_handle, move |_, _window, cx| {
-                        let _ = weak_editor_for_open.update(cx, |editor, _cx| {
-                            editor.expand_to_path(&path);
-                            editor.rebuild_explorer_entries();
-                            editor.autoscroll_explorer_selection();
+                        let _ = weak_shell_for_open.update(cx, |shell, _cx| {
+                            shell.expand_to_path(&path);
+                            shell.rebuild_explorer_entries();
+                            shell.autoscroll_explorer_selection();
                         });
                     });
                     // A disambiguated copy (name collision) opens the inline
@@ -260,10 +260,10 @@ impl Shell {
                         && let ExplorerChange::Copied { source, dest } = change
                         && source.file_name() != dest.file_name()
                     {
-                        editor.panels.explorer.pending_rename = Some((window_handle, dest.clone()));
+                        shell.panels.explorer.pending_rename = Some((window_handle, dest.clone()));
                     }
                 }
-                editor.sync_explorer_models(cx);
+                shell.sync_explorer_models(cx);
                 cx.notify();
             });
         });
@@ -281,16 +281,16 @@ impl Shell {
         let Some(change) = self.panels.explorer.undo_history.undo_stack.pop() else {
             return;
         };
-        let weak_editor = cx.entity().downgrade();
+        let weak_shell = cx.entity().downgrade();
         let change_for_execution = change.clone();
         let _ = cx.spawn(async move |_this, cx: &mut AsyncApp| {
             cx.background_executor()
                 .spawn(async move { execute_explorer_change_inverse(&change_for_execution) })
                 .await;
-            let _ = weak_editor.update(cx, |editor, cx| {
-                editor.panels.explorer.undo_history.redo_stack.push(change);
-                editor.rescan_explorer_worktrees(cx);
-                editor.sync_explorer_models(cx);
+            let _ = weak_shell.update(cx, |shell, cx| {
+                shell.panels.explorer.undo_history.redo_stack.push(change);
+                shell.rescan_explorer_worktrees(cx);
+                shell.sync_explorer_models(cx);
                 cx.notify();
             });
         });
@@ -301,16 +301,16 @@ impl Shell {
         let Some(change) = self.panels.explorer.undo_history.redo_stack.pop() else {
             return;
         };
-        let weak_editor = cx.entity().downgrade();
+        let weak_shell = cx.entity().downgrade();
         let change_for_execution = change.clone();
         let _ = cx.spawn(async move |_this, cx: &mut AsyncApp| {
             cx.background_executor()
                 .spawn(async move { execute_explorer_change(&change_for_execution) })
                 .await;
-            let _ = weak_editor.update(cx, |editor, cx| {
-                editor.panels.explorer.undo_history.undo_stack.push(change);
-                editor.rescan_explorer_worktrees(cx);
-                editor.sync_explorer_models(cx);
+            let _ = weak_shell.update(cx, |shell, cx| {
+                shell.panels.explorer.undo_history.undo_stack.push(change);
+                shell.rescan_explorer_worktrees(cx);
+                shell.sync_explorer_models(cx);
                 cx.notify();
             });
         });
