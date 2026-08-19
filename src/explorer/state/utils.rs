@@ -81,11 +81,14 @@ pub fn execute_entry_ops(
     let mut changes = Vec::new();
     for source in items {
         if is_cut {
-            // Moving into the entry's own subtree is a no-op.
-            if source.starts_with(target_dir) {
+            // Moving into the entry's own subtree is an invalid circular move.
+            if target_dir.starts_with(source) {
                 continue;
             }
             let destination = target_dir.join(source.file_name().unwrap_or_default());
+            if source == &destination {
+                continue;
+            }
             if std::fs::rename(source, &destination).is_ok() {
                 changes.push(ExplorerChange::Moved {
                     from: source.clone(),

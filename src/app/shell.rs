@@ -83,6 +83,15 @@ impl Shell {
             })
     }
 
+    /// The currently active/focused editor, or falls back to primary_editor.
+    pub(crate) fn active_editor(&self) -> Option<&Entity<Editor>> {
+        self.panels
+            .layout
+            .active_leaf
+            .and_then(|leaf| self.editor_for(leaf))
+            .or_else(|| self.primary_editor())
+    }
+
     /// Recomputes every editor area's pushed state — the area rectangle,
     /// active-editor flag, and maximized flag — from the outer layout.
     /// Called after every layout change and on render (with the current
@@ -480,12 +489,18 @@ impl Shell {
     /// Marks the dirty tab of `panel_id` (from [`Self::first_dirty_tab`])
     /// as showing the unsaved-changes dialog, restoring its focus on
     /// cancel.
-    fn prompt_unsaved_changes_for(
+    pub(crate) fn prompt_unsaved_changes_for(
         &mut self,
         panel_id: NodeId,
         index: usize,
         cx: &mut Context<Self>,
     ) {
+        if self.editor_for(panel_id).is_none() && self.retained_editor_sessions.contains_key(&panel_id) {
+            let session = self.retained_editor_sessions.remove(&panel_id).unwrap();
+            let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
+            self.panel_contents.insert(panel_id, PanelContent::Editor(editor));
+        }
+
         let Some(editor) = self.editor_for(panel_id).cloned() else {
             return;
         };
@@ -493,10 +508,11 @@ impl Shell {
             let restore_focus = editor
                 .pane_state_ref(editor.active_pane_id())
                 .and_then(|state| state.focus.active_entity);
-            let tab = &mut editor.session.tab_list.tabs[index];
-            tab.file.show_unsaved_changes_dialog = true;
-            tab.file.close_dialog_restore_focus = restore_focus;
-            cx.notify();
+            if let Some(tab) = editor.session.tab_list.tabs.get_mut(index) {
+                tab.file.show_unsaved_changes_dialog = true;
+                tab.file.close_dialog_restore_focus = restore_focus;
+                cx.notify();
+            }
         });
     }
 

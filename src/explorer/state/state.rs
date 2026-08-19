@@ -673,10 +673,10 @@ mod tests {
             root: 0,
             entry: entry_id,
         }]));
-        state
-            .undo_history
-            .undo_stack
-            .push(ExplorerChange::Created(PathBuf::from("/project/new.md")));
+        state.undo_history.undo_stack.push(ExplorerChange::Created {
+            path: PathBuf::from("/project/new.md"),
+            is_dir: false,
+        });
         state.drag_target = Some(DragExplorerTarget::Background);
         state.edit = Some(ExplorerEditState {
             root: 0,

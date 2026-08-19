@@ -516,11 +516,26 @@ impl Shell {
                 .spawn(async move {
                     if is_create {
                         if is_dir {
-                            std::fs::create_dir_all(&new_path)
-                                .map_err(|err| err.to_string())
-                                .map(|_| ())
+                            if new_path.exists() {
+                                Err("A folder with this name already exists".to_string())
+                            } else {
+                                std::fs::create_dir_all(&new_path)
+                                    .map_err(|err| err.to_string())
+                                    .map(|_| ())
+                            }
                         } else {
-                            std::fs::write(&new_path, "").map_err(|err| err.to_string())
+                            std::fs::OpenOptions::new()
+                                .write(true)
+                                .create_new(true)
+                                .open(&new_path)
+                                .map(|_| ())
+                                .map_err(|err| {
+                                    if err.kind() == std::io::ErrorKind::AlreadyExists {
+                                        "A file with this name already exists".to_string()
+                                    } else {
+                                        err.to_string()
+                                    }
+                                })
                         }
                     } else {
                         std::fs::rename(&old_path, &new_path).map_err(|err| err.to_string())
@@ -533,7 +548,10 @@ impl Shell {
                         editor.panels.explorer.edit = None;
                         // Record the operation for panel undo/redo.
                         let change = if is_create {
-                            ExplorerChange::Created(new_path_for_update.clone())
+                            ExplorerChange::Created {
+                                path: new_path_for_update.clone(),
+                                is_dir,
+                            }
                         } else {
                             ExplorerChange::Renamed {
                                 from: old_path_for_record,

@@ -12,7 +12,7 @@ use super::utils::copy_dir_all;
 /// One reversible file-tree operation recorded in the undo history.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ExplorerChange {
-    Created(PathBuf),
+    Created { path: PathBuf, is_dir: bool },
     Renamed { from: PathBuf, to: PathBuf },
     Moved { from: PathBuf, to: PathBuf },
     Copied { source: PathBuf, dest: PathBuf },
@@ -47,17 +47,38 @@ impl ExplorerUndoHistory {
 /// The destination path of a change (used to select the operation result).
 pub fn explorer_change_destination(change: &ExplorerChange) -> Option<&Path> {
     match change {
-        ExplorerChange::Created(path) => Some(path),
+        ExplorerChange::Created { path, .. } => Some(path),
         ExplorerChange::Renamed { to, .. } | ExplorerChange::Moved { to, .. } => Some(to),
         ExplorerChange::Copied { dest, .. } => Some(dest),
+    }
+}
+
+pub fn remove_path_symlink_safe(path: &Path) -> std::io::Result<()> {
+    let is_symlink = path
+        .symlink_metadata()
+        .map(|m| m.file_type().is_symlink())
+        .unwrap_or(false);
+    if is_symlink {
+        #[cfg(windows)]
+        if path.is_dir() {
+            std::fs::remove_dir(path)
+        } else {
+            std::fs::remove_file(path)
+        }
+        #[cfg(not(windows))]
+        std::fs::remove_file(path)
+    } else if path.is_dir() {
+        std::fs::remove_dir_all(path)
+    } else {
+        std::fs::remove_file(path)
     }
 }
 
 /// Execute a recorded file operation (redo).
 pub fn execute_explorer_change(change: &ExplorerChange) {
     match change {
-        ExplorerChange::Created(path) => {
-            if path.is_dir() {
+        ExplorerChange::Created { path, is_dir } => {
+            if *is_dir {
                 let _ = std::fs::create_dir_all(path);
             } else if let Some(parent) = path.parent() {
                 let _ = std::fs::create_dir_all(parent);
@@ -83,13 +104,8 @@ pub fn execute_explorer_change(change: &ExplorerChange) {
 /// Execute the inverse of a recorded operation (undo).
 pub fn execute_explorer_change_inverse(change: &ExplorerChange) {
     match change {
-        ExplorerChange::Created(path) => {
-            let result = if path.is_dir() {
-                std::fs::remove_dir_all(path)
-            } else {
-                std::fs::remove_file(path)
-            };
-            if let Err(err) = result {
+        ExplorerChange::Created { path, .. } => {
+            if let Err(err) = remove_path_symlink_safe(path) {
                 eprintln!("failed to undo create '{}': {err}", path.display());
             }
         }
@@ -99,12 +115,7 @@ pub fn execute_explorer_change_inverse(change: &ExplorerChange) {
             }
         }
         ExplorerChange::Copied { dest, .. } => {
-            let result = if dest.is_dir() {
-                std::fs::remove_dir_all(dest)
-            } else {
-                std::fs::remove_file(dest)
-            };
-            if let Err(err) = result {
+            if let Err(err) = remove_path_symlink_safe(dest) {
                 eprintln!("failed to undo copy '{}': {err}", dest.display());
             }
         }

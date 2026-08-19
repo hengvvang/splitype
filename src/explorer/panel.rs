@@ -404,8 +404,7 @@ impl Shell {
         #[cfg(target_os = "windows")]
         {
             let _ = std::process::Command::new("explorer.exe")
-                .arg("/select,")
-                .arg(&path)
+                .arg(format!("/select,{}", path.display()))
                 .spawn();
         }
         #[cfg(target_os = "macos")]

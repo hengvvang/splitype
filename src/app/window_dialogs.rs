@@ -118,7 +118,11 @@ impl Shell {
             return;
         };
         let _ = editor.update(cx, |editor, cx| editor.discard_and_close(cx));
-        window.remove_window();
+        if let Some((panel_id, index)) = self.first_dirty_tab(cx) {
+            self.prompt_unsaved_changes_for(panel_id, index, cx);
+        } else {
+            window.remove_window();
+        }
     }
 
     pub(crate) fn render_unsaved_changes_overlay(

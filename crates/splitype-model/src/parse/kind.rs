@@ -231,7 +231,12 @@ impl BlockKind {
         if !(1..=6).contains(&level) {
             return None;
         }
-        let content = rest[level..].strip_prefix(' ')?;
+        let after_hashes = &rest[level..];
+        let content = if after_hashes.is_empty() {
+            ""
+        } else {
+            after_hashes.strip_prefix(' ')?
+        };
         let mut content = content.trim_end().to_string();
         if let Some(closing_hash_start) = content.rfind(' ')
             && content[closing_hash_start + 1..]
@@ -240,6 +245,8 @@ impl BlockKind {
         {
             content.truncate(closing_hash_start);
             content = content.trim_end().to_string();
+        } else if !content.is_empty() && content.chars().all(|ch| ch == '#') {
+            content.clear();
         }
         Some((level as u8, content))
     }
@@ -525,6 +532,15 @@ mod tests {
     fn parses_atx_headings_with_closing_hashes_and_setext_underlines() {
         let atx = BlockKind::parse_atx_heading_line("  ### title ######");
         assert_eq!(atx, Some((3, "title".to_string())));
+
+        let empty_h1 = BlockKind::parse_atx_heading_line("#");
+        assert_eq!(empty_h1, Some((1, String::new())));
+
+        let empty_h2_space = BlockKind::parse_atx_heading_line("## ");
+        assert_eq!(empty_h2_space, Some((2, String::new())));
+
+        let empty_with_closing = BlockKind::parse_atx_heading_line("### ###");
+        assert_eq!(empty_with_closing, Some((3, String::new())));
 
         assert_eq!(BlockKind::parse_setext_underline("==="), Some(1));
         assert_eq!(BlockKind::parse_setext_underline("---"), Some(2));

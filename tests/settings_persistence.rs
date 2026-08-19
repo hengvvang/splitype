@@ -112,3 +112,18 @@ fn config_stem_sanitization() {
     // Empty or symbol-only input falls back to "custom".
     assert_eq!(sanitize_config_file_stem("///"), "custom");
 }
+
+/// JSONC parsing handles trailing commas in objects and arrays.
+#[test]
+fn jsonc_parser_strips_trailing_commas() {
+    let jsonc = r#"{
+        "theme": "dark",
+        "recent": [
+            "a.md",
+            "b.md",
+        ],
+    }"#;
+    let value = parse_jsonc_value(jsonc).expect("parse jsonc with trailing commas");
+    assert_eq!(value["theme"], serde_json::json!("dark"));
+    assert_eq!(value["recent"][1], serde_json::json!("b.md"));
+}

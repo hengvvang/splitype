@@ -41,6 +41,8 @@ impl ReqwestTransportHttpClient {
     fn new(user_agent: &str) -> anyhow::Result<Self> {
         let default_headers = default_image_request_headers(user_agent)?;
         let client = reqwest::blocking::Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(5))
+            .timeout(std::time::Duration::from_secs(15))
             .redirect(reqwest::redirect::Policy::limited(10))
             .user_agent(user_agent)
             .default_headers(default_headers.clone())

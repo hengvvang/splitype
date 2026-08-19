@@ -157,3 +157,23 @@ fn block_text_serializes_serialize_markdown() {
     assert_eq!(block.text_markdown(), "hello **world**");
     assert_eq!(block.serialize_markdown_line(0, None), "hello **world**");
 }
+
+/// Longer closing fences correctly close shorter opening fences per CommonMark.
+#[test]
+fn longer_closing_fence_closes_code_block() {
+    let blocks = roots("```rust\ncode\n````\n\nafter\n");
+    assert_eq!(blocks.len(), 2);
+    assert!(blocks[0].kind.is_code_block());
+    assert_eq!(blocks[0].text.plain_text(), "code");
+    assert_eq!(blocks[1].text.plain_text(), "after");
+}
+
+/// Footnote parser ignores fake footnote heads inside code spans.
+#[test]
+fn footnote_parser_ignores_fake_heads_in_code_spans() {
+    let blocks = roots("[^1]: Definition with `[^2]: not a footnote` in code\n");
+    assert_eq!(blocks.len(), 1);
+    assert_eq!(blocks[0].kind, BlockKind::FootnoteDefinition);
+    assert!(blocks[0].text.plain_text().starts_with("1: "));
+    assert!(blocks[0].text.plain_text().contains("[^2]: not a footnote"));
+}

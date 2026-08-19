@@ -21,22 +21,59 @@ pub fn read_json_or_jsonc(path: &Path) -> anyhow::Result<Value> {
 
     let text = std::fs::read_to_string(path)
         .with_context(|| format!("failed to read '{}'", path.display()))?;
-    let parsed = if path
-        .extension()
-        .and_then(|extension| extension.to_str())
-        .map(|extension| extension.eq_ignore_ascii_case("jsonc"))
-        .unwrap_or(false)
-    {
-        parse_jsonc_value(&text)?
-    } else {
-        serde_json::from_str(&text)?
-    };
-    Ok(parsed)
+    parse_jsonc_value(&text)
 }
 
 pub fn parse_jsonc_value(text: &str) -> anyhow::Result<Value> {
     let stripped = strip_jsonc_comments(text)?;
-    Ok(serde_json::from_str(&stripped)?)
+    let cleaned = strip_trailing_commas(&stripped);
+    Ok(serde_json::from_str(&cleaned)?)
+}
+
+pub fn strip_trailing_commas(input: &str) -> String {
+    let mut output = String::with_capacity(input.len());
+    let mut in_string = false;
+    let mut escaped = false;
+    let chars: Vec<char> = input.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        let ch = chars[i];
+        if in_string {
+            output.push(ch);
+            if escaped {
+                escaped = false;
+            } else if ch == '\\' {
+                escaped = true;
+            } else if ch == '"' {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        if ch == '"' {
+            in_string = true;
+            output.push(ch);
+            i += 1;
+            continue;
+        }
+
+        if ch == ',' {
+            let mut j = i + 1;
+            while j < chars.len() && chars[j].is_whitespace() {
+                j += 1;
+            }
+            if j < chars.len() && (chars[j] == '}' || chars[j] == ']') {
+                i += 1;
+                continue;
+            }
+        }
+
+        output.push(ch);
+        i += 1;
+    }
+    output
 }
 
 pub fn strip_jsonc_comments(input: &str) -> anyhow::Result<String> {

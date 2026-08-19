@@ -68,12 +68,7 @@ impl Shell {
             cx.background_executor()
                 .spawn(async move {
                     for path in &paths {
-                        let result = if path.is_dir() {
-                            std::fs::remove_dir_all(path)
-                        } else {
-                            std::fs::remove_file(path)
-                        };
-                        if let Err(err) = result {
+                        if let Err(err) = crate::explorer::state::undo::remove_path_symlink_safe(path) {
                             eprintln!("failed to delete '{}': {err}", path.display());
                         }
                     }

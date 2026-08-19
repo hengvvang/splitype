@@ -470,10 +470,27 @@ fn serialize_alignment(alignment: TableColumnAlignment) -> &'static str {
 }
 
 pub fn serialize_table_cell_markdown(tree: &BlockText) -> String {
-    tree.serialize_markdown()
-        .replace('\\', "\\\\")
-        .replace('|', "\\|")
-        .replace('\n', " ")
+    let raw = tree.serialize_markdown();
+    let mut out = String::with_capacity(raw.len());
+    let mut chars = raw.chars().peekable();
+    while let Some(ch) = chars.next() {
+        match ch {
+            '\n' | '\r' => out.push(' '),
+            '\\' => {
+                out.push('\\');
+                if let Some(&next) = chars.peek() {
+                    out.push(next);
+                    chars.next();
+                }
+            }
+            '|' => {
+                out.push('\\');
+                out.push('|');
+            }
+            _ => out.push(ch),
+        }
+    }
+    out
 }
 
 fn serialize_row<'a>(cells: impl IntoIterator<Item = &'a BlockText>) -> String {
@@ -1014,6 +1031,25 @@ mod tests {
         assert_eq!(table.column_count(), 1);
         table.remove_column(0);
         assert_eq!(table.column_count(), 1);
+    }
+
+    #[test]
+    fn table_cell_escaped_pipe_and_backslash_roundtrip() {
+        let table = parse_root_table_region(&[
+            r"| Formula \| Pipe | Path \\ Alpha |".to_string(),
+            r"| --- | --- |".to_string(),
+            r"| $a \| b$ | $\alpha + \beta$ |".to_string(),
+        ])
+        .expect("valid table with escaped characters");
+
+        assert_eq!(table.header.len(), 2);
+        let serialized = table.serialize_markdown();
+        let reparsed = parse_root_table_region(
+            &serialized.lines().map(String::from).collect::<Vec<_>>()
+        ).expect("reparsed table");
+        assert_eq!(reparsed.header.len(), 2);
+        assert_eq!(reparsed.rows.len(), 1);
+        assert_eq!(reparsed.rows[0].len(), 2);
     }
 }
 

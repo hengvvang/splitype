@@ -69,6 +69,9 @@ pub(crate) fn hard_line_ranges(text: &str) -> Vec<Range<usize>> {
 
 /// Map a flat display-text offset to `(line_index, offset_within_line)`.
 pub(crate) fn line_index_for_offset(ranges: &[Range<usize>], offset: usize) -> (usize, usize) {
+    if ranges.is_empty() {
+        return (0, 0);
+    }
     let clamped = offset.min(ranges.last().map(|r| r.end).unwrap_or(0));
     for (i, range) in ranges.iter().enumerate() {
         if clamped <= range.end {

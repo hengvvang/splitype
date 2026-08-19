@@ -221,12 +221,13 @@ pub(crate) fn mermaid_display_scale(
     let height_sanity_scale =
         (viewport_width * MERMAID_MAX_VIEWPORT_WIDTH_RATIO / intrinsic_height).max(1.0);
 
-    complexity_scale
+    let raw_scale = complexity_scale
         .max(column_fit_scale)
         .min(viewport_limit_scale)
         .min(height_sanity_scale)
         .min(MERMAID_MAX_SCALE)
-        .max(1.0)
+        .max(1.0);
+    ((raw_scale * 20.0).round() / 20.0).max(1.0)
 }
 
 /// Rewrites the root SVG element so GPUI sees the intended intrinsic size.

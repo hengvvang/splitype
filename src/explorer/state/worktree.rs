@@ -259,8 +259,15 @@ fn walk_dir(
     hide_hidden: bool,
     out: &mut BTreeMap<PathBuf, WorktreeEntry>,
 ) -> std::io::Result<()> {
-    for entry in std::fs::read_dir(dir)? {
-        let entry = entry?;
+    let read_dir = match std::fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(_) => return Ok(()), // Restricted or vanished directory: skip gracefully
+    };
+    for entry in read_dir {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(_) => continue,
+        };
         let path = entry.path();
         let name = entry.file_name();
         if is_ignored_entry(&name) || (hide_hidden && name.to_string_lossy().starts_with('.')) {
@@ -285,7 +292,7 @@ fn walk_dir(
             },
         );
         if meta.is_dir() {
-            walk_dir(&path, hide_hidden, out)?;
+            let _ = walk_dir(&path, hide_hidden, out);
         }
     }
     Ok(())
@@ -306,9 +313,9 @@ fn is_ignored_entry(name: &std::ffi::OsStr) -> bool {
 fn file_id(path: &Path, _meta: &std::fs::Metadata) -> Option<u64> {
     use windows::Win32::Foundation::{CloseHandle, HANDLE};
     use windows::Win32::Storage::FileSystem::{
-        BY_HANDLE_FILE_INFORMATION, CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_SHARE_DELETE,
-        FILE_SHARE_MODE, FILE_SHARE_READ, FILE_SHARE_WRITE, GetFileInformationByHandle,
-        OPEN_EXISTING,
+        BY_HANDLE_FILE_INFORMATION, CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_FLAGS_AND_ATTRIBUTES,
+        FILE_FLAG_BACKUP_SEMANTICS, FILE_SHARE_DELETE, FILE_SHARE_MODE, FILE_SHARE_READ,
+        FILE_SHARE_WRITE, GetFileInformationByHandle, OPEN_EXISTING,
     };
     use windows::core::HSTRING;
 
@@ -320,7 +327,7 @@ fn file_id(path: &Path, _meta: &std::fs::Metadata) -> Option<u64> {
             FILE_SHARE_MODE(FILE_SHARE_READ.0 | FILE_SHARE_WRITE.0 | FILE_SHARE_DELETE.0),
             None,
             OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL,
+            FILE_FLAGS_AND_ATTRIBUTES(FILE_ATTRIBUTE_NORMAL.0 | FILE_FLAG_BACKUP_SEMANTICS.0),
             None,
         )
     }

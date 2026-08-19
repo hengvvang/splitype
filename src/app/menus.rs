@@ -76,7 +76,7 @@ fn with_primary_editor<R>(
 ) -> Option<R> {
     let window = cx.active_window()?.downcast::<Shell>()?;
     let result = window.update(cx, |shell, window, cx| {
-        let Some(editor) = shell.primary_editor().cloned() else {
+        let Some(editor) = shell.active_editor().cloned() else {
             return None;
         };
         Some(editor.update(cx, |editor, cx| update(editor, window, cx)))

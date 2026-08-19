@@ -134,7 +134,7 @@ fn is_closing_fence(line: &str, opener: &CodeFenceOpening) -> bool {
         return false;
     }
     let run_len = trimmed.chars().take_while(|&c| c == opener.ch).count();
-    if run_len != opener.len {
+    if run_len < opener.len {
         return false;
     }
     trimmed[opener.ch.len_utf8() * run_len..].trim().is_empty()
@@ -798,6 +798,44 @@ fn build_native_footnote_definition_block(lines: &[String]) -> Option<Vec<BlockD
     Some(result)
 }
 
+fn find_footnote_head_outside_code(text: &str) -> Option<(usize, usize, &str)> {
+    let mut in_code = false;
+    let mut backtick_count = 0usize;
+    let bytes = text.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'`' {
+            let start = i;
+            while i < bytes.len() && bytes[i] == b'`' {
+                i += 1;
+            }
+            let run_len = i - start;
+            if in_code {
+                if run_len == backtick_count {
+                    in_code = false;
+                    backtick_count = 0;
+                }
+            } else {
+                in_code = true;
+                backtick_count = run_len;
+            }
+            continue;
+        }
+
+        if !in_code && i + 2 <= bytes.len() && &bytes[i..i + 2] == b"[^" {
+            let after_open = &text[i + 2..];
+            if let Some(close) = after_open.find("]:") {
+                let id = &after_open[..close];
+                if is_valid_footnote_id(id) {
+                    return Some((i, i + 2 + close + 2, id));
+                }
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
 /// Splits a definition head line that contains additional inline `[^id]:`
 /// heads (e.g. `[^a]: x [^b]: y`) into one `(id, content)` pair per head.
 fn split_inline_footnote_heads(id: String, first_line: &str) -> Vec<(String, String)> {
@@ -805,23 +843,13 @@ fn split_inline_footnote_heads(id: String, first_line: &str) -> Vec<(String, Str
     let mut current_id = id;
     let mut rest = first_line;
     loop {
-        let Some(open) = rest.find("[^") else {
+        let Some((open, close_end, next_id)) = find_footnote_head_outside_code(rest) else {
             result.push((current_id, rest.to_string()));
             break;
         };
-        let after_open = &rest[open + 2..];
-        let Some(close) = after_open.find("]:") else {
-            result.push((current_id, rest.to_string()));
-            break;
-        };
-        let next_id = &after_open[..close];
-        if !is_valid_footnote_id(next_id) {
-            result.push((current_id, rest.to_string()));
-            break;
-        }
         result.push((current_id, rest[..open].trim_end().to_string()));
         current_id = next_id.to_string();
-        rest = after_open[close + 2..].trim_start();
+        rest = rest[close_end..].trim_start();
     }
     result
 }

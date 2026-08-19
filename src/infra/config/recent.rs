@@ -132,8 +132,11 @@ fn write_path_list(paths: &[PathBuf], target: &Path) -> anyhow::Result<()> {
         content.push_str(&path.to_string_lossy());
         content.push('\n');
     }
-    std::fs::write(target, content)
-        .with_context(|| format!("failed to write '{}'", target.display()))
+    let tmp_target = target.with_extension(format!("tmp.{}", std::process::id()));
+    std::fs::write(&tmp_target, content)
+        .with_context(|| format!("failed to write temporary file '{}'", tmp_target.display()))?;
+    std::fs::rename(&tmp_target, target)
+        .with_context(|| format!("failed to update '{}'", target.display()))
 }
 
 fn normalize_recent_files(paths: impl IntoIterator<Item = PathBuf>) -> Vec<PathBuf> {

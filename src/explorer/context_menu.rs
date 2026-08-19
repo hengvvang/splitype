@@ -36,8 +36,13 @@ impl Shell {
         let t = &theme.typography;
         let s = cx.global::<I18nManager>().strings().clone();
 
-        let panel_x = state.position.x;
-        let panel_y = state.position.y;
+        let (panel_x, panel_y) = if let Some(viewport) = self.last_viewport {
+            let max_x = (viewport.width - px(260.0)).max(px(0.0));
+            let max_y = (viewport.height - px(400.0)).max(px(0.0));
+            (state.position.x.min(max_x), state.position.y.min(max_y))
+        } else {
+            (state.position.x, state.position.y)
+        };
         let path = state.path.clone();
         let is_dir = state.is_dir;
 
