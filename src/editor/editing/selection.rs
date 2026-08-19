@@ -10,7 +10,7 @@ use crate::editor::controller::{
     CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, EditorPaneKind,
     SourceTargetMapping, UndoSelectionSnapshot,
 };
-use crate::editor::editing::input::actions::{Copy, Cut, Delete, DeleteBack};
+use crate::editor::editing::input::actions::{Copy, Cut, Delete, DeleteBackward};
 use crate::editor::tree::block::Block;
 use crate::model::block::table::serialize_table_markdown_lines;
 use crate::model::parse::BlockKind;
@@ -211,9 +211,9 @@ impl Editor {
         cx.stop_propagation();
     }
 
-    pub(crate) fn on_delete_back_capture(
+    pub(crate) fn on_delete_backward_capture(
         &mut self,
-        _: &DeleteBack,
+        _: &DeleteBackward,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -228,7 +228,7 @@ impl Editor {
         cx.stop_propagation();
     }
 
-    fn is_rendered_document_fully_selected(&self, cx: &App) -> bool {
+    fn is_wysiwyg_document_fully_selected(&self, cx: &App) -> bool {
         let entries = self.doc().blocks().to_vec();
         let Some(first) = entries.first() else {
             return false;
@@ -252,7 +252,7 @@ impl Editor {
                 }
     }
 
-    fn select_focused_block_text_for_rendered_select_all(
+    fn select_focused_block_text_for_wysiwyg_select_all(
         &mut self,
         block: Entity<Block>,
         cx: &mut Context<Self>,
@@ -275,8 +275,8 @@ impl Editor {
         cx.notify();
     }
 
-    fn select_all_rendered_document(&mut self, cx: &mut Context<Self>) {
-        if self.is_rendered_document_fully_selected(cx) {
+    fn select_all_wysiwyg_document(&mut self, cx: &mut Context<Self>) {
+        if self.is_wysiwyg_document_fully_selected(cx) {
             return;
         }
 
@@ -324,7 +324,7 @@ impl Editor {
         cx.notify();
     }
 
-    pub(crate) fn on_rendered_select_all_press(
+    pub(crate) fn on_wysiwyg_select_all_press(
         &mut self,
         block: Entity<Block>,
         cx: &mut Context<Self>,
@@ -341,7 +341,7 @@ impl Editor {
             Some(cycle)
                 if cycle.entity_id == block_id
                     && now.duration_since(cycle.last_pressed_at)
-                        <= Self::RENDERED_SELECT_ALL_CYCLE_WINDOW =>
+                        <= Self::WYSIWYG_SELECT_ALL_CYCLE_WINDOW =>
             {
                 cycle.count.saturating_add(1)
             }
@@ -351,16 +351,16 @@ impl Editor {
 
         let state = self.active_pane_state();
         state.selection.select_all_cycle =
-            Some(crate::editor::controller::RenderedSelectAllCycle {
+            Some(crate::editor::controller::WysiwygSelectAllCycle {
                 entity_id: block_id,
                 count,
                 last_pressed_at: now,
             });
 
         if count == 1 {
-            self.select_focused_block_text_for_rendered_select_all(block, cx);
+            self.select_focused_block_text_for_wysiwyg_select_all(block, cx);
         } else {
-            self.select_all_rendered_document(cx);
+            self.select_all_wysiwyg_document(cx);
         }
     }
 

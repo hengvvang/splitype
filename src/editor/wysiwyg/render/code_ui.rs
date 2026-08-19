@@ -243,7 +243,7 @@ impl Block {
                     .track_focus(&self.code_language_focus_handle)
                     .on_action(cx.listener(Self::on_code_language_newline))
                     .on_action(cx.listener(Self::on_code_language_dismiss))
-                    .on_action(cx.listener(Self::on_code_language_delete_back))
+                    .on_action(cx.listener(Self::on_code_language_delete_backward))
                     .on_action(cx.listener(Self::on_code_language_delete))
                     .on_action(cx.listener(Self::on_code_language_focus_content))
                     .on_action(cx.listener(Self::on_code_language_focus_next))

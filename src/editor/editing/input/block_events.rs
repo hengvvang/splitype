@@ -96,7 +96,7 @@ impl Editor {
         }
 
         if matches!(event, BlockAction::RequestRenderedSelectAll) {
-            self.on_rendered_select_all_press(block, cx);
+            self.on_wysiwyg_select_all_press(block, cx);
             return;
         }
 

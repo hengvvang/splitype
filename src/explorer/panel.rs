@@ -247,7 +247,7 @@ impl Shell {
                 let _ = cx.spawn(async move |_this, cx: &mut AsyncApp| {
                     let _ = cx.update_window(window_handle, |_, window, cx| {
                         let _ = weak_editor.update(cx, |editor, cx| {
-                            editor.start_inline_rename(path, window, cx);
+                            editor.begin_inline_rename(path, window, cx);
                         });
                     });
                 });
@@ -421,7 +421,7 @@ impl Shell {
         }
     }
 
-    pub(crate) fn start_inline_create_file(
+    pub(crate) fn begin_inline_create_file(
         &mut self,
         parent: PathBuf,
         window: &mut Window,
@@ -430,7 +430,7 @@ impl Shell {
         // The file itself is created only on confirm (mirrors Zed).
         self.begin_explorer_create(parent, false, window, cx);
     }
-    pub(crate) fn start_inline_create_folder(
+    pub(crate) fn begin_inline_create_folder(
         &mut self,
         parent: PathBuf,
         window: &mut Window,
@@ -439,7 +439,7 @@ impl Shell {
         self.expand_to_path(&parent);
         self.begin_explorer_create(parent, true, window, cx);
     }
-    pub(crate) fn start_inline_rename(
+    pub(crate) fn begin_inline_rename(
         &mut self,
         target: PathBuf,
         window: &mut Window,

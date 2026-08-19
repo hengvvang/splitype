@@ -299,13 +299,13 @@ impl Block {
             let element = element
                 .on_mouse_down(
                     MouseButton::Left,
-                    cx.listener(Self::on_rendered_link_mouse_down),
+                    cx.listener(Self::on_wysiwyg_link_mouse_down),
                 )
                 .on_mouse_up(
                     MouseButton::Left,
                     cx.listener(move |block, event: &MouseUpEvent, _window, cx| {
                         if event.modifiers.secondary() {
-                            block.open_rendered_link(&link, cx);
+                            block.open_wysiwyg_link(&link, cx);
                         }
                     }),
                 );

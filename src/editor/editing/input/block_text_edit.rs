@@ -9,7 +9,7 @@ use gpui::*;
 
 use crate::editor::block_protocol::{BlockAction, UndoCaptureKind};
 use crate::editor::editing::input::actions::{
-    Delete, DeleteBack, IndentBlock, Newline, OutdentBlock, WordDeleteBack, WordDeleteForward,
+    Delete, DeleteBackward, IndentBlock, Newline, OutdentBlock, WordDeleteBackward, WordDeleteForward,
 };
 use crate::editor::tree::block::{Block, CollapsedCaretAffinity};
 use crate::model::parse::BlockKind;
@@ -225,9 +225,9 @@ impl Block {
         });
     }
 
-    pub(crate) fn on_delete_back(
+    pub(crate) fn on_delete_backward(
         &mut self,
-        _: &DeleteBack,
+        _: &DeleteBackward,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -358,9 +358,9 @@ impl Block {
         self.replace_text_in_range(None, "", window, cx);
     }
 
-    pub(crate) fn on_word_delete_back(
+    pub(crate) fn on_word_delete_backward(
         &mut self,
-        _: &WordDeleteBack,
+        _: &WordDeleteBackward,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -368,7 +368,7 @@ impl Block {
             if self.cursor_offset() == 0 {
                 // Nothing to the left in this block; defer to grapheme
                 // backspace, which handles block merge and downgrades.
-                self.on_delete_back(&DeleteBack, window, cx);
+                self.on_delete_backward(&DeleteBackward, window, cx);
                 return;
             }
             self.select_to(self.previous_word_start(self.cursor_offset()), cx);

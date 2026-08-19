@@ -361,7 +361,7 @@ impl Render for Editor {
             .capture_action(cx.listener(Self::on_copy_capture))
             .capture_action(cx.listener(Self::on_cut_capture))
             .capture_action(cx.listener(Self::on_delete_capture))
-            .capture_action(cx.listener(Self::on_delete_back_capture))
+            .capture_action(cx.listener(Self::on_delete_backward_capture))
             .capture_key_down(cx.listener(Self::on_editor_key_down_capture))
             .on_action(cx.listener(Self::on_undo))
             .on_action(cx.listener(Self::on_redo))

@@ -12,11 +12,11 @@ use gpui::*;
 use crate::app::actions::{CloseWindow, NewWindow, OpenFile, QuitApplication, ToggleExplorer};
 use crate::editor::actions::{SaveDocument, SaveDocumentAs, ToggleViewMode};
 use crate::editor::editing::input::actions::{
-    BlockDown, BlockUp, BoldSelection, CodeSelection, Copy, Cut, Delete, DeleteBack,
+    BlockDown, BlockUp, BoldSelection, CodeSelection, Copy, Cut, Delete, DeleteBackward,
     DismissTransientUi, End, ExitCodeBlock, FocusNext, FocusPrevious, Home, IndentBlock,
     ItalicSelection, JumpToBottom, JumpToTop, MoveLeft, MoveRight, Newline, OutdentBlock, PageDown,
     PageUp, Paste, Redo, SelectAll, SelectEnd, SelectHome, SelectLeft, SelectRight,
-    UnderlineSelection, Undo, WordDeleteBack, WordDeleteForward, WordMoveLeft, WordMoveRight,
+    UnderlineSelection, Undo, WordDeleteBackward, WordDeleteForward, WordMoveLeft, WordMoveRight,
     WordSelectLeft, WordSelectRight,
 };
 use crate::infra::config::keybindings::{
@@ -30,9 +30,9 @@ fn key_binding_for(
 ) -> KeyBinding {
     match command {
         ShortcutCommand::Newline => KeyBinding::new(key, Newline, context),
-        ShortcutCommand::DeleteBack => KeyBinding::new(key, DeleteBack, context),
+        ShortcutCommand::DeleteBackward => KeyBinding::new(key, DeleteBackward, context),
         ShortcutCommand::Delete => KeyBinding::new(key, Delete, context),
-        ShortcutCommand::WordDeleteBack => KeyBinding::new(key, WordDeleteBack, context),
+        ShortcutCommand::WordDeleteBackward => KeyBinding::new(key, WordDeleteBackward, context),
         ShortcutCommand::WordDeleteForward => KeyBinding::new(key, WordDeleteForward, context),
         ShortcutCommand::FocusPrevious => KeyBinding::new(key, FocusPrevious, context),
         ShortcutCommand::FocusNext => KeyBinding::new(key, FocusNext, context),

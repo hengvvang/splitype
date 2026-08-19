@@ -15,9 +15,9 @@ use gpui::Keystroke;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ShortcutCommand {
     Newline,
-    DeleteBack,
+    DeleteBackward,
     Delete,
-    WordDeleteBack,
+    WordDeleteBackward,
     WordDeleteForward,
     FocusPrevious,
     FocusNext,
@@ -98,7 +98,7 @@ pub const SHORTCUT_DEFINITIONS: &[ShortcutDefinition] = &[
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
-        command: ShortcutCommand::DeleteBack,
+        command: ShortcutCommand::DeleteBackward,
         id: "delete_back",
         default_keys: &["backspace"],
         context: BLOCK_CONTEXT,
@@ -110,7 +110,7 @@ pub const SHORTCUT_DEFINITIONS: &[ShortcutDefinition] = &[
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {
-        command: ShortcutCommand::WordDeleteBack,
+        command: ShortcutCommand::WordDeleteBackward,
         id: "word_delete_back",
         default_keys: &["ctrl-backspace", "alt-backspace"],
         context: BLOCK_CONTEXT,
@@ -666,7 +666,7 @@ mod tests {
             vec!["ctrl-left".to_string(), "alt-left".to_string()]
         );
         assert_eq!(
-            resolved_shortcut_keys(&BTreeMap::new(), ShortcutCommand::WordDeleteBack),
+            resolved_shortcut_keys(&BTreeMap::new(), ShortcutCommand::WordDeleteBackward),
             vec!["ctrl-backspace".to_string(), "alt-backspace".to_string()]
         );
         assert_eq!(

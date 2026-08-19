@@ -123,7 +123,7 @@ async fn ctrl_a_selects_entire_source_document_in_source_mode(cx: &mut TestAppCo
 }
 
 #[gpui::test]
-async fn ctrl_a_selects_only_focused_block_text_in_rendered_mode(cx: &mut TestAppContext) {
+async fn ctrl_a_selects_only_focused_block_text_in_wysiwyg_mode(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
     let (editor, cx) = cx.add_window_view(|_window, cx| {
         Editor::from_markdown(cx, "alpha\n\nbeta".to_string(), None)
@@ -256,7 +256,7 @@ async fn rendered_ctrl_a_cycle_expires_before_second_press(cx: &mut TestAppConte
             .as_mut()
             .expect("first Ctrl+A should arm the rendered select-all cycle");
         cycle.last_pressed_at =
-            Instant::now() - (Editor::RENDERED_SELECT_ALL_CYCLE_WINDOW + Duration::from_millis(1));
+            Instant::now() - (Editor::WYSIWYG_SELECT_ALL_CYCLE_WINDOW + Duration::from_millis(1));
     });
 
     cx.simulate_keystrokes("ctrl-a");

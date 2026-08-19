@@ -11,7 +11,7 @@ use crate::model::inline::text::BlockText;
 use super::*;
 
 #[gpui::test]
-async fn ctrl_s_saves_rendered_mode_edit_to_existing_file(cx: &mut TestAppContext) {
+async fn ctrl_s_saves_wysiwyg_mode_edit_to_existing_file(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
     let path = temp_markdown_path("ctrl-s-rendered-save");

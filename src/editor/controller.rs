@@ -88,7 +88,7 @@ pub(crate) struct FocusState {
 pub(crate) struct SelectionState {
     pub(crate) cross_block: Option<CrossBlockSelection>,
     pub(crate) cross_block_drag: Option<CrossBlockDrag>,
-    pub(crate) select_all_cycle: Option<RenderedSelectAllCycle>,
+    pub(crate) select_all_cycle: Option<WysiwygSelectAllCycle>,
 }
 
 /// Undo/redo stacks, coalescing state, and stable source snapshots.
@@ -395,7 +395,7 @@ pub(crate) struct CrossBlockDrag {
 
 /// Short-lived Ctrl/Cmd+A press counter for rendered-mode selection upgrade.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct RenderedSelectAllCycle {
+pub(crate) struct WysiwygSelectAllCycle {
     pub(crate) entity_id: EntityId,
     pub(crate) count: u8,
     pub(crate) last_pressed_at: Instant,
@@ -422,7 +422,7 @@ pub(crate) enum InfoDialogKind {
 impl Editor {
     pub(crate) const HISTORY_LIMIT: usize = 200;
     pub(crate) const HISTORY_COALESCE_WINDOW: Duration = Duration::from_millis(1_000);
-    pub(crate) const RENDERED_SELECT_ALL_CYCLE_WINDOW: Duration = Duration::from_millis(750);
+    pub(crate) const WYSIWYG_SELECT_ALL_CYCLE_WINDOW: Duration = Duration::from_millis(750);
 
     /// Creates an editor with no document tabs — the welcome state shown
     /// before any file is opened or an Untitled tab is started. The default

@@ -8,7 +8,7 @@ mod tests {
     use crate::editor::block_protocol::BlockAction;
     use crate::editor::controller::Editor;
     use crate::editor::editing::input::actions::ExitCodeBlock;
-    use crate::editor::editing::input::actions::{DeleteBack, Newline};
+    use crate::editor::editing::input::actions::{DeleteBackward, Newline};
     use crate::model::block::CalloutKind;
     use crate::model::inline::text::BlockText;
     use crate::model::parse::{BlockData, BlockKind};
@@ -318,7 +318,7 @@ mod tests {
                         block_cx,
                     );
                     block.move_to(0, block_cx);
-                    block.on_delete_back(&DeleteBack, window, block_cx);
+                    block.on_delete_backward(&DeleteBackward, window, block_cx);
                 });
             });
         });
@@ -581,8 +581,8 @@ mod tests {
                 let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
                     assert_eq!(block.kind(), BlockKind::ThematicBreak);
-                    block.on_delete_back(&DeleteBack, window, block_cx);
-                    block.on_delete_back(&DeleteBack, window, block_cx);
+                    block.on_delete_backward(&DeleteBackward, window, block_cx);
+                    block.on_delete_backward(&DeleteBackward, window, block_cx);
                     assert_eq!(block.kind(), BlockKind::Paragraph);
                     assert_eq!(block.display_text(), "-");
                 });
@@ -627,7 +627,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
-                    block.on_delete_back(&DeleteBack, window, block_cx);
+                    block.on_delete_backward(&DeleteBackward, window, block_cx);
                     assert_eq!(block.kind(), BlockKind::ThematicBreak);
                     assert_eq!(block.display_text(), "---");
                 });

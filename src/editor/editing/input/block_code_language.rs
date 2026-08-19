@@ -5,7 +5,7 @@ use gpui::*;
 
 use crate::editor::block_protocol::BlockAction;
 use crate::editor::editing::input::actions::{
-    Copy, Cut, Delete, DeleteBack, DismissTransientUi, End, FocusNext, FocusPrevious, Home,
+    Copy, Cut, Delete, DeleteBackward, DismissTransientUi, End, FocusNext, FocusPrevious, Home,
     IndentBlock, MoveLeft, MoveRight, Newline, OutdentBlock, Paste, SelectAll, SelectLeft,
     SelectRight,
 };
@@ -97,9 +97,9 @@ impl Block {
         cx.notify();
     }
 
-    pub(crate) fn on_code_language_delete_back(
+    pub(crate) fn on_code_language_delete_backward(
         &mut self,
-        _: &DeleteBack,
+        _: &DeleteBackward,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {

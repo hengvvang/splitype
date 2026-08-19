@@ -123,7 +123,7 @@ impl Shell {
                 Box::new(move |shell, window, cx| {
                     let p = p.clone();
                     shell.close_explorer_file_menu(cx);
-                    shell.start_inline_create_file(p, window, cx);
+                    shell.begin_inline_create_file(p, window, cx);
                 }),
             ));
             let p = path.clone();
@@ -136,7 +136,7 @@ impl Shell {
                 Box::new(move |shell, window, cx| {
                     let p = p.clone();
                     shell.close_explorer_file_menu(cx);
-                    shell.start_inline_create_folder(p, window, cx);
+                    shell.begin_inline_create_folder(p, window, cx);
                 }),
             ));
             items.push(separator());
@@ -283,7 +283,7 @@ impl Shell {
                 Box::new(move |shell, window, cx| {
                     let p = p.clone();
                     shell.close_explorer_file_menu(cx);
-                    shell.start_inline_rename(p, window, cx);
+                    shell.begin_inline_rename(p, window, cx);
                 }),
             ));
             items.push(make_item(

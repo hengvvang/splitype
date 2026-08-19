@@ -6,7 +6,7 @@
 use crate::editor::block_protocol::BlockAction;
 use crate::editor::controller::Editor;
 use crate::editor::editing::input::actions::ExitCodeBlock;
-use crate::editor::editing::input::actions::{Delete, DeleteBack, Newline};
+use crate::editor::editing::input::actions::{Delete, DeleteBackward, Newline};
 use crate::editor::tree::block::Block;
 use crate::model::parse::{BlockData, BlockKind};
 use crate::model::block::CalloutKind;
@@ -309,7 +309,7 @@ async fn empty_list_child_paragraph_backspace_outdents_to_root(cx: &mut TestAppC
                     block_cx,
                 );
                 block.move_to(0, block_cx);
-                block.on_delete_back(&DeleteBack, window, block_cx);
+                block.on_delete_backward(&DeleteBackward, window, block_cx);
             });
         });
     });
@@ -1767,7 +1767,7 @@ async fn nested_list_item_backspace_downgrades_to_direct_list_child(cx: &mut Tes
             let nested = editor.doc().blocks()[1].entity.clone();
             nested.update(cx, |block, block_cx| {
                 block.move_to(0, block_cx);
-                block.on_delete_back(&DeleteBack, window, block_cx);
+                block.on_delete_backward(&DeleteBackward, window, block_cx);
             });
         });
     });
@@ -1793,7 +1793,7 @@ async fn empty_nested_list_item_backspace_twice_exits_to_outer_paragraph(cx: &mu
             let nested = editor.doc().blocks()[1].entity.clone();
             nested.update(cx, |block, block_cx| {
                 block.move_to(0, block_cx);
-                block.on_delete_back(&DeleteBack, window, block_cx);
+                block.on_delete_backward(&DeleteBackward, window, block_cx);
             });
         });
     });
@@ -1812,7 +1812,7 @@ async fn empty_nested_list_item_backspace_twice_exits_to_outer_paragraph(cx: &mu
             let child = editor.doc().blocks()[1].entity.clone();
             child.update(cx, |block, block_cx| {
                 block.move_to(0, block_cx);
-                block.on_delete_back(&DeleteBack, window, block_cx);
+                block.on_delete_backward(&DeleteBackward, window, block_cx);
             });
         });
     });
@@ -1867,7 +1867,7 @@ async fn nested_numbered_and_task_items_backspace_downgrade_to_list_child(cx: &m
             let nested = editor.doc().blocks()[1].entity.clone();
             nested.update(cx, |block, block_cx| {
                 block.move_to(0, block_cx);
-                block.on_delete_back(&DeleteBack, window, block_cx);
+                block.on_delete_backward(&DeleteBackward, window, block_cx);
             });
         });
     });
@@ -1885,7 +1885,7 @@ async fn nested_numbered_and_task_items_backspace_downgrade_to_list_child(cx: &m
             let nested = editor.doc().blocks()[1].entity.clone();
             nested.update(cx, |block, block_cx| {
                 block.move_to(0, block_cx);
-                block.on_delete_back(&DeleteBack, window, block_cx);
+                block.on_delete_backward(&DeleteBackward, window, block_cx);
             });
         });
     });
@@ -1937,7 +1937,7 @@ async fn imported_leaf_quote_backspace_twice_downgrades_to_text_block(cx: &mut T
             let quote = editor.doc().first_root().expect("root quote").clone();
             quote.update(cx, |block, block_cx| {
                 block.move_to(block.display_len(), block_cx);
-                block.on_delete_back(&DeleteBack, window, block_cx);
+                block.on_delete_backward(&DeleteBackward, window, block_cx);
             });
         });
     });
@@ -1960,7 +1960,7 @@ async fn imported_leaf_quote_backspace_twice_downgrades_to_text_block(cx: &mut T
             let quote = editor.doc().first_root().expect("empty quote").clone();
             quote.update(cx, |block, block_cx| {
                 block.move_to(0, block_cx);
-                block.on_delete_back(&DeleteBack, window, block_cx);
+                block.on_delete_backward(&DeleteBackward, window, block_cx);
             });
         });
     });
@@ -2000,7 +2000,7 @@ async fn shortcut_created_leaf_quote_backspace_twice_downgrades_to_text_block(
             let quote = editor.doc().first_root().expect("shortcut quote").clone();
             quote.update(cx, |block, block_cx| {
                 block.move_to(block.display_len(), block_cx);
-                block.on_delete_back(&DeleteBack, window, block_cx);
+                block.on_delete_backward(&DeleteBackward, window, block_cx);
             });
         });
     });
@@ -2022,7 +2022,7 @@ async fn shortcut_created_leaf_quote_backspace_twice_downgrades_to_text_block(
                 .clone();
             quote.update(cx, |block, block_cx| {
                 block.move_to(0, block_cx);
-                block.on_delete_back(&DeleteBack, window, block_cx);
+                block.on_delete_backward(&DeleteBackward, window, block_cx);
             });
         });
     });
@@ -2060,7 +2060,7 @@ async fn root_quote_break_then_backspace_keeps_text_block_slot_after_group(
             let new_leaf = editor.doc().blocks()[1].entity.clone();
             new_leaf.update(cx, |block, block_cx| {
                 block.move_to(0, block_cx);
-                block.on_delete_back(&DeleteBack, window, block_cx);
+                block.on_delete_backward(&DeleteBackward, window, block_cx);
             });
         });
     });
@@ -2088,7 +2088,7 @@ async fn empty_callout_body_backspace_downgrades_parent_to_quote(cx: &mut TestAp
             let body = editor.doc().blocks()[1].entity.clone();
             body.update(cx, |block, block_cx| {
                 block.move_to(0, block_cx);
-                block.on_delete_back(&DeleteBack, window, block_cx);
+                block.on_delete_backward(&DeleteBackward, window, block_cx);
             });
         });
     });
@@ -2175,7 +2175,7 @@ async fn quote_container_with_children_does_not_collapse_from_leaf_exit_path(
             let quote = editor.doc().first_root().expect("container quote").clone();
             quote.update(cx, |block, block_cx| {
                 block.move_to(0, block_cx);
-                block.on_delete_back(&DeleteBack, window, block_cx);
+                block.on_delete_backward(&DeleteBackward, window, block_cx);
             });
         });
     });

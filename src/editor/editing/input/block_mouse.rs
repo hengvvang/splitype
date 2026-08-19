@@ -80,7 +80,7 @@ impl Block {
     /// Handle mouse-down on a rendered inline link (in a mixed inline-visual
     /// block). A Cmd/Ctrl+click is claimed here so it follows the link instead
     /// of focusing the block; the destination opens on the matching mouse-up.
-    pub(crate) fn on_rendered_link_mouse_down(
+    pub(crate) fn on_wysiwyg_link_mouse_down(
         &mut self,
         event: &MouseDownEvent,
         _window: &mut Window,
@@ -94,7 +94,7 @@ impl Block {
     }
 
     /// Open a rendered inline link's destination through the editor prompt.
-    pub(crate) fn open_rendered_link(
+    pub(crate) fn open_wysiwyg_link(
         &mut self,
         link: &crate::model::inline::link::InlineLinkHit,
         cx: &mut Context<Self>,
@@ -119,7 +119,7 @@ impl Block {
         if event.modifiers.secondary()
             && let Some(link) = self.pointer_link_hit(event.position)
         {
-            self.open_rendered_link(&link, cx);
+            self.open_wysiwyg_link(&link, cx);
             return;
         }
 
@@ -143,7 +143,7 @@ impl Block {
             }
 
             if let Some(link) = self.pointer_link_hit(event.position) {
-                self.open_rendered_link(&link, cx);
+                self.open_wysiwyg_link(&link, cx);
             }
         }
     }

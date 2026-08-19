@@ -12,9 +12,9 @@ actions!(
     splitype,
     [
         Newline,
-        DeleteBack,
+        DeleteBackward,
         Delete,
-        WordDeleteBack,
+        WordDeleteBackward,
         WordDeleteForward,
         FocusPrevious,
         FocusNext,
