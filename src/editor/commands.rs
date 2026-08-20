@@ -130,7 +130,7 @@ impl Editor {
         self.end_block_pointer_selection_sessions(cx);
         let selection_snapshot = self.capture_source_selection_snapshot_global(cx);
         self.clear_cross_block_selection(cx);
-        self.active_pane_state().selection.select_all_cycle = None;
+        self.active_pane_state().selection.clear_all();
         match self.tab().mode {
             EditorPaneKind::Wysiwyg => {
                 let markdown = self.doc().serialize_markdown(cx);

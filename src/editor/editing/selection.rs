@@ -83,8 +83,7 @@ impl Editor {
 
     pub(crate) fn clear_cross_block_selection(&mut self, cx: &mut Context<Self>) {
         let selection = &mut self.active_pane_state().selection;
-        let had_selection = selection.cross_block.take().is_some();
-        selection.cross_block_drag = None;
+        let had_selection = selection.clear_cross_block();
         // Visual ranges are only ever written while a cross-block selection
         // (or drag) is active, so when there was none the all-blocks scan
         // below has nothing to clear. Skipping it removes an O(blocks) entity
@@ -108,8 +107,7 @@ impl Editor {
     ) {
         let had_selection = self
             .pane_state_ref(pane_id)
-            .and_then(|state| state.selection.cross_block)
-            .is_some();
+            .is_some_and(|state| state.selection.has_cross_block());
         let changed_visuals = self.clear_cross_block_selection_visuals(cx);
         let changed = had_selection || changed_visuals;
         let drag = self

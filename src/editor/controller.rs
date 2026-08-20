@@ -91,6 +91,30 @@ pub(crate) struct SelectionState {
     pub(crate) select_all_cycle: Option<WysiwygSelectAllCycle>,
 }
 
+impl SelectionState {
+    /// Returns true if cross-block selection or drag is active.
+    #[inline]
+    pub(crate) const fn has_cross_block(&self) -> bool {
+        self.cross_block.is_some() || self.cross_block_drag.is_some()
+    }
+
+    /// Clears cross-block selection and drag session.
+    #[inline]
+    pub(crate) fn clear_cross_block(&mut self) -> bool {
+        let had_cross = self.cross_block.take().is_some();
+        self.cross_block_drag = None;
+        had_cross
+    }
+
+    /// Clears all active selection and multi-press cycle state.
+    #[inline]
+    pub(crate) fn clear_all(&mut self) {
+        self.cross_block = None;
+        self.cross_block_drag = None;
+        self.select_all_cycle = None;
+    }
+}
+
 /// Undo/redo stacks, coalescing state, and stable source snapshots.
 #[derive(Default)]
 pub(crate) struct UndoHistory {
