@@ -59,6 +59,26 @@ pub(crate) enum CollapsedCaretAffinity {
     OuterEnd,
 }
 
+/// Structural hierarchy context assigned to a block during tree synchronization.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct BlockStructureContext {
+    pub render_depth: usize,
+    pub quote_depth: usize,
+    pub quote_group_id: Option<BlockId>,
+    pub visible_quote_depth: usize,
+    pub visible_quote_group_id: Option<BlockId>,
+    pub callout_depth: usize,
+    pub callout_group_id: Option<BlockId>,
+    pub callout_variant: Option<CalloutKind>,
+    pub footnote_group_id: Option<BlockId>,
+    pub parent_is_list_item: bool,
+    pub list_ordinal: Option<usize>,
+    pub list_group_separator_candidate: bool,
+    pub numbered_list_restart_requested: bool,
+    pub quote_reparse_requested: bool,
+    pub tree_metadata_flags: u8,
+}
+
 impl EventEmitter<BlockEvent> for Block {}
 
 /// A single editable block in the document tree.
@@ -396,6 +416,22 @@ impl Block {
         changed |= self.sync_footnote_registry(footnote_registry);
         changed |= self.sync_image_handle();
         changed
+    }
+
+    pub(crate) fn apply_structure_context(&mut self, ctx: BlockStructureContext) {
+        self.render_depth = ctx.render_depth;
+        self.quote_depth = ctx.quote_depth;
+        self.quote_group_id = ctx.quote_group_id;
+        self.visible_quote_depth = ctx.visible_quote_depth;
+        self.visible_quote_group_id = ctx.visible_quote_group_id;
+        self.callout_depth = ctx.callout_depth;
+        self.callout_group_id = ctx.callout_group_id;
+        self.callout_variant = ctx.callout_variant;
+        self.footnote_group_id = ctx.footnote_group_id;
+        self.parent_is_list_item = ctx.parent_is_list_item;
+        self.list_ordinal = ctx.list_ordinal;
+        self.list_group_separator_candidate = ctx.list_group_separator_candidate;
+        self.tree_metadata_flags = ctx.tree_metadata_flags;
     }
 
     pub(crate) fn edits_verbatim_text(&self) -> bool {

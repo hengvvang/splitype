@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use gpui::*;
 
 use crate::editor::controller::Editor;
-use crate::editor::tree::block::Block;
+use crate::editor::tree::block::{Block, BlockStructureContext};
 use crate::model::block::CalloutKind;
 use crate::model::block::image::parse_standalone_image;
 use crate::model::block::table::serialize_table_markdown_lines;
@@ -411,19 +411,23 @@ impl Document {
             block.update(cx, move |block, _cx| {
                 block.data.parent = parent_id;
                 block.data.children = content.clone();
-                block.render_depth = list_depth;
-                block.quote_depth = quote_depth;
-                block.quote_group_id = quote_group_id;
-                block.visible_quote_depth = visible_quote_depth;
-                block.visible_quote_group_id = visible_quote_group_id;
-                block.callout_depth = callout_depth;
-                block.callout_group_id = callout_group_id;
-                block.callout_variant = callout_variant;
-                block.footnote_group_id = footnote_group_id;
-                block.parent_is_list_item = parent_is_list_item;
-                block.list_ordinal = list_ordinal;
-                block.list_group_separator_candidate = list_group_separator_candidate;
-                block.tree_metadata_flags = block.kind_metadata_flags();
+                block.apply_structure_context(BlockStructureContext {
+                    render_depth: list_depth,
+                    quote_depth,
+                    quote_group_id,
+                    visible_quote_depth,
+                    visible_quote_group_id,
+                    callout_depth,
+                    callout_group_id,
+                    callout_variant,
+                    footnote_group_id,
+                    parent_is_list_item,
+                    list_ordinal,
+                    list_group_separator_candidate,
+                    numbered_list_restart_requested: block.numbered_list_restart_requested,
+                    quote_reparse_requested: block.quote_reparse_requested,
+                    tree_metadata_flags: block.kind_metadata_flags(),
+                });
             });
 
             let last_descendant_id = if children.is_empty() {
