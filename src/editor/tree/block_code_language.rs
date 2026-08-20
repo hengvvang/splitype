@@ -20,10 +20,9 @@ impl Block {
 
     pub(crate) fn sync_code_highlight(&mut self) {
         self.code_highlight = match &self.data.kind {
-            BlockKind::CodeBlock { language } => highlight_code_block(
-                language.as_deref().map(|value| &**value),
-                self.render_cache.text(),
-            ),
+            BlockKind::CodeBlock { language } => {
+                highlight_code_block(language.as_deref(), self.render_cache.text())
+            }
             BlockKind::MathBlock => highlight_code_block(Some("math"), self.render_cache.text()),
             BlockKind::MermaidBlock => {
                 highlight_code_block(Some("mermaid"), self.render_cache.text())
@@ -205,7 +204,7 @@ impl Block {
             _ => None,
         };
         self.data.kind = BlockKind::CodeBlock {
-            language: (!normalized.is_empty()).then(|| SharedString::from(normalized)),
+            language: (!normalized.is_empty()).then(|| normalized),
         };
         self.code_language_selected_range = next_selection;
         self.code_language_selection_reversed = selected_range_relative
@@ -242,7 +241,7 @@ impl Block {
                 self.data.kind = BlockKind::MermaidBlock;
             } else {
                 self.data.kind = BlockKind::CodeBlock {
-                    language: (!value.is_empty()).then(|| SharedString::from(value.to_string())),
+                    language: (!value.is_empty()).then(|| value.to_string()),
                 };
             }
             self.sync_code_highlight();

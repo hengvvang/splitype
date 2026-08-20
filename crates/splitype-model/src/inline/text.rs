@@ -18,7 +18,23 @@ use crate::inline::offsets::{InlineEditResult, SourceOffsetMap};
 use crate::inline::render_cache::InlineRenderCache;
 use crate::inline::style::{InlineStyle, StyleFlag, set_style_flag, style_flag_enabled};
 
-/// A contiguous run of text with a uniform [`InlineStyle`].
+/// Unified set of inline formatting and semantic attributes.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct InlineAttributes {
+    pub style: InlineStyle,
+    pub html_style: Option<HtmlInlineStyle>,
+    pub link: Option<InlineLink>,
+    pub footnote: Option<InlineFootnoteReference>,
+    pub math: Option<InlineLatex>,
+}
+
+impl InlineAttributes {
+    pub fn from_fragment(fragment: &InlineFragment) -> Self {
+        fragment.attributes()
+    }
+}
+
+/// A contiguous run of text with uniform [`InlineAttributes`].
 ///
 /// The [`BlockText`] is simply a `Vec<InlineFragment>` with
 /// adjacent fragments of equal style merged during normalization.
@@ -32,15 +48,53 @@ pub struct InlineFragment {
     pub math: Option<InlineLatex>,
 }
 
-/// Fragment attributes inherited by inserted text at a caret position.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct InlineInsertionAttributes {
-    pub style: InlineStyle,
-    pub html_style: Option<HtmlInlineStyle>,
-    pub link: Option<InlineLink>,
-    pub footnote: Option<InlineFootnoteReference>,
-    pub math: Option<InlineLatex>,
+impl InlineFragment {
+    pub fn new(text: impl Into<String>, attrs: InlineAttributes) -> Self {
+        Self {
+            text: text.into(),
+            style: attrs.style,
+            html_style: attrs.html_style,
+            link: attrs.link,
+            footnote: attrs.footnote,
+            math: attrs.math,
+        }
+    }
+
+    pub fn plain(text: impl Into<String>) -> Self {
+        Self {
+            text: text.into(),
+            style: InlineStyle::default(),
+            html_style: None,
+            link: None,
+            footnote: None,
+            math: None,
+        }
+    }
+
+    pub fn attributes(&self) -> InlineAttributes {
+        InlineAttributes {
+            style: self.style,
+            html_style: self.html_style,
+            link: self.link.clone(),
+            footnote: self.footnote.clone(),
+            math: self.math.clone(),
+        }
+    }
+
+    pub fn with_attributes(text: impl Into<String>, attrs: &InlineAttributes) -> Self {
+        Self {
+            text: text.into(),
+            style: attrs.style,
+            html_style: attrs.html_style,
+            link: attrs.link.clone(),
+            footnote: attrs.footnote.clone(),
+            math: attrs.math.clone(),
+        }
+    }
 }
+
+/// Fragment attributes inherited by inserted text at a caret position.
+pub type InlineInsertionAttributes = InlineAttributes;
 
 /// A sequence of [`InlineFragment`]s representing inline-formatted text.
 ///
@@ -59,14 +113,7 @@ pub struct BlockText {
 
 impl BlockText {
     pub fn plain(text: impl Into<String>) -> Self {
-        Self::from_fragments(vec![InlineFragment {
-            text: text.into(),
-            style: InlineStyle::default(),
-            html_style: None,
-            link: None,
-            footnote: None,
-            math: None,
-        }])
+        Self::from_fragments(vec![InlineFragment::plain(text)])
     }
 
     /// Parse marker-based Markdown into the internal fragment representation.
@@ -125,10 +172,7 @@ impl BlockText {
     }
 
     pub fn plain_len(&self) -> usize {
-        self.fragments
-            .iter()
-            .map(|fragment| fragment.text.len())
-            .sum()
+        self.fragments.iter().map(|f| f.text.len()).sum()
     }
 
     pub fn has_source_preserving_links(&self) -> bool {
@@ -318,14 +362,10 @@ impl BlockText {
 
                 let label_source_end = label_source_start + run_map.source().len();
                 source_to_plain[label_source_end] = plain_cursor + run_plain_len;
-
-                let suffix_start = label_source_end;
-                let suffix_len = link.middle_marker().map(str::len).unwrap_or(0)
-                    + editable_text.as_ref().map(String::len).unwrap_or(0)
-                    + link.close_marker().len();
-                for local in 0..=suffix_len {
-                    source_to_plain[suffix_start + local] = plain_cursor + run_plain_len;
+                for local in 0..=link.close_marker().len() {
+                    source_to_plain[link_end.saturating_sub(local)] = plain_cursor + run_plain_len;
                 }
+
                 plain_cursor += run_plain_len;
             } else {
                 let run_start = output.len();
@@ -373,25 +413,19 @@ impl BlockText {
                 left.push(fragment.clone());
             } else {
                 let split_offset = clamp_to_char_boundary(&fragment.text, clamped - fragment_start);
+                let mut attrs = fragment.attributes();
+                attrs.math = None;
                 if split_offset > 0 {
-                    left.push(InlineFragment {
-                        text: fragment.text[..split_offset].to_string(),
-                        style: fragment.style,
-                        html_style: fragment.html_style,
-                        link: fragment.link.clone(),
-                        footnote: fragment.footnote.clone(),
-                        math: None,
-                    });
+                    left.push(InlineFragment::with_attributes(
+                        &fragment.text[..split_offset],
+                        &attrs,
+                    ));
                 }
                 if split_offset < fragment_len {
-                    right.push(InlineFragment {
-                        text: fragment.text[split_offset..].to_string(),
-                        style: fragment.style,
-                        html_style: fragment.html_style,
-                        link: fragment.link.clone(),
-                        footnote: fragment.footnote.clone(),
-                        math: None,
-                    });
+                    right.push(InlineFragment::with_attributes(
+                        &fragment.text[split_offset..],
+                        &attrs,
+                    ));
                 }
             }
 
@@ -433,14 +467,11 @@ impl BlockText {
             let fragment_start = consumed;
             let fragment_end = fragment_start + fragment_len;
 
+            let mut attrs = fragment.attributes();
+            attrs.math = None;
+
             if fragment_start < clamped && clamped < fragment_end {
-                return InlineInsertionAttributes {
-                    style: fragment.style,
-                    html_style: fragment.html_style,
-                    link: fragment.link.clone(),
-                    footnote: fragment.footnote.clone(),
-                    math: None,
-                };
+                return attrs;
             }
 
             // Typing at a delimited-fragment boundary should produce plain
@@ -450,13 +481,7 @@ impl BlockText {
                 return if fragment.style.code || fragment.style.strikethrough {
                     InlineInsertionAttributes::default()
                 } else {
-                    InlineInsertionAttributes {
-                        style: fragment.style,
-                        html_style: fragment.html_style,
-                        link: fragment.link.clone(),
-                        footnote: fragment.footnote.clone(),
-                        math: None,
-                    }
+                    attrs
                 };
             }
 
@@ -464,13 +489,7 @@ impl BlockText {
                 return if fragment.style.code || fragment.style.strikethrough {
                     InlineInsertionAttributes::default()
                 } else {
-                    InlineInsertionAttributes {
-                        style: fragment.style,
-                        html_style: fragment.html_style,
-                        link: fragment.link.clone(),
-                        footnote: fragment.footnote.clone(),
-                        math: None,
-                    }
+                    attrs
                 };
             }
 

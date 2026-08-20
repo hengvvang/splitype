@@ -8,8 +8,8 @@ use gpui::*;
 use crate::editor::geometry::text_layout::*;
 use crate::editor::render::code_highlight::highlight::code_highlight_color;
 use crate::editor::tree::block::Block;
+use crate::editor::wysiwyg::render::html_document::html_css_color_to_hsla;
 use crate::infra::theme::{ThemeColors, ThemeManager};
-use crate::model::inline::html::html_css_color_to_hsla;
 
 /// The block's text-style line height without gpui's internal `.round()`. The
 /// flex layout used by the unfocused mixed-visual path resolves `rems(1.6)`

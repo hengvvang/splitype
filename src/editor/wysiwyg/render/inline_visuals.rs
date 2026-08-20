@@ -14,7 +14,7 @@ use crate::infra::theme::Theme;
 use crate::model::block::image::{
     ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
 };
-use crate::model::inline::html::html_css_color_to_hsla;
+use crate::editor::wysiwyg::render::html_document::html_css_color_to_hsla;
 use crate::model::inline::style::InlineScript;
 
 impl Block {

@@ -420,14 +420,7 @@ impl ExpandedInlineProjection {
                 if expand_link {
                     if let Some(middle_marker) = link.middle_marker() {
                         let middle_len = middle_marker.len();
-                        projected_fragments.push(InlineFragment {
-                            text: middle_marker.to_string(),
-                            style: InlineStyle::default(),
-                            html_style: None,
-                            link: None,
-                            footnote: None,
-                            math: None,
-                        });
+                        projected_fragments.push(InlineFragment::plain(middle_marker));
                         segments.push(ExpandedInlineSegment {
                             display_range: display_cursor..display_cursor + middle_len,
                             plain_range: span_plain_end..span_plain_end,
@@ -447,14 +440,9 @@ impl ExpandedInlineProjection {
                     if let Some(link_target) = link.editable_text() {
                         let target_len = link_target.len();
                         if target_len > 0 {
-                            projected_fragments.push(InlineFragment {
-                                text: link_target,
-                                style: InlineStyle::default(),
-                                html_style: None,
-                                link: Some(link.clone()),
-                                footnote: None,
-                                math: None,
-                            });
+                            let mut target_fragment = InlineFragment::plain(link_target);
+                            target_fragment.link = Some(link.clone());
+                            projected_fragments.push(target_fragment);
                             segments.push(ExpandedInlineSegment {
                                 display_range: display_cursor..display_cursor + target_len,
                                 plain_range: span_plain_end..span_plain_end,
@@ -472,14 +460,7 @@ impl ExpandedInlineProjection {
 
                     let close_marker = link.close_marker().to_string();
                     let close_len = close_marker.len();
-                    projected_fragments.push(InlineFragment {
-                        text: close_marker,
-                        style: InlineStyle::default(),
-                        html_style: None,
-                        link: None,
-                        footnote: None,
-                        math: None,
-                    });
+                    projected_fragments.push(InlineFragment::plain(close_marker));
                     segments.push(ExpandedInlineSegment {
                         display_range: display_cursor..display_cursor + close_len,
                         plain_range: span_plain_end..span_plain_end,
@@ -524,22 +505,11 @@ impl ExpandedInlineProjection {
 
             if let Some(head_len) = head_split {
                 let split_offset = head_len - plain_range.start;
-                let head_fragment = InlineFragment {
-                    text: fragment.text[..split_offset].to_string(),
-                    style: fragment.style,
-                    html_style: fragment.html_style,
-                    link: fragment.link.clone(),
-                    footnote: fragment.footnote.clone(),
-                    math: fragment.math.clone(),
-                };
-                let tail_fragment = InlineFragment {
-                    text: fragment.text[split_offset..].to_string(),
-                    style: fragment.style,
-                    html_style: fragment.html_style,
-                    link: fragment.link.clone(),
-                    footnote: fragment.footnote.clone(),
-                    math: fragment.math.clone(),
-                };
+                let attrs = fragment.attributes();
+                let head_fragment =
+                    InlineFragment::with_attributes(&fragment.text[..split_offset], &attrs);
+                let tail_fragment =
+                    InlineFragment::with_attributes(&fragment.text[split_offset..], &attrs);
 
                 push_projected_fragment(
                     &head_fragment,
@@ -558,14 +528,7 @@ impl ExpandedInlineProjection {
 
                 let suffix = "]";
                 let suffix_len = suffix.len();
-                projected_fragments.push(InlineFragment {
-                    text: suffix.to_string(),
-                    style: InlineStyle::default(),
-                    html_style: None,
-                    link: None,
-                    footnote: None,
-                    math: None,
-                });
+                projected_fragments.push(InlineFragment::plain(suffix));
                 segments.push(ExpandedInlineSegment {
                     display_range: display_cursor..display_cursor + suffix_len,
                     plain_range: head_len..head_len,

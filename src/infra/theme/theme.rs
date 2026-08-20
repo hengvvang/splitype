@@ -21,6 +21,25 @@ pub struct Placeholders {
     pub empty_editing: String,
 }
 
+/// Computed heading typography and layout style.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct HeadingStyle {
+    pub text_color: Hsla,
+    pub font_size: f32,
+    pub font_weight: gpui::FontWeight,
+    pub padding_bottom: f32,
+    pub margin_bottom: f32,
+    pub border_width: f32,
+    pub border_color: Option<Hsla>,
+}
+
+/// Computed callout colors from the theme.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct CalloutStyle {
+    pub border_color: Hsla,
+    pub background_color: Hsla,
+}
+
 /// Top-level theme combining colors, dimensions, typography and placeholders.
 ///
 /// Can be deserialized from JSON, allowing users to ship custom theme files.
@@ -34,6 +53,104 @@ pub struct Theme {
 }
 
 impl Theme {
+    /// Returns the unified heading style for a given heading level (1–6).
+    pub fn heading_style(&self, level: u8) -> HeadingStyle {
+        let c = &self.colors;
+        let d = &self.dimensions;
+        let t = &self.typography;
+        match level {
+            1 => HeadingStyle {
+                text_color: c.text_h1,
+                font_size: t.h1_size,
+                font_weight: t.h1_weight.to_font_weight(),
+                padding_bottom: d.h1_padding_bottom,
+                margin_bottom: d.h1_margin_bottom,
+                border_width: d.h1_border_width,
+                border_color: Some(c.border_h1),
+            },
+            2 => HeadingStyle {
+                text_color: c.text_h2,
+                font_size: t.h2_size,
+                font_weight: t.h2_weight.to_font_weight(),
+                padding_bottom: d.h1_padding_bottom,
+                margin_bottom: d.h1_margin_bottom,
+                border_width: d.h1_border_width,
+                border_color: Some(c.border_h2),
+            },
+            3 => HeadingStyle {
+                text_color: c.text_h3,
+                font_size: t.h3_size,
+                font_weight: t.h3_weight.to_font_weight(),
+                padding_bottom: 0.0,
+                margin_bottom: 0.0,
+                border_width: 0.0,
+                border_color: None,
+            },
+            4 => HeadingStyle {
+                text_color: c.text_h4,
+                font_size: t.h4_size,
+                font_weight: t.h4_weight.to_font_weight(),
+                padding_bottom: 0.0,
+                margin_bottom: 0.0,
+                border_width: 0.0,
+                border_color: None,
+            },
+            5 => HeadingStyle {
+                text_color: c.text_h5,
+                font_size: t.h5_size,
+                font_weight: t.h5_weight.to_font_weight(),
+                padding_bottom: 0.0,
+                margin_bottom: 0.0,
+                border_width: 0.0,
+                border_color: None,
+            },
+            6 => HeadingStyle {
+                text_color: c.text_h6,
+                font_size: t.h6_size,
+                font_weight: t.h6_weight.to_font_weight(),
+                padding_bottom: 0.0,
+                margin_bottom: 0.0,
+                border_width: 0.0,
+                border_color: None,
+            },
+            _ => HeadingStyle {
+                text_color: c.text_default,
+                font_size: t.text_size,
+                font_weight: gpui::FontWeight::NORMAL,
+                padding_bottom: 0.0,
+                margin_bottom: 0.0,
+                border_width: 0.0,
+                border_color: None,
+            },
+        }
+    }
+
+    /// Returns the unified callout colors for a given callout kind.
+    pub fn callout_style(&self, variant: crate::model::block::CalloutKind) -> CalloutStyle {
+        let c = &self.colors;
+        match variant {
+            crate::model::block::CalloutKind::Note => CalloutStyle {
+                border_color: c.callout_note_border,
+                background_color: c.callout_note_bg,
+            },
+            crate::model::block::CalloutKind::Tip => CalloutStyle {
+                border_color: c.callout_tip_border,
+                background_color: c.callout_tip_bg,
+            },
+            crate::model::block::CalloutKind::Important => CalloutStyle {
+                border_color: c.callout_important_border,
+                background_color: c.callout_important_bg,
+            },
+            crate::model::block::CalloutKind::Warning => CalloutStyle {
+                border_color: c.callout_warning_border,
+                background_color: c.callout_warning_bg,
+            },
+            crate::model::block::CalloutKind::Caution => CalloutStyle {
+                border_color: c.callout_caution_border,
+                background_color: c.callout_caution_bg,
+            },
+        }
+    }
     /// Returns the built-in fallback theme used when no custom theme is loaded.
     pub fn default_theme() -> Self {
         Self {

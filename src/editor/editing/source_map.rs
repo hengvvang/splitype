@@ -54,11 +54,11 @@ impl Editor {
     pub(crate) fn build_code_block_content_mapping(
         content: &str,
         indentation: &str,
-        language: Option<&SharedString>,
+        language: Option<&str>,
     ) -> (String, Vec<usize>, Vec<usize>) {
         let fence = crate::editor::tree::serialize::safe_code_fence_with_info(
             content,
-            language.map(|language| language.as_ref()),
+            language,
         );
         let mut full = String::new();
         let mut content_to_source = vec![0; content.len() + 1];
@@ -349,7 +349,7 @@ impl Editor {
         };
 
         let (full_text, content_to_source, source_to_content) =
-            Self::build_code_block_content_mapping(&content, &indentation, language.as_ref());
+            Self::build_code_block_content_mapping(&content, &indentation, language.as_deref());
         let (full_text, content_to_source, source_to_content) =
             Self::wrap_source_mapping_with_quotes(
                 full_text,

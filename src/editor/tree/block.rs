@@ -845,7 +845,7 @@ impl Block {
 
     pub(crate) fn enter_code_block(
         &mut self,
-        language: Option<SharedString>,
+        language: Option<String>,
         cx: &mut Context<Self>,
     ) {
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);

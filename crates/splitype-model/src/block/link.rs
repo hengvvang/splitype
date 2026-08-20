@@ -4,9 +4,6 @@
 //! and are collected into a document-wide map.
 
 use std::collections::HashMap;
-use std::str::FromStr;
-
-use gpui::http_client::Uri;
 
 use crate::block::html::{FenceInfo, HtmlBlockStart};
 use crate::block::image::normalize_reference_label;
@@ -119,10 +116,13 @@ pub fn is_supported_autolink_target(target: &str) -> bool {
         return true;
     }
 
-    Uri::from_str(target)
-        .ok()
-        .and_then(|uri| uri.scheme_str().map(str::to_owned))
-        .is_some_and(|scheme| matches!(scheme.as_str(), "http" | "https"))
+    if let Some(rest) = target.strip_prefix("http://") {
+        return !rest.is_empty() && !rest.contains(char::is_whitespace);
+    }
+    if let Some(rest) = target.strip_prefix("https://") {
+        return !rest.is_empty() && !rest.contains(char::is_whitespace);
+    }
+    false
 }
 
 fn parse_link_reference_definition(

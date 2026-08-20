@@ -1,6 +1,5 @@
 //! Preview callout rendering — read-only mirror of the WYSIWYG callout
-//! styles. Deliberately re-implements the accent colors so preview styling
-//! can diverge independently.
+//! styles.
 
 use gpui::*;
 
@@ -8,19 +7,6 @@ use crate::editor::preview::render::inline;
 use crate::editor::tree::block::Block;
 use crate::infra::theme::Theme;
 use crate::model::block::CalloutKind;
-
-/// Accent and background colors for a callout variant, mirroring the
-/// WYSIWYG callout styles.
-fn callout_accent(variant: CalloutKind, theme: &Theme) -> Hsla {
-    let c = &theme.colors;
-    match variant {
-        CalloutKind::Note => c.callout_note_border,
-        CalloutKind::Tip => c.callout_tip_border,
-        CalloutKind::Important => c.callout_important_border,
-        CalloutKind::Warning => c.callout_warning_border,
-        CalloutKind::Caution => c.callout_caution_border,
-    }
-}
 
 /// Renders a callout (admonition) block read-only.
 pub(crate) fn render_preview_callout(
@@ -30,7 +16,8 @@ pub(crate) fn render_preview_callout(
     base: Div,
     theme: &Theme,
 ) -> AnyElement {
-    let accent = callout_accent(variant, theme);
+    let style = theme.callout_style(variant);
+    let accent = style.border_color;
     let text_is_empty = block.data.text.plain_text().is_empty();
     let header_label = SharedString::from(variant.label());
 

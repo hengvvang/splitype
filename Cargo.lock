@@ -5981,7 +5981,6 @@ name = "splitype-model"
 version = "0.0.1"
 dependencies = [
  "cssparser",
- "gpui",
  "tree-sitter",
  "tree-sitter-html",
  "uuid",

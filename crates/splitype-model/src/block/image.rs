@@ -2,9 +2,6 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
-
-use gpui::{SharedUri, http_client::Uri};
 
 use crate::block::html::{FenceInfo, HtmlBlockStart};
 
@@ -55,8 +52,8 @@ pub struct ResolvedImageTarget {
 pub enum ImageResolvedSource {
     /// Filesystem path resolved relative to the current document, when possible.
     Local(PathBuf),
-    /// HTTP(S) image URL handled by GPUI's HTTP client.
-    Remote(SharedUri),
+    /// HTTP(S) image URL.
+    Remote(String),
 }
 
 impl ImageSyntax {
@@ -85,15 +82,13 @@ impl ImageSyntax {
 /// Pure URI classification — no network access — so it lives with the rest
 /// of the image source model instead of the HTTP client transport.
 pub fn is_remote_image_source(source: &str) -> bool {
-    Uri::from_str(source)
-        .ok()
-        .and_then(|uri| uri.scheme_str().map(str::to_owned))
-        .is_some_and(|scheme| scheme == "http" || scheme == "https")
+    let trimmed = source.trim_start();
+    trimmed.starts_with("http://") || trimmed.starts_with("https://")
 }
 
 pub fn resolve_image_source(source: &str, base_dir: Option<&Path>) -> ImageResolvedSource {
     if is_remote_image_source(source) {
-        return ImageResolvedSource::Remote(SharedUri::from(source.to_string()));
+        return ImageResolvedSource::Remote(source.to_string());
     }
 
     let path = Path::new(source);
@@ -643,7 +638,7 @@ fn normalize_image_source(source: &str) -> String {
     let source = unescape_ascii_punctuation(source);
     if source.starts_with('<')
         && source.ends_with('>')
-        && Uri::from_str(&source[1..source.len() - 1]).is_ok()
+        && !source[1..source.len() - 1].contains(char::is_whitespace)
     {
         source[1..source.len() - 1].to_string()
     } else {

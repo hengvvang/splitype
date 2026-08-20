@@ -614,7 +614,7 @@ fn native_block(kind: BlockKind, markdown: &str) -> BlockData {
     BlockData::new(kind, BlockText::from_markdown(markdown))
 }
 
-fn build_code_block(language: Option<gpui::SharedString>, content: String) -> BlockData {
+fn build_code_block(language: Option<String>, content: String) -> BlockData {
     BlockData::with_plain_text(BlockKind::CodeBlock { language }, content)
 }
 

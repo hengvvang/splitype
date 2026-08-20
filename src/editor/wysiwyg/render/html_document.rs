@@ -9,7 +9,20 @@ use crate::model::block::html::{
     HtmlDocument, HtmlNode, HtmlNodeKind, attr_value, parse_html_image_block, style_for_node,
 };
 use crate::model::block::image::resolve_image_source;
-use crate::model::inline::html::html_css_color_to_hsla;
+use crate::model::inline::html::HtmlCssColor;
+
+/// Convert an HTML/CSS color to GPUI's `Hsla`, following `currentColor`.
+pub(crate) fn html_css_color_to_hsla(color: HtmlCssColor, current_color: Hsla) -> Hsla {
+    match color {
+        HtmlCssColor::CurrentColor => current_color,
+        HtmlCssColor::Rgba(color) => Hsla::from(Rgba {
+            r: color.red as f32 / 255.0,
+            g: color.green as f32 / 255.0,
+            b: color.blue as f32 / 255.0,
+            a: color.alpha.clamp(0.0, 1.0),
+        }),
+    }
+}
 
 pub(crate) fn html_children_text(node: &HtmlNode) -> String {
     if node.children.is_empty() {

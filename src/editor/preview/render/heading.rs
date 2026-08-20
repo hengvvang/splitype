@@ -14,39 +14,33 @@ pub(crate) fn render_preview_heading(
     base: Div,
     theme: &Theme,
 ) -> AnyElement {
-    let c = &theme.colors;
-    let d = &theme.dimensions;
-    let t = &theme.typography;
-
-    let (text_color, font_size, font_weight) = match level {
-        1 => (c.text_h1, t.h1_size, t.h1_weight.to_font_weight()),
-        2 => (c.text_h2, t.h2_size, t.h2_weight.to_font_weight()),
-        3 => (c.text_h3, t.h3_size, t.h3_weight.to_font_weight()),
-        4 => (c.text_h4, t.h4_size, t.h4_weight.to_font_weight()),
-        5 => (c.text_h5, t.h5_size, t.h5_weight.to_font_weight()),
-        6 => (c.text_h6, t.h6_size, t.h6_weight.to_font_weight()),
-        _ => (c.text_default, t.text_size, FontWeight::NORMAL),
-    };
+    let style = theme.heading_style(level);
 
     let mut element = base
-        .text_size(px(font_size))
-        .font_weight(font_weight)
-        .text_color(text_color)
-        .child(inline::render_preview_inline(
-            &block.data.text,
-            text_color,
-            font_size,
-            font_weight,
-            theme,
-        ));
+        .text_size(px(style.font_size))
+        .font_weight(style.font_weight)
+        .text_color(style.text_color);
 
-    if level == 1 {
-        element = element
-            .pb(px(d.h1_padding_bottom))
-            .mb(px(d.h1_margin_bottom))
-            .border_b(px(d.h1_border_width))
-            .border_color(c.border_h1);
+    if style.padding_bottom > 0.0 {
+        element = element.pb(px(style.padding_bottom));
+    }
+    if style.margin_bottom > 0.0 {
+        element = element.mb(px(style.margin_bottom));
+    }
+    if style.border_width > 0.0 {
+        element = element.border_b(px(style.border_width));
+    }
+    if let Some(border_color) = style.border_color {
+        element = element.border_color(border_color);
     }
 
-    element.into_any_element()
+    element
+        .child(inline::render_preview_inline(
+            &block.data.text,
+            style.text_color,
+            style.font_size,
+            style.font_weight,
+            theme,
+        ))
+        .into_any_element()
 }

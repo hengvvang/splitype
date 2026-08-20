@@ -4,8 +4,6 @@
 //! Each variant maps to a CommonMark / GFM block-level syntax element and
 //! determines both how the block is parsed from Markdown and how it is rendered.
 
-use gpui::SharedString;
-
 use crate::block::callout::CalloutKind;
 use super::fence::CodeFenceOpening;
 
@@ -33,7 +31,7 @@ pub enum BlockKind {
     /// GFM pipe-table block.
     Table,
     /// Fenced or indented code block with optional language info string.
-    CodeBlock { language: Option<SharedString> },
+    CodeBlock { language: Option<String> },
     /// HTML comment block preserved as visible comment text.
     HtmlComment,
     /// Raw HTML block rendered through native GPUI semantic elements.
@@ -293,7 +291,7 @@ impl BlockKind {
             language: if language.is_empty() {
                 None
             } else {
-                Some(language.to_string().into())
+                Some(language.to_string())
             },
         })
     }
@@ -550,7 +548,7 @@ mod tests {
     #[test]
     fn code_block_kind_stores_language() {
         let kind = BlockKind::CodeBlock {
-            language: Some(SharedString::from("rust")),
+            language: Some("rust".to_string()),
         };
         assert!(kind.is_code_block());
         assert!(!kind.is_list_item());

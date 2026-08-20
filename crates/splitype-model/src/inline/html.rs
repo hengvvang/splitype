@@ -3,8 +3,6 @@
 //! HtmlInlineStyle lives on inline fragments (fragment.html_style); the
 //! block-level HTML document model lives in `super::block::html`.
 
-use gpui::{Hsla, Rgba};
-
 use cssparser::color::{parse_hash_color, parse_named_color};
 
 /// Parsed CSS color value from a safe inline `style` attribute.
@@ -24,19 +22,6 @@ pub struct HtmlCssRgba {
     pub green: u8,
     pub blue: u8,
     pub alpha: f32,
-}
-
-/// Convert an HTML/CSS color to GPUI's `Hsla`, following `currentColor`.
-pub fn html_css_color_to_hsla(color: HtmlCssColor, current_color: Hsla) -> Hsla {
-    match color {
-        HtmlCssColor::CurrentColor => current_color,
-        HtmlCssColor::Rgba(color) => Hsla::from(Rgba {
-            r: color.red as f32 / 255.0,
-            g: color.green as f32 / 255.0,
-            b: color.blue as f32 / 255.0,
-            a: color.alpha.clamp(0.0, 1.0),
-        }),
-    }
 }
 
 /// Parsed CSS font-size value from a safe inline `style` attribute.

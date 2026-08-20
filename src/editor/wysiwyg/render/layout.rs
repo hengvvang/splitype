@@ -96,20 +96,8 @@ pub fn footnote_row_top_gap(previous: Option<RowSpacingInfo>, default_gap: f32) 
 
 /// Callout accent border + background colours from the theme.
 pub fn callout_colors(variant: crate::model::block::CalloutKind, theme: &Theme) -> (Hsla, Hsla) {
-    let c = &theme.colors;
-    match variant {
-        crate::model::block::CalloutKind::Note => (c.callout_note_border, c.callout_note_bg),
-        crate::model::block::CalloutKind::Tip => (c.callout_tip_border, c.callout_tip_bg),
-        crate::model::block::CalloutKind::Important => {
-            (c.callout_important_border, c.callout_important_bg)
-        }
-        crate::model::block::CalloutKind::Warning => {
-            (c.callout_warning_border, c.callout_warning_bg)
-        }
-        crate::model::block::CalloutKind::Caution => {
-            (c.callout_caution_border, c.callout_caution_bg)
-        }
-    }
+    let style = theme.callout_style(variant);
+    (style.border_color, style.background_color)
 }
 
 // ── Font helpers ────────────────────────────────────────────────────────
