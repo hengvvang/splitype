@@ -1113,7 +1113,7 @@ impl Shell {
             .into_any_element()
     }
 
-    pub(crate) fn render_explorer_midcontainer(
+    pub(crate) fn render_explorer_body(
         &mut self,
         panel_id: usize,
         theme: &Theme,

@@ -507,12 +507,12 @@ impl Shell {
         let gap = d.panel_tile_gap;
         let radius = d.panel_tile_radius;
 
-        // Tile card: an Editor leaf renders its own card (top bar, panes,
+        // Panel card: an Editor leaf renders its own card (top bar, panes,
         // status bar) via its content entity; Explorer / Settings leaves
-        // are assembled by the Shell. Either way the tile gets the same
+        // are assembled by the Shell. Either way the panel gets the same
         // wrapper below — uniform gap padding, corner drag handles, and
         // the type dropdown.
-        let tile_card: AnyElement = if kind == crate::app::window_panels::WindowPanelKind::Editor {
+        let panel_card: AnyElement = if kind == crate::app::window_panels::WindowPanelKind::Editor {
             let Some(entity) = self.editor_for(leaf_id) else {
                 unreachable!("editor leaf without an entity is rendered by its entity")
             };
@@ -530,15 +530,15 @@ impl Shell {
                 }
             };
 
-            let midcontainer: AnyElement = match kind {
+            let panel_body: AnyElement = match kind {
                 WindowPanelKind::Editor => {
                     unreachable!("editor leaf without an entity is rendered by its entity")
                 }
                 WindowPanelKind::Explorer => {
-                    self.render_explorer_midcontainer(leaf_id, theme, strings, cx)
+                    self.render_explorer_body(leaf_id, theme, strings, cx)
                 }
                 WindowPanelKind::Settings => {
-                    self.render_settings_midcontainer(leaf_id, theme, strings, cx)
+                    self.render_settings_body(leaf_id, theme, strings, cx)
                 }
             };
 
@@ -554,15 +554,15 @@ impl Shell {
                 }
             };
 
-            let midcontainer_container = div()
+            let body_container = div()
                 .w_full()
                 .flex_1()
                 .min_h(px(0.0))
                 .relative()
-                .child(midcontainer);
+                .child(panel_body);
 
-            // Tile card with overflow hidden (no corner handles inside, to avoid clipping).
-            let mut tile_card = div()
+            // Panel card with overflow hidden (no corner handles inside, to avoid clipping).
+            let mut card = div()
                 .id(("panel-card", leaf_id))
                 .w_full()
                 .h_full()
@@ -575,13 +575,13 @@ impl Shell {
                 .border_color(c.dialog_border)
                 .shadow_lg()
                 .child(topbar)
-                .child(midcontainer_container);
+                .child(body_container);
 
             if let Some(bb) = bottombar {
-                tile_card = tile_card.child(bb);
+                card = card.child(bb);
             }
 
-            tile_card.into_any_element()
+            card.into_any_element()
         };
 
         // Mouse interaction with any part of the tile marks it as the focused
@@ -605,7 +605,7 @@ impl Shell {
                     cx.notify();
                 });
             })
-            .child(tile_card);
+            .child(panel_card);
 
         // Corner drag handles positioned at the four outer corners of the tile card.
         let shell_corner = cx.entity().downgrade();

@@ -80,7 +80,7 @@ impl Editor {
         let panel_id = self.panel_id;
         let inner_leaf_count = self.session().root.tree.count_leaves();
 
-        let focused_pane_id = self.focused_pane;
+        let focused_pane_id = self.focused_pane_id;
         let focused_kind =
             focused_pane_id.and_then(|pane_id| self.session().root.tree.find_leaf_kind(pane_id));
 
@@ -201,8 +201,8 @@ impl Editor {
                         .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                             let _ = close_editor.update(cx, |ed, cx| {
                                 ed.close_pane(pane_id);
-                                if ed.focused_pane == Some(pane_id) {
-                                    ed.focused_pane = None;
+                                if ed.focused_pane_id == Some(pane_id) {
+                                    ed.focused_pane_id = None;
                                 }
                                 cx.notify();
                             });

@@ -214,6 +214,22 @@ impl ImeConverter {
     pub fn utf8_range_to_utf16_in(text: &str, range: &Range<usize>) -> Range<usize> {
         Self::utf8_to_utf16_in(text, range.start)..Self::utf8_to_utf16_in(text, range.end)
     }
+
+    pub fn utf16_to_display_offset(text: &str, offset: Utf16Offset) -> DisplayOffset {
+        DisplayOffset(Self::utf16_to_utf8_in(text, offset.0))
+    }
+
+    pub fn display_to_utf16_offset(text: &str, offset: DisplayOffset) -> Utf16Offset {
+        Utf16Offset(Self::utf8_to_utf16_in(text, offset.0))
+    }
+
+    pub fn utf16_span_to_display_span(text: &str, range: &Range<Utf16Offset>) -> Range<DisplayOffset> {
+        Self::utf16_to_display_offset(text, range.start)..Self::utf16_to_display_offset(text, range.end)
+    }
+
+    pub fn display_span_to_utf16_span(text: &str, range: &Range<DisplayOffset>) -> Range<Utf16Offset> {
+        Self::display_to_utf16_offset(text, range.start)..Self::display_to_utf16_offset(text, range.end)
+    }
 }
 
 #[cfg(test)]
@@ -237,6 +253,12 @@ mod tests {
         let utf16_range = ImeConverter::utf8_range_to_utf16_in(text, &utf8_range);
         assert_eq!(utf16_range.end - utf16_range.start, 2);
         assert_eq!(ImeConverter::utf16_range_to_utf8_in(text, &utf16_range), utf8_range);
+
+        // Typed tests
+        let disp_off = DisplayOffset(utf8_pos_emoji);
+        let u16_off = ImeConverter::display_to_utf16_offset(text, disp_off);
+        assert_eq!(u16_off, Utf16Offset(utf16_pos_emoji));
+        assert_eq!(ImeConverter::utf16_to_display_offset(text, u16_off), disp_off);
     }
 
     #[test]

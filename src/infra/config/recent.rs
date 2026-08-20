@@ -167,42 +167,7 @@ fn normalize_recent_files(paths: impl IntoIterator<Item = PathBuf>) -> Vec<PathB
 
 fn is_recordable_recent_file_path(path: &Path) -> bool {
     let text = path.to_string_lossy();
-    if text.trim().is_empty() {
-        return false;
-    }
-
-    !(is_inside_system_temp_dir(path) && has_splitype_temp_fixture_name(path))
-}
-
-fn is_inside_system_temp_dir(path: &Path) -> bool {
-    let temp_dir = std::env::temp_dir();
-    if cfg!(windows) {
-        let path_text = normalize_windows_path_text(path);
-        let mut temp_text = normalize_windows_path_text(&temp_dir);
-        if !temp_text.ends_with('\\') {
-            temp_text.push('\\');
-        }
-        return path_text.starts_with(&temp_text);
-    }
-
-    path.starts_with(temp_dir)
-}
-
-fn normalize_windows_path_text(path: &Path) -> String {
-    path.to_string_lossy()
-        .replace('/', "\\")
-        .trim_end_matches('\\')
-        .to_ascii_lowercase()
-}
-
-fn has_splitype_temp_fixture_name(path: &Path) -> bool {
-    path.file_name()
-        .and_then(|name| name.to_str())
-        .map(|name| {
-            let name = name.to_ascii_lowercase();
-            name.starts_with("splitype-drop-")
-        })
-        .unwrap_or(false)
+    !text.trim().is_empty()
 }
 
 fn same_recent_path(left: &Path, right: &Path) -> bool {
@@ -272,47 +237,6 @@ mod tests {
             paths,
             vec![PathBuf::from("C:\\one.md"), PathBuf::from("C:\\two.md")]
         );
-
-        let _ = std::fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn recent_history_filters_legacy_splitype_temp_fixture_paths() {
-        let root = std::env::temp_dir().join(format!("splitype-config-{}", uuid::Uuid::new_v4()));
-        let dirs = SplitypeConfigDirs::from_root(&root);
-        let fixture_path = std::env::temp_dir().join(format!(
-            "splitype-drop-save-replace-{}-123.md",
-            std::process::id()
-        ));
-        let real_path = PathBuf::from("C:\\notes\\real.md");
-        std::fs::create_dir_all(&root).unwrap();
-        std::fs::write(
-            dirs.history_file(),
-            format!("{}\n{}\n", fixture_path.display(), real_path.display()),
-        )
-        .unwrap();
-
-        let paths = read_recent_files_with_dirs(&dirs).unwrap();
-        assert_eq!(paths, vec![real_path]);
-
-        let _ = std::fs::remove_dir_all(root);
-    }
-
-    #[test]
-    fn recording_splitype_temp_fixture_path_is_noop() {
-        let root = std::env::temp_dir().join(format!("splitype-config-{}", uuid::Uuid::new_v4()));
-        let dirs = SplitypeConfigDirs::from_root(&root);
-        let fixture_path = std::env::temp_dir().join(format!(
-            "splitype-drop-dirty-discard-{}-123.md",
-            std::process::id()
-        ));
-
-        assert!(
-            record_recent_file_with_dirs(&fixture_path, &dirs)
-                .unwrap()
-                .is_empty()
-        );
-        assert!(!dirs.history_file().exists());
 
         let _ = std::fs::remove_dir_all(root);
     }

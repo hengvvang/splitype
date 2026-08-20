@@ -425,7 +425,7 @@ async fn editing_pane_click_defers_panel_activation_without_panic(cx: &mut TestA
             let editor = shell.primary_editor().expect("editor window has an editor");
             let editor = editor.read(cx);
             (
-                editor.focused_pane,
+                editor.focused_pane_id,
                 shell.panels.layout.active_leaf,
                 editor.panel_id,
             )

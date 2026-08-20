@@ -52,7 +52,7 @@ impl Editor {
         // reaches the pane div. Explicit clicks take precedence. Only runs
         // for editing panels: a welcome panel has no tabs, hence no edit
         // targets to derive from.
-        if self.focused_pane.is_none()
+        if self.focused_pane_id.is_none()
             && self.panel_mode().is_editing()
             && let Some(target_id) = self.focused_edit_target_entity_id(window, cx)
         {
@@ -64,7 +64,7 @@ impl Editor {
             }) {
                 // Keyboard focus sits in a source pane's own block.
                 if inner_tree.contains_leaf(*pane_id) {
-                    self.focused_pane = Some(*pane_id);
+                    self.focused_pane_id = Some(*pane_id);
                 }
             } else if self.doc().block_entity_by_id(target_id).is_some() {
                 // Keyboard focus sits in the shared document: point at the
@@ -75,7 +75,7 @@ impl Editor {
                     .into_iter()
                     .find(|id| inner_tree.find_leaf_kind(*id) == Some(EditorPaneKind::Wysiwyg))
                 {
-                    self.focused_pane = Some(pane_id);
+                    self.focused_pane_id = Some(pane_id);
                 }
             }
         }
@@ -112,7 +112,7 @@ impl Editor {
             container = container.child(dropdown);
         }
 
-        // Inner corner-drag preview: rendered inside the midcontainer so
+        // Inner corner-drag preview: rendered inside the pane layout container so
         // the normalized rects position with `relative()` against the
         // layout's initialization region (topbar/bottombar excluded). Host
         // policy: only plain (no-modifier) drags show an indicator.
@@ -540,8 +540,8 @@ impl Editor {
                 // click / focus) — a Shell update from inside this
                 // editor's own render would re-enter `sync_panel_states`
                 // and try to update this very entity while it renders.
-                if self.focused_pane.is_none() {
-                    self.focused_pane = Some(pane_id);
+                if self.focused_pane_id.is_none() {
+                    self.focused_pane_id = Some(pane_id);
                 }
 
                 let focus_editor = cx.entity().downgrade();

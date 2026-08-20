@@ -1,85 +1,9 @@
-//! Preview list item rendering — bullet, task, and numbered markers with
-//! the same visuals as the WYSIWYG list items. Marker helpers are
-//! re-implemented here so preview styling can diverge independently.
-
 use gpui::*;
 
 use crate::editor::preview::render::inline;
 use crate::editor::tree::block::Block;
+use crate::editor::wysiwyg::render::{numbered_list_marker, render_custom_bullet_marker};
 use crate::infra::theme::Theme;
-
-/// Bullet marker shapes by nesting depth (solid disc, hollow disc, square).
-fn bullet_marker(depth: usize, color: Hsla) -> AnyElement {
-    match depth % 3 {
-        0 => div()
-            .size(px(5.5))
-            .rounded_full()
-            .bg(color)
-            .into_any_element(),
-        1 => div()
-            .size(px(5.5))
-            .rounded_full()
-            .border_1()
-            .border_color(color)
-            .into_any_element(),
-        _ => div()
-            .size(px(4.5))
-            .rounded(px(0.5))
-            .bg(color)
-            .into_any_element(),
-    }
-}
-
-/// List ordinal: numbers at depth 0, lowercase letters at depth 1, roman
-/// numerals at depth 2+.
-fn numbered_marker(depth: usize, ordinal: usize) -> String {
-    match depth {
-        0 => format!("{ordinal}."),
-        1 => format!("{}.", alphabetic_marker(ordinal)),
-        _ => format!("{}.", roman_marker(ordinal)),
-    }
-}
-
-fn alphabetic_marker(ordinal: usize) -> String {
-    let mut result = String::new();
-    let mut value = ordinal;
-    loop {
-        let remainder = (value - 1) % 26;
-        result.insert(0, (b'a' + remainder as u8) as char);
-        if value <= 26 {
-            break;
-        }
-        value = (value - 1) / 26;
-    }
-    result
-}
-
-fn roman_marker(ordinal: usize) -> String {
-    const TOKENS: &[(usize, &str)] = &[
-        (1000, "m"),
-        (900, "cm"),
-        (500, "d"),
-        (400, "cd"),
-        (100, "c"),
-        (90, "xc"),
-        (50, "l"),
-        (40, "xl"),
-        (10, "x"),
-        (9, "ix"),
-        (5, "v"),
-        (4, "iv"),
-        (1, "i"),
-    ];
-    let mut value = ordinal;
-    let mut out = String::new();
-    for (amount, token) in TOKENS {
-        while value >= *amount {
-            out.push_str(token);
-            value -= amount;
-        }
-    }
-    out
-}
 
 /// Renders a bulleted list item content line read-only.
 pub(crate) fn render_preview_bulleted_list_item(
@@ -108,7 +32,7 @@ pub(crate) fn render_preview_bulleted_list_item(
                 .flex()
                 .items_center()
                 .justify_center()
-                .child(bullet_marker(depth, c.text_default)),
+                .child(render_custom_bullet_marker(depth, c.text_default)),
             div()
                 .min_w(px(0.0))
                 .flex_grow()
@@ -207,7 +131,7 @@ pub(crate) fn render_preview_numbered_list_item(
         .children([
             div()
                 .min_w(px(d.ordered_list_marker_width))
-                .child(SharedString::from(numbered_marker(
+                .child(SharedString::from(numbered_list_marker(
                     depth,
                     block.list_ordinal.unwrap_or(1),
                 ))),

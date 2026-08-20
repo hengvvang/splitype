@@ -286,7 +286,7 @@ pub struct Editor {
     /// routing target for events without a pane context (block events,
     /// keyboard commands). One Editor entity serves one area, so the area
     /// (panel) id alone identifies it.
-    pub(crate) focused_pane: Option<usize>,
+    pub(crate) focused_pane_id: Option<usize>,
 }
 
 /// Binding between a table block and one cell editor.
@@ -490,7 +490,7 @@ impl Editor {
             footnote_tooltip: None,
             table_insert_dialog: None,
             welcome_last_click: None,
-            focused_pane: None,
+            focused_pane_id: None,
         };
         this
     }
@@ -520,7 +520,7 @@ impl Editor {
             footnote_tooltip: None,
             table_insert_dialog: None,
             welcome_last_click: None,
-            focused_pane: None,
+            focused_pane_id: None,
         };
         editor.session.tab_list.tabs.push(tab);
         editor.rebuild_table_grids(cx);
@@ -710,7 +710,7 @@ impl Editor {
     /// context (block events, keyboard commands) route here, because the
     /// window keyboard focus sits in exactly one pane at a time.
     pub(crate) fn active_pane_id(&self) -> usize {
-        if let Some(pane_id) = self.focused_pane {
+        if let Some(pane_id) = self.focused_pane_id {
             return pane_id;
         }
         let mut ids = Vec::new();
@@ -785,7 +785,7 @@ impl Editor {
     /// document at the last position. Preview / Outline panes only update
     /// the bottombar focus.
     ///
-    /// Two focus systems stay in sync here: `focused_pane`
+    /// Two focus systems stay in sync here: `focused_pane_id`
     /// (bottombar target, set explicitly) and the gpui keyboard focus
     /// (input routing, moved to the pane's edit target). The keyboard
     /// focus is the single source of truth for *who edits*; the custom
@@ -797,7 +797,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.focused_pane = Some(pane_id);
+        self.focused_pane_id = Some(pane_id);
         let panel_id = self.panel_id;
         self.defer_shell_action(cx, move |shell, cx| shell.activate_panel(panel_id, cx));
         if !self.has_active_tab() {

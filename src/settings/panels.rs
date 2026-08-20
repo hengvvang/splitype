@@ -16,7 +16,7 @@ use crate::infra::theme::{Theme, ThemeManager};
 use crate::ui::switch::Switch;
 
 impl Shell {
-    pub(crate) fn render_settings_midcontainer(
+    pub(crate) fn render_settings_body(
         &mut self,
         panel_id: usize,
         theme: &Theme,

@@ -480,7 +480,7 @@ async fn clicking_a_block_in_another_pane_updates_that_panes_focus_target(cx: &m
 
     let (focused_pane, pane1_target, pane2_target) = editor.read_with(cx, |editor, _cx| {
         (
-            editor.focused_pane,
+            editor.focused_pane_id,
             editor
                 .pane_state_ref(1)
                 .and_then(|state| state.focus.active_entity),
