@@ -61,7 +61,7 @@ impl Editor {
             )
             .into_bytes()),
             ExportFormat::Pdf => {
-                document_export::render_pdf(markdown, theme, title, source_base_dir)
+                Ok(document_export::render_pdf(markdown, theme, title, source_base_dir)?)
             }
         }
     }

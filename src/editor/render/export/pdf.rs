@@ -8,12 +8,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use anyhow::{Context as _, anyhow};
+use anyhow::anyhow;
 use chromiumoxide::browser::{Browser, BrowserConfig};
 use chromiumoxide::cdp::browser_protocol::page::PrintToPdfParams;
 use futures::StreamExt;
 use uuid::Uuid;
 
+use super::ExportError;
 use crate::editor::render::export::html::render_chromium_pdf_html_with_base_dir;
 use crate::infra::theme::Theme;
 
@@ -27,12 +28,12 @@ pub(crate) fn render_pdf(
     theme: &Theme,
     title: &str,
     base_path: Option<&Path>,
-) -> anyhow::Result<Vec<u8>> {
+) -> Result<Vec<u8>, ExportError> {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .thread_name("splitype-pdf-export")
         .build()
-        .context("failed to create PDF export runtime")?;
+        .map_err(|err| ExportError::RuntimeInit(err.to_string()))?;
 
     runtime.block_on(async move {
         tokio::time::timeout(
@@ -40,7 +41,7 @@ pub(crate) fn render_pdf(
             render_pdf_async(markdown, theme, title, base_path),
         )
         .await
-        .map_err(|_| anyhow!("PDF export timed out while waiting for Chromium"))?
+        .map_err(|_| ExportError::Timeout)?
     })
 }
 
@@ -49,29 +50,29 @@ pub(crate) async fn render_pdf_async(
     theme: &Theme,
     title: &str,
     base_path: Option<&Path>,
-) -> anyhow::Result<Vec<u8>> {
+) -> Result<Vec<u8>, ExportError> {
     let html = render_chromium_pdf_html_with_base_dir(markdown, theme, title, base_path);
-    let temp = PdfTempFiles::create(&html)?;
+    let temp = PdfTempFiles::create(&html).map_err(ExportError::Io)?;
     let result = render_pdf_from_html_file_async(temp.html_path.clone()).await;
     temp.cleanup();
     result
 }
 
-async fn render_pdf_from_html_file_async(html_path: PathBuf) -> anyhow::Result<Vec<u8>> {
+async fn render_pdf_from_html_file_async(html_path: PathBuf) -> Result<Vec<u8>, ExportError> {
     let user_data_dir = unique_temp_path("splitype-chromium-profile");
     fs::create_dir_all(&user_data_dir)
-        .with_context(|| format!("failed to create '{}'", user_data_dir.display()))?;
+        .map_err(|err| ExportError::Io(err))?;
 
     let config = BrowserConfig::builder()
         .new_headless_mode()
         .window_size(CHROMIUM_VIEWPORT_WIDTH, CHROMIUM_VIEWPORT_HEIGHT)
         .user_data_dir(user_data_dir.clone())
         .build()
-        .map_err(|err| anyhow!("failed to build Chromium browser config: {err}"))?;
+        .map_err(|err| ExportError::ChromiumLaunchFailed(format!("failed to build Chromium config: {err}")))?;
 
     let (mut browser, mut handler) = Browser::launch(config).await.map_err(|err| {
-        anyhow!(
-            "failed to launch Chromium for PDF export: {err}. Install Chrome, Chromium, or Edge, or set the CHROME environment variable to the browser executable path"
+        ExportError::ChromiumLaunchFailed(
+            format!("failed to launch Chromium: {err}. Install Chrome, Chromium, or Edge, or set the CHROME environment variable")
         )
     })?;
 
@@ -84,19 +85,20 @@ async fn render_pdf_from_html_file_async(html_path: PathBuf) -> anyhow::Result<V
     });
 
     let result = async {
-        let file_url = file_url_from_path(&html_path)?;
+        let file_url = file_url_from_path(&html_path)
+            .map_err(|err| ExportError::Render(err.to_string()))?;
         let page = browser
             .new_page(file_url.as_str())
             .await
-            .context("failed to open export HTML in Chromium")?;
+            .map_err(|err| ExportError::Render(format!("failed to open export HTML in Chromium: {err}")))?;
         page.wait_for_navigation()
             .await
-            .context("Chromium did not finish loading export HTML")?;
+            .map_err(|err| ExportError::Render(format!("Chromium did not finish loading export HTML: {err}")))?;
 
         let params = chromium_pdf_params();
         page.pdf(params)
             .await
-            .context("Chromium failed to print export HTML to PDF")
+            .map_err(|err| ExportError::Render(format!("Chromium failed to print export HTML to PDF: {err}")))
     }
     .await;
 
@@ -134,10 +136,9 @@ struct PdfTempFiles {
 }
 
 impl PdfTempFiles {
-    fn create(html: &str) -> anyhow::Result<Self> {
+    fn create(html: &str) -> std::io::Result<Self> {
         let html_path = unique_temp_path("splitype-export").with_extension("html");
-        fs::write(&html_path, html)
-            .with_context(|| format!("failed to write temporary HTML '{}'", html_path.display()))?;
+        fs::write(&html_path, html)?;
         Ok(Self { html_path })
     }
 

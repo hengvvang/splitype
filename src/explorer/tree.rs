@@ -22,22 +22,22 @@ impl Shell {
         let Some(root) = self.root_for_explorer_entry(id) else {
             return;
         };
-        let Some(tree) = self.panels.explorer.trees_cache.get(root).cloned() else {
-            return;
-        };
-        let Some(node) = find_explorer_node_by_id(&tree, id) else {
-            return;
-        };
         let mut ids = BTreeSet::new();
-        collect_descendant_dir_ids(node, &mut ids);
-        self.panels
-            .explorer
-            .expanded
-            .entry(root)
-            .or_default()
-            .extend(ids);
-        self.rebuild_explorer_entries();
-        cx.notify();
+        if let Some(tree) = self.panels.explorer.trees_cache.get(root)
+            && let Some(node) = find_explorer_node_by_id(tree, id)
+        {
+            collect_descendant_dir_ids(node, &mut ids);
+        }
+        if !ids.is_empty() {
+            self.panels
+                .explorer
+                .expanded
+                .entry(root)
+                .or_default()
+                .extend(ids);
+            self.rebuild_explorer_entries();
+            cx.notify();
+        }
     }
 
     /// Collapse a directory and all of its descendants.
@@ -49,30 +49,33 @@ impl Shell {
         let Some(root) = self.root_for_explorer_entry(id) else {
             return;
         };
-        let Some(tree) = self.panels.explorer.trees_cache.get(root).cloned() else {
-            return;
-        };
-        let Some(node) = find_explorer_node_by_id(&tree, id) else {
-            return;
-        };
         let mut ids = BTreeSet::new();
-        collect_descendant_dir_ids(node, &mut ids);
-        self.panels
-            .explorer
-            .expanded
-            .entry(root)
-            .or_default()
-            .retain(|expanded_id| !ids.contains(expanded_id));
-        self.rebuild_explorer_entries();
-        cx.notify();
+        if let Some(tree) = self.panels.explorer.trees_cache.get(root)
+            && let Some(node) = find_explorer_node_by_id(tree, id)
+        {
+            collect_descendant_dir_ids(node, &mut ids);
+        }
+        if !ids.is_empty() {
+            self.panels
+                .explorer
+                .expanded
+                .entry(root)
+                .or_default()
+                .retain(|expanded_id| !ids.contains(expanded_id));
+            self.rebuild_explorer_entries();
+            cx.notify();
+        }
     }
 
     /// Expand every directory in every worktree.
     pub(crate) fn expand_all_explorer_nodes(&mut self, cx: &mut Context<Self>) {
-        let trees = self.panels.explorer.trees_cache.clone();
-        for (root, tree) in trees.iter().enumerate() {
+        let mut worktree_ids = Vec::new();
+        for (root, tree) in self.panels.explorer.trees_cache.iter().enumerate() {
             let mut ids = BTreeSet::new();
             collect_descendant_dir_ids(tree, &mut ids);
+            worktree_ids.push((root, ids));
+        }
+        for (root, ids) in worktree_ids {
             self.panels
                 .explorer
                 .expanded
@@ -103,17 +106,18 @@ impl Shell {
         let Some(root) = self.root_for_explorer_entry(id) else {
             return;
         };
-        let Some(tree) = self.panels.explorer.trees_cache.get(root).cloned() else {
-            return;
-        };
-        let Some(node) = find_explorer_node_by_id(&tree, id) else {
-            return;
-        };
-        if node.kind != ExplorerEntryKind::Directory {
+        let mut dir_ids = BTreeSet::new();
+        if let Some(tree) = self.panels.explorer.trees_cache.get(root)
+            && let Some(node) = find_explorer_node_by_id(tree, id)
+        {
+            if node.kind != ExplorerEntryKind::Directory {
+                return;
+            }
+            collect_descendant_dir_ids(node, &mut dir_ids);
+        }
+        if dir_ids.is_empty() {
             return;
         }
-        let mut dir_ids = BTreeSet::new();
-        collect_descendant_dir_ids(node, &mut dir_ids);
         let set = self.panels.explorer.expanded.entry(root).or_default();
         if set.contains(&id) {
             // Collapse: remove the entry and every descendant directory.
