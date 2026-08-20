@@ -4,6 +4,7 @@
 pub(crate) mod bottombar;
 pub(crate) mod panels;
 pub(crate) mod state;
+pub(crate) mod tabs;
 pub(crate) mod topbar;
 pub(crate) mod window;
 
