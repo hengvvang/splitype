@@ -241,17 +241,18 @@ impl Shell {
         // Start the pending rename editor now that the copied entry is in
         // the scanned tree (the editor needs window access, so it runs in a
         // spawned task).
-        if let Some((window_handle, path)) = self.panels.explorer.pending_rename.take() {
-            if self.explorer_id_for_path(&path).is_some() {
-                let weak_editor = cx.entity().downgrade();
-                let _ = cx.spawn(async move |_this, cx: &mut AsyncApp| {
-                    let _ = cx.update_window(window_handle, |_, window, cx| {
-                        let _ = weak_editor.update(cx, |editor, cx| {
-                            editor.begin_inline_rename(path, window, cx);
-                        });
+        if let Some((window_handle, path)) = self.panels.explorer.pending_rename.take()
+            && self.explorer_id_for_path(&path).is_some()
+        {
+            let weak_editor = cx.entity().downgrade();
+            cx.spawn(async move |_this, cx: &mut AsyncApp| {
+                let _ = cx.update_window(window_handle, |_, window, cx| {
+                    let _ = weak_editor.update(cx, |editor, cx| {
+                        editor.begin_inline_rename(path, window, cx);
                     });
                 });
-            }
+            })
+            .detach();
         }
         cx.notify();
     }
@@ -260,10 +261,10 @@ impl Shell {
         self.add_explorer_worktree(path, cx);
     }
     pub(crate) fn sync_explorer_after_document_path_change(&mut self, cx: &mut Context<Self>) {
-        if self.panels.explorer.worktrees.is_empty() {
-            if let Some(path) = self.explorer_root_for_current_file(cx) {
-                self.add_explorer_worktree(path, cx);
-            }
+        if self.panels.explorer.worktrees.is_empty()
+            && let Some(path) = self.explorer_root_for_current_file(cx)
+        {
+            self.add_explorer_worktree(path, cx);
         }
         if self.panels.explorer.is_open {
             self.sync_explorer_models(cx);
@@ -304,10 +305,10 @@ impl Shell {
             let Some(path) = paths.into_iter().next() else {
                 return;
             };
-            if path.is_dir() {
-                if let Err(err) = crate::infra::config::recent::record_recent_folder(&path) {
-                    eprintln!("failed to update recent folder history: {err}");
-                }
+            if path.is_dir()
+                && let Err(err) = crate::infra::config::recent::record_recent_folder(&path)
+            {
+                eprintln!("failed to update recent folder history: {err}");
             }
             let _ = weak_shell.update(cx, |shell, cx| {
                 shell.open_explorer_folder_path(path, cx);

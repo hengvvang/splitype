@@ -237,13 +237,12 @@ impl Shell {
             return;
         }
         // Keep an existing file selection when the entry is still visible.
-        if let Some(ExplorerSelection::Entry { entry, .. }) = self.panels.explorer.selected {
-            if trees
+        if let Some(ExplorerSelection::Entry { entry, .. }) = self.panels.explorer.selected
+            && trees
                 .iter()
                 .any(|tree| explorer_tree_contains_id(tree, entry))
-            {
-                return;
-            }
+        {
+            return;
         }
         let Some(path) = self
             .active_editor_tab(cx)
@@ -278,10 +277,10 @@ impl Shell {
         }
         ancestors.reverse(); // root → leaf
         for ancestor in ancestors {
-            if let Some(node) = find_explorer_node(&tree, &ancestor) {
-                if node.kind == ExplorerEntryKind::Directory {
-                    set.insert(node.id);
-                }
+            if let Some(node) = find_explorer_node(&tree, &ancestor)
+                && node.kind == ExplorerEntryKind::Directory
+            {
+                set.insert(node.id);
             }
         }
     }

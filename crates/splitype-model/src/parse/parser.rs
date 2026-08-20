@@ -1537,17 +1537,16 @@ fn build_blocks_from_lines_internal(
             let next_root_is_list_item = lines
                 .get(index)
                 .is_some_and(|line| parse_list_marker(line).is_some());
-            let preserved_empty_blocks = if roots.is_empty() {
-                blank_run_len
-            } else if previous_root_is_list_item && next_root_is_list_item {
-                blank_run_len
-            } else {
-                blank_run_len.saturating_sub(1)
-            };
+            let preserved_empty_blocks =
+                if roots.is_empty() || (previous_root_is_list_item && next_root_is_list_item) {
+                    blank_run_len
+                } else {
+                    blank_run_len.saturating_sub(1)
+                };
 
-            for _ in 0..preserved_empty_blocks {
-                roots.push(native_block(BlockKind::Paragraph, ""));
-            }
+            roots.resize_with(roots.len() + preserved_empty_blocks, || {
+                native_block(BlockKind::Paragraph, "")
+            });
             continue;
         }
 

@@ -314,25 +314,25 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                     // the remaining child (with target removed) stays in place so the
                     // split direction and ratio are preserved.
                     if target_in_first {
-                        if let Self::Leaf(container) = &**first {
-                            if container.id == target_id {
-                                // The whole first child is the target leaf: the split
-                                // collapses into the second child (which holds `into`).
-                                *self = (**second).clone();
-                                return true;
-                            }
+                        if let Self::Leaf(container) = &**first
+                            && container.id == target_id
+                        {
+                            // The whole first child is the target leaf: the split
+                            // collapses into the second child (which holds `into`).
+                            *self = (**second).clone();
+                            return true;
                         }
                         if !first.remove_leaf(target_id) {
                             return false;
                         }
                     } else {
-                        if let Self::Leaf(container) = &**second {
-                            if container.id == target_id {
-                                // The whole second child is the target leaf: the split
-                                // collapses into the first child (which holds `into`).
-                                *self = (**first).clone();
-                                return true;
-                            }
+                        if let Self::Leaf(container) = &**second
+                            && container.id == target_id
+                        {
+                            // The whole second child is the target leaf: the split
+                            // collapses into the first child (which holds `into`).
+                            *self = (**first).clone();
+                            return true;
                         }
                         if !second.remove_leaf(target_id) {
                             return false;

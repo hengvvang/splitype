@@ -184,23 +184,23 @@ impl Shell {
             |row| matches!(row, ExplorerRow::Entry(entry) if deleted.contains(&entry.id)),
         )?;
         for row in &rows[last_deleted + 1..] {
-            if let ExplorerRow::Entry(entry) = row {
-                if !deleted.contains(&entry.id) {
-                    return Some(ExplorerSelection::Entry {
-                        root: entry.root,
-                        entry: entry.id,
-                    });
-                }
+            if let ExplorerRow::Entry(entry) = row
+                && !deleted.contains(&entry.id)
+            {
+                return Some(ExplorerSelection::Entry {
+                    root: entry.root,
+                    entry: entry.id,
+                });
             }
         }
         for row in rows[..last_deleted].iter().rev() {
-            if let ExplorerRow::Entry(entry) = row {
-                if !deleted.contains(&entry.id) {
-                    return Some(ExplorerSelection::Entry {
-                        root: entry.root,
-                        entry: entry.id,
-                    });
-                }
+            if let ExplorerRow::Entry(entry) = row
+                && !deleted.contains(&entry.id)
+            {
+                return Some(ExplorerSelection::Entry {
+                    root: entry.root,
+                    entry: entry.id,
+                });
             }
         }
         if let ExplorerRow::Entry(last) = &rows[last_deleted]

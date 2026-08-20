@@ -167,13 +167,13 @@ impl SettingsWindow {
                 let strings = cx.global::<I18nManager>().strings().clone();
                 let ok = strings.info_dialog_ok;
                 let buttons = [ok.as_str()];
-                let _ = window.prompt(
+                drop(window.prompt(
                     PromptLevel::Critical,
                     &strings.settings_save_failed_title,
                     Some(&err.to_string()),
                     &buttons,
                     cx,
-                );
+                ));
                 return;
             }
         };
@@ -1269,27 +1269,31 @@ fn open_settings_window_with_state(
     settings: AppSettings,
     theme_options: Vec<ThemeCatalogEntry>,
     title: String,
-) -> WindowHandle<SettingsWindow> {
+) -> Option<WindowHandle<SettingsWindow>> {
     let bounds = Bounds::centered(None, size(px(720.0), px(480.0)), cx);
     let window_title = SharedString::from(title);
-    let handle = cx
-        .open_window(
-            splitype_window_options(window_title, bounds),
-            move |_window, cx| cx.new(move |cx| SettingsWindow::new(settings, theme_options, cx)),
-        )
-        .expect("settings window should open");
+    let handle = match cx.open_window(
+        splitype_window_options(window_title, bounds),
+        move |_window, cx| cx.new(move |cx| SettingsWindow::new(settings, theme_options, cx)),
+    ) {
+        Ok(handle) => handle,
+        Err(err) => {
+            eprintln!("failed to open settings window: {err}");
+            return None;
+        }
+    };
 
-    handle
-        .update(cx, |settings_win, window, _cx| {
-            window.activate_window();
-            settings_win.focus_handle.focus(window);
-        })
-        .expect("newly opened settings window should be updateable");
+    if let Err(err) = handle.update(cx, |settings_win, window, _cx| {
+        window.activate_window();
+        settings_win.focus_handle.focus(window);
+    }) {
+        eprintln!("failed to activate settings window: {err}");
+    }
 
-    handle
+    Some(handle)
 }
 
-pub(crate) fn open_settings_window(cx: &mut App) -> WindowHandle<SettingsWindow> {
+pub(crate) fn open_settings_window(cx: &mut App) -> Option<WindowHandle<SettingsWindow>> {
     let settings = match read_app_settings() {
         Ok(settings) => settings,
         Err(err) => {

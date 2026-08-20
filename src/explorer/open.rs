@@ -49,12 +49,12 @@ impl Shell {
             let focused_panel = self
                 .active_editor()
                 .and_then(|editor| editor.read(cx).focused_pane_id.filter(|_| area.is_some()));
-            if let (Some(_), Some(pane_id)) = (area, focused_panel) {
-                if let Some(editor) = self.active_editor() {
-                    editor.update(cx, |editor, cx| {
-                        editor.focus_pane(pane_id, window, cx);
-                    });
-                }
+            if let (Some(_), Some(pane_id)) = (area, focused_panel)
+                && let Some(editor) = self.active_editor()
+            {
+                editor.update(cx, |editor, cx| {
+                    editor.focus_pane(pane_id, window, cx);
+                });
             }
         }
     }
