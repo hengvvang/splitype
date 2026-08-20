@@ -17,7 +17,7 @@ use crate::editor::editing::projection::{
     ProjectedLinkSelectionSnapshot,
 };
 use crate::editor::tree::block::Block;
-use crate::model::inline::offsets::ImeConverter;
+use crate::model::inline::offsets::{DisplayOffset, ImeConverter, PlainOffset, SourceOffset};
 use crate::model::inline::render_cache::InlineRenderCache;
 use crate::model::inline::text::{BlockText, InlineFragment, InlineInsertionAttributes};
 use crate::model::parse::BlockKind;
@@ -547,6 +547,23 @@ impl Block {
             .source_offset_map()
             .source_to_plain_offset(source_offset);
         self.plain_to_display_cursor_offset(plain_offset)
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn source_to_display_offset(&self, source_offset: SourceOffset) -> DisplayOffset {
+        DisplayOffset(self.source_offset_to_display_offset(source_offset.0))
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn source_span_to_display_span(&self, range: Range<SourceOffset>) -> Range<DisplayOffset> {
+        let start = self.source_to_display_offset(range.start);
+        let end = self.source_to_display_offset(range.end);
+        start.min(end)..start.max(end)
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn plain_to_display_offset(&self, plain_offset: PlainOffset) -> DisplayOffset {
+        DisplayOffset(self.plain_to_display_cursor_offset(plain_offset.0))
     }
 
     pub(crate) fn source_range_to_display_range(&self, range: Range<usize>) -> Range<usize> {
