@@ -61,13 +61,12 @@ impl Block {
             BlockKind::Heading { level } => Some(level),
             _ => None,
         };
-        if self.projection_cache_key.as_ref()
-            == Some(&(
-                supports_projection,
-                heading_level,
-                plain_selected.clone(),
-                plain_marked.clone(),
-            ))
+        if let Some((cached_supports, cached_heading, cached_selected, cached_marked)) =
+            &self.projection_cache_key
+            && *cached_supports == supports_projection
+            && *cached_heading == heading_level
+            && *cached_selected == plain_selected
+            && *cached_marked == plain_marked
         {
             return;
         }
