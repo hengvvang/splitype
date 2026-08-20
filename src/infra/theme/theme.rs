@@ -580,7 +580,7 @@ pub fn custom_theme_from_value_with_default_base(
         bail!("field 'theme' must be a JSON object when present");
     }
 
-    let base_theme = custom_theme_base_theme(&base_theme_id);
+    let base_theme = custom_theme_base_theme(base_theme_id);
     let mut merged = serde_json::to_value(base_theme)?;
     let mut theme_patch = filter_json_by_schema(&raw_theme_patch, &merged);
     if let Value::Object(theme_patch_object) = &mut theme_patch {

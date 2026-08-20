@@ -5,8 +5,8 @@ use gpui::*;
 
 use crate::editor::block_protocol::BlockEvent;
 use crate::editor::editing::input::actions::{
-    BlockDown, BlockUp, End, FocusNext, FocusPrevious, Home, MoveLeft, MoveRight, SelectAll, SelectEnd,
-    SelectHome, SelectLeft, SelectRight, WordMoveLeft, WordMoveRight, WordSelectLeft,
+    BlockDown, BlockUp, End, FocusNext, FocusPrevious, Home, MoveLeft, MoveRight, SelectAll,
+    SelectEnd, SelectHome, SelectLeft, SelectRight, WordMoveLeft, WordMoveRight, WordSelectLeft,
     WordSelectRight,
 };
 use crate::editor::tree::block::Block;

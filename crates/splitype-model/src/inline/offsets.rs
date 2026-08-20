@@ -17,19 +17,47 @@ pub struct DisplayOffset(pub usize);
 
 impl DisplayOffset {
     pub const ZERO: Self = Self(0);
-    pub fn new(val: usize) -> Self { Self(val) }
-    pub fn get(self) -> usize { self.0 }
+    pub fn new(val: usize) -> Self {
+        Self(val)
+    }
+    pub fn get(self) -> usize {
+        self.0
+    }
 }
 
 impl Deref for DisplayOffset {
     type Target = usize;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
-impl From<usize> for DisplayOffset { fn from(v: usize) -> Self { Self(v) } }
-impl From<DisplayOffset> for usize { fn from(v: DisplayOffset) -> Self { v.0 } }
-impl fmt::Display for DisplayOffset { fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) } }
-impl Add<usize> for DisplayOffset { type Output = Self; fn add(self, rhs: usize) -> Self { Self(self.0 + rhs) } }
-impl Sub<usize> for DisplayOffset { type Output = Self; fn sub(self, rhs: usize) -> Self { Self(self.0.saturating_sub(rhs)) } }
+impl From<usize> for DisplayOffset {
+    fn from(v: usize) -> Self {
+        Self(v)
+    }
+}
+impl From<DisplayOffset> for usize {
+    fn from(v: DisplayOffset) -> Self {
+        v.0
+    }
+}
+impl fmt::Display for DisplayOffset {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+impl Add<usize> for DisplayOffset {
+    type Output = Self;
+    fn add(self, rhs: usize) -> Self {
+        Self(self.0 + rhs)
+    }
+}
+impl Sub<usize> for DisplayOffset {
+    type Output = Self;
+    fn sub(self, rhs: usize) -> Self {
+        Self(self.0.saturating_sub(rhs))
+    }
+}
 
 /// UTF-8 offset within unformatted/plain `BlockText` (without active syntax delimiters).
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -37,19 +65,47 @@ pub struct PlainOffset(pub usize);
 
 impl PlainOffset {
     pub const ZERO: Self = Self(0);
-    pub fn new(val: usize) -> Self { Self(val) }
-    pub fn get(self) -> usize { self.0 }
+    pub fn new(val: usize) -> Self {
+        Self(val)
+    }
+    pub fn get(self) -> usize {
+        self.0
+    }
 }
 
 impl Deref for PlainOffset {
     type Target = usize;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
-impl From<usize> for PlainOffset { fn from(v: usize) -> Self { Self(v) } }
-impl From<PlainOffset> for usize { fn from(v: PlainOffset) -> Self { v.0 } }
-impl fmt::Display for PlainOffset { fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) } }
-impl Add<usize> for PlainOffset { type Output = Self; fn add(self, rhs: usize) -> Self { Self(self.0 + rhs) } }
-impl Sub<usize> for PlainOffset { type Output = Self; fn sub(self, rhs: usize) -> Self { Self(self.0.saturating_sub(rhs)) } }
+impl From<usize> for PlainOffset {
+    fn from(v: usize) -> Self {
+        Self(v)
+    }
+}
+impl From<PlainOffset> for usize {
+    fn from(v: PlainOffset) -> Self {
+        v.0
+    }
+}
+impl fmt::Display for PlainOffset {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+impl Add<usize> for PlainOffset {
+    type Output = Self;
+    fn add(self, rhs: usize) -> Self {
+        Self(self.0 + rhs)
+    }
+}
+impl Sub<usize> for PlainOffset {
+    type Output = Self;
+    fn sub(self, rhs: usize) -> Self {
+        Self(self.0.saturating_sub(rhs))
+    }
+}
 
 /// UTF-8 offset within serialized source Markdown documents.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -57,19 +113,47 @@ pub struct SourceOffset(pub usize);
 
 impl SourceOffset {
     pub const ZERO: Self = Self(0);
-    pub fn new(val: usize) -> Self { Self(val) }
-    pub fn get(self) -> usize { self.0 }
+    pub fn new(val: usize) -> Self {
+        Self(val)
+    }
+    pub fn get(self) -> usize {
+        self.0
+    }
 }
 
 impl Deref for SourceOffset {
     type Target = usize;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
-impl From<usize> for SourceOffset { fn from(v: usize) -> Self { Self(v) } }
-impl From<SourceOffset> for usize { fn from(v: SourceOffset) -> Self { v.0 } }
-impl fmt::Display for SourceOffset { fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) } }
-impl Add<usize> for SourceOffset { type Output = Self; fn add(self, rhs: usize) -> Self { Self(self.0 + rhs) } }
-impl Sub<usize> for SourceOffset { type Output = Self; fn sub(self, rhs: usize) -> Self { Self(self.0.saturating_sub(rhs)) } }
+impl From<usize> for SourceOffset {
+    fn from(v: usize) -> Self {
+        Self(v)
+    }
+}
+impl From<SourceOffset> for usize {
+    fn from(v: SourceOffset) -> Self {
+        v.0
+    }
+}
+impl fmt::Display for SourceOffset {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+impl Add<usize> for SourceOffset {
+    type Output = Self;
+    fn add(self, rhs: usize) -> Self {
+        Self(self.0 + rhs)
+    }
+}
+impl Sub<usize> for SourceOffset {
+    type Output = Self;
+    fn sub(self, rhs: usize) -> Self {
+        Self(self.0.saturating_sub(rhs))
+    }
+}
 
 /// UTF-16 offset used by IME subsystems and GPUI's `EntityInputHandler`.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -77,19 +161,47 @@ pub struct Utf16Offset(pub usize);
 
 impl Utf16Offset {
     pub const ZERO: Self = Self(0);
-    pub fn new(val: usize) -> Self { Self(val) }
-    pub fn get(self) -> usize { self.0 }
+    pub fn new(val: usize) -> Self {
+        Self(val)
+    }
+    pub fn get(self) -> usize {
+        self.0
+    }
 }
 
 impl Deref for Utf16Offset {
     type Target = usize;
-    fn deref(&self) -> &Self::Target { &self.0 }
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
-impl From<usize> for Utf16Offset { fn from(v: usize) -> Self { Self(v) } }
-impl From<Utf16Offset> for usize { fn from(v: Utf16Offset) -> Self { v.0 } }
-impl fmt::Display for Utf16Offset { fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) } }
-impl Add<usize> for Utf16Offset { type Output = Self; fn add(self, rhs: usize) -> Self { Self(self.0 + rhs) } }
-impl Sub<usize> for Utf16Offset { type Output = Self; fn sub(self, rhs: usize) -> Self { Self(self.0.saturating_sub(rhs)) } }
+impl From<usize> for Utf16Offset {
+    fn from(v: usize) -> Self {
+        Self(v)
+    }
+}
+impl From<Utf16Offset> for usize {
+    fn from(v: Utf16Offset) -> Self {
+        v.0
+    }
+}
+impl fmt::Display for Utf16Offset {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+impl Add<usize> for Utf16Offset {
+    type Output = Self;
+    fn add(self, rhs: usize) -> Self {
+        Self(self.0 + rhs)
+    }
+}
+impl Sub<usize> for Utf16Offset {
+    type Output = Self;
+    fn sub(self, rhs: usize) -> Self {
+        Self(self.0.saturating_sub(rhs))
+    }
+}
 
 /// Bidirectional offset map between plain inline text and source Markdown.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -208,7 +320,8 @@ impl ImeConverter {
     }
 
     pub fn utf16_range_to_utf8_in(text: &str, range_utf16: &Range<usize>) -> Range<usize> {
-        Self::utf16_to_utf8_in(text, range_utf16.start)..Self::utf16_to_utf8_in(text, range_utf16.end)
+        Self::utf16_to_utf8_in(text, range_utf16.start)
+            ..Self::utf16_to_utf8_in(text, range_utf16.end)
     }
 
     pub fn utf8_range_to_utf16_in(text: &str, range: &Range<usize>) -> Range<usize> {
@@ -223,12 +336,20 @@ impl ImeConverter {
         Utf16Offset(Self::utf8_to_utf16_in(text, offset.0))
     }
 
-    pub fn utf16_span_to_display_span(text: &str, range: &Range<Utf16Offset>) -> Range<DisplayOffset> {
-        Self::utf16_to_display_offset(text, range.start)..Self::utf16_to_display_offset(text, range.end)
+    pub fn utf16_span_to_display_span(
+        text: &str,
+        range: &Range<Utf16Offset>,
+    ) -> Range<DisplayOffset> {
+        Self::utf16_to_display_offset(text, range.start)
+            ..Self::utf16_to_display_offset(text, range.end)
     }
 
-    pub fn display_span_to_utf16_span(text: &str, range: &Range<DisplayOffset>) -> Range<Utf16Offset> {
-        Self::display_to_utf16_offset(text, range.start)..Self::display_to_utf16_offset(text, range.end)
+    pub fn display_span_to_utf16_span(
+        text: &str,
+        range: &Range<DisplayOffset>,
+    ) -> Range<Utf16Offset> {
+        Self::display_to_utf16_offset(text, range.start)
+            ..Self::display_to_utf16_offset(text, range.end)
     }
 }
 
@@ -247,18 +368,27 @@ mod tests {
         // !: utf8 1 byte, utf16 1 unit
         let utf8_pos_emoji = text.find('🚀').unwrap();
         let utf16_pos_emoji = ImeConverter::utf8_to_utf16_in(text, utf8_pos_emoji);
-        assert_eq!(ImeConverter::utf16_to_utf8_in(text, utf16_pos_emoji), utf8_pos_emoji);
+        assert_eq!(
+            ImeConverter::utf16_to_utf8_in(text, utf16_pos_emoji),
+            utf8_pos_emoji
+        );
 
         let utf8_range = utf8_pos_emoji..utf8_pos_emoji + '🚀'.len_utf8();
         let utf16_range = ImeConverter::utf8_range_to_utf16_in(text, &utf8_range);
         assert_eq!(utf16_range.end - utf16_range.start, 2);
-        assert_eq!(ImeConverter::utf16_range_to_utf8_in(text, &utf16_range), utf8_range);
+        assert_eq!(
+            ImeConverter::utf16_range_to_utf8_in(text, &utf16_range),
+            utf8_range
+        );
 
         // Typed tests
         let disp_off = DisplayOffset(utf8_pos_emoji);
         let u16_off = ImeConverter::display_to_utf16_offset(text, disp_off);
         assert_eq!(u16_off, Utf16Offset(utf16_pos_emoji));
-        assert_eq!(ImeConverter::utf16_to_display_offset(text, u16_off), disp_off);
+        assert_eq!(
+            ImeConverter::utf16_to_display_offset(text, u16_off),
+            disp_off
+        );
     }
 
     #[test]

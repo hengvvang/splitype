@@ -60,9 +60,12 @@ impl Editor {
                 source_base_dir,
             )
             .into_bytes()),
-            ExportFormat::Pdf => {
-                Ok(document_export::render_pdf(markdown, theme, title, source_base_dir)?)
-            }
+            ExportFormat::Pdf => Ok(document_export::render_pdf(
+                markdown,
+                theme,
+                title,
+                source_base_dir,
+            )?),
         }
     }
 

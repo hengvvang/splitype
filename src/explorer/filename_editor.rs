@@ -322,8 +322,7 @@ impl Shell {
         let Some(tree) = self.panels.explorer.trees_cache.get(root).cloned() else {
             return;
         };
-        let Some(node) =
-            crate::explorer::state::state::find_explorer_node(&tree, &target_path)
+        let Some(node) = crate::explorer::state::state::find_explorer_node(&tree, &target_path)
         else {
             return;
         };
@@ -360,8 +359,7 @@ impl Shell {
                 root,
                 parent_id: None,
                 target_id: Some(node.id),
-                is_dir: node.kind
-                    == crate::explorer::state::state::ExplorerEntryKind::Directory,
+                is_dir: node.kind == crate::explorer::state::state::ExplorerEntryKind::Directory,
                 depth,
                 path: target_path,
                 validation: None,
@@ -422,18 +420,13 @@ impl Shell {
 
     /// Row index of the inline edit row in the flat list, if any.
     pub(crate) fn explorer_edit_row_index(&self) -> Option<usize> {
-        self.panels
-            .explorer
-            .edit
-            .as_ref()
-            .map(|_| {
-                self.panels
-                    .explorer
-                    .entries
-                    .iter()
-                    .position(|row| matches!(row, ExplorerRow::Edit { .. }))
-            })
-            .flatten()
+        self.panels.explorer.edit.as_ref().and_then(|_| {
+            self.panels
+                .explorer
+                .entries
+                .iter()
+                .position(|row| matches!(row, ExplorerRow::Edit { .. }))
+        })
     }
 
     /// Commit the inline create/rename: writes to disk on a background
@@ -696,7 +689,7 @@ impl Shell {
         let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) else {
             return;
         };
-        let sanitized = text.replace('\r', "").replace('\n', "");
+        let sanitized = text.replace(['\r', '\n'], "");
         edit.filename.insert_at_selection(&sanitized);
         self.populate_explorer_validation(cx);
         cx.notify();
@@ -820,7 +813,7 @@ impl EntityInputHandler for Shell {
             .map(|range| utf16_range_to_utf8_in(&text, range))
             .or_else(|| edit.filename.marked_range.clone())
             .unwrap_or_else(|| edit.filename.selection_range());
-        let sanitized = new_text.replace('\r', "").replace('\n', "");
+        let sanitized = new_text.replace(['\r', '\n'], "");
         edit.filename.text.replace_range(range.clone(), &sanitized);
         let marked = range.start..range.start + sanitized.len();
         let selection = new_selected_range_utf16

@@ -4,11 +4,11 @@
 //! external consumer would, verifying that parsing produces the expected
 //! block tree and that inline formatting survives serialization.
 
-use splitype_model::parse::kind::BlockKind;
-use splitype_model::parse::data::BlockData;
-use splitype_model::inline::text::BlockText;
-use splitype_model::parse::parser::parse_document;
 use splitype_model::block::table::TableData;
+use splitype_model::inline::text::BlockText;
+use splitype_model::parse::data::BlockData;
+use splitype_model::parse::kind::BlockKind;
+use splitype_model::parse::parser::parse_document;
 
 fn roots(markdown: &str) -> Vec<BlockData> {
     parse_document(markdown)

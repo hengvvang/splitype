@@ -56,10 +56,7 @@ impl Editor {
         indentation: &str,
         language: Option<&str>,
     ) -> (String, Vec<usize>, Vec<usize>) {
-        let fence = crate::editor::tree::serialize::safe_code_fence_with_info(
-            content,
-            language,
-        );
+        let fence = crate::editor::tree::serialize::safe_code_fence_with_info(content, language);
         let mut full = String::new();
         let mut content_to_source = vec![0; content.len() + 1];
         let mut source_to_content = vec![0];
@@ -702,7 +699,9 @@ impl Editor {
         for child in &children {
             let child_ref = child.read(cx);
             if kind.is_list_item()
-                && crate::editor::tree::document::Document::list_child_requires_leading_blank_line(child_ref)
+                && crate::editor::tree::document::Document::list_child_requires_leading_blank_line(
+                    child_ref,
+                )
             {
                 total_len += 1;
             }

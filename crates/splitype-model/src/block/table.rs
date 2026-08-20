@@ -1034,9 +1034,9 @@ mod tests {
 
         assert_eq!(table.header.len(), 2);
         let serialized = table.serialize_markdown();
-        let reparsed = parse_table_region(
-            &serialized.lines().map(String::from).collect::<Vec<_>>()
-        ).expect("reparsed table");
+        let reparsed =
+            parse_table_region(&serialized.lines().map(String::from).collect::<Vec<_>>())
+                .expect("reparsed table");
         assert_eq!(reparsed.header.len(), 2);
         assert_eq!(reparsed.rows.len(), 1);
         assert_eq!(reparsed.rows[0].len(), 2);

@@ -83,7 +83,11 @@ pub fn parse_mermaid_fence_source(raw: &str) -> Option<MermaidSource> {
     }
 
     let body = lines[1..lines.len() - 1].join("\n");
-    Some(MermaidSource { source: raw, body, info })
+    Some(MermaidSource {
+        source: raw,
+        body,
+        info,
+    })
 }
 
 /// Serialize a Mermaid block body back to canonical fenced Markdown,
@@ -99,7 +103,10 @@ pub fn serialize_mermaid_source(body: &str) -> (String, Range<usize>) {
         return (source.source, start..start + source.body.len());
     }
     let wrapped = format!("```mermaid\n{body}\n```");
-    (wrapped, "```mermaid\n".len().."```mermaid\n".len() + body.len())
+    (
+        wrapped,
+        "```mermaid\n".len().."```mermaid\n".len() + body.len(),
+    )
 }
 
 fn strip_fence_indent(line: &str) -> Option<&str> {

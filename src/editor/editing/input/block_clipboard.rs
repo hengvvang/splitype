@@ -198,7 +198,7 @@ mod tests {
     }
 
     fn remove_temp_image(path: &std::path::Path) {
-        let _ = path.parent().map(|parent| fs::remove_dir_all(parent));
+        let _ = path.parent().map(fs::remove_dir_all);
     }
 
     #[test]

@@ -194,9 +194,7 @@ impl ExpandedInlineProjection {
                 link_group: None,
                 kind: ExpandedInlineSegmentKind::BlockPrefix,
             });
-            for _ in 0..prefix_len {
-                display_to_plain.push(0);
-            }
+            display_to_plain.extend(std::iter::repeat_n(0, prefix_len));
             plain_to_display_cursor.fill(prefix_len);
             display_cursor = prefix_len;
             // `block_prefix_range` is the heading-prefix edit target. Footnote

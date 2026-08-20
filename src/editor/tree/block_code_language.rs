@@ -201,7 +201,7 @@ impl Block {
             _ => None,
         };
         self.data.kind = BlockKind::CodeBlock {
-            language: (!normalized.is_empty()).then(|| normalized),
+            language: (!normalized.is_empty()).then_some(normalized),
         };
         self.code_toolbar.picker.selected_range = next_selection;
         self.code_toolbar.picker.selection_reversed = selected_range_relative

@@ -6,11 +6,11 @@
 use std::ops::Range;
 
 use crate::inline::footnote::InlineFootnoteReference;
+use crate::inline::html::HtmlInlineStyle;
 use crate::inline::latex::InlineLatex;
 use crate::inline::link::InlineLink;
 use crate::inline::style::InlineStyle;
 use crate::inline::text::BlockText;
-use crate::inline::html::HtmlInlineStyle;
 
 /// A text range with its associated [`InlineStyle`], used by
 /// the render cache to build styled text runs for the text system.
@@ -61,10 +61,7 @@ impl InlineRenderCache {
             plain_offset += fragment_len;
         }
 
-        Self {
-            text,
-            spans,
-        }
+        Self { text, spans }
     }
 
     pub fn text(&self) -> &str {

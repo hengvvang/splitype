@@ -9,15 +9,14 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 
-use crate::explorer::state::state::*;
 use crate::explorer::drag_and_drop::DraggedExplorerEntryView;
 use crate::explorer::filename_editor::ExplorerFilenameInputElement;
+use crate::explorer::state::state::*;
 use crate::infra::config::recent::{read_recent_files, read_recent_folders};
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 use crate::ui::button::icon_chip_button;
 use crate::ui::empty_state::empty_state_container;
-
 
 impl Shell {
     pub(crate) fn render_explorer_files_tree(
@@ -1051,7 +1050,7 @@ impl Shell {
                                         .path("icons/explorer/worktree/folder.svg")
                                         .size(px(16.0))
                                         .text_color(c.dialog_muted),
-                                    )
+                                )
                                 .child(
                                     div()
                                         .max_w(px(200.0))

@@ -137,19 +137,19 @@ async fn projected_delimiter_ranges_cover_script_and_footnote_markers(cx: &mut T
                 );
             }
             assert!(
-                markers.iter().any(|m| *m == "~"),
+                markers.contains(&"~"),
                 "subscript delimiters missing: {markers:?}"
             );
             assert!(
-                markers.iter().any(|m| *m == "^"),
+                markers.contains(&"^"),
                 "superscript delimiters missing: {markers:?}"
             );
             assert!(
-                markers.iter().any(|m| *m == "[^"),
+                markers.contains(&"[^"),
                 "footnote open marker missing: {markers:?}"
             );
             assert!(
-                markers.iter().any(|m| *m == "]"),
+                markers.contains(&"]"),
                 "footnote close marker missing: {markers:?}"
             );
         });

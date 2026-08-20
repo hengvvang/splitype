@@ -960,7 +960,7 @@ mod tests {
     fn ignores_reference_definitions_inside_code_fences_and_html_blocks() {
         let markdown = "```\n[hidden]: x.png\n```\n[visible]: y.png\n";
         let definitions = parse_image_reference_definitions(markdown);
-        assert!(definitions.get("hidden").is_none());
-        assert!(definitions.get("visible").is_some());
+        assert!(!definitions.contains_key("hidden"));
+        assert!(definitions.contains_key("visible"));
     }
 }

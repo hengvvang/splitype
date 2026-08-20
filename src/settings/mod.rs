@@ -24,10 +24,10 @@ use crate::infra::config::settings::{
 };
 use crate::infra::i18n::manager::I18nManager;
 use crate::infra::theme::{ThemeCatalogEntry, ThemeManager};
+use crate::settings::state::SettingsTab;
 use crate::ui::custom_titlebar::{
     custom_titlebar_height, render_custom_titlebar, splitype_window_options,
 };
-use crate::settings::state::SettingsTab;
 use crate::ui::switch::Switch;
 
 /// Independent settings window view.
@@ -358,77 +358,78 @@ impl Render for SettingsWindow {
                     .into_any_element()
             };
 
-        let render_zed_stepper =
-            |id_dec: &'static str,
-             id_inc: &'static str,
-             val_num: String,
-             unit_str: &'static str,
-             is_editing: bool,
-             on_dec: Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>,
-             on_inc: Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>,
-             on_click_center: Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>|
-             -> AnyElement {
-                let mut center_box = stepper_value()
-                    .id(ElementId::Name(format!("{}-center", id_dec).into()))
-                    .bg(if is_editing {
-                        c.dialog_surface
-                    } else {
-                        c.dialog_secondary_button_bg
-                    })
-                    .child(
-                        div()
-                            .text_size(px(12.0))
-                            .font_weight(gpui::FontWeight::MEDIUM)
-                            .text_color(c.text_default)
-                            .child(val_num),
-                    );
+        type SettingsClickHandler = Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
 
-                if is_editing {
-                    center_box = center_box
-                        .border_1()
-                        .border_color(c.dialog_primary_button_bg)
-                        .child(div().w(px(1.5)).h(px(12.0)).bg(c.dialog_primary_button_bg));
-                }
+        let render_zed_stepper = |id_dec: &'static str,
+                                  id_inc: &'static str,
+                                  val_num: String,
+                                  unit_str: &'static str,
+                                  is_editing: bool,
+                                  on_dec: SettingsClickHandler,
+                                  on_inc: SettingsClickHandler,
+                                  on_click_center: SettingsClickHandler|
+         -> AnyElement {
+            let mut center_box = stepper_value()
+                .id(ElementId::Name(format!("{}-center", id_dec).into()))
+                .bg(if is_editing {
+                    c.dialog_surface
+                } else {
+                    c.dialog_secondary_button_bg
+                })
+                .child(
+                    div()
+                        .text_size(px(12.0))
+                        .font_weight(gpui::FontWeight::MEDIUM)
+                        .text_color(c.text_default)
+                        .child(val_num),
+                );
 
-                if !unit_str.is_empty() {
-                    center_box = center_box.child(
-                        div()
-                            .text_size(px(11.0))
-                            .text_color(c.dialog_muted)
-                            .child(unit_str),
-                    );
-                }
+            if is_editing {
+                center_box = center_box
+                    .border_1()
+                    .border_color(c.dialog_primary_button_bg)
+                    .child(div().w(px(1.5)).h(px(12.0)).bg(c.dialog_primary_button_bg));
+            }
 
-                let center_box = center_box.on_click(on_click_center);
+            if !unit_str.is_empty() {
+                center_box = center_box.child(
+                    div()
+                        .text_size(px(11.0))
+                        .text_color(c.dialog_muted)
+                        .child(unit_str),
+                );
+            }
 
-                stepper_container(c, d)
-                    .child(
-                        stepper_step_button(id_dec, c)
-                            .id(id_dec)
-                            .child(
-                                svg()
-                                    .path("icons/settings/minus.svg")
-                                    .size(px(12.0))
-                                    .text_color(c.dialog_secondary_button_text),
-                            )
-                            .on_click(on_dec),
-                    )
-                    .child(stepper_divider(c))
-                    .child(center_box)
-                    .child(stepper_divider(c))
-                    .child(
-                        stepper_step_button(id_inc, c)
-                            .id(id_inc)
-                            .child(
-                                svg()
-                                    .path("icons/settings/plus.svg")
-                                    .size(px(12.0))
-                                    .text_color(c.dialog_secondary_button_text),
-                            )
-                            .on_click(on_inc),
-                    )
-                    .into_any_element()
-            };
+            let center_box = center_box.on_click(on_click_center);
+
+            stepper_container(c, d)
+                .child(
+                    stepper_step_button(id_dec, c)
+                        .id(id_dec)
+                        .child(
+                            svg()
+                                .path("icons/settings/minus.svg")
+                                .size(px(12.0))
+                                .text_color(c.dialog_secondary_button_text),
+                        )
+                        .on_click(on_dec),
+                )
+                .child(stepper_divider(c))
+                .child(center_box)
+                .child(stepper_divider(c))
+                .child(
+                    stepper_step_button(id_inc, c)
+                        .id(id_inc)
+                        .child(
+                            svg()
+                                .path("icons/settings/plus.svg")
+                                .size(px(12.0))
+                                .text_color(c.dialog_secondary_button_text),
+                        )
+                        .on_click(on_inc),
+                )
+                .into_any_element()
+        };
 
         let is_section_expanded = |key: &str| self.expanded_sections.contains(key);
         let toggle_section_ed = cx.entity().downgrade();
@@ -1152,7 +1153,7 @@ impl Render for SettingsWindow {
                         .child(*sc)
                         .into_any_element();
 
-                    sec1_items.push(make_row(*name, *desc, ctrl_sc));
+                    sec1_items.push(make_row(name, desc, ctrl_sc));
                 }
 
                 sections.push(make_section(
@@ -1196,7 +1197,7 @@ impl Render for SettingsWindow {
                         .child(*sc)
                         .into_any_element();
 
-                    sec2_items.push(make_row(*name, *desc, ctrl_sc));
+                    sec2_items.push(make_row(name, desc, ctrl_sc));
                 }
 
                 sections.push(make_section(

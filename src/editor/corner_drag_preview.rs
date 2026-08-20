@@ -41,7 +41,7 @@ pub fn render_corner_drag_preview<T: Copy + PartialEq>(
     }
 }
 
-fn rect_by_id<'a>(rects: &'a [LeafRect], id: usize) -> Option<&'a LeafRect> {
+fn rect_by_id(rects: &[LeafRect], id: usize) -> Option<&LeafRect> {
     rects.iter().find(|rect| rect.id == id)
 }
 

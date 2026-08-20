@@ -6,13 +6,16 @@ use gpui::{prelude::FluentBuilder, *};
 
 use crate::infra::theme::ThemeManager;
 
+/// Callback invoked when the switch is clicked.
+pub type SwitchClickHandler = Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>;
+
 /// A toggle switch that can be checked or unchecked.
 #[derive(IntoElement)]
 pub struct Switch {
     id: ElementId,
     checked: bool,
     disabled: bool,
-    on_click: Option<Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>>,
+    on_click: Option<SwitchClickHandler>,
 }
 
 impl Switch {

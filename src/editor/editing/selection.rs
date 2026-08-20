@@ -393,12 +393,11 @@ impl Editor {
         .min(3);
 
         let state = self.active_pane_state();
-        state.selection.select_all_cycle =
-            Some(crate::editor::controller::WysiwygSelectAllCycle {
-                entity_id: block_id,
-                count,
-                last_pressed_at: now,
-            });
+        state.selection.select_all_cycle = Some(crate::editor::controller::WysiwygSelectAllCycle {
+            entity_id: block_id,
+            count,
+            last_pressed_at: now,
+        });
 
         if count == 1 {
             self.select_focused_block_text_for_wysiwyg_select_all(block, cx);
@@ -823,9 +822,8 @@ impl Editor {
             } else {
                 0..len
             };
-            let full_block = range.start == 0
-                && range.end == len
-                && (!selection.is_single_block() || len > 0);
+            let full_block =
+                range.start == 0 && range.end == len && (!selection.is_single_block() || len > 0);
             // Cut deletes any atomic block covered by a multi-block selection
             // (see cross_block_source_range_for_normalized), so the clipboard
             // must serialize those blocks too, including boundary ones, not
@@ -906,7 +904,8 @@ impl Editor {
     ) -> String {
         if let Some(mapping) = mappings.get(&entity.entity_id()) {
             if full_block {
-                return Self::safe_source_slice(source, mapping.full_source_range.clone()).to_string();
+                return Self::safe_source_slice(source, mapping.full_source_range.clone())
+                    .to_string();
             }
 
             let start = self

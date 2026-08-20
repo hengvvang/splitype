@@ -68,7 +68,9 @@ impl Shell {
             cx.background_executor()
                 .spawn(async move {
                     for path in &paths {
-                        if let Err(err) = crate::explorer::state::undo::remove_path_symlink_safe(path) {
+                        if let Err(err) =
+                            crate::explorer::state::undo::remove_path_symlink_safe(path)
+                        {
                             eprintln!("failed to delete '{}': {err}", path.display());
                         }
                     }
@@ -236,8 +238,7 @@ impl Shell {
                 }
                 if let Some(path) = result
                     .last()
-                    .map(explorer_change_destination)
-                    .flatten()
+                    .and_then(explorer_change_destination)
                     .map(Path::to_path_buf)
                 {
                     let root = shell.root_for_explorer_path(&path).unwrap_or(0);

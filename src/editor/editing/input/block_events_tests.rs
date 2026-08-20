@@ -93,7 +93,10 @@ mod tests {
                 },
                 cx,
             );
-            assert_eq!(editor.active_pane_focus().pending, Some(definition.entity_id()));
+            assert_eq!(
+                editor.active_pane_focus().pending,
+                Some(definition.entity_id())
+            );
             assert_eq!(definition.read(cx).selected_range, 0..0);
 
             let expected_backref_range = paragraph
@@ -107,7 +110,10 @@ mod tests {
                 },
                 cx,
             );
-            assert_eq!(editor.active_pane_focus().pending, Some(paragraph.entity_id()));
+            assert_eq!(
+                editor.active_pane_focus().pending,
+                Some(paragraph.entity_id())
+            );
             assert_eq!(paragraph.read(cx).selected_range, expected_backref_range);
         });
     }
@@ -1159,7 +1165,10 @@ mod tests {
             assert_eq!(children[0].read(cx).kind(), BlockKind::Table);
             assert_eq!(children[1].read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(children[1].read(cx).display_text(), "");
-            assert_eq!(editor.active_pane_focus().pending, Some(children[1].entity_id()));
+            assert_eq!(
+                editor.active_pane_focus().pending,
+                Some(children[1].entity_id())
+            );
         });
     }
 }

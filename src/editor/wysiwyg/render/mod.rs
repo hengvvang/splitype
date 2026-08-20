@@ -906,7 +906,7 @@ impl Render for Block {
                 .hover(|this| this.bg(c.table_append_button_hover).opacity(1.0))
                 .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                     if let Some(pos) = cell_pos {
-                        let _ = menu_block.update(cx, |_block, cx| {
+                        menu_block.update(cx, |_block, cx| {
                             cx.stop_propagation();
                             cx.emit(BlockEvent::RequestOpenTableAxisMenu {
                                 kind: TableAxis::Row,

@@ -26,7 +26,7 @@ pub fn render_cursor((line, col): (usize, usize), theme: &Theme) -> AnyElement {
     let c = &theme.colors;
     let d = &theme.dimensions;
 
-    let label = format!("{} : {}", &line.to_string(), &col.to_string());
+    let label = format!("{} : {}", line, col);
 
     div()
         .text_size(px(d.bottombar_text_size))
@@ -212,7 +212,7 @@ impl Editor {
             }
         }
 
-        let bar = bottombar_container(c, d.bottombar_height, d.bottombar_padding_x)
+        bottombar_container(c, d.bottombar_height, d.bottombar_padding_x)
             .id(ElementId::Name(
                 format!("panel-bottombar-{panel_id}").into(),
             ))
@@ -230,8 +230,7 @@ impl Editor {
                     .gap(px(8.0))
                     .children(right_items),
             )
-            .into_any_element();
-        bar
+            .into_any_element()
     }
 
     pub(crate) fn bottombar_settings(&self, cx: &App) -> StatusBarSettings {

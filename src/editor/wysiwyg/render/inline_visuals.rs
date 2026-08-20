@@ -5,6 +5,7 @@ use gpui::*;
 use crate::editor::render::latex_render::{inline_math_font_size, render_inline_math_svg};
 use crate::editor::tree::block::{Block, ImageHandle};
 use crate::editor::wysiwyg::render::LinkFollowCursor;
+use crate::editor::wysiwyg::render::html_document::html_css_color_to_hsla;
 use crate::editor::wysiwyg::render::inline::text_element::BlockTextElement;
 use crate::editor::wysiwyg::render::inline_word_chunks;
 use crate::editor::wysiwyg::render::render_image_placeholder;
@@ -14,7 +15,6 @@ use crate::infra::theme::Theme;
 use crate::model::block::image::{
     ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
 };
-use crate::editor::wysiwyg::render::html_document::html_css_color_to_hsla;
 use crate::model::inline::style::InlineScript;
 
 impl Block {

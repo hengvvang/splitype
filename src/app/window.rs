@@ -8,12 +8,12 @@ use gpui::*;
 
 use crate::app::menus::install_menus;
 use crate::app::shell::{PanelContent, Shell};
-use crate::app::window_panels::{DEFAULT_EDITOR_PANEL_ID, WindowPanelKind};
 use crate::app::window_chrome::MenuBarState;
 use crate::app::window_panels::WindowPanels;
+use crate::app::window_panels::{DEFAULT_EDITOR_PANEL_ID, WindowPanelKind};
 use crate::editor::controller::Editor;
-use crate::explorer::state::state::ExplorerState;
 use crate::editor::session::EditorSession;
+use crate::explorer::state::state::ExplorerState;
 use crate::infra::config::recent::record_recent_file;
 use crate::splitter::NodeId;
 use crate::ui::custom_titlebar::splitype_window_options;
@@ -61,7 +61,8 @@ pub(crate) fn open_editor_window(
                 let shell = cx.new(move |_cx| Shell {
                     // The default layout is Explorer (left) + Editor (right);
                     // only Editor panel_contents carry content entities.
-                    panel_contents: [(DEFAULT_EDITOR_PANEL_ID, PanelContent::Editor(editor))].into(),
+                    panel_contents: [(DEFAULT_EDITOR_PANEL_ID, PanelContent::Editor(editor))]
+                        .into(),
                     retained_editor_sessions: HashMap::new(),
                     menu_bar: MenuBarState::default(),
                     panels: WindowPanels::default(),
@@ -77,12 +78,10 @@ pub(crate) fn open_editor_window(
                     .read(cx)
                     .panel_contents
                     .values()
-                    .filter_map(|content| match content {
-                        PanelContent::Editor(entity) => Some(entity.clone()),
-                    })
+                    .map(|PanelContent::Editor(entity)| entity.clone())
                     .collect();
                 for editor in editors {
-                    let _ = editor.update(cx, |e, _cx| e.shell = Some(shell_weak.clone()));
+                    editor.update(cx, |e, _cx| e.shell = Some(shell_weak.clone()));
                 }
                 shell
             },
@@ -159,12 +158,10 @@ pub(crate) fn open_cloned_window(
                     .read(cx)
                     .panel_contents
                     .values()
-                    .filter_map(|content| match content {
-                        PanelContent::Editor(entity) => Some(entity.clone()),
-                    })
+                    .map(|PanelContent::Editor(entity)| entity.clone())
                     .collect();
                 for editor in editors {
-                    let _ = editor.update(cx, |e, _cx| e.shell = Some(shell_weak.clone()));
+                    editor.update(cx, |e, _cx| e.shell = Some(shell_weak.clone()));
                 }
                 shell
             },

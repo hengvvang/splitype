@@ -12,8 +12,8 @@ use crate::block::image::parse_standalone_image;
 use crate::block::math::parse_display_math_source;
 use crate::block::mermaid::is_mermaid_info_string;
 use crate::block::table::{
-    collect_pipeless_table_region, collect_table_candidate_region,
-    is_table_candidate_line, parse_table_region,
+    collect_pipeless_table_region, collect_table_candidate_region, is_table_candidate_line,
+    parse_table_region,
 };
 use crate::inline::text::BlockText;
 use crate::parse::data::BlockData;
@@ -676,9 +676,7 @@ fn starts_with_standalone_image_child_paragraph(lines: &[String]) -> bool {
 
 fn append_markdown_to_block(block: &mut BlockData, separator: &str, markdown: &str) {
     if !separator.is_empty() {
-        block
-            .text
-            .append(BlockText::plain(separator.to_string()));
+        block.text.append(BlockText::plain(separator.to_string()));
     }
     block.text.append(BlockText::from_markdown(markdown));
 }
@@ -1662,12 +1660,7 @@ fn build_blocks_from_lines_internal(
             if let Some(table) = parse_table_region(region) {
                 roots.push(BlockData::table(table));
             } else {
-                roots.extend(
-                    region
-                        .iter()
-                        .cloned()
-                        .map(|line| plain_text_paragraph_block(line)),
-                );
+                roots.extend(region.iter().cloned().map(plain_text_paragraph_block));
             }
             index = end;
             continue;

@@ -2,7 +2,6 @@
 
 use std::fs;
 
-
 use crate::editor::actions::SaveDocument;
 use crate::editor::controller::Editor;
 use crate::editor::render::export::ExportFormat;

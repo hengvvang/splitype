@@ -203,8 +203,6 @@ impl<T: Copy + PartialEq> SplitTree<T> {
     pub fn find_split_span(
         &self,
         target_split_id: usize,
-        x: f32,
-        y: f32,
         w: f32,
         h: f32,
     ) -> Option<(SplitAxis, f32)> {
@@ -227,15 +225,11 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                 let r = ratio.clamp(0.0, 1.0);
                 match axis {
                     SplitAxis::Horizontal => first
-                        .find_split_span(target_split_id, x, y, w * r, h)
-                        .or_else(|| {
-                            second.find_split_span(target_split_id, x + w * r, y, w * (1.0 - r), h)
-                        }),
+                        .find_split_span(target_split_id, w * r, h)
+                        .or_else(|| second.find_split_span(target_split_id, w * (1.0 - r), h)),
                     SplitAxis::Vertical => first
-                        .find_split_span(target_split_id, x, y, w, h * r)
-                        .or_else(|| {
-                            second.find_split_span(target_split_id, x, y + h * r, w, h * (1.0 - r))
-                        }),
+                        .find_split_span(target_split_id, w, h * r)
+                        .or_else(|| second.find_split_span(target_split_id, w, h * (1.0 - r))),
                 }
             }
         }

@@ -38,17 +38,16 @@ impl Editor {
         let revision = self.tab().document_revision;
         let synced = self
             .pane_state_ref(pane_id)
-            .map(|state| state.preview.synced_revision)
-            .flatten();
+            .and_then(|state| state.preview.synced_revision);
         let blocks_empty = self
             .pane_state_ref(pane_id)
-            .map_or(true, |state| state.preview.blocks.is_empty());
+            .is_none_or(|state| state.preview.blocks.is_empty());
         if synced == Some(revision) && !blocks_empty {
             return;
         }
         let source = self.doc().serialize_markdown(cx);
         let hash = Self::hash_str(&source);
-        let needs_rebuild = self.pane_state_ref(pane_id).map_or(true, |state| {
+        let needs_rebuild = self.pane_state_ref(pane_id).is_none_or(|state| {
             state.preview.source_hash != hash || state.preview.blocks.is_empty()
         });
         if needs_rebuild {
@@ -150,7 +149,7 @@ impl Editor {
             let block = entity.read(cx);
             let allowed = parent_kind
                 .as_ref()
-                .map_or(true, |kind| kind.is_quote_container());
+                .is_none_or(|kind| kind.is_quote_container());
             if block.kind() == BlockKind::FootnoteDefinition && allowed {
                 definitions
                     .entry(

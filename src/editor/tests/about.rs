@@ -73,12 +73,11 @@ async fn test_show_about_from_app_menu_for_editor(cx: &mut TestAppContext) {
     let info_dialog = window
         .update(cx, |shell, _window, _cx| shell.info_dialog)
         .unwrap();
-    assert_eq!(info_dialog, Some(crate::editor::controller::InfoDialogKind::About));
+    assert_eq!(
+        info_dialog,
+        Some(crate::editor::controller::InfoDialogKind::About)
+    );
 
     let mut visual_cx = gpui::VisualTestContext::from_window(window.into(), cx);
     super::redraw(&mut visual_cx);
 }
-
-
-
-

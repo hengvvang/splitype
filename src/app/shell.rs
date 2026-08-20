@@ -78,9 +78,8 @@ impl Shell {
     pub(crate) fn primary_editor(&self) -> Option<&Entity<Editor>> {
         self.panel_contents
             .values()
-            .find_map(|content| match content {
-                PanelContent::Editor(editor) => Some(editor),
-            })
+            .map(|PanelContent::Editor(editor)| editor)
+            .next()
     }
 
     /// The currently active/focused editor, or falls back to primary_editor.
@@ -106,9 +105,7 @@ impl Shell {
         let editors: Vec<(NodeId, Entity<Editor>)> = self
             .panel_contents
             .iter()
-            .filter_map(|(panel_id, content)| match content {
-                PanelContent::Editor(entity) => Some((*panel_id, entity.clone())),
-            })
+            .map(|(panel_id, PanelContent::Editor(entity))| (*panel_id, entity.clone()))
             .collect();
         for (panel_id, entity) in editors {
             let rect = outer_rects
@@ -124,7 +121,7 @@ impl Shell {
                 .tree
                 .find_leaf(panel_id)
                 .is_some_and(|panel| panel.maximized);
-            let _ = entity.update(cx, |editor, _cx| {
+            entity.update(cx, |editor, _cx| {
                 editor.panel_rect = rect;
                 editor.is_active_panel = active == Some(panel_id);
                 editor.is_maximized = is_maximized;
@@ -145,7 +142,7 @@ impl Shell {
     /// overlays still live on the editor entity.
     pub(crate) fn dismiss_contextual_overlays(&mut self, cx: &mut Context<Self>) {
         if let Some(editor) = self.primary_editor() {
-            let _ = editor.update(cx, |editor, cx| editor.dismiss_contextual_overlays(cx));
+            editor.update(cx, |editor, cx| editor.dismiss_contextual_overlays(cx));
         }
     }
 
@@ -345,7 +342,7 @@ impl Shell {
         let Some(editor) = self.editor_for(panel_id) else {
             return false;
         };
-        let _ = editor.update(cx, |editor, cx| editor.open_file_in_panel(path, window, cx));
+        editor.update(cx, |editor, cx| editor.open_file_in_panel(path, window, cx));
         true
     }
     /// Creates a fresh Editor entity serving `panel_id` and registers it in
@@ -448,13 +445,7 @@ impl Shell {
                 }
             }
         }
-        let ids: Vec<NodeId> = self
-            .panel_contents
-            .iter()
-            .filter_map(|(id, content)| match content {
-                PanelContent::Editor(_) => Some(*id),
-            })
-            .collect();
+        let ids: Vec<NodeId> = self.panel_contents.keys().copied().collect();
         for panel_id in ids {
             let dirty = match &self.panel_contents[&panel_id] {
                 PanelContent::Editor(entity) => entity.read(cx).first_dirty_tab(),
@@ -521,16 +512,19 @@ impl Shell {
         index: usize,
         cx: &mut Context<Self>,
     ) {
-        if self.editor_for(panel_id).is_none() && self.retained_editor_sessions.contains_key(&panel_id) {
+        if self.editor_for(panel_id).is_none()
+            && self.retained_editor_sessions.contains_key(&panel_id)
+        {
             let session = self.retained_editor_sessions.remove(&panel_id).unwrap();
             let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
-            self.panel_contents.insert(panel_id, PanelContent::Editor(editor));
+            self.panel_contents
+                .insert(panel_id, PanelContent::Editor(editor));
         }
 
         let Some(editor) = self.editor_for(panel_id).cloned() else {
             return;
         };
-        let _ = editor.update(cx, |editor, cx| {
+        editor.update(cx, |editor, cx| {
             let restore_focus = editor
                 .pane_state_ref(editor.active_pane_id())
                 .and_then(|state| state.focus.active_entity);

@@ -58,48 +58,50 @@ impl Shell {
         let entry_id = self.explorer_id_for_path(&path);
         let shell = Some(cx.entity().downgrade());
 
+        type ContextMenuItemHandler =
+            Box<dyn Fn(&mut Shell, &mut Window, &mut Context<Shell>) + 'static>;
+
         // Build a menu row: label only (no icons, no keybindings — matching
         // Zed's context menu), optionally disabled, with a danger variant
         // for destructive actions.
-        let make_item =
-            |id: &'static str,
-             label: String,
-             color: Hsla,
-             enabled: bool,
-             shell: Option<WeakEntity<Shell>>,
-             handler: Box<dyn Fn(&mut Shell, &mut Window, &mut Context<Shell>) + 'static>|
-             -> AnyElement {
-                if enabled {
-                    menu_item(id, c, d)
-                        .gap(px(8.0))
-                        .child(
-                            div()
-                                .text_size(px(t.text_size * 0.8))
-                                .text_color(color)
-                                .child(label),
-                        )
-                        .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
-                            let handler = &handler;
-                            if let Some(shell) = shell.clone() {
-                                let _ = shell.update(cx, move |shell, cx| {
-                                    handler(shell, window, cx);
-                                });
-                            }
-                            cx.stop_propagation();
-                        })
-                        .into_any_element()
-                } else {
-                    menu_item_row(c, d)
-                        .gap(px(8.0))
-                        .child(
-                            div()
-                                .text_size(px(t.text_size * 0.8))
-                                .text_color(c.dialog_muted)
-                                .child(label),
-                        )
-                        .into_any_element()
-                }
-            };
+        let make_item = |id: &'static str,
+                         label: String,
+                         color: Hsla,
+                         enabled: bool,
+                         shell: Option<WeakEntity<Shell>>,
+                         handler: ContextMenuItemHandler|
+         -> AnyElement {
+            if enabled {
+                menu_item(id, c, d)
+                    .gap(px(8.0))
+                    .child(
+                        div()
+                            .text_size(px(t.text_size * 0.8))
+                            .text_color(color)
+                            .child(label),
+                    )
+                    .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
+                        let handler = &handler;
+                        if let Some(shell) = shell.clone() {
+                            let _ = shell.update(cx, move |shell, cx| {
+                                handler(shell, window, cx);
+                            });
+                        }
+                        cx.stop_propagation();
+                    })
+                    .into_any_element()
+            } else {
+                menu_item_row(c, d)
+                    .gap(px(8.0))
+                    .child(
+                        div()
+                            .text_size(px(t.text_size * 0.8))
+                            .text_color(c.dialog_muted)
+                            .child(label),
+                    )
+                    .into_any_element()
+            }
+        };
         let separator = || {
             div()
                 .mx(px(d.menu_separator_margin_x))
@@ -351,7 +353,6 @@ impl Shell {
         // variants, mirroring Zed).
         if is_dir {
             items.push(separator());
-            let entry_id = entry_id;
             items.push(make_item(
                 "explorer-ctx-expand-all",
                 s.explorer_expand_all.clone(),
@@ -368,7 +369,6 @@ impl Shell {
                     }
                 }),
             ));
-            let entry_id = entry_id;
             items.push(make_item(
                 "explorer-ctx-collapse-all",
                 s.explorer_collapse_all.clone(),
@@ -411,7 +411,9 @@ impl Shell {
                         .border_color(c.dialog_border)
                         .rounded(px(d.menu_panel_radius))
                         .shadow_lg()
-                        .on_mouse_down(MouseButton::Left, |_event, _window, cx| cx.stop_propagation())
+                        .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
+                            cx.stop_propagation()
+                        })
                         .children(items),
                 )
                 .into_any_element(),

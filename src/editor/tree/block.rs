@@ -32,6 +32,9 @@ use crate::model::parse::{BlockData, BlockId, BlockKind};
 // View-local types
 // ---------------------------------------------------------------------------
 
+/// Key caching the inputs that produced an inline projection.
+pub(crate) type ProjectionCacheKey = (bool, Option<u8>, Range<usize>, Option<Range<usize>>);
+
 /// Inline formatting command issued by editor actions.
 #[derive(Clone, Copy)]
 pub(crate) enum InlineFormat {
@@ -310,7 +313,7 @@ pub struct Block {
     /// `sync_inline_projection_for_focus` computes the same inputs, the
     /// rebuild is skipped — saves a full O(fragments + text) walk per
     /// render frame (cursor blink + every arrow keypress).
-    pub(crate) projection_cache_key: Option<(bool, Option<u8>, Range<usize>, Option<Range<usize>>)>,
+    pub(crate) projection_cache_key: Option<ProjectionCacheKey>,
     /// Display text held as a SharedString so renders can clone an Arc
     /// instead of re-allocating per frame. Refreshed in `sync_render_cache`,
     /// `rebuild_inline_projection`, and `clear_inline_projection`.
@@ -896,8 +899,12 @@ impl Block {
         let old_plain_len = self.data.text.plain_text().len();
         let source_range = self.display_range_to_source_range(display_range.clone());
         let mut markdown = self.data.text.serialize_markdown();
-        let start = crate::model::inline::serialize::clamp_to_char_boundary(&markdown, source_range.start);
-        let end = crate::model::inline::serialize::clamp_to_char_boundary(&markdown, source_range.end.max(start));
+        let start =
+            crate::model::inline::serialize::clamp_to_char_boundary(&markdown, source_range.start);
+        let end = crate::model::inline::serialize::clamp_to_char_boundary(
+            &markdown,
+            source_range.end.max(start),
+        );
         let replaced_text = markdown[start..end].to_string();
         markdown.replace_range(start..end, new_text);
 
@@ -1004,11 +1011,7 @@ impl Block {
         self.clear_vertical_motion();
     }
 
-    pub(crate) fn enter_code_block(
-        &mut self,
-        language: Option<String>,
-        cx: &mut Context<Self>,
-    ) {
+    pub(crate) fn enter_code_block(&mut self, language: Option<String>, cx: &mut Context<Self>) {
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.clear_inline_projection();
         self.data.kind = BlockKind::CodeBlock { language };
@@ -1340,11 +1343,17 @@ impl Block {
     }
 
     pub(crate) fn range_to_utf16(&self, range: &Range<usize>) -> Range<usize> {
-        crate::model::inline::offsets::ImeConverter::utf8_range_to_utf16_in(self.display_text(), range)
+        crate::model::inline::offsets::ImeConverter::utf8_range_to_utf16_in(
+            self.display_text(),
+            range,
+        )
     }
 
     pub(crate) fn range_from_utf16(&self, range_utf16: &Range<usize>) -> Range<usize> {
-        crate::model::inline::offsets::ImeConverter::utf16_range_to_utf8_in(self.display_text(), range_utf16)
+        crate::model::inline::offsets::ImeConverter::utf16_range_to_utf8_in(
+            self.display_text(),
+            range_utf16,
+        )
     }
 
     pub fn previous_boundary(&self, offset: usize) -> usize {

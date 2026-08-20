@@ -451,8 +451,7 @@ impl Document {
             } else {
                 scope.quote_group_id
             };
-            let callout_depth =
-                scope.callout_depth + usize::from(own_callout_variant.is_some());
+            let callout_depth = scope.callout_depth + usize::from(own_callout_variant.is_some());
             let callout_group_id = if own_callout_variant.is_some() {
                 Some(block_id)
             } else {

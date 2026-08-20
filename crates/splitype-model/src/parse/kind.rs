@@ -4,8 +4,8 @@
 //! Each variant maps to a CommonMark / GFM block-level syntax element and
 //! determines both how the block is parsed from Markdown and how it is rendered.
 
-use crate::block::callout::CalloutKind;
 use super::fence::CodeFenceOpening;
+use crate::block::callout::CalloutKind;
 
 /// The semantic kind of a block.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

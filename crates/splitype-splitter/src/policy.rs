@@ -141,7 +141,9 @@ mod tests {
     #[test]
     fn test_shift_drag_clones_only_the_dragged_leaf() {
         let mut root = SplitterRoot::single_leaf(1, TestKind::A);
-        let split_id = root.split_leaf(1, crate::tree::SplitAxis::Horizontal, 0.5).unwrap();
+        let split_id = root
+            .split_leaf(1, crate::tree::SplitAxis::Horizontal, 0.5)
+            .unwrap();
         let pool = root.next_node_id;
         let facts = CornerDragSession {
             target_id: split_id,

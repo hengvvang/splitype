@@ -245,7 +245,7 @@ fn scan_worktree_dir(
             } else {
                 WorktreeEntryKind::File
             },
-            inode: file_id(&root, &meta),
+            inode: file_id(root, &meta),
         },
     );
     if meta.is_dir() {
@@ -313,8 +313,8 @@ fn is_ignored_entry(name: &std::ffi::OsStr) -> bool {
 fn file_id(path: &Path, _meta: &std::fs::Metadata) -> Option<u64> {
     use windows::Win32::Foundation::{CloseHandle, HANDLE};
     use windows::Win32::Storage::FileSystem::{
-        BY_HANDLE_FILE_INFORMATION, CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_FLAGS_AND_ATTRIBUTES,
-        FILE_FLAG_BACKUP_SEMANTICS, FILE_SHARE_DELETE, FILE_SHARE_MODE, FILE_SHARE_READ,
+        BY_HANDLE_FILE_INFORMATION, CreateFileW, FILE_ATTRIBUTE_NORMAL, FILE_FLAG_BACKUP_SEMANTICS,
+        FILE_FLAGS_AND_ATTRIBUTES, FILE_SHARE_DELETE, FILE_SHARE_MODE, FILE_SHARE_READ,
         FILE_SHARE_WRITE, GetFileInformationByHandle, OPEN_EXISTING,
     };
     use windows::core::HSTRING;

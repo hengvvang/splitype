@@ -10,9 +10,9 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 
-use crate::settings::state::SettingsTab;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::{Theme, ThemeManager};
+use crate::settings::state::SettingsTab;
 use crate::ui::switch::Switch;
 
 impl Shell {
@@ -127,88 +127,89 @@ impl Shell {
                 .into_any_element()
         };
 
-        let render_zed_stepper =
-            |id_dec: &'static str,
-             id_inc: &'static str,
-             val_num: String,
-             unit_str: &'static str,
-             is_editing: bool,
-             on_dec: Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>,
-             on_inc: Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>,
-             on_click_center: Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>,
-             theme: &Theme|
-             -> AnyElement {
-                let tc = &theme.colors;
-                let td = &theme.dimensions;
+        type SettingsClickHandler = Box<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
 
-                let mut center_box = stepper_value()
-                    .id(ElementId::Name(
-                        format!("{}-center-{}", id_dec, panel_id).into(),
-                    ))
-                    .bg(if is_editing {
-                        tc.dialog_surface
-                    } else {
-                        tc.dialog_secondary_button_bg
-                    })
-                    .child(
-                        div()
-                            .text_size(px(12.0))
-                            .font_weight(gpui::FontWeight::MEDIUM)
-                            .text_color(tc.text_default)
-                            .child(val_num),
-                    );
+        let render_zed_stepper = |id_dec: &'static str,
+                                  id_inc: &'static str,
+                                  val_num: String,
+                                  unit_str: &'static str,
+                                  is_editing: bool,
+                                  on_dec: SettingsClickHandler,
+                                  on_inc: SettingsClickHandler,
+                                  on_click_center: SettingsClickHandler,
+                                  theme: &Theme|
+         -> AnyElement {
+            let tc = &theme.colors;
+            let td = &theme.dimensions;
 
-                if is_editing {
-                    center_box = center_box
-                        .border_1()
-                        .border_color(tc.dialog_primary_button_bg)
-                        .child(div().w(px(1.5)).h(px(12.0)).bg(tc.dialog_primary_button_bg));
-                }
+            let mut center_box = stepper_value()
+                .id(ElementId::Name(
+                    format!("{}-center-{}", id_dec, panel_id).into(),
+                ))
+                .bg(if is_editing {
+                    tc.dialog_surface
+                } else {
+                    tc.dialog_secondary_button_bg
+                })
+                .child(
+                    div()
+                        .text_size(px(12.0))
+                        .font_weight(gpui::FontWeight::MEDIUM)
+                        .text_color(tc.text_default)
+                        .child(val_num),
+                );
 
-                if !unit_str.is_empty() {
-                    center_box = center_box.child(
-                        div()
-                            .text_size(px(11.0))
-                            .text_color(tc.dialog_muted)
-                            .child(unit_str),
-                    );
-                }
+            if is_editing {
+                center_box = center_box
+                    .border_1()
+                    .border_color(tc.dialog_primary_button_bg)
+                    .child(div().w(px(1.5)).h(px(12.0)).bg(tc.dialog_primary_button_bg));
+            }
 
-                let center_box = center_box.on_click(on_click_center);
+            if !unit_str.is_empty() {
+                center_box = center_box.child(
+                    div()
+                        .text_size(px(11.0))
+                        .text_color(tc.dialog_muted)
+                        .child(unit_str),
+                );
+            }
 
-                stepper_container(tc, td)
-                    .child(
-                        stepper_step_button(id_dec, tc)
-                            .id((id_dec, panel_id))
-                            .child(
-                                svg()
-                                    .path("icons/settings/minus.svg")
-                                    .size(px(12.0))
-                                    .text_color(tc.dialog_secondary_button_text),
-                            )
-                            .on_click(on_dec),
-                    )
-                    .child(stepper_divider(tc))
-                    .child(center_box)
-                    .child(stepper_divider(tc))
-                    .child(
-                        stepper_step_button(id_inc, tc)
-                            .id((id_inc, panel_id))
-                            .child(
-                                svg()
-                                    .path("icons/settings/plus.svg")
-                                    .size(px(12.0))
-                                    .text_color(tc.dialog_secondary_button_text),
-                            )
-                            .on_click(on_inc),
-                    )
-                    .into_any_element()
-            };
+            let center_box = center_box.on_click(on_click_center);
+
+            stepper_container(tc, td)
+                .child(
+                    stepper_step_button(id_dec, tc)
+                        .id((id_dec, panel_id))
+                        .child(
+                            svg()
+                                .path("icons/settings/minus.svg")
+                                .size(px(12.0))
+                                .text_color(tc.dialog_secondary_button_text),
+                        )
+                        .on_click(on_dec),
+                )
+                .child(stepper_divider(tc))
+                .child(center_box)
+                .child(stepper_divider(tc))
+                .child(
+                    stepper_step_button(id_inc, tc)
+                        .id((id_inc, panel_id))
+                        .child(
+                            svg()
+                                .path("icons/settings/plus.svg")
+                                .size(px(12.0))
+                                .text_color(tc.dialog_secondary_button_text),
+                        )
+                        .on_click(on_inc),
+                )
+                .into_any_element()
+        };
 
         let make_section = |sec_id: &'static str,
                             title: &'static str,
                             is_expanded: bool,
-                            toggle_fn: Box<dyn Fn(&gpui::ClickEvent, &mut Window, &mut App)>,
+                            toggle_fn: SettingsClickHandler,
                             items: Vec<AnyElement>,
                             theme: &Theme|
          -> AnyElement {
@@ -693,11 +694,17 @@ impl Shell {
                                     < 0.05
                                 {
                                     1.4
-                                } else if (shell.panels.settings.pref_line_height - 1.4).abs() < 0.05 {
+                                } else if (shell.panels.settings.pref_line_height - 1.4).abs()
+                                    < 0.05
+                                {
                                     1.6
-                                } else if (shell.panels.settings.pref_line_height - 1.6).abs() < 0.05 {
+                                } else if (shell.panels.settings.pref_line_height - 1.6).abs()
+                                    < 0.05
+                                {
                                     1.8
-                                } else if (shell.panels.settings.pref_line_height - 1.8).abs() < 0.05 {
+                                } else if (shell.panels.settings.pref_line_height - 1.8).abs()
+                                    < 0.05
+                                {
                                     2.0
                                 } else {
                                     1.2
@@ -1036,7 +1043,7 @@ impl Shell {
                             .child(*sc)
                             .into_any_element();
 
-                        sec1_items.push(make_row(*name, *desc, ctrl_sc, theme, inner_border_color));
+                        sec1_items.push(make_row(name, desc, ctrl_sc, theme, inner_border_color));
                     }
                 }
 
@@ -1091,7 +1098,7 @@ impl Shell {
                             .child(*sc)
                             .into_any_element();
 
-                        sec2_items.push(make_row(*name, *desc, ctrl_sc, theme, inner_border_color));
+                        sec2_items.push(make_row(name, desc, ctrl_sc, theme, inner_border_color));
                     }
                 }
 

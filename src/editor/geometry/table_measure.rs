@@ -11,9 +11,9 @@
 use gpui::{FontStyle, FontWeight, Pixels, SharedString, TextRun, Window, px};
 
 use crate::infra::theme::Theme;
+use crate::model::block::table::{TableColumnLayout, TableData};
 use crate::model::inline::render_cache::InlineRenderCache;
 use crate::model::inline::text::BlockText;
-use crate::model::block::table::{TableColumnLayout, TableData};
 
 /// Measure preferred column widths with the window's text system and
 /// normalize them to fractions of the available table width.

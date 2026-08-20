@@ -258,7 +258,10 @@ mod tests {
             .category(),
             BlockEventCategory::Lifecycle
         );
-        assert_eq!(BlockEvent::Changed.category(), BlockEventCategory::ContentChange);
+        assert_eq!(
+            BlockEvent::Changed.category(),
+            BlockEventCategory::ContentChange
+        );
         assert_eq!(
             BlockEvent::RequestNewline {
                 trailing: BlockText::plain(String::new()),
@@ -291,7 +294,8 @@ mod tests {
         assert!(!BlockEvent::RequestFocus.is_structural());
 
         assert!(BlockEvent::RequestExpandTable.clears_cross_block_selection());
-        assert!(!BlockEvent::RequestTableCellMoveHorizontal { delta: 1 }
-            .clears_cross_block_selection());
+        assert!(
+            !BlockEvent::RequestTableCellMoveHorizontal { delta: 1 }.clears_cross_block_selection()
+        );
     }
 }

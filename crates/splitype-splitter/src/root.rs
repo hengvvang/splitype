@@ -361,7 +361,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     pub fn split_pixel_span(&self, split_id: NodeId, container_size: Size<Pixels>) -> Option<f32> {
         let w = f32::from(container_size.width);
         let h = f32::from(container_size.height);
-        let (_, span) = self.tree.find_split_span(split_id, 0.0, 0.0, w, h)?;
+        let (_, span) = self.tree.find_split_span(split_id, w, h)?;
         Some(span)
     }
 
@@ -484,13 +484,22 @@ mod tests {
         assert!(matches!(&root.tree, SplitTree::Split { .. }));
         assert!(root.tree.find_leaf(1).is_some());
         assert!(root.tree.find_leaf(new_id).is_some());
-        assert!(root.tree.find_leaf(1).is_some_and(|p| p.kind == TestKind::A));
-        assert!(root.tree.find_leaf(new_id).is_some_and(|p| p.kind == TestKind::A));
+        assert!(
+            root.tree
+                .find_leaf(1)
+                .is_some_and(|p| p.kind == TestKind::A)
+        );
+        assert!(
+            root.tree
+                .find_leaf(new_id)
+                .is_some_and(|p| p.kind == TestKind::A)
+        );
         // The fresh container starts with no interaction state.
-        assert!(root
-            .tree
-            .find_leaf(new_id)
-            .is_some_and(|p| p.active_corner_drag.is_none() && !p.maximized));
+        assert!(
+            root.tree
+                .find_leaf(new_id)
+                .is_some_and(|p| p.active_corner_drag.is_none() && !p.maximized)
+        );
     }
 
     #[test]

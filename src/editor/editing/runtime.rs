@@ -261,7 +261,7 @@ impl Editor {
             .references
             .candidate_blocks
             .contains(&block.entity_id());
-        let now_candidate = Self::block_has_registry_candidates(&block.read(cx));
+        let now_candidate = Self::block_has_registry_candidates(block.read(cx));
         if !was_candidate
             && !now_candidate
             && self.tab().references.base_dir == self.image_base_dir()

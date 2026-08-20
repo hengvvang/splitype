@@ -8,13 +8,13 @@ use gpui::*;
 
 use super::BLOCK_EDITOR_CONTEXT;
 
-use crate::editor::wysiwyg::render::inline::text_element::{
-    BlockTextElement, CodeLanguageInputElement,
-};
 use crate::editor::render::code_highlight::options::{
     code_language_display_name, code_language_options_matching,
 };
 use crate::editor::tree::block::Block;
+use crate::editor::wysiwyg::render::inline::text_element::{
+    BlockTextElement, CodeLanguageInputElement,
+};
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 
@@ -323,7 +323,7 @@ impl Block {
                         })
                         .active(|this| this.opacity(0.9))
                         .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
-                            let _ = option_block.update(cx, |block, block_cx| {
+                            option_block.update(cx, |block, block_cx| {
                                 block_cx.stop_propagation();
                                 block.choose_code_language(value, block_cx);
                                 block.focus_handle.focus(window);

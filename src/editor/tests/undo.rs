@@ -4,7 +4,6 @@ use gpui::{AppContext, TestAppContext};
 
 use crate::editor::controller::Editor;
 
-
 #[gpui::test]
 async fn undo_reverts_recent_rendered_typing(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, "alpha".to_string(), None));
@@ -128,4 +127,3 @@ async fn fresh_edit_clears_pending_redo_history(cx: &mut TestAppContext) {
         assert_eq!(editor.doc().serialize_markdown(cx), "alpha gamma");
     });
 }
-

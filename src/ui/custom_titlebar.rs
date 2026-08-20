@@ -372,8 +372,8 @@ mod tests {
         custom_titlebar_icon_color, titlebar_drag_strategy_for_target_os, titlebar_maximize_icon,
         titlebar_options_for_target_os, window_decorations_for_target_os,
     };
-    use gpui::{Decorations, Hsla, Tiling, WindowDecorations, rgba};
     use crate::infra::theme::Theme;
+    use gpui::{Decorations, Hsla, Tiling, WindowDecorations, rgba};
 
     #[test]
     fn titlebar_options_enable_transparency_on_mac_and_windows() {

@@ -162,4 +162,3 @@ fn rendered_window_all_estimated_windows_near_top() {
     // A viewport-plus-band worth of rows, not the whole document.
     assert!(band.run_end >= 20);
 }
-

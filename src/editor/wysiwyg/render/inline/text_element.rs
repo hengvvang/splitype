@@ -210,10 +210,8 @@ fn build_code_text_runs(
     }
 }
 
-/// Compute byte ranges of each hard-line (`\n`-separated) segment in the
-/// visible text.  Index `i` in the returned Vec corresponds to the `i`-th
-/// WrappedLine produced by `shape_text`.
-
+/// Interactive GPUI element that paints and handles mouse/keyboard events
+/// for a block's text content.
 pub struct BlockTextElement {
     input: Entity<Block>,
     is_placeholder: bool,

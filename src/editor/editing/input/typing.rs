@@ -4,9 +4,9 @@
 use gpui::*;
 
 use crate::editor::controller::*;
-use crate::model::parse::BlockKind;
-use crate::model::inline::text::BlockText;
 use crate::model::block::table::*;
+use crate::model::inline::text::BlockText;
+use crate::model::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn jump_to_footnote_definition(&mut self, id: &str, cx: &mut Context<Self>) -> bool {
@@ -78,7 +78,6 @@ impl Editor {
 
     /// A block that a setext underline below it can promote into a heading: a
     /// non-empty, single-line, plain paragraph with no children.
-
     pub(crate) fn is_setext_heading_target(
         block: &Entity<crate::editor::tree::block::Block>,
         cx: &App,
@@ -95,7 +94,6 @@ impl Editor {
     /// When a matching paragraph precedes it at the root, the two collapse into
     /// a heading; a lone dash run still falls back to a thematic break. Returns
     /// true when it consumed the newline.
-
     pub(crate) fn try_form_setext_heading_on_newline(
         &mut self,
         block: &Entity<crate::editor::tree::block::Block>,
@@ -185,7 +183,6 @@ impl Editor {
     /// directly under an existing table is absorbed into it. After either, the
     /// caret lands in a fresh paragraph below the table so consecutive rows can
     /// be typed. Returns true when it consumed the newline.
-
     pub(crate) fn try_form_or_extend_table_on_newline(
         &mut self,
         block: &Entity<crate::editor::tree::block::Block>,
@@ -305,7 +302,6 @@ impl Editor {
     /// document from ending on such a block, so a rendered-first user can keep
     /// typing past it rather than being stranded. No-op when something already
     /// follows the block or it is not a stranding structure.
-
     pub(crate) fn ensure_trailing_paragraph_after_structural(
         &mut self,
         block: &Entity<crate::editor::tree::block::Block>,

@@ -372,7 +372,6 @@ pub(crate) fn emphasis_requires_body(delimiter: Delimiter) -> bool {
     )
 }
 
-
 fn escape_code_span_text_with_offset_map(text: &str) -> SourceOffsetMap {
     let needs_padding = !text.is_empty()
         && !text.chars().all(|ch| ch == ' ')

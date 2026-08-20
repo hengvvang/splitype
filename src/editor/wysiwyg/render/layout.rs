@@ -52,9 +52,7 @@ pub fn row_top_gap(
     let Some(previous) = previous else {
         return 0.0;
     };
-    if previous.quote_group_id.is_some()
-        && previous.quote_group_id == current.quote_group_id
-    {
+    if previous.quote_group_id.is_some() && previous.quote_group_id == current.quote_group_id {
         0.0
     } else {
         default_gap
@@ -135,11 +133,6 @@ pub fn tibetan_font_fallbacks_for_target_os(target_os: &str) -> Vec<String> {
     };
     families.iter().map(|f| (*f).to_string()).collect()
 }
-
-// ── Empty panel prompt ──────────────────────────────────────────────────
-
-/// A centered muted-text prompt for empty tiled panels (explorer files,
-/// outline).
 
 #[cfg(test)]
 mod tests {

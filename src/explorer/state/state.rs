@@ -613,10 +613,10 @@ pub fn explorer_tree_contains_id(node: &ExplorerFileNode, id: ExplorerEntryId) -
 }
 
 /// Depth-first lookup of a node by stable id in the scanned tree.
-pub fn find_explorer_node_by_id<'a>(
-    node: &'a ExplorerFileNode,
+pub fn find_explorer_node_by_id(
+    node: &ExplorerFileNode,
     id: ExplorerEntryId,
-) -> Option<&'a ExplorerFileNode> {
+) -> Option<&ExplorerFileNode> {
     if node.id == id {
         return Some(node);
     }
@@ -647,8 +647,10 @@ mod tests {
 
     #[test]
     fn test_clone_for_new_window_copies_content_resets_interaction() {
-        let mut state = ExplorerState::default();
-        state.is_open = true;
+        let mut state = ExplorerState {
+            is_open: true,
+            ..Default::default()
+        };
         let entry_id = ExplorerEntryId::for_path(Path::new("/project/src"));
         let mut expanded = BTreeSet::new();
         expanded.insert(entry_id);

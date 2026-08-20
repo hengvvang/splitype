@@ -4,18 +4,15 @@
 use gpui::{AppContext, TestAppContext};
 
 use crate::editor::controller::Editor;
-use crate::model::parse::BlockKind;
 use crate::model::block::image::{
     ImageReferenceDefinitions, ImageResolvedSource, TableCellInlineImageSegment,
     parse_table_cell_inline_images,
 };
+use crate::model::parse::BlockKind;
 use std::path::PathBuf;
 
-
 #[gpui::test]
-async fn standalone_root_image_installs_handle_and_resolves_relative_path(
-    cx: &mut TestAppContext,
-) {
+async fn standalone_root_image_installs_handle_and_resolves_relative_path(cx: &mut TestAppContext) {
     let markdown = "![diagram](./assets/diagram.png \"System diagram\")".to_string();
     let file_path = PathBuf::from("D:/explorer/docs/note.md");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, Some(file_path.clone())));
@@ -347,9 +344,7 @@ async fn list_child_reference_style_image_installs_handle(cx: &mut TestAppContex
 }
 
 #[gpui::test]
-async fn list_scoped_reference_definition_supports_list_item_image_handle(
-    cx: &mut TestAppContext,
-) {
+async fn list_scoped_reference_definition_supports_list_item_image_handle(cx: &mut TestAppContext) {
     let markdown = [
         "- ![diagram][cover]",
         "  [cover]: ./assets/diagram.png \"Cover\"",
@@ -545,11 +540,7 @@ async fn table_cell_with_standalone_image_installs_handle(cx: &mut TestAppContex
 
     editor.read_with(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
-        let handle = table
-            .read(cx)
-            .table_grid
-            .as_ref()
-            .expect("table grid");
+        let handle = table.read(cx).table_grid.as_ref().expect("table grid");
         let cell_runtime = handle.rows[0][0]
             .read(cx)
             .image_handle()
@@ -577,11 +568,7 @@ async fn table_cell_with_mixed_inline_image_uses_inline_image_segments(cx: &mut 
 
     editor.read_with(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
-        let handle = table
-            .read(cx)
-            .table_grid
-            .as_ref()
-            .expect("table grid");
+        let handle = table.read(cx).table_grid.as_ref().expect("table grid");
         let cell = handle.rows[0][0].read(cx);
         assert!(cell.image_handle().is_none());
 
@@ -616,11 +603,7 @@ async fn table_cell_with_reference_style_image_installs_handle(cx: &mut TestAppC
 
     editor.read_with(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
-        let handle = table
-            .read(cx)
-            .table_grid
-            .as_ref()
-            .expect("table grid");
+        let handle = table.read(cx).table_grid.as_ref().expect("table grid");
         let cell_runtime = handle.rows[0][0]
             .read(cx)
             .image_handle()
@@ -670,14 +653,9 @@ async fn reference_style_link_in_table_cell_resolves_document_wide(cx: &mut Test
 
     editor.read_with(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
-        let handle = table
-            .read(cx)
-            .table_grid
-            .as_ref()
-            .expect("table grid");
+        let handle = table.read(cx).table_grid.as_ref().expect("table grid");
         let cell = handle.rows[0][0].clone();
         assert_eq!(cell.read(cx).display_text(), "reference link");
         assert_eq!(cell.read(cx).inline_link_at(0), Some("https://example.com"));
     });
 }
-

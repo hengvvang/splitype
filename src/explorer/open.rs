@@ -51,7 +51,7 @@ impl Shell {
                 .and_then(|editor| editor.read(cx).focused_pane_id.filter(|_| area.is_some()));
             if let (Some(_), Some(pane_id)) = (area, focused_panel) {
                 if let Some(editor) = self.active_editor() {
-                    let _ = editor.update(cx, |editor, cx| {
+                    editor.update(cx, |editor, cx| {
                         editor.focus_pane(pane_id, window, cx);
                     });
                 }
@@ -70,14 +70,18 @@ impl Shell {
         let Some(panel_id) = self.panels.layout.active_leaf else {
             return;
         };
-        let Some(new_id) =
-            self.split_panel(panel_id, crate::splitter::SplitAxis::Horizontal, 0.5, false, cx)
-        else {
+        let Some(new_id) = self.split_panel(
+            panel_id,
+            crate::splitter::SplitAxis::Horizontal,
+            0.5,
+            false,
+            cx,
+        ) else {
             return;
         };
         self.panels.layout.activate_leaf(new_id);
         if let Some(editor) = self.editor_for(new_id) {
-            let _ = editor.update(cx, |editor, cx| {
+            editor.update(cx, |editor, cx| {
                 editor.open_file_in_panel(&path, window, cx);
             });
         }

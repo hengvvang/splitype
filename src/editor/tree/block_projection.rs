@@ -348,11 +348,9 @@ impl Block {
             return span_source_start + local_display;
         }
 
-        if let Some(footnote_span) = self
-            .projection
-            .as_ref()
-            .and_then(|projection| projection.footnote_span_fully_covering_range(&(display_offset..display_offset)))
-        {
+        if let Some(footnote_span) = self.projection.as_ref().and_then(|projection| {
+            projection.footnote_span_fully_covering_range(&(display_offset..display_offset))
+        }) {
             let raw = footnote_span.footnote.raw_markdown();
             let raw_len = raw.len();
             let local_offset = display_offset
@@ -369,12 +367,17 @@ impl Block {
             let segments = &projection.segments;
 
             for (seg_idx, segment) in segments.iter().enumerate() {
-                if display_offset >= segment.display_range.start && display_offset <= segment.display_range.end {
+                if display_offset >= segment.display_range.start
+                    && display_offset <= segment.display_range.end
+                {
                     let frag_plain_start = self.data.text.fragments[..segment.fragment_index]
                         .iter()
                         .map(|f| f.text.len())
                         .sum::<usize>();
-                    let frag_text_len = self.data.text.fragments
+                    let frag_text_len = self
+                        .data
+                        .text
+                        .fragments
                         .get(segment.fragment_index)
                         .map(|f| f.text.len())
                         .unwrap_or(0);
@@ -387,7 +390,10 @@ impl Block {
                             let mut last_open = segment.display_range.end;
                             for prev_seg in segments[..seg_idx].iter().rev() {
                                 if prev_seg.fragment_index == segment.fragment_index
-                                    && matches!(prev_seg.kind, ExpandedInlineSegmentKind::OpeningDelimiter(_))
+                                    && matches!(
+                                        prev_seg.kind,
+                                        ExpandedInlineSegmentKind::OpeningDelimiter(_)
+                                    )
                                 {
                                     first_open = prev_seg.display_range.start;
                                 } else {
@@ -396,7 +402,10 @@ impl Block {
                             }
                             for next_seg in segments[seg_idx + 1..].iter() {
                                 if next_seg.fragment_index == segment.fragment_index
-                                    && matches!(next_seg.kind, ExpandedInlineSegmentKind::OpeningDelimiter(_))
+                                    && matches!(
+                                        next_seg.kind,
+                                        ExpandedInlineSegmentKind::OpeningDelimiter(_)
+                                    )
                                 {
                                     last_open = next_seg.display_range.end;
                                 } else {
@@ -404,17 +413,22 @@ impl Block {
                                 }
                             }
                             let total_open_len = last_open - first_open;
-                            let source_open_start = source_text_start.saturating_sub(total_open_len);
+                            let source_open_start =
+                                source_text_start.saturating_sub(total_open_len);
                             return source_open_start + (display_offset - first_open);
                         }
                         ExpandedInlineSegmentKind::StyledText => {
-                            return source_text_start + (display_offset - segment.display_range.start);
+                            return source_text_start
+                                + (display_offset - segment.display_range.start);
                         }
                         ExpandedInlineSegmentKind::ClosingDelimiter(_) => {
                             let mut first_close = segment.display_range.start;
                             for prev_seg in segments[..seg_idx].iter().rev() {
                                 if prev_seg.fragment_index == segment.fragment_index
-                                    && matches!(prev_seg.kind, ExpandedInlineSegmentKind::ClosingDelimiter(_))
+                                    && matches!(
+                                        prev_seg.kind,
+                                        ExpandedInlineSegmentKind::ClosingDelimiter(_)
+                                    )
                                 {
                                     first_close = prev_seg.display_range.start;
                                 } else {
@@ -424,7 +438,8 @@ impl Block {
                             return source_text_end + (display_offset - first_close);
                         }
                         ExpandedInlineSegmentKind::PlainText => {
-                            return source_text_start + (display_offset - segment.display_range.start);
+                            return source_text_start
+                                + (display_offset - segment.display_range.start);
                         }
                         ExpandedInlineSegmentKind::BlockPrefix => {
                             return 0;
@@ -462,7 +477,10 @@ impl Block {
                     .iter()
                     .map(|f| f.text.len())
                     .sum::<usize>();
-                let frag_text_len = self.data.text.fragments
+                let frag_text_len = self
+                    .data
+                    .text
+                    .fragments
                     .get(segment.fragment_index)
                     .map(|f| f.text.len())
                     .unwrap_or(0);
@@ -475,7 +493,10 @@ impl Block {
                         let mut last_open = segment.display_range.end;
                         for prev_seg in segments[..seg_idx].iter().rev() {
                             if prev_seg.fragment_index == segment.fragment_index
-                                && matches!(prev_seg.kind, ExpandedInlineSegmentKind::OpeningDelimiter(_))
+                                && matches!(
+                                    prev_seg.kind,
+                                    ExpandedInlineSegmentKind::OpeningDelimiter(_)
+                                )
                             {
                                 first_open = prev_seg.display_range.start;
                             } else {
@@ -484,7 +505,10 @@ impl Block {
                         }
                         for next_seg in segments[seg_idx + 1..].iter() {
                             if next_seg.fragment_index == segment.fragment_index
-                                && matches!(next_seg.kind, ExpandedInlineSegmentKind::OpeningDelimiter(_))
+                                && matches!(
+                                    next_seg.kind,
+                                    ExpandedInlineSegmentKind::OpeningDelimiter(_)
+                                )
                             {
                                 last_open = next_seg.display_range.end;
                             } else {
@@ -493,13 +517,15 @@ impl Block {
                         }
                         let total_open_len = last_open - first_open;
                         let source_open_start = source_text_start.saturating_sub(total_open_len);
-                        if source_offset >= source_open_start && source_offset <= source_text_start {
+                        if source_offset >= source_open_start && source_offset <= source_text_start
+                        {
                             return first_open + (source_offset - source_open_start);
                         }
                     }
                     ExpandedInlineSegmentKind::StyledText => {
                         if source_offset >= source_text_start && source_offset <= source_text_end {
-                            return segment.display_range.start + (source_offset - source_text_start);
+                            return segment.display_range.start
+                                + (source_offset - source_text_start);
                         }
                     }
                     ExpandedInlineSegmentKind::ClosingDelimiter(_) => {
@@ -507,7 +533,10 @@ impl Block {
                         let mut last_close = segment.display_range.end;
                         for prev_seg in segments[..seg_idx].iter().rev() {
                             if prev_seg.fragment_index == segment.fragment_index
-                                && matches!(prev_seg.kind, ExpandedInlineSegmentKind::ClosingDelimiter(_))
+                                && matches!(
+                                    prev_seg.kind,
+                                    ExpandedInlineSegmentKind::ClosingDelimiter(_)
+                                )
                             {
                                 first_close = prev_seg.display_range.start;
                             } else {
@@ -516,7 +545,10 @@ impl Block {
                         }
                         for next_seg in segments[seg_idx + 1..].iter() {
                             if next_seg.fragment_index == segment.fragment_index
-                                && matches!(next_seg.kind, ExpandedInlineSegmentKind::ClosingDelimiter(_))
+                                && matches!(
+                                    next_seg.kind,
+                                    ExpandedInlineSegmentKind::ClosingDelimiter(_)
+                                )
                             {
                                 last_close = next_seg.display_range.end;
                             } else {
@@ -532,7 +564,8 @@ impl Block {
                     ExpandedInlineSegmentKind::PlainText => {
                         let source_end = source_text_start + segment.display_range.len();
                         if source_offset >= source_text_start && source_offset <= source_end {
-                            return segment.display_range.start + (source_offset - source_text_start);
+                            return segment.display_range.start
+                                + (source_offset - source_text_start);
                         }
                     }
                     _ => {}

@@ -476,7 +476,7 @@ impl Editor {
         session: EditorSession,
         _cx: &mut Context<Self>,
     ) -> Self {
-        let this = Self {
+        Self {
             panel_id,
             shell: None,
             session,
@@ -491,8 +491,7 @@ impl Editor {
             table_insert_dialog: None,
             welcome_last_click: None,
             focused_pane_id: None,
-        };
-        this
+        }
     }
 
     /// True when the active editor has at least one document tab.

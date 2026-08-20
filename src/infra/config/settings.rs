@@ -51,6 +51,7 @@ impl StartupOpenSetting {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(value: &str) -> Self {
         match value {
             "last_opened_file" => Self::LastOpenedFile,
@@ -91,6 +92,7 @@ impl ExplorerSortMode {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(value: &str) -> Self {
         match value {
             "files_first" => Self::FilesFirst,
@@ -130,6 +132,7 @@ impl ExplorerSortOrder {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(value: &str) -> Self {
         match value {
             "descending" => Self::Descending,
@@ -227,6 +230,7 @@ impl ImagePasteBehavior {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(value: &str) -> Self {
         match value {
             "copy_to_document_folder" => Self::CopyToDocumentFolder,

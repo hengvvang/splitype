@@ -32,13 +32,15 @@ impl Shell {
         cx: &App,
         show: fn(&crate::editor::controller::FileState) -> bool,
     ) -> Option<Entity<Editor>> {
-        self.panel_contents.values().find_map(|content| match content {
-            PanelContent::Editor(entity) => entity
-                .read(cx)
-                .active_editor_tab()
-                .filter(|tab| show(&tab.file))
-                .map(|_| entity.clone()),
-        })
+        self.panel_contents
+            .values()
+            .find_map(|content| match content {
+                PanelContent::Editor(entity) => entity
+                    .read(cx)
+                    .active_editor_tab()
+                    .filter(|tab| show(&tab.file))
+                    .map(|_| entity.clone()),
+            })
     }
 
     /// The window-level dialog to render this frame, if any: the info
@@ -88,7 +90,7 @@ impl Shell {
         else {
             return;
         };
-        let _ = editor.update(cx, |editor, cx| editor.cancel_close_dialog(cx));
+        editor.update(cx, |editor, cx| editor.cancel_close_dialog(cx));
     }
 
     /// Save the current document and then close the window.
@@ -102,7 +104,7 @@ impl Shell {
         else {
             return;
         };
-        let _ = editor.update(cx, |editor, cx| editor.save_and_close(window, cx));
+        editor.update(cx, |editor, cx| editor.save_and_close(window, cx));
     }
 
     /// Discard unsaved changes and close the window immediately (routed
@@ -117,7 +119,7 @@ impl Shell {
         else {
             return;
         };
-        let _ = editor.update(cx, |editor, cx| editor.discard_and_close(cx));
+        editor.update(cx, |editor, cx| editor.discard_and_close(cx));
         if let Some((panel_id, index)) = self.first_dirty_tab(cx) {
             self.prompt_unsaved_changes_for(panel_id, index, cx);
         } else {
@@ -219,7 +221,7 @@ impl Shell {
         let Some(editor) = self.editor_with_dialog(cx, |file| file.show_drop_replace_dialog) else {
             return;
         };
-        let _ = editor.update(cx, |editor, cx| editor.cancel_drop_replace_dialog(cx));
+        editor.update(cx, |editor, cx| editor.cancel_drop_replace_dialog(cx));
     }
 
     pub(crate) fn on_discard_and_replace_drop(
@@ -231,7 +233,7 @@ impl Shell {
         let Some(editor) = self.editor_with_dialog(cx, |file| file.show_drop_replace_dialog) else {
             return;
         };
-        let _ = editor.update(cx, |editor, cx| {
+        editor.update(cx, |editor, cx| {
             editor.discard_pending_drop_replace(window, cx)
         });
     }
@@ -245,7 +247,7 @@ impl Shell {
         let Some(editor) = self.editor_with_dialog(cx, |file| file.show_drop_replace_dialog) else {
             return;
         };
-        let _ = editor.update(cx, |editor, cx| {
+        editor.update(cx, |editor, cx| {
             editor.save_and_replace_pending_drop(window, cx)
         });
     }

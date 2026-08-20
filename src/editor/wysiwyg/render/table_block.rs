@@ -3,9 +3,9 @@ use gpui::*;
 use crate::editor::block_protocol::BlockEvent;
 use crate::editor::editing::table_grid::TableGrid;
 use crate::editor::geometry::table_measure::measure_table_column_layout;
-use crate::editor::wysiwyg::render::effective_table_width;
 use crate::editor::tree::block::Block;
 use crate::editor::tree::block_edit_mode::BlockEditMode;
+use crate::editor::wysiwyg::render::effective_table_width;
 use crate::infra::theme::Theme;
 use crate::model::block::table::TableAxisHighlight;
 use crate::model::block::table::TableCellPosition;
@@ -175,11 +175,8 @@ pub(crate) fn render_table(
                 .child(
                     div()
                         .id(ElementId::Name(
-                            format!(
-                                "table-column-axis-activation-{}-{}",
-                                block.data.id, column
-                            )
-                            .into(),
+                            format!("table-column-axis-activation-{}-{}", block.data.id, column)
+                                .into(),
                         ))
                         .absolute()
                         .top(px(-6.0))

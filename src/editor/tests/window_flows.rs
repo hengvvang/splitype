@@ -486,7 +486,7 @@ async fn editor_tile_corner_drag_starts_outer_split(cx: &mut TestAppContext) {
 
     let window = cx.update(|cx| crate::app::window::open_editor_window(cx, String::new(), None));
     cx.run_until_parked();
-    let window_any: gpui::AnyWindowHandle = window.clone().into();
+    let window_any: gpui::AnyWindowHandle = window.into();
     let mut cx = gpui::VisualTestContext::from_window(window_any, cx);
     cx.update(|window, cx| window.draw(cx).clear());
     cx.run_until_parked();
@@ -544,7 +544,7 @@ async fn editor_type_dropdown_switches_panel_kind(cx: &mut TestAppContext) {
 
     let window = cx.update(|cx| crate::app::window::open_editor_window(cx, String::new(), None));
     cx.run_until_parked();
-    let window_any: gpui::AnyWindowHandle = window.clone().into();
+    let window_any: gpui::AnyWindowHandle = window.into();
     let mut cx = gpui::VisualTestContext::from_window(window_any, cx);
     cx.update(|window, cx| window.draw(cx).clear());
     cx.run_until_parked();
@@ -621,15 +621,12 @@ async fn editor_type_dropdown_switches_panel_kind(cx: &mut TestAppContext) {
 async fn sole_editor_fallback_and_multi_editor_activation_routing(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
-    let window =
-        cx.update(|cx| crate::app::window::open_editor_window(cx, String::new(), None));
+    let window = cx.update(|cx| crate::app::window::open_editor_window(cx, String::new(), None));
     cx.run_until_parked();
 
     // 1. Single editor without explicit click: active_editor_panel should resolve to DEFAULT_EDITOR_PANEL_ID
     let target = window
-        .update(cx, |shell, _window, _cx| {
-            shell.active_editor_panel()
-        })
+        .update(cx, |shell, _window, _cx| shell.active_editor_panel())
         .expect("window update");
     assert_eq!(target, Some(DEFAULT_EDITOR_PANEL_ID));
 
@@ -652,9 +649,7 @@ async fn sole_editor_fallback_and_multi_editor_activation_routing(cx: &mut TestA
         .expect("split panel created");
 
     let active_panel = window
-        .update(cx, |shell, _window, _cx| {
-            shell.active_editor_panel()
-        })
+        .update(cx, |shell, _window, _cx| shell.active_editor_panel())
         .expect("window update");
     assert_eq!(active_panel, Some(new_panel_id));
 
@@ -666,9 +661,7 @@ async fn sole_editor_fallback_and_multi_editor_activation_routing(cx: &mut TestA
         .expect("window update");
 
     let switched_panel = window
-        .update(cx, |shell, _window, _cx| {
-            shell.active_editor_panel()
-        })
+        .update(cx, |shell, _window, _cx| shell.active_editor_panel())
         .expect("window update");
     assert_eq!(switched_panel, Some(DEFAULT_EDITOR_PANEL_ID));
 }

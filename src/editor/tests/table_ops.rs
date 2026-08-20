@@ -3,8 +3,8 @@
 use gpui::{AppContext, TestAppContext};
 
 use crate::editor::controller::Editor;
-use crate::model::parse::BlockKind;
 use crate::model::block::table::TableColumnAlignment;
+use crate::model::parse::BlockKind;
 
 #[gpui::test]
 async fn parsed_table_grid_installs_column_alignment_on_cells(cx: &mut TestAppContext) {
@@ -320,7 +320,10 @@ async fn deleting_table_header_promotes_next_row(cx: &mut TestAppContext) {
         assert!(table_data.rows.is_empty());
 
         let grid = table.read(cx).table_grid.as_ref().expect("rebuilt grid");
-        assert_eq!(editor.active_pane_focus().pending, Some(grid.header[0].entity_id()));
+        assert_eq!(
+            editor.active_pane_focus().pending,
+            Some(grid.header[0].entity_id())
+        );
     });
 }
 
@@ -368,7 +371,10 @@ async fn removing_table_block_replaces_it_with_empty_paragraph(cx: &mut TestAppC
         assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(roots[1].read(cx).display_text(), "");
         assert_eq!(roots[2].read(cx).display_text(), "outro");
-        assert_eq!(editor.active_pane_focus().pending, Some(roots[1].entity_id()));
+        assert_eq!(
+            editor.active_pane_focus().pending,
+            Some(roots[1].entity_id())
+        );
     });
 }
 

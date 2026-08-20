@@ -50,7 +50,9 @@ pub(crate) enum ExportError {
 impl std::fmt::Display for ExportError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ChromiumLaunchFailed(msg) => write!(f, "Failed to launch Chromium for PDF export: {msg}"),
+            Self::ChromiumLaunchFailed(msg) => {
+                write!(f, "Failed to launch Chromium for PDF export: {msg}")
+            }
             Self::Timeout => write!(f, "PDF export timed out"),
             Self::RuntimeInit(msg) => write!(f, "Failed to initialize PDF export runtime: {msg}"),
             Self::Io(err) => write!(f, "I/O error during export: {err}"),

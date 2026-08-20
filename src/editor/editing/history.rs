@@ -8,8 +8,8 @@ use std::time::Instant;
 use gpui::*;
 
 use crate::editor::controller::{
-    BlockSelectionAnchor, Editor, EditorPaneKind, HistoryEntry, PendingUndoCapture, UndoCaptureKind,
-    UndoSelectionSnapshot,
+    BlockSelectionAnchor, Editor, EditorPaneKind, HistoryEntry, PendingUndoCapture,
+    UndoCaptureKind, UndoSelectionSnapshot,
 };
 use crate::editor::tree::block::Block;
 
@@ -109,10 +109,10 @@ impl Editor {
         let content_range = target
             .read(cx)
             .display_range_to_source_range(selected_range);
-        let start = mapping.full_source_range.start
-            + mapping.content_to_source_offset(content_range.start);
-        let end = mapping.full_source_range.start
-            + mapping.content_to_source_offset(content_range.end);
+        let start =
+            mapping.full_source_range.start + mapping.content_to_source_offset(content_range.start);
+        let end =
+            mapping.full_source_range.start + mapping.content_to_source_offset(content_range.end);
 
         UndoSelectionSnapshot {
             range: start..end,

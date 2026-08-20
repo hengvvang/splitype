@@ -123,7 +123,6 @@ impl Editor {
             border: c.dialog_border,
             selection: c.selection,
             active: c.focus_accent,
-            ..Default::default()
         };
         let inner_size = self
             .panel_rect
@@ -485,7 +484,6 @@ impl Editor {
             border: c.dialog_border,
             selection: c.selection,
             active: c.focus_accent,
-            ..Default::default()
         };
 
         match node {
@@ -656,9 +654,9 @@ impl Editor {
                                         // area's local space, so rebase the start
                                         // position the same way.
                                         let local_start = ed
-                                             .panel_rect
-                                             .map(|rect| start_pos - f32::from(rect.origin.x))
-                                             .unwrap_or(start_pos);
+                                            .panel_rect
+                                            .map(|rect| start_pos - f32::from(rect.origin.x))
+                                            .unwrap_or(start_pos);
                                         let session = ed.session_mut();
                                         splitype_splitter::interaction::start_splitter_drag(
                                             &mut session.root,

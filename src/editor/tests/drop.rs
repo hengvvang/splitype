@@ -2,10 +2,9 @@
 
 use std::fs;
 
-
 use crate::editor::controller::{Editor, EditorPaneKind};
-use crate::model::parse::BlockKind;
 use crate::model::inline::text::BlockText;
+use crate::model::parse::BlockKind;
 
 use super::*;
 
@@ -204,4 +203,3 @@ async fn dirty_drop_saves_existing_document_before_replace(cx: &mut TestAppConte
         assert!(!editor.tab().file.pending_drop_replace_after_save);
     });
 }
-

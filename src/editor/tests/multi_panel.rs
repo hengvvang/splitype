@@ -77,7 +77,7 @@ async fn rendering_one_editor_panel_keeps_other_panels_source_block(cx: &mut Tes
     // The second area's entity owns its own pane state, fully independent
     // of the first area's entity.
     second.update(&mut cx.cx, |second, cx| second.sync_source_pane(1, cx));
-    let second_id = second.read_with(&mut cx.cx, |second, _cx| {
+    let second_id = second.read_with(&cx.cx, |second, _cx| {
         second
             .pane_state_ref(1)
             .and_then(|state| state.source_block.as_ref().map(|block| block.entity_id()))
@@ -276,7 +276,7 @@ async fn two_wysiwyg_panes_map_clicks_in_each_pane_to_the_correct_caret(cx: &mut
             .last_paint()
             .map(|paint| paint.bounds)
             .expect("block must have painted bounds");
-        let pane_width = (f32::from(window_width) - f32::from(pane_gap)) / 2.0;
+        let pane_width = (f32::from(window_width) - pane_gap) / 2.0;
         let y = bounds.top() + gpui::px(10.0);
         (
             bounds.left() - gpui::px(pane_width) + gpui::px(20.0),

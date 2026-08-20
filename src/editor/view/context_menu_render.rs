@@ -309,42 +309,41 @@ impl Editor {
                         ),
                     ],
                     TableAxis::Row => {
-                        let mut items: Vec<AnyElement> = Vec::new();
-                        items.push(Self::render_axis_menu_item(
-                            theme,
-                            "table-axis-insert-row-above",
-                            "Insert Row Above".to_string(),
-                            true,
-                            false,
-                            Self::on_insert_table_row_above,
-                            cx,
-                        ));
-                        items.push(Self::render_axis_menu_item(
-                            theme,
-                            "table-axis-insert-row-below",
-                            "Insert Row Below".to_string(),
-                            true,
-                            false,
-                            Self::on_insert_table_row_below,
-                            cx,
-                        ));
-                        items.push(Self::render_axis_menu_item(
-                            theme,
-                            "table-axis-duplicate-row",
-                            "Duplicate Row".to_string(),
-                            true,
-                            false,
-                            Self::on_duplicate_table_row,
-                            cx,
-                        ));
-                        items.push(
+                        let mut items: Vec<AnyElement> = vec![
+                            Self::render_axis_menu_item(
+                                theme,
+                                "table-axis-insert-row-above",
+                                "Insert Row Above".to_string(),
+                                true,
+                                false,
+                                Self::on_insert_table_row_above,
+                                cx,
+                            ),
+                            Self::render_axis_menu_item(
+                                theme,
+                                "table-axis-insert-row-below",
+                                "Insert Row Below".to_string(),
+                                true,
+                                false,
+                                Self::on_insert_table_row_below,
+                                cx,
+                            ),
+                            Self::render_axis_menu_item(
+                                theme,
+                                "table-axis-duplicate-row",
+                                "Duplicate Row".to_string(),
+                                true,
+                                false,
+                                Self::on_duplicate_table_row,
+                                cx,
+                            ),
                             div()
                                 .mx(px(d.menu_separator_margin_x))
                                 .my(px(d.menu_separator_margin_y))
                                 .h(px(d.menu_separator_height))
                                 .bg(c.dialog_border)
                                 .into_any_element(),
-                        );
+                        ];
                         // The header row (visual index 0) shares the normal row
                         // menu, with its Header Row styling toggle added on top.
                         if selection.index == 0 {

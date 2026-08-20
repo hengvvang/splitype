@@ -8,9 +8,9 @@ use crate::editor::controller::Editor;
 use crate::editor::editing::input::actions::ExitCodeBlock;
 use crate::editor::editing::input::actions::{Delete, DeleteBackward, Newline};
 use crate::editor::tree::block::Block;
-use crate::model::parse::{BlockData, BlockKind};
 use crate::model::block::CalloutKind;
 use crate::model::inline::text::BlockText;
+use crate::model::parse::{BlockData, BlockKind};
 use gpui::{App, AppContext, Entity, TestAppContext};
 
 #[gpui::test]
@@ -90,7 +90,10 @@ async fn footnote_reference_jump_and_backref_follow_in_place_definition(cx: &mut
             },
             cx,
         );
-        assert_eq!(editor.active_pane_focus().pending, Some(definition.entity_id()));
+        assert_eq!(
+            editor.active_pane_focus().pending,
+            Some(definition.entity_id())
+        );
         assert_eq!(definition.read(cx).selected_range, 0..0);
 
         let expected_backref_range = paragraph
@@ -104,7 +107,10 @@ async fn footnote_reference_jump_and_backref_follow_in_place_definition(cx: &mut
             },
             cx,
         );
-        assert_eq!(editor.active_pane_focus().pending, Some(paragraph.entity_id()));
+        assert_eq!(
+            editor.active_pane_focus().pending,
+            Some(paragraph.entity_id())
+        );
         assert_eq!(paragraph.read(cx).selected_range, expected_backref_range);
     });
 }
@@ -240,7 +246,10 @@ async fn typing_numbered_list_shortcut_after_separator_preserves_group_boundary(
         );
         assert_eq!(entries[4].entity.read(cx).display_text(), "");
         assert_eq!(entries[4].entity.read(cx).list_ordinal, Some(1));
-        assert_eq!(editor.doc().serialize_markdown(cx), "1. aa\n2. bb\n3. cc\n\n1. ");
+        assert_eq!(
+            editor.doc().serialize_markdown(cx),
+            "1. aa\n2. bb\n3. cc\n\n1. "
+        );
     });
 }
 
@@ -451,7 +460,10 @@ async fn trailing_fence_line_enter_closes_code_block(cx: &mut TestAppContext) {
         assert_eq!(entries[0].entity.read(cx).display_text(), "let x = 1;");
         assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(entries[1].entity.read(cx).display_text(), "");
-        assert_eq!(editor.doc().serialize_markdown(cx), "```rust\nlet x = 1;\n```\n\n");
+        assert_eq!(
+            editor.doc().serialize_markdown(cx),
+            "```rust\nlet x = 1;\n```\n\n"
+        );
     });
 }
 
@@ -1041,13 +1053,7 @@ async fn table_cell_exit_shortcut_inserts_sibling_after_table(cx: &mut TestAppCo
                 .find(|child| child.read(cx).kind() == BlockKind::Table)
                 .expect("nested table")
                 .clone();
-            let cell = table
-                .read(cx)
-                .table_grid
-                .as_ref()
-                .expect("table grid")
-                .rows[0][0]
-                .clone();
+            let cell = table.read(cx).table_grid.as_ref().expect("table grid").rows[0][0].clone();
             cell.update(cx, |block, block_cx| {
                 block.on_exit_code_block(&ExitCodeBlock, window, block_cx);
             });
@@ -1061,7 +1067,10 @@ async fn table_cell_exit_shortcut_inserts_sibling_after_table(cx: &mut TestAppCo
         assert_eq!(children[0].read(cx).kind(), BlockKind::Table);
         assert_eq!(children[1].read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(children[1].read(cx).display_text(), "");
-        assert_eq!(editor.active_pane_focus().pending, Some(children[1].entity_id()));
+        assert_eq!(
+            editor.active_pane_focus().pending,
+            Some(children[1].entity_id())
+        );
     });
 }
 
@@ -1100,7 +1109,10 @@ async fn arrow_down_from_last_row_exits_table_to_following_block(cx: &mut TestAp
 
         let following = editor.doc().blocks()[1].entity.clone();
         assert_eq!(following.read(cx).display_text(), "after");
-        assert_eq!(editor.active_pane_focus().pending, Some(following.entity_id()));
+        assert_eq!(
+            editor.active_pane_focus().pending,
+            Some(following.entity_id())
+        );
     });
 }
 
@@ -1128,7 +1140,10 @@ async fn arrow_up_from_header_exits_table_to_preceding_block(cx: &mut TestAppCon
 
         let preceding = editor.doc().blocks()[0].entity.clone();
         assert_eq!(preceding.read(cx).display_text(), "before");
-        assert_eq!(editor.active_pane_focus().pending, Some(preceding.entity_id()));
+        assert_eq!(
+            editor.active_pane_focus().pending,
+            Some(preceding.entity_id())
+        );
     });
 }
 
@@ -1206,7 +1221,10 @@ async fn block_up_from_table_cell_exits_to_preceding_block(cx: &mut TestAppConte
 
         let preceding = editor.doc().blocks()[0].entity.clone();
         assert_eq!(preceding.read(cx).display_text(), "before");
-        assert_eq!(editor.active_pane_focus().pending, Some(preceding.entity_id()));
+        assert_eq!(
+            editor.active_pane_focus().pending,
+            Some(preceding.entity_id())
+        );
     });
 }
 
@@ -1250,7 +1268,10 @@ async fn down_out_of_code_block_focuses_following_block(cx: &mut TestAppContext)
         let following = editor.doc().blocks()[1].entity.clone();
         assert_eq!(following.read(cx).display_text(), "after");
         assert_eq!(editor.doc().root_count(), 2);
-        assert_eq!(editor.active_pane_focus().pending, Some(following.entity_id()));
+        assert_eq!(
+            editor.active_pane_focus().pending,
+            Some(following.entity_id())
+        );
     });
 }
 
@@ -1271,7 +1292,10 @@ async fn down_out_of_trailing_code_block_creates_and_focuses_paragraph(cx: &mut 
         assert_eq!(roots.len(), 2);
         assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(roots[1].read(cx).display_text(), "");
-        assert_eq!(editor.active_pane_focus().pending, Some(roots[1].entity_id()));
+        assert_eq!(
+            editor.active_pane_focus().pending,
+            Some(roots[1].entity_id())
+        );
     });
 }
 
@@ -1292,7 +1316,10 @@ async fn down_out_of_trailing_math_block_creates_and_focuses_paragraph(cx: &mut 
         let roots = editor.doc().root_blocks();
         assert_eq!(roots.len(), 2);
         assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(editor.active_pane_focus().pending, Some(roots[1].entity_id()));
+        assert_eq!(
+            editor.active_pane_focus().pending,
+            Some(roots[1].entity_id())
+        );
     });
 }
 
@@ -1340,7 +1367,10 @@ async fn plain_multiline_paste_with_scripts_splits_physical_lines(cx: &mut TestA
         assert_eq!(entries[0].entity.read(cx).display_text(), "H2O");
         assert_eq!(entries[1].entity.read(cx).display_text(), "CO2");
         assert_eq!(entries[2].entity.read(cx).display_text(), "xn");
-        assert_eq!(editor.doc().serialize_markdown(cx), "H~2~O\n\nCO~2~\n\nx^n^");
+        assert_eq!(
+            editor.doc().serialize_markdown(cx),
+            "H~2~O\n\nCO~2~\n\nx^n^"
+        );
     });
 }
 
@@ -1853,7 +1883,10 @@ async fn nested_list_item_downgrade_hoists_children_after_paragraph(cx: &mut Tes
         assert_eq!(entries[3].entity.read(cx).kind(), BlockKind::BulletListItem);
         assert_eq!(entries[3].entity.read(cx).display_text(), "d");
         assert_eq!(entries[3].entity.read(cx).render_depth, 1);
-        assert_eq!(editor.doc().serialize_markdown(cx), "- a\n\n  b\n  - c\n  - d");
+        assert_eq!(
+            editor.doc().serialize_markdown(cx),
+            "- a\n\n  b\n  - c\n  - d"
+        );
     });
 }
 
@@ -1919,7 +1952,10 @@ async fn request_quote_break_creates_nested_leaf_quote_group(cx: &mut TestAppCon
         assert_eq!(entries[3].entity.read(cx).kind(), BlockKind::Blockquote);
         assert_eq!(entries[3].entity.read(cx).display_text(), "");
         assert_eq!(entries[3].entity.read(cx).quote_depth, 2);
-        assert_eq!(editor.doc().serialize_markdown(cx), "> outer\n> > inner\n> \n> > ");
+        assert_eq!(
+            editor.doc().serialize_markdown(cx),
+            "> outer\n> > inner\n> \n> > "
+        );
         assert_eq!(
             editor.active_pane_focus().pending,
             Some(entries[3].entity.entity_id())
@@ -2074,7 +2110,10 @@ async fn root_quote_break_then_backspace_keeps_text_block_slot_after_group(
         assert_eq!(entries[1].entity.read(cx).display_text(), "");
         assert_eq!(entries[1].entity.entity_id(), new_leaf_id);
         assert_eq!(entries[1].entity.read(cx).quote_depth, 0);
-        assert_eq!(editor.doc().serialize_markdown(cx), "> side\n> \n> 1234\n\n");
+        assert_eq!(
+            editor.doc().serialize_markdown(cx),
+            "> side\n> \n> 1234\n\n"
+        );
     });
 }
 
@@ -2323,9 +2362,7 @@ async fn typing_multiple_emphasis_delimiters_progressively_preserves_all_symbols
 }
 
 #[gpui::test]
-async fn deleting_single_emphasis_delimiter_does_not_delete_matching_pair(
-    cx: &mut TestAppContext,
-) {
+async fn deleting_single_emphasis_delimiter_does_not_delete_matching_pair(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, "**hello**".to_string(), None));
 
     editor.update(cx, |editor, cx| {
@@ -2453,10 +2490,10 @@ async fn deleting_single_symbol_from_mixed_bold_italic_preserves_remaining_delim
     });
 }
 
-
 #[gpui::test]
 async fn editing_bold_italic_surrounded_by_text_does_not_duplicate(cx: &mut TestAppContext) {
-    let editor = cx.new(|cx| Editor::from_markdown(cx, "before ***text*** after".to_string(), None));
+    let editor =
+        cx.new(|cx| Editor::from_markdown(cx, "before ***text*** after".to_string(), None));
 
     editor.update(cx, |editor, cx| {
         let paragraph = editor.doc().first_root().expect("root paragraph").clone();
@@ -2470,7 +2507,10 @@ async fn editing_bold_italic_surrounded_by_text_does_not_duplicate(cx: &mut Test
             block.replace_text_in_display_range(12..12, "x", None, false, cx);
         });
 
-        assert_eq!(editor.doc().serialize_markdown(cx), "before ***texxt*** after");
+        assert_eq!(
+            editor.doc().serialize_markdown(cx),
+            "before ***texxt*** after"
+        );
 
         paragraph.update(cx, |block, cx| {
             block.selected_range = 10..10;
@@ -2481,7 +2521,10 @@ async fn editing_bold_italic_surrounded_by_text_does_not_duplicate(cx: &mut Test
             block.replace_text_in_display_range(17..18, "", None, false, cx);
         });
 
-        assert_eq!(editor.doc().serialize_markdown(cx), "before ***texxt** after");
+        assert_eq!(
+            editor.doc().serialize_markdown(cx),
+            "before ***texxt** after"
+        );
     });
 }
 

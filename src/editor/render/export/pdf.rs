@@ -60,15 +60,16 @@ pub(crate) async fn render_pdf_async(
 
 async fn render_pdf_from_html_file_async(html_path: PathBuf) -> Result<Vec<u8>, ExportError> {
     let user_data_dir = unique_temp_path("splitype-chromium-profile");
-    fs::create_dir_all(&user_data_dir)
-        .map_err(|err| ExportError::Io(err))?;
+    fs::create_dir_all(&user_data_dir).map_err(ExportError::Io)?;
 
     let config = BrowserConfig::builder()
         .new_headless_mode()
         .window_size(CHROMIUM_VIEWPORT_WIDTH, CHROMIUM_VIEWPORT_HEIGHT)
         .user_data_dir(user_data_dir.clone())
         .build()
-        .map_err(|err| ExportError::ChromiumLaunchFailed(format!("failed to build Chromium config: {err}")))?;
+        .map_err(|err| {
+            ExportError::ChromiumLaunchFailed(format!("failed to build Chromium config: {err}"))
+        })?;
 
     let (mut browser, mut handler) = Browser::launch(config).await.map_err(|err| {
         ExportError::ChromiumLaunchFailed(
@@ -85,20 +86,23 @@ async fn render_pdf_from_html_file_async(html_path: PathBuf) -> Result<Vec<u8>, 
     });
 
     let result = async {
-        let file_url = file_url_from_path(&html_path)
-            .map_err(|err| ExportError::Render(err.to_string()))?;
-        let page = browser
-            .new_page(file_url.as_str())
-            .await
-            .map_err(|err| ExportError::Render(format!("failed to open export HTML in Chromium: {err}")))?;
-        page.wait_for_navigation()
-            .await
-            .map_err(|err| ExportError::Render(format!("Chromium did not finish loading export HTML: {err}")))?;
+        let file_url =
+            file_url_from_path(&html_path).map_err(|err| ExportError::Render(err.to_string()))?;
+        let page = browser.new_page(file_url.as_str()).await.map_err(|err| {
+            ExportError::Render(format!("failed to open export HTML in Chromium: {err}"))
+        })?;
+        page.wait_for_navigation().await.map_err(|err| {
+            ExportError::Render(format!(
+                "Chromium did not finish loading export HTML: {err}"
+            ))
+        })?;
 
         let params = chromium_pdf_params();
-        page.pdf(params)
-            .await
-            .map_err(|err| ExportError::Render(format!("Chromium failed to print export HTML to PDF: {err}")))
+        page.pdf(params).await.map_err(|err| {
+            ExportError::Render(format!(
+                "Chromium failed to print export HTML to PDF: {err}"
+            ))
+        })
     }
     .await;
 
@@ -110,16 +114,17 @@ async fn render_pdf_from_html_file_async(html_path: PathBuf) -> Result<Vec<u8>, 
 }
 
 fn chromium_pdf_params() -> PrintToPdfParams {
-    let mut params = PrintToPdfParams::default();
-    params.print_background = Some(true);
-    params.prefer_css_page_size = Some(true);
-    params.paper_width = Some(8.27);
-    params.paper_height = Some(11.69);
-    params.margin_top = Some(0.0);
-    params.margin_bottom = Some(0.0);
-    params.margin_left = Some(0.0);
-    params.margin_right = Some(0.0);
-    params
+    PrintToPdfParams {
+        print_background: Some(true),
+        prefer_css_page_size: Some(true),
+        paper_width: Some(8.27),
+        paper_height: Some(11.69),
+        margin_top: Some(0.0),
+        margin_bottom: Some(0.0),
+        margin_left: Some(0.0),
+        margin_right: Some(0.0),
+        ..Default::default()
+    }
 }
 
 fn file_url_from_path(path: &Path) -> anyhow::Result<url::Url> {

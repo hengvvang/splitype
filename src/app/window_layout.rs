@@ -100,7 +100,8 @@ impl Shell {
             }
         } else {
             self.render_window_panel_node(&root, theme, strings, leaf_count, window, cx)
-        };        let root_shell_move = cx.entity().downgrade();
+        };
+        let root_shell_move = cx.entity().downgrade();
         let root_shell_up = cx.entity().downgrade();
         let root_shell_up_out = cx.entity().downgrade();
 
@@ -161,9 +162,7 @@ impl Shell {
                     let editors: Vec<Entity<crate::editor::controller::Editor>> = shell
                         .panel_contents
                         .values()
-                        .filter_map(|content| match content {
-                            crate::app::shell::PanelContent::Editor(entity) => Some(entity.clone()),
-                        })
+                        .map(|crate::app::shell::PanelContent::Editor(entity)| entity.clone())
                         .collect();
                     for editor in editors {
                         if editor.update(cx, |editor, _cx| editor.update_inner_drag(pos, window)) {
@@ -176,10 +175,12 @@ impl Shell {
                 });
             })
             .on_mouse_up(MouseButton::Left, move |_event, window, cx| {
-                let _ = root_shell_up.update(cx, |shell, cx| shell.finish_drag_gestures(window, cx));
+                let _ =
+                    root_shell_up.update(cx, |shell, cx| shell.finish_drag_gestures(window, cx));
             })
             .on_mouse_up_out(MouseButton::Left, move |_event, window, cx| {
-                let _ = root_shell_up_out.update(cx, |shell, cx| shell.finish_drag_gestures(window, cx));
+                let _ = root_shell_up_out
+                    .update(cx, |shell, cx| shell.finish_drag_gestures(window, cx));
             })
             .child(layout_tree);
 
@@ -192,7 +193,6 @@ impl Shell {
             border: theme.colors.dialog_border,
             selection: theme.colors.selection,
             active: theme.colors.focus_accent,
-            ..Default::default()
         };
         let preview_overlay = self.panels.layout.corner_drag_panel().and_then(|panel_id| {
             let drag = self
@@ -227,24 +227,20 @@ impl Shell {
             let viewport = window.viewport_size();
             match facts.modifier {
                 CornerDragModifier::None => {
-                    if let Some(new_id) =
-                        <SplitterContainer<WindowPanelKind> as DragPolicy<
-                            WindowPanelKind,
-                        >>::on_plain_drag(
-                            &mut self.panels.layout, &facts, viewport
-                        )
-                    {
+                    if let Some(new_id) = <SplitterContainer<WindowPanelKind> as DragPolicy<
+                        WindowPanelKind,
+                    >>::on_plain_drag(
+                        &mut self.panels.layout, &facts, viewport
+                    ) {
                         self.seed_split_panel(new_id, cx);
                     }
                 }
                 CornerDragModifier::Shift => {
-                    if let Some(cloned) =
-                        <SplitterContainer<WindowPanelKind> as DragPolicy<
-                            WindowPanelKind,
-                        >>::on_shift_drag(
-                            &mut self.panels.layout, &facts, viewport
-                        )
-                    {
+                    if let Some(cloned) = <SplitterContainer<WindowPanelKind> as DragPolicy<
+                        WindowPanelKind,
+                    >>::on_shift_drag(
+                        &mut self.panels.layout, &facts, viewport
+                    ) {
                         self.clone_container_into_new_window(cloned, cx);
                     }
                 }
@@ -268,12 +264,10 @@ impl Shell {
         let editors: Vec<Entity<crate::editor::controller::Editor>> = self
             .panel_contents
             .values()
-            .filter_map(|content| match content {
-                crate::app::shell::PanelContent::Editor(entity) => Some(entity.clone()),
-            })
+            .map(|crate::app::shell::PanelContent::Editor(entity)| entity.clone())
             .collect();
         for editor in editors {
-            let _ = editor.update(cx, |editor, cx| editor.finish_inner_drag(window, cx));
+            editor.update(cx, |editor, cx| editor.finish_inner_drag(window, cx));
         }
     }
 
@@ -293,7 +287,6 @@ impl Shell {
             border: c.dialog_border,
             selection: c.selection,
             active: c.focus_accent,
-            ..Default::default()
         };
         let shell = cx.entity().downgrade();
 
@@ -534,12 +527,8 @@ impl Shell {
                 WindowPanelKind::Editor => {
                     unreachable!("editor leaf without an entity is rendered by its entity")
                 }
-                WindowPanelKind::Explorer => {
-                    self.render_explorer_body(leaf_id, theme, strings, cx)
-                }
-                WindowPanelKind::Settings => {
-                    self.render_settings_body(leaf_id, theme, strings, cx)
-                }
+                WindowPanelKind::Explorer => self.render_explorer_body(leaf_id, theme, strings, cx),
+                WindowPanelKind::Settings => self.render_settings_body(leaf_id, theme, strings, cx),
             };
 
             let bottombar = match kind {
@@ -618,7 +607,10 @@ impl Shell {
             false,
             move |modifier, pos, cx| {
                 let _ = shell_corner.update(cx, |shell, cx| {
-                    shell.panels.layout.start_corner_drag(leaf_id, pos, modifier);
+                    shell
+                        .panels
+                        .layout
+                        .start_corner_drag(leaf_id, pos, modifier);
                     cx.notify();
                 });
             },

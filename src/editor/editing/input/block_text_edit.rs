@@ -9,11 +9,12 @@ use gpui::*;
 
 use crate::editor::block_protocol::{BlockEvent, UndoCaptureKind};
 use crate::editor::editing::input::actions::{
-    Delete, DeleteBackward, IndentBlock, Newline, OutdentBlock, WordDeleteBackward, WordDeleteForward,
+    Delete, DeleteBackward, IndentBlock, Newline, OutdentBlock, WordDeleteBackward,
+    WordDeleteForward,
 };
 use crate::editor::tree::block::{Block, CollapsedCaretAffinity};
-use crate::model::parse::BlockKind;
 use crate::model::inline::text::BlockText;
+use crate::model::parse::BlockKind;
 impl Block {
     fn is_leaf_quote(&self) -> bool {
         self.kind() == BlockKind::Blockquote
@@ -458,8 +459,8 @@ impl Block {
 #[cfg(test)]
 mod tests {
     use super::Block;
-    use crate::model::parse::{BlockData, BlockKind};
     use crate::model::inline::text::BlockText;
+    use crate::model::parse::{BlockData, BlockKind};
     use gpui::{AppContext, TestAppContext};
 
     #[gpui::test]

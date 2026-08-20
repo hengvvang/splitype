@@ -175,8 +175,8 @@ impl Shell {
     ) -> Option<ExplorerSelection> {
         let deleted: std::collections::HashSet<ExplorerEntryId> = deleted_selections
             .iter()
-            .filter_map(|sel| match sel {
-                ExplorerSelection::Entry { entry, .. } => Some(*entry),
+            .map(|sel| match sel {
+                ExplorerSelection::Entry { entry, .. } => *entry,
             })
             .collect();
         let rows = &self.panels.explorer.entries;

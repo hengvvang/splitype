@@ -10,10 +10,10 @@ use gpui::Entity;
 
 use crate::editor::controller::Editor;
 use crate::editor::tree::block::Block;
-use crate::model::parse::{BlockData, BlockKind};
-use crate::model::inline::text::BlockText;
 use crate::model::block::html::is_inline_tag;
 use crate::model::block::table::collect_pipeless_table_region;
+use crate::model::inline::text::BlockText;
+use crate::model::parse::{BlockData, BlockKind};
 
 impl Editor {
     /// Build one paragraph block per non-empty physical line, with a single
