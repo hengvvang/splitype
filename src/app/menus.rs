@@ -58,7 +58,7 @@ fn show_window_prompt(window: Option<AnyWindowHandle>, title: &str, detail: &str
             let _ = window.prompt(PromptLevel::Critical, title, Some(detail), &buttons, cx);
         });
     } else {
-        eprintln!("{title}: {detail}");
+        tracing::error!(title, detail, "menu action prompt error");
     }
 }
 

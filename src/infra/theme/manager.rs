@@ -56,7 +56,7 @@ impl ThemeManager {
         if let Ok(dirs) = SplitypeConfigDirs::from_system()
             && let Err(err) = manager.load_custom_themes_from_dirs(&dirs)
         {
-            eprintln!("failed to load custom themes: {err}");
+            tracing::warn!(error = %err, "failed to load custom themes");
         }
         let _ = manager.set_theme_by_id(theme_id);
         cx.set_global(manager);
@@ -161,7 +161,7 @@ impl ThemeManager {
                 {
                     Ok(entry) => loaded.push(entry),
                     Err(err) => {
-                        eprintln!("skipping custom theme config '{}': {err}", path.display())
+                        tracing::warn!(path = %path.display(), error = %err, "skipping invalid custom theme config");
                     }
                 }
             }

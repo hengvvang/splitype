@@ -231,7 +231,7 @@ impl Editor {
                 let _ = window.prompt(PromptLevel::Critical, &title, Some(&detail), &buttons, cx);
             });
         } else {
-            eprintln!("{}: {err}", strings.image_paste_failed_title);
+            tracing::error!(error = %err, "image paste failed");
         }
     }
 

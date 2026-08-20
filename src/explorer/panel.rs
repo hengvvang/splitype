@@ -298,7 +298,7 @@ impl Shell {
                 Ok(Ok(Some(paths))) => paths,
                 Ok(Ok(None)) | Err(_) => return,
                 Ok(Err(err)) => {
-                    eprintln!("[explorer] dialog error: {err}");
+                    tracing::error!(error = %err, "[explorer] open folder dialog error");
                     return;
                 }
             };
@@ -308,7 +308,7 @@ impl Shell {
             if path.is_dir()
                 && let Err(err) = crate::infra::config::recent::record_recent_folder(&path)
             {
-                eprintln!("failed to update recent folder history: {err}");
+                tracing::warn!(path = %path.display(), error = %err, "failed to update recent folder history");
             }
             let _ = weak_shell.update(cx, |shell, cx| {
                 shell.open_explorer_folder_path(path, cx);
@@ -382,7 +382,7 @@ impl Shell {
                 Ok(Ok(Some(paths))) => paths,
                 Ok(Ok(None)) | Err(_) => return,
                 Ok(Err(err)) => {
-                    eprintln!("[explorer] dialog error: {err}");
+                    tracing::error!(error = %err, "[explorer] replace folder dialog error");
                     return;
                 }
             };

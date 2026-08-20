@@ -1,0 +1,18 @@
+# Configuration for cargo-nextest (https://nexte.st)
+
+[profile.default]
+# Fail fast on test failure
+fail-fast = false
+# Slow test threshold
+slow-timeout = { period = "60s", terminate-after = 2 }
+# Maximum retries on flaky tests (0 in standard dev)
+retries = 0
+# Leak detection timeout after test completes
+leak-timeout = "100ms"
+
+[profile.ci]
+# In CI, print output on failure
+failure-output = "immediate"
+fail-fast = false
+slow-timeout = { period = "120s", terminate-after = 2 }
+retries = 1

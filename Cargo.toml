@@ -1,9 +1,10 @@
 [package]
 name = "splitype"
-version = "0.0.1"
-edition = "2024"
-repository = "https://github.com/hengvvang/splitype"
-license = "Apache-2.0"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+rust-version.workspace = true
 
 [workspace]
 members = [
@@ -11,6 +12,26 @@ members = [
     "crates/splitype-splitter",
     "crates/splitype-model",
 ]
+
+[workspace.package]
+version = "0.0.1"
+edition = "2024"
+repository = "https://github.com/hengvvang/splitype"
+license = "Apache-2.0"
+rust-version = "1.91"
+
+[workspace.dependencies]
+gpui = { version = "0.2.2" }
+uuid = "1.23"
+cssparser = "0.37"
+tree-sitter = "0.26.9"
+tree-sitter-html = "0.23"
+splitype-model = { path = "crates/splitype-model" }
+splitype-splitter = { path = "crates/splitype-splitter" }
+
+[workspace.lints.rust]
+unused_must_use = "deny"
+keyword_idents_2024 = "deny"
 
 [workspace.lints.clippy]
 # Allow stylistic patterns the project doesn't enforce. These mirror the
@@ -90,6 +111,8 @@ trash = "5"
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "default-tls"] }
 semver = "1"
 sys-locale = "0.3"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 # Tree-sitter grammars are feature-gated optional deps shared across all
 # platforms (code highlighting + HTML native parsing). They must NOT live
 # under a target-specific section: the `code-highlight-*` / `html-native`

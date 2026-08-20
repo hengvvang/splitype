@@ -95,7 +95,7 @@ pub fn execute_explorer_change(change: &ExplorerChange) {
                 std::fs::copy(source, dest).map(|_| ())
             };
             if let Err(err) = result {
-                eprintln!("failed to redo copy '{}': {err}", dest.display());
+                tracing::error!(path = %dest.display(), error = %err, "failed to redo copy");
             }
         }
     }
@@ -106,17 +106,17 @@ pub fn execute_explorer_change_inverse(change: &ExplorerChange) {
     match change {
         ExplorerChange::Created { path, .. } => {
             if let Err(err) = remove_path_symlink_safe(path) {
-                eprintln!("failed to undo create '{}': {err}", path.display());
+                tracing::error!(path = %path.display(), error = %err, "failed to undo create");
             }
         }
         ExplorerChange::Renamed { from, to } | ExplorerChange::Moved { from, to } => {
             if let Err(err) = std::fs::rename(to, from) {
-                eprintln!("failed to undo rename '{}': {err}", to.display());
+                tracing::error!(path = %to.display(), error = %err, "failed to undo rename");
             }
         }
         ExplorerChange::Copied { dest, .. } => {
             if let Err(err) = remove_path_symlink_safe(dest) {
-                eprintln!("failed to undo copy '{}': {err}", dest.display());
+                tracing::error!(path = %dest.display(), error = %err, "failed to undo copy");
             }
         }
     }

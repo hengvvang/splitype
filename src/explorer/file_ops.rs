@@ -71,7 +71,7 @@ impl Shell {
                         if let Err(err) =
                             crate::explorer::state::undo::remove_path_symlink_safe(path)
                         {
-                            eprintln!("failed to delete '{}': {err}", path.display());
+                            tracing::error!(path = %path.display(), error = %err, "failed to delete path");
                         }
                     }
                 })
@@ -113,7 +113,7 @@ impl Shell {
                 .spawn(async move {
                     for path in &paths {
                         if let Err(err) = trash::delete(path) {
-                            eprintln!("failed to trash '{}': {err}", path.display());
+                            tracing::error!(path = %path.display(), error = %err, "failed to trash path");
                         }
                     }
                 })

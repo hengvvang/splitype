@@ -172,6 +172,6 @@ fn show_install_cli_error(cx: &mut App, detail: &str) {
             );
         });
     } else {
-        eprintln!("{title}: {detail}");
+        tracing::error!(title, detail, "cli install error");
     }
 }

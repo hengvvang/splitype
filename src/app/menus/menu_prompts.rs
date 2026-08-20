@@ -29,7 +29,7 @@ pub(super) fn open_recent_file_with_error_window(
 ) {
     if !path.is_file() {
         if let Err(err) = remove_recent_file(&path) {
-            eprintln!("failed to remove missing recent file: {err}");
+            tracing::warn!(path = %path.display(), error = %err, "failed to remove missing recent file");
         }
         install_menus(cx);
         cx.refresh_windows();
@@ -241,7 +241,7 @@ pub(super) fn recent_files_for_menu() -> Vec<PathBuf> {
     match read_recent_files() {
         Ok(paths) => paths,
         Err(err) => {
-            eprintln!("failed to read recent file history: {err}");
+            tracing::warn!(error = %err, "failed to read recent file history");
             Vec::new()
         }
     }

@@ -58,9 +58,10 @@ fn open_startup_window(cx: &mut App, startup_open: StartupOpenSetting) {
                 return;
             }
             Err(err) => {
-                eprintln!(
-                    "failed to read last opened file '{}': {err}",
-                    path.display()
+                tracing::warn!(
+                    path = %path.display(),
+                    error = %err,
+                    "failed to read last opened file"
                 );
             }
         }
@@ -103,7 +104,7 @@ pub fn run(args: Args) {
 
     app.run(move |cx: &mut App| {
         let settings = load_or_create_app_settings().unwrap_or_else(|err| {
-            eprintln!("failed to initialize app settings: {err}");
+            tracing::warn!(error = %err, "failed to initialize app settings, falling back to default");
             Default::default()
         });
         I18nManager::init_with_language_id(cx, &settings.default_language_id);
@@ -119,7 +120,7 @@ pub fn run(args: Args) {
             while let Some(path) = open_file_rx.next().await {
                 let _ = cx.update(move |cx| {
                     if let Err(err) = open_file_in_new_window(cx, &path) {
-                        eprintln!("failed to open '{}': {err}", path.display());
+                        tracing::error!(path = %path.display(), error = %err, "failed to open file");
                     }
                 });
             }
@@ -163,14 +164,15 @@ pub fn run(args: Args) {
                     if let Err(err) =
                         crate::infra::config::recent::record_recent_file(&absolute_path)
                     {
-                        eprintln!("failed to update recent file history: {err}");
+                        tracing::warn!(path = %absolute_path.display(), error = %err, "failed to update recent file history");
                     }
                     content
                 }
                 Err(err) => {
-                    eprintln!(
-                        "failed to read '{}': {err}. opened as empty document.",
-                        absolute_path.display()
+                    tracing::warn!(
+                        path = %absolute_path.display(),
+                        error = %err,
+                        "failed to read file, opened as empty document"
                     );
                     String::new()
                 }

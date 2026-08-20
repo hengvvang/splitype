@@ -22,7 +22,9 @@ pub fn install_http_client(cx: &mut App) {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
     ) {
         Ok(client) => cx.set_http_client(Arc::new(client)),
-        Err(error) => eprintln!("failed to install HTTP client for image loading: {error}"),
+        Err(error) => {
+            tracing::error!(error = %error, "failed to install HTTP client for image loading")
+        }
     }
 }
 

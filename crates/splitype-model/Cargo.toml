@@ -1,8 +1,10 @@
 [package]
 name = "splitype-model"
-version = "0.0.1"
-edition = "2024"
-license = "Apache-2.0"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
 
 [lints]
 workspace = true
@@ -12,7 +14,7 @@ default = ["html-native"]
 html-native = ["dep:tree-sitter", "dep:tree-sitter-html"]
 
 [dependencies]
-cssparser = "0.37"
-uuid = "1.23"
-tree-sitter = { version = "0.26.9", optional = true }
-tree-sitter-html = { version = "0.23", optional = true }
+cssparser = { workspace = true }
+uuid = { workspace = true }
+tree-sitter = { workspace = true, optional = true }
+tree-sitter-html = { workspace = true, optional = true }

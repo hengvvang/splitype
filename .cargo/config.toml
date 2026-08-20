@@ -1,4 +1,15 @@
 [alias]
+# Fast type checking across workspace
+check-all = "check --workspace --all-targets"
+
+# Strict static analysis / Clippy
+lint = "clippy --workspace --all-targets -- -D warnings"
+lint-fix = "clippy --fix --allow-dirty --allow-staged --workspace --all-targets"
+
+# Format check / auto-fix
+fmt-check = "fmt --all -- --check"
+fmt-fix = "fmt --all"
+
 # Faster test runner with expression filters: `cargo t -E 'test(editor::tree)'`
 t = "nextest run"
 # Unit tests only (skips the four tests/ integration binaries)

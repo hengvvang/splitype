@@ -165,7 +165,7 @@ impl Worktree {
                         cx.emit(WorktreeEvent::UpdatedEntries);
                     }
                     Ok(_) | Err(_) => {
-                        eprintln!("[explorer] failed to scan '{}'", root_for_log.display());
+                        tracing::warn!(root = %root_for_log.display(), "[explorer] failed to scan worktree");
                         if old_snapshot.entries_by_path.is_empty() {
                             cx.emit(WorktreeEvent::Deleted);
                         }
@@ -192,12 +192,12 @@ impl Worktree {
                 }) {
                     Ok(watcher) => watcher,
                     Err(err) => {
-                        eprintln!("[explorer] failed to start fs watcher: {err}");
+                        tracing::error!(error = %err, "[explorer] failed to start fs watcher");
                         return;
                     }
                 };
             if let Err(err) = watcher.watch(&root, notify::RecursiveMode::Recursive) {
-                eprintln!("[explorer] failed to watch '{}': {err}", root.display());
+                tracing::warn!(root = %root.display(), error = %err, "[explorer] failed to watch directory");
                 return;
             }
             while rx.next().await.is_some() {

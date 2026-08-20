@@ -202,10 +202,10 @@ impl ExplorerSettingsStore {
             Ok(mut app_settings) => {
                 app_settings.explorer = settings;
                 if let Err(err) = save_app_settings(&app_settings) {
-                    eprintln!("failed to save explorer settings: {err}");
+                    tracing::warn!(error = %err, "failed to save explorer settings");
                 }
             }
-            Err(err) => eprintln!("failed to read explorer settings: {err}"),
+            Err(err) => tracing::warn!(error = %err, "failed to read explorer settings"),
         }
     }
 }
@@ -335,10 +335,10 @@ impl EditorSettings {
             Ok(mut settings) => {
                 settings.show_table_headers = show_table_headers;
                 if let Err(err) = save_app_settings(&settings) {
-                    eprintln!("failed to save table header setting: {err}");
+                    tracing::warn!(error = %err, "failed to save table header setting");
                 }
             }
-            Err(err) => eprintln!("failed to read table header setting: {err}"),
+            Err(err) => tracing::warn!(error = %err, "failed to read table header setting"),
         }
     }
 

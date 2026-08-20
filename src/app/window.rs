@@ -188,7 +188,7 @@ pub(crate) fn open_file_in_new_window(cx: &mut App, path: &Path) -> anyhow::Resu
 
 pub(crate) fn record_recent_file_and_refresh(path: &Path, cx: &mut App) {
     if let Err(err) = record_recent_file(path) {
-        eprintln!("failed to update recent file history: {err}");
+        tracing::warn!(path = %path.display(), error = %err, "failed to update recent file history");
         return;
     }
     install_menus(cx);

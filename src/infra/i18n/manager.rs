@@ -44,7 +44,7 @@ impl I18nManager {
         if let Ok(dirs) = SplitypeConfigDirs::from_system()
             && let Err(err) = manager.load_custom_languages_from_dirs(&dirs)
         {
-            eprintln!("failed to load custom languages: {err}");
+            tracing::warn!(error = %err, "failed to load custom languages");
         }
         let _ = manager.set_language_by_id(language_id);
         cx.set_global(manager);
@@ -149,9 +149,10 @@ impl I18nManager {
                     custom_language_pack_from_value(value).map(|(pack, _normalized)| pack)
                 }) {
                     Ok(pack) => loaded.push(pack),
-                    Err(err) => eprintln!(
-                        "skipping custom language config '{}': {err}",
-                        path.display()
+                    Err(err) => tracing::warn!(
+                        path = %path.display(),
+                        error = %err,
+                        "skipping custom language config"
                     ),
                 }
             }
