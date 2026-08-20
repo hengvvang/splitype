@@ -36,8 +36,9 @@ impl Default for StatusBarSettings {
 }
 
 /// Startup document selection stored in `config.toml`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum StartupOpenSetting {
+    #[default]
     NewFile,
     LastOpenedFile,
 }
@@ -50,7 +51,7 @@ impl StartupOpenSetting {
         }
     }
 
-    fn from_str(value: &str) -> Self {
+    pub fn from_str(value: &str) -> Self {
         match value {
             "last_opened_file" => Self::LastOpenedFile,
             _ => Self::NewFile,
@@ -58,9 +59,24 @@ impl StartupOpenSetting {
     }
 }
 
+impl std::fmt::Display for StartupOpenSetting {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl std::str::FromStr for StartupOpenSetting {
+    type Err = std::convert::Infallible;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Ok(Self::from_str(value))
+    }
+}
+
 /// Explorer tree sorting mode (mirrors Zed's `ProjectPanelSortMode`).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ExplorerSortMode {
+    #[default]
     DirectoriesFirst,
     FilesFirst,
     Mixed,
@@ -75,7 +91,7 @@ impl ExplorerSortMode {
         }
     }
 
-    fn from_str(value: &str) -> Self {
+    pub fn from_str(value: &str) -> Self {
         match value {
             "files_first" => Self::FilesFirst,
             "mixed" => Self::Mixed,
@@ -84,9 +100,24 @@ impl ExplorerSortMode {
     }
 }
 
+impl std::fmt::Display for ExplorerSortMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl std::str::FromStr for ExplorerSortMode {
+    type Err = std::convert::Infallible;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Ok(Self::from_str(value))
+    }
+}
+
 /// Explorer tree sort order.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ExplorerSortOrder {
+    #[default]
     Ascending,
     Descending,
 }
@@ -99,11 +130,25 @@ impl ExplorerSortOrder {
         }
     }
 
-    fn from_str(value: &str) -> Self {
+    pub fn from_str(value: &str) -> Self {
         match value {
             "descending" => Self::Descending,
             _ => Self::Ascending,
         }
+    }
+}
+
+impl std::fmt::Display for ExplorerSortOrder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl std::str::FromStr for ExplorerSortOrder {
+    type Err = std::convert::Infallible;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Ok(Self::from_str(value))
     }
 }
 
@@ -163,8 +208,9 @@ impl ExplorerSettingsStore {
 }
 
 /// Where pasted clipboard images should be stored before inserting Markdown.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ImagePasteBehavior {
+    #[default]
     None,
     CopyToDocumentFolder,
     CopyToAssetsFolder,
@@ -181,13 +227,27 @@ impl ImagePasteBehavior {
         }
     }
 
-    fn from_str(value: &str) -> Self {
+    pub fn from_str(value: &str) -> Self {
         match value {
             "copy_to_document_folder" => Self::CopyToDocumentFolder,
             "copy_to_assets_folder" => Self::CopyToAssetsFolder,
             "copy_to_named_assets_folder" => Self::CopyToNamedAssetsFolder,
             _ => Self::None,
         }
+    }
+}
+
+impl std::fmt::Display for ImagePasteBehavior {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl std::str::FromStr for ImagePasteBehavior {
+    type Err = std::convert::Infallible;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        Ok(Self::from_str(value))
     }
 }
 

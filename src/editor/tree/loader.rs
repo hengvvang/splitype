@@ -67,8 +67,9 @@ impl Editor {
 /// Parent-child relationships encoded in `BlockData.parent` / `BlockData.children`
 /// are reconstructed as `Block.children` vectors.
 fn blocks_to_entity_tree(data: Vec<BlockData>, cx: &mut Context<Editor>) -> Vec<Entity<Block>> {
-    // Create GPUI entities for every block.
-    let mut entities: HashMap<uuid::Uuid, Entity<Block>> = HashMap::new();
+    let block_count = data.len();
+    // Pre-allocate hash map to prevent re-allocations and re-hashing during load.
+    let mut entities: HashMap<uuid::Uuid, Entity<Block>> = HashMap::with_capacity(block_count);
     for block in &data {
         let entity = Editor::new_block(cx, block.clone());
         entities.insert(block.id.0, entity);
@@ -80,11 +81,12 @@ fn blocks_to_entity_tree(data: Vec<BlockData>, cx: &mut Context<Editor>) -> Vec<
             continue;
         }
         if let Some(parent_entity) = entities.get(&block.id.0) {
-            let child_entities: Vec<Entity<Block>> = block
-                .children
-                .iter()
-                .filter_map(|child_id| entities.get(&child_id.0).cloned())
-                .collect();
+            let mut child_entities: Vec<Entity<Block>> = Vec::with_capacity(block.children.len());
+            for child_id in &block.children {
+                if let Some(child_entity) = entities.get(&child_id.0) {
+                    child_entities.push(child_entity.clone());
+                }
+            }
 
             if !child_entities.is_empty() {
                 parent_entity.update(cx, |parent, _cx| {

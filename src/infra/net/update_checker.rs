@@ -121,7 +121,14 @@ impl fmt::Display for UpdateCheckError {
     }
 }
 
-impl std::error::Error for UpdateCheckError {}
+impl std::error::Error for UpdateCheckError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Fetch(err) => Some(err),
+            _ => None,
+        }
+    }
+}
 
 /// Version comparison result used by the editor UI.
 #[derive(Clone, Debug, PartialEq, Eq)]
