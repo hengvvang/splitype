@@ -234,7 +234,7 @@ impl Shell {
                         .text_color(tc.text_default)
                         .child(title),
                 )
-                .on_click(move |ev, window, cx| toggle_fn(ev, window, cx));
+                .on_click(move |event, window, cx| toggle_fn(event, window, cx));
 
             let mut card = section_card(tc, td).child(header);
 
@@ -315,7 +315,7 @@ impl Shell {
                             )
                             .on_click({
                                 let theme_shell = theme_shell.clone();
-                                move |_ev, _win, cx| {
+                                move |_event, _window, cx| {
                                     let _ = theme_shell.update(cx, |shell, cx| {
                                         if shell.panels.settings.open_dropdown.as_deref()
                                             == Some("theme")
@@ -378,7 +378,7 @@ impl Shell {
                                 } else {
                                     div().w(px(13.0)).into_any_element()
                                 })
-                                .on_click(move |_ev, _win, cx| {
+                                .on_click(move |_event, _window, cx| {
                                     let _ = item_shell.update(cx, |shell, cx| {
                                         cx.update_global::<ThemeManager, _>(|manager, _cx| {
                                             let _ = manager.set_theme_by_id(&t_id);
@@ -418,7 +418,7 @@ impl Shell {
                             )
                             .on_click({
                                 let lang_shell = lang_shell.clone();
-                                move |_ev, _win, cx| {
+                                move |_event, _window, cx| {
                                     let _ = lang_shell.update(cx, |shell, cx| {
                                         if shell.panels.settings.open_dropdown.as_deref()
                                             == Some("lang")
@@ -462,7 +462,7 @@ impl Shell {
                                 } else {
                                     div().w(px(13.0)).into_any_element()
                                 })
-                                .on_click(move |_ev, _win, cx| {
+                                .on_click(move |_event, _window, cx| {
                                     let _ = item_shell.update(cx, |shell, cx| {
                                         shell.panels.settings.open_dropdown = None;
                                         cx.notify();
@@ -490,7 +490,7 @@ impl Shell {
                     "pref-sec-theme",
                     "Visual Theme & Language",
                     is_sec1_expanded,
-                    Box::new(move |_ev, _win, cx| {
+                    Box::new(move |_event, _window, cx| {
                         let _ = sec1_shell.update(cx, |shell, cx| {
                             shell.panels.settings.toggle_section(sec1_key);
                             cx.notify();
@@ -509,7 +509,7 @@ impl Shell {
                     let sub1_shell = cx.entity().downgrade();
                     let ctrl_sb_main = Switch::new("switch-sb-main")
                         .checked(self.panels.settings.pref_show_status_bar)
-                        .on_click(move |_ev, _win, cx| {
+                        .on_click(move |_event, _window, cx| {
                             let _ = sub1_shell.update(cx, |shell, cx| {
                                 shell.panels.settings.pref_show_status_bar =
                                     !shell.panels.settings.pref_show_status_bar;
@@ -529,7 +529,7 @@ impl Shell {
                     let sub2_shell = cx.entity().downgrade();
                     let ctrl_sb_words = Switch::new("switch-sb-words")
                         .checked(self.panels.settings.pref_show_word_count)
-                        .on_click(move |_ev, _win, cx| {
+                        .on_click(move |_event, _window, cx| {
                             let _ = sub2_shell.update(cx, |shell, cx| {
                                 shell.panels.settings.pref_show_word_count =
                                     !shell.panels.settings.pref_show_word_count;
@@ -549,7 +549,7 @@ impl Shell {
                     let sub3_shell = cx.entity().downgrade();
                     let ctrl_sb_pos = Switch::new("switch-sb-pos")
                         .checked(self.panels.settings.pref_show_cursor_pos)
-                        .on_click(move |_ev, _win, cx| {
+                        .on_click(move |_event, _window, cx| {
                             let _ = sub3_shell.update(cx, |shell, cx| {
                                 shell.panels.settings.pref_show_cursor_pos =
                                     !shell.panels.settings.pref_show_cursor_pos;
@@ -572,7 +572,7 @@ impl Shell {
                     "pref-sec-sb",
                     "Status Bar Options",
                     is_sec2_expanded,
-                    Box::new(move |_ev, _win, cx| {
+                    Box::new(move |_event, _window, cx| {
                         let _ = sec2_shell.update(cx, |shell, cx| {
                             shell.panels.settings.toggle_section(sec2_key);
                             cx.notify();
@@ -602,7 +602,7 @@ impl Shell {
                         format!("{}", curr_size),
                         "px",
                         is_editing_font,
-                        Box::new(move |_ev, _win, cx| {
+                        Box::new(move |_event, _window, cx| {
                             let _ = font_dec.update(cx, |shell, cx| {
                                 shell.panels.settings.editing_stepper = None;
                                 if shell.panels.settings.pref_font_size > 8 {
@@ -611,7 +611,7 @@ impl Shell {
                                 }
                             });
                         }),
-                        Box::new(move |_ev, _win, cx| {
+                        Box::new(move |_event, _window, cx| {
                             let _ = font_inc.update(cx, |shell, cx| {
                                 shell.panels.settings.editing_stepper = None;
                                 if shell.panels.settings.pref_font_size < 48 {
@@ -620,7 +620,7 @@ impl Shell {
                                 }
                             });
                         }),
-                        Box::new(move |_ev, _win, cx| {
+                        Box::new(move |_event, _window, cx| {
                             let _ = font_ctr.update(cx, |shell, cx| {
                                 shell.panels.settings.editing_stepper = Some("font".to_string());
                                 shell.panels.settings.pref_font_size =
@@ -660,7 +660,7 @@ impl Shell {
                         format!("{:.1}", curr_lh),
                         "",
                         is_editing_lh,
-                        Box::new(move |_ev, _win, cx| {
+                        Box::new(move |_event, _window, cx| {
                             let _ = lh_dec.update(cx, |shell, cx| {
                                 shell.panels.settings.editing_stepper = None;
                                 if shell.panels.settings.pref_line_height > 1.05 {
@@ -670,7 +670,7 @@ impl Shell {
                                 }
                             });
                         }),
-                        Box::new(move |_ev, _win, cx| {
+                        Box::new(move |_event, _window, cx| {
                             let _ = lh_inc.update(cx, |shell, cx| {
                                 shell.panels.settings.editing_stepper = None;
                                 if shell.panels.settings.pref_line_height < 3.0 {
@@ -680,7 +680,7 @@ impl Shell {
                                 }
                             });
                         }),
-                        Box::new(move |_ev, _win, cx| {
+                        Box::new(move |_event, _window, cx| {
                             let _ = lh_ctr.update(cx, |shell, cx| {
                                 shell.panels.settings.editing_stepper =
                                     Some("line_height".to_string());
@@ -722,7 +722,7 @@ impl Shell {
                     "pref-sec-typo",
                     "Typography & Formatting",
                     is_sec1_expanded,
-                    Box::new(move |_ev, _win, cx| {
+                    Box::new(move |_event, _window, cx| {
                         let _ = sec1_shell.update(cx, |shell, cx| {
                             shell.panels.settings.toggle_section(sec1_key);
                             cx.notify();
@@ -751,7 +751,7 @@ impl Shell {
                     let tbl_shell = cx.entity().downgrade();
                     let ctrl_tbl = Switch::new("switch-table-headers")
                         .checked(self.panels.settings.pref_show_table_headers)
-                        .on_click(move |_ev, _win, cx| {
+                        .on_click(move |_event, _window, cx| {
                             let _ = tbl_shell.update(cx, |shell, cx| {
                                 shell.panels.settings.pref_show_table_headers =
                                     !shell.panels.settings.pref_show_table_headers;
@@ -793,7 +793,7 @@ impl Shell {
                             )
                             .on_click({
                                 let img_shell = img_shell.clone();
-                                move |_ev, _win, cx| {
+                                move |_event, _window, cx| {
                                     let _ = img_shell.update(cx, |shell, cx| {
                                         if shell.panels.settings.open_dropdown.as_deref()
                                             == Some("image")
@@ -837,7 +837,7 @@ impl Shell {
                                 } else {
                                     div().w(px(13.0)).into_any_element()
                                 })
-                                .on_click(move |_ev, _win, cx| {
+                                .on_click(move |_event, _window, cx| {
                                     let _ = item_shell.update(cx, |shell, cx| {
                                         shell.panels.settings.pref_image_paste_action = idx;
                                         shell.panels.settings.open_dropdown = None;
@@ -866,7 +866,7 @@ impl Shell {
                     "pref-sec-md",
                     "Markdown & Assets",
                     is_sec2_expanded,
-                    Box::new(move |_ev, _win, cx| {
+                    Box::new(move |_event, _window, cx| {
                         let _ = sec2_shell.update(cx, |shell, cx| {
                             shell.panels.settings.toggle_section(sec2_key);
                             cx.notify();
@@ -911,7 +911,7 @@ impl Shell {
                             )
                             .on_click({
                                 let startup_shell = startup_shell.clone();
-                                move |_ev, _win, cx| {
+                                move |_event, _window, cx| {
                                     let _ = startup_shell.update(cx, |shell, cx| {
                                         if shell.panels.settings.open_dropdown.as_deref()
                                             == Some("startup")
@@ -955,7 +955,7 @@ impl Shell {
                                 } else {
                                     div().w(px(13.0)).into_any_element()
                                 })
-                                .on_click(move |_ev, _win, cx| {
+                                .on_click(move |_event, _window, cx| {
                                     let _ = item_shell.update(cx, |shell, cx| {
                                         shell.panels.settings.pref_startup_option = idx;
                                         shell.panels.settings.open_dropdown = None;
@@ -984,7 +984,7 @@ impl Shell {
                     "pref-sec-startup",
                     "Startup Behavior",
                     is_sec3_expanded,
-                    Box::new(move |_ev, _win, cx| {
+                    Box::new(move |_event, _window, cx| {
                         let _ = sec3_shell.update(cx, |shell, cx| {
                             shell.panels.settings.toggle_section(sec3_key);
                             cx.notify();
@@ -1045,7 +1045,7 @@ impl Shell {
                     "pref-sec-doc-actions",
                     "Document Actions",
                     is_sec1_expanded,
-                    Box::new(move |_ev, _win, cx| {
+                    Box::new(move |_event, _window, cx| {
                         let _ = sec1_shell.update(cx, |shell, cx| {
                             shell.panels.settings.toggle_section(sec1_key);
                             cx.notify();
@@ -1100,7 +1100,7 @@ impl Shell {
                     "pref-sec-view-controls",
                     "Interface & View Controls",
                     is_sec2_expanded,
-                    Box::new(move |_ev, _win, cx| {
+                    Box::new(move |_event, _window, cx| {
                         let _ = sec2_shell.update(cx, |shell, cx| {
                             shell.panels.settings.toggle_section(sec2_key);
                             cx.notify();

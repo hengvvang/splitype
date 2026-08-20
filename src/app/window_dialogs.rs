@@ -156,7 +156,7 @@ impl Shell {
                             .rounded(px(d.menu_panel_radius))
                             .shadow_lg()
                             .occlude()
-                            .on_click(|_, _, _| {})
+                            .on_click(|_event, _window, _cx| {})
                             .child(
                                 div()
                                     .text_size(px(t.dialog_title_size))
@@ -283,7 +283,7 @@ impl Shell {
                             .rounded(px(d.menu_panel_radius))
                             .shadow_lg()
                             .occlude()
-                            .on_click(|_, _, _| {})
+                            .on_click(|_event, _window, _cx| {})
                             .child(
                                 div()
                                     .text_size(px(t.dialog_title_size))
@@ -449,7 +449,7 @@ impl Shell {
                         .text_color(c.text_link)
                         .underline()
                         .child(label)
-                        .on_click(move |_, _, cx| cx.open_url(url))
+                        .on_click(move |_event, _window, cx| cx.open_url(url))
                 };
 
                 div()
@@ -587,7 +587,7 @@ impl Shell {
                             .rounded(px(d.panel_tile_radius))
                             .shadow_lg()
                             .occlude()
-                            .on_click(|_, _, _| {})
+                            .on_click(|_event, _window, _cx| {})
                             .child(
                                 // The About panel has no title bar; other
                                 // info dialogs keep one.

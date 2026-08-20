@@ -6,12 +6,14 @@
 use gpui::*;
 
 use crate::editor::tree::block::Block;
+use crate::editor::wysiwyg::render::html_document::{
+    HtmlComputedStyle, HtmlNodeVisualStyle, html_children_text, html_node_visual_style,
+};
 use crate::infra::theme::Theme;
 use crate::model::block::html::{
-    HtmlNode, HtmlNodeKind, attr_value, parse_html_document, parse_html_image_block, style_for_node,
+    HtmlNode, HtmlNodeKind, attr_value, parse_html_document, parse_html_image_block,
 };
 use crate::model::block::image::resolve_image_source;
-use crate::model::inline::html::html_css_color_to_hsla;
 
 /// Renders a raw HTML block read-only with the same visuals as the WYSIWYG
 /// HTML document rendering.
@@ -54,91 +56,6 @@ pub(crate) fn render_preview_html_block(block: &Block, base: Div, theme: &Theme)
                 .map(|node| render_preview_html_node(node, theme, HtmlComputedStyle::root(theme))),
         )
         .into_any_element()
-}
-
-#[derive(Clone, Copy, Debug)]
-struct HtmlComputedStyle {
-    color: Hsla,
-    font_size: f32,
-    root_font_size: f32,
-}
-
-#[derive(Clone, Copy, Debug)]
-struct HtmlNodeVisualStyle {
-    computed: HtmlComputedStyle,
-    background: Option<Hsla>,
-}
-
-impl HtmlComputedStyle {
-    fn root(theme: &Theme) -> Self {
-        Self {
-            color: theme.colors.text_default,
-            font_size: theme.typography.text_size,
-            root_font_size: theme.typography.text_size,
-        }
-    }
-}
-
-fn html_node_visual_style(
-    node: &HtmlNode,
-    parent: HtmlComputedStyle,
-    theme: &Theme,
-) -> HtmlNodeVisualStyle {
-    let c = &theme.colors;
-    let t = &theme.typography;
-    let mut computed = parent;
-    let mut background = None;
-
-    match node.tag_name.as_str() {
-        "a" => computed.color = c.text_link,
-        "blockquote" => computed.color = c.text_quote,
-        "code" | "kbd" | "pre" => {
-            computed.color = c.code_text;
-            computed.font_size = t.code_size;
-            background = Some(c.code_bg);
-        }
-        "mark" => background = Some(c.comment_bg),
-        "figcaption" => {
-            computed.color = c.image_caption_text;
-            computed.font_size = t.code_size;
-        }
-        "small" | "sup" | "sub" => computed.font_size = (computed.font_size * 0.8).max(6.0),
-        "th" => background = Some(c.table_header_bg),
-        "td" => background = Some(c.table_cell_bg),
-        _ => {}
-    }
-
-    let inline_style = style_for_node(node);
-    if let Some(color) = inline_style.color {
-        computed.color = html_css_color_to_hsla(color, computed.color);
-    }
-    if let Some(font_size) = inline_style.font_size {
-        computed.font_size = font_size.resolve(computed.font_size, computed.root_font_size);
-    }
-    if let Some(color) = inline_style.background_color {
-        background = Some(html_css_color_to_hsla(color, computed.color));
-    }
-
-    HtmlNodeVisualStyle {
-        computed,
-        background,
-    }
-}
-
-fn html_children_text(node: &HtmlNode) -> String {
-    if node.children.is_empty() {
-        return node.raw_source.clone();
-    }
-
-    let mut text = String::new();
-    for child in &node.children {
-        if child.tag_name == "br" {
-            text.push('\n');
-        } else {
-            text.push_str(&html_children_text(child));
-        }
-    }
-    text
 }
 
 fn render_preview_html_node(

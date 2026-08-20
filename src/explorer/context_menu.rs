@@ -78,7 +78,7 @@ impl Shell {
                                 .text_color(color)
                                 .child(label),
                         )
-                        .on_mouse_down(MouseButton::Left, move |_ev, window, cx| {
+                        .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
                             let handler = &handler;
                             if let Some(shell) = shell.clone() {
                                 let _ = shell.update(cx, move |shell, cx| {
@@ -411,7 +411,7 @@ impl Shell {
                         .border_color(c.dialog_border)
                         .rounded(px(d.menu_panel_radius))
                         .shadow_lg()
-                        .on_mouse_down(MouseButton::Left, |_ev, _window, cx| cx.stop_propagation())
+                        .on_mouse_down(MouseButton::Left, |_event, _window, cx| cx.stop_propagation())
                         .children(items),
                 )
                 .into_any_element(),

@@ -353,7 +353,7 @@ impl Shell {
                                 .size(px(14.0))
                                 .text_color(c.text_default),
                         )
-                        .on_click(move |_ev, window, cx| {
+                        .on_click(move |_event, window, cx| {
                             let _ = shell_open.update(cx, |shell, cx| {
                                 shell.replace_explorer_worktree(root_index, window, cx);
                             });
@@ -377,7 +377,7 @@ impl Shell {
                                     c.dialog_muted
                                 }),
                         )
-                        .on_click(move |_ev, _window, cx| {
+                        .on_click(move |_event, _window, cx| {
                             let _ = shell_hidden.update(cx, |shell, cx| {
                                 shell.toggle_explorer_hidden(cx);
                             });
@@ -393,7 +393,7 @@ impl Shell {
                                 .size(px(14.0))
                                 .text_color(c.text_default),
                         )
-                        .on_click(move |_ev, _window, cx| {
+                        .on_click(move |_event, _window, cx| {
                             let _ = shell_refresh.update(cx, |shell, cx| {
                                 shell.rescan_and_sync_explorer(cx);
                             });
@@ -409,7 +409,7 @@ impl Shell {
                                 .size(px(14.0))
                                 .text_color(c.text_default),
                         )
-                        .on_click(move |_ev, _window, cx| {
+                        .on_click(move |_event, _window, cx| {
                             let _ = shell_collapse.update(cx, |shell, cx| {
                                 shell.collapse_all_explorer_nodes(cx);
                             });
@@ -845,7 +845,7 @@ impl Shell {
             .bg(c.dialog_secondary_button_hover)
             // Clicks inside the edit row must not reach the panel
             // background (double-click there would create a new file).
-            .on_click(|_ev, _window, cx| cx.stop_propagation())
+            .on_click(|_event, _window, cx| cx.stop_propagation())
             // Arrow placeholder keeps the row aligned with siblings.
             .child(
                 div()
@@ -994,7 +994,7 @@ impl Shell {
                             .text_color(c.dialog_secondary_button_text)
                             .child("Open Folder"),
                     )
-                    .on_click(move |_ev, window, cx| {
+                    .on_click(move |_event, window, cx| {
                         let _ = click_shell.update(cx, |shell, cx| {
                             shell.prompt_open_explorer_folder(window, cx);
                         });
@@ -1061,7 +1061,7 @@ impl Shell {
                                         .hover(|this| this.text_color(c.text_default))
                                         .child(folder_name),
                                 )
-                                .on_click(move |_, _window, cx| {
+                                .on_click(move |_event, _window, cx| {
                                     let _ = item_shell.update(cx, |shell, cx| {
                                         shell.open_explorer_folder_path(path.clone(), cx);
                                     });
@@ -1102,7 +1102,7 @@ impl Shell {
                                         .hover(|this| this.text_color(c.text_default))
                                         .child(file_name),
                                 )
-                                .on_click(move |_, window, cx| {
+                                .on_click(move |_event, window, cx| {
                                     let _ = item_shell.update(cx, |shell, cx| {
                                         shell.open_explorer_file(path.clone(), window, cx);
                                     });

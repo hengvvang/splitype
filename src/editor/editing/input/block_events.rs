@@ -333,7 +333,7 @@ impl Editor {
                         let adopted_children = adopted_children.clone();
                         move |prev, cx| {
                             let mut next_text = prev.data.text.clone();
-                            next_text.append_tree(content.clone());
+                            next_text.append(content.clone());
                             prev.data.set_text(next_text);
                             prev.sync_render_cache();
                             prev.children.extend(adopted_children.clone());
@@ -385,11 +385,11 @@ impl Editor {
                     (leading.clone(), lines.clone())
                 } else {
                     let mut first_text = leading.clone();
-                    first_text.append_tree(BlockText::from_markdown(&lines[0]));
+                    first_text.append(BlockText::from_markdown(&lines[0]));
                     (first_text, lines[1..].to_vec())
                 };
                 if tail_lines.is_empty() {
-                    first_text.append_tree(trailing.clone());
+                    first_text.append(trailing.clone());
                     let cursor = first_text.plain_len();
                     Self::set_block_text_and_kind(&block, current_kind, first_text, cursor, cx);
                     self.focus_block(block.entity_id());
@@ -462,7 +462,7 @@ impl Editor {
                         let trailing = trailing.clone();
                         move |focus_block, cx| {
                             let mut next_text = focus_block.data.text.clone();
-                            next_text.append_tree(trailing.clone());
+                            next_text.append(trailing.clone());
                             focus_block.data.set_text(next_text);
                             focus_block.sync_render_cache();
                             focus_block.cursor_blink_epoch = Instant::now();

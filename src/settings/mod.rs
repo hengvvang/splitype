@@ -27,18 +27,12 @@ use crate::infra::theme::{ThemeCatalogEntry, ThemeManager};
 use crate::ui::custom_titlebar::{
     custom_titlebar_height, render_custom_titlebar, splitype_window_options,
 };
+use crate::settings::state::SettingsTab;
 use crate::ui::switch::Switch;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum SettingsNav {
-    Interface,
-    Editing,
-    Keymap,
-}
 
 /// Independent settings window view.
 pub(crate) struct SettingsWindow {
-    nav: SettingsNav,
+    nav: SettingsTab,
     startup_open: StartupOpenSetting,
     selected_theme_id: String,
     image_paste_behavior: ImagePasteBehavior,
@@ -94,7 +88,7 @@ impl SettingsWindow {
         expanded_sections.insert("keymap".to_string());
 
         Self {
-            nav: SettingsNav::Interface,
+            nav: SettingsTab::Interface,
             startup_open,
             selected_theme_id: selected_theme_id.clone(),
             image_paste_behavior,
@@ -274,13 +268,13 @@ impl Render for SettingsWindow {
             .child(nav_item(
                 "nav-interface",
                 "Interface",
-                self.nav == SettingsNav::Interface,
+                self.nav == SettingsTab::Interface,
             ))
             .on_click({
                 let ed = cx.entity().downgrade();
-                move |_ev, _win, cx| {
+                move |_event, _window, cx| {
                     let _ = ed.update(cx, |this, cx| {
-                        this.nav = SettingsNav::Interface;
+                        this.nav = SettingsTab::Interface;
                         cx.notify();
                     });
                 }
@@ -292,13 +286,13 @@ impl Render for SettingsWindow {
             .child(nav_item(
                 "nav-editing",
                 "Editing",
-                self.nav == SettingsNav::Editing,
+                self.nav == SettingsTab::Editing,
             ))
             .on_click({
                 let ed = cx.entity().downgrade();
-                move |_ev, _win, cx| {
+                move |_event, _window, cx| {
                     let _ = ed.update(cx, |this, cx| {
-                        this.nav = SettingsNav::Editing;
+                        this.nav = SettingsTab::Editing;
                         cx.notify();
                     });
                 }
@@ -310,13 +304,13 @@ impl Render for SettingsWindow {
             .child(nav_item(
                 "nav-keymap",
                 "Keymap",
-                self.nav == SettingsNav::Keymap,
+                self.nav == SettingsTab::Keymap,
             ))
             .on_click({
                 let ed = cx.entity().downgrade();
-                move |_ev, _win, cx| {
+                move |_event, _window, cx| {
                     let _ = ed.update(cx, |this, cx| {
-                        this.nav = SettingsNav::Keymap;
+                        this.nav = SettingsTab::Keymap;
                         cx.notify();
                     });
                 }
@@ -466,7 +460,7 @@ impl Render for SettingsWindow {
                         .text_color(c.text_default)
                         .child(title),
                 )
-                .on_click(move |_ev, _win, cx| {
+                .on_click(move |_event, _window, cx| {
                     let _ = toggle_ed.update(cx, |this, cx| {
                         if this.expanded_sections.contains(key) {
                             this.expanded_sections.remove(key);
@@ -499,7 +493,7 @@ impl Render for SettingsWindow {
         let mut sections: Vec<AnyElement> = Vec::new();
 
         match self.nav {
-            SettingsNav::Interface => {
+            SettingsTab::Interface => {
                 // Section 1: Visual Theme & Language
                 let sec1_key = "theme";
                 let mut sec1_items = Vec::new();
@@ -545,7 +539,7 @@ impl Render for SettingsWindow {
                                     .text_color(c.dialog_muted),
                             ),
                         )
-                        .on_click(move |_ev, _win, cx| {
+                        .on_click(move |_event, _window, cx| {
                             let _ = theme_btn_ed.update(cx, |this, cx| {
                                 this.theme_dropdown_open = !this.theme_dropdown_open;
                                 this.lang_dropdown_open = false;
@@ -603,11 +597,11 @@ impl Render for SettingsWindow {
                             } else {
                                 div().w(px(13.0)).into_any_element()
                             })
-                            .on_click(move |ev, win, cx| {
+                            .on_click(move |event, window, cx| {
                                 let _ = item_ed.update(cx, |this, cx| {
                                     this.selected_theme_id = t_id.clone();
                                     this.theme_dropdown_open = false;
-                                    this.save(ev, win, cx);
+                                    this.save(event, window, cx);
                                 });
                             })
                             .into_any_element(),
@@ -644,7 +638,7 @@ impl Render for SettingsWindow {
                                     .text_color(c.dialog_muted),
                             ),
                         )
-                        .on_click(move |_ev, _win, cx| {
+                        .on_click(move |_event, _window, cx| {
                             let _ = lang_btn_ed.update(cx, |this, cx| {
                                 this.lang_dropdown_open = !this.lang_dropdown_open;
                                 this.theme_dropdown_open = false;
@@ -684,11 +678,11 @@ impl Render for SettingsWindow {
                             } else {
                                 div().w(px(13.0)).into_any_element()
                             })
-                            .on_click(move |ev, win, cx| {
+                            .on_click(move |event, window, cx| {
                                 let _ = item_ed.update(cx, |this, cx| {
                                     this.lang_dropdown_open = false;
                                     let _ = apply_configured_language(cx, code);
-                                    this.save(ev, win, cx);
+                                    this.save(event, window, cx);
                                 });
                             })
                             .into_any_element(),
@@ -719,10 +713,10 @@ impl Render for SettingsWindow {
                 let sb_main_ed = cx.entity().downgrade();
                 let ctrl_sb_main = Switch::new("win-switch-sb-main")
                     .checked(self.status_bar_enabled)
-                    .on_click(move |ev, win, cx| {
+                    .on_click(move |event, window, cx| {
                         let _ = sb_main_ed.update(cx, |this, cx| {
                             this.status_bar_enabled = !this.status_bar_enabled;
-                            this.save(ev, win, cx);
+                            this.save(event, window, cx);
                         });
                     })
                     .into_any_element();
@@ -736,10 +730,10 @@ impl Render for SettingsWindow {
                 let sb_words_ed = cx.entity().downgrade();
                 let ctrl_sb_words = Switch::new("win-switch-sb-words")
                     .checked(self.status_bar_show_word_count)
-                    .on_click(move |ev, win, cx| {
+                    .on_click(move |event, window, cx| {
                         let _ = sb_words_ed.update(cx, |this, cx| {
                             this.status_bar_show_word_count = !this.status_bar_show_word_count;
-                            this.save(ev, win, cx);
+                            this.save(event, window, cx);
                         });
                     })
                     .into_any_element();
@@ -753,11 +747,11 @@ impl Render for SettingsWindow {
                 let sb_pos_ed = cx.entity().downgrade();
                 let ctrl_sb_pos = Switch::new("win-switch-sb-pos")
                     .checked(self.status_bar_show_cursor_position)
-                    .on_click(move |ev, win, cx| {
+                    .on_click(move |event, window, cx| {
                         let _ = sb_pos_ed.update(cx, |this, cx| {
                             this.status_bar_show_cursor_position =
                                 !this.status_bar_show_cursor_position;
-                            this.save(ev, win, cx);
+                            this.save(event, window, cx);
                         });
                     })
                     .into_any_element();
@@ -775,7 +769,7 @@ impl Render for SettingsWindow {
                     sec2_items,
                 ));
             }
-            SettingsNav::Editing => {
+            SettingsTab::Editing => {
                 // Section 1: Typography & Formatting
                 let sec1_key = "typography";
                 let mut sec1_items = Vec::new();
@@ -792,7 +786,7 @@ impl Render for SettingsWindow {
                     format!("{}", curr_size),
                     "px",
                     is_editing_font,
-                    Box::new(move |_ev, _win, cx| {
+                    Box::new(move |_event, _window, cx| {
                         let _ = font_dec.update(cx, |this, cx| {
                             this.editing_stepper = None;
                             if this.font_size > 8 {
@@ -801,7 +795,7 @@ impl Render for SettingsWindow {
                             }
                         });
                     }),
-                    Box::new(move |_ev, _win, cx| {
+                    Box::new(move |_event, _window, cx| {
                         let _ = font_inc.update(cx, |this, cx| {
                             this.editing_stepper = None;
                             if this.font_size < 48 {
@@ -810,7 +804,7 @@ impl Render for SettingsWindow {
                             }
                         });
                     }),
-                    Box::new(move |_ev, _win, cx| {
+                    Box::new(move |_event, _window, cx| {
                         let _ = font_ctr.update(cx, |this, cx| {
                             this.editing_stepper = Some("font".to_string());
                             this.font_size = match this.font_size {
@@ -845,7 +839,7 @@ impl Render for SettingsWindow {
                     format!("{:.1}", curr_lh),
                     "",
                     is_editing_lh,
-                    Box::new(move |_ev, _win, cx| {
+                    Box::new(move |_event, _window, cx| {
                         let _ = lh_dec.update(cx, |this, cx| {
                             this.editing_stepper = None;
                             if this.line_height > 1.05 {
@@ -854,7 +848,7 @@ impl Render for SettingsWindow {
                             }
                         });
                     }),
-                    Box::new(move |_ev, _win, cx| {
+                    Box::new(move |_event, _window, cx| {
                         let _ = lh_inc.update(cx, |this, cx| {
                             this.editing_stepper = None;
                             if this.line_height < 3.0 {
@@ -863,7 +857,7 @@ impl Render for SettingsWindow {
                             }
                         });
                     }),
-                    Box::new(move |_ev, _win, cx| {
+                    Box::new(move |_event, _window, cx| {
                         let _ = lh_ctr.update(cx, |this, cx| {
                             this.editing_stepper = Some("line_height".to_string());
                             this.line_height = if (this.line_height - 1.2).abs() < 0.05 {
@@ -903,7 +897,7 @@ impl Render for SettingsWindow {
                 let show_tb_headers = EditorSettings::show_table_headers(cx);
                 let ctrl_tbl = Switch::new("win-switch-table-headers")
                     .checked(show_tb_headers)
-                    .on_click(move |_ev, _win, cx| {
+                    .on_click(move |_event, _window, cx| {
                         let _ = tbl_ed.update(cx, |_this, cx| {
                             let new_val = !EditorSettings::show_table_headers(cx);
                             EditorSettings::set_show_table_headers(cx, new_val);
@@ -938,7 +932,7 @@ impl Render for SettingsWindow {
                                     .text_color(c.dialog_muted),
                             ),
                         )
-                        .on_click(move |_ev, _win, cx| {
+                        .on_click(move |_event, _window, cx| {
                             let _ = image_btn_ed.update(cx, |this, cx| {
                                 this.image_dropdown_open = !this.image_dropdown_open;
                                 this.startup_dropdown_open = false;
@@ -991,11 +985,11 @@ impl Render for SettingsWindow {
                             } else {
                                 div().w(px(13.0)).into_any_element()
                             })
-                            .on_click(move |ev, win, cx| {
+                            .on_click(move |event, window, cx| {
                                 let _ = item_ed.update(cx, |this, cx| {
                                     this.image_paste_behavior = pref;
                                     this.image_dropdown_open = false;
-                                    this.save(ev, win, cx);
+                                    this.save(event, window, cx);
                                 });
                             })
                             .into_any_element(),
@@ -1047,7 +1041,7 @@ impl Render for SettingsWindow {
                                     .text_color(c.dialog_muted),
                             ),
                         )
-                        .on_click(move |_ev, _win, cx| {
+                        .on_click(move |_event, _window, cx| {
                             let _ = startup_btn_ed.update(cx, |this, cx| {
                                 this.startup_dropdown_open = !this.startup_dropdown_open;
                                 this.image_dropdown_open = false;
@@ -1090,11 +1084,11 @@ impl Render for SettingsWindow {
                             } else {
                                 div().w(px(13.0)).into_any_element()
                             })
-                            .on_click(move |ev, win, cx| {
+                            .on_click(move |event, window, cx| {
                                 let _ = item_ed.update(cx, |this, cx| {
                                     this.startup_open = pref;
                                     this.startup_dropdown_open = false;
-                                    this.save(ev, win, cx);
+                                    this.save(event, window, cx);
                                 });
                             })
                             .into_any_element(),
@@ -1118,7 +1112,7 @@ impl Render for SettingsWindow {
                     sec3_items,
                 ));
             }
-            SettingsNav::Keymap => {
+            SettingsTab::Keymap => {
                 // Section 1: Document Actions
                 let sec1_key = "doc_actions";
                 let mut sec1_items = Vec::new();

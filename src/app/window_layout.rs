@@ -117,7 +117,7 @@ impl Shell {
                 let _ = root_shell_move.update(cx, |shell, cx| {
                     let mut changed = false;
                     let viewport = window.viewport_size();
-                    if splitype_splitter::interaction::update_window_drag(
+                    if splitype_splitter::interaction::update_splitter_drag(
                         &mut shell.panels.layout,
                         pos,
                         viewport,
@@ -222,7 +222,7 @@ impl Shell {
     }
     pub(crate) fn finish_drag_gestures(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(facts) =
-            splitype_splitter::interaction::finish_window_drag(&mut self.panels.layout)
+            splitype_splitter::interaction::finish_splitter_drag(&mut self.panels.layout)
         {
             let viewport = window.viewport_size();
             match facts.modifier {

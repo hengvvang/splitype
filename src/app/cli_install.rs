@@ -10,7 +10,7 @@ use crate::infra::i18n::I18nManager;
 #[cfg(target_os = "macos")]
 use crate::platform::cli_tool::applescript_string_literal;
 #[cfg(target_os = "macos")]
-use crate::platform::cli_tool::{is_cli_symlink_current_app, run_osascript_script};
+use crate::platform::cli_tool::{is_cli_symlink_current_app, run_osascript};
 
 #[cfg(target_os = "macos")]
 const CLI_BIN_LINK: &str = "/usr/local/bin/splitype";
@@ -49,7 +49,7 @@ set linkPath to {link_path}
 do shell script "rm -f " & quoted form of linkPath & linefeed & "ln -s " & quoted form of exePath & space & quoted form of linkPath with administrator privileges"#
     );
 
-    match run_osascript_script(&script) {
+    match run_osascript(&script) {
         Ok(output) => {
             if output.status.success() {
                 let title = "CLI Command Installed";
@@ -107,7 +107,7 @@ pub(crate) fn uninstall_cli_tool(cx: &mut App) {
 do shell script "rm -f " & quoted form of linkPath with administrator privileges"#
     );
 
-    match run_osascript_script(&script) {
+    match run_osascript(&script) {
         Ok(output) => {
             if output.status.success() {
                 let title = "CLI Command Uninstalled";

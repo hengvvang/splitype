@@ -326,7 +326,7 @@ impl Shell {
                         c.dialog_secondary_button_text
                     }),
             )
-            .on_click(move |_, _window, cx| {
+            .on_click(move |_event, _window, cx| {
                 let _ = app_button_shell.update(cx, |shell, cx| {
                     shell.toggle_menu_bar_expanded(cx);
                 });
@@ -366,7 +366,7 @@ impl Shell {
                                     .update(cx, |shell, cx| shell.open_menu_bar(index, cx));
                             }
                         })
-                        .on_click(move |_, _window, cx| {
+                        .on_click(move |_event, _window, cx| {
                             let _ =
                                 click_shell.update(cx, |shell, cx| shell.open_menu_bar(index, cx));
                         }),
@@ -477,7 +477,7 @@ impl Shell {
                     base.hover(|this| this.bg(c.panel_row_hover))
                         .active(|this| this.opacity(0.92))
                         .cursor_pointer()
-                        .on_click(move |_, window, cx| {
+                        .on_click(move |_event, window, cx| {
                             let _ = click_shell.update(cx, |shell, cx| shell.close_menu_bar(cx));
                             dispatch_menu_action_for_editor(action.as_ref(), &editor, window, cx);
                         })
@@ -688,7 +688,7 @@ impl Shell {
                                         base.hover(|this| this.bg(c.panel_row_hover))
                                             .active(|this| this.opacity(0.92))
                                             .cursor_pointer()
-                                            .on_click(move |_, window, cx| {
+                                            .on_click(move |_event, window, cx| {
                                                 let _ = click_shell.update(cx, |shell, cx| {
                                                     shell.close_menu_bar(cx)
                                                 });

@@ -91,17 +91,12 @@ impl BlockData {
 
     /// Create a LaTeX math block. The stored text is the formula body between
     /// the display delimiters; the `$$` fences are rebuilt on serialization.
-    pub fn math_block(markdown: impl Into<String>) -> Self {
+    pub fn latex_block(markdown: impl Into<String>) -> Self {
         let markdown = markdown.into();
         let body = parse_display_math_source(&markdown)
             .map(|source| source.body)
             .unwrap_or(markdown);
         Self::with_plain_text(BlockKind::MathBlock, body)
-    }
-
-    /// Alias for `math_block`.
-    pub fn latex_math(markdown: impl Into<String>) -> Self {
-        Self::math_block(markdown)
     }
 
     /// Create a Mermaid diagram block. The stored text is the diagram source
@@ -112,11 +107,6 @@ impl BlockData {
             .map(|source| source.body)
             .unwrap_or(markdown);
         Self::with_plain_text(BlockKind::MermaidBlock, body)
-    }
-
-    /// Alias for `mermaid_block`.
-    pub fn mermaid_diagram(markdown: impl Into<String>) -> Self {
-        Self::mermaid_block(markdown)
     }
 
     /// Create a table block from existing table data.
@@ -403,12 +393,12 @@ mod tests {
 
     #[test]
     fn math_block_stores_body_and_rebuilds_fences() {
-        let data = BlockData::latex_math("$$x^2$$");
+        let data = BlockData::latex_block("$$x^2$$");
         assert_eq!(data.text.plain_text(), "x^2");
         assert_eq!(data.raw_source.as_deref(), Some("x^2"));
         assert_eq!(data.serialize_markdown_line(0, None), "$$x^2$$");
 
-        let data = BlockData::latex_math("$$\n\\int_0^1 x^2 dx\n$$");
+        let data = BlockData::latex_block("$$\n\\int_0^1 x^2 dx\n$$");
         assert_eq!(data.text.plain_text(), "\\int_0^1 x^2 dx");
         assert_eq!(
             data.serialize_markdown_line(2, None),
@@ -418,7 +408,7 @@ mod tests {
 
     #[test]
     fn mermaid_block_stores_body_and_rebuilds_fences() {
-        let data = BlockData::mermaid_diagram("```mermaid\ngraph LR\nA-->B\n```");
+        let data = BlockData::mermaid_block("```mermaid\ngraph LR\nA-->B\n```");
         assert_eq!(data.text.plain_text(), "graph LR\nA-->B");
         assert_eq!(data.raw_source.as_deref(), Some("graph LR\nA-->B"));
         assert_eq!(

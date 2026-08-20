@@ -256,9 +256,9 @@ impl Editor {
     ) {
         let (kind, text, cursor) = block.read_with(cx, |block, _cx| {
             let mut text = leading.clone();
-            text.append_tree(Self::inserted_image_tree_for_block(block, markdown));
+            text.append(Self::inserted_image_tree_for_block(block, markdown));
             let cursor = text.plain_len();
-            text.append_tree(trailing.clone());
+            text.append(trailing.clone());
             (block.kind(), text, cursor)
         });
         Self::set_block_text_and_kind(block, kind, text, cursor, cx);

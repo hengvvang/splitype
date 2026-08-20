@@ -58,7 +58,7 @@ pub fn applescript_string_literal(value: &str) -> String {
 /// Run an AppleScript command with administrator privileges and return the
 /// raw process output (stderr included).
 #[cfg(target_os = "macos")]
-pub fn run_osascript_script(script: &str) -> std::io::Result<Output> {
+pub fn run_osascript(script: &str) -> std::io::Result<Output> {
     Command::new("osascript").arg("-e").arg(script).output()
 }
 

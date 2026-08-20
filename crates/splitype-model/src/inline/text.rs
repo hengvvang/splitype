@@ -401,7 +401,7 @@ impl BlockText {
         (Self::from_fragments(left), Self::from_fragments(right))
     }
 
-    pub fn append_tree(&mut self, other: Self) {
+    pub fn append(&mut self, other: Self) {
         self.fragments.extend(other.fragments);
         self.normalize_fragments();
     }
@@ -532,7 +532,7 @@ impl BlockText {
                 math: inserted_attributes.math,
             });
         }
-        temp.append_tree(after);
+        temp.append(after);
         temp.normalize_fragments();
         temp.normalize_inline_syntax_with_link_references(reference_definitions)
     }
@@ -563,7 +563,7 @@ impl BlockText {
                 math: inserted_attributes.math,
             });
         }
-        temp.append_tree(after);
+        temp.append(after);
         temp.normalize_fragments();
         let len = temp.plain_len();
         InlineEditResult {
@@ -623,8 +623,8 @@ impl BlockText {
         middle.normalize_fragments();
 
         let mut next = before;
-        next.append_tree(middle);
-        next.append_tree(after);
+        next.append(middle);
+        next.append(after);
         *self = next;
         true
     }

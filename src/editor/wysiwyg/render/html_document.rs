@@ -11,7 +11,7 @@ use crate::model::block::html::{
 use crate::model::block::image::resolve_image_source;
 use crate::model::inline::html::html_css_color_to_hsla;
 
-fn html_children_text(node: &HtmlNode) -> String {
+pub(crate) fn html_children_text(node: &HtmlNode) -> String {
     if node.children.is_empty() {
         return node.raw_source.clone();
     }

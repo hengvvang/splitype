@@ -41,7 +41,7 @@ impl Shell {
                                     .size(px(16.0))
                                     .text_color(c.text_default),
                             )
-                            .on_click(move |_ev, window, cx| {
+                            .on_click(move |_event, window, cx| {
                                 let _ = shell_add.update(cx, |shell, cx| {
                                     shell.prompt_open_explorer_folder(window, cx);
                                 });

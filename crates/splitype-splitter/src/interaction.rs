@@ -200,9 +200,9 @@ pub fn open_border_menu<T: Copy + PartialEq>(
 /// pointer and viewport in window coordinates; an editor midcontainer
 /// passes them in its local space. Returns whether a gesture was active
 /// (the host should repaint). The host reads the root's drag sessions to
-/// apply its own policy; `finish_window_drag` returns the corner-drag
+/// apply its own policy; `finish_splitter_drag` returns the corner-drag
 /// facts on release.
-pub fn update_window_drag<T: Copy + PartialEq>(
+pub fn update_splitter_drag<T: Copy + PartialEq>(
     container: &mut SplitterRoot<T>,
     pos: Point<Pixels>,
     viewport: Size<Pixels>,
@@ -235,7 +235,7 @@ pub fn update_window_drag<T: Copy + PartialEq>(
 
 /// End the active drag gesture of a root; returns the final corner-
 /// drag facts (splitter-bar drags just end).
-pub fn finish_window_drag<T: Copy + PartialEq>(
+pub fn finish_splitter_drag<T: Copy + PartialEq>(
     container: &mut SplitterRoot<T>,
 ) -> Option<CornerDragSession> {
     if container.active_splitter_drag.is_some() {

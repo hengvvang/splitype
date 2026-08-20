@@ -33,7 +33,6 @@ pub struct Theme {
     pub placeholders: Placeholders,
 }
 
-#[allow(unused)]
 impl Theme {
     /// Returns the built-in fallback theme used when no custom theme is loaded.
     pub fn default_theme() -> Self {

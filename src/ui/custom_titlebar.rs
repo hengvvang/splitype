@@ -121,9 +121,9 @@ pub fn render_window_control_buttons<T: 'static>(
                     .size(px(TITLEBAR_ICON_SIZE))
                     .text_color(icon_color),
             )
-            .on_click(move |event, window, app| {
+            .on_click(move |event, window, cx| {
                 if event.standard_click() {
-                    let _ = entity.update(app, |view, cx| {
+                    let _ = entity.update(cx, |view, cx| {
                         on_close(view, event, window, cx);
                     });
                 }

@@ -10,7 +10,7 @@
 //! - `splitter` — the tiled split-screen engine; lives in `splitype-splitter`.
 //! - `infra` — system capabilities (config, i18n, net, theme).
 //! - `editor` — the editing runtime and window views.
-//! - `explorer` / `settings` / `titlebar` — top-level views over `editor`.
+//! - `explorer` / `settings` — top-level views over `editor`.
 //! - `app` — assembly: bootstrap, CLI, menus, window routing.
 //! - `ui` — reusable components; `platform` — OS adapters.
 //!

@@ -219,7 +219,7 @@ impl Editor {
         if !is_table_row_candidate(&header_text) {
             return false;
         }
-        let Some(table) = parse_root_table_region(&[header_text, text]) else {
+        let Some(table) = parse_table_region(&[header_text, text]) else {
             return false;
         };
 

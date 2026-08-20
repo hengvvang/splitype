@@ -12,9 +12,8 @@ use crate::block::image::parse_standalone_image;
 use crate::block::math::parse_display_math_source;
 use crate::block::mermaid::is_mermaid_info_string;
 use crate::block::table::{
-    collect_pipeless_table_region, collect_root_table_candidate_region,
-    collect_table_candidate_region, is_root_table_candidate_line, is_table_candidate_line,
-    parse_root_table_region, parse_table_region,
+    collect_pipeless_table_region, collect_table_candidate_region,
+    is_table_candidate_line, parse_table_region,
 };
 use crate::inline::text::BlockText;
 use crate::parse::data::BlockData;
@@ -476,7 +475,7 @@ fn quote_content_starts_unsupported(lines: &[String], index: usize) -> bool {
     is_block_html_start(line)
         || is_footnote_definition_start(line)
         || is_reference_definition_start(line)
-        || is_root_table_candidate_line(line)
+        || is_table_candidate_line(line)
         || is_display_math_start(line)
         || BlockKind::parse_atx_heading_line(line).is_some()
         || BlockKind::parse_thematic_break_line(line)
@@ -501,8 +500,8 @@ fn collect_unsupported_quote_region(lines: &[String], start: usize) -> Option<us
     if is_reference_definition_start(line) {
         return Some(collect_reference_definition_region(lines, start));
     }
-    if is_root_table_candidate_line(line) {
-        return Some(collect_root_table_candidate_region(lines, start));
+    if is_table_candidate_line(line) {
+        return Some(collect_table_candidate_region(lines, start));
     }
     if is_display_math_start(line) {
         return Some(collect_display_math_region(lines, start));
@@ -577,7 +576,7 @@ fn looks_like_root_block_start(lines: &[String], index: usize) -> bool {
             .get(index + 1)
             .and_then(|next| BlockKind::parse_setext_underline(next))
             .is_some()
-        || is_root_table_candidate_line(line)
+        || is_table_candidate_line(line)
         || is_display_math_start(line)
 }
 
@@ -638,7 +637,7 @@ fn html_or_raw_block(markdown: String) -> BlockData {
 
 fn math_or_raw_block(markdown: String) -> BlockData {
     if parse_display_math_source(&markdown).is_some() {
-        BlockData::latex_math(markdown)
+        BlockData::latex_block(markdown)
     } else {
         raw_block(markdown)
     }
@@ -670,7 +669,7 @@ fn starts_with_standalone_image_child_paragraph(lines: &[String]) -> bool {
             || is_block_html_start(next)
             || is_footnote_definition_start(next)
             || is_reference_definition_start(next)
-            || is_root_table_candidate_line(next)
+            || is_table_candidate_line(next)
             || is_display_math_start(next)
     })
 }
@@ -679,9 +678,9 @@ fn append_markdown_to_block(block: &mut BlockData, separator: &str, markdown: &s
     if !separator.is_empty() {
         block
             .text
-            .append_tree(BlockText::plain(separator.to_string()));
+            .append(BlockText::plain(separator.to_string()));
     }
-    block.text.append_tree(BlockText::from_markdown(markdown));
+    block.text.append(BlockText::from_markdown(markdown));
 }
 
 fn append_separator_children(children: &mut Vec<BlockData>, count: usize) {
@@ -699,7 +698,7 @@ fn collect_fenced_code_block(lines: &[String], start: usize) -> Option<(BlockDat
     let closing_index = find_matching_closing_fence(lines, start, &fence)?;
     if is_mermaid_info_string(fence.language.as_ref().map(|language| language.as_ref())) {
         let raw = lines[start..=closing_index].join("\n");
-        return Some((BlockData::mermaid_diagram(raw), closing_index + 1));
+        return Some((BlockData::mermaid_block(raw), closing_index + 1));
     }
 
     let code_lines = lines[start + 1..closing_index].to_vec();
@@ -1335,10 +1334,10 @@ fn collect_list_blocks(lines: &[String], start: usize) -> (Vec<BlockData>, usize
                     continue;
                 }
 
-                if is_root_table_candidate_line(&anchor_dedented[0]) {
-                    let table_end = collect_root_table_candidate_region(&anchor_dedented, 0);
+                if is_table_candidate_line(&anchor_dedented[0]) {
+                    let table_end = collect_table_candidate_region(&anchor_dedented, 0);
                     let table_region = &anchor_dedented[..table_end];
-                    let mut child = if let Some(table) = parse_root_table_region(table_region) {
+                    let mut child = if let Some(table) = parse_table_region(table_region) {
                         BlockData::table(table)
                     } else {
                         raw_block(table_region.join("\n"))
@@ -1657,10 +1656,10 @@ fn build_blocks_from_lines_internal(
             continue;
         }
 
-        if is_root_table_candidate_line(line) {
-            let end = collect_root_table_candidate_region(lines, index);
+        if is_table_candidate_line(line) {
+            let end = collect_table_candidate_region(lines, index);
             let region = &lines[index..end];
-            if let Some(table) = parse_root_table_region(region) {
+            if let Some(table) = parse_table_region(region) {
                 roots.push(BlockData::table(table));
             } else {
                 roots.extend(
@@ -1675,7 +1674,7 @@ fn build_blocks_from_lines_internal(
         }
 
         if let Some(end) = collect_pipeless_table_region(lines, index)
-            && let Some(table) = parse_root_table_region(&lines[index..end])
+            && let Some(table) = parse_table_region(&lines[index..end])
         {
             roots.push(BlockData::table(table));
             index = end;

@@ -275,6 +275,11 @@ impl TableData {
         self.append_column(TableColumnAlignment::Default);
         self.append_row();
     }
+
+    /// Serializes this table to Markdown lines joined by newline.
+    pub fn serialize_markdown(&self) -> String {
+        serialize_table_markdown_lines(self).join("\n")
+    }
 }
 
 pub struct TableColumnLayout {
@@ -609,21 +614,6 @@ pub fn collect_pipeless_table_region(lines: &[String], start: usize) -> Option<u
     Some(end)
 }
 
-/// Returns true when a root-level line is a candidate native table row.
-pub fn is_root_table_candidate_line(line: &str) -> bool {
-    is_table_candidate_line(line)
-}
-
-/// Collects a contiguous root-level table candidate region.
-pub fn collect_root_table_candidate_region(lines: &[String], start: usize) -> usize {
-    collect_table_candidate_region(lines, start)
-}
-
-/// Parses a root-level pipe table region into native table data.
-pub fn parse_root_table_region(lines: &[String]) -> Option<TableData> {
-    parse_table_region(lines)
-}
-
 /// Parses a single table body row, normalized to `columns` cells (padded when
 /// short, truncated when long). Returns `None` when the line is not a table
 /// row at all.
@@ -659,7 +649,7 @@ pub fn serialize_table_markdown_lines(table: &TableData) -> Vec<String> {
 mod tests {
     use super::{
         TableColumnAlignment, TableColumnLayout, TableData, collect_pipeless_table_region,
-        collect_root_table_candidate_region, is_root_table_candidate_line, parse_root_table_region,
+        collect_table_candidate_region, is_table_candidate_line, parse_table_region,
         serialize_table_markdown_lines,
     };
     use crate::inline::text::BlockText;
@@ -678,7 +668,7 @@ mod tests {
             "| :--- | :---: | ---: |".to_string(),
             "| a | b | c |".to_string(),
         ];
-        let table = parse_root_table_region(&lines).expect("table should parse");
+        let table = parse_table_region(&lines).expect("table should parse");
         assert_eq!(table.alignments.len(), 3);
         assert_eq!(
             table.alignments,
@@ -695,13 +685,13 @@ mod tests {
     #[test]
     fn rejects_invalid_alignment_row() {
         let lines = vec!["| Left | Right |".to_string(), "| nope | --- |".to_string()];
-        assert!(parse_root_table_region(&lines).is_none());
+        assert!(parse_table_region(&lines).is_none());
     }
 
     #[test]
     fn rejects_alignment_row_with_wrong_column_count() {
         let lines = vec!["| A | B | C |".to_string(), "| --- | --- |".to_string()];
-        assert!(parse_root_table_region(&lines).is_none());
+        assert!(parse_table_region(&lines).is_none());
     }
 
     #[test]
@@ -713,7 +703,7 @@ mod tests {
             "| :--- | --- | ---: |".to_string(),
             "| a | b | c |".to_string(),
         ];
-        let table = parse_root_table_region(&lines).expect("table should parse");
+        let table = parse_table_region(&lines).expect("table should parse");
         assert_eq!(
             table.alignments,
             vec![
@@ -736,7 +726,7 @@ mod tests {
             "| short |".to_string(),
             "| 1 | 2 | 3 | 4 |".to_string(),
         ];
-        let table = parse_root_table_region(&lines).expect("table should parse");
+        let table = parse_table_region(&lines).expect("table should parse");
         assert_eq!(table.rows.len(), 2);
         assert_eq!(table.rows[0].len(), 3);
         assert_eq!(table.rows[0][0].serialize_markdown(), "short");
@@ -756,7 +746,7 @@ mod tests {
         ];
         let end = collect_pipeless_table_region(&lines, 0).expect("region");
         assert_eq!(end, 4);
-        let table = parse_root_table_region(&lines[..end]).expect("table should parse");
+        let table = parse_table_region(&lines[..end]).expect("table should parse");
         assert_eq!(table.header.len(), 2);
         assert_eq!(table.rows.len(), 2);
         assert_eq!(table.header[0].serialize_markdown(), "Name");
@@ -813,8 +803,8 @@ mod tests {
             "| 1 | 2 |".to_string(),
             "paragraph".to_string(),
         ];
-        assert!(is_root_table_candidate_line(&lines[0]));
-        assert_eq!(collect_root_table_candidate_region(&lines, 0), 3);
+        assert!(is_table_candidate_line(&lines[0]));
+        assert_eq!(collect_table_candidate_region(&lines, 0), 3);
     }
 
     #[test]
@@ -1003,7 +993,7 @@ mod tests {
 
     #[test]
     fn remove_header_row_promotes_first_body_row() {
-        let mut table = parse_root_table_region(&[
+        let mut table = parse_table_region(&[
             "| A | B |".to_string(),
             "| --- | --- |".to_string(),
             "| 1 | 2 |".to_string(),
@@ -1035,7 +1025,7 @@ mod tests {
 
     #[test]
     fn table_cell_escaped_pipe_and_backslash_roundtrip() {
-        let table = parse_root_table_region(&[
+        let table = parse_table_region(&[
             r"| Formula \| Pipe | Path \\ Alpha |".to_string(),
             r"| --- | --- |".to_string(),
             r"| $a \| b$ | $\alpha + \beta$ |".to_string(),
@@ -1044,7 +1034,7 @@ mod tests {
 
         assert_eq!(table.header.len(), 2);
         let serialized = table.serialize_markdown();
-        let reparsed = parse_root_table_region(
+        let reparsed = parse_table_region(
             &serialized.lines().map(String::from).collect::<Vec<_>>()
         ).expect("reparsed table");
         assert_eq!(reparsed.header.len(), 2);
