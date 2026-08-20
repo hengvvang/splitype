@@ -43,18 +43,10 @@ impl Block {
     }
 
     pub(crate) fn code_language_input_text(&self) -> &str {
-        if self.code_language_picker_open {
-            &self.code_language_query
+        if self.code_toolbar.picker.is_open {
+            &self.code_toolbar.picker.query
         } else {
             self.code_language_text()
-        }
-    }
-
-    pub(crate) fn code_language_cursor_offset(&self) -> usize {
-        if self.code_language_selection_reversed {
-            self.code_language_selected_range.start
-        } else {
-            self.code_language_selected_range.end
         }
     }
 
@@ -86,24 +78,27 @@ impl Block {
 
     pub(crate) fn move_code_language_to(&mut self, offset: usize, cx: &mut Context<Self>) {
         let clamped = offset.min(self.code_language_input_text().len());
-        self.code_language_selected_range = clamped..clamped;
-        self.code_language_selection_reversed = false;
-        self.code_language_marked_range = None;
+        self.code_toolbar.picker.selected_range = clamped..clamped;
+        self.code_toolbar.picker.selection_reversed = false;
+        self.code_toolbar.picker.marked_range = None;
         self.cursor_blink_epoch = Instant::now();
         cx.notify();
     }
 
     pub(crate) fn select_code_language_to(&mut self, offset: usize, cx: &mut Context<Self>) {
         let clamped = offset.min(self.code_language_input_text().len());
-        if self.code_language_selection_reversed {
-            self.code_language_selected_range.start = clamped;
+        if self.code_toolbar.picker.selection_reversed {
+            self.code_toolbar.picker.selected_range.start = clamped;
         } else {
-            self.code_language_selected_range.end = clamped;
+            self.code_toolbar.picker.selected_range.end = clamped;
         }
-        if self.code_language_selected_range.end < self.code_language_selected_range.start {
-            self.code_language_selection_reversed = !self.code_language_selection_reversed;
-            self.code_language_selected_range =
-                self.code_language_selected_range.end..self.code_language_selected_range.start;
+        if self.code_toolbar.picker.selected_range.end
+            < self.code_toolbar.picker.selected_range.start
+        {
+            self.code_toolbar.picker.selection_reversed =
+                !self.code_toolbar.picker.selection_reversed;
+            self.code_toolbar.picker.selected_range = self.code_toolbar.picker.selected_range.end
+                ..self.code_toolbar.picker.selected_range.start;
         }
         self.cursor_blink_epoch = Instant::now();
         cx.notify();
@@ -121,19 +116,21 @@ impl Block {
             return;
         }
 
-        if self.code_language_picker_open {
-            let current = self.code_language_query.clone();
+        if self.code_toolbar.picker.is_open {
+            let current = self.code_toolbar.picker.query.clone();
             let range = range.start.min(current.len())..range.end.min(current.len());
             let inserted = new_text.replace("\r\n", " ").replace(['\r', '\n'], " ");
-            self.code_language_query
+            self.code_toolbar
+                .picker
+                .query
                 .replace_range(range.clone(), &inserted);
-            let next_len = self.code_language_query.len();
+            let next_len = self.code_toolbar.picker.query.len();
             let next_cursor = selected_range_relative
                 .as_ref()
                 .map(|relative| range.start + relative.end)
                 .unwrap_or(range.start + inserted.len())
                 .min(next_len);
-            self.code_language_selected_range = selected_range_relative
+            self.code_toolbar.picker.selected_range = selected_range_relative
                 .as_ref()
                 .map(|relative| {
                     let start = (range.start + relative.start).min(next_len);
@@ -141,10 +138,10 @@ impl Block {
                     start.min(end)..start.max(end)
                 })
                 .unwrap_or(next_cursor..next_cursor);
-            self.code_language_selection_reversed = selected_range_relative
+            self.code_toolbar.picker.selection_reversed = selected_range_relative
                 .as_ref()
                 .is_some_and(|relative| relative.end < relative.start);
-            self.code_language_marked_range = if mark_inserted_text && !inserted.is_empty() {
+            self.code_toolbar.picker.marked_range = if mark_inserted_text && !inserted.is_empty() {
                 Some(range.start..(range.start + inserted.len()).min(next_len))
             } else {
                 None
@@ -206,11 +203,11 @@ impl Block {
         self.data.kind = BlockKind::CodeBlock {
             language: (!normalized.is_empty()).then(|| normalized),
         };
-        self.code_language_selected_range = next_selection;
-        self.code_language_selection_reversed = selected_range_relative
+        self.code_toolbar.picker.selected_range = next_selection;
+        self.code_toolbar.picker.selection_reversed = selected_range_relative
             .as_ref()
             .is_some_and(|relative| relative.end < relative.start);
-        self.code_language_marked_range = next_marked;
+        self.code_toolbar.picker.marked_range = next_marked;
         self.cursor_blink_epoch = Instant::now();
         self.sync_code_highlight();
 
@@ -247,11 +244,7 @@ impl Block {
             self.sync_code_highlight();
             cx.emit(BlockEvent::Changed);
         }
-        self.code_language_picker_open = false;
-        self.code_language_query.clear();
-        self.code_language_selected_range = 0..0;
-        self.code_language_selection_reversed = false;
-        self.code_language_marked_range = None;
+        self.code_toolbar.picker.close();
         cx.notify();
     }
 
@@ -276,8 +269,8 @@ impl Block {
     }
 
     pub(crate) fn reset_code_language_input_layout(&mut self) {
-        self.code_language_paints.clear();
-        self.code_language_is_selecting = false;
+        self.code_toolbar.picker.paints.clear();
+        self.code_toolbar.picker.is_selecting = false;
     }
 
     pub(crate) fn on_code_line_numbers_toggle(

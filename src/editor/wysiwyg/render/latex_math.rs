@@ -38,7 +38,7 @@ pub(crate) fn render_latex_math(
         focused_base.w_full().child(outer).into_any_element()
     } else {
         let show_toolbar =
-            block.code_toolbar_hovered || block.code_language_picker_open || code_language_focused;
+            block.code_toolbar.is_hovered || block.code_toolbar.picker.is_open || code_language_focused;
         let editor_section =
             block.render_code_editor_section(show_toolbar, is_placeholder, theme, strings, cx);
 

@@ -46,10 +46,10 @@ impl EntityInputHandler for Block {
         _cx: &mut Context<Self>,
     ) -> Option<UTF16Selection> {
         if self.code_language_focus_handle.is_focused(_window) {
-            let range = self.code_language_range_to_utf16(&self.code_language_selected_range);
+            let range = self.code_language_range_to_utf16(&self.code_toolbar.picker.selected_range);
             return Some(UTF16Selection {
                 range,
-                reversed: self.code_language_selection_reversed,
+                reversed: self.code_toolbar.picker.selection_reversed,
             });
         }
 
@@ -67,7 +67,9 @@ impl EntityInputHandler for Block {
     ) -> Option<Range<usize>> {
         if self.code_language_focus_handle.is_focused(_window) {
             return self
-                .code_language_marked_range
+                .code_toolbar
+                .picker
+                .marked_range
                 .as_ref()
                 .map(|range| self.code_language_range_to_utf16(range));
         }
@@ -79,7 +81,7 @@ impl EntityInputHandler for Block {
 
     fn unmark_text(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
         if self.code_language_focus_handle.is_focused(_window) {
-            self.code_language_marked_range = None;
+            self.code_toolbar.picker.marked_range = None;
             cx.notify();
             return;
         }
@@ -99,8 +101,8 @@ impl EntityInputHandler for Block {
             let display_range = range_utf16
                 .as_ref()
                 .map(|range| self.code_language_range_from_utf16(range))
-                .or(self.code_language_marked_range.clone())
-                .unwrap_or(self.code_language_selected_range.clone());
+                .or(self.code_toolbar.picker.marked_range.clone())
+                .unwrap_or(self.code_toolbar.picker.selected_range.clone());
             self.replace_code_language_text_in_range(display_range, new_text, None, false, cx);
             return;
         }
@@ -136,12 +138,14 @@ impl EntityInputHandler for Block {
             let display_range = range_utf16
                 .as_ref()
                 .map(|range| self.code_language_range_from_utf16(range))
-                .or(self.code_language_marked_range.clone())
-                .unwrap_or(self.code_language_selected_range.clone());
+                .or(self.code_toolbar.picker.marked_range.clone())
+                .unwrap_or(self.code_toolbar.picker.selected_range.clone());
             let sanitized_new_text = new_text.replace("\r\n", " ").replace(['\r', '\n'], " ");
             let selected_range_relative = new_selected_range_utf16
                 .as_ref()
-                .map(|range_utf16| ImeConverter::utf16_range_to_utf8_in(&sanitized_new_text, range_utf16))
+                .map(|range_utf16| {
+                    ImeConverter::utf16_range_to_utf8_in(&sanitized_new_text, range_utf16)
+                })
                 .map(|relative| relative.start..relative.end);
 
             self.replace_code_language_text_in_range(
@@ -254,6 +258,9 @@ impl EntityInputHandler for Block {
         };
         let utf8_index =
             ranges[line_idx.min(ranges.len().saturating_sub(1))].start + utf8_offset_in_line;
-        Some(ImeConverter::utf8_to_utf16_in(self.display_text(), utf8_index))
+        Some(ImeConverter::utf8_to_utf16_in(
+            self.display_text(),
+            utf8_index,
+        ))
     }
 }

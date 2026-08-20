@@ -57,7 +57,7 @@ async fn toggle_view_mode_ends_stale_code_block_pointer_selection(cx: &mut TestA
         target.update(cx, |block, _cx| {
             block.selected_range = 3..7;
             block.is_selecting = true;
-            block.code_language_is_selecting = true;
+            block.code_toolbar.picker.is_selecting = true;
         });
         editor.active_pane_state().focus.active_entity = Some(target.entity_id());
 
@@ -66,7 +66,7 @@ async fn toggle_view_mode_ends_stale_code_block_pointer_selection(cx: &mut TestA
         assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
         target.read_with(cx, |block, _cx| {
             assert!(!block.is_selecting);
-            assert!(!block.code_language_is_selecting);
+            assert!(!block.code_toolbar.picker.is_selecting);
             assert_eq!(block.selected_range, 3..7);
         });
     });

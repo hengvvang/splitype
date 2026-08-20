@@ -311,7 +311,9 @@ impl Element for CodeLanguageInputElement {
         };
 
         let runs = if let Some(marked_range) = input
-            .code_language_marked_range
+            .code_toolbar
+            .picker
+            .marked_range
             .as_ref()
             .filter(|_| !is_placeholder)
         {
@@ -346,9 +348,9 @@ impl Element for CodeLanguageInputElement {
             .text_system()
             .shape_line(display_text, font_size, &runs, None);
         let line_height = bounds.size.height;
-        let selection = if focused && !input.code_language_selected_range.is_empty() {
-            let start = line.x_for_index(input.code_language_selected_range.start);
-            let end = line.x_for_index(input.code_language_selected_range.end);
+        let selection = if focused && !input.code_toolbar.picker.selected_range.is_empty() {
+            let start = line.x_for_index(input.code_toolbar.picker.selected_range.start);
+            let end = line.x_for_index(input.code_toolbar.picker.selected_range.end);
             Some(fill(
                 Bounds::from_corners(
                     point(bounds.left() + start, bounds.top()),
@@ -359,8 +361,8 @@ impl Element for CodeLanguageInputElement {
         } else {
             None
         };
-        let cursor = if focused && input.code_language_selected_range.is_empty() {
-            let cursor_x = line.x_for_index(input.code_language_cursor_offset());
+        let cursor = if focused && input.code_toolbar.picker.selected_range.is_empty() {
+            let cursor_x = line.x_for_index(input.code_toolbar.picker.cursor_offset());
             let mut cursor_color = theme.colors.cursor;
             cursor_color.a *= input.cursor_opacity();
             Some(fill(

@@ -18,9 +18,9 @@ impl Block {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let should_show = *hovered || self.code_language_picker_open;
-        if self.code_toolbar_hovered != should_show {
-            self.code_toolbar_hovered = should_show;
+        let should_show = *hovered || self.code_toolbar.picker.is_open;
+        if self.code_toolbar.is_hovered != should_show {
+            self.code_toolbar.is_hovered = should_show;
             cx.notify();
         }
     }
@@ -32,16 +32,14 @@ impl Block {
         cx: &mut Context<Self>,
     ) {
         cx.stop_propagation();
-        self.code_language_picker_open = !self.code_language_picker_open;
-        self.code_toolbar_hovered = self.code_language_picker_open;
-        self.code_language_query.clear();
-        self.code_language_selected_range = 0..0;
-        self.code_language_selection_reversed = false;
-        self.code_language_marked_range = None;
-        if self.code_language_picker_open {
-            self.code_language_focus_handle.focus(window);
-        } else {
+        if self.code_toolbar.picker.is_open {
+            self.code_toolbar.picker.close();
+            self.code_toolbar.is_hovered = false;
             self.focus_handle.focus(window);
+        } else {
+            self.code_toolbar.picker.open();
+            self.code_toolbar.is_hovered = true;
+            self.code_language_focus_handle.focus(window);
         }
         cx.notify();
     }
@@ -66,15 +64,14 @@ impl Block {
             return;
         }
         cx.stop_propagation();
-        if self.code_language_picker_open {
-            let value = code_language_options_matching(&self.code_language_query)
+        if self.code_toolbar.picker.is_open {
+            let value = code_language_options_matching(&self.code_toolbar.picker.query)
                 .first()
                 .map(|option| option.value);
             if let Some(value) = value {
                 self.choose_code_language(value, cx);
             } else {
-                self.code_language_picker_open = false;
-                self.code_language_query.clear();
+                self.code_toolbar.picker.close();
             }
         }
         self.focus_handle.focus(window);
@@ -91,8 +88,7 @@ impl Block {
             return;
         }
         cx.stop_propagation();
-        self.code_language_picker_open = false;
-        self.code_language_query.clear();
+        self.code_toolbar.picker.close();
         self.focus_handle.focus(window);
         cx.notify();
     }
@@ -107,12 +103,13 @@ impl Block {
             return;
         }
         cx.stop_propagation();
-        if self.code_language_selected_range.is_empty() {
-            let previous = self.previous_code_language_boundary(self.code_language_cursor_offset());
+        if self.code_toolbar.picker.selected_range.is_empty() {
+            let previous =
+                self.previous_code_language_boundary(self.code_toolbar.picker.cursor_offset());
             self.select_code_language_to(previous, cx);
         }
         self.replace_code_language_text_in_range(
-            self.code_language_selected_range.clone(),
+            self.code_toolbar.picker.selected_range.clone(),
             "",
             None,
             false,
@@ -130,12 +127,12 @@ impl Block {
             return;
         }
         cx.stop_propagation();
-        if self.code_language_selected_range.is_empty() {
-            let next = self.next_code_language_boundary(self.code_language_cursor_offset());
+        if self.code_toolbar.picker.selected_range.is_empty() {
+            let next = self.next_code_language_boundary(self.code_toolbar.picker.cursor_offset());
             self.select_code_language_to(next, cx);
         }
         self.replace_code_language_text_in_range(
-            self.code_language_selected_range.clone(),
+            self.code_toolbar.picker.selected_range.clone(),
             "",
             None,
             false,
@@ -153,13 +150,13 @@ impl Block {
             return;
         }
         cx.stop_propagation();
-        if self.code_language_selected_range.is_empty() {
+        if self.code_toolbar.picker.selected_range.is_empty() {
             self.move_code_language_to(
-                self.previous_code_language_boundary(self.code_language_cursor_offset()),
+                self.previous_code_language_boundary(self.code_toolbar.picker.cursor_offset()),
                 cx,
             );
         } else {
-            self.move_code_language_to(self.code_language_selected_range.start, cx);
+            self.move_code_language_to(self.code_toolbar.picker.selected_range.start, cx);
         }
     }
 
@@ -173,13 +170,13 @@ impl Block {
             return;
         }
         cx.stop_propagation();
-        if self.code_language_selected_range.is_empty() {
+        if self.code_toolbar.picker.selected_range.is_empty() {
             self.move_code_language_to(
-                self.next_code_language_boundary(self.code_language_cursor_offset()),
+                self.next_code_language_boundary(self.code_toolbar.picker.cursor_offset()),
                 cx,
             );
         } else {
-            self.move_code_language_to(self.code_language_selected_range.end, cx);
+            self.move_code_language_to(self.code_toolbar.picker.selected_range.end, cx);
         }
     }
 
@@ -220,7 +217,7 @@ impl Block {
         }
         cx.stop_propagation();
         self.select_code_language_to(
-            self.previous_code_language_boundary(self.code_language_cursor_offset()),
+            self.previous_code_language_boundary(self.code_toolbar.picker.cursor_offset()),
             cx,
         );
     }
@@ -236,7 +233,7 @@ impl Block {
         }
         cx.stop_propagation();
         self.select_code_language_to(
-            self.next_code_language_boundary(self.code_language_cursor_offset()),
+            self.next_code_language_boundary(self.code_toolbar.picker.cursor_offset()),
             cx,
         );
     }
@@ -265,9 +262,9 @@ impl Block {
             return;
         }
         cx.stop_propagation();
-        if !self.code_language_selected_range.is_empty() {
+        if !self.code_toolbar.picker.selected_range.is_empty() {
             cx.write_to_clipboard(ClipboardItem::new_string(
-                self.code_language_input_text()[self.code_language_selected_range.clone()]
+                self.code_language_input_text()[self.code_toolbar.picker.selected_range.clone()]
                     .to_string(),
             ));
         }
@@ -283,13 +280,13 @@ impl Block {
             return;
         }
         cx.stop_propagation();
-        if !self.code_language_selected_range.is_empty() {
+        if !self.code_toolbar.picker.selected_range.is_empty() {
             cx.write_to_clipboard(ClipboardItem::new_string(
-                self.code_language_input_text()[self.code_language_selected_range.clone()]
+                self.code_language_input_text()[self.code_toolbar.picker.selected_range.clone()]
                     .to_string(),
             ));
             self.replace_code_language_text_in_range(
-                self.code_language_selected_range.clone(),
+                self.code_toolbar.picker.selected_range.clone(),
                 "",
                 None,
                 false,
@@ -310,7 +307,7 @@ impl Block {
         cx.stop_propagation();
         if let Some(text) = cx.read_from_clipboard().and_then(|item| item.text()) {
             self.replace_code_language_text_in_range(
-                self.code_language_selected_range.clone(),
+                self.code_toolbar.picker.selected_range.clone(),
                 &text,
                 None,
                 false,
@@ -329,8 +326,7 @@ impl Block {
             return;
         }
         cx.stop_propagation();
-        self.code_language_picker_open = false;
-        self.code_language_query.clear();
+        self.code_toolbar.picker.close();
         self.focus_handle.focus(window);
         cx.notify();
     }
@@ -345,7 +341,7 @@ impl Block {
             return;
         }
         cx.stop_propagation();
-        if self.code_language_picker_open {
+        if self.code_toolbar.picker.is_open {
             return;
         }
         // Down from the language field leaves the code block: the editor focuses
@@ -383,7 +379,7 @@ impl Block {
         cx: &mut Context<Self>,
     ) {
         cx.stop_propagation();
-        self.code_language_is_selecting = true;
+        self.code_toolbar.picker.is_selecting = true;
         self.code_language_focus_handle.focus(window);
         let offset = self.code_language_index_for_mouse_position(event.position);
         if event.modifiers.shift {
@@ -400,7 +396,7 @@ impl Block {
         cx: &mut Context<Self>,
     ) {
         cx.stop_propagation();
-        self.code_language_is_selecting = false;
+        self.code_toolbar.picker.is_selecting = false;
     }
 
     pub(crate) fn on_code_language_mouse_up_out(
@@ -411,8 +407,8 @@ impl Block {
     ) {
         // GPUI dispatches mouse_up_out during capture; do not stop propagation
         // here, or controls under the pointer cannot synthesize on_click.
-        if self.code_language_is_selecting {
-            self.code_language_is_selecting = false;
+        if self.code_toolbar.picker.is_selecting {
+            self.code_toolbar.picker.is_selecting = false;
             cx.notify();
         }
     }
@@ -423,11 +419,11 @@ impl Block {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.code_language_is_selecting {
+        if self.code_toolbar.picker.is_selecting {
             // A stale selecting flag can survive a missed mouse-up. Only extend
             // the selection while the platform still reports an active drag.
             if !event.dragging() {
-                self.code_language_is_selecting = false;
+                self.code_toolbar.picker.is_selecting = false;
                 cx.notify();
                 return;
             }

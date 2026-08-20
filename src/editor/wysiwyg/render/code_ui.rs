@@ -89,7 +89,7 @@ impl Block {
             .child(code_content_container)
             .child(toolbar);
 
-        if !self.code_language_picker_open {
+        if !self.code_toolbar.picker.is_open {
             editor_section.into_any_element()
         } else {
             let picker = self.render_code_language_picker(current_language, theme, strings, cx);
@@ -214,7 +214,7 @@ impl Block {
         let c = &theme.colors;
         let d = &theme.dimensions;
         let toolbar_height = 28.0;
-        let options = code_language_options_matching(&self.code_language_query);
+        let options = code_language_options_matching(&self.code_toolbar.picker.query);
         let selected_language = current_language.to_string();
 
         div()

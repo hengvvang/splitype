@@ -1396,8 +1396,8 @@ mod tests {
 
         cx.update(|window, cx| {
             block.update(cx, |block, _cx| {
-                block.code_toolbar_hovered = true;
-                block.code_language_picker_open = true;
+                block.code_toolbar.is_hovered = true;
+                block.code_toolbar.picker.is_open = true;
                 block.code_language_focus_handle.focus(window);
             });
             window.draw(cx).clear();

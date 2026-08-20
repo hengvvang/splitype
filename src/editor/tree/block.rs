@@ -59,6 +59,187 @@ pub(crate) enum CollapsedCaretAffinity {
     OuterEnd,
 }
 
+/// Interactive sub-regions of table append controls.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TableHoverRegion {
+    /// Border indicator line.
+    Edge,
+    /// Anti-flicker buffer zone.
+    BufferZone,
+    /// The append (+) button itself.
+    AppendButton,
+}
+
+/// Hover and close scheduling state for one axis (row or column) of table append controls.
+#[derive(Default)]
+pub(crate) struct TableAxisAppendState {
+    pub(crate) edge_hovered: bool,
+    pub(crate) buffer_zone_hovered: bool,
+    pub(crate) button_hovered: bool,
+    /// Overall control visibility/active state.
+    pub(crate) is_active: bool,
+    /// Delayed dismiss debounce task handle (120ms).
+    pub(crate) dismiss_task: Option<Task<()>>,
+}
+
+impl TableAxisAppendState {
+    /// Whether the control should be drawn in the UI.
+    #[inline]
+    pub(crate) fn is_visible(&self) -> bool {
+        self.is_active || self.buffer_zone_hovered || self.button_hovered
+    }
+
+    /// Whether pointer is inside any interactive sub-region (to stay visible).
+    #[inline]
+    pub(crate) fn is_cursor_inside(&self) -> bool {
+        self.edge_hovered || self.buffer_zone_hovered || self.button_hovered
+    }
+
+    /// Updates hover status for a specific region.
+    pub(crate) fn set_region_hovered(&mut self, region: TableHoverRegion, hovered: bool) -> bool {
+        let changed = match region {
+            TableHoverRegion::Edge if self.edge_hovered != hovered => {
+                self.edge_hovered = hovered;
+                true
+            }
+            TableHoverRegion::BufferZone if self.buffer_zone_hovered != hovered => {
+                self.buffer_zone_hovered = hovered;
+                true
+            }
+            TableHoverRegion::AppendButton if self.button_hovered != hovered => {
+                self.button_hovered = hovered;
+                true
+            }
+            _ => false,
+        };
+
+        if self.is_cursor_inside() {
+            self.dismiss_task = None;
+            if !self.is_active {
+                self.is_active = true;
+                return true;
+            }
+        }
+        changed
+    }
+
+    /// Resets all hover flags and cancels pending dismiss task.
+    pub(crate) fn reset(&mut self) {
+        self.edge_hovered = false;
+        self.buffer_zone_hovered = false;
+        self.button_hovered = false;
+        self.is_active = false;
+        self.dismiss_task = None;
+    }
+}
+
+/// Table append controls and hovered row/column state.
+#[derive(Default)]
+pub(crate) struct TableInteractionState {
+    /// Column append controls (right edge and + button).
+    pub(crate) column_append: TableAxisAppendState,
+    /// Row append controls (bottom edge and + button).
+    pub(crate) row_append: TableAxisAppendState,
+    /// Which row is being hovered (for handle visibility).
+    pub(crate) hovered_row: Option<usize>,
+    /// Which column is being hovered (for handle visibility).
+    pub(crate) hovered_column: Option<usize>,
+}
+
+impl TableInteractionState {
+    /// Clears all table interaction and hover states.
+    pub(crate) fn clear(&mut self) {
+        self.column_append.reset();
+        self.row_append.reset();
+        self.hovered_row = None;
+        self.hovered_column = None;
+    }
+}
+
+/// State for the transient code block language picker dropdown.
+#[derive(Default)]
+pub(crate) struct CodeLanguagePickerState {
+    /// Whether the picker dropdown is open.
+    pub(crate) is_open: bool,
+    /// Current search filter query string.
+    pub(crate) query: String,
+    /// Selection range within the query input field.
+    pub(crate) selected_range: Range<usize>,
+    /// Whether selection is reversed (right-to-left).
+    pub(crate) selection_reversed: bool,
+    /// IME composition marked range.
+    pub(crate) marked_range: Option<Range<usize>>,
+    /// Whether mouse is actively selecting query text.
+    pub(crate) is_selecting: bool,
+    /// Per-pane paints of the code-language input, resolved by pointer containment.
+    pub(crate) paints: Vec<CodeLanguageLastPaint>,
+}
+
+impl CodeLanguagePickerState {
+    /// Opens the picker and resets the search query and selection.
+    pub(crate) fn open(&mut self) {
+        self.is_open = true;
+        self.query.clear();
+        self.reset_selection();
+    }
+
+    /// Closes the picker and resets search/selection state.
+    pub(crate) fn close(&mut self) {
+        self.is_open = false;
+        self.query.clear();
+        self.reset_selection();
+        self.paints.clear();
+    }
+
+    /// Resets the selection and marked range.
+    pub(crate) fn reset_selection(&mut self) {
+        self.selected_range = 0..0;
+        self.selection_reversed = false;
+        self.marked_range = None;
+        self.is_selecting = false;
+    }
+
+    /// Offset of the cursor (anchor/head depending on direction).
+    #[inline]
+    pub(crate) fn cursor_offset(&self) -> usize {
+        if self.selection_reversed {
+            self.selected_range.start
+        } else {
+            self.selected_range.end
+        }
+    }
+
+    /// Record one pane's paint of the code-language input.
+    pub(crate) fn push_paint(&mut self, bounds: Bounds<Pixels>, line: ShapedLine) {
+        if let Some(entry) = self.paints.iter_mut().find(|entry| entry.bounds == bounds) {
+            *entry = CodeLanguageLastPaint { bounds, line };
+            return;
+        }
+        self.paints.push(CodeLanguageLastPaint { bounds, line });
+        if self.paints.len() > MAX_LAST_PAINTS {
+            self.paints.remove(0);
+        }
+    }
+
+    /// The paint entry whose bounds contain `position`.
+    pub(crate) fn paint_at(&self, position: Point<Pixels>) -> Option<&CodeLanguageLastPaint> {
+        self.paints
+            .iter()
+            .rev()
+            .find(|entry| entry.bounds.contains(&position))
+            .or_else(|| self.paints.last())
+    }
+}
+
+/// Code block toolbar and language picker state.
+#[derive(Default)]
+pub(crate) struct CodeToolbarState {
+    /// Whether the code block toolbar is hovered/visible.
+    pub(crate) is_hovered: bool,
+    /// Embedded language picker popup state.
+    pub(crate) picker: CodeLanguagePickerState,
+}
+
 /// Structural hierarchy context assigned to a block during tree synchronization.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct BlockStructureContext {
@@ -96,16 +277,7 @@ pub struct Block {
     pub children: Vec<Entity<Block>>,
     pub focus_handle: FocusHandle,
     pub(crate) code_language_focus_handle: FocusHandle,
-    pub(crate) code_language_selected_range: Range<usize>,
-    pub(crate) code_language_selection_reversed: bool,
-    pub(crate) code_language_marked_range: Option<Range<usize>>,
-    /// Per-pane paints of the code-language input, resolved by pointer
-    /// containment like [`Block::last_paints`].
-    pub(crate) code_language_paints: Vec<CodeLanguageLastPaint>,
-    pub(crate) code_language_is_selecting: bool,
-    pub(crate) code_toolbar_hovered: bool,
-    pub(crate) code_language_picker_open: bool,
-    pub(crate) code_language_query: String,
+    pub(crate) code_toolbar: CodeToolbarState,
     pub selected_range: Range<usize>,
     pub selection_reversed: bool,
     pub(crate) editor_selection_range: Option<Range<usize>>,
@@ -156,20 +328,7 @@ pub struct Block {
     pub(crate) table_axis_preview: Option<TableAxisMarker>,
     pub(crate) table_axis_selection: Option<TableAxisMarker>,
     pub(crate) table_axis_highlight: TableAxisHighlight,
-    pub(crate) table_append_column_edge_hovered: bool,
-    pub(crate) table_append_column_hovered: bool,
-    pub(crate) table_append_column_zone_hovered: bool,
-    pub(crate) table_append_column_button_hovered: bool,
-    pub(crate) table_append_column_close_task: Option<Task<()>>,
-    pub(crate) table_append_row_edge_hovered: bool,
-    pub(crate) table_append_row_hovered: bool,
-    pub(crate) table_append_row_zone_hovered: bool,
-    pub(crate) table_append_row_button_hovered: bool,
-    pub(crate) table_append_row_close_task: Option<Task<()>>,
-    /// Which row is being hovered (for Anytype-style handle visibility).
-    pub(crate) table_hovered_row: Option<usize>,
-    /// Which column is being hovered (for Anytype-style handle visibility).
-    pub(crate) table_hovered_column: Option<usize>,
+    pub(crate) table_interaction: TableInteractionState,
     pub(crate) image_handle: Option<ImageHandle>,
     pub(crate) html_details_open: bool,
     pub(crate) image_base_dir: Option<PathBuf>,
@@ -271,19 +430,7 @@ impl Block {
     /// Record one pane's paint of the code-language input, mirroring
     /// [`Self::push_last_paint`].
     pub(crate) fn push_code_language_paint(&mut self, bounds: Bounds<Pixels>, line: ShapedLine) {
-        if let Some(entry) = self
-            .code_language_paints
-            .iter_mut()
-            .find(|entry| entry.bounds == bounds)
-        {
-            *entry = CodeLanguageLastPaint { bounds, line };
-            return;
-        }
-        self.code_language_paints
-            .push(CodeLanguageLastPaint { bounds, line });
-        if self.code_language_paints.len() > MAX_LAST_PAINTS {
-            self.code_language_paints.remove(0);
-        }
+        self.code_toolbar.picker.push_paint(bounds, line);
     }
 
     /// The code-language input paint whose bounds contain `position`.
@@ -291,16 +438,12 @@ impl Block {
         &self,
         position: Point<Pixels>,
     ) -> Option<&CodeLanguageLastPaint> {
-        self.code_language_paints
-            .iter()
-            .rev()
-            .find(|entry| entry.bounds.contains(&position))
-            .or_else(|| self.code_language_paints.last())
+        self.code_toolbar.picker.paint_at(position)
     }
 
     /// The newest code-language input paint (any pane).
     pub(crate) fn code_language_paint(&self) -> Option<&CodeLanguageLastPaint> {
-        self.code_language_paints.last()
+        self.code_toolbar.picker.paints.last()
     }
 
     pub fn with_data(cx: &mut Context<Self>, data: BlockData) -> Self {
@@ -313,14 +456,7 @@ impl Block {
             children: Vec::new(),
             focus_handle: cx.focus_handle(),
             code_language_focus_handle: cx.focus_handle(),
-            code_language_selected_range: 0..0,
-            code_language_selection_reversed: false,
-            code_language_marked_range: None,
-            code_language_paints: Vec::new(),
-            code_language_is_selecting: false,
-            code_toolbar_hovered: false,
-            code_language_picker_open: false,
-            code_language_query: String::new(),
+            code_toolbar: CodeToolbarState::default(),
             selected_range: 0..0,
             selection_reversed: false,
             editor_selection_range: None,
@@ -354,18 +490,7 @@ impl Block {
             table_axis_preview: None,
             table_axis_selection: None,
             table_axis_highlight: TableAxisHighlight::None,
-            table_append_column_edge_hovered: false,
-            table_append_column_hovered: false,
-            table_append_column_zone_hovered: false,
-            table_append_column_button_hovered: false,
-            table_append_column_close_task: None,
-            table_append_row_edge_hovered: false,
-            table_append_row_hovered: false,
-            table_append_row_zone_hovered: false,
-            table_append_row_button_hovered: false,
-            table_append_row_close_task: None,
-            table_hovered_row: None,
-            table_hovered_column: None,
+            table_interaction: TableInteractionState::default(),
             image_handle: None,
             html_details_open: false,
             image_base_dir: None,
@@ -1145,9 +1270,9 @@ impl Block {
     }
 
     pub(crate) fn end_pointer_selection_session(&mut self) -> bool {
-        let changed = self.is_selecting || self.code_language_is_selecting;
+        let changed = self.is_selecting || self.code_toolbar.picker.is_selecting;
         self.is_selecting = false;
-        self.code_language_is_selecting = false;
+        self.code_toolbar.picker.is_selecting = false;
         changed
     }
 

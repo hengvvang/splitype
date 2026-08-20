@@ -58,14 +58,10 @@ pub(crate) fn render_table(
     let body_row_count = runtime.rows.len();
     let right_gutter = px(18.0);
     let bottom_gutter = px(18.0);
-    let column_control_visible = block.table_append_column_hovered
-        || block.table_append_column_zone_hovered
-        || block.table_append_column_button_hovered;
-    let row_control_visible = block.table_append_row_hovered
-        || block.table_append_row_zone_hovered
-        || block.table_append_row_button_hovered;
-    let column_button_hovered = block.table_append_column_button_hovered;
-    let row_button_hovered = block.table_append_row_button_hovered;
+    let column_control_visible = block.table_interaction.column_append.is_visible();
+    let row_control_visible = block.table_interaction.row_append.is_visible();
+    let column_button_hovered = block.table_interaction.column_append.button_hovered;
+    let row_button_hovered = block.table_interaction.row_append.button_hovered;
     let weak_table_block = cx.entity().downgrade();
 
     let header_cells = runtime.header;
@@ -170,7 +166,7 @@ pub(crate) fn render_table(
                 .on_hover(move |hovered, _window, cx| {
                     if is_last_col {
                         let _ = col_hover_block.update(cx, |block, cx| {
-                            block.table_append_column_hovered = *hovered;
+                            block.table_interaction.column_append.is_active = *hovered;
                             cx.notify();
                         });
                     }
@@ -268,7 +264,7 @@ pub(crate) fn render_table(
                 .on_hover(move |hovered, _window, cx| {
                     if is_last_body_row {
                         let _ = row_hover_block.update(cx, |block, cx| {
-                            block.table_append_row_hovered = *hovered;
+                            block.table_interaction.row_append.is_active = *hovered;
                             cx.notify();
                         });
                     }
@@ -350,7 +346,7 @@ pub(crate) fn render_table(
                         .on_hover(move |hovered, _window, cx| {
                             if is_last_col {
                                 let _ = col_hover_block.update(cx, |block, cx| {
-                                    block.table_append_column_hovered = *hovered;
+                                    block.table_interaction.column_append.is_active = *hovered;
                                     cx.notify();
                                 });
                             }
@@ -368,24 +364,26 @@ pub(crate) fn render_table(
 
         let column_edge_band = div()
             .id(ElementId::Name(
-                format!("table-append-column-edge-{}", block.data.id).into(),
+                format!("table-append-column-edge-band-{}", block.data.id).into(),
             ))
             .absolute()
-            .top_0()
-            .bottom_0()
-            .right(px(-18.0))
-            .w(px(18.0))
+            .top(px(0.0))
+            .right(px(0.0))
+            .w(px(2.0))
+            .h_full()
+            .cursor_pointer()
             .on_hover(cx.listener(Block::on_table_append_column_edge_hover));
 
         let row_edge_band = div()
             .id(ElementId::Name(
-                format!("table-append-row-edge-{}", block.data.id).into(),
+                format!("table-append-row-edge-band-{}", block.data.id).into(),
             ))
             .absolute()
-            .left_0()
-            .right_0()
-            .bottom(px(-18.0))
-            .h(px(18.0))
+            .left(px(0.0))
+            .bottom(px(0.0))
+            .w_full()
+            .h(px(2.0))
+            .cursor_pointer()
             .on_hover(cx.listener(Block::on_table_append_row_edge_hover));
 
         let column_control = div()
@@ -600,18 +598,7 @@ impl Block {
         self.table_axis_preview = None;
         self.table_axis_selection = None;
         self.table_axis_highlight = TableAxisHighlight::None;
-        self.table_append_column_edge_hovered = false;
-        self.table_append_column_hovered = false;
-        self.table_append_column_zone_hovered = false;
-        self.table_append_column_button_hovered = false;
-        self.table_append_column_close_task = None;
-        self.table_append_row_edge_hovered = false;
-        self.table_append_row_hovered = false;
-        self.table_append_row_zone_hovered = false;
-        self.table_append_row_button_hovered = false;
-        self.table_append_row_close_task = None;
-        self.table_hovered_row = None;
-        self.table_hovered_column = None;
+        self.table_interaction.clear();
     }
 
     pub(crate) fn set_table_axis_visual_state(
