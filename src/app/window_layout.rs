@@ -17,7 +17,7 @@ use crate::app::window_panels::WindowPanelKind;
 use crate::editor::corner_drag_preview::render_corner_drag_preview;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
-use crate::splitter::{Axis, CornerDragModifier};
+use crate::splitter::{CornerDragModifier, SplitAxis};
 use splitype_splitter::container::SplitterContainer;
 use splitype_splitter::policy::DragPolicy;
 use splitype_splitter::sessions::{id_at_point, past_shortcut_threshold};
@@ -325,7 +325,7 @@ impl Shell {
                     self.render_window_panel_node(second, theme, strings, leaf_count, window, cx);
 
                 match axis {
-                    Axis::Horizontal => {
+                    SplitAxis::Horizontal => {
                         let bar_shell = shell.clone();
                         let menu_shell = shell.clone();
                         let bar_active = self
@@ -382,7 +382,7 @@ impl Shell {
                                         splitype_splitter::interaction::start_splitter_drag(
                                             &mut shell.panels.layout,
                                             split_id,
-                                            Axis::Horizontal,
+                                            SplitAxis::Horizontal,
                                             start_pos,
                                             r,
                                         );
@@ -407,7 +407,7 @@ impl Shell {
                             )
                             .into_any_element()
                     }
-                    Axis::Vertical => {
+                    SplitAxis::Vertical => {
                         let bar_shell = shell.clone();
                         let menu_shell = shell.clone();
                         let bar_active = self
@@ -462,7 +462,7 @@ impl Shell {
                                         splitype_splitter::interaction::start_splitter_drag(
                                             &mut shell.panels.layout,
                                             split_id,
-                                            Axis::Vertical,
+                                            SplitAxis::Vertical,
                                             start_pos,
                                             r,
                                         );
@@ -710,14 +710,14 @@ impl Shell {
         let split_h_shell = shell.clone();
         let split_h: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = split_h_shell.update(app, |shell, cx| {
-                shell.split_panel(split_id, Axis::Horizontal, 0.5, true, cx);
+                shell.split_panel(split_id, SplitAxis::Horizontal, 0.5, true, cx);
                 cx.notify();
             });
         });
         let split_v_shell = shell.clone();
         let split_v: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = split_v_shell.update(app, |shell, cx| {
-                shell.split_panel(split_id, Axis::Vertical, 0.5, true, cx);
+                shell.split_panel(split_id, SplitAxis::Vertical, 0.5, true, cx);
                 cx.notify();
             });
         });

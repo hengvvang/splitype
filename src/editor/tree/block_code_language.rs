@@ -6,7 +6,7 @@ use std::time::Instant;
 use gpui::*;
 use unicode_segmentation::*;
 
-use crate::editor::block_protocol::{BlockAction, UndoCaptureKind};
+use crate::editor::block_protocol::{BlockEvent, UndoCaptureKind};
 use crate::editor::render::code_highlight::highlight::{CodeHighlightResult, highlight_code_block};
 use crate::editor::tree::block::Block;
 use crate::editor::tree::block::normalize_code_language_input;
@@ -219,7 +219,7 @@ impl Block {
             _ => None,
         };
         if old_language != next_language {
-            cx.emit(BlockAction::Changed);
+            cx.emit(BlockEvent::Changed);
         }
         cx.notify();
     }
@@ -245,7 +245,7 @@ impl Block {
                 };
             }
             self.sync_code_highlight();
-            cx.emit(BlockAction::Changed);
+            cx.emit(BlockEvent::Changed);
         }
         self.code_language_picker_open = false;
         self.code_language_query.clear();

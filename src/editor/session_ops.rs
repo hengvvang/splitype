@@ -11,7 +11,7 @@ use crate::editor::controller::Editor;
 use crate::editor::session::{EditorPaneKind, EditorSession};
 use crate::splitter::NodeId;
 use gpui::Context;
-use splitype_splitter::tree::Axis;
+use splitype_splitter::tree::SplitAxis;
 
 impl Editor {
     /// This editor's session, mutably (always present).
@@ -41,7 +41,7 @@ impl Editor {
 
     /// Splits a pane via the status-bar buttons. The new pane inherits the
     /// target pane's kind so the split keeps the same view style.
-    pub fn split_pane(&mut self, pane_id: NodeId, axis: Axis) {
+    pub fn split_pane(&mut self, pane_id: NodeId, axis: SplitAxis) {
         self.split_pane_with_ratio(pane_id, axis, 0.5);
     }
 
@@ -63,7 +63,7 @@ impl Editor {
 
     /// Inner split created via corner drag. The new pane inherits the
     /// dragged pane's kind so both sides keep the same view style.
-    pub fn split_pane_with_ratio(&mut self, pane_id: NodeId, axis: Axis, ratio: f32) {
+    pub fn split_pane_with_ratio(&mut self, pane_id: NodeId, axis: SplitAxis, ratio: f32) {
         self.session.root.split_leaf(pane_id, axis, ratio);
     }
 

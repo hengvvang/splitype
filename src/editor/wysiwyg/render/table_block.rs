@@ -1,8 +1,6 @@
-//! Table block rendering.
-
 use gpui::*;
 
-use crate::editor::block_protocol::BlockAction;
+use crate::editor::block_protocol::BlockEvent;
 use crate::editor::editing::table_grid::TableGrid;
 use crate::editor::geometry::table_measure::measure_table_column_layout;
 use crate::editor::wysiwyg::render::effective_table_width;
@@ -12,7 +10,7 @@ use crate::infra::theme::Theme;
 use crate::model::block::table::TableAxisHighlight;
 use crate::model::block::table::TableCellPosition;
 use crate::model::block::table::TableColumnAlignment;
-use crate::model::block::table::{TableAxisKind, TableAxisMarker, TableColumnLayout};
+use crate::model::block::table::{TableAxis, TableAxisMarker, TableColumnLayout};
 
 /// Render a native table block.
 pub(crate) fn render_table(
@@ -76,7 +74,7 @@ pub(crate) fn render_table(
     let header_select_block = weak_table_block.clone();
     let header_menu_block = weak_table_block.clone();
     let header_marker = TableAxisMarker {
-        kind: TableAxisKind::Row,
+        kind: TableAxis::Row,
         index: 0,
     };
     let is_header_selected = selected_marker == Some(header_marker);
@@ -104,8 +102,8 @@ pub(crate) fn render_table(
                 .cursor_pointer()
                 .on_hover(move |hovered, _window, cx| {
                     let _ = header_hover_block.update(cx, |_block, cx| {
-                        cx.emit(BlockAction::RequestTableAxisPreview {
-                            kind: TableAxisKind::Row,
+                        cx.emit(BlockEvent::RequestTableAxisPreview {
+                            kind: TableAxis::Row,
                             index: 0,
                             hovered: *hovered,
                         });
@@ -114,8 +112,8 @@ pub(crate) fn render_table(
                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                     let _ = header_select_block.update(cx, |_block, cx| {
                         cx.stop_propagation();
-                        cx.emit(BlockAction::RequestSelectTableAxis {
-                            kind: TableAxisKind::Row,
+                        cx.emit(BlockEvent::RequestSelectTableAxis {
+                            kind: TableAxis::Row,
                             index: 0,
                         });
                     });
@@ -123,8 +121,8 @@ pub(crate) fn render_table(
                 .on_mouse_down(MouseButton::Right, move |event, _window, cx| {
                     let _ = header_menu_block.update(cx, |_block, cx| {
                         cx.stop_propagation();
-                        cx.emit(BlockAction::RequestOpenTableAxisMenu {
-                            kind: TableAxisKind::Row,
+                        cx.emit(BlockEvent::RequestOpenTableAxisMenu {
+                            kind: TableAxis::Row,
                             index: 0,
                             position: event.position,
                         });
@@ -152,7 +150,7 @@ pub(crate) fn render_table(
             let col_hover_block = weak_table_block.clone();
             let is_last_col = column == column_count - 1;
             let col_marker = TableAxisMarker {
-                kind: TableAxisKind::Column,
+                kind: TableAxis::Column,
                 index: column,
             };
             let is_col_selected = selected_marker == Some(col_marker);
@@ -196,8 +194,8 @@ pub(crate) fn render_table(
                         .cursor_pointer()
                         .on_hover(move |hovered, _window, cx| {
                             let _ = hover_block.update(cx, |_block, cx| {
-                                cx.emit(BlockAction::RequestTableAxisPreview {
-                                    kind: TableAxisKind::Column,
+                                cx.emit(BlockEvent::RequestTableAxisPreview {
+                                    kind: TableAxis::Column,
                                     index: column,
                                     hovered: *hovered,
                                 });
@@ -206,8 +204,8 @@ pub(crate) fn render_table(
                         .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                             let _ = select_block.update(cx, |_block, cx| {
                                 cx.stop_propagation();
-                                cx.emit(BlockAction::RequestSelectTableAxis {
-                                    kind: TableAxisKind::Column,
+                                cx.emit(BlockEvent::RequestSelectTableAxis {
+                                    kind: TableAxis::Column,
                                     index: column,
                                 });
                             });
@@ -215,8 +213,8 @@ pub(crate) fn render_table(
                         .on_mouse_down(MouseButton::Right, move |event, _window, cx| {
                             let _ = menu_block.update(cx, |_block, cx| {
                                 cx.stop_propagation();
-                                cx.emit(BlockAction::RequestOpenTableAxisMenu {
-                                    kind: TableAxisKind::Column,
+                                cx.emit(BlockEvent::RequestOpenTableAxisMenu {
+                                    kind: TableAxis::Column,
                                     index: column,
                                     position: event.position,
                                 });
@@ -252,7 +250,7 @@ pub(crate) fn render_table(
             let is_last_body_row = body_row_index == body_row_count - 1;
             let visual_row = body_row_index + 1;
             let marker = TableAxisMarker {
-                kind: TableAxisKind::Row,
+                kind: TableAxis::Row,
                 index: visual_row,
             };
             let is_row_selected = selected_marker == Some(marker);
@@ -291,8 +289,8 @@ pub(crate) fn render_table(
                         .cursor_pointer()
                         .on_hover(move |hovered, _window, cx| {
                             let _ = hover_block.update(cx, |_block, cx| {
-                                cx.emit(BlockAction::RequestTableAxisPreview {
-                                    kind: TableAxisKind::Row,
+                                cx.emit(BlockEvent::RequestTableAxisPreview {
+                                    kind: TableAxis::Row,
                                     index: visual_row,
                                     hovered: *hovered,
                                 });
@@ -301,8 +299,8 @@ pub(crate) fn render_table(
                         .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                             let _ = select_block.update(cx, |_block, cx| {
                                 cx.stop_propagation();
-                                cx.emit(BlockAction::RequestSelectTableAxis {
-                                    kind: TableAxisKind::Row,
+                                cx.emit(BlockEvent::RequestSelectTableAxis {
+                                    kind: TableAxis::Row,
                                     index: visual_row,
                                 });
                             });
@@ -310,8 +308,8 @@ pub(crate) fn render_table(
                         .on_mouse_down(MouseButton::Right, move |event, _window, cx| {
                             let _ = menu_block.update(cx, |_block, cx| {
                                 cx.stop_propagation();
-                                cx.emit(BlockAction::RequestOpenTableAxisMenu {
-                                    kind: TableAxisKind::Row,
+                                cx.emit(BlockEvent::RequestOpenTableAxisMenu {
+                                    kind: TableAxis::Row,
                                     index: visual_row,
                                     position: event.position,
                                 });

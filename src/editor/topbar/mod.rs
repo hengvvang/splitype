@@ -7,7 +7,7 @@ use gpui::*;
 use crate::app::window_layout::panel_topbar_icon;
 use crate::app::window_panels::WindowPanelKind;
 use crate::infra::theme::Theme;
-use crate::splitter::Axis;
+use crate::splitter::SplitAxis;
 use crate::ui::button::{icon_chip_button, small_pill_button};
 use crate::ui::topbar::topbar_container;
 
@@ -69,7 +69,7 @@ impl crate::editor::controller::Editor {
                 let _ = split_h_editor.update(cx, |ed, cx| {
                     // Same-kind split; Editor panels deep-copy their tabs.
                     ed.defer_shell_action(cx, move |shell, cx| {
-                        shell.split_panel(leaf_id, Axis::Horizontal, 0.5, true, cx);
+                        shell.split_panel(leaf_id, SplitAxis::Horizontal, 0.5, true, cx);
                     });
                     cx.notify();
                 });
@@ -88,7 +88,7 @@ impl crate::editor::controller::Editor {
                 let _ = split_v_editor.update(cx, |ed, cx| {
                     // Same-kind split; Editor panels deep-copy their tabs.
                     ed.defer_shell_action(cx, move |shell, cx| {
-                        shell.split_panel(leaf_id, Axis::Vertical, 0.5, true, cx);
+                        shell.split_panel(leaf_id, SplitAxis::Vertical, 0.5, true, cx);
                     });
                     cx.notify();
                 });

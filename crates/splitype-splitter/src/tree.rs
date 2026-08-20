@@ -9,11 +9,11 @@ use crate::container::SplitterContainer;
 /// (leaves and split nodes alike) is numbered from this single space.
 pub type NodeId = usize;
 
-/// Split orientation between adjacent leaves.
+/// Split orientation between adjacent leaves in the layout tree.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Axis {
-    Horizontal, // Splits left and right
-    Vertical,   // Splits top and bottom
+pub enum SplitAxis {
+    Horizontal, // Splits left and right (vertical divider)
+    Vertical,   // Splits top and bottom (horizontal divider)
 }
 
 /// Cardinal direction used for corner-drag gesture routing.
@@ -58,7 +58,7 @@ pub enum SplitTree<T: Copy> {
     Leaf(SplitterContainer<T>),
     Split {
         id: usize,
-        axis: Axis,
+        axis: SplitAxis,
         ratio: f32,
         first: Box<SplitTree<T>>,
         second: Box<SplitTree<T>>,
@@ -186,11 +186,11 @@ impl<T: Copy + PartialEq> SplitTree<T> {
             } => {
                 let r = ratio.clamp(0.0, 1.0);
                 match axis {
-                    Axis::Horizontal => {
+                    SplitAxis::Horizontal => {
                         first.collect_leaf_rects(x, y, w * r, h, out);
                         second.collect_leaf_rects(x + w * r, y, w * (1.0 - r), h, out);
                     }
-                    Axis::Vertical => {
+                    SplitAxis::Vertical => {
                         first.collect_leaf_rects(x, y, w, h * r, out);
                         second.collect_leaf_rects(x, y + h * r, w, h * (1.0 - r), out);
                     }
@@ -207,7 +207,7 @@ impl<T: Copy + PartialEq> SplitTree<T> {
         y: f32,
         w: f32,
         h: f32,
-    ) -> Option<(Axis, f32)> {
+    ) -> Option<(SplitAxis, f32)> {
         match self {
             Self::Leaf { .. } => None,
             Self::Split {
@@ -219,19 +219,19 @@ impl<T: Copy + PartialEq> SplitTree<T> {
             } => {
                 if *id == target_split_id {
                     let span = match axis {
-                        Axis::Horizontal => w,
-                        Axis::Vertical => h,
+                        SplitAxis::Horizontal => w,
+                        SplitAxis::Vertical => h,
                     };
                     return Some((*axis, span));
                 }
                 let r = ratio.clamp(0.0, 1.0);
                 match axis {
-                    Axis::Horizontal => first
+                    SplitAxis::Horizontal => first
                         .find_split_span(target_split_id, x, y, w * r, h)
                         .or_else(|| {
                             second.find_split_span(target_split_id, x + w * r, y, w * (1.0 - r), h)
                         }),
-                    Axis::Vertical => first
+                    SplitAxis::Vertical => first
                         .find_split_span(target_split_id, x, y, w, h * r)
                         .or_else(|| {
                             second.find_split_span(target_split_id, x, y + h * r, w, h * (1.0 - r))
@@ -248,7 +248,7 @@ impl<T: Copy + PartialEq> SplitTree<T> {
         &mut self,
         target_id: usize,
         new_id: usize,
-        axis: Axis,
+        axis: SplitAxis,
         ratio: f32,
         next_kind: T,
     ) -> bool {

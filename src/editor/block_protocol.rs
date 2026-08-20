@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use gpui::{Image, Pixels, Point, SharedString};
 
-use crate::model::block::table::TableAxisKind;
+use crate::model::block::table::TableAxis;
 use crate::model::inline::text::BlockText;
 
 /// Image payload extracted from GPUI's clipboard abstraction.
@@ -25,7 +25,7 @@ pub enum PastedImageSource {
 /// Events emitted by a block to its parent editor when structural
 /// changes or focus transfers are needed that the block cannot handle alone.
 #[derive(Debug, Clone)]
-pub enum BlockAction {
+pub enum BlockEvent {
     /// Capture the current document state before an upcoming mutation.
     PrepareUndo { kind: UndoCaptureKind },
     /// The block's content or kind changed; the editor should mark the
@@ -126,15 +126,15 @@ pub enum BlockAction {
     /// `hovered` distinguishes the two so the editor can ignore a leave
     /// that arrives after an adjacent handle has already taken the preview.
     RequestTableAxisPreview {
-        kind: TableAxisKind,
+        kind: TableAxis,
         index: usize,
         hovered: bool,
     },
     /// Select one native table row or column for batch operations.
-    RequestSelectTableAxis { kind: TableAxisKind, index: usize },
+    RequestSelectTableAxis { kind: TableAxis, index: usize },
     /// Open the axis context menu for a native table row or column.
     RequestOpenTableAxisMenu {
-        kind: TableAxisKind,
+        kind: TableAxis,
         index: usize,
         position: Point<Pixels>,
     },

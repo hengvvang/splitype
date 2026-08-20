@@ -5,7 +5,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::editor::block_protocol::BlockAction;
+    use crate::editor::block_protocol::BlockEvent;
     use crate::editor::controller::Editor;
     use crate::editor::editing::input::actions::ExitCodeBlock;
     use crate::editor::editing::input::actions::{DeleteBackward, Newline};
@@ -20,7 +20,7 @@ mod tests {
 
         editor.update(cx, |editor, cx| {
             let quote = editor.doc().first_root().expect("root quote").clone();
-            editor.on_block_event(quote, &BlockAction::RequestQuoteBreak, cx);
+            editor.on_block_event(quote, &BlockEvent::RequestQuoteBreak, cx);
 
             let entries = editor.doc().blocks();
             assert_eq!(entries.len(), 2);
@@ -88,7 +88,7 @@ mod tests {
 
             editor.on_block_event(
                 paragraph.clone(),
-                &BlockAction::RequestJumpToFootnoteDefinition {
+                &BlockEvent::RequestJumpToFootnoteDefinition {
                     id: "note".to_string(),
                 },
                 cx,
@@ -102,7 +102,7 @@ mod tests {
                 .expect("resolved footnote occurrence");
             editor.on_block_event(
                 definition.clone(),
-                &BlockAction::RequestJumpToFootnoteBackref {
+                &BlockEvent::RequestJumpToFootnoteBackref {
                     id: "note".to_string(),
                 },
                 cx,
@@ -258,7 +258,7 @@ mod tests {
 
         editor.update(cx, |editor, cx| {
             let second = editor.doc().blocks()[1].entity.clone();
-            editor.on_block_event(second, &BlockAction::RequestIndent, cx);
+            editor.on_block_event(second, &BlockEvent::RequestIndent, cx);
 
             let entries = editor.doc().blocks();
             assert_eq!(entries.len(), 2);
@@ -276,7 +276,7 @@ mod tests {
 
         let child_id = editor.update(cx, |editor, cx| {
             let child = editor.doc().blocks()[1].entity.clone();
-            editor.on_block_event(child.clone(), &BlockAction::RequestOutdent, cx);
+            editor.on_block_event(child.clone(), &BlockEvent::RequestOutdent, cx);
             child.entity_id()
         });
 

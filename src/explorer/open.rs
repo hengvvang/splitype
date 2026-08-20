@@ -71,7 +71,7 @@ impl Shell {
             return;
         };
         let Some(new_id) =
-            self.split_panel(panel_id, crate::splitter::Axis::Horizontal, 0.5, false, cx)
+            self.split_panel(panel_id, crate::splitter::SplitAxis::Horizontal, 0.5, false, cx)
         else {
             return;
         };

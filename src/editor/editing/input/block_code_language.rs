@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::editor::block_protocol::BlockAction;
+use crate::editor::block_protocol::BlockEvent;
 use crate::editor::editing::input::actions::{
     Copy, Cut, Delete, DeleteBackward, DismissTransientUi, End, FocusNext, FocusPrevious, Home,
     IndentBlock, MoveLeft, MoveRight, Newline, OutdentBlock, Paste, SelectAll, SelectLeft,
@@ -351,7 +351,7 @@ impl Block {
         // Down from the language field leaves the code block: the editor focuses
         // the block below, creating a trailing paragraph first when the code
         // block is the last block. Enter does not exit (see on_code_language_newline).
-        cx.emit(BlockAction::RequestFocusNext { preferred_x: None });
+        cx.emit(BlockEvent::RequestFocusNext { preferred_x: None });
     }
 
     pub(crate) fn on_code_language_indent(

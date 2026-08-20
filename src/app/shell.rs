@@ -20,7 +20,7 @@ use crate::editor::session::EditorSession;
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::ThemeManager;
 use crate::splitter::NodeId;
-use splitype_splitter::tree::Axis;
+use splitype_splitter::tree::SplitAxis;
 
 /// The content of one area in the outer layout tree.
 pub enum PanelContent {
@@ -224,7 +224,7 @@ impl Shell {
     pub(crate) fn split_panel(
         &mut self,
         panel_id: NodeId,
-        axis: Axis,
+        axis: SplitAxis,
         ratio: f32,
         copy_content: bool,
         cx: &mut Context<Self>,

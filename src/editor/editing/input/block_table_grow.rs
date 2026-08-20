@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use gpui::*;
 
-use crate::editor::block_protocol::BlockAction;
+use crate::editor::block_protocol::BlockEvent;
 use crate::editor::tree::block::Block;
 use crate::model::parse::BlockKind;
 impl Block {
@@ -209,7 +209,7 @@ impl Block {
         cx: &mut Context<Self>,
     ) {
         if self.kind() == BlockKind::Table {
-            cx.emit(BlockAction::RequestAppendTableColumn);
+            cx.emit(BlockEvent::RequestAppendTableColumn);
         }
     }
 
@@ -220,7 +220,7 @@ impl Block {
         cx: &mut Context<Self>,
     ) {
         if self.kind() == BlockKind::Table {
-            cx.emit(BlockAction::RequestAppendTableRow);
+            cx.emit(BlockEvent::RequestAppendTableRow);
         }
     }
 
@@ -231,7 +231,7 @@ impl Block {
         cx: &mut Context<Self>,
     ) {
         if self.kind() == BlockKind::Table {
-            cx.emit(BlockAction::RequestExpandTable);
+            cx.emit(BlockEvent::RequestExpandTable);
         }
     }
 }

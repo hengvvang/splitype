@@ -93,7 +93,7 @@ pub fn default_layout() -> WindowLayout {
     SplitterRoot {
         tree: splitype_splitter::tree::SplitTree::Split {
             id: DEFAULT_EDITOR_PANEL_ID,
-            axis: splitype_splitter::tree::Axis::Horizontal,
+            axis: splitype_splitter::tree::SplitAxis::Horizontal,
             ratio: 0.3,
             first: Box::new(splitype_splitter::tree::SplitTree::Leaf(
                 SplitterContainer::new(ROOT_PANEL_ID, WindowPanelKind::Explorer),

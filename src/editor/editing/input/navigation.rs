@@ -5,7 +5,7 @@
 use gpui::*;
 
 use super::actions::{JumpToBottom, JumpToTop, PageDown, PageUp};
-use crate::editor::block_protocol::BlockAction;
+use crate::editor::block_protocol::BlockEvent;
 use crate::editor::controller::*;
 use crate::editor::tree::block::CollapsedCaretAffinity;
 use crate::model::block::table::TableCellPosition;
@@ -278,7 +278,7 @@ impl Editor {
     pub(crate) fn on_table_cell_event(
         &mut self,
         binding: crate::editor::controller::TableCellBinding,
-        event: &BlockAction,
+        event: &BlockEvent,
         cx: &mut Context<Self>,
     ) {
         if Self::block_event_clears_cross_block_selection(event) {
@@ -288,26 +288,26 @@ impl Editor {
         }
 
         match event {
-            BlockAction::Changed => {
+            BlockEvent::Changed => {
                 self.sync_table_data_from_grid(&binding.table_block, cx);
                 self.sync_references_after_block_change(&binding.cell, cx);
                 self.mark_dirty(cx);
                 self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
                 self.finalize_pending_undo_capture(cx);
             }
-            BlockAction::RequestOpenLink {
+            BlockEvent::RequestOpenLink {
                 prompt_target,
                 open_target,
             } => {
                 self.request_open_link_prompt(prompt_target.clone(), open_target.clone(), cx);
             }
-            BlockAction::RequestJumpToFootnoteDefinition { id, .. } => {
+            BlockEvent::RequestJumpToFootnoteDefinition { id, .. } => {
                 let _ = self.jump_to_footnote_definition(id, cx);
             }
-            BlockAction::RequestJumpToFootnoteBackref { id } => {
+            BlockEvent::RequestJumpToFootnoteBackref { id } => {
                 let _ = self.jump_to_footnote_backref(id, cx);
             }
-            BlockAction::RequestTableCellMoveHorizontal { delta } => {
+            BlockEvent::RequestTableCellMoveHorizontal { delta } => {
                 self.focus_table_cell_horizontal_neighbor(
                     &binding.table_block,
                     binding.position,
@@ -315,7 +315,7 @@ impl Editor {
                     cx,
                 );
             }
-            BlockAction::RequestTableCellMoveVertical { delta } => {
+            BlockEvent::RequestTableCellMoveVertical { delta } => {
                 self.focus_table_cell_vertical_neighbor(
                     &binding.table_block,
                     binding.position,
@@ -323,7 +323,7 @@ impl Editor {
                     cx,
                 );
             }
-            BlockAction::RequestNewline { .. } => {
+            BlockEvent::RequestNewline { .. } => {
                 let Some(location) = self
                     .doc()
                     .find_block_location(binding.table_block.entity_id())
@@ -351,13 +351,13 @@ impl Editor {
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
-            BlockAction::RequestFocus => {
+            BlockEvent::RequestFocus => {
                 self.clear_table_axis_preview(cx);
                 self.clear_table_axis_selection(cx);
                 self.focus_block(binding.cell.entity_id());
                 cx.notify();
             }
-            BlockAction::RequestFocusPrevious { .. } => {
+            BlockEvent::RequestFocusPrevious { .. } => {
                 self.focus_table_cell_vertical_neighbor(
                     &binding.table_block,
                     binding.position,
@@ -365,7 +365,7 @@ impl Editor {
                     cx,
                 );
             }
-            BlockAction::RequestFocusNext { .. } => {
+            BlockEvent::RequestFocusNext { .. } => {
                 self.focus_table_cell_vertical_neighbor(
                     &binding.table_block,
                     binding.position,
@@ -375,10 +375,10 @@ impl Editor {
             }
             // Block Up/Down treat the table as a single block: leave it
             // entirely for the block above/below rather than stepping by cell.
-            BlockAction::RequestBlockUp => {
+            BlockEvent::RequestBlockUp => {
                 self.focus_block_adjacent_to_table(&binding.table_block, -1, true, cx);
             }
-            BlockAction::RequestBlockDown => {
+            BlockEvent::RequestBlockDown => {
                 self.focus_block_adjacent_to_table(&binding.table_block, 1, true, cx);
             }
             _ => {}

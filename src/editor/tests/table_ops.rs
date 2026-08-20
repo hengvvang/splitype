@@ -114,7 +114,7 @@ async fn setting_column_alignment_updates_table_data_and_selection(cx: &mut Test
             editor.tab().tables.axis_selection,
             Some(crate::editor::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: crate::model::block::table::TableAxisKind::Column,
+                kind: crate::model::block::table::TableAxis::Column,
                 index: 1,
             })
         );
@@ -137,7 +137,7 @@ async fn moving_table_row_updates_focus_and_selection(cx: &mut TestAppContext) {
             editor.tab().tables.axis_selection,
             Some(crate::editor::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: crate::model::block::table::TableAxisKind::Row,
+                kind: crate::model::block::table::TableAxis::Row,
                 index: 1,
             })
         );
@@ -167,7 +167,7 @@ async fn moving_first_body_row_up_swaps_with_header(cx: &mut TestAppContext) {
             editor.tab().tables.axis_selection,
             Some(crate::editor::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: crate::model::block::table::TableAxisKind::Row,
+                kind: crate::model::block::table::TableAxis::Row,
                 index: 0,
             })
         );
@@ -191,7 +191,7 @@ async fn moving_header_row_down_swaps_with_first_body(cx: &mut TestAppContext) {
             editor.tab().tables.axis_selection,
             Some(crate::editor::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: crate::model::block::table::TableAxisKind::Row,
+                kind: crate::model::block::table::TableAxis::Row,
                 index: 1,
             })
         );
@@ -200,14 +200,14 @@ async fn moving_header_row_down_swaps_with_first_body(cx: &mut TestAppContext) {
 
 #[gpui::test]
 async fn selecting_first_body_row_does_not_highlight_header(cx: &mut TestAppContext) {
-    use crate::model::block::table::{TableAxisHighlight, TableAxisKind};
+    use crate::model::block::table::{TableAxis, TableAxisHighlight};
     let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |", "| 3 | 4 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
         // Visual row 1 is the first body row; the header (row 0) must stay clear.
-        editor.select_table_axis(table.entity_id(), TableAxisKind::Row, 1, cx);
+        editor.select_table_axis(table.entity_id(), TableAxis::Row, 1, cx);
 
         let grid = table.read(cx).table_grid.clone().expect("grid");
         for cell in &grid.header {
@@ -231,13 +231,13 @@ async fn selecting_first_body_row_does_not_highlight_header(cx: &mut TestAppCont
 
 #[gpui::test]
 async fn selecting_header_row_highlights_only_header(cx: &mut TestAppContext) {
-    use crate::model::block::table::{TableAxisHighlight, TableAxisKind};
+    use crate::model::block::table::{TableAxis, TableAxisHighlight};
     let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
         let table = editor.doc().first_root().expect("table root").clone();
-        editor.select_table_axis(table.entity_id(), TableAxisKind::Row, 0, cx);
+        editor.select_table_axis(table.entity_id(), TableAxis::Row, 0, cx);
 
         let grid = table.read(cx).table_grid.clone().expect("grid");
         for cell in &grid.header {
@@ -254,7 +254,7 @@ async fn selecting_header_row_highlights_only_header(cx: &mut TestAppContext) {
 
 #[gpui::test]
 async fn body_row_preview_survives_stale_header_leave(cx: &mut TestAppContext) {
-    use crate::model::block::table::TableAxisKind;
+    use crate::model::block::table::TableAxis;
     let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -265,20 +265,20 @@ async fn body_row_preview_survives_stale_header_leave(cx: &mut TestAppContext) {
         // Pointer crosses from the header handle down onto the first body row.
         // The body handle's enter arrives first, then the header handle's leave;
         // the stale leave must not clear the preview the pointer moved onto.
-        editor.preview_table_axis(id, TableAxisKind::Row, 1, true, cx);
-        editor.preview_table_axis(id, TableAxisKind::Row, 0, false, cx);
+        editor.preview_table_axis(id, TableAxis::Row, 1, true, cx);
+        editor.preview_table_axis(id, TableAxis::Row, 0, false, cx);
         assert_eq!(
             editor.tab().tables.axis_preview,
             Some(crate::editor::controller::TableAxisSelection {
                 table_block_id: id,
-                kind: TableAxisKind::Row,
+                kind: TableAxis::Row,
                 index: 1,
             }),
             "body row preview must survive the header's stale leave"
         );
 
         // Leaving the body handle that owns the preview still clears it.
-        editor.preview_table_axis(id, TableAxisKind::Row, 1, false, cx);
+        editor.preview_table_axis(id, TableAxis::Row, 1, false, cx);
         assert_eq!(editor.tab().tables.axis_preview, None);
     });
 }
@@ -298,7 +298,7 @@ async fn deleting_table_column_moves_selection_to_nearest_survivor(cx: &mut Test
             editor.tab().tables.axis_selection,
             Some(crate::editor::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: crate::model::block::table::TableAxisKind::Column,
+                kind: crate::model::block::table::TableAxis::Column,
                 index: 1,
             })
         );

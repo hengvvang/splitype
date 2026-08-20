@@ -3,11 +3,11 @@
 //! [`on_block_key_down`](Block::on_block_key_down).
 //!
 //! Structural changes that cross block boundaries are emitted as
-//! `BlockAction`s for the parent editor to resolve.
+//! `BlockEvent`s for the parent editor to resolve.
 
 use gpui::*;
 
-use crate::editor::block_protocol::{BlockAction, UndoCaptureKind};
+use crate::editor::block_protocol::{BlockEvent, UndoCaptureKind};
 use crate::editor::editing::input::actions::{
     Delete, DeleteBackward, IndentBlock, Newline, OutdentBlock, WordDeleteBackward, WordDeleteForward,
 };
@@ -46,7 +46,7 @@ impl Block {
         self.assign_collapsed_selection_offset(0, CollapsedCaretAffinity::Default, None);
         self.marked_range = None;
         self.cursor_blink_epoch = std::time::Instant::now();
-        cx.emit(BlockAction::Changed);
+        cx.emit(BlockEvent::Changed);
         cx.notify();
         true
     }
@@ -75,12 +75,12 @@ impl Block {
         // table/source/code/quote-like blocks keep local newline semantics,
         // while normal rendered blocks emit an editor-level split request.
         if self.is_table_cell() {
-            cx.emit(BlockAction::RequestTableCellMoveVertical { delta: 1 });
+            cx.emit(BlockEvent::RequestTableCellMoveVertical { delta: 1 });
             return;
         }
 
         if self.editor_selection_range.is_some() {
-            cx.emit(BlockAction::RequestReplaceCrossBlockSelection {
+            cx.emit(BlockEvent::RequestReplaceCrossBlockSelection {
                 text: "\n".to_string(),
                 selected_range_relative: None,
                 mark_inserted_text: false,
@@ -107,7 +107,7 @@ impl Block {
             && BlockKind::parse_setext_underline(self.display_text()).is_none()
         {
             self.convert_to_separator(cx);
-            cx.emit(BlockAction::RequestNewline {
+            cx.emit(BlockEvent::RequestNewline {
                 trailing: BlockText::plain(String::new()),
                 source_already_mutated: true,
             });
@@ -139,7 +139,7 @@ impl Block {
         }
 
         if self.kind().is_thematic_break() {
-            cx.emit(BlockAction::RequestNewline {
+            cx.emit(BlockEvent::RequestNewline {
                 trailing: BlockText::plain(String::new()),
                 source_already_mutated: false,
             });
@@ -147,7 +147,7 @@ impl Block {
         }
 
         if self.kind().is_list_item() && self.selected_range.is_empty() && self.is_empty() {
-            cx.emit(BlockAction::RequestOutdent);
+            cx.emit(BlockEvent::RequestOutdent);
             return;
         }
 
@@ -161,7 +161,7 @@ impl Block {
         }
 
         if matches!(self.kind(), BlockKind::Callout(_)) {
-            cx.emit(BlockAction::RequestEnterCalloutBody);
+            cx.emit(BlockEvent::RequestEnterCalloutBody);
             return;
         }
 
@@ -182,7 +182,7 @@ impl Block {
                 let fence_end = self.display_len();
                 self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
                 self.replace_text_in_display_range(fence_start..fence_end, "", None, false, cx);
-                cx.emit(BlockAction::RequestNewline {
+                cx.emit(BlockEvent::RequestNewline {
                     trailing: BlockText::plain(String::new()),
                     source_already_mutated: true,
                 });
@@ -208,7 +208,7 @@ impl Block {
 
         let cursor = self.cursor_offset();
         if self.selected_range.is_empty() && cursor == 0 {
-            cx.emit(BlockAction::RequestNewlineAbove);
+            cx.emit(BlockEvent::RequestNewlineAbove);
             return;
         }
 
@@ -219,7 +219,7 @@ impl Block {
         let cursor = self.display_len();
         self.assign_collapsed_selection_offset(cursor, CollapsedCaretAffinity::Default, None);
         self.marked_range = None;
-        cx.emit(BlockAction::RequestNewline {
+        cx.emit(BlockEvent::RequestNewline {
             trailing,
             source_already_mutated: true,
         });
@@ -254,18 +254,18 @@ impl Block {
         if self.selected_range.is_empty() && self.cursor_offset() == 0 {
             if self.kind() == BlockKind::Paragraph && self.is_direct_list_child() && self.is_empty()
             {
-                cx.emit(BlockAction::RequestOutdent);
+                cx.emit(BlockEvent::RequestOutdent);
                 return;
             }
             if self.is_nested_list_item() {
-                cx.emit(BlockAction::RequestDowngradeNestedListItemToChildParagraph);
+                cx.emit(BlockEvent::RequestDowngradeNestedListItemToChildParagraph);
                 return;
             }
             match self.kind() {
                 BlockKind::BulletListItem
                 | BlockKind::TaskListItem { .. }
                 | BlockKind::NumberedListItem => {
-                    cx.emit(BlockAction::RequestOutdent);
+                    cx.emit(BlockEvent::RequestOutdent);
                     return;
                 }
                 BlockKind::Heading { .. } => {
@@ -303,12 +303,12 @@ impl Block {
         }
 
         if self.selected_range.is_empty() && self.display_text().is_empty() {
-            cx.emit(BlockAction::RequestDelete);
+            cx.emit(BlockEvent::RequestDelete);
             return;
         }
 
         if self.selected_range.is_empty() && self.cursor_offset() == 0 {
-            cx.emit(BlockAction::RequestMergeIntoPrevious {
+            cx.emit(BlockEvent::RequestMergeIntoPrevious {
                 content: self.data.text.clone(),
             });
             return;
@@ -401,11 +401,11 @@ impl Block {
         cx: &mut Context<Self>,
     ) {
         if self.is_table_cell() {
-            cx.emit(BlockAction::RequestTableCellMoveHorizontal { delta: 1 });
+            cx.emit(BlockEvent::RequestTableCellMoveHorizontal { delta: 1 });
             return;
         }
         if self.can_adjust_list_nesting() {
-            cx.emit(BlockAction::RequestIndent);
+            cx.emit(BlockEvent::RequestIndent);
             return;
         }
         if self.kind() == BlockKind::Paragraph || self.kind().is_code_block() {
@@ -420,11 +420,11 @@ impl Block {
         cx: &mut Context<Self>,
     ) {
         if self.is_table_cell() {
-            cx.emit(BlockAction::RequestTableCellMoveHorizontal { delta: -1 });
+            cx.emit(BlockEvent::RequestTableCellMoveHorizontal { delta: -1 });
             return;
         }
         if self.can_outdent_list_nesting() {
-            cx.emit(BlockAction::RequestOutdent);
+            cx.emit(BlockEvent::RequestOutdent);
         }
     }
     pub(crate) fn on_block_key_down(

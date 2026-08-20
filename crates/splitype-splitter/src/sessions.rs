@@ -8,7 +8,7 @@
 
 use gpui::{Pixels, Point};
 
-use crate::tree::{LeafRect, Axis, Direction};
+use crate::tree::{Direction, LeafRect, SplitAxis};
 
 /// Modifier key held during a corner drag — a raw gesture fact.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,7 +28,7 @@ pub enum CornerDragModifier {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SplitterDragSession {
     pub split_id: usize,
-    pub axis: Axis,
+    pub axis: SplitAxis,
     pub start_pointer_pos: f32,
     pub start_ratio: f32,
     pub total_span: f32,
@@ -74,7 +74,7 @@ pub struct CornerDragSession {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BorderMenuState {
     pub split_id: usize,
-    pub axis: Axis,
+    pub axis: SplitAxis,
     pub position: Point<Pixels>,
 }
 

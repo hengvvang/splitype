@@ -388,7 +388,7 @@ impl Render for Editor {
                     .flex_1()
                     .min_h(px(0.0))
                     .relative()
-                    .child(self.render_editor_midcontainer(&theme, &strings, window, cx)),
+                    .child(self.render_editor_pane_layout(&theme, &strings, window, cx)),
             )
             .child(self.render_editor_bottombar(&theme, &strings, cx));
         let base = if let Some(context_menu) = self.render_context_menu_overlay(&theme, cx) {

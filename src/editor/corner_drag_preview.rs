@@ -10,7 +10,7 @@ use gpui::*;
 use splitype_splitter::interaction::{OverlayStyle, overlay_container};
 use splitype_splitter::root::SplitterRoot;
 use splitype_splitter::sessions::CornerDragSession;
-use splitype_splitter::tree::{LeafRect, Axis, Direction};
+use splitype_splitter::tree::{Direction, LeafRect, SplitAxis};
 
 /// Render the corner-drag indicator, or `None` when there is nothing to
 /// show yet (no gesture direction).
@@ -75,13 +75,13 @@ fn split_line_vertical(rect: &LeafRect, ratio: f32, accent: Hsla) -> Div {
 /// the leaf being split. `rect` is normalized (0..1).
 fn split_preview_overlay(
     rect: &LeafRect,
-    direction: Axis,
+    direction: SplitAxis,
     ratio: f32,
     style: &OverlayStyle,
 ) -> AnyElement {
     let line = match direction {
-        Axis::Horizontal => split_line_horizontal(rect, ratio, style.accent),
-        Axis::Vertical => split_line_vertical(rect, ratio, style.accent),
+        SplitAxis::Horizontal => split_line_horizontal(rect, ratio, style.accent),
+        SplitAxis::Vertical => split_line_vertical(rect, ratio, style.accent),
     };
     overlay_container()
         .child(

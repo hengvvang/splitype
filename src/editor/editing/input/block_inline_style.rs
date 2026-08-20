@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::editor::block_protocol::BlockAction;
+use crate::editor::block_protocol::BlockEvent;
 use crate::editor::editing::input::actions::{
     BoldSelection, CodeSelection, ExitCodeBlock, ItalicSelection, UnderlineSelection,
 };
@@ -55,14 +55,14 @@ impl Block {
         let exits_multiline_block = self.is_table_cell() || self.kind().is_multiline_text_block();
 
         if exits_multiline_block {
-            cx.emit(BlockAction::RequestNewline {
+            cx.emit(BlockEvent::RequestNewline {
                 trailing: BlockText::plain(String::new()),
                 source_already_mutated: false,
             });
         } else if self.callout_depth > 0 {
-            cx.emit(BlockAction::RequestCalloutBreak);
+            cx.emit(BlockEvent::RequestCalloutBreak);
         } else if self.quote_depth > 0 {
-            cx.emit(BlockAction::RequestQuoteBreak);
+            cx.emit(BlockEvent::RequestQuoteBreak);
         }
     }
 }

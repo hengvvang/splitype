@@ -638,7 +638,7 @@ async fn sole_editor_fallback_and_multi_editor_activation_routing(cx: &mut TestA
         .update(cx, |shell, _window, cx| {
             let split_id = shell.split_panel(
                 DEFAULT_EDITOR_PANEL_ID,
-                crate::splitter::Axis::Horizontal,
+                crate::splitter::SplitAxis::Horizontal,
                 0.5,
                 false,
                 cx,

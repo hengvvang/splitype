@@ -251,7 +251,7 @@ async fn two_wysiwyg_panes_map_clicks_in_each_pane_to_the_correct_caret(cx: &mut
     cx.cx
         .update(|app| ensure_wysiwyg_editing_panel(&editor, app));
     editor.update(cx, |editor, _cx| {
-        editor.split_pane_with_ratio(1, crate::splitter::Axis::Horizontal, 0.5);
+        editor.split_pane_with_ratio(1, crate::splitter::SplitAxis::Horizontal, 0.5);
     });
     // The panes share one scroll handle: the first frame windows against the
     // window viewport (handle unbound), the second frame against the pane
@@ -403,7 +403,7 @@ async fn wysiwyg_panes_scroll_independently(cx: &mut TestAppContext) {
     cx.cx
         .update(|app| ensure_wysiwyg_editing_panel(&editor, app));
     editor.update(cx, |editor, _cx| {
-        editor.split_pane_with_ratio(1, crate::splitter::Axis::Horizontal, 0.5);
+        editor.split_pane_with_ratio(1, crate::splitter::SplitAxis::Horizontal, 0.5);
     });
     redraw(cx);
     redraw(cx);
@@ -445,7 +445,7 @@ async fn clicking_a_block_in_another_pane_updates_that_panes_focus_target(cx: &m
     cx.cx
         .update(|app| ensure_wysiwyg_editing_panel(&editor, app));
     editor.update(cx, |editor, _cx| {
-        editor.split_pane_with_ratio(1, crate::splitter::Axis::Horizontal, 0.5);
+        editor.split_pane_with_ratio(1, crate::splitter::SplitAxis::Horizontal, 0.5);
     });
     redraw(cx);
     redraw(cx);

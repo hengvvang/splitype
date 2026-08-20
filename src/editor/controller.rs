@@ -38,7 +38,7 @@ pub(crate) use crate::model::block::link::{
 };
 pub(crate) use crate::model::block::table::TableCellPosition;
 pub(crate) use crate::model::block::table::{
-    TableAxisHighlight, TableAxisKind, TableAxisMarker, TableColumnAlignment, TableData,
+    TableAxis, TableAxisHighlight, TableAxisMarker, TableColumnAlignment, TableData,
     serialize_table_cell_markdown,
 };
 pub(crate) use crate::model::inline::text::BlockText;
@@ -231,7 +231,7 @@ pub(crate) struct PaneState {
 /// Top-level controller that owns editor-wide state and delegates tree
 /// mutations to [`Document`].
 ///
-/// The editor subscribes to every [`BlockAction`](crate::editor::block_protocol::BlockAction)
+/// The editor subscribes to every [`BlockEvent`](crate::editor::block_protocol::BlockEvent)
 /// emitted by child blocks. Structural changes are handled centrally so focus,
 /// scrolling, dirty tracking, and serialization stay synchronized. Documents
 /// live in [`DocumentTab`]s, grouped per Editor area in the window layout:
@@ -301,7 +301,7 @@ pub(crate) struct TableCellBinding {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct TableAxisSelection {
     pub(crate) table_block_id: EntityId,
-    pub(crate) kind: TableAxisKind,
+    pub(crate) kind: TableAxis,
     pub(crate) index: usize,
 }
 

@@ -30,7 +30,7 @@ use gpui::*;
 
 pub(crate) const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
 
-use crate::editor::block_protocol::BlockAction;
+use crate::editor::block_protocol::BlockEvent;
 use crate::editor::controller::Editor;
 use crate::editor::render::latex_render::{display_math_font_size, render_display_math_svg};
 use crate::editor::render::mermaid_render::{
@@ -58,7 +58,7 @@ use crate::infra::theme::{Theme, ThemeDimensions, ThemeManager};
 use crate::model::block::image::ImageResolvedSource;
 use crate::model::block::math::parse_display_math_source;
 use crate::model::block::mermaid::parse_mermaid_fence_source;
-use crate::model::block::table::{TableAxisHighlight, TableAxisKind};
+use crate::model::block::table::{TableAxis, TableAxisHighlight};
 use crate::model::parse::BlockKind;
 
 pub(crate) fn render_custom_bullet_marker(depth: usize, color: Hsla) -> AnyElement {
@@ -908,8 +908,8 @@ impl Render for Block {
                     if let Some(pos) = cell_pos {
                         let _ = menu_block.update(cx, |_block, cx| {
                             cx.stop_propagation();
-                            cx.emit(BlockAction::RequestOpenTableAxisMenu {
-                                kind: TableAxisKind::Row,
+                            cx.emit(BlockEvent::RequestOpenTableAxisMenu {
+                                kind: TableAxis::Row,
                                 index: pos.row,
                                 position: event.position,
                             });

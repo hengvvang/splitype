@@ -22,9 +22,9 @@ pub enum TableColumnAlignment {
     Right,
 }
 
-/// Axis kinds addressable by rendered-mode native table maintenance UI.
+/// Axis kinds addressable by rendered-mode native table maintenance UI (Row vs Column).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TableAxisKind {
+pub enum TableAxis {
     /// Table row axis.
     Row,
     /// Table column axis.
@@ -34,7 +34,7 @@ pub enum TableAxisKind {
 /// A row or column marker inside one native table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TableAxisMarker {
-    pub kind: TableAxisKind,
+    pub kind: TableAxis,
     pub index: usize,
 }
 

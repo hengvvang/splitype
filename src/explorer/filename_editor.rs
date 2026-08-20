@@ -22,39 +22,26 @@ use crate::explorer::state::state::{
 };
 use crate::explorer::state::undo::ExplorerChange;
 use crate::infra::theme::ThemeManager;
+use crate::model::inline::offsets::ImeConverter;
 
 // ── UTF-8 / UTF-16 offset conversion ────────────────────────────────────
 
 /// Convert a UTF-16 code-unit offset into a UTF-8 byte offset in `text`.
 pub(crate) fn utf16_to_utf8_in(text: &str, utf16_offset: usize) -> usize {
-    let mut utf16_so_far = 0;
-    for (byte_index, ch) in text.char_indices() {
-        if utf16_so_far >= utf16_offset {
-            return byte_index;
-        }
-        utf16_so_far += ch.len_utf16();
-    }
-    text.len()
+    ImeConverter::utf16_to_utf8_in(text, utf16_offset)
 }
 
 /// Convert a UTF-8 byte offset in `text` into a UTF-16 code-unit offset.
 pub(crate) fn utf8_to_utf16_in(text: &str, utf8_offset: usize) -> usize {
-    let mut utf16_so_far = 0;
-    for (byte_index, ch) in text.char_indices() {
-        if byte_index >= utf8_offset {
-            break;
-        }
-        utf16_so_far += ch.len_utf16();
-    }
-    utf16_so_far
+    ImeConverter::utf8_to_utf16_in(text, utf8_offset)
 }
 
 fn utf16_range_to_utf8_in(text: &str, range: &Range<usize>) -> Range<usize> {
-    utf16_to_utf8_in(text, range.start)..utf16_to_utf8_in(text, range.end)
+    ImeConverter::utf16_range_to_utf8_in(text, range)
 }
 
 fn utf8_range_to_utf16_in(text: &str, range: &Range<usize>) -> Range<usize> {
-    utf8_to_utf16_in(text, range.start)..utf8_to_utf16_in(text, range.end)
+    ImeConverter::utf8_range_to_utf16_in(text, range)
 }
 
 // ── Text buffer operations ──────────────────────────────────────────────

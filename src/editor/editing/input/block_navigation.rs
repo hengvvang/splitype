@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::editor::block_protocol::BlockAction;
+use crate::editor::block_protocol::BlockEvent;
 use crate::editor::editing::input::actions::{
     BlockDown, BlockUp, End, FocusNext, FocusPrevious, Home, MoveLeft, MoveRight, SelectAll, SelectEnd,
     SelectHome, SelectLeft, SelectRight, WordMoveLeft, WordMoveRight, WordSelectLeft,
@@ -20,10 +20,10 @@ impl Block {
         let preferred_x = self.vertical_anchor_x();
         if !self.move_cursor_vertically(-1, preferred_x, cx) {
             if self.is_table_cell() {
-                cx.emit(BlockAction::RequestTableCellMoveVertical { delta: -1 });
+                cx.emit(BlockEvent::RequestTableCellMoveVertical { delta: -1 });
                 return;
             }
-            cx.emit(BlockAction::RequestFocusPrevious {
+            cx.emit(BlockEvent::RequestFocusPrevious {
                 preferred_x: Some(f32::from(preferred_x)),
             });
         }
@@ -38,7 +38,7 @@ impl Block {
         let preferred_x = self.vertical_anchor_x();
         if !self.move_cursor_vertically(1, preferred_x, cx) {
             if self.is_table_cell() {
-                cx.emit(BlockAction::RequestTableCellMoveVertical { delta: 1 });
+                cx.emit(BlockEvent::RequestTableCellMoveVertical { delta: 1 });
                 return;
             }
             // In a code block, Down from the last content line steps into the
@@ -49,7 +49,7 @@ impl Block {
                 cx.notify();
                 return;
             }
-            cx.emit(BlockAction::RequestFocusNext {
+            cx.emit(BlockEvent::RequestFocusNext {
                 preferred_x: Some(f32::from(preferred_x)),
             });
         }
@@ -72,7 +72,7 @@ impl Block {
                 // At the start of a table cell, step into the previous cell
                 // rather than stalling at the edge (same path as Shift+Tab).
                 if previous == self.cursor_offset() && self.is_table_cell() {
-                    cx.emit(BlockAction::RequestTableCellMoveHorizontal { delta: -1 });
+                    cx.emit(BlockEvent::RequestTableCellMoveHorizontal { delta: -1 });
                     return;
                 }
                 self.move_to(previous, cx);
@@ -100,7 +100,7 @@ impl Block {
                 // At the end of a table cell, step into the next cell rather
                 // than stalling at the edge (same path as Tab).
                 if next == self.selected_range.end && self.is_table_cell() {
-                    cx.emit(BlockAction::RequestTableCellMoveHorizontal { delta: 1 });
+                    cx.emit(BlockEvent::RequestTableCellMoveHorizontal { delta: 1 });
                     return;
                 }
                 self.move_to(next, cx);
@@ -186,7 +186,7 @@ impl Block {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        cx.emit(BlockAction::RequestBlockUp);
+        cx.emit(BlockEvent::RequestBlockUp);
     }
 
     pub(crate) fn on_block_down(
@@ -195,7 +195,7 @@ impl Block {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        cx.emit(BlockAction::RequestBlockDown);
+        cx.emit(BlockEvent::RequestBlockDown);
     }
 
     fn select_all_text(&mut self, cx: &mut Context<Self>) {
@@ -212,7 +212,7 @@ impl Block {
         if self.show_source_line_numbers() {
             self.select_all_text(cx);
         } else {
-            cx.emit(BlockAction::RequestRenderedSelectAll);
+            cx.emit(BlockEvent::RequestRenderedSelectAll);
         }
     }
 

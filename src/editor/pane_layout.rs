@@ -7,7 +7,7 @@
 //! `crate::app::window_layout`.
 
 use crate::editor::session::EditorPaneKind;
-use crate::splitter::{Axis, CornerDragModifier};
+use crate::splitter::{CornerDragModifier, SplitAxis};
 use crate::ui::popover::menu_panel;
 use splitype_splitter::container::SplitterContainer;
 use splitype_splitter::policy::DragPolicy;
@@ -25,10 +25,10 @@ impl Editor {
     /// exactly one area, so `tab()`/`doc()` always read this editor's session.
     ///
     /// Side effects before rendering the tree:
-    /// - drop runtimes of panels that were closed or joined;
+    /// - drop runtimes of panes that were closed or joined;
     /// - derive `focused_pane` from the keyboard focus when
     ///   nothing was explicitly selected (projection fallback).
-    pub(crate) fn render_editor_midcontainer(
+    pub(crate) fn render_editor_pane_layout(
         &mut self,
         theme: &Theme,
         strings: &I18nStrings,
@@ -183,16 +183,16 @@ impl Editor {
             let origin = outer_rect.origin;
             let rect_size = outer_rect.size;
             let current_pos = match drag.axis {
-                Axis::Horizontal => f32::from(pos.x) - f32::from(origin.x),
-                Axis::Vertical => f32::from(pos.y) - f32::from(origin.y),
+                SplitAxis::Horizontal => f32::from(pos.x) - f32::from(origin.x),
+                SplitAxis::Vertical => f32::from(pos.y) - f32::from(origin.y),
             };
             let inner_size = size(rect_size.width, rect_size.height);
             let span = session
                 .root
                 .split_pixel_span(drag.split_id, inner_size)
                 .unwrap_or_else(|| match drag.axis {
-                    Axis::Horizontal => f32::from(rect_size.width),
-                    Axis::Vertical => f32::from(rect_size.height),
+                    SplitAxis::Horizontal => f32::from(rect_size.width),
+                    SplitAxis::Vertical => f32::from(rect_size.height),
                 });
             if span > 1.0 {
                 let mut refreshed = drag;
@@ -342,7 +342,7 @@ impl Editor {
         let split_h_ed = editor.clone();
         let split_h: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = split_h_ed.update(app, |ed, cx| {
-                ed.split_pane_with_ratio(split_id, Axis::Horizontal, 0.5);
+                ed.split_pane_with_ratio(split_id, SplitAxis::Horizontal, 0.5);
                 ed.session_mut().root.active_border_menu = None;
                 cx.notify();
             });
@@ -350,7 +350,7 @@ impl Editor {
         let split_v_ed = editor.clone();
         let split_v: Box<dyn Fn(&mut App)> = Box::new(move |app| {
             let _ = split_v_ed.update(app, |ed, cx| {
-                ed.split_pane_with_ratio(split_id, Axis::Vertical, 0.5);
+                ed.split_pane_with_ratio(split_id, SplitAxis::Vertical, 0.5);
                 ed.session_mut().root.active_border_menu = None;
                 cx.notify();
             });
@@ -547,16 +547,18 @@ impl Editor {
                 let focus_editor = cx.entity().downgrade();
                 let panel_gap = d.pane_gap;
 
-                // The leaf container is the split-out area: unadorned and
+                // The leaf container is the split-out pane area: unadorned and
                 // seamless, it only partitions the initialized region. The
-                // panel floats inside it with a uniform inset on all four
+                // pane floats inside it with a uniform inset on all four
                 // sides and carries the content.
                 div()
+                    .id(("pane-wrapper", pane_id))
                     .w_full()
                     .h_full()
                     .relative()
                     .child(
                         div()
+                            .id(("pane-card", pane_id))
                             .absolute()
                             .inset(px(panel_gap))
                             .flex()
@@ -601,7 +603,7 @@ impl Editor {
                 let inner_editor = cx.entity().downgrade();
 
                 match axis {
-                    Axis::Horizontal => {
+                    SplitAxis::Horizontal => {
                         let bar_editor = inner_editor.clone();
                         let menu_editor = inner_editor.clone();
                         let bar_active = self
@@ -654,14 +656,14 @@ impl Editor {
                                         // area's local space, so rebase the start
                                         // position the same way.
                                         let local_start = ed
-                                            .panel_rect
-                                            .map(|rect| start_pos - f32::from(rect.origin.x))
-                                            .unwrap_or(start_pos);
+                                             .panel_rect
+                                             .map(|rect| start_pos - f32::from(rect.origin.x))
+                                             .unwrap_or(start_pos);
                                         let session = ed.session_mut();
                                         splitype_splitter::interaction::start_splitter_drag(
                                             &mut session.root,
                                             split_id,
-                                            Axis::Horizontal,
+                                            SplitAxis::Horizontal,
                                             local_start,
                                             r,
                                         );
@@ -687,7 +689,7 @@ impl Editor {
                             )
                             .into_any_element()
                     }
-                    Axis::Vertical => {
+                    SplitAxis::Vertical => {
                         let bar_editor = inner_editor.clone();
                         let menu_editor = inner_editor.clone();
                         let bar_active = self
@@ -746,7 +748,7 @@ impl Editor {
                                         splitype_splitter::interaction::start_splitter_drag(
                                             &mut session.root,
                                             split_id,
-                                            Axis::Vertical,
+                                            SplitAxis::Vertical,
                                             local_start,
                                             r,
                                         );

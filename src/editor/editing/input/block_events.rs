@@ -1,9 +1,9 @@
-//! Block-originated event routing: every `BlockAction` emitted by a block
+//! Block-originated event routing: every `BlockEvent` emitted by a block
 //! is dispatched here against the cached entry-order snapshot.
 
 use gpui::*;
 
-use crate::editor::block_protocol::BlockAction;
+use crate::editor::block_protocol::BlockEvent;
 use crate::editor::controller::*;
 use crate::editor::view::context_menu::FootnoteTooltipState;
 
@@ -44,41 +44,41 @@ impl Editor {
     }
     /// Whether the given action should dismiss any active cross-block text
     /// selection (typing, structural edits, and paste all replace it).
-    pub(crate) fn block_event_clears_cross_block_selection(event: &BlockAction) -> bool {
+    pub(crate) fn block_event_clears_cross_block_selection(event: &BlockEvent) -> bool {
         matches!(
             event,
-            BlockAction::Changed
-                | BlockAction::RequestNewline { .. }
-                | BlockAction::RequestNewlineAbove
-                | BlockAction::RequestEnterCalloutBody
-                | BlockAction::RequestQuoteBreak
-                | BlockAction::RequestCalloutBreak
-                | BlockAction::RequestMergeIntoPrevious { .. }
-                | BlockAction::RequestPasteMultiline { .. }
-                | BlockAction::RequestPasteImage { .. }
-                | BlockAction::RequestIndent
-                | BlockAction::RequestOutdent
-                | BlockAction::RequestDowngradeNestedListItemToChildParagraph
-                | BlockAction::RequestToggleTaskChecked
-                | BlockAction::RequestAppendTableColumn
-                | BlockAction::RequestAppendTableRow
-                | BlockAction::RequestExpandTable
-                | BlockAction::RequestDelete
+            BlockEvent::Changed
+                | BlockEvent::RequestNewline { .. }
+                | BlockEvent::RequestNewlineAbove
+                | BlockEvent::RequestEnterCalloutBody
+                | BlockEvent::RequestQuoteBreak
+                | BlockEvent::RequestCalloutBreak
+                | BlockEvent::RequestMergeIntoPrevious { .. }
+                | BlockEvent::RequestPasteMultiline { .. }
+                | BlockEvent::RequestPasteImage { .. }
+                | BlockEvent::RequestIndent
+                | BlockEvent::RequestOutdent
+                | BlockEvent::RequestDowngradeNestedListItemToChildParagraph
+                | BlockEvent::RequestToggleTaskChecked
+                | BlockEvent::RequestAppendTableColumn
+                | BlockEvent::RequestAppendTableRow
+                | BlockEvent::RequestExpandTable
+                | BlockEvent::RequestDelete
         )
     }
 
     pub(crate) fn on_block_event(
         &mut self,
         block: Entity<crate::editor::tree::block::Block>,
-        event: &BlockAction,
+        event: &BlockEvent,
         cx: &mut Context<Self>,
     ) {
-        if let BlockAction::PrepareUndo { kind } = event {
+        if let BlockEvent::PrepareUndo { kind } = event {
             self.prepare_undo_capture_from_stable_snapshot(*kind);
             return;
         }
 
-        if let BlockAction::RequestReplaceCrossBlockSelection {
+        if let BlockEvent::RequestReplaceCrossBlockSelection {
             text,
             selected_range_relative,
             mark_inserted_text,
@@ -95,12 +95,12 @@ impl Editor {
             return;
         }
 
-        if matches!(event, BlockAction::RequestRenderedSelectAll) {
+        if matches!(event, BlockEvent::RequestRenderedSelectAll) {
             self.on_wysiwyg_select_all_press(block, cx);
             return;
         }
 
-        if let BlockAction::RequestPasteImage {
+        if let BlockEvent::RequestPasteImage {
             leading,
             source,
             trailing,
@@ -128,7 +128,7 @@ impl Editor {
             .unwrap_or(0);
 
         match event {
-            BlockAction::Changed => {
+            BlockEvent::Changed => {
                 let should_restart_numbered_list = block.update(cx, |block, _cx| {
                     block.take_numbered_list_restart_requested()
                 });
@@ -157,7 +157,7 @@ impl Editor {
                 self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
                 self.finalize_pending_undo_capture(cx);
             }
-            BlockAction::RequestNewline {
+            BlockEvent::RequestNewline {
                 trailing,
                 source_already_mutated,
             } => {
@@ -204,7 +204,7 @@ impl Editor {
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
-            BlockAction::RequestNewlineAbove => {
+            BlockEvent::RequestNewlineAbove => {
                 let Some(location) = self.doc().find_block_location(block.entity_id()) else {
                     return;
                 };
@@ -231,7 +231,7 @@ impl Editor {
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
-            BlockAction::RequestEnterCalloutBody => {
+            BlockEvent::RequestEnterCalloutBody => {
                 let needs_body = block.read(cx).children.is_empty();
                 if needs_body {
                     self.prepare_undo_capture(
@@ -250,7 +250,7 @@ impl Editor {
                     cx.notify();
                 }
             }
-            BlockAction::RequestQuoteBreak => {
+            BlockEvent::RequestQuoteBreak => {
                 let Some((parent, insert_index)) =
                     self.quote_break_insertion_target(block.entity_id(), cx)
                 else {
@@ -282,7 +282,7 @@ impl Editor {
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
-            BlockAction::RequestCalloutBreak => {
+            BlockEvent::RequestCalloutBreak => {
                 let Some((parent, insert_index)) =
                     self.callout_break_insertion_target(block.entity_id(), cx)
                 else {
@@ -310,7 +310,7 @@ impl Editor {
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
-            BlockAction::RequestMergeIntoPrevious { content } => {
+            BlockEvent::RequestMergeIntoPrevious { content } => {
                 if current_entry_index == 0 {
                     return;
                 }
@@ -358,7 +358,7 @@ impl Editor {
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
-            BlockAction::RequestPasteMultiline {
+            BlockEvent::RequestPasteMultiline {
                 leading,
                 lines,
                 trailing,
@@ -502,9 +502,9 @@ impl Editor {
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
-            BlockAction::RequestPasteImage { .. }
-            | BlockAction::RequestReplaceCrossBlockSelection { .. } => {}
-            BlockAction::RequestIndent => {
+            BlockEvent::RequestPasteImage { .. }
+            | BlockEvent::RequestReplaceCrossBlockSelection { .. } => {}
+            BlockEvent::RequestIndent => {
                 if current_entry_index == 0 {
                     return;
                 }
@@ -550,7 +550,7 @@ impl Editor {
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
-            BlockAction::RequestOutdent => {
+            BlockEvent::RequestOutdent => {
                 let Some(location) = self.doc().find_block_location(block.entity_id()) else {
                     return;
                 };
@@ -589,7 +589,7 @@ impl Editor {
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
-            BlockAction::RequestDowngradeNestedListItemToChildParagraph => {
+            BlockEvent::RequestDowngradeNestedListItemToChildParagraph => {
                 let Some(location) = self.doc().find_block_location(block.entity_id()) else {
                     return;
                 };
@@ -635,7 +635,7 @@ impl Editor {
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
-            BlockAction::RequestToggleTaskChecked => {
+            BlockEvent::RequestToggleTaskChecked => {
                 self.prepare_undo_capture(
                     crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
@@ -656,21 +656,21 @@ impl Editor {
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
-            BlockAction::RequestOpenLink {
+            BlockEvent::RequestOpenLink {
                 prompt_target,
                 open_target,
             } => {
                 self.request_open_link_prompt(prompt_target.clone(), open_target.clone(), cx);
             }
-            BlockAction::RequestJumpToFootnoteDefinition { id, .. } => {
+            BlockEvent::RequestJumpToFootnoteDefinition { id, .. } => {
                 let _ = self.jump_to_footnote_definition(id, cx);
                 cx.notify();
             }
-            BlockAction::RequestJumpToFootnoteBackref { id } => {
+            BlockEvent::RequestJumpToFootnoteBackref { id } => {
                 let _ = self.jump_to_footnote_backref(id, cx);
                 cx.notify();
             }
-            BlockAction::RequestFootnoteTooltip {
+            BlockEvent::RequestFootnoteTooltip {
                 id,
                 content,
                 position,
@@ -678,7 +678,7 @@ impl Editor {
             } => {
                 self.update_footnote_tooltip(id, content.clone(), *position, *show, cx);
             }
-            BlockAction::RequestAppendTableColumn => {
+            BlockEvent::RequestAppendTableColumn => {
                 if block.read(cx).kind() == BlockKind::Table {
                     self.prepare_undo_capture(
                         crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
@@ -688,7 +688,7 @@ impl Editor {
                     self.finalize_pending_undo_capture(cx);
                 }
             }
-            BlockAction::RequestAppendTableRow => {
+            BlockEvent::RequestAppendTableRow => {
                 if block.read(cx).kind() == BlockKind::Table {
                     self.prepare_undo_capture(
                         crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
@@ -698,7 +698,7 @@ impl Editor {
                     self.finalize_pending_undo_capture(cx);
                 }
             }
-            BlockAction::RequestExpandTable => {
+            BlockEvent::RequestExpandTable => {
                 if block.read(cx).kind() == BlockKind::Table {
                     self.prepare_undo_capture(
                         crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
@@ -708,7 +708,7 @@ impl Editor {
                     self.finalize_pending_undo_capture(cx);
                 }
             }
-            BlockAction::RequestTableAxisPreview {
+            BlockEvent::RequestTableAxisPreview {
                 kind,
                 index,
                 hovered,
@@ -717,12 +717,12 @@ impl Editor {
                     self.preview_table_axis(block.entity_id(), *kind, *index, *hovered, cx);
                 }
             }
-            BlockAction::RequestSelectTableAxis { kind, index } => {
+            BlockEvent::RequestSelectTableAxis { kind, index } => {
                 if block.read(cx).kind() == BlockKind::Table {
                     self.select_table_axis(block.entity_id(), *kind, *index, cx);
                 }
             }
-            BlockAction::RequestOpenTableAxisMenu {
+            BlockEvent::RequestOpenTableAxisMenu {
                 kind,
                 index,
                 position,
@@ -731,9 +731,9 @@ impl Editor {
                     self.open_table_axis_menu(block.entity_id(), *kind, *index, *position, cx);
                 }
             }
-            BlockAction::RequestTableCellMoveHorizontal { .. }
-            | BlockAction::RequestTableCellMoveVertical { .. } => {}
-            BlockAction::RequestFocusPrevious { preferred_x } => {
+            BlockEvent::RequestTableCellMoveHorizontal { .. }
+            | BlockEvent::RequestTableCellMoveVertical { .. } => {}
+            BlockEvent::RequestFocusPrevious { preferred_x } => {
                 if current_entry_index == 0 {
                     return;
                 }
@@ -756,7 +756,7 @@ impl Editor {
                 });
                 cx.notify();
             }
-            BlockAction::RequestFocusNext { preferred_x } => {
+            BlockEvent::RequestFocusNext { preferred_x } => {
                 if current_entry_index + 1 >= entries_before.len() {
                     // A trailing multi-line block (code, math, ...) has nowhere
                     // below to move to, so give it a paragraph to land on and
@@ -796,7 +796,7 @@ impl Editor {
                 });
                 cx.notify();
             }
-            BlockAction::RequestBlockUp => {
+            BlockEvent::RequestBlockUp => {
                 if current_entry_index == 0 {
                     return;
                 }
@@ -811,7 +811,7 @@ impl Editor {
                 target.update(cx, |target, cx| target.move_to(0, cx));
                 cx.notify();
             }
-            BlockAction::RequestBlockDown => {
+            BlockEvent::RequestBlockDown => {
                 if current_entry_index + 1 >= entries_before.len() {
                     return;
                 }
@@ -826,7 +826,7 @@ impl Editor {
                 target.update(cx, |target, cx| target.move_to(0, cx));
                 cx.notify();
             }
-            BlockAction::RequestDelete => {
+            BlockEvent::RequestDelete => {
                 if self.downgrade_empty_callout_body_to_quote(&block, cx) {
                     return;
                 }
@@ -868,7 +868,7 @@ impl Editor {
                             location.index,
                             adopted_children.clone(),
                             cx,
-                        );
+                            );
                     }
                     Some(location)
                 });
@@ -890,7 +890,7 @@ impl Editor {
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
-            BlockAction::RequestFocus => {
+            BlockEvent::RequestFocus => {
                 self.clear_table_axis_preview(cx);
                 self.clear_table_axis_selection(cx);
                 self.focus_block(block.entity_id());
@@ -899,8 +899,8 @@ impl Editor {
                 }
                 cx.notify();
             }
-            BlockAction::RequestRenderedSelectAll => {}
-            BlockAction::PrepareUndo { .. } => {}
+            BlockEvent::RequestRenderedSelectAll => {}
+            BlockEvent::PrepareUndo { .. } => {}
         }
     }
 }

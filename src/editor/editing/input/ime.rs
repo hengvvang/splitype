@@ -9,7 +9,7 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::editor::block_protocol::{BlockAction, UndoCaptureKind};
+use crate::editor::block_protocol::{BlockEvent, UndoCaptureKind};
 use crate::editor::geometry::text_layout as element;
 use crate::editor::tree::block::Block;
 
@@ -23,13 +23,19 @@ impl EntityInputHandler for Block {
     ) -> Option<String> {
         if self.code_language_focus_handle.is_focused(_window) {
             let range = self.code_language_range_from_utf16(&range_utf16);
-            actual_range.replace(self.code_language_range_to_utf16(&range));
-            return Some(self.code_language_input_text()[range].to_string());
+            *actual_range = Some(self.code_language_range_to_utf16(&range));
+            let text = self.code_language_text();
+            let start = range.start.min(text.len());
+            let end = range.end.min(text.len());
+            return Some(text[start..end].to_string());
         }
 
         let range = self.range_from_utf16(&range_utf16);
-        actual_range.replace(self.range_to_utf16(&range));
-        Some(self.display_text()[range].to_string())
+        *actual_range = Some(self.range_to_utf16(&range));
+        let text = self.display_text();
+        let start = range.start.min(text.len());
+        let end = range.end.min(text.len());
+        Some(text[start..end].to_string())
     }
 
     fn selected_text_range(
@@ -39,24 +45,26 @@ impl EntityInputHandler for Block {
         _cx: &mut Context<Self>,
     ) -> Option<UTF16Selection> {
         if self.code_language_focus_handle.is_focused(_window) {
+            let range = self.code_language_range_to_utf16(&self.code_language_selected_range);
             return Some(UTF16Selection {
-                range: self.code_language_range_to_utf16(&self.code_language_selected_range),
+                range,
                 reversed: self.code_language_selection_reversed,
             });
         }
 
+        let range = self.range_to_utf16(&self.selected_range);
         Some(UTF16Selection {
-            range: self.range_to_utf16(&self.selected_range),
+            range,
             reversed: self.selection_reversed,
         })
     }
 
     fn marked_text_range(
         &self,
-        window: &mut Window,
+        _window: &mut Window,
         _cx: &mut Context<Self>,
     ) -> Option<Range<usize>> {
-        if self.code_language_focus_handle.is_focused(window) {
+        if self.code_language_focus_handle.is_focused(_window) {
             return self
                 .code_language_marked_range
                 .as_ref()
@@ -68,13 +76,15 @@ impl EntityInputHandler for Block {
             .map(|range| self.range_to_utf16(range))
     }
 
-    fn unmark_text(&mut self, window: &mut Window, _cx: &mut Context<Self>) {
-        if self.code_language_focus_handle.is_focused(window) {
+    fn unmark_text(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
+        if self.code_language_focus_handle.is_focused(_window) {
             self.code_language_marked_range = None;
+            cx.notify();
             return;
         }
 
         self.marked_range = None;
+        cx.notify();
     }
 
     fn replace_text_in_range(
@@ -95,7 +105,7 @@ impl EntityInputHandler for Block {
         }
 
         if self.editor_selection_range.is_some() {
-            cx.emit(BlockAction::RequestReplaceCrossBlockSelection {
+            cx.emit(BlockEvent::RequestReplaceCrossBlockSelection {
                 text: new_text.to_string(),
                 selected_range_relative: None,
                 mark_inserted_text: false,
@@ -148,7 +158,7 @@ impl EntityInputHandler for Block {
                 .as_ref()
                 .map(|range_utf16| Self::utf16_range_to_utf8_in(new_text, range_utf16))
                 .map(|relative| relative.start..relative.end);
-            cx.emit(BlockAction::RequestReplaceCrossBlockSelection {
+            cx.emit(BlockEvent::RequestReplaceCrossBlockSelection {
                 text: new_text.to_string(),
                 selected_range_relative,
                 mark_inserted_text: !new_text.is_empty(),

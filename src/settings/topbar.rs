@@ -7,7 +7,7 @@ use crate::app::shell::Shell;
 
 use crate::app::window_layout::panel_topbar_icon;
 use crate::infra::theme::Theme;
-use crate::splitter::Axis;
+use crate::splitter::SplitAxis;
 use crate::ui::button::{icon_chip_button, small_pill_button};
 use crate::ui::topbar::topbar_container;
 
@@ -51,7 +51,7 @@ impl Shell {
             .on_click(move |_event, _window, cx| {
                 let _ = split_h_shell.update(cx, |shell, cx| {
                     // Same-kind split; Editor panels deep-copy their tabs.
-                    shell.split_panel(leaf_id, Axis::Horizontal, 0.5, true, cx);
+                    shell.split_panel(leaf_id, SplitAxis::Horizontal, 0.5, true, cx);
                     cx.notify();
                 });
             });
@@ -68,7 +68,7 @@ impl Shell {
             .on_click(move |_event, _window, cx| {
                 let _ = split_v_shell.update(cx, |shell, cx| {
                     // Same-kind split; Editor panels deep-copy their tabs.
-                    shell.split_panel(leaf_id, Axis::Vertical, 0.5, true, cx);
+                    shell.split_panel(leaf_id, SplitAxis::Vertical, 0.5, true, cx);
                     cx.notify();
                 });
             });

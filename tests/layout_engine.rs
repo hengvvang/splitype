@@ -10,7 +10,7 @@ use gpui::{Size, px};
 
 use splitype::app::window_panels::WindowPanelKind;
 use splitype::app::window_panels::{DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowLayout};
-use splitype_splitter::Axis;
+use splitype_splitter::SplitAxis;
 use splitype_splitter::tree::LeafRect;
 
 fn layout() -> WindowLayout {
@@ -51,7 +51,7 @@ fn default_layout_is_explorer_editor_split() {
 fn split_window_panel_creates_two_leaves() {
     let mut state = layout();
     let new_id = state
-        .split_leaf(DEFAULT_EDITOR_PANEL_ID, Axis::Horizontal, 0.5)
+        .split_leaf(DEFAULT_EDITOR_PANEL_ID, SplitAxis::Horizontal, 0.5)
         .expect("split");
 
     let mut leaves = Vec::new();
@@ -75,7 +75,7 @@ fn split_window_panel_creates_two_leaves() {
 fn closing_panel_joins_back_to_default_split() {
     let mut state = layout();
     let new_id = state
-        .split_leaf(DEFAULT_EDITOR_PANEL_ID, Axis::Horizontal, 0.5)
+        .split_leaf(DEFAULT_EDITOR_PANEL_ID, SplitAxis::Horizontal, 0.5)
         .expect("split");
 
     state.close_leaf(new_id);
@@ -104,7 +104,7 @@ fn panel_kinds_switch_on_leaves() {
 #[test]
 fn split_ratio_affects_rect_widths() {
     let mut state = layout();
-    state.split_leaf(DEFAULT_EDITOR_PANEL_ID, Axis::Horizontal, 0.25);
+    state.split_leaf(DEFAULT_EDITOR_PANEL_ID, SplitAxis::Horizontal, 0.25);
 
     let rects = root_rects(&state);
     assert_eq!(rects.len(), 3);
@@ -120,7 +120,7 @@ fn split_ratio_affects_rect_widths() {
 #[test]
 fn window_panel_rects_scale_to_container() {
     let mut state = layout();
-    state.split_leaf(DEFAULT_EDITOR_PANEL_ID, Axis::Horizontal, 0.5);
+    state.split_leaf(DEFAULT_EDITOR_PANEL_ID, SplitAxis::Horizontal, 0.5);
 
     let rects = state.leaf_rects(Size::new(px(1000.0), px(800.0)));
     assert_eq!(rects.len(), 3);
@@ -135,7 +135,7 @@ fn window_panel_rects_scale_to_container() {
 fn maximize_toggles_single_panel() {
     let mut state = layout();
     let new_id = state
-        .split_leaf(DEFAULT_EDITOR_PANEL_ID, Axis::Horizontal, 0.5)
+        .split_leaf(DEFAULT_EDITOR_PANEL_ID, SplitAxis::Horizontal, 0.5)
         .expect("split");
 
     state.toggle_maximize(new_id);

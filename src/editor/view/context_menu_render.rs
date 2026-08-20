@@ -11,7 +11,7 @@ use crate::editor::controller::Editor;
 use crate::editor::view::context_menu::ContextMenuState;
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::Theme;
-use crate::model::block::table::TableAxisKind;
+use crate::model::block::table::TableAxis;
 impl Editor {
     pub(crate) fn render_axis_menu_item(
         theme: &Theme,
@@ -205,7 +205,7 @@ impl Editor {
                 };
                 let table = table_block.read(cx).data.table.clone()?;
                 let items = match selection.kind {
-                    TableAxisKind::Column => vec![
+                    TableAxis::Column => vec![
                         Self::render_axis_menu_item(
                             theme,
                             "table-axis-insert-column-left",
@@ -308,7 +308,7 @@ impl Editor {
                             cx,
                         ),
                     ],
-                    TableAxisKind::Row => {
+                    TableAxis::Row => {
                         let mut items: Vec<AnyElement> = Vec::new();
                         items.push(Self::render_axis_menu_item(
                             theme,

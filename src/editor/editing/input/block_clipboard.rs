@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::editor::block_protocol::{BlockAction, PastedImageSource, UndoCaptureKind};
+use crate::editor::block_protocol::{BlockEvent, PastedImageSource, UndoCaptureKind};
 use crate::editor::editing::input::actions::{Copy, Cut, Paste};
 use crate::editor::editing::input::paste::should_split_plain_multiline_paste;
 use crate::editor::tree::block::Block;
@@ -98,7 +98,7 @@ impl Block {
         if let Some(item) = cx.read_from_clipboard() {
             if let Some(source) = Self::pasted_image_source_from_clipboard(&item) {
                 let (leading, trailing) = self.paste_image_split();
-                cx.emit(BlockAction::RequestPasteImage {
+                cx.emit(BlockEvent::RequestPasteImage {
                     leading,
                     source,
                     trailing,
@@ -111,7 +111,7 @@ impl Block {
             };
             if let Some(source) = Self::pasted_image_source_from_text(&text) {
                 let (leading, trailing) = self.paste_image_split();
-                cx.emit(BlockAction::RequestPasteImage {
+                cx.emit(BlockEvent::RequestPasteImage {
                     leading,
                     source,
                     trailing,
@@ -123,7 +123,7 @@ impl Block {
             // contexts preserve bytes, and table cells flatten newlines so the
             // surrounding table structure is not accidentally split.
             if self.editor_selection_range.is_some() {
-                cx.emit(BlockAction::RequestReplaceCrossBlockSelection {
+                cx.emit(BlockEvent::RequestReplaceCrossBlockSelection {
                     text,
                     selected_range_relative: None,
                     mark_inserted_text: false,
@@ -161,7 +161,7 @@ impl Block {
                     .map(ToOwned::to_owned)
                     .collect::<Vec<_>>();
                 let split_physical_lines = should_split_plain_multiline_paste(&lines);
-                cx.emit(BlockAction::RequestPasteMultiline {
+                cx.emit(BlockEvent::RequestPasteMultiline {
                     leading,
                     lines,
                     trailing,

@@ -6,7 +6,7 @@ use gpui::*;
 
 use crate::editor::controller::{Editor, TableAxisSelection};
 use crate::editor::view::context_menu::ContextMenuState;
-use crate::model::block::table::{TableAxisKind, TableColumnAlignment};
+use crate::model::block::table::{TableAxis, TableColumnAlignment};
 impl Editor {
     pub(crate) fn active_axis_menu_selection(&self) -> Option<TableAxisSelection> {
         match self.context_menu.as_ref() {
@@ -23,7 +23,7 @@ impl Editor {
         let Some(selection) = self.active_axis_menu_selection() else {
             return;
         };
-        if selection.kind != TableAxisKind::Column {
+        if selection.kind != TableAxis::Column {
             return;
         }
         let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
@@ -72,7 +72,7 @@ impl Editor {
         let Some(selection) = self.active_axis_menu_selection() else {
             return;
         };
-        if selection.kind != TableAxisKind::Row || selection.index == 0 {
+        if selection.kind != TableAxis::Row || selection.index == 0 {
             return;
         }
         let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
@@ -91,7 +91,7 @@ impl Editor {
         let Some(selection) = self.active_axis_menu_selection() else {
             return;
         };
-        if selection.kind != TableAxisKind::Row {
+        if selection.kind != TableAxis::Row {
             return;
         }
         let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
@@ -120,7 +120,7 @@ impl Editor {
         let Some(selection) = self.active_axis_menu_selection() else {
             return;
         };
-        if selection.kind != TableAxisKind::Column || selection.index == 0 {
+        if selection.kind != TableAxis::Column || selection.index == 0 {
             return;
         }
         let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
@@ -139,7 +139,7 @@ impl Editor {
         let Some(selection) = self.active_axis_menu_selection() else {
             return;
         };
-        if selection.kind != TableAxisKind::Column {
+        if selection.kind != TableAxis::Column {
             return;
         }
         let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
@@ -168,7 +168,7 @@ impl Editor {
         let Some(selection) = self.active_axis_menu_selection() else {
             return;
         };
-        if selection.kind != TableAxisKind::Row {
+        if selection.kind != TableAxis::Row {
             return;
         }
         let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
@@ -204,7 +204,7 @@ impl Editor {
         let Some(selection) = self.active_axis_menu_selection() else {
             return;
         };
-        if selection.kind != TableAxisKind::Column {
+        if selection.kind != TableAxis::Column {
             return;
         }
         let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
@@ -223,7 +223,7 @@ impl Editor {
         let Some(selection) = self.active_axis_menu_selection() else {
             return;
         };
-        if selection.kind != TableAxisKind::Column {
+        if selection.kind != TableAxis::Column {
             return;
         }
         let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
@@ -242,7 +242,7 @@ impl Editor {
         let Some(selection) = self.active_axis_menu_selection() else {
             return;
         };
-        if selection.kind != TableAxisKind::Column {
+        if selection.kind != TableAxis::Column {
             return;
         }
         let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
@@ -261,7 +261,7 @@ impl Editor {
         let Some(selection) = self.active_axis_menu_selection() else {
             return;
         };
-        if selection.kind != TableAxisKind::Row {
+        if selection.kind != TableAxis::Row {
             return;
         }
         let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
@@ -280,7 +280,7 @@ impl Editor {
         let Some(selection) = self.active_axis_menu_selection() else {
             return;
         };
-        if selection.kind != TableAxisKind::Row {
+        if selection.kind != TableAxis::Row {
             return;
         }
         let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
@@ -299,7 +299,7 @@ impl Editor {
         let Some(selection) = self.active_axis_menu_selection() else {
             return;
         };
-        if selection.kind != TableAxisKind::Row {
+        if selection.kind != TableAxis::Row {
             return;
         }
         let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {
@@ -332,7 +332,7 @@ impl Editor {
         let Some(selection) = self.active_axis_menu_selection() else {
             return;
         };
-        if selection.kind != TableAxisKind::Column {
+        if selection.kind != TableAxis::Column {
             return;
         }
         let Some(table_block) = self.table_block_by_id(selection.table_block_id, cx) else {

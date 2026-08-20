@@ -449,7 +449,7 @@ async fn newline_at_start_of_heading_moves_entire_heading_down(cx: &mut TestAppC
         });
         editor.on_block_event(
             block,
-            &crate::editor::block_protocol::BlockAction::RequestNewlineAbove,
+            &crate::editor::block_protocol::BlockEvent::RequestNewlineAbove,
             cx,
         );
     });

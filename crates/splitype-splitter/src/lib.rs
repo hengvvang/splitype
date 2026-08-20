@@ -27,4 +27,4 @@ pub use container::SplitterContainer;
 pub use policy::{ClonedContainer, DragPolicy};
 pub use root::SplitterRoot;
 pub use sessions::{BorderMenuState, CornerDragModifier};
-pub use tree::{Axis, NodeId, SplitTree};
+pub use tree::{NodeId, SplitAxis, SplitTree};

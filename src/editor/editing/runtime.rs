@@ -71,7 +71,7 @@ impl Editor {
     }
 
     /// Creates a new block entity and subscribes this editor to its
-    /// [`BlockAction`](crate::editor::block_protocol::BlockAction) stream.
+    /// [`BlockEvent`](crate::editor::block_protocol::BlockEvent) stream.
     pub(crate) fn new_block(cx: &mut Context<Self>, data: BlockData) -> Entity<Block> {
         let block = cx.new(|cx| Block::with_data(cx, data));
         cx.subscribe(&block, Self::on_block_event).detach();

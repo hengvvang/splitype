@@ -244,7 +244,7 @@ impl Editor {
     pub(crate) fn preview_table_axis(
         &mut self,
         table_block_id: EntityId,
-        kind: TableAxisKind,
+        kind: TableAxis,
         index: usize,
         hovered: bool,
         cx: &mut Context<Self>,
@@ -268,7 +268,7 @@ impl Editor {
     pub(crate) fn select_table_axis(
         &mut self,
         table_block_id: EntityId,
-        kind: TableAxisKind,
+        kind: TableAxis,
         index: usize,
         cx: &mut Context<Self>,
     ) {
@@ -284,7 +284,7 @@ impl Editor {
     pub(crate) fn open_table_axis_menu(
         &mut self,
         table_block_id: EntityId,
-        kind: TableAxisKind,
+        kind: TableAxis,
         index: usize,
         position: Point<Pixels>,
         cx: &mut Context<Self>,
@@ -319,7 +319,7 @@ impl Editor {
         self.rebuild_table_grids(cx);
         let selection = TableAxisSelection {
             table_block_id: table_block.entity_id(),
-            kind: TableAxisKind::Column,
+            kind: TableAxis::Column,
             index: column,
         };
         self.set_table_axis_selection(Some(selection), cx);
@@ -343,6 +343,7 @@ impl Editor {
         let Some(mut table) = table_block.read(cx).data.table.clone() else {
             return;
         };
+        let total_rows = table.rows.len() + 1;
         let next_row = if delta < 0 {
             visual_row.checked_sub(delta.unsigned_abs() as usize)
         } else {
@@ -353,7 +354,7 @@ impl Editor {
         };
         // Visual rows are the header (0) plus every body row, so the last valid
         // index is `rows.len()`.
-        if next_row > table.rows.len() {
+        if next_row >= total_rows {
             return;
         }
         let started_local_capture = if self.tab().undo.pending_capture.is_none() {
@@ -369,7 +370,7 @@ impl Editor {
         self.rebuild_table_grids(cx);
         let selection = TableAxisSelection {
             table_block_id: table_block.entity_id(),
-            kind: TableAxisKind::Row,
+            kind: TableAxis::Row,
             index: next_row,
         };
         self.set_table_axis_selection(Some(selection), cx);
@@ -424,7 +425,7 @@ impl Editor {
         self.rebuild_table_grids(cx);
         let selection = TableAxisSelection {
             table_block_id: table_block.entity_id(),
-            kind: TableAxisKind::Column,
+            kind: TableAxis::Column,
             index: next_column,
         };
         self.set_table_axis_selection(Some(selection), cx);
@@ -483,7 +484,7 @@ impl Editor {
             self.set_table_axis_selection(
                 Some(TableAxisSelection {
                     table_block_id: table_block.entity_id(),
-                    kind: TableAxisKind::Row,
+                    kind: TableAxis::Row,
                     index: focus_visual_row,
                 }),
                 cx,
@@ -567,7 +568,7 @@ impl Editor {
         self.rebuild_table_grids(cx);
         let selection = TableAxisSelection {
             table_block_id: table_block.entity_id(),
-            kind: TableAxisKind::Column,
+            kind: TableAxis::Column,
             index: focus_column,
         };
         self.set_table_axis_selection(Some(selection), cx);
@@ -681,9 +682,9 @@ impl Editor {
             return false;
         };
         match selection.kind {
-            TableAxisKind::Column => selection.index < grid.header.len(),
+            TableAxis::Column => selection.index < grid.header.len(),
             // Visual row index: `0` is the header, `1..=rows.len()` the body.
-            TableAxisKind::Row => selection.index <= grid.rows.len(),
+            TableAxis::Row => selection.index <= grid.rows.len(),
         }
     }
 
@@ -750,13 +751,13 @@ impl Editor {
             // follow at `1..`, matching how row selections are addressed.
             let mut apply_highlight = |cell: &Entity<Block>, row: usize, column: usize| {
                 let highlight = if selected.is_some_and(|selection| match selection.kind {
-                    TableAxisKind::Column => selection.index == column,
-                    TableAxisKind::Row => selection.index == row,
+                    TableAxis::Column => selection.index == column,
+                    TableAxis::Row => selection.index == row,
                 }) {
                     TableAxisHighlight::Selected
                 } else if preview.is_some_and(|selection| match selection.kind {
-                    TableAxisKind::Column => selection.index == column,
-                    TableAxisKind::Row => selection.index == row,
+                    TableAxis::Column => selection.index == column,
+                    TableAxis::Row => selection.index == row,
                 }) {
                     TableAxisHighlight::Preview
                 } else {

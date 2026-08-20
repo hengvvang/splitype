@@ -4,7 +4,7 @@ pub(crate) mod render;
 
 use gpui::*;
 
-use crate::editor::block_protocol::BlockAction;
+use crate::editor::block_protocol::BlockEvent;
 use crate::editor::controller::Editor;
 use crate::editor::tree::block::Block;
 use crate::model::parse::BlockData;
@@ -61,10 +61,10 @@ impl Editor {
         &mut self,
         pane_id: usize,
         block: Entity<Block>,
-        event: &BlockAction,
+        event: &BlockEvent,
         cx: &mut Context<Self>,
     ) {
-        if !matches!(event, BlockAction::Changed) {
+        if !matches!(event, BlockEvent::Changed) {
             return;
         }
         // Only the pane's CURRENT block may write into the document. When a

@@ -10,12 +10,12 @@
 //! # Event dispatch flow
 //!
 //! ```text
-//! Block (key event) → BlockAction (emitted)
+//! Block (key event) → BlockEvent (emitted)
 //!   → Editor::on_block_event
 //!     ├─ Early returns: PrepareUndo / ReplaceCrossBlockSelection /
 //!     │                  RenderedSelectAll / PasteImage
 //!     ├─ Table-cell routing → Editor::on_table_cell_event
-//!     └─ Main match: classify_block_action maps each variant → handler
+//!     └─ Main match: handle each variant
 //! ```
 
 use gpui::*;

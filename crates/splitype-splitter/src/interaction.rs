@@ -15,7 +15,7 @@ use gpui::*;
 
 use crate::root::SplitterRoot;
 use crate::sessions::{CornerDragModifier, CornerDragSession};
-use crate::tree::Axis;
+use crate::tree::SplitAxis;
 
 /// Visual parameters for split interaction overlays.
 #[derive(Clone, Copy, Debug)]
@@ -167,7 +167,7 @@ pub fn splitter_bar_v(
 pub fn start_splitter_drag<T: Copy + PartialEq>(
     container: &mut SplitterRoot<T>,
     split_id: usize,
-    axis: Axis,
+    axis: SplitAxis,
     start_pointer_pos: f32,
     current_ratio: f32,
 ) {
@@ -184,7 +184,7 @@ pub fn start_splitter_drag<T: Copy + PartialEq>(
 pub fn open_border_menu<T: Copy + PartialEq>(
     container: &mut SplitterRoot<T>,
     split_id: usize,
-    axis: Axis,
+    axis: SplitAxis,
     position: Point<Pixels>,
 ) {
     container.active_border_menu = Some(crate::sessions::BorderMenuState {
@@ -209,14 +209,14 @@ pub fn update_splitter_drag<T: Copy + PartialEq>(
 ) -> bool {
     if let Some(drag) = container.active_splitter_drag {
         let current_pos = match drag.axis {
-            Axis::Horizontal => f32::from(pos.x),
-            Axis::Vertical => f32::from(pos.y),
+            SplitAxis::Horizontal => f32::from(pos.x),
+            SplitAxis::Vertical => f32::from(pos.y),
         };
         let span = container
             .split_pixel_span(drag.split_id, viewport)
             .unwrap_or_else(|| match drag.axis {
-                Axis::Horizontal => f32::from(viewport.width),
-                Axis::Vertical => f32::from(viewport.height),
+                SplitAxis::Horizontal => f32::from(viewport.width),
+                SplitAxis::Vertical => f32::from(viewport.height),
             });
         if span > 1.0 {
             let mut session = drag;

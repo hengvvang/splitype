@@ -3,7 +3,7 @@
 
 use gpui::*;
 
-use crate::editor::block_protocol::BlockAction;
+use crate::editor::block_protocol::BlockEvent;
 use crate::editor::tree::block::Block;
 impl Block {
     pub(crate) fn on_mouse_down(
@@ -26,7 +26,7 @@ impl Block {
             } else {
                 self.is_selecting = false;
                 self.move_to(offset, cx);
-                cx.emit(BlockAction::RequestFocus);
+                cx.emit(BlockEvent::RequestFocus);
             }
             cx.stop_propagation();
             return;
@@ -53,7 +53,7 @@ impl Block {
         } else {
             self.is_selecting = false;
             self.move_to(offset, cx);
-            cx.emit(BlockAction::RequestFocus);
+            cx.emit(BlockEvent::RequestFocus);
         }
     }
 
@@ -100,7 +100,7 @@ impl Block {
         cx: &mut Context<Self>,
     ) {
         cx.stop_propagation();
-        cx.emit(BlockAction::RequestOpenLink {
+        cx.emit(BlockEvent::RequestOpenLink {
             prompt_target: link.prompt_target.clone(),
             open_target: link.open_target.clone(),
         });
@@ -138,7 +138,7 @@ impl Block {
                 .cloned();
             if let Some(footnote) = footnote {
                 cx.stop_propagation();
-                cx.emit(BlockAction::RequestJumpToFootnoteDefinition { id: footnote.id });
+                cx.emit(BlockEvent::RequestJumpToFootnoteDefinition { id: footnote.id });
                 return;
             }
 
@@ -156,7 +156,7 @@ impl Block {
     ) {
         cx.stop_propagation();
         if !self.focus_handle.is_focused(window) {
-            cx.emit(BlockAction::RequestFocus);
+            cx.emit(BlockEvent::RequestFocus);
         }
     }
 
@@ -170,7 +170,7 @@ impl Block {
             return;
         };
         cx.stop_propagation();
-        cx.emit(BlockAction::RequestJumpToFootnoteBackref { id });
+        cx.emit(BlockEvent::RequestJumpToFootnoteBackref { id });
     }
 
     pub(crate) fn on_mouse_move(
@@ -207,7 +207,7 @@ impl Block {
         if hovered != self.hovered_footnote_id {
             let show = hovered.is_some();
             self.hovered_footnote_id = hovered.clone();
-            cx.emit(BlockAction::RequestFootnoteTooltip {
+            cx.emit(BlockEvent::RequestFootnoteTooltip {
                 id: hovered.unwrap_or_default(),
                 content: None,
                 position: event.position,
@@ -227,7 +227,7 @@ impl Block {
         if self.hovered_footnote_id.is_some() {
             self.hovered_footnote_id = None;
         }
-        cx.emit(BlockAction::RequestFootnoteTooltip {
+        cx.emit(BlockEvent::RequestFootnoteTooltip {
             id: self.footnote_definition_id().unwrap_or_default(),
             content: (*hovered).then(|| self.data.text.plain_text().into()),
             position: window.mouse_position(),
@@ -243,7 +243,7 @@ impl Block {
     ) {
         cx.stop_propagation();
         if !self.focus_handle.is_focused(window) {
-            cx.emit(BlockAction::RequestFocus);
+            cx.emit(BlockEvent::RequestFocus);
         }
     }
 
@@ -258,6 +258,6 @@ impl Block {
         }
 
         cx.stop_propagation();
-        cx.emit(BlockAction::RequestToggleTaskChecked);
+        cx.emit(BlockEvent::RequestToggleTaskChecked);
     }
 }

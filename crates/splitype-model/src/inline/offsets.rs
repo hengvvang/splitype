@@ -6,9 +6,90 @@
 //! produced by serialization. `InlineEditResult` captures the new tree and
 //! the offset mapping after an edit operation.
 
-use std::ops::Range;
+use std::fmt;
+use std::ops::{Add, Deref, Range, Sub};
 
 use crate::inline::text::BlockText;
+
+/// UTF-8 offset within a rendered display string with active delimiters projected.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DisplayOffset(pub usize);
+
+impl DisplayOffset {
+    pub const ZERO: Self = Self(0);
+    pub fn new(val: usize) -> Self { Self(val) }
+    pub fn get(self) -> usize { self.0 }
+}
+
+impl Deref for DisplayOffset {
+    type Target = usize;
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+impl From<usize> for DisplayOffset { fn from(v: usize) -> Self { Self(v) } }
+impl From<DisplayOffset> for usize { fn from(v: DisplayOffset) -> Self { v.0 } }
+impl fmt::Display for DisplayOffset { fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) } }
+impl Add<usize> for DisplayOffset { type Output = Self; fn add(self, rhs: usize) -> Self { Self(self.0 + rhs) } }
+impl Sub<usize> for DisplayOffset { type Output = Self; fn sub(self, rhs: usize) -> Self { Self(self.0.saturating_sub(rhs)) } }
+
+/// UTF-8 offset within unformatted/plain `BlockText` (without active syntax delimiters).
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PlainOffset(pub usize);
+
+impl PlainOffset {
+    pub const ZERO: Self = Self(0);
+    pub fn new(val: usize) -> Self { Self(val) }
+    pub fn get(self) -> usize { self.0 }
+}
+
+impl Deref for PlainOffset {
+    type Target = usize;
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+impl From<usize> for PlainOffset { fn from(v: usize) -> Self { Self(v) } }
+impl From<PlainOffset> for usize { fn from(v: PlainOffset) -> Self { v.0 } }
+impl fmt::Display for PlainOffset { fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) } }
+impl Add<usize> for PlainOffset { type Output = Self; fn add(self, rhs: usize) -> Self { Self(self.0 + rhs) } }
+impl Sub<usize> for PlainOffset { type Output = Self; fn sub(self, rhs: usize) -> Self { Self(self.0.saturating_sub(rhs)) } }
+
+/// UTF-8 offset within serialized source Markdown documents.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SourceOffset(pub usize);
+
+impl SourceOffset {
+    pub const ZERO: Self = Self(0);
+    pub fn new(val: usize) -> Self { Self(val) }
+    pub fn get(self) -> usize { self.0 }
+}
+
+impl Deref for SourceOffset {
+    type Target = usize;
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+impl From<usize> for SourceOffset { fn from(v: usize) -> Self { Self(v) } }
+impl From<SourceOffset> for usize { fn from(v: SourceOffset) -> Self { v.0 } }
+impl fmt::Display for SourceOffset { fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) } }
+impl Add<usize> for SourceOffset { type Output = Self; fn add(self, rhs: usize) -> Self { Self(self.0 + rhs) } }
+impl Sub<usize> for SourceOffset { type Output = Self; fn sub(self, rhs: usize) -> Self { Self(self.0.saturating_sub(rhs)) } }
+
+/// UTF-16 offset used by IME subsystems and GPUI's `EntityInputHandler`.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Utf16Offset(pub usize);
+
+impl Utf16Offset {
+    pub const ZERO: Self = Self(0);
+    pub fn new(val: usize) -> Self { Self(val) }
+    pub fn get(self) -> usize { self.0 }
+}
+
+impl Deref for Utf16Offset {
+    type Target = usize;
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+impl From<usize> for Utf16Offset { fn from(v: usize) -> Self { Self(v) } }
+impl From<Utf16Offset> for usize { fn from(v: Utf16Offset) -> Self { v.0 } }
+impl fmt::Display for Utf16Offset { fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{}", self.0) } }
+impl Add<usize> for Utf16Offset { type Output = Self; fn add(self, rhs: usize) -> Self { Self(self.0 + rhs) } }
+impl Sub<usize> for Utf16Offset { type Output = Self; fn sub(self, rhs: usize) -> Self { Self(self.0.saturating_sub(rhs)) } }
 
 /// Bidirectional offset map between plain inline text and source Markdown.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -64,5 +145,73 @@ impl InlineEditResult {
 
     pub fn map_range(&self, range: &Range<usize>) -> Range<usize> {
         self.map_offset(range.start)..self.map_offset(range.end)
+    }
+}
+
+/// Consolidated IME and UTF-16 / UTF-8 offset conversion utilities.
+#[derive(Copy, Clone, Debug)]
+pub struct ImeConverter;
+
+impl ImeConverter {
+    pub fn utf16_to_utf8_in(text: &str, utf16_offset: usize) -> usize {
+        let mut utf16_count = 0;
+        let mut utf8_offset = 0;
+
+        for ch in text.chars() {
+            if utf16_count >= utf16_offset {
+                break;
+            }
+            utf16_count += ch.len_utf16();
+            utf8_offset += ch.len_utf8();
+        }
+
+        utf8_offset
+    }
+
+    pub fn utf8_to_utf16_in(text: &str, utf8_offset: usize) -> usize {
+        let mut utf16_offset = 0;
+        let mut utf8_count = 0;
+
+        for ch in text.chars() {
+            if utf8_count >= utf8_offset {
+                break;
+            }
+            utf8_count += ch.len_utf8();
+            utf16_offset += ch.len_utf16();
+        }
+
+        utf16_offset
+    }
+
+    pub fn utf16_range_to_utf8_in(text: &str, range_utf16: &Range<usize>) -> Range<usize> {
+        Self::utf16_to_utf8_in(text, range_utf16.start)..Self::utf16_to_utf8_in(text, range_utf16.end)
+    }
+
+    pub fn utf8_range_to_utf16_in(text: &str, range: &Range<usize>) -> Range<usize> {
+        Self::utf8_to_utf16_in(text, range.start)..Self::utf8_to_utf16_in(text, range.end)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ime_converter_ascii_and_multibyte() {
+        let text = "Hello 世界 🚀!";
+        // H: 0, e: 1, l: 2, l: 3, o: 4, ' ': 5
+        // 世: utf8 3 bytes, utf16 1 unit
+        // 界: utf8 3 bytes, utf16 1 unit
+        // ' ': utf8 1 byte, utf16 1 unit
+        // 🚀: utf8 4 bytes, utf16 2 units (surrogate pair)
+        // !: utf8 1 byte, utf16 1 unit
+        let utf8_pos_emoji = text.find('🚀').unwrap();
+        let utf16_pos_emoji = ImeConverter::utf8_to_utf16_in(text, utf8_pos_emoji);
+        assert_eq!(ImeConverter::utf16_to_utf8_in(text, utf16_pos_emoji), utf8_pos_emoji);
+
+        let utf8_range = utf8_pos_emoji..utf8_pos_emoji + '🚀'.len_utf8();
+        let utf16_range = ImeConverter::utf8_range_to_utf16_in(text, &utf8_range);
+        assert_eq!(utf16_range.end - utf16_range.start, 2);
+        assert_eq!(ImeConverter::utf16_range_to_utf8_in(text, &utf16_range), utf8_range);
     }
 }

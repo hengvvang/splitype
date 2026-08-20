@@ -17,7 +17,7 @@ use crate::editor::controller::Editor;
 use crate::infra::config::settings::{EditorSettings, StatusBarSettings};
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
-use crate::splitter::Axis;
+use crate::splitter::SplitAxis;
 
 use words::count_words;
 
@@ -161,7 +161,7 @@ impl Editor {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = split_h_editor.update(cx, |ed, cx| {
-                            ed.split_pane(pane_id, Axis::Horizontal);
+                            ed.split_pane(pane_id, SplitAxis::Horizontal);
                             cx.notify();
                         });
                     })
@@ -180,7 +180,7 @@ impl Editor {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = split_v_editor.update(cx, |ed, cx| {
-                            ed.split_pane(pane_id, Axis::Vertical);
+                            ed.split_pane(pane_id, SplitAxis::Vertical);
                             cx.notify();
                         });
                     })

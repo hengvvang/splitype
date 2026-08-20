@@ -3,7 +3,7 @@
 //! Split from `keyboard.rs` so the implementation file stays small;
 //! these tests drive the whole block-editing pipeline.
 
-use crate::editor::block_protocol::BlockAction;
+use crate::editor::block_protocol::BlockEvent;
 use crate::editor::controller::Editor;
 use crate::editor::editing::input::actions::ExitCodeBlock;
 use crate::editor::editing::input::actions::{Delete, DeleteBackward, Newline};
@@ -19,7 +19,7 @@ async fn request_quote_break_creates_new_root_leaf_quote_group(cx: &mut TestAppC
 
     editor.update(cx, |editor, cx| {
         let quote = editor.doc().first_root().expect("root quote").clone();
-        editor.on_block_event(quote, &BlockAction::RequestQuoteBreak, cx);
+        editor.on_block_event(quote, &BlockEvent::RequestQuoteBreak, cx);
 
         let entries = editor.doc().blocks();
         assert_eq!(entries.len(), 2);
@@ -85,7 +85,7 @@ async fn footnote_reference_jump_and_backref_follow_in_place_definition(cx: &mut
 
         editor.on_block_event(
             paragraph.clone(),
-            &BlockAction::RequestJumpToFootnoteDefinition {
+            &BlockEvent::RequestJumpToFootnoteDefinition {
                 id: "note".to_string(),
             },
             cx,
@@ -99,7 +99,7 @@ async fn footnote_reference_jump_and_backref_follow_in_place_definition(cx: &mut
             .expect("resolved footnote occurrence");
         editor.on_block_event(
             definition.clone(),
-            &BlockAction::RequestJumpToFootnoteBackref {
+            &BlockEvent::RequestJumpToFootnoteBackref {
                 id: "note".to_string(),
             },
             cx,
@@ -250,7 +250,7 @@ async fn request_indent_nests_non_empty_list_item(cx: &mut TestAppContext) {
 
     editor.update(cx, |editor, cx| {
         let second = editor.doc().blocks()[1].entity.clone();
-        editor.on_block_event(second, &BlockAction::RequestIndent, cx);
+        editor.on_block_event(second, &BlockEvent::RequestIndent, cx);
 
         let entries = editor.doc().blocks();
         assert_eq!(entries.len(), 2);
@@ -267,7 +267,7 @@ async fn request_outdent_lifts_list_child_paragraph_after_parent(cx: &mut TestAp
 
     let child_id = editor.update(cx, |editor, cx| {
         let child = editor.doc().blocks()[1].entity.clone();
-        editor.on_block_event(child.clone(), &BlockAction::RequestOutdent, cx);
+        editor.on_block_event(child.clone(), &BlockEvent::RequestOutdent, cx);
         child.entity_id()
     });
 
@@ -1094,7 +1094,7 @@ async fn arrow_down_from_last_row_exits_table_to_following_block(cx: &mut TestAp
             .expect("last row cell");
         editor.on_block_event(
             cell,
-            &BlockAction::RequestTableCellMoveVertical { delta: 1 },
+            &BlockEvent::RequestTableCellMoveVertical { delta: 1 },
             cx,
         );
 
@@ -1122,7 +1122,7 @@ async fn arrow_up_from_header_exits_table_to_preceding_block(cx: &mut TestAppCon
             .expect("header cell");
         editor.on_block_event(
             cell,
-            &BlockAction::RequestTableCellMoveVertical { delta: -1 },
+            &BlockEvent::RequestTableCellMoveVertical { delta: -1 },
             cx,
         );
 
@@ -1141,7 +1141,7 @@ async fn arrow_down_into_table_focuses_header_cell(cx: &mut TestAppContext) {
         let paragraph = editor.doc().first_root().expect("paragraph root").clone();
         editor.on_block_event(
             paragraph,
-            &BlockAction::RequestFocusNext { preferred_x: None },
+            &BlockEvent::RequestFocusNext { preferred_x: None },
             cx,
         );
 
@@ -1167,7 +1167,7 @@ async fn arrow_up_into_table_focuses_last_row_cell(cx: &mut TestAppContext) {
         assert_eq!(paragraph.read(cx).display_text(), "after");
         editor.on_block_event(
             paragraph,
-            &BlockAction::RequestFocusPrevious { preferred_x: None },
+            &BlockEvent::RequestFocusPrevious { preferred_x: None },
             cx,
         );
 
@@ -1202,7 +1202,7 @@ async fn block_up_from_table_cell_exits_to_preceding_block(cx: &mut TestAppConte
             .and_then(|row| row.first())
             .cloned()
             .expect("body cell");
-        editor.on_block_event(cell, &BlockAction::RequestBlockUp, cx);
+        editor.on_block_event(cell, &BlockEvent::RequestBlockUp, cx);
 
         let preceding = editor.doc().blocks()[0].entity.clone();
         assert_eq!(preceding.read(cx).display_text(), "before");
@@ -1217,7 +1217,7 @@ async fn block_down_into_table_focuses_header_cell(cx: &mut TestAppContext) {
 
     editor.update(cx, |editor, cx| {
         let paragraph = editor.doc().first_root().expect("paragraph root").clone();
-        editor.on_block_event(paragraph, &BlockAction::RequestBlockDown, cx);
+        editor.on_block_event(paragraph, &BlockEvent::RequestBlockDown, cx);
 
         let header_cell = table_root(editor, cx)
             .read(cx)
@@ -1243,7 +1243,7 @@ async fn down_out_of_code_block_focuses_following_block(cx: &mut TestAppContext)
         // below, focus lands there rather than creating anything.
         editor.on_block_event(
             code,
-            &BlockAction::RequestFocusNext { preferred_x: None },
+            &BlockEvent::RequestFocusNext { preferred_x: None },
             cx,
         );
 
@@ -1263,7 +1263,7 @@ async fn down_out_of_trailing_code_block_creates_and_focuses_paragraph(cx: &mut 
         assert_eq!(editor.doc().root_count(), 1);
         editor.on_block_event(
             code,
-            &BlockAction::RequestFocusNext { preferred_x: None },
+            &BlockEvent::RequestFocusNext { preferred_x: None },
             cx,
         );
 
@@ -1285,7 +1285,7 @@ async fn down_out_of_trailing_math_block_creates_and_focuses_paragraph(cx: &mut 
         assert_eq!(math.read(cx).kind(), BlockKind::MathBlock);
         editor.on_block_event(
             math,
-            &BlockAction::RequestFocusNext { preferred_x: None },
+            &BlockEvent::RequestFocusNext { preferred_x: None },
             cx,
         );
 
@@ -1305,7 +1305,7 @@ async fn down_at_end_of_trailing_paragraph_creates_nothing(cx: &mut TestAppConte
         let paragraph = editor.doc().first_root().expect("paragraph").clone();
         editor.on_block_event(
             paragraph,
-            &BlockAction::RequestFocusNext { preferred_x: None },
+            &BlockEvent::RequestFocusNext { preferred_x: None },
             cx,
         );
 
@@ -1322,7 +1322,7 @@ async fn plain_multiline_paste_with_scripts_splits_physical_lines(cx: &mut TestA
         let block = editor.doc().blocks()[0].entity.clone();
         editor.on_block_event(
             block,
-            &BlockAction::RequestPasteMultiline {
+            &BlockEvent::RequestPasteMultiline {
                 leading: BlockText::plain(String::new()),
                 lines: vec![
                     "H~2~O".to_string(),
@@ -1352,7 +1352,7 @@ async fn structural_paste_of_table_renders_native_table(cx: &mut TestAppContext)
         let block = editor.doc().blocks()[0].entity.clone();
         editor.on_block_event(
             block,
-            &BlockAction::RequestPasteMultiline {
+            &BlockEvent::RequestPasteMultiline {
                 leading: BlockText::plain(String::new()),
                 lines: vec![
                     "| A | B |".to_string(),
@@ -1393,7 +1393,7 @@ async fn structural_paste_of_code_block_renders_native_code_block(cx: &mut TestA
         let block = editor.doc().blocks()[0].entity.clone();
         editor.on_block_event(
             block,
-            &BlockAction::RequestPasteMultiline {
+            &BlockEvent::RequestPasteMultiline {
                 leading: BlockText::plain(String::new()),
                 lines: vec![
                     "```rust".to_string(),
@@ -1437,7 +1437,7 @@ async fn structural_paste_of_table_preserves_surrounding_text(cx: &mut TestAppCo
         let block = editor.doc().blocks()[0].entity.clone();
         editor.on_block_event(
             block,
-            &BlockAction::RequestPasteMultiline {
+            &BlockEvent::RequestPasteMultiline {
                 leading: BlockText::plain("before"),
                 lines: vec![
                     "| A | B |".to_string(),
@@ -1473,7 +1473,7 @@ async fn structural_paste_of_code_block_preserves_surrounding_text(cx: &mut Test
         let block = editor.doc().blocks()[0].entity.clone();
         editor.on_block_event(
             block,
-            &BlockAction::RequestPasteMultiline {
+            &BlockEvent::RequestPasteMultiline {
                 leading: BlockText::plain("before"),
                 lines: vec![
                     "```rust".to_string(),
@@ -1514,7 +1514,7 @@ async fn structural_paste_at_document_end_adds_one_trailing_paragraph(cx: &mut T
         });
         editor.on_block_event(
             block,
-            &BlockAction::RequestPasteMultiline {
+            &BlockEvent::RequestPasteMultiline {
                 leading: BlockText::plain("intro"),
                 lines: vec!["***".to_string()],
                 trailing: BlockText::plain(String::new()),
@@ -1545,7 +1545,7 @@ async fn structural_paste_of_quote_at_document_end_adds_trailing_paragraph(
         });
         editor.on_block_event(
             block,
-            &BlockAction::RequestPasteMultiline {
+            &BlockEvent::RequestPasteMultiline {
                 leading: BlockText::plain("intro"),
                 lines: vec!["> quoted".to_string()],
                 trailing: BlockText::plain(String::new()),
@@ -1579,7 +1579,7 @@ async fn structural_paste_of_callout_at_document_end_adds_trailing_paragraph(
         });
         editor.on_block_event(
             block,
-            &BlockAction::RequestPasteMultiline {
+            &BlockEvent::RequestPasteMultiline {
                 leading: BlockText::plain("intro"),
                 lines: vec!["> [!NOTE]".to_string(), "> body".to_string()],
                 trailing: BlockText::plain(String::new()),
@@ -1612,7 +1612,7 @@ async fn structural_paste_of_footnote_definition_at_document_end_adds_trailing_p
         });
         editor.on_block_event(
             block,
-            &BlockAction::RequestPasteMultiline {
+            &BlockEvent::RequestPasteMultiline {
                 leading: BlockText::plain("intro"),
                 lines: vec!["[^note]: definition body".to_string()],
                 trailing: BlockText::plain(String::new()),
@@ -1642,7 +1642,7 @@ async fn structural_paste_of_standalone_image_at_document_end_adds_trailing_para
         });
         editor.on_block_event(
             block,
-            &BlockAction::RequestPasteMultiline {
+            &BlockEvent::RequestPasteMultiline {
                 leading: BlockText::plain("intro"),
                 lines: vec!["![alt](pic.png)".to_string()],
                 trailing: BlockText::plain(String::new()),
@@ -1671,7 +1671,7 @@ async fn plain_multiline_paste_with_blank_script_lines_skips_separator_blanks(
         let block = editor.doc().blocks()[0].entity.clone();
         editor.on_block_event(
             block,
-            &BlockAction::RequestPasteMultiline {
+            &BlockEvent::RequestPasteMultiline {
                 leading: BlockText::plain(String::new()),
                 lines: vec![
                     "H~2~O".to_string(),
@@ -1705,7 +1705,7 @@ async fn plain_multiline_paste_with_leading_inline_html_splits_physical_lines(
         let block = editor.doc().blocks()[0].entity.clone();
         editor.on_block_event(
             block,
-            &BlockAction::RequestPasteMultiline {
+            &BlockEvent::RequestPasteMultiline {
                 leading: BlockText::plain(String::new()),
                 lines: vec![
                     "<sub>2</sub>".to_string(),
@@ -1739,7 +1739,7 @@ async fn plain_paste_preserves_tibetan_spaces(cx: &mut TestAppContext) {
         let block = editor.doc().blocks()[0].entity.clone();
         editor.on_block_event(
             block,
-            &BlockAction::RequestPasteMultiline {
+            &BlockEvent::RequestPasteMultiline {
                 leading: BlockText::plain(String::new()),
                 lines: vec![tibetan.to_string()],
                 trailing: BlockText::plain(String::new()),
@@ -1837,7 +1837,7 @@ async fn nested_list_item_downgrade_hoists_children_after_paragraph(cx: &mut Tes
         let nested = editor.doc().blocks()[1].entity.clone();
         editor.on_block_event(
             nested,
-            &BlockAction::RequestDowngradeNestedListItemToChildParagraph,
+            &BlockEvent::RequestDowngradeNestedListItemToChildParagraph,
             cx,
         );
 
@@ -1904,7 +1904,7 @@ async fn request_quote_break_creates_nested_leaf_quote_group(cx: &mut TestAppCon
 
     editor.update(cx, |editor, cx| {
         let nested_quote = editor.doc().blocks()[1].entity.clone();
-        editor.on_block_event(nested_quote, &BlockAction::RequestQuoteBreak, cx);
+        editor.on_block_event(nested_quote, &BlockEvent::RequestQuoteBreak, cx);
 
         let entries = editor.doc().blocks();
         assert_eq!(entries.len(), 4);
@@ -2047,7 +2047,7 @@ async fn root_quote_break_then_backspace_keeps_text_block_slot_after_group(
 
     let new_leaf_id = editor.update(cx, |editor, cx| {
         let quote = editor.doc().first_root().expect("group quote").clone();
-        editor.on_block_event(quote, &BlockAction::RequestQuoteBreak, cx);
+        editor.on_block_event(quote, &BlockEvent::RequestQuoteBreak, cx);
         let entries = editor.doc().blocks();
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Blockquote);

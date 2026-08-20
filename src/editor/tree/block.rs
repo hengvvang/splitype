@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use gpui::*;
 use unicode_segmentation::*;
 
-use crate::editor::block_protocol::{BlockAction, UndoCaptureKind};
+use crate::editor::block_protocol::{BlockEvent, UndoCaptureKind};
 use crate::editor::editing::projection::ExpandedInlineProjection;
 use crate::editor::editing::table_grid::TableGrid;
 use crate::editor::geometry::text_layout as element;
@@ -59,7 +59,7 @@ pub(crate) enum CollapsedCaretAffinity {
     OuterEnd,
 }
 
-impl EventEmitter<BlockAction> for Block {}
+impl EventEmitter<BlockEvent> for Block {}
 
 /// A single editable block in the document tree.
 ///
@@ -68,7 +68,7 @@ impl EventEmitter<BlockAction> for Block {}
 /// such as selection, cursor blink, and layout cache live on the struct.
 ///
 /// Blocks delegate structural operations (split, merge, indent, delete) to
-/// the parent editor via `BlockAction` emissions.
+/// the parent editor via `BlockEvent` emissions.
 pub struct Block {
     pub data: BlockData,
     pub(crate) render_cache: InlineRenderCache,
@@ -800,7 +800,7 @@ impl Block {
         self.sync_render_cache();
         self.cursor_blink_epoch = Instant::now();
         self.clear_vertical_motion();
-        cx.emit(BlockAction::Changed);
+        cx.emit(BlockEvent::Changed);
         cx.notify();
     }
 
@@ -815,7 +815,7 @@ impl Block {
     pub(crate) fn convert_to_separator(&mut self, cx: &mut Context<Self>) {
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.make_separator();
-        cx.emit(BlockAction::Changed);
+        cx.emit(BlockEvent::Changed);
         cx.notify();
     }
 
@@ -860,7 +860,7 @@ impl Block {
         self.marked_range = None;
         self.cursor_blink_epoch = Instant::now();
         self.clear_vertical_motion();
-        cx.emit(BlockAction::Changed);
+        cx.emit(BlockEvent::Changed);
         cx.notify();
     }
 
@@ -879,7 +879,7 @@ impl Block {
         self.marked_range = None;
         self.cursor_blink_epoch = Instant::now();
         self.clear_vertical_motion();
-        cx.emit(BlockAction::Changed);
+        cx.emit(BlockEvent::Changed);
         cx.notify();
     }
 
@@ -1179,11 +1179,11 @@ impl Block {
     }
 
     pub(crate) fn range_to_utf16(&self, range: &Range<usize>) -> Range<usize> {
-        Self::utf8_range_to_utf16_in(self.display_text(), range)
+        crate::model::inline::offsets::ImeConverter::utf8_range_to_utf16_in(self.display_text(), range)
     }
 
     pub(crate) fn range_from_utf16(&self, range_utf16: &Range<usize>) -> Range<usize> {
-        Self::utf16_range_to_utf8_in(self.display_text(), range_utf16)
+        crate::model::inline::offsets::ImeConverter::utf16_range_to_utf8_in(self.display_text(), range_utf16)
     }
 
     pub fn previous_boundary(&self, offset: usize) -> usize {

@@ -11,12 +11,13 @@ use std::time::Instant;
 use gpui::*;
 
 use super::block::CollapsedCaretAffinity;
-use crate::editor::block_protocol::{BlockAction, UndoCaptureKind};
+use crate::editor::block_protocol::{BlockEvent, UndoCaptureKind};
 use crate::editor::editing::projection::{
     ExpandedInlineProjection, ExpandedInlineSegment, ExpandedInlineSegmentKind, ExpandedLinkSpan,
     ProjectedLinkSelectionSnapshot,
 };
 use crate::editor::tree::block::Block;
+use crate::model::inline::offsets::ImeConverter;
 use crate::model::inline::render_cache::InlineRenderCache;
 use crate::model::inline::text::{BlockText, InlineFragment, InlineInsertionAttributes};
 use crate::model::parse::BlockKind;
@@ -555,46 +556,23 @@ impl Block {
     }
 
     pub(crate) fn prepare_undo_capture(&self, kind: UndoCaptureKind, cx: &mut Context<Self>) {
-        cx.emit(BlockAction::PrepareUndo { kind });
+        cx.emit(BlockEvent::PrepareUndo { kind });
     }
 
     pub(crate) fn utf16_to_utf8_in(text: &str, offset: usize) -> usize {
-        let mut utf8_offset = 0;
-        let mut utf16_count = 0;
-
-        for ch in text.chars() {
-            if utf16_count >= offset {
-                break;
-            }
-            utf16_count += ch.len_utf16();
-            utf8_offset += ch.len_utf8();
-        }
-
-        utf8_offset
+        ImeConverter::utf16_to_utf8_in(text, offset)
     }
 
     pub(crate) fn utf8_to_utf16_in(text: &str, offset: usize) -> usize {
-        let mut utf16_offset = 0;
-        let mut utf8_count = 0;
-
-        for ch in text.chars() {
-            if utf8_count >= offset {
-                break;
-            }
-            utf8_count += ch.len_utf8();
-            utf16_offset += ch.len_utf16();
-        }
-
-        utf16_offset
+        ImeConverter::utf8_to_utf16_in(text, offset)
     }
 
     pub(crate) fn utf16_range_to_utf8_in(text: &str, range_utf16: &Range<usize>) -> Range<usize> {
-        Self::utf16_to_utf8_in(text, range_utf16.start)
-            ..Self::utf16_to_utf8_in(text, range_utf16.end)
+        ImeConverter::utf16_range_to_utf8_in(text, range_utf16)
     }
 
     pub(crate) fn utf8_range_to_utf16_in(text: &str, range: &Range<usize>) -> Range<usize> {
-        Self::utf8_to_utf16_in(text, range.start)..Self::utf8_to_utf16_in(text, range.end)
+        ImeConverter::utf8_range_to_utf16_in(text, range)
     }
 
     /// Detect Markdown shortcut prefixes in the edited text and convert the
@@ -782,7 +760,7 @@ impl Block {
                 self.cursor_blink_epoch = Instant::now();
                 self.clear_vertical_motion();
                 if self.data.kind != old_kind || self.data.text != old_text {
-                    cx.emit(BlockAction::Changed);
+                    cx.emit(BlockEvent::Changed);
                 }
                 cx.notify();
                 return;
@@ -917,7 +895,7 @@ impl Block {
 
     /// Apply new text to the block, running shortcut detection and
     /// updating the render cache, cursor, and selection state.  Emits
-    /// [`BlockAction::Changed`] if the kind or text actually changed.
+    /// [`BlockEvent::Changed`] if the kind or text actually changed.
     pub(crate) fn apply_text_edit(
         &mut self,
         next_text: BlockText,
@@ -992,7 +970,7 @@ impl Block {
         self.clear_vertical_motion();
 
         if self.data.kind != old_kind || self.data.text != old_text {
-            cx.emit(BlockAction::Changed);
+            cx.emit(BlockEvent::Changed);
         }
         cx.notify();
     }
@@ -1146,7 +1124,7 @@ impl Block {
         self.clear_vertical_motion();
 
         if self.data.kind != old_kind || self.data.text != old_text {
-            cx.emit(BlockAction::Changed);
+            cx.emit(BlockEvent::Changed);
         }
         cx.notify();
         true

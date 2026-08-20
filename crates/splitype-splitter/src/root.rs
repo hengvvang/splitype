@@ -15,7 +15,7 @@ use crate::container::SplitterContainer;
 use crate::sessions::{
     BorderMenuState, CornerDragModifier, CornerDragSession, SplitterDragSession, id_at_point,
 };
-use crate::tree::{LeafRect, Axis, Direction, NodeId, SplitTree};
+use crate::tree::{Direction, LeafRect, NodeId, SplitAxis, SplitTree};
 
 /// One initialized split region: the panel tree plus tree-level state.
 pub struct SplitterRoot<T: Copy + PartialEq> {
@@ -60,7 +60,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     /// the leaf's container is replaced by a `Split` node holding the
     /// original container and a freshly created one. Returns the new
     /// leaf's id.
-    pub fn split_leaf(&mut self, target_id: usize, axis: Axis, ratio: f32) -> Option<usize> {
+    pub fn split_leaf(&mut self, target_id: usize, axis: SplitAxis, ratio: f32) -> Option<usize> {
         let kind = self.tree.find_leaf_kind(target_id)?;
         let new_id = self.next_node_id;
         self.next_node_id += 1;
@@ -371,22 +371,22 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
         &self,
         facts: &CornerDragSession,
         container_size: Size<Pixels>,
-    ) -> Option<(Axis, f32)> {
+    ) -> Option<(SplitAxis, f32)> {
         let dir = facts.gesture_dir?;
         let pos = facts.pointer_pos?;
         let mut rects = Vec::new();
         self.tree.collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
         let target = rects.iter().find(|rect| rect.id == facts.target_id)?;
         let axis = if dir.is_vertical() {
-            Axis::Vertical
+            SplitAxis::Vertical
         } else {
-            Axis::Horizontal
+            SplitAxis::Horizontal
         };
         let norm_x = f32::from(pos.x) / f32::from(container_size.width);
         let norm_y = f32::from(pos.y) / f32::from(container_size.height);
         let ratio = match axis {
-            Axis::Horizontal => ((norm_x - target.x) / target.width).clamp(0.15, 0.85),
-            Axis::Vertical => ((norm_y - target.y) / target.height).clamp(0.15, 0.85),
+            SplitAxis::Horizontal => ((norm_x - target.x) / target.width).clamp(0.15, 0.85),
+            SplitAxis::Vertical => ((norm_y - target.y) / target.height).clamp(0.15, 0.85),
         };
         Some((axis, ratio))
     }
@@ -419,10 +419,10 @@ mod tests {
         let mut root = test_root();
         assert_eq!(root.tree.count_leaves(), 1);
 
-        root.split_leaf(1, Axis::Horizontal, 0.5);
+        root.split_leaf(1, SplitAxis::Horizontal, 0.5);
         assert_eq!(root.tree.count_leaves(), 2);
 
-        root.split_leaf(2, Axis::Vertical, 0.5);
+        root.split_leaf(2, SplitAxis::Vertical, 0.5);
         assert_eq!(root.tree.count_leaves(), 3);
 
         root.close_leaf(2);
@@ -438,7 +438,7 @@ mod tests {
 
         root.active_splitter_drag = Some(SplitterDragSession {
             split_id: 1,
-            axis: Axis::Horizontal,
+            axis: SplitAxis::Horizontal,
             start_pointer_pos: 100.0,
             start_ratio: 0.5,
             total_span: 1000.0,
@@ -454,7 +454,7 @@ mod tests {
         assert_eq!(root.tree.find_leaf_kind(1), Some(TestKind::A));
 
         // Split leaf 1 → A + A (same kind, not cycled).
-        root.split_leaf(1, Axis::Horizontal, 0.5);
+        root.split_leaf(1, SplitAxis::Horizontal, 0.5);
         assert_eq!(root.tree.count_leaves(), 2);
         assert_eq!(root.tree.find_leaf_kind(1), Some(TestKind::A));
         assert_eq!(root.tree.find_leaf_kind(2), Some(TestKind::A));
@@ -462,7 +462,7 @@ mod tests {
         // B splits into B.
         root.set_kind(1, TestKind::B);
         let new_b = root
-            .split_leaf(1, Axis::Horizontal, 0.5)
+            .split_leaf(1, SplitAxis::Horizontal, 0.5)
             .expect("second split should succeed");
         assert_eq!(root.tree.count_leaves(), 3);
         assert_eq!(root.tree.find_leaf_kind(new_b), Some(TestKind::B));
@@ -478,7 +478,7 @@ mod tests {
         // Splitting replaces the leaf with a Split node holding TWO
         // containers — the original and the freshly created one — both
         // hanging on the same tree.
-        let new_id = root.split_leaf(1, Axis::Horizontal, 0.5).unwrap();
+        let new_id = root.split_leaf(1, SplitAxis::Horizontal, 0.5).unwrap();
         assert_eq!(root.tree.count_leaves(), 2);
         assert!(matches!(&root.tree, SplitTree::Split { .. }));
         assert!(root.tree.find_leaf(1).is_some());
@@ -496,8 +496,8 @@ mod tests {
     fn test_active_leaf_falls_back_to_last_focused() {
         let mut root = test_root();
         root.activate_leaf(1);
-        let a = root.split_leaf(1, Axis::Horizontal, 0.5).unwrap();
-        let b = root.split_leaf(1, Axis::Vertical, 0.5).unwrap();
+        let a = root.split_leaf(1, SplitAxis::Horizontal, 0.5).unwrap();
+        let b = root.split_leaf(1, SplitAxis::Vertical, 0.5).unwrap();
         // Activation order: 1, a, b → active is b.
         root.activate_leaf(a);
         root.activate_leaf(b);
@@ -517,7 +517,7 @@ mod tests {
     fn test_kind_change_retires_activation() {
         let mut root = test_root();
         root.activate_leaf(1);
-        let a = root.split_leaf(1, Axis::Horizontal, 0.5).unwrap();
+        let a = root.split_leaf(1, SplitAxis::Horizontal, 0.5).unwrap();
         root.activate_leaf(a);
 
         // Changing an inactive leaf's kind leaves the active one alone.
@@ -540,7 +540,7 @@ mod tests {
     #[test]
     fn test_join_sibling_leaves() {
         let mut root = test_root();
-        root.split_leaf(1, Axis::Horizontal, 0.5); // ids: 1, 2
+        root.split_leaf(1, SplitAxis::Horizontal, 0.5); // ids: 1, 2
         assert_eq!(root.tree.count_leaves(), 2);
 
         // Join leaf 2 into leaf 1: remove 2, expand 1.
@@ -554,8 +554,8 @@ mod tests {
     fn test_join_nested_leaves() {
         let mut root = test_root();
         // Build: Split(H) { Leaf(1), Split(H) { Leaf(2), Leaf(3) } }
-        root.split_leaf(1, Axis::Horizontal, 0.5); // ids: 1, 2
-        root.split_leaf(2, Axis::Horizontal, 0.5); // ids: 1, 2, 3
+        root.split_leaf(1, SplitAxis::Horizontal, 0.5); // ids: 1, 2
+        root.split_leaf(2, SplitAxis::Horizontal, 0.5); // ids: 1, 2, 3
         assert_eq!(root.tree.count_leaves(), 3);
 
         // Join leaf 1 with leaf 2 (different subtrees) → 2 leaves remain.
@@ -567,7 +567,7 @@ mod tests {
     #[test]
     fn test_window_panel_rects() {
         let mut root = test_root();
-        root.split_leaf(1, Axis::Horizontal, 0.3); // ids: 1 (30%), 2 (70%)
+        root.split_leaf(1, SplitAxis::Horizontal, 0.3); // ids: 1 (30%), 2 (70%)
         let rects = root.leaf_rects(size(px(1000.0), px(800.0)));
         assert_eq!(rects.len(), 2);
         let first = rects[0];
