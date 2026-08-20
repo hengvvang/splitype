@@ -281,7 +281,7 @@ impl Editor {
         event: &BlockEvent,
         cx: &mut Context<Self>,
     ) {
-        if Self::block_event_clears_cross_block_selection(event) {
+        if event.clears_cross_block_selection() {
             let state = self.active_pane_state();
             state.selection.select_all_cycle = None;
             self.clear_cross_block_selection(cx);

@@ -42,30 +42,6 @@ impl Editor {
             cx.notify();
         }
     }
-    /// Whether the given action should dismiss any active cross-block text
-    /// selection (typing, structural edits, and paste all replace it).
-    pub(crate) fn block_event_clears_cross_block_selection(event: &BlockEvent) -> bool {
-        matches!(
-            event,
-            BlockEvent::Changed
-                | BlockEvent::RequestNewline { .. }
-                | BlockEvent::RequestNewlineAbove
-                | BlockEvent::RequestEnterCalloutBody
-                | BlockEvent::RequestQuoteBreak
-                | BlockEvent::RequestCalloutBreak
-                | BlockEvent::RequestMergeIntoPrevious { .. }
-                | BlockEvent::RequestPasteMultiline { .. }
-                | BlockEvent::RequestPasteImage { .. }
-                | BlockEvent::RequestIndent
-                | BlockEvent::RequestOutdent
-                | BlockEvent::RequestDowngradeNestedListItemToChildParagraph
-                | BlockEvent::RequestToggleTaskChecked
-                | BlockEvent::RequestAppendTableColumn
-                | BlockEvent::RequestAppendTableRow
-                | BlockEvent::RequestExpandTable
-                | BlockEvent::RequestDelete
-        )
-    }
 
     pub(crate) fn on_block_event(
         &mut self,
@@ -115,7 +91,7 @@ impl Editor {
             return;
         }
 
-        if Self::block_event_clears_cross_block_selection(event) {
+        if event.clears_cross_block_selection() {
             let state = self.active_pane_state();
             state.selection.select_all_cycle = None;
             self.clear_cross_block_selection(cx);
@@ -127,36 +103,86 @@ impl Editor {
             .position(|entry| entry.entity.entity_id() == block.entity_id())
             .unwrap_or(0);
 
-        match event {
-            BlockEvent::Changed => {
-                let should_restart_numbered_list = block.update(cx, |block, _cx| {
-                    block.take_numbered_list_restart_requested()
-                });
-                if should_restart_numbered_list {
-                    self.insert_list_group_separator_before(block.entity_id(), cx);
-                }
-
-                let callout_focus_target = self.materialize_empty_callout_shortcut(&block, cx);
-
-                let should_normalize_quote =
-                    block.update(cx, |block, _cx| {
-                        let requested = block.take_quote_reparse_requested();
-                        requested && block.marked_range.is_none()
-                    }) || Self::rendered_quote_text_requires_reparse(&block, cx);
-
-                self.refresh_rendered_quote_metadata_if_needed(&block, cx);
-                if should_normalize_quote {
-                    self.normalize_rendered_quote_structure(cx);
-                } else {
-                    self.sync_references_after_block_change(&block, cx);
-                }
-                if let Some(focus_id) = callout_focus_target {
-                    self.focus_block(focus_id);
-                }
-                self.mark_dirty(cx);
-                self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
-                self.finalize_pending_undo_capture(cx);
+        match event.category() {
+            crate::editor::block_protocol::BlockEventCategory::ContentChange => {
+                self.handle_content_change_event(&block, cx);
             }
+            crate::editor::block_protocol::BlockEventCategory::TextEdit => {
+                self.handle_text_edit_event(
+                    &block,
+                    event,
+                    current_entry_index,
+                    &entries_before,
+                    cx,
+                );
+            }
+            crate::editor::block_protocol::BlockEventCategory::Structure => {
+                self.handle_structure_event(
+                    &block,
+                    event,
+                    current_entry_index,
+                    &entries_before,
+                    cx,
+                );
+            }
+            crate::editor::block_protocol::BlockEventCategory::Table => {
+                self.handle_table_event(&block, event, cx);
+            }
+            crate::editor::block_protocol::BlockEventCategory::Interaction => {
+                self.handle_interaction_event(
+                    &block,
+                    event,
+                    current_entry_index,
+                    &entries_before,
+                    cx,
+                );
+            }
+            crate::editor::block_protocol::BlockEventCategory::Lifecycle => {}
+        }
+    }
+
+    fn handle_content_change_event(
+        &mut self,
+        block: &Entity<crate::editor::tree::block::Block>,
+        cx: &mut Context<Self>,
+    ) {
+        let should_restart_numbered_list = block.update(cx, |block, _cx| {
+            block.take_numbered_list_restart_requested()
+        });
+        if should_restart_numbered_list {
+            self.insert_list_group_separator_before(block.entity_id(), cx);
+        }
+
+        let callout_focus_target = self.materialize_empty_callout_shortcut(block, cx);
+
+        let should_normalize_quote = block.update(cx, |block, _cx| {
+            let requested = block.take_quote_reparse_requested();
+            requested && block.marked_range.is_none()
+        }) || Self::rendered_quote_text_requires_reparse(block, cx);
+
+        self.refresh_rendered_quote_metadata_if_needed(block, cx);
+        if should_normalize_quote {
+            self.normalize_rendered_quote_structure(cx);
+        } else {
+            self.sync_references_after_block_change(block, cx);
+        }
+        if let Some(focus_id) = callout_focus_target {
+            self.focus_block(focus_id);
+        }
+        self.mark_dirty(cx);
+        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+        self.finalize_pending_undo_capture(cx);
+    }
+
+    fn handle_text_edit_event(
+        &mut self,
+        block: &Entity<crate::editor::tree::block::Block>,
+        event: &BlockEvent,
+        current_entry_index: usize,
+        entries_before: &[crate::editor::tree::document::BlockEntry],
+        cx: &mut Context<Self>,
+    ) {
+        match event {
             BlockEvent::RequestNewline {
                 trailing,
                 source_already_mutated,
@@ -164,12 +190,12 @@ impl Editor {
                 // Typing a setext underline (`=====`/`-----`) under a paragraph
                 // and pressing Enter turns that paragraph into a heading, the
                 // same way the importer treats the two adjacent lines.
-                if self.try_form_setext_heading_on_newline(&block, cx) {
+                if self.try_form_setext_heading_on_newline(block, cx) {
                     return;
                 }
                 // Typing a delimiter row under a header forms a native table,
                 // and typing further pipe rows below the table absorbs them.
-                if self.try_form_or_extend_table_on_newline(&block, cx) {
+                if self.try_form_or_extend_table_on_newline(block, cx) {
                     return;
                 }
                 let Some(location) = self.doc().find_block_location(block.entity_id()) else {
@@ -231,91 +257,12 @@ impl Editor {
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
-            BlockEvent::RequestEnterCalloutBody => {
-                let needs_body = block.read(cx).children.is_empty();
-                if needs_body {
-                    self.prepare_undo_capture(
-                        crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
-                        cx,
-                    );
-                }
-                let created = self.ensure_callout_body_entry(&block, cx);
-                if let Some(body) = created {
-                    self.focus_block(body.entity_id());
-                    self.rebuild_reference_registries(cx);
-                    if needs_body {
-                        self.mark_dirty(cx);
-                        self.finalize_pending_undo_capture(cx);
-                    }
-                    cx.notify();
-                }
-            }
-            BlockEvent::RequestQuoteBreak => {
-                let Some((parent, insert_index)) =
-                    self.quote_break_insertion_target(block.entity_id(), cx)
-                else {
-                    return;
-                };
-
-                self.prepare_undo_capture(
-                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
-                    cx,
-                );
-
-                let new_quote = Self::new_block(
-                    cx,
-                    BlockData::new(BlockKind::Blockquote, BlockText::plain(String::new())),
-                );
-                let blocks = if parent.is_none() {
-                    vec![new_quote.clone()]
-                } else {
-                    vec![
-                        Self::new_block(cx, BlockData::paragraph(String::new())),
-                        new_quote.clone(),
-                    ]
-                };
-                self.doc_mut()
-                    .insert_blocks_at(parent, insert_index, blocks, cx);
-                self.focus_block(new_quote.entity_id());
-                self.normalize_rendered_quote_structure(cx);
-                self.mark_dirty(cx);
-                self.finalize_pending_undo_capture(cx);
-                cx.notify();
-            }
-            BlockEvent::RequestCalloutBreak => {
-                let Some((parent, insert_index)) =
-                    self.callout_break_insertion_target(block.entity_id(), cx)
-                else {
-                    return;
-                };
-
-                self.prepare_undo_capture(
-                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
-                    cx,
-                );
-                let plain = Self::new_block(cx, BlockData::paragraph(String::new()));
-                let blocks = if parent.is_none() {
-                    vec![plain.clone()]
-                } else {
-                    vec![
-                        Self::new_block(cx, BlockData::paragraph(String::new())),
-                        plain.clone(),
-                    ]
-                };
-                self.doc_mut()
-                    .insert_blocks_at(parent, insert_index, blocks, cx);
-                self.focus_block(plain.entity_id());
-                self.rebuild_reference_registries(cx);
-                self.mark_dirty(cx);
-                self.finalize_pending_undo_capture(cx);
-                cx.notify();
-            }
             BlockEvent::RequestMergeIntoPrevious { content } => {
                 if current_entry_index == 0 {
                     return;
                 }
                 let prev = entries_before[current_entry_index - 1].entity.clone();
-                let quote_related = self.is_block_quote_structure_related(&block, cx)
+                let quote_related = self.is_block_quote_structure_related(block, cx)
                     || self.is_block_quote_structure_related(&prev, cx);
                 self.prepare_undo_capture(
                     crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
@@ -323,36 +270,51 @@ impl Editor {
                 );
 
                 let cursor_pos = prev.read(cx).display_text().len();
-                let adopted_children =
-                    crate::editor::tree::document::Document::take_children(&block, cx);
-                let removed_entity_id = block.entity_id();
+                let current_content = content.clone();
+                prev.update(cx, move |prev, cx| {
+                    let mut text = prev.data.text.clone();
+                    text.append(current_content);
+                    prev.data.set_text(text);
+                    prev.sync_render_cache();
+                    prev.cursor_blink_epoch = Instant::now();
+                    cx.notify();
+                });
+                Self::reset_block_cursor(&prev, cursor_pos, cx);
 
-                self.doc_mut().with_structure_mutation(cx, |document, cx| {
-                    prev.update(cx, {
-                        let content = content.clone();
-                        let adopted_children = adopted_children.clone();
-                        move |prev, cx| {
-                            let mut next_text = prev.data.text.clone();
-                            next_text.append(content.clone());
-                            prev.data.set_text(next_text);
-                            prev.sync_render_cache();
-                            prev.children.extend(adopted_children.clone());
-                            prev.selected_range = cursor_pos..cursor_pos;
-                            prev.selection_reversed = false;
-                            prev.marked_range = None;
-                            prev.vertical_motion_x = None;
-                            prev.cursor_blink_epoch = Instant::now();
-                            cx.notify();
-                        }
-                    });
-                    let _ = document.remove_block_by_id_raw(removed_entity_id, cx);
+                let is_task_list_item = block.read(cx).kind().is_task_list_item();
+                let adopted_children =
+                    crate::editor::tree::document::Document::take_children(block, cx);
+                let removed = self.doc_mut().with_structure_mutation(cx, |document, cx| {
+                    let (_, location) = document.remove_block_by_id_raw(block.entity_id(), cx)?;
+                    if !adopted_children.is_empty() {
+                        let insert_parent = if is_task_list_item {
+                            Some(prev.clone())
+                        } else {
+                            location.parent
+                        };
+                        let insert_index = if is_task_list_item {
+                            prev.read(cx).children.len()
+                        } else {
+                            location.index
+                        };
+                        document.insert_blocks_at_raw(
+                            insert_parent,
+                            insert_index,
+                            adopted_children.clone(),
+                            cx,
+                        );
+                    }
+                    Some(())
                 });
 
+                if removed.is_none() {
+                    return;
+                }
+
                 self.focus_block(prev.entity_id());
+                self.rebuild_reference_registries(cx);
                 if quote_related {
                     self.normalize_rendered_quote_structure(cx);
-                } else {
-                    self.rebuild_reference_registries(cx);
                 }
                 self.mark_dirty(cx);
                 self.finalize_pending_undo_capture(cx);
@@ -367,7 +329,7 @@ impl Editor {
                 if lines.is_empty() {
                     return;
                 }
-                let quote_related = self.is_block_quote_structure_related(&block, cx);
+                let quote_related = self.is_block_quote_structure_related(block, cx);
                 self.prepare_undo_capture(
                     crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
                     cx,
@@ -391,7 +353,7 @@ impl Editor {
                 if tail_lines.is_empty() {
                     first_text.append(trailing.clone());
                     let cursor = first_text.plain_len();
-                    Self::set_block_text_and_kind(&block, current_kind, first_text, cursor, cx);
+                    Self::set_block_text_and_kind(block, current_kind, first_text, cursor, cx);
                     self.focus_block(block.entity_id());
                     if quote_related {
                         self.normalize_rendered_quote_structure(cx);
@@ -405,7 +367,7 @@ impl Editor {
                 }
 
                 let cursor = first_text.plain_len();
-                Self::set_block_text_and_kind(&block, current_kind, first_text, cursor, cx);
+                Self::set_block_text_and_kind(block, current_kind, first_text, cursor, cx);
 
                 let Some(location) = self.doc().find_block_location(block.entity_id()) else {
                     return;
@@ -502,8 +464,98 @@ impl Editor {
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
-            BlockEvent::RequestPasteImage { .. }
-            | BlockEvent::RequestReplaceCrossBlockSelection { .. } => {}
+            _ => {}
+        }
+    }
+
+    fn handle_structure_event(
+        &mut self,
+        block: &Entity<crate::editor::tree::block::Block>,
+        event: &BlockEvent,
+        current_entry_index: usize,
+        entries_before: &[crate::editor::tree::document::BlockEntry],
+        cx: &mut Context<Self>,
+    ) {
+        match event {
+            BlockEvent::RequestEnterCalloutBody => {
+                let needs_body = block.read(cx).children.is_empty();
+                if needs_body {
+                    self.prepare_undo_capture(
+                        crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
+                        cx,
+                    );
+                }
+                let created = self.ensure_callout_body_entry(block, cx);
+                if let Some(body) = created {
+                    self.focus_block(body.entity_id());
+                    self.rebuild_reference_registries(cx);
+                    if needs_body {
+                        self.mark_dirty(cx);
+                        self.finalize_pending_undo_capture(cx);
+                    }
+                    cx.notify();
+                }
+            }
+            BlockEvent::RequestQuoteBreak => {
+                let Some((parent, insert_index)) =
+                    self.quote_break_insertion_target(block.entity_id(), cx)
+                else {
+                    return;
+                };
+
+                self.prepare_undo_capture(
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
+                    cx,
+                );
+
+                let new_quote = Self::new_block(
+                    cx,
+                    BlockData::new(BlockKind::Blockquote, BlockText::plain(String::new())),
+                );
+                let blocks = if parent.is_none() {
+                    vec![new_quote.clone()]
+                } else {
+                    vec![
+                        Self::new_block(cx, BlockData::paragraph(String::new())),
+                        new_quote.clone(),
+                    ]
+                };
+                self.doc_mut()
+                    .insert_blocks_at(parent, insert_index, blocks, cx);
+                self.focus_block(new_quote.entity_id());
+                self.normalize_rendered_quote_structure(cx);
+                self.mark_dirty(cx);
+                self.finalize_pending_undo_capture(cx);
+                cx.notify();
+            }
+            BlockEvent::RequestCalloutBreak => {
+                let Some((parent, insert_index)) =
+                    self.callout_break_insertion_target(block.entity_id(), cx)
+                else {
+                    return;
+                };
+
+                self.prepare_undo_capture(
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
+                    cx,
+                );
+                let plain = Self::new_block(cx, BlockData::paragraph(String::new()));
+                let blocks = if parent.is_none() {
+                    vec![plain.clone()]
+                } else {
+                    vec![
+                        Self::new_block(cx, BlockData::paragraph(String::new())),
+                        plain.clone(),
+                    ]
+                };
+                self.doc_mut()
+                    .insert_blocks_at(parent, insert_index, blocks, cx);
+                self.focus_block(plain.entity_id());
+                self.rebuild_reference_registries(cx);
+                self.mark_dirty(cx);
+                self.finalize_pending_undo_capture(cx);
+                cx.notify();
+            }
             BlockEvent::RequestIndent => {
                 if current_entry_index == 0 {
                     return;
@@ -656,6 +708,139 @@ impl Editor {
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
+            BlockEvent::RequestDelete => {
+                if self.downgrade_empty_callout_body_to_quote(block, cx) {
+                    return;
+                }
+                let quote_related = self.is_block_quote_structure_related(block, cx);
+                let is_last_visible_leaf =
+                    entries_before.len() == 1 && block.read(cx).children.is_empty();
+                if is_last_visible_leaf {
+                    if block.read(cx).kind() == BlockKind::Paragraph {
+                        Self::reset_block_cursor(block, 0, cx);
+                    } else {
+                        block.update(cx, |block, cx| block.convert_to_paragraph(cx));
+                    }
+                    self.focus_block(block.entity_id());
+                    cx.notify();
+                    return;
+                }
+                self.prepare_undo_capture(
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
+                    cx,
+                );
+
+                let entries_before_ids = entries_before
+                    .iter()
+                    .map(|entry| entry.entity.entity_id())
+                    .collect::<Vec<_>>();
+                let focus_candidate = if current_entry_index > 0 {
+                    Some(entries_before_ids[current_entry_index - 1])
+                } else {
+                    entries_before_ids.get(current_entry_index + 1).copied()
+                };
+
+                let adopted_children =
+                    crate::editor::tree::document::Document::take_children(block, cx);
+                let removed = self.doc_mut().with_structure_mutation(cx, |document, cx| {
+                    let (_, location) = document.remove_block_by_id_raw(block.entity_id(), cx)?;
+                    if !adopted_children.is_empty() {
+                        document.insert_blocks_at_raw(
+                            location.parent.clone(),
+                            location.index,
+                            adopted_children.clone(),
+                            cx,
+                        );
+                    }
+                    Some(location)
+                });
+
+                if removed.is_none() {
+                    return;
+                }
+
+                if let Some(focus_id) = focus_candidate {
+                    self.focus_block(focus_id);
+                } else if let Some(first_root) = self.doc().first_root() {
+                    self.focus_block(first_root.entity_id());
+                }
+
+                if quote_related {
+                    self.normalize_rendered_quote_structure(cx);
+                }
+                self.mark_dirty(cx);
+                self.finalize_pending_undo_capture(cx);
+                cx.notify();
+            }
+            _ => {}
+        }
+    }
+
+    fn handle_table_event(
+        &mut self,
+        block: &Entity<crate::editor::tree::block::Block>,
+        event: &BlockEvent,
+        cx: &mut Context<Self>,
+    ) {
+        if block.read(cx).kind() != BlockKind::Table {
+            return;
+        }
+
+        match event {
+            BlockEvent::RequestAppendTableColumn => {
+                self.prepare_undo_capture(
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
+                    cx,
+                );
+                self.append_table_column(block, cx);
+                self.finalize_pending_undo_capture(cx);
+            }
+            BlockEvent::RequestAppendTableRow => {
+                self.prepare_undo_capture(
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
+                    cx,
+                );
+                self.append_table_row(block, cx);
+                self.finalize_pending_undo_capture(cx);
+            }
+            BlockEvent::RequestExpandTable => {
+                self.prepare_undo_capture(
+                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
+                    cx,
+                );
+                self.expand_table_block(block, cx);
+                self.finalize_pending_undo_capture(cx);
+            }
+            BlockEvent::RequestTableAxisPreview {
+                kind,
+                index,
+                hovered,
+            } => {
+                self.preview_table_axis(block.entity_id(), *kind, *index, *hovered, cx);
+            }
+            BlockEvent::RequestSelectTableAxis { kind, index } => {
+                self.select_table_axis(block.entity_id(), *kind, *index, cx);
+            }
+            BlockEvent::RequestOpenTableAxisMenu {
+                kind,
+                index,
+                position,
+            } => {
+                self.open_table_axis_menu(block.entity_id(), *kind, *index, *position, cx);
+            }
+            _ => {}
+        }
+    }
+
+    fn handle_interaction_event(
+        &mut self,
+        block: &Entity<crate::editor::tree::block::Block>,
+        event: &BlockEvent,
+        current_entry_index: usize,
+        entries_before: &[crate::editor::tree::document::BlockEntry],
+        cx: &mut Context<Self>,
+    ) {
+        match event {
             BlockEvent::RequestOpenLink {
                 prompt_target,
                 open_target,
@@ -678,61 +863,6 @@ impl Editor {
             } => {
                 self.update_footnote_tooltip(id, content.clone(), *position, *show, cx);
             }
-            BlockEvent::RequestAppendTableColumn => {
-                if block.read(cx).kind() == BlockKind::Table {
-                    self.prepare_undo_capture(
-                        crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
-                        cx,
-                    );
-                    self.append_table_column(&block, cx);
-                    self.finalize_pending_undo_capture(cx);
-                }
-            }
-            BlockEvent::RequestAppendTableRow => {
-                if block.read(cx).kind() == BlockKind::Table {
-                    self.prepare_undo_capture(
-                        crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
-                        cx,
-                    );
-                    self.append_table_row(&block, cx);
-                    self.finalize_pending_undo_capture(cx);
-                }
-            }
-            BlockEvent::RequestExpandTable => {
-                if block.read(cx).kind() == BlockKind::Table {
-                    self.prepare_undo_capture(
-                        crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
-                        cx,
-                    );
-                    self.expand_table_block(&block, cx);
-                    self.finalize_pending_undo_capture(cx);
-                }
-            }
-            BlockEvent::RequestTableAxisPreview {
-                kind,
-                index,
-                hovered,
-            } => {
-                if block.read(cx).kind() == BlockKind::Table {
-                    self.preview_table_axis(block.entity_id(), *kind, *index, *hovered, cx);
-                }
-            }
-            BlockEvent::RequestSelectTableAxis { kind, index } => {
-                if block.read(cx).kind() == BlockKind::Table {
-                    self.select_table_axis(block.entity_id(), *kind, *index, cx);
-                }
-            }
-            BlockEvent::RequestOpenTableAxisMenu {
-                kind,
-                index,
-                position,
-            } => {
-                if block.read(cx).kind() == BlockKind::Table {
-                    self.open_table_axis_menu(block.entity_id(), *kind, *index, *position, cx);
-                }
-            }
-            BlockEvent::RequestTableCellMoveHorizontal { .. }
-            | BlockEvent::RequestTableCellMoveVertical { .. } => {}
             BlockEvent::RequestFocusPrevious { preferred_x } => {
                 if current_entry_index == 0 {
                     return;
@@ -762,7 +892,7 @@ impl Editor {
                     // below to move to, so give it a paragraph to land on and
                     // focus that, matching how a trailing table behaves.
                     if block.read(cx).kind().is_multiline_text_block() {
-                        self.ensure_trailing_paragraph_after_structural(&block, cx);
+                        self.ensure_trailing_paragraph_after_structural(block, cx);
                         let entry = self.doc().flatten_entries();
                         if let Some(landing) = entry
                             .iter()
@@ -826,70 +956,6 @@ impl Editor {
                 target.update(cx, |target, cx| target.move_to(0, cx));
                 cx.notify();
             }
-            BlockEvent::RequestDelete => {
-                if self.downgrade_empty_callout_body_to_quote(&block, cx) {
-                    return;
-                }
-                let quote_related = self.is_block_quote_structure_related(&block, cx);
-                let is_last_visible_leaf =
-                    entries_before.len() == 1 && block.read(cx).children.is_empty();
-                if is_last_visible_leaf {
-                    if block.read(cx).kind() == BlockKind::Paragraph {
-                        Self::reset_block_cursor(&block, 0, cx);
-                    } else {
-                        block.update(cx, |block, cx| block.convert_to_paragraph(cx));
-                    }
-                    self.focus_block(block.entity_id());
-                    cx.notify();
-                    return;
-                }
-                self.prepare_undo_capture(
-                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
-                    cx,
-                );
-
-                let entries_before_ids = entries_before
-                    .iter()
-                    .map(|entry| entry.entity.entity_id())
-                    .collect::<Vec<_>>();
-                let focus_candidate = if current_entry_index > 0 {
-                    Some(entries_before_ids[current_entry_index - 1])
-                } else {
-                    entries_before_ids.get(current_entry_index + 1).copied()
-                };
-
-                let adopted_children =
-                    crate::editor::tree::document::Document::take_children(&block, cx);
-                let removed = self.doc_mut().with_structure_mutation(cx, |document, cx| {
-                    let (_, location) = document.remove_block_by_id_raw(block.entity_id(), cx)?;
-                    if !adopted_children.is_empty() {
-                        document.insert_blocks_at_raw(
-                            location.parent.clone(),
-                            location.index,
-                            adopted_children.clone(),
-                            cx,
-                            );
-                    }
-                    Some(location)
-                });
-
-                if removed.is_none() {
-                    return;
-                }
-
-                if let Some(focus_id) = focus_candidate {
-                    self.focus_block(focus_id);
-                } else if let Some(first_root) = self.doc().first_root() {
-                    self.focus_block(first_root.entity_id());
-                }
-
-                if quote_related {
-                    self.normalize_rendered_quote_structure(cx);
-                }
-                self.mark_dirty(cx);
-                self.finalize_pending_undo_capture(cx);
-                cx.notify();
-            }
             BlockEvent::RequestFocus => {
                 self.clear_table_axis_preview(cx);
                 self.clear_table_axis_selection(cx);
@@ -899,8 +965,7 @@ impl Editor {
                 }
                 cx.notify();
             }
-            BlockEvent::RequestRenderedSelectAll => {}
-            BlockEvent::PrepareUndo { .. } => {}
+            _ => {}
         }
     }
 }

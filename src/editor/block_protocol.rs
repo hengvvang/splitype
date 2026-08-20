@@ -155,6 +155,87 @@ pub enum BlockEvent {
     RequestFocus,
 }
 
+/// Domain semantic classification for block-level events.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BlockEventCategory {
+    /// Lifecycle and undo capture preparation.
+    Lifecycle,
+    /// Content mutation and state synchronization.
+    ContentChange,
+    /// Text editing and clipboard insertion mutations.
+    TextEdit,
+    /// Document tree structural mutation (lists, quotes, callouts, deletion).
+    Structure,
+    /// Native table navigation and axis mutations.
+    Table,
+    /// Cross-block focus navigation, links, and footnote tooltips.
+    Interaction,
+}
+
+impl BlockEvent {
+    /// Returns the semantic domain category of this event.
+    pub fn category(&self) -> BlockEventCategory {
+        match self {
+            Self::PrepareUndo { .. } => BlockEventCategory::Lifecycle,
+            Self::Changed => BlockEventCategory::ContentChange,
+            Self::RequestNewline { .. }
+            | Self::RequestNewlineAbove
+            | Self::RequestMergeIntoPrevious { .. }
+            | Self::RequestPasteMultiline { .. }
+            | Self::RequestPasteImage { .. }
+            | Self::RequestReplaceCrossBlockSelection { .. }
+            | Self::RequestRenderedSelectAll => BlockEventCategory::TextEdit,
+            Self::RequestEnterCalloutBody
+            | Self::RequestQuoteBreak
+            | Self::RequestCalloutBreak
+            | Self::RequestIndent
+            | Self::RequestOutdent
+            | Self::RequestDowngradeNestedListItemToChildParagraph
+            | Self::RequestToggleTaskChecked
+            | Self::RequestDelete => BlockEventCategory::Structure,
+            Self::RequestTableCellMoveHorizontal { .. }
+            | Self::RequestTableCellMoveVertical { .. }
+            | Self::RequestAppendTableColumn
+            | Self::RequestAppendTableRow
+            | Self::RequestExpandTable
+            | Self::RequestTableAxisPreview { .. }
+            | Self::RequestSelectTableAxis { .. }
+            | Self::RequestOpenTableAxisMenu { .. } => BlockEventCategory::Table,
+            Self::RequestFocusPrevious { .. }
+            | Self::RequestFocusNext { .. }
+            | Self::RequestBlockUp
+            | Self::RequestBlockDown
+            | Self::RequestFocus
+            | Self::RequestOpenLink { .. }
+            | Self::RequestJumpToFootnoteDefinition { .. }
+            | Self::RequestJumpToFootnoteBackref { .. }
+            | Self::RequestFootnoteTooltip { .. } => BlockEventCategory::Interaction,
+        }
+    }
+
+    /// Whether this event should dismiss any active cross-block text selection
+    /// (typing, structural edits, and paste all replace it).
+    pub fn clears_cross_block_selection(&self) -> bool {
+        match self.category() {
+            BlockEventCategory::ContentChange
+            | BlockEventCategory::TextEdit
+            | BlockEventCategory::Structure => true,
+            BlockEventCategory::Table => matches!(
+                self,
+                Self::RequestAppendTableColumn
+                    | Self::RequestAppendTableRow
+                    | Self::RequestExpandTable
+            ),
+            BlockEventCategory::Lifecycle | BlockEventCategory::Interaction => false,
+        }
+    }
+
+    /// Whether this event mutates the document tree topology.
+    pub fn is_structural(&self) -> bool {
+        matches!(self.category(), BlockEventCategory::Structure)
+    }
+}
+
 /// Undo coalescing category captured before a mutation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UndoCaptureKind {
@@ -162,4 +243,55 @@ pub enum UndoCaptureKind {
     CoalescibleText,
     /// Structural or discrete edits that always form their own undo entry.
     NonCoalescible,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_block_event_categories() {
+        assert_eq!(
+            BlockEvent::PrepareUndo {
+                kind: UndoCaptureKind::CoalescibleText
+            }
+            .category(),
+            BlockEventCategory::Lifecycle
+        );
+        assert_eq!(BlockEvent::Changed.category(), BlockEventCategory::ContentChange);
+        assert_eq!(
+            BlockEvent::RequestNewline {
+                trailing: BlockText::plain(String::new()),
+                source_already_mutated: false,
+            }
+            .category(),
+            BlockEventCategory::TextEdit
+        );
+        assert_eq!(
+            BlockEvent::RequestIndent.category(),
+            BlockEventCategory::Structure
+        );
+        assert_eq!(
+            BlockEvent::RequestAppendTableColumn.category(),
+            BlockEventCategory::Table
+        );
+        assert_eq!(
+            BlockEvent::RequestFocus.category(),
+            BlockEventCategory::Interaction
+        );
+    }
+
+    #[test]
+    fn test_block_event_selection_clearing_and_structural() {
+        assert!(BlockEvent::Changed.clears_cross_block_selection());
+        assert!(BlockEvent::RequestIndent.clears_cross_block_selection());
+        assert!(BlockEvent::RequestIndent.is_structural());
+
+        assert!(!BlockEvent::RequestFocus.clears_cross_block_selection());
+        assert!(!BlockEvent::RequestFocus.is_structural());
+
+        assert!(BlockEvent::RequestExpandTable.clears_cross_block_selection());
+        assert!(!BlockEvent::RequestTableCellMoveHorizontal { delta: 1 }
+            .clears_cross_block_selection());
+    }
 }
