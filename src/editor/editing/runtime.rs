@@ -41,7 +41,7 @@ impl Editor {
             });
         }
 
-        for entries in self.doc().blocks().to_vec() {
+        for entries in self.doc().blocks() {
             entries.entity.update(cx, |block, _cx| {
                 changed |= block.end_pointer_selection_session();
             });
@@ -134,8 +134,7 @@ impl Editor {
 
     pub(crate) fn rebuild_footnote_registry(&mut self, cx: &App) -> FootnoteMap {
         let mut definitions = HashMap::new();
-        let entries = self.doc().blocks().to_vec();
-        for entry in &entries {
+        for entry in self.doc().blocks() {
             let block = entry.entity.read(cx);
             if block.kind() != BlockKind::FootnoteDefinition {
                 continue;
@@ -179,7 +178,7 @@ impl Editor {
 
         let mut occurrence_index = 0usize;
         let mut block_occurrences = HashMap::<BlockId, Vec<FootnoteResolvedOccurrence>>::new();
-        for entry in entries {
+        for entry in self.doc().blocks() {
             let block = entry.entity.read(cx);
             let block_id = block.data.id;
             for fragment in &block.data.text.fragments {
@@ -333,8 +332,7 @@ impl Editor {
         self.tab_mut().references.synced_structure_version = self.doc().structure_version();
 
         let base_dir = self.tab().references.base_dir.clone();
-        let entries = self.doc().blocks().to_vec();
-        for entry in entries {
+        for entry in self.doc().blocks() {
             self.sync_reference_context_for_block(&entry.entity, base_dir.as_deref(), cx);
             if entry.entity.read(cx).kind() != BlockKind::Table {
                 continue;

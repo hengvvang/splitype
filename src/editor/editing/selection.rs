@@ -25,6 +25,26 @@ struct NormalizedCrossBlockSelection {
     reversed: bool,
 }
 
+impl NormalizedCrossBlockSelection {
+    /// Whether this selection is contained within a single block.
+    #[inline]
+    pub(crate) const fn is_single_block(&self) -> bool {
+        self.start_index == self.end_index
+    }
+
+    /// Inclusive range of block indices spanned by this selection.
+    #[inline]
+    pub(crate) const fn block_index_range(&self) -> std::ops::RangeInclusive<usize> {
+        self.start_index..=self.end_index
+    }
+
+    /// Whether the specified block index falls within this selection.
+    #[inline]
+    pub(crate) fn contains_block(&self, index: usize) -> bool {
+        self.block_index_range().contains(&index)
+    }
+}
+
 impl Editor {
     /// Return the currently active editor selection representation.
     pub(crate) fn active_selection(&self, cx: &App) -> EditorSelection {
@@ -50,7 +70,7 @@ impl Editor {
     }
     fn clear_cross_block_selection_visuals(&mut self, cx: &mut Context<Self>) -> bool {
         let mut changed = false;
-        for entries in self.doc().blocks().to_vec() {
+        for entries in self.doc().blocks() {
             entries.entity.update(cx, |block, cx| {
                 if block.editor_selection_range.take().is_some() {
                     changed = true;
@@ -251,7 +271,7 @@ impl Editor {
     }
 
     fn is_wysiwyg_document_fully_selected(&self, cx: &App) -> bool {
-        let entries = self.doc().blocks().to_vec();
+        let entries = self.doc().blocks();
         let Some(first) = entries.first() else {
             return false;
         };
@@ -302,7 +322,12 @@ impl Editor {
             return;
         }
 
-        let entries = self.doc().blocks().to_vec();
+        self.end_block_pointer_selection_sessions(cx);
+        self.dismiss_contextual_overlays(cx);
+        self.clear_table_axis_preview(cx);
+        self.clear_table_axis_selection(cx);
+
+        let entries = self.doc().blocks();
         let Some(first) = entries.first() else {
             return;
         };
@@ -313,11 +338,7 @@ impl Editor {
         let last_id = last.entity.entity_id();
         let last_len = last.entity.read(cx).display_len();
 
-        self.end_block_pointer_selection_sessions(cx);
-        self.dismiss_contextual_overlays(cx);
-        self.clear_table_axis_preview(cx);
-        self.clear_table_axis_selection(cx);
-        for entries in &entries {
+        for entries in entries {
             entries.entity.update(cx, |block, cx| {
                 let cursor = block.cursor_offset();
                 let collapsed = cursor..cursor;
@@ -548,15 +569,14 @@ impl Editor {
 
     fn sync_cross_block_selection_visuals(&mut self, cx: &mut Context<Self>) {
         let normalized = self.normalized_cross_block_selection(cx);
-        let blocks = self.doc().blocks().to_vec();
-        for (index, entries) in blocks.into_iter().enumerate() {
+        for (index, entries) in self.doc().blocks().iter().enumerate() {
             let next_range = normalized.and_then(|selection| {
-                if index < selection.start_index || index > selection.end_index {
+                if !selection.contains_block(index) {
                     return None;
                 }
                 let block = entries.entity.read(cx);
                 let len = block.display_len();
-                let range = if selection.start_index == selection.end_index {
+                let range = if selection.is_single_block() {
                     selection.start.offset.min(len)..selection.end.offset.min(len)
                 } else if index == selection.start_index {
                     selection.start.offset.min(len)..len
@@ -663,7 +683,7 @@ impl Editor {
         // block, so a table at the trailing boundary of the selection would be
         // left behind. Union in the full source range of every atomic block
         // whose entries index falls inside the selection so it is removed whole.
-        for index in selection.start_index..=selection.end_index {
+        for index in selection.block_index_range() {
             let entity = entries.get(index)?.entity.clone();
             if entity.read(cx).display_len() == 0 {
                 if let Some(range) = block_ranges.get(&entity.entity_id()) {
@@ -790,11 +810,11 @@ impl Editor {
         let mut pending_empty = 0usize;
         let mut previous_was_list_item = false;
 
-        for index in selection.start_index..=selection.end_index {
+        for index in selection.block_index_range() {
             let entity = entries.get(index)?.entity.clone();
             let block = entity.read(cx);
             let len = block.display_len();
-            let range = if selection.start_index == selection.end_index {
+            let range = if selection.is_single_block() {
                 selection.start.offset.min(len)..selection.end.offset.min(len)
             } else if index == selection.start_index {
                 selection.start.offset.min(len)..len
@@ -805,13 +825,13 @@ impl Editor {
             };
             let full_block = range.start == 0
                 && range.end == len
-                && (selection.start_index != selection.end_index || len > 0);
+                && (!selection.is_single_block() || len > 0);
             // Cut deletes any atomic block covered by a multi-block selection
             // (see cross_block_source_range_for_normalized), so the clipboard
             // must serialize those blocks too, including boundary ones, not
             // just interior. Otherwise cut would drop a table from the clipboard
             // that it nonetheless removed from the document.
-            let include_atomic = len == 0 && selection.start_index != selection.end_index;
+            let include_atomic = len == 0 && !selection.is_single_block();
             if range.is_empty() && !include_atomic {
                 continue;
             }

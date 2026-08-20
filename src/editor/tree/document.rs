@@ -47,6 +47,94 @@ impl BlockIndex {
     }
 }
 
+/// Top-down inherited context scope during document tree traversal.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct TreeInheritanceScope {
+    pub(crate) parent_entity: Option<Entity<Block>>,
+    pub(crate) parent_id: Option<BlockId>,
+    pub(crate) list_depth: usize,
+    pub(crate) quote_depth: usize,
+    pub(crate) quote_group_id: Option<BlockId>,
+    pub(crate) visible_quote_group_id: Option<BlockId>,
+    pub(crate) callout_depth: usize,
+    pub(crate) callout_group_id: Option<BlockId>,
+    pub(crate) callout_variant: Option<CalloutKind>,
+    pub(crate) footnote_group_id: Option<BlockId>,
+}
+
+impl TreeInheritanceScope {
+    /// Create the root traversal scope.
+    pub(crate) const fn root() -> Self {
+        Self {
+            parent_entity: None,
+            parent_id: None,
+            list_depth: 0,
+            quote_depth: 0,
+            quote_group_id: None,
+            visible_quote_group_id: None,
+            callout_depth: 0,
+            callout_group_id: None,
+            callout_variant: None,
+            footnote_group_id: None,
+        }
+    }
+
+    /// Derives the inherited scope for children of the given block.
+    pub(crate) fn derive_child_scope(
+        &self,
+        block_entity: Entity<Block>,
+        block_id: BlockId,
+        kind: &BlockKind,
+    ) -> Self {
+        let is_quote_container = kind.is_quote_container();
+        let own_callout_variant = kind.callout_kind();
+        let quote_depth = self.quote_depth + usize::from(is_quote_container);
+        let quote_group_id = if is_quote_container {
+            self.quote_group_id.or(Some(block_id))
+        } else {
+            self.quote_group_id
+        };
+        let callout_depth = self.callout_depth + usize::from(own_callout_variant.is_some());
+        let callout_group_id = if own_callout_variant.is_some() {
+            Some(block_id)
+        } else {
+            self.callout_group_id
+        };
+        let callout_variant = own_callout_variant.or(self.callout_variant);
+        let visible_quote_depth = quote_depth.saturating_sub(callout_depth);
+        let visible_quote_group_id = match kind {
+            BlockKind::Blockquote => self.visible_quote_group_id.or(Some(block_id)),
+            BlockKind::Callout(_) => None,
+            _ if visible_quote_depth == 0 => None,
+            _ => self.visible_quote_group_id,
+        };
+        let child_visible_quote_group_id = if own_callout_variant.is_some() {
+            None
+        } else {
+            visible_quote_group_id
+        };
+        let footnote_group_id = if kind.is_footnote_definition() {
+            Some(block_id)
+        } else {
+            self.footnote_group_id
+        };
+        let child_list_depth = self.list_depth + usize::from(kind.is_list_item());
+
+        Self {
+            parent_entity: Some(block_entity),
+            parent_id: Some(block_id),
+            list_depth: child_list_depth,
+            quote_depth,
+            quote_group_id,
+            visible_quote_group_id: child_visible_quote_group_id,
+            callout_depth,
+            callout_group_id,
+            callout_variant,
+            footnote_group_id,
+        }
+    }
+}
+
 /// Canonical owner of the runtime block tree.
 ///
 /// The Markdown importer builds root blocks and nested list children, then
@@ -217,16 +305,7 @@ impl Document {
         self.snapshot.clear();
         Self::sync_block_list(
             &self.roots.clone(),
-            None,
-            None,
-            0,
-            0,
-            None,
-            None,
-            0,
-            None,
-            None,
-            None,
+            &TreeInheritanceScope::root(),
             cx,
             &mut self.snapshot,
         );
@@ -316,16 +395,7 @@ impl Document {
 
     pub(crate) fn sync_block_list(
         blocks: &[Entity<Block>],
-        parent_entity: Option<Entity<Block>>,
-        parent_id: Option<BlockId>,
-        list_depth: usize,
-        inherited_quote_depth: usize,
-        inherited_quote_group_id: Option<BlockId>,
-        inherited_visible_quote_group_id: Option<BlockId>,
-        inherited_callout_depth: usize,
-        inherited_callout_group_id: Option<BlockId>,
-        inherited_callout_variant: Option<CalloutKind>,
-        inherited_footnote_group_id: Option<BlockId>,
+        scope: &TreeInheritanceScope,
         cx: &mut Context<Editor>,
         snapshot: &mut BlockIndex,
     ) {
@@ -341,7 +411,7 @@ impl Document {
             snapshot.location_by_entity.insert(
                 entity_id,
                 BlockLocation {
-                    parent: parent_entity.clone(),
+                    parent: scope.parent_entity.clone(),
                     index,
                 },
             );
@@ -357,7 +427,8 @@ impl Document {
                         && block_ref.children.is_empty(),
                 )
             };
-            let parent_is_list_item = parent_entity
+            let parent_is_list_item = scope
+                .parent_entity
                 .as_ref()
                 .is_some_and(|parent| parent.read(cx).kind().is_list_item());
 
@@ -374,40 +445,36 @@ impl Document {
             };
             let is_quote_container = kind.is_quote_container();
             let own_callout_variant = kind.callout_kind();
-            let quote_depth = inherited_quote_depth + usize::from(is_quote_container);
+            let quote_depth = scope.quote_depth + usize::from(is_quote_container);
             let quote_group_id = if is_quote_container {
-                inherited_quote_group_id.or(Some(block_id))
+                scope.quote_group_id.or(Some(block_id))
             } else {
-                inherited_quote_group_id
+                scope.quote_group_id
             };
             let callout_depth =
-                inherited_callout_depth + usize::from(own_callout_variant.is_some());
+                scope.callout_depth + usize::from(own_callout_variant.is_some());
             let callout_group_id = if own_callout_variant.is_some() {
                 Some(block_id)
             } else {
-                inherited_callout_group_id
+                scope.callout_group_id
             };
-            let callout_variant = own_callout_variant.or(inherited_callout_variant);
+            let callout_variant = own_callout_variant.or(scope.callout_variant);
             let visible_quote_depth = quote_depth.saturating_sub(callout_depth);
             let visible_quote_group_id = match kind {
-                BlockKind::Blockquote => inherited_visible_quote_group_id.or(Some(block_id)),
+                BlockKind::Blockquote => scope.visible_quote_group_id.or(Some(block_id)),
                 BlockKind::Callout(_) => None,
                 _ if visible_quote_depth == 0 => None,
-                _ => inherited_visible_quote_group_id,
-            };
-            let child_visible_quote_group_id = if own_callout_variant.is_some() {
-                None
-            } else {
-                visible_quote_group_id
+                _ => scope.visible_quote_group_id,
             };
             let footnote_group_id = if kind.is_footnote_definition() {
                 Some(block_id)
             } else {
-                inherited_footnote_group_id
+                scope.footnote_group_id
             };
-            let child_list_depth = list_depth + usize::from(kind.is_list_item());
             let list_group_separator_candidate = is_empty_paragraph && previous_was_list_item;
 
+            let parent_id = scope.parent_id;
+            let list_depth = scope.list_depth;
             block.update(cx, move |block, _cx| {
                 block.data.parent = parent_id;
                 block.data.children = content.clone();
@@ -433,21 +500,8 @@ impl Document {
             let last_descendant_id = if children.is_empty() {
                 entity_id
             } else {
-                Self::sync_block_list(
-                    &children,
-                    Some(block.clone()),
-                    Some(block_id),
-                    child_list_depth,
-                    quote_depth,
-                    quote_group_id,
-                    child_visible_quote_group_id,
-                    callout_depth,
-                    callout_group_id,
-                    callout_variant,
-                    footnote_group_id,
-                    cx,
-                    snapshot,
-                );
+                let child_scope = scope.derive_child_scope(block.clone(), block_id, &kind);
+                Self::sync_block_list(&children, &child_scope, cx, snapshot);
                 snapshot
                     .last_descendant_by_entity
                     .get(&children.last().expect("children checked").entity_id())

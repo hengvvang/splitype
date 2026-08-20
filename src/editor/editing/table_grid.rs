@@ -103,19 +103,19 @@ impl Editor {
     pub(crate) fn rebuild_table_grids(&mut self, cx: &mut Context<Self>) {
         self.tab_mut().tables.cells.clear();
         self.tab_mut().tables.axis_preview = None;
-        let entries = self.doc().blocks().to_vec();
-        for block in &entries {
-            block
+        let mut tables_to_install = Vec::new();
+        for entry in self.doc().blocks() {
+            entry
                 .entity
                 .update(cx, |block, _cx| block.clear_table_grid());
-        }
-        for entry in entries {
-            let Some(table) = entry.entity.read(cx).data.table.clone() else {
-                continue;
-            };
-            if entry.entity.read(cx).kind() == BlockKind::Table {
-                self.install_table_grid_for_block(&entry.entity, &table, cx);
+            if entry.entity.read(cx).kind() == BlockKind::Table
+                && let Some(table) = entry.entity.read(cx).data.table.clone()
+            {
+                tables_to_install.push((entry.entity.clone(), table));
             }
+        }
+        for (entity, table) in tables_to_install {
+            self.install_table_grid_for_block(&entity, &table, cx);
         }
         // Cells are runtime-only blocks outside the document tree; recreating
         // them invalidates the reference-context sync state so the next
