@@ -10,15 +10,92 @@ use crate::infra::config::jsonc::{object_without_empty_values, prune_empty_json_
 use super::strings::{I18N_STRING_KEYS, I18nStrings, I18nStringsDe};
 
 pub const BUILTIN_LANGUAGE_EN_US_ID: &str = "en-US";
+pub const BUILTIN_LANGUAGE_ZH_CN_ID: &str = "zh-CN";
+const BUILTIN_LANGUAGE_ZH_CN_NAME: &str = "简体中文";
+const BUILTIN_LANGUAGE_EN_US_NAME: &str = "English";
+
+/// Strongly typed, normalized BCP-47 language identifier (e.g. "en-US", "zh-CN").
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct LanguageId(String);
+
+impl LanguageId {
+    pub const EN_US: &'static str = BUILTIN_LANGUAGE_EN_US_ID;
+    pub const ZH_CN: &'static str = BUILTIN_LANGUAGE_ZH_CN_ID;
+
+    pub fn new(raw: impl AsRef<str>) -> Self {
+        let s = raw.as_ref().trim();
+        let normalized = if s.contains('_') {
+            s.replace('_', "-")
+        } else {
+            s.to_string()
+        };
+        Self(normalized)
+    }
+
+    pub fn en_us() -> Self {
+        Self(Self::EN_US.to_string())
+    }
+
+    pub fn zh_cn() -> Self {
+        Self(Self::ZH_CN.to_string())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Default for LanguageId {
+    fn default() -> Self {
+        Self::en_us()
+    }
+}
+
+impl std::fmt::Display for LanguageId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl std::str::FromStr for LanguageId {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self::new(s))
+    }
+}
+
+impl std::ops::Deref for LanguageId {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl AsRef<str> for LanguageId {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<&str> for LanguageId {
+    fn from(s: &str) -> Self {
+        Self::new(s)
+    }
+}
+
+impl From<String> for LanguageId {
+    fn from(s: String) -> Self {
+        Self::new(s)
+    }
+}
 
 pub struct LanguageCatalogEntry {
     pub id: String,
     pub name: String,
 }
-
-const BUILTIN_LANGUAGE_ZH_CN_ID: &str = "zh-CN";
-const BUILTIN_LANGUAGE_ZH_CN_NAME: &str = "简体中文";
-const BUILTIN_LANGUAGE_EN_US_NAME: &str = "English";
 
 pub fn builtin_language_catalog() -> Vec<LanguageCatalogEntry> {
     vec![

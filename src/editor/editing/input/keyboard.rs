@@ -45,16 +45,7 @@ impl Editor {
             return Some(block);
         }
 
-        for binding in self.tab().tables.cells.values() {
-            if is_focused(&binding.cell) {
-                return Some(binding.cell.clone());
-            }
-        }
-
-        self.doc()
-            .blocks()
-            .iter()
-            .find_map(|entry| is_focused(&entry.entity).then(|| entry.entity.clone()))
+        self.focused_edit_target(window, cx).filter(is_focused)
     }
 
     pub(crate) fn on_editor_key_down_capture(
