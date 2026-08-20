@@ -718,6 +718,7 @@ impl ExpandedInlineProjection {
         })
     }
 
+    #[allow(dead_code)]
     pub(crate) fn display_offset_for_plain_offset(
         &self,
         plain: PlainOffset,
@@ -726,6 +727,7 @@ impl ExpandedInlineProjection {
         self.display_offset_for_plain_cursor(plain.0, affinity).map(DisplayOffset)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn plain_offset_for_display_offset(&self, display: DisplayOffset) -> PlainOffset {
         let plain = self
             .display_to_plain
