@@ -4,7 +4,6 @@ use std::ops::Range;
 
 use crate::model::inline::footnote::InlineFootnoteReference;
 use crate::model::inline::link::InlineLink;
-use crate::model::inline::offsets::{DisplayOffset, PlainOffset};
 use crate::model::inline::render_cache::InlineRenderCache;
 use crate::model::inline::serialize::can_use_markdown_script_delimiters;
 use crate::model::inline::style::{InlineScript, InlineStyle};
@@ -716,25 +715,6 @@ impl ExpandedInlineProjection {
             matches!(segment.kind, ExpandedInlineSegmentKind::ClosingDelimiter(_))
                 && segment.plain_range.start == plain
         })
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn display_offset_for_plain_offset(
-        &self,
-        plain: PlainOffset,
-        affinity: CollapsedCaretAffinity,
-    ) -> Option<DisplayOffset> {
-        self.display_offset_for_plain_cursor(plain.0, affinity).map(DisplayOffset)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn plain_offset_for_display_offset(&self, display: DisplayOffset) -> PlainOffset {
-        let plain = self
-            .display_to_plain
-            .get(display.0.min(self.display_to_plain.len().saturating_sub(1)))
-            .copied()
-            .unwrap_or(0);
-        PlainOffset(plain)
     }
 
     pub(crate) fn display_offset_for_plain_cursor(

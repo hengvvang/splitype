@@ -41,7 +41,6 @@ pub(crate) use crate::model::block::table::{
     TableAxis, TableAxisHighlight, TableAxisMarker, TableColumnAlignment, TableData,
     serialize_table_cell_markdown,
 };
-pub(crate) use crate::model::inline::offsets::{DisplayOffset, SourceOffset};
 pub(crate) use crate::model::inline::text::BlockText;
 pub(crate) use crate::model::parse::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::splitter::tree::NodeId;
@@ -411,34 +410,20 @@ pub(crate) struct SourceTargetMapping {
     pub(crate) source_to_content: Vec<usize>,
 }
 
-#[allow(dead_code)]
 impl SourceTargetMapping {
-    pub(crate) fn source_range(&self) -> std::ops::Range<SourceOffset> {
-        SourceOffset(self.full_source_range.start)..SourceOffset(self.full_source_range.end)
+    pub(crate) fn content_to_source_offset(&self, content_offset: usize) -> usize {
+        let max_content = self.content_to_source.len().saturating_sub(1);
+        self.content_to_source[content_offset.min(max_content)]
     }
 
-    pub(crate) fn content_to_source_offset(&self, content_offset: DisplayOffset) -> SourceOffset {
-        let raw = self
-            .content_to_source
-            .get(content_offset.0.min(self.content_to_source.len().saturating_sub(1)))
-            .copied()
-            .unwrap_or(0);
-        SourceOffset(raw)
-    }
-
-    pub(crate) fn source_to_content_offset(&self, source_offset: SourceOffset) -> DisplayOffset {
-        let raw = self
-            .source_to_content
-            .get(source_offset.0.min(self.source_to_content.len().saturating_sub(1)))
-            .copied()
-            .unwrap_or(0);
-        DisplayOffset(raw)
+    pub(crate) fn source_to_content_offset(&self, source_offset: usize) -> usize {
+        let max_source = self.source_to_content.len().saturating_sub(1);
+        self.source_to_content[source_offset.min(max_source)]
     }
 }
 
 /// Unified description of the active selection in the editor.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[allow(dead_code)]
 pub(crate) enum EditorSelection {
     /// No selection active.
     None,

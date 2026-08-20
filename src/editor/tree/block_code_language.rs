@@ -10,6 +10,7 @@ use crate::editor::block_protocol::{BlockEvent, UndoCaptureKind};
 use crate::editor::render::code_highlight::highlight::{CodeHighlightResult, highlight_code_block};
 use crate::editor::tree::block::Block;
 use crate::editor::tree::block::normalize_code_language_input;
+use crate::model::inline::offsets::ImeConverter;
 use crate::model::parse::BlockKind;
 
 impl Block {
@@ -59,14 +60,14 @@ impl Block {
     }
 
     pub(crate) fn code_language_range_to_utf16(&self, range: &Range<usize>) -> Range<usize> {
-        Self::utf8_range_to_utf16_in(self.code_language_input_text(), range)
+        ImeConverter::utf8_range_to_utf16_in(self.code_language_input_text(), range)
     }
 
     pub(crate) fn code_language_range_from_utf16(
         &self,
         range_utf16: &Range<usize>,
     ) -> Range<usize> {
-        Self::utf16_range_to_utf8_in(self.code_language_input_text(), range_utf16)
+        ImeConverter::utf16_range_to_utf8_in(self.code_language_input_text(), range_utf16)
     }
 
     pub(crate) fn previous_code_language_boundary(&self, offset: usize) -> usize {

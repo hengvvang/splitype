@@ -26,17 +26,6 @@ use crate::model::inline::offsets::ImeConverter;
 
 // ── UTF-8 / UTF-16 offset conversion ────────────────────────────────────
 
-/// Convert a UTF-16 code-unit offset into a UTF-8 byte offset in `text`.
-#[allow(dead_code)]
-pub(crate) fn utf16_to_utf8_in(text: &str, utf16_offset: usize) -> usize {
-    ImeConverter::utf16_to_utf8_in(text, utf16_offset)
-}
-
-/// Convert a UTF-8 byte offset in `text` into a UTF-16 code-unit offset.
-pub(crate) fn utf8_to_utf16_in(text: &str, utf8_offset: usize) -> usize {
-    ImeConverter::utf8_to_utf16_in(text, utf8_offset)
-}
-
 fn utf16_range_to_utf8_in(text: &str, range: &Range<usize>) -> Range<usize> {
     ImeConverter::utf16_range_to_utf8_in(text, range)
 }
@@ -879,7 +868,7 @@ impl EntityInputHandler for Shell {
         let line = shape_filename_line(window, &edit.filename.text);
         let x = pt.x - bounds.left();
         let index = line.closest_index_for_x(x);
-        Some(utf8_to_utf16_in(&edit.filename.text, index))
+        Some(ImeConverter::utf8_to_utf16_in(&edit.filename.text, index))
     }
 }
 

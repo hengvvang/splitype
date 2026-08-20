@@ -12,6 +12,7 @@ use gpui::*;
 use crate::editor::block_protocol::{BlockEvent, UndoCaptureKind};
 use crate::editor::geometry::text_layout as element;
 use crate::editor::tree::block::Block;
+use crate::model::inline::offsets::ImeConverter;
 
 impl EntityInputHandler for Block {
     fn text_for_range(
@@ -140,7 +141,7 @@ impl EntityInputHandler for Block {
             let sanitized_new_text = new_text.replace("\r\n", " ").replace(['\r', '\n'], " ");
             let selected_range_relative = new_selected_range_utf16
                 .as_ref()
-                .map(|range_utf16| Self::utf16_range_to_utf8_in(&sanitized_new_text, range_utf16))
+                .map(|range_utf16| ImeConverter::utf16_range_to_utf8_in(&sanitized_new_text, range_utf16))
                 .map(|relative| relative.start..relative.end);
 
             self.replace_code_language_text_in_range(
@@ -156,7 +157,7 @@ impl EntityInputHandler for Block {
         if self.editor_selection_range.is_some() {
             let selected_range_relative = new_selected_range_utf16
                 .as_ref()
-                .map(|range_utf16| Self::utf16_range_to_utf8_in(new_text, range_utf16))
+                .map(|range_utf16| ImeConverter::utf16_range_to_utf8_in(new_text, range_utf16))
                 .map(|relative| relative.start..relative.end);
             cx.emit(BlockEvent::RequestReplaceCrossBlockSelection {
                 text: new_text.to_string(),
@@ -175,7 +176,7 @@ impl EntityInputHandler for Block {
             .unwrap_or(self.selected_range.clone());
         let selected_range_relative = new_selected_range_utf16
             .as_ref()
-            .map(|range_utf16| Self::utf16_range_to_utf8_in(new_text, range_utf16))
+            .map(|range_utf16| ImeConverter::utf16_range_to_utf8_in(new_text, range_utf16))
             .map(|relative| relative.start..relative.end);
 
         self.replace_text_in_display_range(
@@ -227,7 +228,7 @@ impl EntityInputHandler for Block {
     ) -> Option<usize> {
         if self.code_language_focus_handle.is_focused(_window) {
             let index = self.code_language_index_for_mouse_position(pt);
-            return Some(Self::utf8_to_utf16_in(
+            return Some(ImeConverter::utf8_to_utf16_in(
                 self.code_language_input_text(),
                 index,
             ));
@@ -253,6 +254,6 @@ impl EntityInputHandler for Block {
         };
         let utf8_index =
             ranges[line_idx.min(ranges.len().saturating_sub(1))].start + utf8_offset_in_line;
-        Some(Self::utf8_to_utf16_in(self.display_text(), utf8_index))
+        Some(ImeConverter::utf8_to_utf16_in(self.display_text(), utf8_index))
     }
 }

@@ -17,7 +17,6 @@ use crate::editor::editing::projection::{
     ProjectedLinkSelectionSnapshot,
 };
 use crate::editor::tree::block::Block;
-use crate::model::inline::offsets::{DisplayOffset, ImeConverter, PlainOffset, SourceOffset};
 use crate::model::inline::render_cache::InlineRenderCache;
 use crate::model::inline::text::{BlockText, InlineFragment, InlineInsertionAttributes};
 use crate::model::parse::BlockKind;
@@ -549,23 +548,6 @@ impl Block {
         self.plain_to_display_cursor_offset(plain_offset)
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn source_to_display_offset(&self, source_offset: SourceOffset) -> DisplayOffset {
-        DisplayOffset(self.source_offset_to_display_offset(source_offset.0))
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn source_span_to_display_span(&self, range: Range<SourceOffset>) -> Range<DisplayOffset> {
-        let start = self.source_to_display_offset(range.start);
-        let end = self.source_to_display_offset(range.end);
-        start.min(end)..start.max(end)
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn plain_to_display_offset(&self, plain_offset: PlainOffset) -> DisplayOffset {
-        DisplayOffset(self.plain_to_display_cursor_offset(plain_offset.0))
-    }
-
     pub(crate) fn source_range_to_display_range(&self, range: Range<usize>) -> Range<usize> {
         let start = self.source_offset_to_display_offset(range.start);
         let end = self.source_offset_to_display_offset(range.end);
@@ -574,23 +556,6 @@ impl Block {
 
     pub(crate) fn prepare_undo_capture(&self, kind: UndoCaptureKind, cx: &mut Context<Self>) {
         cx.emit(BlockEvent::PrepareUndo { kind });
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn utf16_to_utf8_in(text: &str, offset: usize) -> usize {
-        ImeConverter::utf16_to_utf8_in(text, offset)
-    }
-
-    pub(crate) fn utf8_to_utf16_in(text: &str, offset: usize) -> usize {
-        ImeConverter::utf8_to_utf16_in(text, offset)
-    }
-
-    pub(crate) fn utf16_range_to_utf8_in(text: &str, range_utf16: &Range<usize>) -> Range<usize> {
-        ImeConverter::utf16_range_to_utf8_in(text, range_utf16)
-    }
-
-    pub(crate) fn utf8_range_to_utf16_in(text: &str, range: &Range<usize>) -> Range<usize> {
-        ImeConverter::utf8_range_to_utf16_in(text, range)
     }
 
     /// Detect Markdown shortcut prefixes in the edited text and convert the

@@ -27,7 +27,6 @@ struct NormalizedCrossBlockSelection {
 
 impl Editor {
     /// Return the currently active editor selection representation.
-    #[allow(dead_code)]
     pub(crate) fn active_selection(&self, cx: &App) -> EditorSelection {
         if let Some(cross_block) = self.active_pane_selection().cross_block {
             return EditorSelection::CrossBlock(cross_block);
@@ -507,7 +506,10 @@ impl Editor {
     }
 
     fn normalized_cross_block_selection(&self, cx: &App) -> Option<NormalizedCrossBlockSelection> {
-        let selection = self.active_pane_selection().cross_block?;
+        let selection = match self.active_selection(cx) {
+            EditorSelection::CrossBlock(cb) => cb,
+            _ => return None,
+        };
         let anchor = self.clamp_cross_block_endpoint(selection.anchor, cx)?;
         let focus = self.clamp_cross_block_endpoint(selection.focus, cx)?;
         let anchor_index = self.doc().index_for_entity_id(anchor.entity_id)?;
@@ -600,11 +602,7 @@ impl Editor {
         let source_offset = block
             .display_range_to_source_range(endpoint.offset..endpoint.offset)
             .start;
-        let max_content = mapping.content_to_source.len().saturating_sub(1);
-        Some(
-            mapping.full_source_range.start
-                + mapping.content_to_source[source_offset.min(max_content)],
-        )
+        Some(mapping.full_source_range.start + mapping.content_to_source_offset(source_offset))
     }
 
     fn endpoint_for_source_offset(
@@ -623,8 +621,7 @@ impl Editor {
         } else {
             offset - mapping.full_source_range.start
         };
-        let content_offset =
-            mapping.source_to_content[local.min(mapping.source_to_content.len().saturating_sub(1))];
+        let content_offset = mapping.source_to_content_offset(local);
         let block = mapping.entity.read(cx);
         Some(CrossBlockSelectionEndpoint {
             entity_id: mapping.entity.entity_id(),
