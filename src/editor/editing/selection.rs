@@ -8,7 +8,7 @@ use gpui::*;
 use crate::editor::block_protocol::UndoCaptureKind;
 use crate::editor::controller::{
     CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, EditorPaneKind,
-    SourceTargetMapping, UndoSelectionSnapshot,
+    EditorSelection, SourceTargetMapping, UndoSelectionSnapshot,
 };
 use crate::editor::editing::input::actions::{Copy, Cut, Delete, DeleteBackward};
 use crate::editor::tree::block::Block;
@@ -26,6 +26,29 @@ struct NormalizedCrossBlockSelection {
 }
 
 impl Editor {
+    /// Return the currently active editor selection representation.
+    #[allow(dead_code)]
+    pub(crate) fn active_selection(&self, cx: &App) -> EditorSelection {
+        if let Some(cross_block) = self.active_pane_selection().cross_block {
+            return EditorSelection::CrossBlock(cross_block);
+        }
+        if let Some(axis) = self.tab().tables.axis_selection {
+            return EditorSelection::TableAxis(axis);
+        }
+        if let Some(active_id) = self.active_pane_focus().active_entity {
+            if let Some(block) = self.doc().block_entity_by_id(active_id) {
+                let block_ref = block.read(cx);
+                if !block_ref.selected_range.is_empty() {
+                    return EditorSelection::IntraBlock {
+                        block_id: active_id,
+                        range: block_ref.selected_range.clone(),
+                        reversed: block_ref.selection_reversed,
+                    };
+                }
+            }
+        }
+        EditorSelection::None
+    }
     fn clear_cross_block_selection_visuals(&mut self, cx: &mut Context<Self>) -> bool {
         let mut changed = false;
         for entries in self.doc().blocks().to_vec() {
@@ -1015,7 +1038,7 @@ impl Editor {
 mod tests {
     use gpui::{AppContext, Bounds, Context, TestAppContext, point, px, size};
 
-    use super::{CrossBlockSelection, CrossBlockSelectionEndpoint, Editor};
+    use super::{CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, EditorSelection};
     use crate::editor::block_protocol::UndoCaptureKind;
     use crate::editor::editing::input::actions::{Cut, Undo};
     use crate::infra::i18n::I18nManager;
@@ -1507,6 +1530,12 @@ mod tests {
             assert!(selected.is_some());
             let selected_text = selected.unwrap();
             assert!(!selected_text.is_empty());
+
+            // Verify active_selection returns CrossBlock variant
+            match editor.active_selection(cx) {
+                EditorSelection::CrossBlock(_) => {}
+                other => panic!("expected CrossBlock selection, got {:?}", other),
+            }
         });
         cx.quit();
     }

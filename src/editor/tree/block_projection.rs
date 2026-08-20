@@ -559,6 +559,7 @@ impl Block {
         cx.emit(BlockEvent::PrepareUndo { kind });
     }
 
+    #[allow(dead_code)]
     pub(crate) fn utf16_to_utf8_in(text: &str, offset: usize) -> usize {
         ImeConverter::utf16_to_utf8_in(text, offset)
     }

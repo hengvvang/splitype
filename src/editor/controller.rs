@@ -410,6 +410,24 @@ pub(crate) struct SourceTargetMapping {
     pub(crate) source_to_content: Vec<usize>,
 }
 
+/// Unified description of the active selection in the editor.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[allow(dead_code)]
+pub(crate) enum EditorSelection {
+    /// No selection active.
+    None,
+    /// Selection confined within a single focused block.
+    IntraBlock {
+        block_id: EntityId,
+        range: std::ops::Range<usize>,
+        reversed: bool,
+    },
+    /// Selection spanning multiple distinct blocks.
+    CrossBlock(CrossBlockSelection),
+    /// Selection of a table row or column.
+    TableAxis(TableAxisSelection),
+}
+
 /// The informational dialogs that can be shown from the Help menu.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum InfoDialogKind {

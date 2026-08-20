@@ -104,6 +104,22 @@ impl SourceOffsetMap {
         &self.source
     }
 
+    pub fn plain_to_source(&self, offset: PlainOffset) -> SourceOffset {
+        SourceOffset(self.plain_to_source_offset(offset.0))
+    }
+
+    pub fn plain_to_source_span(&self, range: Range<PlainOffset>) -> Range<SourceOffset> {
+        self.plain_to_source(range.start)..self.plain_to_source(range.end)
+    }
+
+    pub fn source_to_plain(&self, offset: SourceOffset) -> PlainOffset {
+        PlainOffset(self.source_to_plain_offset(offset.0))
+    }
+
+    pub fn source_to_plain_span(&self, range: Range<SourceOffset>) -> Range<PlainOffset> {
+        self.source_to_plain(range.start)..self.source_to_plain(range.end)
+    }
+
     pub fn plain_to_source_offset(&self, offset: usize) -> usize {
         self.plain_to_source
             .get(offset.min(self.plain_to_source.len().saturating_sub(1)))
@@ -136,6 +152,14 @@ pub struct InlineEditResult {
 }
 
 impl InlineEditResult {
+    pub fn map_plain_offset(&self, offset: PlainOffset) -> PlainOffset {
+        PlainOffset(self.map_offset(offset.0))
+    }
+
+    pub fn map_plain_range(&self, range: &Range<PlainOffset>) -> Range<PlainOffset> {
+        self.map_plain_offset(range.start)..self.map_plain_offset(range.end)
+    }
+
     pub fn map_offset(&self, offset: usize) -> usize {
         self.visible_to_normalized
             .get(offset.min(self.visible_to_normalized.len().saturating_sub(1)))
@@ -213,5 +237,21 @@ mod tests {
         let utf16_range = ImeConverter::utf8_range_to_utf16_in(text, &utf8_range);
         assert_eq!(utf16_range.end - utf16_range.start, 2);
         assert_eq!(ImeConverter::utf16_range_to_utf8_in(text, &utf16_range), utf8_range);
+    }
+
+    #[test]
+    fn test_source_offset_map_typed() {
+        let map = SourceOffsetMap {
+            source: "**bold**".to_string(),
+            plain_to_source: vec![2, 3, 4, 5],
+            source_to_plain: vec![0, 0, 0, 1, 2, 3, 3, 3],
+        };
+
+        assert_eq!(map.plain_to_source(PlainOffset(1)), SourceOffset(3));
+        assert_eq!(map.source_to_plain(SourceOffset(4)), PlainOffset(2));
+        assert_eq!(
+            map.plain_to_source_span(PlainOffset(0)..PlainOffset(2)),
+            SourceOffset(2)..SourceOffset(4)
+        );
     }
 }

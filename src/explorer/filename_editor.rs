@@ -27,6 +27,7 @@ use crate::model::inline::offsets::ImeConverter;
 // ── UTF-8 / UTF-16 offset conversion ────────────────────────────────────
 
 /// Convert a UTF-16 code-unit offset into a UTF-8 byte offset in `text`.
+#[allow(dead_code)]
 pub(crate) fn utf16_to_utf8_in(text: &str, utf16_offset: usize) -> usize {
     ImeConverter::utf16_to_utf8_in(text, utf16_offset)
 }
