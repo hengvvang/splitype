@@ -5929,7 +5929,6 @@ dependencies = [
  "base64",
  "chromiumoxide",
  "criterion",
- "cssparser",
  "directories",
  "embed-resource",
  "futures",
