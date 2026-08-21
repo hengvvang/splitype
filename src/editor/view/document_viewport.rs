@@ -12,9 +12,6 @@ use crate::editor::wysiwyg::render::layout::{
 use crate::infra::theme::{Theme, ThemeDimensions, ThemeManager};
 use crate::model::block::CalloutKind;
 
-/// Rows within this many pixels of the viewport stay mounted.
-pub const RENDER_OVERDRAW_PX: f32 = 800.0;
-
 enum PlannedInnerSegment {
     /// A single block row with its leading `mt` gap.
     Block { gap: f32 },
@@ -75,15 +72,11 @@ impl Editor {
         let d = &theme.dimensions;
         let blocks = self.doc().blocks().to_vec();
         let editor = cx.entity().downgrade();
-        let scroll_trigger_padding = (d.block_min_height * 0.75).max(16.0);
         let max_scroll_y = self
             .pane_state_ref(pane_id)
             .map(|state| f32::from(state.scroll.handle.max_offset().height.max(px(0.0))))
             .unwrap_or(0.0);
         let viewport_height = f32::from(viewport_bounds.size.height.max(px(1.0)));
-        // Extra room below the last block so the lowest line can be scrolled up
-        // to the viewport center instead of being pinned to the bottom edge.
-        let scroll_beyond_bottom = viewport_height * 0.5;
         let viewport_width = f32::from(viewport_bounds.size.width.max(px(1.0)));
         let has_overflow = max_scroll_y > 0.5;
 
@@ -119,10 +112,6 @@ impl Editor {
         // document; elements are only built for the windowed range below, so
         // off-screen rows cost nothing but the spacing reads.
         let mut rows: Vec<PlannedRow> = Vec::new();
-        let mut row_starts: Vec<usize> = Vec::new();
-        // Each row's leading `mt` gap; the top spacer subtracts the first mounted
-        // row's, since that row re-applies it.
-        let mut row_top_gaps: Vec<f32> = Vec::new();
         let mut index = 0usize;
         while index < blocks.len() {
             let first_spacing = spacing_for(index);
@@ -170,8 +159,6 @@ impl Editor {
                     group_end += 1;
                 }
 
-                row_starts.push(index);
-                row_top_gaps.push(top_gap);
                 rows.push(PlannedRow {
                     start: index,
                     end: group_end,
@@ -199,8 +186,6 @@ impl Editor {
                     group_end += 1;
                 }
 
-                row_starts.push(index);
-                row_top_gaps.push(top_gap);
                 rows.push(PlannedRow {
                     start: index,
                     end: group_end,
@@ -213,8 +198,6 @@ impl Editor {
                 continue;
             }
 
-            row_starts.push(index);
-            row_top_gaps.push(top_gap);
             rows.push(PlannedRow {
                 start: index,
                 end: index + 1,
@@ -226,156 +209,22 @@ impl Editor {
             index += 1;
         }
 
-        // The focused row is always kept mounted so its caret is not blurred; a
-        // table cell maps to its containing table block's row.
-        let focus_row = self
-            .focused_edit_target_entity_id(window, cx)
-            .and_then(|id| {
-                self.doc().index_for_entity_id(id).or_else(|| {
-                    self.table_cell_binding(id).and_then(|binding| {
-                        self.doc()
-                            .index_for_entity_id(binding.table_block.entity_id())
-                    })
-                })
-            })
-            .map(|visible_index| {
-                row_starts
-                    .partition_point(|&start| start <= visible_index)
-                    .saturating_sub(1)
-            });
-
-        // A row's first block keys its cached height; its painted top (from last
-        // frame) feeds the footprints below.
-        let row_first_ids: Vec<EntityId> = row_starts
-            .iter()
-            .map(|&start| blocks[start].entity.entity_id())
-            .collect();
-        let row_tops: Vec<Option<f32>> = row_starts
-            .iter()
-            .map(|&start| {
-                blocks[start].entity.read_with(cx, |block, _cx| {
-                    block
-                        .last_paint()
-                        .map(|paint| f32::from(paint.bounds.top()))
-                })
-            })
-            .collect();
-
-        // On a structural edit the row indices no longer match last frame, so the
-        // cache refresh below is skipped; its block-keyed entries still hold.
-        let structural_change = self
-            .pane_state_ref(pane_id)
-            .map(|state| {
-                blocks.len() != state.scroll.prev_block_ids.len()
-                    || blocks
-                        .iter()
-                        .zip(&state.scroll.prev_block_ids)
-                        .any(|(visible, prev)| visible.entity.entity_id() != *prev)
-            })
-            .unwrap_or(true);
-        if structural_change {
-            let state = self.pane_state(pane_id);
-            state.scroll.prev_block_ids = blocks.iter().map(|v| v.entity.entity_id()).collect();
-        }
-
-        // Rows mounted together last frame shared one scroll offset, so their
-        // adjacent painted-top differences are scroll-free heights. Caching those,
-        // not raw positions, is what keeps the window stable while scrolling.
-        if !structural_change {
-            if let Some((prev_start, prev_end)) = self
-                .pane_state_ref(pane_id)
-                .and_then(|state| state.scroll.prev_row_band)
-            {
-                let prev_end = prev_end.min(row_first_ids.len());
-                for row in prev_start..prev_end.saturating_sub(1) {
-                    if let (Some(top), Some(next_top)) = (row_tops[row], row_tops[row + 1]) {
-                        let stride = next_top - top;
-                        if stride > 0.0 && stride.is_finite() {
-                            let state = self.pane_state(pane_id);
-                            state
-                                .scroll
-                                .row_stride_cache
-                                .insert(row_first_ids[row], stride);
-                        }
-                    }
-                }
-            }
-        }
-
-        // Unmeasured rows use the minimum block height: a lower bound, so the
-        // window over-mounts rather than ever landing on a spacer.
-        let estimate = d.block_min_height.max(1.0);
-        let strides: Vec<f32> = row_first_ids
-            .iter()
-            .map(|id| {
-                self.pane_state_ref(pane_id)
-                    .and_then(|state| state.scroll.row_stride_cache.get(id))
-                    .copied()
-                    .unwrap_or(estimate)
-            })
-            .collect();
-
-        // Bound the cache against block churn, only when it outgrows the live rows.
-        if self.pane_state_ref(pane_id).is_some_and(|state| {
-            state.scroll.row_stride_cache.len() > row_first_ids.len().saturating_mul(2)
-        }) {
-            let live: std::collections::HashSet<EntityId> = row_first_ids.iter().copied().collect();
-            let state = self.pane_state(pane_id);
-            state
-                .scroll
-                .row_stride_cache
-                .retain(|id, _| live.contains(id));
-        }
-
-        let band = Self::visible_row_band(
-            &strides,
-            current_scroll_y,
-            viewport_height,
-            RENDER_OVERDRAW_PX,
-            focus_row,
-        );
         let state = self.pane_state(pane_id);
-        state.scroll.prev_row_band = Some((band.run_start, band.run_end));
-
-        // The first mounted row re-applies its `mt`, so drop it from the top
-        // spacer to avoid shifting content down by a gap.
-        let top_h = match row_top_gaps.get(band.run_start) {
-            Some(gap) => (band.top_h - gap).max(0.0),
-            None => band.top_h,
-        };
-        let mut block_rows: Vec<AnyElement> = Vec::with_capacity(band.run_end - band.run_start + 2);
-        if top_h > 0.5 {
-            block_rows.push(
-                div()
-                    .w_full()
-                    .flex_shrink_0()
-                    .h(px(top_h))
-                    .into_any_element(),
-            );
-        }
-        for (row_index, plan) in rows.iter().enumerate() {
-            if row_index < band.run_start || row_index >= band.run_end {
-                continue;
-            }
-            block_rows.push(self.build_planned_row_element(
-                plan,
-                &blocks,
-                editor.clone(),
-                panel_id,
-                centered_width,
-                &theme,
-                d,
-            ));
-        }
-        if band.bottom_h > 0.5 {
-            block_rows.push(
-                div()
-                    .w_full()
-                    .flex_shrink_0()
-                    .h(px(band.bottom_h))
-                    .into_any_element(),
-            );
-        }
+        state.scroll.prev_row_band = Some((0, rows.len()));
+        let block_rows: Vec<AnyElement> = rows
+            .iter()
+            .map(|plan| {
+                self.build_planned_row_element(
+                    plan,
+                    &blocks,
+                    editor.clone(),
+                    panel_id,
+                    centered_width,
+                    &theme,
+                    d,
+                )
+            })
+            .collect();
 
         let scroll_handle = self
             .pane_state_ref(pane_id)
@@ -439,9 +288,6 @@ impl Editor {
                 this.on_editor_scroll_wheel(pane_id, event, window, cx);
             }))
             .p(px(d.editor_padding))
-            .pb(px(d.editor_padding
-                + scroll_trigger_padding
-                + scroll_beyond_bottom))
             .children(block_rows);
         let scroll_content = if self.is_wysiwyg() {
             scroll_content.on_mouse_down(

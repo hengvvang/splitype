@@ -162,3 +162,22 @@ fn rendered_window_all_estimated_windows_near_top() {
     // A viewport-plus-band worth of rows, not the whole document.
     assert!(band.run_end >= 20);
 }
+
+#[test]
+fn rendered_window_scrolled_past_bottom_maintains_stable_bottom_cluster() {
+    // 50 rows of 40px (total 2000px). Viewport 600px, overdraw 200px.
+    // User scrolls into bottom padding: scroll_y = 2500px.
+    let strides = uniform_strides(50, 40.0);
+    let total: f32 = strides.iter().sum();
+    let band = Editor::visible_row_band(&strides, 2500.0, 600.0, 200.0, None);
+
+    assert_eq!(band.run_end, 50);
+    // It should mount a full viewport of rows ending at 50, not just 1 row!
+    assert!(band.run_end - band.run_start >= 15);
+    assert_eq!(band.bottom_h, 0.0);
+    let rendered: f32 = strides[band.run_start..band.run_end].iter().sum();
+    assert!(
+        (band.top_h + rendered + band.bottom_h - total).abs() < 0.01,
+        "height invariant broken at bottom overscroll"
+    );
+}

@@ -153,20 +153,11 @@ pub(crate) struct TableGrids {
     pub(crate) axis_selection: Option<TableAxisSelection>,
 }
 
-/// Scroll handle, row-footprint caches, and scrollbar interaction state.
+/// Scroll handle and scrollbar interaction state.
 pub(crate) struct ScrollState {
     pub(crate) handle: ScrollHandle,
     pub(crate) last_viewport_size: Option<Size<Pixels>>,
-    /// Last frame.s mounted block ids, to detect structural edits so the height
-    /// cache is refreshed only when the row/block mapping is unchanged.
-    pub(crate) prev_block_ids: Vec<EntityId>,
-    /// Per-row footprint (height plus trailing gap), keyed by the row's first
-    /// block. Scroll-invariant, unlike raw painted positions, so windowing from
-    /// their running sum stays correct as the document scrolls. Filled as rows
-    /// paint; unknown rows use a minimum-height estimate.
-    pub(crate) row_stride_cache: HashMap<EntityId, f32>,
-    /// Row range mounted last frame; only those rows shared one scroll offset, so
-    /// their adjacent-top differences are valid footprints for the cache.
+    /// Row range mounted last frame.
     pub(crate) prev_row_band: Option<(usize, usize)>,
     pub(crate) scrollbar_hovered: bool,
     pub(crate) scrollbar_visible_until: Instant,
@@ -183,8 +174,6 @@ impl Default for ScrollState {
         Self {
             handle: ScrollHandle::new(),
             last_viewport_size: None,
-            prev_block_ids: Vec::new(),
-            row_stride_cache: HashMap::new(),
             prev_row_band: None,
             scrollbar_hovered: false,
             scrollbar_visible_until: Instant::now(),

@@ -77,6 +77,12 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        {
+            let state = self.pane_state(pane_id);
+            state.focus.pending_scroll_active_block_into_view = false;
+            state.focus.pending_scroll_recheck_after_layout = false;
+            state.scroll.scroll_recheck_task = None;
+        }
         self.bump_scrollbar_visibility(pane_id, cx);
     }
 

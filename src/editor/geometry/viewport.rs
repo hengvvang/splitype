@@ -57,6 +57,7 @@ impl Editor {
     /// sum places each row against a band from the current scroll offset.
     /// Unmeasured rows use a lower-bound estimate, so the window never lands on a
     /// spacer. Pure, so it is unit-tested headlessly.
+    #[allow(dead_code)]
     pub(crate) fn visible_row_band(
         strides: &[f32],
         scroll_y: f32,
@@ -97,13 +98,25 @@ impl Editor {
         }
         let total = cursor;
 
-        // Nothing hit the band (float edge, or estimate short of scroll): mount
-        // the last row so the viewport never lands on a spacer.
+        // Nothing hit the band (e.g. scrolled past bottom into padding/overscroll, or estimate short of scroll):
+        // mount the bottom cluster of rows fitting in viewport+overdraw so the content never collapses.
         if run_start >= run_end {
+            let bottom_band_top = (total - viewport_height - overdraw).max(0.0);
             run_start = n - 1;
             run_end = n;
             top_of_start = total - strides[n - 1].max(0.0);
             bottom_of_end = total;
+            let mut cursor = 0.0f32;
+            for (index, &stride) in strides.iter().enumerate() {
+                let top = cursor;
+                let bottom = cursor + stride.max(0.0);
+                if bottom >= bottom_band_top {
+                    run_start = index;
+                    top_of_start = top;
+                    break;
+                }
+                cursor = bottom;
+            }
         }
 
         // Keep the focused row mounted; GPUI blurs an unmounted caret. Reaching a
