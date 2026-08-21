@@ -547,7 +547,7 @@ impl Editor {
             cx,
         );
         self.doc_mut().with_structure_mutation(cx, |document, cx| {
-            let _ = document.remove_block_by_id_raw(block.entity_id(), cx);
+            let _ = document.remove_block_unindexed(block.entity_id(), cx);
             parent.update(cx, |parent, cx| {
                 parent.data.kind = BlockKind::Blockquote;
                 parent

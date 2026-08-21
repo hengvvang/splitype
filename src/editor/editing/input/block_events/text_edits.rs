@@ -117,7 +117,7 @@ impl Editor {
                 let adopted_children =
                     crate::editor::tree::document::Document::take_children(block, cx);
                 let removed = self.doc_mut().with_structure_mutation(cx, |document, cx| {
-                    let (_, location) = document.remove_block_by_id_raw(block.entity_id(), cx)?;
+                    let (_, location) = document.remove_block_unindexed(block.entity_id(), cx)?;
                     if !adopted_children.is_empty() {
                         let insert_parent = if is_task_list_item {
                             Some(prev.clone())
@@ -129,7 +129,7 @@ impl Editor {
                         } else {
                             location.index
                         };
-                        document.insert_blocks_at_raw(
+                        document.insert_blocks_unindexed(
                             insert_parent,
                             insert_index,
                             adopted_children.clone(),
@@ -277,7 +277,7 @@ impl Editor {
                 // rather than leaving a blank line above the pasted blocks.
                 if structural && leading_empty {
                     self.doc_mut().with_structure_mutation(cx, |document, cx| {
-                        document.remove_block_by_id_raw(block.entity_id(), cx);
+                        document.remove_block_unindexed(block.entity_id(), cx);
                     });
                 }
 

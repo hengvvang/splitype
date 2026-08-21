@@ -120,9 +120,9 @@ impl Editor {
                 );
 
                 let moved = self.doc_mut().with_structure_mutation(cx, |document, cx| {
-                    let moved = document.remove_block_by_id_raw(block.entity_id(), cx)?.0;
+                    let moved = document.remove_block_unindexed(block.entity_id(), cx)?.0;
                     let child_index = target_parent.read(cx).children.len();
-                    document.insert_blocks_at_raw(
+                    document.insert_blocks_unindexed(
                         Some(target_parent.clone()),
                         child_index,
                         vec![moved.clone()],
@@ -156,8 +156,8 @@ impl Editor {
                     };
 
                     let moved = self.doc_mut().with_structure_mutation(cx, |document, cx| {
-                        let moved = document.remove_block_by_id_raw(block.entity_id(), cx)?.0;
-                        document.insert_blocks_at_raw(
+                        let moved = document.remove_block_unindexed(block.entity_id(), cx)?.0;
+                        document.insert_blocks_unindexed(
                             parent_location.parent,
                             parent_location.index + 1,
                             vec![moved.clone()],
@@ -197,7 +197,7 @@ impl Editor {
 
                 let downgraded = self.doc_mut().with_structure_mutation(cx, |document, cx| {
                     let (moved, removed_location) =
-                        document.remove_block_by_id_raw(block.entity_id(), cx)?;
+                        document.remove_block_unindexed(block.entity_id(), cx)?;
                     moved.update(cx, |block, cx| {
                         block.data.kind = BlockKind::Paragraph;
                         block.data.raw_source = None;
@@ -206,7 +206,7 @@ impl Editor {
                         block.cursor_blink_epoch = Instant::now();
                         cx.notify();
                     });
-                    document.insert_blocks_at_raw(
+                    document.insert_blocks_unindexed(
                         Some(parent.clone()),
                         removed_location.index,
                         vec![moved.clone()],
@@ -281,9 +281,9 @@ impl Editor {
                 let adopted_children =
                     crate::editor::tree::document::Document::take_children(block, cx);
                 let removed = self.doc_mut().with_structure_mutation(cx, |document, cx| {
-                    let (_, location) = document.remove_block_by_id_raw(block.entity_id(), cx)?;
+                    let (_, location) = document.remove_block_unindexed(block.entity_id(), cx)?;
                     if !adopted_children.is_empty() {
-                        document.insert_blocks_at_raw(
+                        document.insert_blocks_unindexed(
                             location.parent.clone(),
                             location.index,
                             adopted_children.clone(),

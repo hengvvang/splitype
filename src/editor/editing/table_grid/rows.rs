@@ -223,7 +223,7 @@ impl Editor {
         );
         let table_id = table_block.entity_id();
         self.doc_mut().with_structure_mutation(cx, |document, cx| {
-            let _ = document.remove_block_by_id_raw(table_id, cx);
+            let _ = document.remove_block_unindexed(table_id, cx);
         });
         self.rebuild_table_grids(cx);
         self.clear_table_axis_selection(cx);

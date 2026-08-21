@@ -148,7 +148,7 @@ impl Editor {
                 cx,
             );
             self.doc_mut().with_structure_mutation(cx, |document, cx| {
-                let _ = document.remove_block_by_id_raw(removed_id, cx);
+                let _ = document.remove_block_unindexed(removed_id, cx);
             });
             if let Some(heading_location) = self.doc().find_block_location(prev.entity_id()) {
                 self.doc_mut().insert_blocks_at(
@@ -231,8 +231,8 @@ impl Editor {
         let table_block = Self::new_table_block(cx, table);
         let new_paragraph = Self::new_block(cx, BlockData::paragraph(String::new()));
         self.doc_mut().with_structure_mutation(cx, |document, cx| {
-            let _ = document.remove_block_by_id_raw(removed_delimiter, cx);
-            let _ = document.remove_block_by_id_raw(removed_header, cx);
+            let _ = document.remove_block_unindexed(removed_delimiter, cx);
+            let _ = document.remove_block_unindexed(removed_header, cx);
         });
         self.doc_mut().insert_blocks_at(
             None,
@@ -276,7 +276,7 @@ impl Editor {
 
         let removed_id = row_block.entity_id();
         self.doc_mut().with_structure_mutation(cx, |document, cx| {
-            let _ = document.remove_block_by_id_raw(removed_id, cx);
+            let _ = document.remove_block_unindexed(removed_id, cx);
         });
         let new_paragraph = Self::new_block(cx, BlockData::paragraph(String::new()));
         if let Some(table_location) = self.doc().find_block_location(table_block.entity_id()) {

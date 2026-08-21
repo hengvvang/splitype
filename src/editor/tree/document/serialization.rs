@@ -411,10 +411,10 @@ mod tests {
                 .doc_mut()
                 .with_structure_mutation(cx, |document, cx| {
                     let moved = document
-                        .remove_block_by_id_raw(c.entity_id(), cx)
+                        .remove_block_unindexed(c.entity_id(), cx)
                         .expect("remove c")
                         .0;
-                    document.insert_blocks_at_raw(
+                    document.insert_blocks_unindexed(
                         Some(a.clone()),
                         a.read(cx).children.len(),
                         vec![moved],

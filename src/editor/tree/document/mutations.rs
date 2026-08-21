@@ -112,26 +112,6 @@ impl Document {
     ///
     /// Children attached to leaf blocks are hoisted into the same parent list
     /// immediately after the leaf that previously owned them.
-    #[inline]
-    pub(crate) fn insert_blocks_at_raw(
-        &mut self,
-        parent: Option<Entity<Block>>,
-        index: usize,
-        blocks: Vec<Entity<Block>>,
-        cx: &mut Context<Editor>,
-    ) {
-        self.insert_blocks_unindexed(parent, index, blocks, cx);
-    }
-
-    #[inline]
-    pub(crate) fn remove_block_by_id_raw(
-        &mut self,
-        entity_id: EntityId,
-        cx: &mut Context<Editor>,
-    ) -> Option<(Entity<Block>, BlockLocation)> {
-        self.remove_block_unindexed(entity_id, cx)
-    }
-
     pub(crate) fn normalize_block_list(blocks: &mut Vec<Entity<Block>>, cx: &mut Context<Editor>) {
         let mut index = 0;
         while index < blocks.len() {
