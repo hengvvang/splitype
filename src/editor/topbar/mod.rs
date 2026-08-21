@@ -47,11 +47,9 @@ impl crate::editor::controller::Editor {
             })
             .on_click(move |_event, _window, cx| {
                 let _ = type_editor.update(cx, |ed, cx| {
-                    if let Some(shell) = ed.shell.clone() {
-                        let _ = shell.update(cx, |shell, cx| {
-                            shell.toggle_panel_dropdown(leaf_id, cx);
-                        });
-                    }
+                    ed.defer_shell_action(cx, move |shell, cx| {
+                        shell.toggle_panel_dropdown(leaf_id, cx);
+                    });
                     cx.notify();
                 });
             });

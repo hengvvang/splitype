@@ -593,10 +593,9 @@ impl Editor {
                 let row_editor = editor.clone();
                 row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
                     let _ = row_editor.update(cx, |editor, cx| {
-                        if let Some(shell) = editor.shell.clone() {
-                            let _ =
-                                shell.update(cx, |shell, cx| shell.activate_panel(panel_id, cx));
-                        }
+                        editor.defer_shell_action(cx, move |shell, cx| {
+                            shell.activate_panel(panel_id, cx);
+                        });
                         editor.on_block_context_menu_mouse_down(entity_id, event, window, cx);
                     });
                 })
