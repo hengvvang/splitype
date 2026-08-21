@@ -1,7 +1,5 @@
 //! Pre-frame bookkeeping and lifecycle state synchronization for the editor.
 
-use std::time::Duration;
-
 use gpui::*;
 
 use crate::editor::controller::*;
@@ -82,50 +80,21 @@ impl Editor {
             return;
         }
 
-        if !self
+        let is_pending = self
             .pane_state_ref(pane_id)
-            .is_some_and(|state| state.focus.pending_scroll_active_block_into_view)
-        {
-            return;
-        }
-
-        // scroll_to_item indexed children by position, which the spacers break;
-        // the focused block is always mounted, so pixel math on its bounds works.
-        let has_bounds = self.ensure_focused_caret_visible(pane_id, window, cx);
-        if self
-            .pane_state_ref(pane_id)
-            .is_some_and(|state| state.focus.pending_scroll_recheck_after_layout)
-        {
-            let state = self.pane_state(pane_id);
-            state.focus.pending_scroll_recheck_after_layout = false;
-            self.schedule_scroll_recheck(pane_id, cx);
-            return;
-        }
-
-        if !has_bounds {
-            self.schedule_scroll_recheck(pane_id, cx);
+            .is_some_and(|state| state.focus.pending_scroll_active_block_into_view);
+        if !is_pending {
             return;
         }
 
         let state = self.pane_state(pane_id);
         state.focus.pending_scroll_active_block_into_view = false;
+        state.focus.pending_scroll_recheck_after_layout = false;
         state.scroll.scroll_recheck_task = None;
+
+        self.ensure_focused_caret_visible(pane_id, window, cx);
     }
 
-    /// Requests a repaint one frame out so a still-pending scroll-into-view can
-    /// retry once the target block has been laid out. `cx.notify()` is swallowed
-    /// when called from within `render`, so without this the retry would wait
-    /// for the next external notify (e.g. the cursor blink, ~0.5s later).
-    pub(crate) fn schedule_scroll_recheck(&mut self, pane_id: usize, cx: &mut Context<Self>) {
-        let state = self.pane_state(pane_id);
-        state.scroll.scroll_recheck_task =
-            Some(cx.spawn(async move |this: WeakEntity<Self>, cx| {
-                cx.background_executor()
-                    .timer(Duration::from_millis(16))
-                    .await;
-                let _ = this.update(cx, |_this, cx| cx.notify());
-            }));
-    }
 
     pub(crate) fn sync_pending_save(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.tab().file.pending_save {

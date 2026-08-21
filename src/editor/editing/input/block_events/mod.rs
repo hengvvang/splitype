@@ -65,26 +65,26 @@ impl Editor {
             self.clear_cross_block_selection(cx);
         }
 
-        let entries_before = self.doc().cloned_entries();
-        let current_entry_index = entries_before
-            .iter()
-            .position(|entry| entry.entity.entity_id() == block.entity_id())
-            .unwrap_or(0);
-
         match event.category() {
             crate::editor::block_protocol::BlockEventCategory::ContentChange => {
                 self.on_content_change_event(&block, cx);
             }
             crate::editor::block_protocol::BlockEventCategory::TextEdit => {
+                let entries_before = self.doc().cloned_entries();
+                let current_entry_index = self.doc().index_for_entity_id(block.entity_id()).unwrap_or(0);
                 self.on_text_edit_event(&block, event, current_entry_index, &entries_before, cx);
             }
             crate::editor::block_protocol::BlockEventCategory::Structure => {
+                let entries_before = self.doc().cloned_entries();
+                let current_entry_index = self.doc().index_for_entity_id(block.entity_id()).unwrap_or(0);
                 self.on_structure_event(&block, event, current_entry_index, &entries_before, cx);
             }
             crate::editor::block_protocol::BlockEventCategory::Table => {
                 self.on_table_event(&block, event, cx);
             }
             crate::editor::block_protocol::BlockEventCategory::Interaction => {
+                let entries_before = self.doc().cloned_entries();
+                let current_entry_index = self.doc().index_for_entity_id(block.entity_id()).unwrap_or(0);
                 self.on_interaction_event(&block, event, current_entry_index, &entries_before, cx);
             }
             crate::editor::block_protocol::BlockEventCategory::Lifecycle => {}

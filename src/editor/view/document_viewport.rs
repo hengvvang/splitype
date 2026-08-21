@@ -70,7 +70,7 @@ impl Editor {
 
         let theme = cx.global::<ThemeManager>().current_arc();
         let d = &theme.dimensions;
-        let blocks = self.doc().blocks().to_vec();
+        let blocks = self.doc().blocks();
         let editor = cx.entity().downgrade();
         let max_scroll_y = self
             .pane_state_ref(pane_id)
@@ -209,107 +209,20 @@ impl Editor {
             index += 1;
         }
 
-        let block_rows: Vec<AnyElement> = if rows.len() <= 35 {
-            rows.iter()
-                .map(|plan| {
-                    self.build_planned_row_element(
-                        plan,
-                        &blocks,
-                        editor.clone(),
-                        panel_id,
-                        centered_width,
-                        &theme,
-                        d,
-                    )
-                })
-                .collect()
-        } else {
-            let mut estimated_row_heights = Vec::with_capacity(rows.len());
-            for plan in &rows {
-                let block_count = plan.end.saturating_sub(plan.start).max(1);
-                let base_height = match plan.callout_variant {
-                    Some(_) => 36.0 + (block_count as f32 * 28.0),
-                    None if !plan.segments.is_empty() => 20.0 + (block_count as f32 * 28.0),
-                    None => {
-                        let first_block = blocks[plan.start].entity.read(cx);
-                        match first_block.kind() {
-                            BlockKind::Heading { level } => match level {
-                                1 => 52.0,
-                                2 => 42.0,
-                                _ => 32.0,
-                            },
-                            BlockKind::CodeBlock { .. } => {
-                                let lines = first_block.data.text.plain_text().lines().count().max(1);
-                                36.0 + (lines as f32 * 20.0)
-                            }
-                            BlockKind::Table => {
-                                let row_count = first_block.data.table.as_ref().map(|t| t.rows.len() + 1).unwrap_or(2);
-                                32.0 + (row_count as f32 * 28.0)
-                            }
-                            BlockKind::ThematicBreak => 24.0,
-                            BlockKind::MathBlock => 68.0,
-                            BlockKind::MermaidBlock => 180.0,
-                            _ => 28.0,
-                        }
-                    }
-                };
-                estimated_row_heights.push(base_height + plan.outer_gap);
-            }
-
-            let mut prefix_tops = Vec::with_capacity(rows.len());
-            let mut current_top = 0.0f32;
-            for &h in &estimated_row_heights {
-                prefix_tops.push(current_top);
-                current_top += h;
-            }
-            let total_estimated_height = current_top;
-
-            let overscan_px = 600.0f32;
-            let view_top = (current_scroll_y - overscan_px).max(0.0);
-            let view_bottom = current_scroll_y + viewport_height + overscan_px;
-
-            let start_idx = prefix_tops.partition_point(|&top| top < view_top).saturating_sub(1);
-            let end_idx = (prefix_tops.partition_point(|&top| top <= view_bottom) + 1).min(rows.len());
-
-            let mut elements = Vec::with_capacity((end_idx - start_idx) + 2);
-
-            let top_spacer_height = prefix_tops.get(start_idx).copied().unwrap_or(0.0);
-            if top_spacer_height > 1.0 {
-                elements.push(
-                    div()
-                        .w(px(centered_width))
-                        .h(px(top_spacer_height))
-                        .flex_shrink_0()
-                        .into_any_element(),
-                );
-            }
-
-            for plan in &rows[start_idx..end_idx] {
-                elements.push(self.build_planned_row_element(
+        let block_rows: Vec<AnyElement> = rows
+            .iter()
+            .map(|plan| {
+                self.build_planned_row_element(
                     plan,
-                    &blocks,
+                    blocks,
                     editor.clone(),
                     panel_id,
                     centered_width,
                     &theme,
                     d,
-                ));
-            }
-
-            let rendered_bottom = prefix_tops.get(end_idx).copied().unwrap_or(total_estimated_height);
-            let bottom_spacer_height = (total_estimated_height - rendered_bottom).max(0.0);
-            if bottom_spacer_height > 1.0 {
-                elements.push(
-                    div()
-                        .w(px(centered_width))
-                        .h(px(bottom_spacer_height))
-                        .flex_shrink_0()
-                        .into_any_element(),
-                );
-            }
-
-            elements
-        };
+                )
+            })
+            .collect();
 
         let scroll_handle = self
             .pane_state_ref(pane_id)
@@ -373,6 +286,7 @@ impl Editor {
                 this.on_editor_scroll_wheel(pane_id, event, window, cx);
             }))
             .p(px(d.editor_padding))
+            .pb(px(d.editor_padding + 64.0))
             .children(block_rows);
         let scroll_content = if self.is_wysiwyg() {
             scroll_content.on_mouse_down(
