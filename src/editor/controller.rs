@@ -38,8 +38,7 @@ pub(crate) use crate::model::block::link::{
 };
 pub(crate) use crate::model::block::table::TableCellPosition;
 pub(crate) use crate::model::block::table::{
-    TableAxis, TableAxisHighlight, TableAxisMarker, TableColumnAlignment, TableData,
-    serialize_table_cell_markdown,
+    TableAxis, TableColumnAlignment, serialize_table_cell_markdown,
 };
 pub(crate) use crate::model::inline::text::BlockText;
 pub(crate) use crate::model::parse::{BlockData, BlockId, BlockKind};
