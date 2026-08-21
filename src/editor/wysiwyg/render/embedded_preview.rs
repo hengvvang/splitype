@@ -215,3 +215,37 @@ impl Block {
             .into_any_element()
     }
 }
+
+/// Renders the bottom preview card for interactive graphic blocks (Mermaid, LaTeX, Image)
+/// when clicked/focused in WYSIWYG mode.
+///
+/// Features:
+/// - Container border using `c.code_bg` (matching the top source code background color).
+/// - Clean, minimalist layout with centered graphic content.
+pub(crate) fn render_graphic_preview_box(
+    preview_content: AnyElement,
+    theme: &Theme,
+) -> Div {
+    let c = &theme.colors;
+    let d = &theme.dimensions;
+
+    div()
+        .w_full()
+        .rounded(px(d.code_block_radius))
+        .border(px(1.0))
+        .border_color(c.code_bg)
+        .p(px(8.0))
+        .flex()
+        .items_center()
+        .justify_center()
+        .child(
+            div()
+                .w_full()
+                .p(relative(0.005))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(preview_content),
+        )
+}
+

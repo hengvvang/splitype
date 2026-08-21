@@ -367,7 +367,6 @@ impl Theme {
                 table_insert_stepper_button_size: 32.0,
                 table_insert_stepper_value_min_width: 56.0,
                 table_insert_stepper_value_padding_x: 10.0,
-                table_insert_stepper_radius: 4.0,
                 tree_item_radius: 4.0,
                 outline_node_radius: 4.0,
                 badge_radius: 4.0,

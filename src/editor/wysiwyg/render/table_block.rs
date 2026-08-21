@@ -129,7 +129,7 @@ pub(crate) fn render_table(
                     div()
                         .w(px(d.table_handle_width))
                         .h(relative(0.60))
-                        .rounded(px(2.0))
+                        .rounded(px(d.table_handle_radius))
                         .bg(if is_header_selected {
                             c.table_selection_border
                         } else {
@@ -406,7 +406,7 @@ pub(crate) fn render_table(
                     .flex()
                     .items_center()
                     .justify_center()
-                    .rounded(px(0.0))
+                    .rounded(px(crate::infra::theme::dimensions::SEAMLESS_CORNER_RADIUS))
                     .border(px(1.0))
                     .border_color(if column_button_hovered {
                         c.table_append_button_hover
@@ -458,7 +458,7 @@ pub(crate) fn render_table(
                     .flex()
                     .items_center()
                     .justify_center()
-                    .rounded(px(0.0))
+                    .rounded(px(crate::infra::theme::dimensions::SEAMLESS_CORNER_RADIUS))
                     .border(px(1.0))
                     .border_color(if row_button_hovered {
                         c.table_append_button_hover
@@ -499,7 +499,7 @@ pub(crate) fn render_table(
             .flex()
             .items_center()
             .justify_center()
-            .rounded(px(0.0))
+            .rounded(px(crate::infra::theme::dimensions::SEAMLESS_CORNER_RADIUS))
             .border(px(1.0))
             .border_color(c.table_border)
             .bg(gpui::transparent_black())

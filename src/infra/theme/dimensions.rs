@@ -232,8 +232,6 @@ pub struct ThemeDimensions {
     pub table_insert_stepper_value_min_width: f32,
     /// Horizontal padding inside the table-insert stepper value pill.
     pub table_insert_stepper_value_padding_x: f32,
-    /// Corner radius of table-insert stepper controls.
-    pub table_insert_stepper_radius: f32,
     /// Corner radius of explorer file-tree item rows.
     pub tree_item_radius: f32,
     /// Corner radius of outline tree node item rows.
@@ -373,7 +371,6 @@ struct ThemeDimensionsDe {
     table_insert_stepper_button_size: Option<f32>,
     table_insert_stepper_value_min_width: Option<f32>,
     table_insert_stepper_value_padding_x: Option<f32>,
-    table_insert_stepper_radius: Option<f32>,
     tree_item_radius: Option<f32>,
     outline_node_radius: Option<f32>,
     badge_radius: Option<f32>,
@@ -385,7 +382,6 @@ struct ThemeDimensionsDe {
     bottombar_item_gap: Option<f32>,
     bottombar_text_size: Option<f32>,
     panel_tile_gap: Option<f32>,
-    area_tile_gap: Option<f32>,
     pane_gap: Option<f32>,
     panel_tile_radius: Option<f32>,
 }
@@ -511,7 +507,6 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             table_insert_stepper_value_padding_x: raw
                 .table_insert_stepper_value_padding_x
                 .unwrap_or(10.0),
-            table_insert_stepper_radius: raw.table_insert_stepper_radius.unwrap_or(CONTROL_CORNER_RADIUS),
             tree_item_radius: raw.tree_item_radius.unwrap_or(CONTROL_CORNER_RADIUS),
             outline_node_radius: raw.outline_node_radius.unwrap_or(CONTROL_CORNER_RADIUS),
             badge_radius: raw.badge_radius.unwrap_or(CONTROL_CORNER_RADIUS),
@@ -522,7 +517,7 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             bottombar_padding_x: raw.bottombar_padding_x.unwrap_or(12.0),
             bottombar_item_gap: raw.bottombar_item_gap.unwrap_or(12.0),
             bottombar_text_size: raw.bottombar_text_size.unwrap_or(11.0),
-            panel_tile_gap: raw.panel_tile_gap.or(raw.area_tile_gap).unwrap_or(6.0),
+            panel_tile_gap: raw.panel_tile_gap.unwrap_or(6.0),
             pane_gap: raw.pane_gap.unwrap_or(3.0),
             panel_tile_radius: raw.panel_tile_radius.unwrap_or(CONTROL_CORNER_RADIUS),
         })

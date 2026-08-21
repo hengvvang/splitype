@@ -52,7 +52,7 @@ pub(crate) fn render_preview_fenced_code(block: &Block, base: Div, theme: &Theme
     };
 
     base.bg(c.code_bg)
-        .rounded(px(d.menu_item_radius))
+        .rounded(px(d.code_block_radius))
         .w_full()
         .px(px(d.code_block_padding_x))
         .py(px(d.code_block_padding_y))

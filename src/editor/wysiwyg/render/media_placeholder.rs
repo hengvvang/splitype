@@ -13,7 +13,7 @@ use crate::model::parse::BlockKind;
 pub(crate) fn render_image_placeholder(
     runtime: &ImageHandle,
     width: Length,
-    height: Pixels,
+    _height: Pixels,
     theme: &Theme,
     _strings: &I18nStrings,
 ) -> AnyElement {
@@ -37,17 +37,14 @@ pub(crate) fn render_image_placeholder(
 
     div()
         .w_full()
-        .w(width)
-        .h(height)
+        .max_w(width)
         .flex()
         .flex_col()
         .items_center()
         .justify_center()
         .gap(px(4.0))
-        .rounded_none()
-        .bg(c.image_placeholder_bg)
         .px(px(d.block_padding_x))
-        .py(px(16.0))
+        .py(px(24.0))
         .child(
             div()
                 .text_size(px(t.text_size))
@@ -67,7 +64,7 @@ pub(crate) fn render_image_placeholder(
 pub(crate) fn render_loading_placeholder(
     runtime: &ImageHandle,
     width: Length,
-    height: Pixels,
+    _height: Pixels,
     theme: &Theme,
     _strings: &I18nStrings,
 ) -> AnyElement {
@@ -83,17 +80,14 @@ pub(crate) fn render_loading_placeholder(
 
     div()
         .w_full()
-        .w(width)
-        .h(height)
+        .max_w(width)
         .flex()
         .flex_col()
         .items_center()
         .justify_center()
         .gap(px(4.0))
-        .rounded_none()
-        .bg(c.image_placeholder_bg)
         .px(px(d.block_padding_x))
-        .py(px(16.0))
+        .py(px(24.0))
         .child(
             div()
                 .text_size(px(t.text_size))

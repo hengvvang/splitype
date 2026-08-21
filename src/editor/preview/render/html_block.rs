@@ -69,7 +69,7 @@ fn render_preview_html_node(
     if node.kind == HtmlNodeKind::RawTextBlock {
         return div()
             .w_full()
-            .rounded(px(d.menu_item_radius))
+            .rounded(px(d.code_block_radius))
             .bg(c.source_mode_block_bg)
             .px(px(d.block_padding_x * 0.6))
             .py(px(d.block_padding_y * 0.6))
@@ -139,7 +139,7 @@ fn render_preview_html_node(
             .h(px(d.separator_thickness))
             .my(px(d.separator_margin_y))
             .bg(c.separator)
-            .rounded(px(999.0))
+            .rounded(px(crate::infra::theme::dimensions::FULL_CORNER_RADIUS))
             .into_any_element(),
         "blockquote" => {
             let mut element = div()

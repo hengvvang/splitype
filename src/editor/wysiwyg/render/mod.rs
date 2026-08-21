@@ -44,6 +44,7 @@ use crate::editor::wysiwyg::render::inline::text_element::BlockTextElement;
 use crate::editor::wysiwyg::render::{
     blockquote::render_blockquote,
     callout::render_callout,
+    embedded_preview::render_graphic_preview_box,
     fenced_code::render_fenced_code,
     footnote::render_footnote_definition,
     heading::render_heading,
@@ -476,8 +477,8 @@ impl Render for Block {
                         .w_full()
                         .px(px(d.code_block_padding_x))
                         .py(px(d.code_block_padding_y))
-                        .text_size(px(t.text_size))
-                        .text_color(c.text_default)
+                        .text_size(px(t.code_size))
+                        .text_color(c.code_text)
                         .line_height(rems(t.text_line_height))
                         .child(editor_input);
 
@@ -485,22 +486,19 @@ impl Render for Block {
                         .w_full()
                         .flex()
                         .flex_col()
+                        .gap(px(8.0))
                         .child(
                             div()
                                 .w_full()
-                                .p(relative(0.005))
-                                .flex()
-                                .items_center()
-                                .justify_center()
-                                .child(image_preview),
+                                .bg(c.code_bg)
+                                .rounded(px(d.code_block_radius))
+                                .child(editor_section),
                         )
-                        .child(editor_section);
+                        .child(render_graphic_preview_box(image_preview, &theme));
 
                     return focused_base
                         .relative()
                         .on_hover(cx.listener(Self::on_code_block_hover))
-                        .bg(c.code_bg)
-                        .rounded(px(d.menu_item_radius))
                         .w_full()
                         .flex()
                         .flex_col()

@@ -89,7 +89,7 @@ impl RenderOnce for Switch {
         let thumb = div()
             .w(px(16.0))
             .h(px(16.0))
-            .rounded(px(8.0))
+            .rounded(px(crate::infra::theme::dimensions::FULL_CORNER_RADIUS))
             .bg(thumb_color)
             .map(|mut this| {
                 if needs_animation {
@@ -118,7 +118,7 @@ impl RenderOnce for Switch {
             .px(px(2.0))
             .flex()
             .items_center()
-            .rounded(px(10.0))
+            .rounded(px(crate::infra::theme::dimensions::FULL_CORNER_RADIUS))
             .bg(track_color)
             .when(!disabled, |this| this.cursor_pointer())
             .child(thumb)

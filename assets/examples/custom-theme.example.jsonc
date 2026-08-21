@@ -338,6 +338,14 @@
       "dialog_button_gap": null,
       // Horizontal padding inside modal dialog action buttons.
       "dialog_button_padding_x": null,
+      // Corner radius of standard action buttons.
+      "button_radius": null,
+      // Corner radius of toolbar and header icon buttons.
+      "icon_button_radius": null,
+      // Corner radius of editor and settings navigation tabs.
+      "tab_radius": null,
+      // Corner radius of the micro tab close button.
+      "tab_close_button_radius": null,
       // Height reserved for the Windows fallback menu bar.
       "menu_bar_height": null,
       // Horizontal padding inside the Windows fallback menu bar.
@@ -386,6 +394,14 @@
       "context_menu_submenu_gap": null,
       // Width of table-axis context menu panels.
       "context_menu_axis_panel_width": null,
+      // Corner radius of select dropdown trigger buttons.
+      "select_trigger_radius": null,
+      // Corner radius of select dropdown floating panels.
+      "select_panel_radius": null,
+      // Corner radius of select dropdown option items.
+      "select_option_radius": null,
+      // Corner radius of stepper containers and buttons.
+      "stepper_radius": null,
       // Maximum width of the table-insert dialog.
       "table_insert_dialog_width": null,
       // Gap between table-insert stepper labels and controls.
@@ -396,24 +412,16 @@
       "table_insert_stepper_value_min_width": null,
       // Horizontal padding inside the table-insert stepper value pill.
       "table_insert_stepper_value_padding_x": null,
-      // Corner radius of table-insert stepper controls.
-      "table_insert_stepper_radius": null,
-      // Left inset of the view-mode toggle.
-      "view_mode_toggle_left": null,
-      // Bottom inset of the view-mode toggle.
-      "view_mode_toggle_bottom": null,
-      // Horizontal padding inside the view-mode toggle.
-      "view_mode_toggle_padding_x": null,
-      // Vertical padding inside the view-mode toggle.
-      "view_mode_toggle_padding_y": null,
-      // Minimum width of the view-mode toggle. Helps localized labels fit without wrapping.
-      "view_mode_toggle_min_width": null,
-      // Corner radius of the view-mode toggle.
-      "view_mode_toggle_radius": null,
-      // Border width of the view-mode toggle.
-      "view_mode_toggle_border_width": null,
-      // Text size of the view-mode toggle.
-      "view_mode_toggle_text_size": null,
+      // Corner radius of explorer file-tree item rows.
+      "tree_item_radius": null,
+      // Corner radius of outline tree node item rows.
+      "outline_node_radius": null,
+      // Corner radius of outline and preview badges.
+      "badge_radius": null,
+      // Corner radius of settings section cards.
+      "section_card_radius": null,
+      // Corner radius of settings item rows.
+      "settings_row_radius": null,
       // Height of the top bar.
       "topbar_height": null,
       // Height of the bottom bar.
@@ -423,7 +431,13 @@
       // Gap between items in the status bar.
       "bottombar_item_gap": null,
       // Font size for status bar text.
-      "bottombar_text_size": null
+      "bottombar_text_size": null,
+      // Gap between split panel tiles.
+      "panel_tile_gap": null,
+      // Inset of a pane inside its panel.
+      "pane_gap": null,
+      // Corner radius of panel container tiles.
+      "panel_tile_radius": null
     },
     // Typography values use logical pixels for sizes and a ratio for line height.
     // Weight values allow thin, light, normal, medium, semibold, bold, extrabold, or black.

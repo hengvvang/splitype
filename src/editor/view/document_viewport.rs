@@ -328,7 +328,7 @@ impl Editor {
                     .right(px(d.scrollbar_right))
                     .w(px(d.scrollbar_width))
                     .h(px(thumb_height))
-                    .rounded(px(999.0))
+                    .rounded(px(crate::infra::theme::dimensions::FULL_CORNER_RADIUS))
                     .bg(theme.colors.scrollbar_thumb)
                     .cursor_pointer()
                     .on_hover(cx.listener(move |this, hovered, window, cx| {

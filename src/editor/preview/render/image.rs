@@ -95,10 +95,8 @@ fn render_preview_image_placeholder(alt: &str, raw: &str, base: Div, theme: &The
         .items_center()
         .justify_center()
         .gap(px(4.0))
-        .rounded_none()
-        .bg(c.image_placeholder_bg)
         .px(px(d.block_padding_x))
-        .py(px(16.0))
+        .py(px(24.0))
         .child(
             div()
                 .text_size(px(t.text_size))

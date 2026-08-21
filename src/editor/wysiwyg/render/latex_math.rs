@@ -3,6 +3,7 @@
 use gpui::*;
 
 use crate::editor::tree::block::Block;
+use crate::editor::wysiwyg::render::embedded_preview::render_graphic_preview_box;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 
@@ -25,8 +26,7 @@ pub(crate) fn render_latex_math(
     if !focused {
         block.last_paints.clear();
 
-        // Unfocused: outer rect (no border, no rounded, transparent)
-        // with inner fitted image padded inside
+        // Unfocused: outer rect (no border, transparent) with inner fitted image
         let outer = div()
             .w_full()
             .p(relative(0.005))
@@ -47,23 +47,19 @@ pub(crate) fn render_latex_math(
             .w_full()
             .flex()
             .flex_col()
-            .child(editor_section)
+            .gap(px(8.0))
             .child(
-                // Bottom: rendered preview image inside
                 div()
                     .w_full()
-                    .p(relative(0.005))
-                    .flex()
-                    .items_center()
-                    .justify_center()
-                    .child(math_preview),
-            );
+                    .bg(c.code_bg)
+                    .rounded(px(d.code_block_radius))
+                    .child(editor_section),
+            )
+            .child(render_graphic_preview_box(math_preview, theme));
 
         focused_base
             .relative()
             .on_hover(cx.listener(Block::on_code_block_hover))
-            .bg(c.code_bg)
-            .rounded(px(d.menu_item_radius))
             .w_full()
             .flex()
             .flex_col()
