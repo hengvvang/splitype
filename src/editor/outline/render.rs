@@ -10,27 +10,62 @@ use crate::editor::controller::Editor;
 use crate::editor::outline::state::{
     OUTLINE_NODE_HEIGHT, OUTLINE_NODE_INDENT, OutlineNode, OutlineNodeKind, outline_node_hash,
 };
-use crate::editor::outline::{build_outline_tree, prune_outline_state};
+use crate::editor::outline::{build_outline_tree_from_doc, prune_outline_state};
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 use crate::ui::empty_state::empty_state_container;
 
 impl Editor {
-    /// Rebuilds this editor's outline tree from its own active document
-    /// when the serialized source changed.
+    /// Rebuilds this editor's outline tree directly from its active document blocks.
     pub(crate) fn sync_editor_outline(&mut self, cx: &mut Context<Self>) {
-        let Some(source) = self.active_editor_serialized_text(cx) else {
+        if !self.has_active_tab() {
             return;
-        };
-        if self.outline.source.as_deref() == Some(source.as_str()) {
+        }
+        let revision = self.tab().document_revision;
+        if self.outline.synced_revision == Some(revision) {
             return;
         }
 
-        let outline = build_outline_tree(&source);
+        let outline = build_outline_tree_from_doc(self.doc(), cx);
         prune_outline_state(&mut self.outline, &outline);
         self.outline.tree = outline;
-        self.outline.source = Some(source);
+        self.outline.synced_revision = Some(revision);
+        self.outline.source = None;
     }
+
+    /// Selects an outline node and navigates the editor view to the corresponding heading.
+    pub(crate) fn navigate_to_outline_node(&mut self, node: &OutlineNode, cx: &mut Context<Self>) {
+        self.outline.selected = Some(node.id.clone());
+
+        match &node.kind {
+            OutlineNodeKind::Heading {
+                block_id: Some(entity_id),
+                ..
+            } => {
+                if let Some(block) = self.doc().block_entity_by_id(*entity_id) {
+                    self.focus_block(*entity_id);
+                    Self::reset_block_cursor(&block, 0, cx);
+                    self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+                }
+            }
+            OutlineNodeKind::Heading { line, .. } => {
+                if let Some(entity) = self
+                    .doc()
+                    .blocks()
+                    .get(*line)
+                    .map(|entry| entry.entity.clone())
+                {
+                    let entity_id = entity.entity_id();
+                    self.focus_block(entity_id);
+                    Self::reset_block_cursor(&entity, 0, cx);
+                    self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+                }
+            }
+        }
+        cx.notify();
+    }
+
+    #[allow(dead_code)]
     pub(crate) fn select_outline_node(&mut self, id: String, cx: &mut Context<Self>) {
         self.outline.selected = Some(id);
         cx.notify();
@@ -140,9 +175,8 @@ impl Editor {
         let is_expanded = self.outline.expanded.contains(&node.id);
         let has_children = !node.children.is_empty();
         let selected = matches!(&self.outline.selected, Some(id) if id == &node.id);
-        let node_id = node.id.clone();
+        let clicked_node = node.clone();
         let click_editor = editor.clone();
-        let click_kind = node.kind.clone();
         let arrow_node_id = node.id.clone();
         let arrow_editor = editor.clone();
 
@@ -238,12 +272,9 @@ impl Editor {
                     .child(node.label.clone()),
             )
             .on_click(move |_event, _window, cx| {
-                let node_id = node_id.clone();
-                let click_kind = click_kind.clone();
-                let _ = click_editor.update(cx, |editor, cx| match click_kind {
-                    OutlineNodeKind::Heading { .. } => {
-                        editor.select_outline_node(node_id, cx);
-                    }
+                let node = clicked_node.clone();
+                let _ = click_editor.update(cx, |editor, cx| {
+                    editor.navigate_to_outline_node(&node, cx);
                 });
             })
             .into_any_element()

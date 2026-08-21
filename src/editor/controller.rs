@@ -905,6 +905,7 @@ impl Editor {
     }
 
     /// The active editor's serialized document text, if any.
+    #[allow(dead_code)]
     pub(crate) fn active_editor_serialized_text(&self, cx: &App) -> Option<String> {
         let tab = self.active_editor_tab()?;
         Some(if tab.mode == EditorPaneKind::SourceCode {

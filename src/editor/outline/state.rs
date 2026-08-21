@@ -1,11 +1,13 @@
 //! Outline pane state — heading tree, expansion set, and selection.
 //!
 //! The outline is an editor pane; its state lives here on each
-//! Editor entity (`Editor::outline`) instead of in the explorer sidebar
+//! Editor entity (Editor::outline) instead of in the explorer sidebar
 //! state, so the editor never depends on the explorer module.
 
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
+
+use gpui::EntityId;
 
 /// Uniform row height for outline nodes (the virtualized list requires a
 /// fixed height).
@@ -32,7 +34,11 @@ pub struct OutlineNode {
 /// Outline node kind.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum OutlineNodeKind {
-    Heading { line: usize, level: u8 },
+    Heading {
+        line: usize,
+        level: u8,
+        block_id: Option<EntityId>,
+    },
 }
 
 /// Combined outline pane state: the parsed tree plus which nodes are
@@ -40,8 +46,10 @@ pub enum OutlineNodeKind {
 #[derive(Clone, Debug, Default)]
 pub struct OutlinePaneState {
     pub tree: Vec<OutlineNode>,
-    /// Markdown source the tree was built from; `None` until first sync.
+    /// Markdown source the tree was built from; None until first sync.
     pub source: Option<String>,
+    /// Last synced document revision for O(1) cache validation.
+    pub synced_revision: Option<u64>,
     /// Expanded node ids (outline ids are strings, unlike explorer entries).
     pub expanded: HashSet<String>,
     pub selected: Option<String>,
