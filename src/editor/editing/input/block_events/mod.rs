@@ -17,8 +17,18 @@ impl Editor {
         event: &BlockEvent,
         cx: &mut Context<Self>,
     ) {
-        if let BlockEvent::PrepareUndo { kind } = event {
-            self.prepare_undo_capture_from_stable_snapshot(*kind);
+        if let BlockEvent::PrepareUndo {
+            kind,
+            target_block_id,
+            initial_text,
+        } = event
+        {
+            self.prepare_undo_capture_with_snapshot(
+                *kind,
+                *target_block_id,
+                initial_text.clone(),
+                cx,
+            );
             return;
         }
 
@@ -87,7 +97,21 @@ impl Editor {
                 let current_entry_index = self.doc().index_for_entity_id(block.entity_id()).unwrap_or(0);
                 self.on_interaction_event(&block, event, current_entry_index, &entries_before, cx);
             }
-            crate::editor::block_protocol::BlockEventCategory::Lifecycle => {}
+            crate::editor::block_protocol::BlockEventCategory::Lifecycle => {
+                if let BlockEvent::PrepareUndo {
+                    kind,
+                    target_block_id,
+                    initial_text,
+                } = event
+                {
+                    self.prepare_undo_capture_with_snapshot(
+                        *kind,
+                        *target_block_id,
+                        initial_text.clone(),
+                        cx,
+                    );
+                }
+            }
         }
     }
 

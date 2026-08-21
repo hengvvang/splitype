@@ -14,7 +14,11 @@ use std::time::Instant;
 
 impl Block {
     pub(crate) fn prepare_undo_capture(&self, kind: UndoCaptureKind, cx: &mut Context<Self>) {
-        cx.emit(BlockEvent::PrepareUndo { kind });
+        cx.emit(BlockEvent::PrepareUndo {
+            kind,
+            target_block_id: Some(self.data.id),
+            initial_text: Some(self.data.text.clone()),
+        });
     }
 
     /// Detect Markdown shortcut prefixes in the edited text and convert the

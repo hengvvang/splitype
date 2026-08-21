@@ -351,6 +351,15 @@ impl Document {
                     false
                 }
             }
+            DocDelta::ReplaceRoots { new_roots, .. } => {
+                let entities = new_roots
+                    .iter()
+                    .cloned()
+                    .map(|data| Editor::new_block(cx, data))
+                    .collect();
+                self.replace_blocks(entities, cx);
+                true
+            }
         }
     }
 

@@ -27,7 +27,11 @@ pub enum PastedImageSource {
 #[derive(Debug, Clone)]
 pub enum BlockEvent {
     /// Capture the current document state before an upcoming mutation.
-    PrepareUndo { kind: UndoCaptureKind },
+    PrepareUndo {
+        kind: UndoCaptureKind,
+        target_block_id: Option<crate::model::parse::BlockId>,
+        initial_text: Option<crate::model::inline::text::BlockText>,
+    },
     /// The block's content or kind changed; the editor should mark the
     /// document dirty and optionally scroll to keep the block visible.
     Changed,
@@ -253,7 +257,9 @@ mod tests {
     fn test_block_event_categories() {
         assert_eq!(
             BlockEvent::PrepareUndo {
-                kind: UndoCaptureKind::CoalescibleText
+                kind: UndoCaptureKind::CoalescibleText,
+                target_block_id: None,
+                initial_text: None,
             }
             .category(),
             BlockEventCategory::Lifecycle

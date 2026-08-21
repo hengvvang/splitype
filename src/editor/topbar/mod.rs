@@ -221,9 +221,6 @@ impl crate::editor::controller::Editor {
                                 )
                                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                                     let _ = close_editor.update(cx, |ed, cx| {
-                                        ed.defer_shell_action(cx, move |shell, cx| {
-                                            shell.activate_panel(panel_id, cx);
-                                        });
                                         ed.request_close_tab(index, cx);
                                         cx.notify();
                                     });

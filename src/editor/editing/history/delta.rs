@@ -50,6 +50,11 @@ pub(crate) enum DocDelta {
         from_index: usize,
         to_index: usize,
     },
+    /// Replace all root blocks in the document (for complex multi-block structural edits).
+    ReplaceRoots {
+        old_roots: Vec<BlockData>,
+        new_roots: Vec<BlockData>,
+    },
 }
 
 /// A grouped sequence of atomic deltas representing one user-level action.
@@ -176,6 +181,13 @@ impl Transaction {
                 } => DocDelta::MoveBlock {
                     from_index: to_index,
                     to_index: from_index,
+                },
+                DocDelta::ReplaceRoots {
+                    old_roots,
+                    new_roots,
+                } => DocDelta::ReplaceRoots {
+                    old_roots: new_roots,
+                    new_roots: old_roots,
                 },
             });
         }

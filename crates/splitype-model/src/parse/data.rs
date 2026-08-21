@@ -16,7 +16,7 @@ use crate::block::table::TableData;
 use crate::inline::text::BlockText;
 
 /// Persistent data of a single block in the document tree.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BlockData {
     /// Unique block identifier.
     pub id: BlockId,

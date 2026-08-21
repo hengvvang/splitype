@@ -360,7 +360,8 @@ pub(crate) struct UndoSelectionSnapshot {
 #[derive(Clone, Debug)]
 pub(crate) struct HistoryEntry {
     pub(crate) transaction: crate::editor::editing::history::delta::Transaction,
-    pub(crate) selection: UndoSelectionSnapshot,
+    pub(crate) selection_before: UndoSelectionSnapshot,
+    pub(crate) selection_after: UndoSelectionSnapshot,
     pub(crate) timestamp: Instant,
     pub(crate) kind: UndoCaptureKind,
 }
@@ -369,6 +370,9 @@ pub(crate) struct HistoryEntry {
 #[derive(Clone, Debug)]
 pub(crate) struct PendingUndoCapture {
     pub(crate) snapshot: HistoryEntry,
+    pub(crate) target_block_id: Option<crate::model::parse::BlockId>,
+    pub(crate) initial_text: Option<crate::model::inline::text::BlockText>,
+    pub(crate) initial_roots: Option<Vec<crate::model::parse::BlockData>>,
 }
 
 /// Cross-block selection endpoint in visible block order.
@@ -683,11 +687,9 @@ impl Editor {
         if list.tabs[index].file.dirty {
             let panel_id = self.panel_id;
             self.activate_tab(index, cx);
-            if let Some(shell) = self.shell.clone() {
-                let _ = shell.update(cx, |shell, cx| {
-                    shell.prompt_unsaved_changes_for(panel_id, index, cx);
-                });
-            }
+            self.defer_shell_action(cx, move |shell, cx| {
+                shell.prompt_unsaved_changes_for(panel_id, index, cx);
+            });
             return;
         }
         self.close_tab(index, cx);
