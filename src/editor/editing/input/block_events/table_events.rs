@@ -7,7 +7,7 @@ use crate::editor::controller::*;
 use crate::model::parse::BlockKind;
 
 impl Editor {
-    pub(crate) fn handle_table_event(
+    pub(crate) fn on_table_event(
         &mut self,
         block: &Entity<crate::editor::tree::block::Block>,
         event: &BlockEvent,

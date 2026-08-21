@@ -232,11 +232,22 @@ impl Editor {
             linear.checked_add(delta as usize)
         };
         let Some(next) = next else {
+            if delta < 0 {
+                self.focus_block_adjacent_to_table(table_block, -1, false, cx);
+            }
             return;
         };
         if next >= total_rows * columns {
             if delta > 0 {
                 self.append_table_row(table_block, cx);
+                let _ = self.focus_table_cell_position(
+                    table_block,
+                    TableCellPosition {
+                        row: total_rows,
+                        column: 0,
+                    },
+                    cx,
+                );
             }
             return;
         }

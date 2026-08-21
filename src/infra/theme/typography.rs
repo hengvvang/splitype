@@ -4,7 +4,7 @@ use gpui::FontWeight;
 use serde::{Deserialize, Serialize};
 
 /// Serializable font weight that maps to GPUI's [`FontWeight`] constants.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FontWeightDef {
     /// Thin font weight.
@@ -25,10 +25,10 @@ pub enum FontWeightDef {
     Black,
 }
 
-impl FontWeightDef {
-    /// Converts the serialized theme value into GPUI's runtime font weight.
-    pub fn to_font_weight(&self) -> FontWeight {
-        match self {
+impl From<FontWeightDef> for FontWeight {
+    #[inline]
+    fn from(def: FontWeightDef) -> Self {
+        match def {
             FontWeightDef::Thin => FontWeight::THIN,
             FontWeightDef::Light => FontWeight::LIGHT,
             FontWeightDef::Normal => FontWeight::NORMAL,
@@ -38,6 +38,21 @@ impl FontWeightDef {
             FontWeightDef::Extrabold => FontWeight::EXTRA_BOLD,
             FontWeightDef::Black => FontWeight::BLACK,
         }
+    }
+}
+
+impl From<&FontWeightDef> for FontWeight {
+    #[inline]
+    fn from(def: &FontWeightDef) -> Self {
+        FontWeight::from(*def)
+    }
+}
+
+impl FontWeightDef {
+    /// Converts the serialized theme value into GPUI's runtime font weight.
+    #[inline]
+    pub fn to_font_weight(&self) -> FontWeight {
+        FontWeight::from(*self)
     }
 }
 

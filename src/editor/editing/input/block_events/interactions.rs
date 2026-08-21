@@ -38,7 +38,7 @@ impl Editor {
         }
     }
 
-    pub(crate) fn handle_interaction_event(
+    pub(crate) fn on_interaction_event(
         &mut self,
         block: &Entity<crate::editor::tree::block::Block>,
         event: &BlockEvent,

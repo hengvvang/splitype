@@ -6,7 +6,7 @@ use crate::editor::block_protocol::BlockEvent;
 use crate::editor::controller::*;
 
 impl Editor {
-    pub(crate) fn handle_structure_event(
+    pub(crate) fn on_structure_event(
         &mut self,
         block: &Entity<crate::editor::tree::block::Block>,
         event: &BlockEvent,

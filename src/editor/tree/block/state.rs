@@ -8,6 +8,7 @@ use crate::model::block::CalloutKind;
 use crate::model::block::image::ImageResolvedSource;
 use crate::model::parse::BlockId;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum InlineFormat {
     Bold,
     Italic,

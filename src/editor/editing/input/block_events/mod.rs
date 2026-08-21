@@ -50,7 +50,7 @@ impl Editor {
             trailing,
         } = event
         {
-            self.handle_paste_image_request(block, leading, source, trailing, cx);
+            self.on_paste_image_request(block, leading, source, trailing, cx);
             return;
         }
 
@@ -73,43 +73,25 @@ impl Editor {
 
         match event.category() {
             crate::editor::block_protocol::BlockEventCategory::ContentChange => {
-                self.handle_content_change_event(&block, cx);
+                self.on_content_change_event(&block, cx);
             }
             crate::editor::block_protocol::BlockEventCategory::TextEdit => {
-                self.handle_text_edit_event(
-                    &block,
-                    event,
-                    current_entry_index,
-                    &entries_before,
-                    cx,
-                );
+                self.on_text_edit_event(&block, event, current_entry_index, &entries_before, cx);
             }
             crate::editor::block_protocol::BlockEventCategory::Structure => {
-                self.handle_structure_event(
-                    &block,
-                    event,
-                    current_entry_index,
-                    &entries_before,
-                    cx,
-                );
+                self.on_structure_event(&block, event, current_entry_index, &entries_before, cx);
             }
             crate::editor::block_protocol::BlockEventCategory::Table => {
-                self.handle_table_event(&block, event, cx);
+                self.on_table_event(&block, event, cx);
             }
             crate::editor::block_protocol::BlockEventCategory::Interaction => {
-                self.handle_interaction_event(
-                    &block,
-                    event,
-                    current_entry_index,
-                    &entries_before,
-                    cx,
-                );
+                self.on_interaction_event(&block, event, current_entry_index, &entries_before, cx);
             }
             crate::editor::block_protocol::BlockEventCategory::Lifecycle => {}
         }
     }
 
-    fn handle_content_change_event(
+    fn on_content_change_event(
         &mut self,
         block: &Entity<crate::editor::tree::block::Block>,
         cx: &mut Context<Self>,

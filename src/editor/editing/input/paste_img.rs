@@ -328,7 +328,7 @@ impl Editor {
         self.rebuild_reference_registries(cx);
     }
 
-    pub(crate) fn handle_paste_image_request(
+    pub(crate) fn on_paste_image_request(
         &mut self,
         block: Entity<crate::editor::tree::block::Block>,
         leading: &BlockText,
