@@ -31,9 +31,17 @@ impl Editor {
     /// Cancel the unsaved-changes dialog without closing the window
     /// (routed from the Shell's dialog overlay).
     pub(crate) fn cancel_close_dialog(&mut self, cx: &mut Context<Self>) {
-        self.tab_mut().file.show_unsaved_changes_dialog = false;
-        self.tab_mut().file.pending_close_after_save = false;
-        if let Some(restore) = self.tab_mut().file.close_dialog_restore_focus.take() {
+        let mut restore_entity = None;
+        for tab in &mut self.session.tab_list.tabs {
+            if tab.file.show_unsaved_changes_dialog {
+                tab.file.show_unsaved_changes_dialog = false;
+                tab.file.pending_close_after_save = false;
+                if let Some(restore) = tab.file.close_dialog_restore_focus.take() {
+                    restore_entity = Some(restore);
+                }
+            }
+        }
+        if let Some(restore) = restore_entity {
             let pane = self.active_pane_state();
             pane.focus.active_entity = Some(restore);
         }
@@ -43,17 +51,28 @@ impl Editor {
     /// Save the current document and then close the window (routed from
     /// the Shell's dialog overlay).
     pub(crate) fn save_and_close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        self.tab_mut().file.show_unsaved_changes_dialog = false;
-        self.tab_mut().file.pending_close_after_save = true;
+        for tab in &mut self.session.tab_list.tabs {
+            if tab.file.show_unsaved_changes_dialog {
+                tab.file.show_unsaved_changes_dialog = false;
+                tab.file.pending_close_after_save = true;
+            }
+        }
         self.save_document(window, cx);
     }
 
     /// Discard unsaved changes and close the window immediately (routed
-    /// from the Shell's dialog overlay). The window itself is removed by
-    /// the Shell handler; this clears the dialog state.
+    /// from the Shell's dialog overlay). Clears the dirty flag so close can proceed.
     pub(crate) fn discard_and_close(&mut self, cx: &mut Context<Self>) {
-        self.tab_mut().file.show_unsaved_changes_dialog = false;
-        self.tab_mut().file.pending_close_after_save = false;
+        for tab in &mut self.session.tab_list.tabs {
+            if tab.file.show_unsaved_changes_dialog {
+                tab.file.show_unsaved_changes_dialog = false;
+                tab.file.pending_close_after_save = false;
+                tab.file.dirty = false;
+                tab.file.pending_window_edited = false;
+                tab.file.pending_window_title_refresh = true;
+                tab.file.close_dialog_restore_focus = None;
+            }
+        }
         cx.notify();
     }
 

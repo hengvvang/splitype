@@ -11,5 +11,7 @@
 //! inline-level split.
 
 pub mod block;
+pub mod extension;
 pub mod inline;
 pub mod parse;
+pub mod tree;

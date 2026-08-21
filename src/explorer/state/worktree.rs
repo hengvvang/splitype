@@ -228,13 +228,19 @@ impl Worktree {
 
 // ── Background scan ─────────────────────────────────────────────────────
 
+const MAX_SCAN_DEPTH: usize = 64;
+
 /// Recursively collect every entry under `root` (root itself included).
 fn scan_worktree_dir(
     root: &Path,
     hide_hidden: bool,
 ) -> std::io::Result<BTreeMap<PathBuf, WorktreeEntry>> {
     let mut entries = BTreeMap::new();
+    let mut visited_dirs = std::collections::HashSet::new();
     let meta = std::fs::symlink_metadata(root)?;
+    let canonical = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
+    visited_dirs.insert(canonical);
+
     entries.insert(
         root.to_path_buf(),
         WorktreeEntry {
@@ -249,7 +255,7 @@ fn scan_worktree_dir(
         },
     );
     if meta.is_dir() {
-        walk_dir(root, hide_hidden, &mut entries)?;
+        walk_dir(root, hide_hidden, 0, &mut visited_dirs, &mut entries)?;
     }
     Ok(entries)
 }
@@ -257,8 +263,14 @@ fn scan_worktree_dir(
 fn walk_dir(
     dir: &Path,
     hide_hidden: bool,
+    depth: usize,
+    visited_dirs: &mut std::collections::HashSet<PathBuf>,
     out: &mut BTreeMap<PathBuf, WorktreeEntry>,
 ) -> std::io::Result<()> {
+    if depth >= MAX_SCAN_DEPTH {
+        return Ok(());
+    }
+
     let read_dir = match std::fs::read_dir(dir) {
         Ok(entries) => entries,
         Err(_) => return Ok(()), // Restricted or vanished directory: skip gracefully
@@ -277,7 +289,8 @@ fn walk_dir(
             Ok(meta) => meta,
             Err(_) => continue, // vanished mid-traversal
         };
-        let kind = if meta.is_dir() {
+        let is_dir = meta.is_dir();
+        let kind = if is_dir {
             WorktreeEntryKind::Directory
         } else {
             WorktreeEntryKind::File
@@ -291,8 +304,11 @@ fn walk_dir(
                 inode: file_id(&path, &meta),
             },
         );
-        if meta.is_dir() {
-            let _ = walk_dir(&path, hide_hidden, out);
+        if is_dir {
+            let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
+            if visited_dirs.insert(canonical) {
+                let _ = walk_dir(&path, hide_hidden, depth + 1, visited_dirs, out);
+            }
         }
     }
     Ok(())

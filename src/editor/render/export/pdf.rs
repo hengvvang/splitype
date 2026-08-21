@@ -29,20 +29,51 @@ pub(crate) fn render_pdf(
     title: &str,
     base_path: Option<&Path>,
 ) -> Result<Vec<u8>, ExportError> {
-    let runtime = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .thread_name("splitype-pdf-export")
-        .build()
-        .map_err(|err| ExportError::RuntimeInit(err.to_string()))?;
+    if tokio::runtime::Handle::try_current().is_ok() {
+        // If called from within an existing tokio context, spawn a dedicated worker
+        // thread to prevent nested runtime builder panics.
+        let markdown = markdown.to_string();
+        let theme = theme.clone();
+        let title = title.to_string();
+        let base_path = base_path.map(Path::to_path_buf);
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::Builder::new()
+            .name("splitype-pdf-worker".to_string())
+            .spawn(move || {
+                let res = (|| -> Result<Vec<u8>, ExportError> {
+                    let runtime = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .map_err(|err| ExportError::RuntimeInit(err.to_string()))?;
+                    runtime.block_on(async move {
+                        tokio::time::timeout(
+                            PDF_TIMEOUT,
+                            render_pdf_async(&markdown, &theme, &title, base_path.as_deref()),
+                        )
+                        .await
+                        .map_err(|_| ExportError::Timeout)?
+                    })
+                })();
+                let _ = tx.send(res);
+            })
+            .map_err(|err| ExportError::RuntimeInit(err.to_string()))?;
+        rx.recv().map_err(|_| ExportError::Timeout)?
+    } else {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .thread_name("splitype-pdf-export")
+            .build()
+            .map_err(|err| ExportError::RuntimeInit(err.to_string()))?;
 
-    runtime.block_on(async move {
-        tokio::time::timeout(
-            PDF_TIMEOUT,
-            render_pdf_async(markdown, theme, title, base_path),
-        )
-        .await
-        .map_err(|_| ExportError::Timeout)?
-    })
+        runtime.block_on(async move {
+            tokio::time::timeout(
+                PDF_TIMEOUT,
+                render_pdf_async(markdown, theme, title, base_path),
+            )
+            .await
+            .map_err(|_| ExportError::Timeout)?
+        })
+    }
 }
 
 pub(crate) async fn render_pdf_async(

@@ -11,10 +11,17 @@ impl Document {
     pub(crate) fn new(roots: Vec<Entity<Block>>) -> Self {
         Self {
             roots,
+            tree: splitype_model::tree::SumTree::new(),
             index: BlockIndex::default(),
             structure_version: 0,
             metadata_rebuild_version: 0,
         }
+    }
+
+    /// Monoidal summary of the document (blocks, lines, characters) computed in O(1).
+    #[allow(dead_code)]
+    pub(crate) fn summary(&self) -> splitype_model::tree::BlockSummary {
+        *self.tree.summary()
     }
 
     /// Version of the current block set; grows on every structural edit.
@@ -95,6 +102,18 @@ impl Document {
             .get(&entity_id)
             .copied()?;
         self.block_entity_by_id(descendant_id)
+    }
+
+    pub(crate) fn find_entity_by_block_id(
+        &self,
+        block_id: crate::model::parse::BlockId,
+        cx: &App,
+    ) -> Option<Entity<Block>> {
+        self.index
+            .entries
+            .iter()
+            .find(|entry| entry.entity.read(cx).data.id == block_id)
+            .map(|entry| entry.entity.clone())
     }
 
     pub(crate) fn replace_blocks(&mut self, roots: Vec<Entity<Block>>, cx: &mut Context<Editor>) {

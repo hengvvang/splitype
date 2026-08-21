@@ -114,14 +114,13 @@ impl SelectionState {
     }
 }
 
-/// Undo/redo stacks, coalescing state, and stable source snapshots.
+/// Undo/redo stacks, coalescing state, and delta transaction history.
 #[derive(Default)]
 pub(crate) struct UndoHistory {
     pub(crate) undo_entries: Vec<HistoryEntry>,
     pub(crate) redo_entries: Vec<HistoryEntry>,
     pub(crate) pending_capture: Option<PendingUndoCapture>,
     pub(crate) last_selection_snapshot: UndoSelectionSnapshot,
-    pub(crate) last_stable_source_text: String,
     pub(crate) restore_in_progress: bool,
 }
 
@@ -357,10 +356,10 @@ pub(crate) struct UndoSelectionSnapshot {
     pub(crate) block_anchor: Option<BlockSelectionAnchor>,
 }
 
-/// One undo history entry containing source text and selection state.
+/// One undo history entry containing transactional deltas and selection state.
 #[derive(Clone, Debug)]
 pub(crate) struct HistoryEntry {
-    pub(crate) source_text: String,
+    pub(crate) transaction: crate::editor::editing::history::delta::Transaction,
     pub(crate) selection: UndoSelectionSnapshot,
     pub(crate) timestamp: Instant,
     pub(crate) kind: UndoCaptureKind,
@@ -571,10 +570,7 @@ impl Editor {
                 path: file_path,
                 ..FileState::default()
             },
-            undo: UndoHistory {
-                last_stable_source_text: normalized,
-                ..UndoHistory::default()
-            },
+            undo: UndoHistory::default(),
             references: ReferenceRegistries::default(),
             tables: TableGrids::default(),
             panes: HashMap::new(),
@@ -675,6 +671,26 @@ impl Editor {
             .push(Self::new_tab_from_markdown(cx, String::new(), None));
         let last = list.tabs.len() - 1;
         self.activate_tab(last, cx);
+    }
+
+    /// Requests to close the tab at `index`. If dirty, prompts for confirmation;
+    /// otherwise closes immediately.
+    pub(crate) fn request_close_tab(&mut self, index: usize, cx: &mut Context<Self>) {
+        let list = &self.session.tab_list;
+        if index >= list.tabs.len() {
+            return;
+        }
+        if list.tabs[index].file.dirty {
+            let panel_id = self.panel_id;
+            self.activate_tab(index, cx);
+            if let Some(shell) = self.shell.clone() {
+                let _ = shell.update(cx, |shell, cx| {
+                    shell.prompt_unsaved_changes_for(panel_id, index, cx);
+                });
+            }
+            return;
+        }
+        self.close_tab(index, cx);
     }
 
     /// Closes the tab at `index`, activating a neighbor. Closing the last

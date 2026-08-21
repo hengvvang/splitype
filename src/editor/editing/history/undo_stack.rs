@@ -1,27 +1,56 @@
-//! Undo and redo stack operations, keystroke coalescing, and document restore flow.
+//! Undo and redo stack operations, transaction dispatch, and document restore flow.
 
 use std::time::Instant;
 
 use gpui::*;
 
-use crate::editor::controller::{Editor, HistoryEntry, PendingUndoCapture, UndoCaptureKind};
+use crate::editor::controller::{Editor, HistoryEntry, UndoCaptureKind};
+use crate::editor::editing::history::delta::Transaction;
 
 impl Editor {
-    pub(crate) fn capture_history_entry(&self, kind: UndoCaptureKind, cx: &App) -> HistoryEntry {
-        HistoryEntry {
-            source_text: self.serialized_document_text(cx),
-            selection: self.capture_source_selection_snapshot(cx),
-            timestamp: Instant::now(),
-            kind,
+    /// Records a structured transaction into the undo history stack, coalescing adjacent typing edits.
+    #[allow(dead_code)]
+    pub(crate) fn record_transaction(
+        &mut self,
+        tx: Transaction,
+        kind: UndoCaptureKind,
+        cx: &App,
+    ) {
+        if self.tab().undo.restore_in_progress || tx.is_empty() {
+            return;
         }
-    }
 
-    pub(crate) fn capture_stable_history_entry(&self, kind: UndoCaptureKind) -> HistoryEntry {
-        HistoryEntry {
-            source_text: self.tab().undo.last_stable_source_text.clone(),
-            selection: self.tab().undo.last_selection_snapshot.clone(),
-            timestamp: Instant::now(),
+        // Fresh edits invalidate redo history
+        self.tab_mut().undo.redo_entries.clear();
+
+        let now = Instant::now();
+        let should_coalesce = matches!(kind, UndoCaptureKind::CoalescibleText)
+            && self.tab().undo.undo_entries.last().is_some_and(|entry| {
+                matches!(entry.kind, UndoCaptureKind::CoalescibleText)
+                    && now.saturating_duration_since(entry.timestamp) <= Self::HISTORY_COALESCE_WINDOW
+            });
+
+        let selection = self.capture_source_selection_snapshot(cx);
+        if should_coalesce {
+            if let Some(last) = self.tab_mut().undo.undo_entries.last_mut() {
+                last.transaction.ops.extend(tx.ops);
+                last.selection = selection;
+                last.timestamp = now;
+                return;
+            }
+        }
+
+        let entry = HistoryEntry {
+            transaction: tx,
+            selection,
+            timestamp: now,
             kind,
+        };
+
+        self.tab_mut().undo.undo_entries.push(entry);
+        if self.tab().undo.undo_entries.len() > Self::HISTORY_LIMIT {
+            let overflow = self.tab().undo.undo_entries.len() - Self::HISTORY_LIMIT;
+            self.tab_mut().undo.undo_entries.drain(0..overflow);
         }
     }
 
@@ -29,8 +58,14 @@ impl Editor {
         if self.tab().undo.restore_in_progress || self.tab().undo.pending_capture.is_some() {
             return;
         }
-        self.tab_mut().undo.pending_capture = Some(PendingUndoCapture {
-            snapshot: self.capture_history_entry(kind, cx),
+        let entry = HistoryEntry {
+            transaction: Transaction::empty(),
+            selection: self.capture_source_selection_snapshot(cx),
+            timestamp: Instant::now(),
+            kind,
+        };
+        self.tab_mut().undo.pending_capture = Some(crate::editor::controller::PendingUndoCapture {
+            snapshot: entry,
         });
     }
 
@@ -38,21 +73,15 @@ impl Editor {
         if self.tab().undo.restore_in_progress || self.tab().undo.pending_capture.is_some() {
             return;
         }
-        self.tab_mut().undo.pending_capture = Some(PendingUndoCapture {
-            snapshot: self.capture_stable_history_entry(kind),
+        let entry = HistoryEntry {
+            transaction: Transaction::empty(),
+            selection: self.tab().undo.last_selection_snapshot.clone(),
+            timestamp: Instant::now(),
+            kind,
+        };
+        self.tab_mut().undo.pending_capture = Some(crate::editor::controller::PendingUndoCapture {
+            snapshot: entry,
         });
-    }
-
-    pub(crate) fn refresh_stable_document_snapshot(&mut self, cx: &App) {
-        let source = self.serialized_document_text(cx);
-        self.refresh_stable_document_snapshot_with_source(source, cx);
-    }
-
-    /// Refreshes the stable undo snapshot, reusing an already-serialized
-    /// source instead of serializing the document a second time.
-    fn refresh_stable_document_snapshot_with_source(&mut self, source: String, cx: &App) {
-        self.tab_mut().undo.last_selection_snapshot = self.capture_source_selection_snapshot(cx);
-        self.tab_mut().undo.last_stable_source_text = source;
     }
 
     pub(crate) fn finalize_pending_undo_capture(&mut self, cx: &mut Context<Self>) {
@@ -60,43 +89,36 @@ impl Editor {
             self.tab_mut().undo.pending_capture = None;
             return;
         }
-
         let Some(pending) = self.tab_mut().undo.pending_capture.take() else {
-            self.refresh_stable_document_snapshot(cx);
             return;
         };
-
-        let current_source = self.serialized_document_text(cx);
-        if current_source == pending.snapshot.source_text {
-            self.refresh_stable_document_snapshot_with_source(current_source, cx);
-            return;
-        }
-
-        // A fresh edit invalidates any forward history available for redo.
         self.tab_mut().undo.redo_entries.clear();
-
-        let should_merge = matches!(pending.snapshot.kind, UndoCaptureKind::CoalescibleText)
-            && self.tab().undo.undo_entries.last().is_some_and(|entry| {
-                matches!(entry.kind, UndoCaptureKind::CoalescibleText)
-                    && pending
-                        .snapshot
-                        .timestamp
-                        .saturating_duration_since(entry.timestamp)
-                        <= Self::HISTORY_COALESCE_WINDOW
-            });
-        if !should_merge {
-            self.tab_mut().undo.undo_entries.push(pending.snapshot);
-            if self.tab().undo.undo_entries.len() > Self::HISTORY_LIMIT {
-                let overflow = self.tab().undo.undo_entries.len() - Self::HISTORY_LIMIT;
-                self.tab_mut().undo.undo_entries.drain(0..overflow);
-            }
+        self.tab_mut().undo.last_selection_snapshot = self.capture_source_selection_snapshot(cx);
+        self.tab_mut().undo.undo_entries.push(pending.snapshot);
+        if self.tab().undo.undo_entries.len() > Self::HISTORY_LIMIT {
+            let overflow = self.tab().undo.undo_entries.len() - Self::HISTORY_LIMIT;
+            self.tab_mut().undo.undo_entries.drain(0..overflow);
         }
-        self.refresh_stable_document_snapshot_with_source(current_source, cx);
     }
 
-    pub(crate) fn restore_history_entry(&mut self, entry: &HistoryEntry, cx: &mut Context<Self>) {
-        self.rebuild_document_from_markdown(&entry.source_text, cx);
+    pub(crate) fn refresh_stable_document_snapshot(&mut self, cx: &App) {
+        self.tab_mut().undo.last_selection_snapshot = self.capture_source_selection_snapshot(cx);
+    }
 
+    /// Restores a transaction delta into the live document state.
+    pub(crate) fn restore_history_entry(
+        &mut self,
+        entry: &HistoryEntry,
+        invert: bool,
+        cx: &mut Context<Self>,
+    ) {
+        let tx = if invert {
+            entry.transaction.clone().invert()
+        } else {
+            entry.transaction.clone()
+        };
+
+        self.doc_mut().apply_transaction(&tx, cx);
         self.apply_selection_snapshot_in_current_mode(&entry.selection, cx);
         {
             let pane = self.active_pane_state();
@@ -104,7 +126,6 @@ impl Editor {
             pane.focus.pending_scroll_recheck_after_layout = true;
             pane.scroll.last_viewport_size = None;
         }
-        self.refresh_stable_document_snapshot(cx);
     }
 
     pub(crate) fn undo_document(&mut self, cx: &mut Context<Self>) {
@@ -112,14 +133,12 @@ impl Editor {
             return;
         };
 
-        // Snapshot the current document so redo can step forward to it.
-        let current = self.capture_history_entry(UndoCaptureKind::NonCoalescible, cx);
         self.tab_mut().undo.pending_capture = None;
         self.tab_mut().undo.restore_in_progress = true;
         self.clear_cross_block_selection(cx);
-        self.restore_history_entry(&entry, cx);
+        self.restore_history_entry(&entry, true, cx);
         self.tab_mut().undo.restore_in_progress = false;
-        self.tab_mut().undo.redo_entries.push(current);
+        self.tab_mut().undo.redo_entries.push(entry);
         self.mark_dirty(cx);
         self.sync_table_axis_visuals(cx);
         self.dismiss_contextual_overlays(cx);
@@ -131,14 +150,12 @@ impl Editor {
             return;
         };
 
-        // Snapshot the current document so undo can step back to it again.
-        let current = self.capture_history_entry(UndoCaptureKind::NonCoalescible, cx);
         self.tab_mut().undo.pending_capture = None;
         self.tab_mut().undo.restore_in_progress = true;
         self.clear_cross_block_selection(cx);
-        self.restore_history_entry(&entry, cx);
+        self.restore_history_entry(&entry, false, cx);
         self.tab_mut().undo.restore_in_progress = false;
-        self.tab_mut().undo.undo_entries.push(current);
+        self.tab_mut().undo.undo_entries.push(entry);
         self.mark_dirty(cx);
         self.sync_table_axis_visuals(cx);
         self.dismiss_contextual_overlays(cx);

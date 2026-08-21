@@ -295,6 +295,20 @@ fn prefixed_multiline(content: &str, first_prefix: &str, continuation_prefix: &s
     rendered
 }
 
+impl crate::tree::sum_tree::Item for BlockData {
+    type Summary = crate::tree::sum_tree::BlockSummary;
+    fn summary(&self, _cx: &()) -> crate::tree::sum_tree::BlockSummary {
+        let plain = self.text.plain_text();
+        let line_count = plain.lines().count().max(1);
+        let char_count = plain.len();
+        crate::tree::sum_tree::BlockSummary {
+            total_blocks: 1,
+            total_lines: line_count,
+            total_characters: char_count,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

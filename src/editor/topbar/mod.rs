@@ -224,7 +224,7 @@ impl crate::editor::controller::Editor {
                                         ed.defer_shell_action(cx, move |shell, cx| {
                                             shell.activate_panel(panel_id, cx);
                                         });
-                                        ed.close_tab(index, cx);
+                                        ed.request_close_tab(index, cx);
                                         cx.notify();
                                     });
                                 }),

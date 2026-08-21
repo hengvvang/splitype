@@ -26,7 +26,7 @@ use crate::ui::dialog::dialog_card;
 use crate::ui::popover::overlay;
 
 impl Shell {
-    /// The editor whose active tab satisfies `show` (dialog routing).
+    /// The editor that holds any tab satisfying `show` (dialog routing).
     pub(crate) fn editor_with_dialog(
         &self,
         cx: &App,
@@ -35,11 +35,14 @@ impl Shell {
         self.panel_contents
             .values()
             .find_map(|content| match content {
-                PanelContent::Editor(entity) => entity
-                    .read(cx)
-                    .active_editor_tab()
-                    .filter(|tab| show(&tab.file))
-                    .map(|_| entity.clone()),
+                PanelContent::Editor(entity) => {
+                    let editor = entity.read(cx);
+                    if editor.session.tab_list.tabs.iter().any(|tab| show(&tab.file)) {
+                        Some(entity.clone())
+                    } else {
+                        None
+                    }
+                }
             })
     }
 

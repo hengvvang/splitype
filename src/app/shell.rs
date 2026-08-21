@@ -530,16 +530,20 @@ impl Shell {
         let Some(editor) = self.editor_for(panel_id).cloned() else {
             return;
         };
+        self.activate_panel(panel_id, cx);
         editor.update(cx, |editor, cx| {
+            editor.activate_tab(index, cx);
             let restore_focus = editor
                 .pane_state_ref(editor.active_pane_id())
                 .and_then(|state| state.focus.active_entity);
             if let Some(tab) = editor.session.tab_list.tabs.get_mut(index) {
                 tab.file.show_unsaved_changes_dialog = true;
+                tab.file.pending_close_after_save = true;
                 tab.file.close_dialog_restore_focus = restore_focus;
                 cx.notify();
             }
         });
+        cx.notify();
     }
 
     /// Installs the window-close guard once: the callback aggregates dirty
