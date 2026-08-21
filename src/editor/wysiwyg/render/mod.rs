@@ -421,9 +421,9 @@ impl Render for Block {
                 .line_height(rems(t.text_line_height));
 
             let source_base = if self.kind() == BlockKind::HtmlComment {
-                source_base.bg(c.comment_bg).rounded_sm()
+                source_base.bg(c.comment_bg).rounded(px(d.code_block_radius))
             } else if focused {
-                source_base.bg(c.source_mode_block_bg).rounded_sm()
+                source_base.bg(c.source_mode_block_bg).rounded(px(d.code_block_radius))
             } else {
                 source_base
             };

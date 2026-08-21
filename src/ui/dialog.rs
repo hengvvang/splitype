@@ -16,5 +16,9 @@ pub fn dialog_card(c: &ThemeColors, d: &ThemeDimensions) -> Div {
         .flex_col()
         .gap(px(d.dialog_gap))
         .p(px(d.dialog_padding))
+        .rounded(px(d.dialog_radius))
+        .border(px(d.dialog_border_width))
+        .border_color(c.dialog_border)
+        .shadow_lg()
         .bg(c.dialog_surface)
 }

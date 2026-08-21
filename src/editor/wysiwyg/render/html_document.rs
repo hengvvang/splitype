@@ -122,7 +122,7 @@ impl Block {
         if !document.is_semantic() {
             return div()
                 .w_full()
-                .rounded_sm()
+                .rounded(px(d.code_block_radius))
                 .bg(c.source_mode_block_bg)
                 .px(px(d.block_padding_x))
                 .py(px(d.block_padding_y))
@@ -160,7 +160,7 @@ impl Block {
         if node.kind == HtmlNodeKind::RawTextBlock {
             return div()
                 .w_full()
-                .rounded_sm()
+                .rounded(px(d.menu_item_radius))
                 .bg(c.source_mode_block_bg)
                 .px(px(d.block_padding_x * 0.6))
                 .py(px(d.block_padding_y * 0.6))
@@ -195,7 +195,7 @@ impl Block {
                 let mut element =
                     div()
                         .flex()
-                        .rounded(px(4.0))
+                        .rounded(px(d.code_bg_radius))
                         .px(px(4.0))
                         .text_size(px(node_style.computed.font_size))
                         .text_color(node_style.computed.color)
@@ -222,7 +222,7 @@ impl Block {
                         div().child("\u{201D}").into_any_element(),
                     ]);
                 if let Some(bg) = node_style.background {
-                    element = element.bg(bg).rounded(px(3.0)).px(px(2.0));
+                    element = element.bg(bg).rounded(px(d.code_bg_radius)).px(px(2.0));
                 }
                 element.into_any_element()
             }
@@ -254,7 +254,7 @@ impl Block {
             "pre" => {
                 let mut element = div()
                     .w_full()
-                    .rounded_sm()
+                    .rounded(px(d.code_block_radius))
                     .px(px(d.code_block_padding_x))
                     .py(px(d.code_block_padding_y))
                     .text_size(px(node_style.computed.font_size))
@@ -394,7 +394,7 @@ impl Block {
                     .map(|child| self.render_html_node(child, theme, node_style.computed, cx)),
             );
         if let Some(bg) = node_style.background {
-            element = element.bg(bg).rounded(px(3.0)).px(px(2.0));
+            element = element.bg(bg).rounded(px(theme.dimensions.code_bg_radius)).px(px(2.0));
         }
         match node.tag_name.as_str() {
             "sup" => {
@@ -531,7 +531,7 @@ impl Block {
 
         let mut container = div()
             .w_full()
-            .rounded_sm()
+            .rounded(px(theme.dimensions.code_block_radius))
             .border(px(1.0))
             .border_color(theme.colors.table_border)
             .px(px(theme.dimensions.block_padding_x))

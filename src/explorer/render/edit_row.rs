@@ -51,6 +51,7 @@ impl Shell {
             .gap(px(6.0))
             .pl(px(6.0 + depth as f32 * EXPLORER_NODE_INDENT))
             .pr(px(8.0))
+            .rounded(px(theme.dimensions.tree_item_radius))
             .bg(c.dialog_secondary_button_hover)
             // Clicks inside the edit row must not reach the panel
             // background (double-click there would create a new file).

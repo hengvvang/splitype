@@ -12,7 +12,7 @@ pub fn stepper_container(c: &ThemeColors, d: &ThemeDimensions) -> Div {
         .items_center()
         .w(px(145.0))
         .h(px(28.0))
-        .rounded(px(d.menu_item_radius))
+        .rounded(px(d.stepper_radius))
         .border_1()
         .border_color(c.dialog_border)
         .bg(c.dialog_secondary_button_bg)

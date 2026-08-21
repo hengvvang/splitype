@@ -166,6 +166,7 @@ impl Editor {
         editor: &WeakEntity<Editor>,
     ) -> AnyElement {
         let c = &theme.colors;
+        let d = &theme.dimensions;
         let t = &theme.typography;
         let is_expanded = self.outline.expanded.contains(&node.id);
         let has_children = !node.children.is_empty();
@@ -189,7 +190,7 @@ impl Editor {
                     div()
                         .px(px(4.0))
                         .py(px(1.0))
-                        .rounded(px(3.0))
+                        .rounded(px(d.badge_radius))
                         .text_size(px(10.0))
                         .font_weight(FontWeight::BOLD)
                         .text_color(badge_color)
@@ -246,6 +247,7 @@ impl Editor {
             .gap(px(6.0))
             .pl(px(6.0 + depth as f32 * OUTLINE_NODE_INDENT))
             .pr(px(8.0))
+            .rounded(px(d.outline_node_radius))
             .bg(if selected {
                 c.panel_row_selected
             } else {

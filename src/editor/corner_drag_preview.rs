@@ -136,7 +136,7 @@ fn join_preview_overlay(
                     div()
                         .px(px(12.0))
                         .py(px(6.0))
-                        .rounded_md()
+                        .rounded(px(crate::infra::theme::dimensions::CONTROL_CORNER_RADIUS))
                         .bg(hsla(0.0, 0.0, 0.0, 0.75))
                         .text_color(hsla(0.0, 0.0, 1.0, 0.95))
                         .text_size(px(15.0))

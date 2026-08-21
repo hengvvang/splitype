@@ -247,7 +247,7 @@ impl Shell {
                     let item_shell = img_shell.clone();
 
                     menu_items.push(
-                        select_option(ElementId::Name(format!("img-item-{}", idx).into()), c)
+                        select_option(ElementId::Name(format!("img-item-{}", idx).into()), c, d)
                             .bg(if is_selected {
                                 c.panel_row_selected
                             } else {
@@ -277,7 +277,7 @@ impl Shell {
                 }
 
                 img_btn_wrap =
-                    img_btn_wrap.child(gpui::deferred(select_panel(c).children(menu_items)));
+                    img_btn_wrap.child(gpui::deferred(select_panel(c, d).children(menu_items)));
             }
 
             sec2_items.push(make_row(
@@ -360,7 +360,7 @@ impl Shell {
                     let item_shell = startup_shell.clone();
 
                     menu_items.push(
-                        select_option(ElementId::Name(format!("startup-item-{}", idx).into()), c)
+                        select_option(ElementId::Name(format!("startup-item-{}", idx).into()), c, d)
                             .bg(if is_selected {
                                 c.panel_row_selected
                             } else {
@@ -390,7 +390,7 @@ impl Shell {
                 }
 
                 startup_btn_wrap =
-                    startup_btn_wrap.child(gpui::deferred(select_panel(c).children(menu_items)));
+                    startup_btn_wrap.child(gpui::deferred(select_panel(c, d).children(menu_items)));
             }
 
             sec3_items.push(make_row(

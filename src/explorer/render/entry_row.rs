@@ -163,6 +163,7 @@ impl Shell {
             .gap(px(6.0))
             .pl(px(6.0 + entry.depth as f32 * EXPLORER_NODE_INDENT))
             .pr(px(8.0))
+            .rounded(px(theme.dimensions.tree_item_radius))
             .bg(if is_drag_target {
                 c.callout_tip_bg
             } else if is_marked {

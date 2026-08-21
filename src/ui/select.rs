@@ -23,7 +23,7 @@ pub fn select_trigger(
         .w(px(145.0))
         .h(px(28.0))
         .px(px(8.0))
-        .rounded(px(d.menu_item_radius))
+        .rounded(px(d.select_trigger_radius))
         .bg(c.dialog_secondary_button_bg)
         .hover(|this| this.bg(c.dialog_secondary_button_hover))
         .border_1()
@@ -31,7 +31,7 @@ pub fn select_trigger(
 }
 
 /// Dropdown panel anchored below the trigger.
-pub fn select_panel(c: &ThemeColors) -> Div {
+pub fn select_panel(c: &ThemeColors, d: &ThemeDimensions) -> Div {
     div()
         .absolute()
         .top_full()
@@ -42,7 +42,7 @@ pub fn select_panel(c: &ThemeColors) -> Div {
         .bg(c.dialog_surface)
         .border_1()
         .border_color(c.dialog_border)
-        .rounded(px(6.0))
+        .rounded(px(d.select_panel_radius))
         .shadow_lg()
         .p(px(4.0))
         .flex()
@@ -51,7 +51,11 @@ pub fn select_panel(c: &ThemeColors) -> Div {
 }
 
 /// Dropdown option row (hoverable; selected background stays at call sites).
-pub fn select_option(id: impl Into<ElementId>, c: &ThemeColors) -> Stateful<Div> {
+pub fn select_option(
+    id: impl Into<ElementId>,
+    c: &ThemeColors,
+    d: &ThemeDimensions,
+) -> Stateful<Div> {
     div()
         .id(id)
         .cursor_pointer()
@@ -60,6 +64,6 @@ pub fn select_option(id: impl Into<ElementId>, c: &ThemeColors) -> Stateful<Div>
         .justify_between()
         .px(px(10.0))
         .py(px(6.0))
-        .rounded(px(4.0))
+        .rounded(px(d.select_option_radius))
         .hover(|this| this.bg(c.panel_row_hover))
 }

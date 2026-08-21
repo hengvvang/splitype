@@ -218,7 +218,7 @@ pub(crate) fn render_table(
                             div()
                                 .h(px(d.table_handle_width))
                                 .w(relative(0.40))
-                                .rounded(px(2.0))
+                                .rounded(px(d.table_handle_radius))
                                 .bg(if is_col_selected {
                                     c.table_selection_border
                                 } else {
@@ -313,7 +313,7 @@ pub(crate) fn render_table(
                             div()
                                 .w(px(d.table_handle_width))
                                 .h(relative(0.60))
-                                .rounded(px(2.0))
+                                .rounded(px(d.table_handle_radius))
                                 .bg(if is_row_selected {
                                     c.table_selection_border
                                 } else {

@@ -237,6 +237,7 @@ impl SettingsWindow {
                     select_option(
                         ElementId::Name(format!("win-image-item-{:?}", pref).into()),
                         c,
+                        d,
                     )
                     .bg(if is_selected {
                         c.panel_row_selected
@@ -267,7 +268,7 @@ impl SettingsWindow {
             }
 
             image_btn_wrap =
-                image_btn_wrap.child(gpui::deferred(select_panel(c).children(menu_items)));
+                image_btn_wrap.child(gpui::deferred(select_panel(c, d).children(menu_items)));
         }
 
         sec2_items.push(make_row(
@@ -343,6 +344,7 @@ impl SettingsWindow {
                     select_option(
                         ElementId::Name(format!("win-startup-item-{:?}", pref).into()),
                         c,
+                        d,
                     )
                     .bg(if is_selected {
                         c.panel_row_selected
@@ -373,7 +375,7 @@ impl SettingsWindow {
             }
 
             startup_btn_wrap =
-                startup_btn_wrap.child(gpui::deferred(select_panel(c).children(menu_items)));
+                startup_btn_wrap.child(gpui::deferred(select_panel(c, d).children(menu_items)));
         }
 
         sec3_items.push(make_row(

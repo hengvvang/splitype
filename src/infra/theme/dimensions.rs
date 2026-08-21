@@ -2,6 +2,13 @@
 
 use serde::{Deserialize, Deserializer, Serialize};
 
+/// Global geometric corner radius primitives (WinUI 3 / Fluent Design System)
+pub const OVERLAY_CORNER_RADIUS: f32 = 8.0;
+pub const CONTROL_CORNER_RADIUS: f32 = 4.0;
+pub const SMALL_CONTROL_CORNER_RADIUS: f32 = 2.0;
+pub const FULL_CORNER_RADIUS: f32 = 999.0;
+pub const SEAMLESS_CORNER_RADIUS: f32 = 0.0;
+
 /// All configurable dimensions (paddings, gaps, sizes) for the editor UI.
 #[derive(Debug, Clone, Serialize)]
 pub struct ThemeDimensions {
@@ -69,6 +76,8 @@ pub struct ThemeDimensions {
     pub code_block_padding_y: f32,
     /// Horizontal padding inside a code block.
     pub code_block_padding_x: f32,
+    /// Corner radius of fenced/raw code block containers.
+    pub code_block_radius: f32,
     /// Horizontal padding around inline code background quads.
     pub code_bg_pad_x: f32,
     /// Vertical padding around inline code background quads.
@@ -103,6 +112,8 @@ pub struct ThemeDimensions {
     pub table_append_activation_band: f32,
     /// Outer corner radius of the table container.
     pub table_border_radius: f32,
+    /// Corner radius of table drag handles.
+    pub table_handle_radius: f32,
     /// Width of the table handle pill.
     pub table_handle_width: f32,
     /// Height of the table handle pill.
@@ -137,7 +148,7 @@ pub struct ThemeDimensions {
     pub dialog_padding: f32,
     /// Gap between dialog sections.
     pub dialog_gap: f32,
-    /// Corner radius of the unsaved-changes dialog.
+    /// Corner radius of modal dialog cards.
     pub dialog_radius: f32,
     /// Border width of the unsaved-changes dialog.
     pub dialog_border_width: f32,
@@ -147,6 +158,14 @@ pub struct ThemeDimensions {
     pub dialog_button_gap: f32,
     /// Horizontal padding inside dialog action buttons.
     pub dialog_button_padding_x: f32,
+    /// Corner radius of standard action buttons.
+    pub button_radius: f32,
+    /// Corner radius of toolbar and header icon buttons.
+    pub icon_button_radius: f32,
+    /// Corner radius of editor and settings navigation tabs.
+    pub tab_radius: f32,
+    /// Corner radius of the 12px micro tab close button.
+    pub tab_close_button_radius: f32,
     /// Height reserved for the in-window fallback menu bar.
     pub menu_bar_height: f32,
     /// Horizontal padding inside the in-window fallback menu bar.
@@ -195,6 +214,14 @@ pub struct ThemeDimensions {
     pub context_menu_submenu_gap: f32,
     /// Width of the table-axis context menu panel.
     pub context_menu_axis_panel_width: f32,
+    /// Corner radius of select dropdown trigger buttons.
+    pub select_trigger_radius: f32,
+    /// Corner radius of select dropdown floating panels.
+    pub select_panel_radius: f32,
+    /// Corner radius of select dropdown option items.
+    pub select_option_radius: f32,
+    /// Corner radius of stepper containers and buttons.
+    pub stepper_radius: f32,
     /// Maximum width of the table-insert dialog.
     pub table_insert_dialog_width: f32,
     /// Gap between table-insert stepper label and controls.
@@ -207,6 +234,16 @@ pub struct ThemeDimensions {
     pub table_insert_stepper_value_padding_x: f32,
     /// Corner radius of table-insert stepper controls.
     pub table_insert_stepper_radius: f32,
+    /// Corner radius of explorer file-tree item rows.
+    pub tree_item_radius: f32,
+    /// Corner radius of outline tree node item rows.
+    pub outline_node_radius: f32,
+    /// Corner radius of outline and preview badges.
+    pub badge_radius: f32,
+    /// Corner radius of settings section cards.
+    pub section_card_radius: f32,
+    /// Corner radius of settings item rows.
+    pub settings_row_radius: f32,
     /// Height of the area top bar.
     pub topbar_height: f32,
     /// Height of the status bar.
@@ -258,6 +295,7 @@ struct ThemeDimensionsDe {
     separator_margin_y: Option<f32>,
     code_block_padding_y: f32,
     code_block_padding_x: f32,
+    code_block_radius: Option<f32>,
     code_bg_pad_x: f32,
     code_bg_pad_y: f32,
     code_bg_radius: f32,
@@ -275,6 +313,7 @@ struct ThemeDimensionsDe {
     table_append_button_inset: Option<f32>,
     table_append_activation_band: Option<f32>,
     table_border_radius: Option<f32>,
+    table_handle_radius: Option<f32>,
     table_handle_width: Option<f32>,
     table_handle_height: Option<f32>,
     table_selection_border_width: Option<f32>,
@@ -297,6 +336,10 @@ struct ThemeDimensionsDe {
     dialog_button_height: f32,
     dialog_button_gap: f32,
     dialog_button_padding_x: f32,
+    button_radius: Option<f32>,
+    icon_button_radius: Option<f32>,
+    tab_radius: Option<f32>,
+    tab_close_button_radius: Option<f32>,
     menu_bar_height: Option<f32>,
     menu_bar_padding_x: Option<f32>,
     menu_bar_padding_y: Option<f32>,
@@ -321,12 +364,21 @@ struct ThemeDimensionsDe {
     context_menu_submenu_width: Option<f32>,
     context_menu_submenu_gap: Option<f32>,
     context_menu_axis_panel_width: Option<f32>,
+    select_trigger_radius: Option<f32>,
+    select_panel_radius: Option<f32>,
+    select_option_radius: Option<f32>,
+    stepper_radius: Option<f32>,
     table_insert_dialog_width: Option<f32>,
     table_insert_stepper_gap: Option<f32>,
     table_insert_stepper_button_size: Option<f32>,
     table_insert_stepper_value_min_width: Option<f32>,
     table_insert_stepper_value_padding_x: Option<f32>,
     table_insert_stepper_radius: Option<f32>,
+    tree_item_radius: Option<f32>,
+    outline_node_radius: Option<f32>,
+    badge_radius: Option<f32>,
+    section_card_radius: Option<f32>,
+    settings_row_radius: Option<f32>,
     topbar_height: Option<f32>,
     bottombar_height: Option<f32>,
     bottombar_padding_x: Option<f32>,
@@ -355,7 +407,7 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             list_marker_width: raw.list_marker_width,
             ordered_list_marker_width: raw.ordered_list_marker_width,
             task_checkbox_size: raw.task_checkbox_size.unwrap_or(16.0),
-            task_checkbox_radius: raw.task_checkbox_radius.unwrap_or(2.0),
+            task_checkbox_radius: raw.task_checkbox_radius.unwrap_or(SMALL_CONTROL_CORNER_RADIUS),
             task_checkbox_border_width: raw.task_checkbox_border_width.unwrap_or(1.5),
             task_checkbox_check_size: raw.task_checkbox_check_size.unwrap_or(14.5),
             h1_padding_bottom: raw.h1_padding_bottom,
@@ -368,7 +420,7 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             callout_padding_x: raw.callout_padding_x.unwrap_or(8.0),
             callout_padding_y: raw.callout_padding_y.unwrap_or(10.0),
             callout_body_gap: raw.callout_body_gap.unwrap_or(8.0),
-            callout_radius: raw.callout_radius.unwrap_or(6.0),
+            callout_radius: raw.callout_radius.unwrap_or(CONTROL_CORNER_RADIUS),
             callout_border_width: raw.callout_border_width.unwrap_or(3.0),
             callout_header_gap: raw.callout_header_gap.unwrap_or(6.0),
             callout_header_margin_bottom: raw.callout_header_margin_bottom.unwrap_or(6.0),
@@ -377,6 +429,7 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             separator_margin_y: raw.separator_margin_y.unwrap_or(10.0),
             code_block_padding_y: raw.code_block_padding_y,
             code_block_padding_x: raw.code_block_padding_x,
+            code_block_radius: raw.code_block_radius.unwrap_or(CONTROL_CORNER_RADIUS),
             code_bg_pad_x: raw.code_bg_pad_x,
             code_bg_pad_y: raw.code_bg_pad_y,
             code_bg_radius: raw.code_bg_radius,
@@ -384,7 +437,7 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             code_language_input_height: raw.code_language_input_height.unwrap_or(18.0),
             code_language_input_padding_x: raw.code_language_input_padding_x.unwrap_or(8.0),
             code_language_input_padding_y: raw.code_language_input_padding_y.unwrap_or(3.0),
-            code_language_input_radius: raw.code_language_input_radius.unwrap_or(6.0),
+            code_language_input_radius: raw.code_language_input_radius.unwrap_or(CONTROL_CORNER_RADIUS),
             code_language_input_border_width: raw.code_language_input_border_width.unwrap_or(1.0),
             code_language_input_gap: raw.code_language_input_gap.unwrap_or(8.0),
             table_cell_padding_x: raw.table_cell_padding_x.unwrap_or(10.0),
@@ -393,11 +446,12 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             table_append_button_extent: raw.table_append_button_extent.unwrap_or(16.0),
             table_append_button_inset: raw.table_append_button_inset.unwrap_or(8.0),
             table_append_activation_band: raw.table_append_activation_band.unwrap_or(18.0),
-            table_border_radius: raw.table_border_radius.unwrap_or(4.0),
+            table_border_radius: raw.table_border_radius.unwrap_or(CONTROL_CORNER_RADIUS),
+            table_handle_radius: raw.table_handle_radius.unwrap_or(SMALL_CONTROL_CORNER_RADIUS),
             table_handle_width: raw.table_handle_width.unwrap_or(10.0),
             table_handle_height: raw.table_handle_height.unwrap_or(36.0),
             table_selection_border_width: raw.table_selection_border_width.unwrap_or(2.0),
-            image_radius: raw.image_radius.unwrap_or(12.0),
+            image_radius: raw.image_radius.unwrap_or(OVERLAY_CORNER_RADIUS),
             image_root_max_height: raw.image_root_max_height.unwrap_or(420.0),
             image_cell_max_height: raw.image_cell_max_height.unwrap_or(180.0),
             image_root_placeholder_height: raw.image_root_placeholder_height.unwrap_or(260.0),
@@ -416,6 +470,10 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             dialog_button_height: raw.dialog_button_height,
             dialog_button_gap: raw.dialog_button_gap,
             dialog_button_padding_x: raw.dialog_button_padding_x,
+            button_radius: raw.button_radius.unwrap_or(CONTROL_CORNER_RADIUS),
+            icon_button_radius: raw.icon_button_radius.unwrap_or(CONTROL_CORNER_RADIUS),
+            tab_radius: raw.tab_radius.unwrap_or(CONTROL_CORNER_RADIUS),
+            tab_close_button_radius: raw.tab_close_button_radius.unwrap_or(SMALL_CONTROL_CORNER_RADIUS),
             menu_bar_height: raw.menu_bar_height.unwrap_or(32.0),
             menu_bar_padding_x: raw.menu_bar_padding_x.unwrap_or(10.0),
             menu_bar_padding_y: raw.menu_bar_padding_y.unwrap_or(4.0),
@@ -423,16 +481,16 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             menu_bar_button_width: raw.menu_bar_button_width.unwrap_or(48.0),
             menu_bar_button_height: raw.menu_bar_button_height.unwrap_or(24.0),
             menu_bar_button_padding_x: raw.menu_bar_button_padding_x.unwrap_or(8.0),
-            menu_bar_button_radius: raw.menu_bar_button_radius.unwrap_or(3.0),
+            menu_bar_button_radius: raw.menu_bar_button_radius.unwrap_or(CONTROL_CORNER_RADIUS),
             menu_text_size: raw.menu_text_size.unwrap_or(11.0),
             menu_panel_top: raw.menu_panel_top.unwrap_or(2.0),
             menu_panel_width: raw.menu_panel_width.unwrap_or(180.0),
             menu_panel_padding: raw.menu_panel_padding.unwrap_or(4.0),
             menu_panel_gap: raw.menu_panel_gap.unwrap_or(1.0),
-            menu_panel_radius: raw.menu_panel_radius.unwrap_or(3.0),
+            menu_panel_radius: raw.menu_panel_radius.unwrap_or(OVERLAY_CORNER_RADIUS),
             menu_item_height: raw.menu_item_height.unwrap_or(28.0),
             menu_item_padding_x: raw.menu_item_padding_x.unwrap_or(8.0),
-            menu_item_radius: raw.menu_item_radius.unwrap_or(3.0),
+            menu_item_radius: raw.menu_item_radius.unwrap_or(CONTROL_CORNER_RADIUS),
             menu_separator_margin_x: raw.menu_separator_margin_x.unwrap_or(6.0),
             menu_separator_margin_y: raw.menu_separator_margin_y.unwrap_or(3.0),
             menu_separator_height: raw.menu_separator_height.unwrap_or(1.0),
@@ -440,6 +498,10 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             context_menu_submenu_width: raw.context_menu_submenu_width.unwrap_or(148.0),
             context_menu_submenu_gap: raw.context_menu_submenu_gap.unwrap_or(2.0),
             context_menu_axis_panel_width: raw.context_menu_axis_panel_width.unwrap_or(164.0),
+            select_trigger_radius: raw.select_trigger_radius.unwrap_or(CONTROL_CORNER_RADIUS),
+            select_panel_radius: raw.select_panel_radius.unwrap_or(OVERLAY_CORNER_RADIUS),
+            select_option_radius: raw.select_option_radius.unwrap_or(CONTROL_CORNER_RADIUS),
+            stepper_radius: raw.stepper_radius.unwrap_or(CONTROL_CORNER_RADIUS),
             table_insert_dialog_width: raw.table_insert_dialog_width.unwrap_or(380.0),
             table_insert_stepper_gap: raw.table_insert_stepper_gap.unwrap_or(8.0),
             table_insert_stepper_button_size: raw.table_insert_stepper_button_size.unwrap_or(32.0),
@@ -449,7 +511,12 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             table_insert_stepper_value_padding_x: raw
                 .table_insert_stepper_value_padding_x
                 .unwrap_or(10.0),
-            table_insert_stepper_radius: raw.table_insert_stepper_radius.unwrap_or(8.0),
+            table_insert_stepper_radius: raw.table_insert_stepper_radius.unwrap_or(CONTROL_CORNER_RADIUS),
+            tree_item_radius: raw.tree_item_radius.unwrap_or(CONTROL_CORNER_RADIUS),
+            outline_node_radius: raw.outline_node_radius.unwrap_or(CONTROL_CORNER_RADIUS),
+            badge_radius: raw.badge_radius.unwrap_or(CONTROL_CORNER_RADIUS),
+            section_card_radius: raw.section_card_radius.unwrap_or(OVERLAY_CORNER_RADIUS),
+            settings_row_radius: raw.settings_row_radius.unwrap_or(CONTROL_CORNER_RADIUS),
             topbar_height: raw.topbar_height.unwrap_or(28.0),
             bottombar_height: raw.bottombar_height.unwrap_or(28.0),
             bottombar_padding_x: raw.bottombar_padding_x.unwrap_or(12.0),
@@ -457,7 +524,7 @@ impl<'de> Deserialize<'de> for ThemeDimensions {
             bottombar_text_size: raw.bottombar_text_size.unwrap_or(11.0),
             panel_tile_gap: raw.panel_tile_gap.or(raw.area_tile_gap).unwrap_or(6.0),
             pane_gap: raw.pane_gap.unwrap_or(3.0),
-            panel_tile_radius: raw.panel_tile_radius.unwrap_or(3.0),
+            panel_tile_radius: raw.panel_tile_radius.unwrap_or(CONTROL_CORNER_RADIUS),
         })
     }
 }

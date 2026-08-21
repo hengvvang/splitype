@@ -210,7 +210,7 @@ impl crate::editor::controller::Editor {
                                 .flex()
                                 .items_center()
                                 .justify_center()
-                                .rounded(px(2.0))
+                                .rounded(px(d.tab_close_button_radius))
                                 .hover(|this| this.bg(c.dialog_secondary_button_bg.opacity(0.6)))
                                 .cursor_pointer()
                                 .child(
@@ -238,7 +238,7 @@ impl crate::editor::controller::Editor {
                     .flex()
                     .items_center()
                     .justify_center()
-                    .rounded(px(d.menu_item_radius))
+                    .rounded(px(d.icon_button_radius))
                     .hover(|this| this.bg(c.dialog_secondary_button_hover))
                     .cursor_pointer()
                     .text_color(c.dialog_muted)

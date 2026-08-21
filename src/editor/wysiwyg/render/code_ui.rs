@@ -127,7 +127,7 @@ impl Block {
             .gap(px(2.0))
             .p(px(2.0))
             .h(px(toolbar_height))
-            .rounded(px(d.menu_item_radius))
+            .rounded(px(d.button_radius))
             .border_1()
             // The toolbar hugs the code-block background's top-right corner
             // with equal insets; its border follows the editor background so
@@ -146,7 +146,7 @@ impl Block {
                     .items_center()
                     .gap(px(4.0))
                     .px(px(8.0))
-                    .rounded(px(d.menu_item_radius - 2.0))
+                    .rounded(px(d.button_radius))
                     .hover(|this| this.bg(c.dialog_secondary_button_hover))
                     .active(|this| this.opacity(0.9))
                     .cursor_pointer()
@@ -276,7 +276,7 @@ impl Block {
                     .h(px(28.0))
                     .px(px(8.0))
                     .py(px(3.0))
-                    .rounded(px(d.menu_item_radius))
+                    .rounded(px(d.code_language_input_radius))
                     .border_1()
                     .border_color(c.dialog_border)
                     .bg(c.dialog_secondary_button_bg)

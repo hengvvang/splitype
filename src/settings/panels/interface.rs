@@ -107,7 +107,7 @@ impl Shell {
                     };
 
                     menu_items.push(
-                        select_option(ElementId::Name(format!("theme-item-{}", t_id).into()), c)
+                        select_option(ElementId::Name(format!("theme-item-{}", t_id).into()), c, d)
                             .bg(if is_selected {
                                 c.panel_row_selected
                             } else {
@@ -151,7 +151,7 @@ impl Shell {
                 }
 
                 theme_btn_wrap =
-                    theme_btn_wrap.child(gpui::deferred(select_panel(c).children(menu_items)));
+                    theme_btn_wrap.child(gpui::deferred(select_panel(c, d).children(menu_items)));
             }
 
             sec1_items.push(make_row(
@@ -197,7 +197,7 @@ impl Shell {
                     let item_shell = lang_shell.clone();
 
                     menu_items.push(
-                        select_option(ElementId::Name(format!("lang-item-{}", code).into()), c)
+                        select_option(ElementId::Name(format!("lang-item-{}", code).into()), c, d)
                             .bg(if is_selected {
                                 c.panel_row_selected
                             } else {
@@ -226,7 +226,7 @@ impl Shell {
                 }
 
                 lang_btn_wrap =
-                    lang_btn_wrap.child(gpui::deferred(select_panel(c).children(menu_items)));
+                    lang_btn_wrap.child(gpui::deferred(select_panel(c, d).children(menu_items)));
             }
 
             sec1_items.push(make_row(

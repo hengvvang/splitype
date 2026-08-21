@@ -97,6 +97,7 @@ impl SettingsWindow {
                     select_option(
                         ElementId::Name(format!("win-theme-item-{}", t_id).into()),
                         c,
+                        d,
                     )
                     .bg(if is_selected {
                         c.panel_row_selected
@@ -139,7 +140,7 @@ impl SettingsWindow {
             }
 
             theme_btn_wrap =
-                theme_btn_wrap.child(gpui::deferred(select_panel(c).children(menu_items)));
+                theme_btn_wrap.child(gpui::deferred(select_panel(c, d).children(menu_items)));
         }
 
         sec1_items.push(make_row(
@@ -190,7 +191,7 @@ impl SettingsWindow {
                 let item_ed = cx.entity().downgrade();
 
                 menu_items.push(
-                    select_option(ElementId::Name(format!("win-lang-item-{}", code).into()), c)
+                    select_option(ElementId::Name(format!("win-lang-item-{}", code).into()), c, d)
                         .bg(if is_selected {
                             c.panel_row_selected
                         } else {
@@ -220,7 +221,7 @@ impl SettingsWindow {
             }
 
             lang_btn_wrap =
-                lang_btn_wrap.child(gpui::deferred(select_panel(c).children(menu_items)));
+                lang_btn_wrap.child(gpui::deferred(select_panel(c, d).children(menu_items)));
         }
 
         sec1_items.push(make_row(

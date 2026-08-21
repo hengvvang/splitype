@@ -283,7 +283,7 @@ impl Block {
             && let Some(background) = style.background_color
         {
             element = element
-                .rounded(px(3.0))
+                .rounded(px(theme.dimensions.code_bg_radius))
                 .px(px(2.0))
                 .bg(html_css_color_to_hsla(background, color));
         }

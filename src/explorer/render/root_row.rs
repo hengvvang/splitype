@@ -208,6 +208,7 @@ impl Shell {
             .gap(px(6.0))
             .pl(px(6.0))
             .pr(px(4.0))
+            .rounded(px(theme.dimensions.tree_item_radius))
             .bg(if is_drag_target {
                 c.callout_tip_bg
             } else if selected {

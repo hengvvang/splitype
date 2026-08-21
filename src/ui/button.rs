@@ -14,7 +14,7 @@ use gpui::*;
 
 use crate::infra::theme::{ThemeColors, ThemeDimensions};
 
-/// Standard primary action button (36px height, large radius).
+/// Standard primary action button (36px height, standard radius).
 pub fn primary_button(
     id: impl Into<ElementId>,
     c: &ThemeColors,
@@ -24,14 +24,14 @@ pub fn primary_button(
         id,
         d,
         d.dialog_button_height,
-        (d.dialog_radius - 4.0).max(0.0),
+        d.button_radius,
     )
     .bg(c.dialog_primary_button_bg)
     .text_color(c.dialog_primary_button_text)
     .hover(|this| this.bg(c.dialog_primary_button_hover))
 }
 
-/// Standard secondary action button (36px height, large radius).
+/// Standard secondary action button (36px height, standard radius).
 pub fn secondary_button(
     id: impl Into<ElementId>,
     c: &ThemeColors,
@@ -41,7 +41,7 @@ pub fn secondary_button(
         id,
         d,
         d.dialog_button_height,
-        (d.dialog_radius - 4.0).max(0.0),
+        d.button_radius,
     )
     .border(px(d.dialog_border_width))
     .border_color(c.dialog_border)
@@ -50,25 +50,25 @@ pub fn secondary_button(
     .hover(|this| this.bg(c.dialog_secondary_button_hover))
 }
 
-/// Compact primary action button (32px height, small radius).
+/// Compact primary action button (32px height, standard radius).
 pub fn compact_primary_button(
     id: impl Into<ElementId>,
     c: &ThemeColors,
     d: &ThemeDimensions,
 ) -> Stateful<Div> {
-    action_base(id, d, 32.0, d.menu_item_radius)
+    action_base(id, d, 32.0, d.button_radius)
         .bg(c.dialog_primary_button_bg)
         .text_color(c.dialog_primary_button_text)
         .hover(|this| this.bg(c.dialog_primary_button_hover))
 }
 
-/// Compact secondary action button (32px height, small radius).
+/// Compact secondary action button (32px height, standard radius).
 pub fn compact_secondary_button(
     id: impl Into<ElementId>,
     c: &ThemeColors,
     d: &ThemeDimensions,
 ) -> Stateful<Div> {
-    action_base(id, d, 32.0, d.menu_item_radius)
+    action_base(id, d, 32.0, d.button_radius)
         .border(px(d.dialog_border_width))
         .border_color(c.dialog_border)
         .bg(c.dialog_secondary_button_bg)
@@ -76,13 +76,13 @@ pub fn compact_secondary_button(
         .hover(|this| this.bg(c.dialog_secondary_button_hover))
 }
 
-/// Compact destructive action button (32px height, small radius).
+/// Compact destructive action button (32px height, standard radius).
 pub fn compact_danger_button(
     id: impl Into<ElementId>,
     c: &ThemeColors,
     d: &ThemeDimensions,
 ) -> Stateful<Div> {
-    action_base(id, d, 32.0, d.menu_item_radius)
+    action_base(id, d, 32.0, d.button_radius)
         .border(px(d.dialog_border_width))
         .border_color(c.dialog_border)
         .bg(c.dialog_danger_button_bg)
@@ -104,7 +104,7 @@ pub fn icon_button(
         .flex()
         .items_center()
         .justify_center()
-        .rounded(px(d.menu_item_radius - 2.0))
+        .rounded(px(d.icon_button_radius))
         .hover(|this| this.bg(c.dialog_secondary_button_hover))
         .active(|this| this.opacity(0.9))
         .cursor_pointer()
@@ -115,7 +115,7 @@ pub fn icon_button(
 pub fn icon_chip_button(c: &ThemeColors, d: &ThemeDimensions) -> Div {
     div()
         .p(px(3.0))
-        .rounded(px(d.menu_item_radius))
+        .rounded(px(d.icon_button_radius))
         .hover(|this| this.bg(c.dialog_secondary_button_hover))
         .cursor_pointer()
 }
@@ -130,7 +130,7 @@ pub fn small_pill_button(c: &ThemeColors, d: &ThemeDimensions) -> Div {
         .flex()
         .items_center()
         .gap(px(4.0))
-        .rounded(px(d.menu_item_radius))
+        .rounded(px(d.tab_radius))
         .bg(c.dialog_secondary_button_bg)
         .hover(|this| this.bg(c.dialog_secondary_button_hover))
         .cursor_pointer()

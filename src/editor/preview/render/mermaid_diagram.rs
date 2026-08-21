@@ -95,7 +95,7 @@ pub(crate) fn render_preview_mermaid_diagram(
             .flex()
             .flex_col()
             .gap(px(4.0))
-            .rounded_sm()
+            .rounded(px(d.code_block_radius))
             .bg(c.source_mode_block_bg)
             .px(px(d.block_padding_x))
             .py(px(d.block_padding_y))

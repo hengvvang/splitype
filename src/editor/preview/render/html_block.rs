@@ -35,7 +35,7 @@ pub(crate) fn render_preview_html_block(block: &Block, base: Div, theme: &Theme)
     if !html.is_semantic() {
         return base
             .w_full()
-            .rounded_sm()
+            .rounded(px(d.code_block_radius))
             .bg(c.source_mode_block_bg)
             .px(px(d.block_padding_x))
             .py(px(d.block_padding_y))
@@ -69,7 +69,7 @@ fn render_preview_html_node(
     if node.kind == HtmlNodeKind::RawTextBlock {
         return div()
             .w_full()
-            .rounded_sm()
+            .rounded(px(d.menu_item_radius))
             .bg(c.source_mode_block_bg)
             .px(px(d.block_padding_x * 0.6))
             .py(px(d.block_padding_y * 0.6))
@@ -100,7 +100,7 @@ fn render_preview_html_node(
         "code" | "kbd" => {
             let mut element = div()
                 .flex()
-                .rounded(px(4.0))
+                .rounded(px(theme.dimensions.code_bg_radius))
                 .px(px(4.0))
                 .text_size(px(node_style.computed.font_size))
                 .text_color(node_style.computed.color)
@@ -129,7 +129,7 @@ fn render_preview_html_node(
                     div().child("\u{201D}").into_any_element(),
                 ]);
             if let Some(bg) = node_style.background {
-                element = element.bg(bg).rounded(px(3.0)).px(px(2.0));
+                element = element.bg(bg).rounded(px(theme.dimensions.code_bg_radius)).px(px(2.0));
             }
             element.into_any_element()
         }
@@ -162,7 +162,7 @@ fn render_preview_html_node(
         "pre" => {
             let mut element = div()
                 .w_full()
-                .rounded_sm()
+                .rounded(px(d.code_block_radius))
                 .px(px(d.code_block_padding_x))
                 .py(px(d.code_block_padding_y))
                 .text_size(px(node_style.computed.font_size))
@@ -318,7 +318,7 @@ fn render_preview_html_inline_container(
                 .map(|child| render_preview_html_node(child, theme, node_style.computed)),
         );
     if let Some(bg) = node_style.background {
-        element = element.bg(bg).rounded(px(3.0)).px(px(2.0));
+        element = element.bg(bg).rounded(px(theme.dimensions.code_bg_radius)).px(px(2.0));
     }
     match node.tag_name.as_str() {
         "sup" => {
@@ -397,7 +397,7 @@ fn render_preview_html_details(
     let mut container =
         div()
             .w_full()
-            .rounded_sm()
+            .rounded(px(theme.dimensions.code_block_radius))
             .border(px(1.0))
             .border_color(theme.colors.table_border)
             .px(px(theme.dimensions.block_padding_x))
