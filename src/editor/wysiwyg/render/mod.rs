@@ -154,7 +154,11 @@ impl Block {
             .min_w(px(0.0))
             .flex_shrink_0()
             .min_h(px(dimensions.block_min_height))
-            .py(px(dimensions.block_padding_y))
+            .py(if matches!(self.kind(), BlockKind::CodeBlock { .. } | BlockKind::MathBlock | BlockKind::MermaidBlock) {
+                px(0.0)
+            } else {
+                px(dimensions.block_padding_y)
+            })
             .pl(px(padding_left))
             .pr(px(padding_right))
             .cursor(cursor_style);
@@ -442,8 +446,16 @@ impl Render for Block {
             } else {
                 CursorStyle::IBeam
             },
-            depth_padding,
-            d.block_padding_x,
+            if matches!(self.kind(), BlockKind::CodeBlock { .. } | BlockKind::MathBlock | BlockKind::MermaidBlock) {
+                0.0
+            } else {
+                depth_padding
+            },
+            if matches!(self.kind(), BlockKind::CodeBlock { .. } | BlockKind::MathBlock | BlockKind::MermaidBlock) {
+                0.0
+            } else {
+                d.block_padding_x
+            },
             d,
             cx,
         );

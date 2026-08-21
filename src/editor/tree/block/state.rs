@@ -149,6 +149,8 @@ pub(crate) struct CodeLanguagePickerState {
     pub(crate) is_selecting: bool,
     /// Per-pane paints of the code-language input, resolved by pointer containment.
     pub(crate) paints: Vec<CodeLanguageLastPaint>,
+    /// Scroll handle for the language picker options list.
+    pub(crate) scroll_handle: ScrollHandle,
 }
 
 impl CodeLanguagePickerState {
@@ -157,6 +159,7 @@ impl CodeLanguagePickerState {
         self.is_open = true;
         self.query.clear();
         self.reset_selection();
+        self.scroll_handle = ScrollHandle::new();
     }
 
     /// Closes the picker and resets search/selection state.

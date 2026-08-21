@@ -23,8 +23,9 @@ pub(crate) fn render_mermaid_diagram(
     let d = &theme.dimensions;
 
     let mermaid_preview = block.render_mermaid_content(theme, window);
+    let is_editing = focused || code_language_focused || block.code_toolbar.picker.is_open;
 
-    if !focused {
+    if !is_editing {
         block.last_paints.clear();
 
         // Unfocused: outer rect (no border, transparent) with inner fitted diagram

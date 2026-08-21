@@ -2,8 +2,6 @@
 
 use crate::ui::menu_item::menu_item;
 
-use crate::ui::button::icon_button;
-
 use gpui::*;
 
 use super::BLOCK_EDITOR_CONTEXT;
@@ -106,21 +104,15 @@ impl Block {
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let t = &theme.typography;
-        let toolbar_height = 28.0;
-        // Center the toolbar vertically on the code block's first text line
-        // (content starts below `code_block_padding_y`) and keep it at the
-        // line's right edge.
-        let line_height = t.code_size * t.text_line_height;
-        let top = d.code_block_padding_y + (line_height - toolbar_height) * 0.5;
+        let toolbar_height = 26.0;
 
         div()
             .id(ElementId::Name(
                 format!("code-toolbar-{}", self.data.id).into(),
             ))
             .absolute()
-            .top(px(top))
-            .right(px(6.0))
+            .top(px(4.0))
+            .right(px(4.0))
             .opacity(if show_toolbar { 1.0 } else { 0.0 })
             .flex()
             .items_center()
@@ -128,13 +120,10 @@ impl Block {
             .p(px(2.0))
             .h(px(toolbar_height))
             .rounded(px(d.button_radius))
+            .bg(c.code_language_input_bg)
             .border_1()
-            // The toolbar hugs the code-block background's top-right corner
-            // with equal insets; its border follows the editor background so
-            // it is black on dark themes and white on light themes.
-            .border_color(c.editor_background)
-            .bg(gpui::transparent_black())
-            .text_size(px(11.5))
+            .border_color(c.table_border)
+            .text_size(px(12.0))
             .text_color(c.code_language_input_text)
             .child(
                 div()
@@ -158,48 +147,64 @@ impl Block {
                     .child(
                         svg()
                             .path("icons/editor/wysiwyg/codeblock/select-chevron.svg")
-                            .size(px(14.0))
+                            .size(px(12.0))
                             .text_color(c.dialog_muted),
                     ),
             )
             .child(div().w(px(1.0)).h(px(14.0)).bg(c.table_border))
             .child(
-                icon_button(
-                    ElementId::Name(format!("code-line-numbers-{}", self.data.id).into()),
-                    c,
-                    d,
-                )
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(Self::on_code_line_numbers_toggle),
-                )
-                .child(
-                    svg()
-                        .path("icons/editor/wysiwyg/codeblock/line-numbers.svg")
-                        .size(px(14.0))
-                        .text_color(if self.show_code_line_numbers {
-                            c.code_language_input_text
-                        } else {
-                            c.code_language_input_placeholder
-                        }),
-                ),
+                div()
+                    .id(ElementId::Name(
+                        format!("code-line-numbers-{}", self.data.id).into(),
+                    ))
+                    .h_full()
+                    .px(px(6.0))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .rounded(px(d.icon_button_radius))
+                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                    .active(|this| this.opacity(0.9))
+                    .cursor_pointer()
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(Self::on_code_line_numbers_toggle),
+                    )
+                    .child(
+                        svg()
+                            .path("icons/editor/wysiwyg/codeblock/line-numbers.svg")
+                            .size(px(14.0))
+                            .text_color(if self.show_code_line_numbers {
+                                c.code_language_input_text
+                            } else {
+                                c.dialog_muted
+                            }),
+                    ),
             )
             .child(
-                icon_button(
-                    ElementId::Name(format!("code-copy-{}", self.data.id).into()),
-                    c,
-                    d,
-                )
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(Self::on_code_copy_button_mouse_down),
-                )
-                .child(
-                    svg()
-                        .path("icons/editor/wysiwyg/codeblock/copy.svg")
-                        .size(px(14.0))
-                        .text_color(c.code_language_input_text),
-                ),
+                div()
+                    .id(ElementId::Name(
+                        format!("code-copy-{}", self.data.id).into(),
+                    ))
+                    .h_full()
+                    .px(px(6.0))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .rounded(px(d.icon_button_radius))
+                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
+                    .active(|this| this.opacity(0.9))
+                    .cursor_pointer()
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(Self::on_code_copy_button_mouse_down),
+                    )
+                    .child(
+                        svg()
+                            .path("icons/editor/wysiwyg/codeblock/copy.svg")
+                            .size(px(14.0))
+                            .text_color(c.code_language_input_text),
+                    ),
             )
             .into_any_element()
     }
@@ -213,7 +218,7 @@ impl Block {
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let toolbar_height = 28.0;
+        let toolbar_height = 26.0;
         let options = code_language_options_matching(&self.code_toolbar.picker.query);
         let selected_language = current_language.to_string();
 
@@ -222,10 +227,12 @@ impl Block {
                 format!("code-picker-container-{}", self.data.id).into(),
             ))
             .absolute()
-            .top(px(toolbar_height + 5.0))
-            .right(px(3.0))
+            .top(px(toolbar_height + 8.0))
+            .right(px(4.0))
             .occlude()
-            .block_mouse_except_scroll()
+            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+            .on_mouse_up(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+            .on_scroll_wheel(|_, _, cx| cx.stop_propagation())
             .w(px(230.0))
             .max_h(px(320.0))
             .flex()
@@ -294,6 +301,7 @@ impl Block {
                     .id(ElementId::Name(
                         format!("code-language-list-{}", self.data.id).into(),
                     ))
+                    .track_scroll(&self.code_toolbar.picker.scroll_handle)
                     .w_full()
                     .max_h(px(250.0))
                     .flex()
