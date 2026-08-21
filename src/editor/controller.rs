@@ -931,21 +931,17 @@ impl Editor {
         &mut self.session.tab_list
     }
 
-    /// The active editor's tab, if the editor has tabs.
-    pub(crate) fn active_editor_tab(&self) -> Option<&DocumentTab> {
+    /// The active tab of this editor, if any.
+    #[inline]
+    pub(crate) fn active_tab(&self) -> Option<&DocumentTab> {
         let list = &self.session.tab_list;
         list.tabs.get(list.active_tab)
     }
 
-    /// The active editor's serialized document text, if any.
-    #[allow(dead_code)]
-    pub(crate) fn active_editor_serialized_text(&self, cx: &App) -> Option<String> {
-        let tab = self.active_editor_tab()?;
-        Some(if tab.mode == EditorPaneKind::SourceCode {
-            tab.document.serialize_source_text(cx)
-        } else {
-            tab.document.serialize_markdown(cx)
-        })
+    /// Alias for `active_tab` for shell compatibility.
+    #[inline]
+    pub(crate) fn active_editor_tab(&self) -> Option<&DocumentTab> {
+        self.active_tab()
     }
 
     /// Split `panel_id` with a same-kind sibling and seed the new Editor

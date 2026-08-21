@@ -46,8 +46,8 @@ impl crate::editor::controller::Editor {
                 )
             })
             .on_click(move |_event, _window, cx| {
-                let _ = type_editor.update(cx, |ed, cx| {
-                    ed.defer_shell_action(cx, move |shell, cx| {
+                let _ = type_editor.update(cx, |editor, cx| {
+                    editor.defer_shell_action(cx, move |shell, cx| {
                         shell.toggle_panel_dropdown(panel_id, cx);
                     });
                     cx.notify();
@@ -64,9 +64,9 @@ impl crate::editor::controller::Editor {
                     .text_color(c.dialog_muted),
             )
             .on_click(move |_event, _window, cx| {
-                let _ = split_h_editor.update(cx, |ed, cx| {
+                let _ = split_h_editor.update(cx, |editor, cx| {
                     // Same-kind split; Editor panels deep-copy their tabs.
-                    ed.defer_shell_action(cx, move |shell, cx| {
+                    editor.defer_shell_action(cx, move |shell, cx| {
                         shell.split_panel(panel_id, SplitAxis::Horizontal, 0.5, true, cx);
                     });
                     cx.notify();
@@ -83,9 +83,9 @@ impl crate::editor::controller::Editor {
                     .text_color(c.dialog_muted),
             )
             .on_click(move |_event, _window, cx| {
-                let _ = split_v_editor.update(cx, |ed, cx| {
+                let _ = split_v_editor.update(cx, |editor, cx| {
                     // Same-kind split; Editor panels deep-copy their tabs.
-                    ed.defer_shell_action(cx, move |shell, cx| {
+                    editor.defer_shell_action(cx, move |shell, cx| {
                         shell.split_panel(panel_id, SplitAxis::Vertical, 0.5, true, cx);
                     });
                     cx.notify();

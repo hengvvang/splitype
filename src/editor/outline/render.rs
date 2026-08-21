@@ -65,11 +65,6 @@ impl Editor {
         cx.notify();
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn select_outline_node(&mut self, id: String, cx: &mut Context<Self>) {
-        self.outline.selected = Some(id);
-        cx.notify();
-    }
     pub(crate) fn render_outline_tree(
         &self,
         panel_id: usize,
