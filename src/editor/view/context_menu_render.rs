@@ -209,7 +209,7 @@ impl Editor {
                         Self::render_axis_menu_item(
                             theme,
                             "table-axis-insert-column-left",
-                            "Insert Column Left".to_string(),
+                            s.table_axis_insert_column_left.clone(),
                             true,
                             false,
                             Self::on_insert_table_column_left,
@@ -218,7 +218,7 @@ impl Editor {
                         Self::render_axis_menu_item(
                             theme,
                             "table-axis-insert-column-right",
-                            "Insert Column Right".to_string(),
+                            s.table_axis_insert_column_right.clone(),
                             true,
                             false,
                             Self::on_insert_table_column_right,
@@ -227,7 +227,7 @@ impl Editor {
                         Self::render_axis_menu_item(
                             theme,
                             "table-axis-duplicate-column",
-                            "Duplicate Column".to_string(),
+                            s.table_axis_duplicate_column.clone(),
                             true,
                             false,
                             Self::on_duplicate_table_column,
@@ -313,7 +313,7 @@ impl Editor {
                             Self::render_axis_menu_item(
                                 theme,
                                 "table-axis-insert-row-above",
-                                "Insert Row Above".to_string(),
+                                s.table_axis_insert_row_above.clone(),
                                 true,
                                 false,
                                 Self::on_insert_table_row_above,
@@ -322,7 +322,7 @@ impl Editor {
                             Self::render_axis_menu_item(
                                 theme,
                                 "table-axis-insert-row-below",
-                                "Insert Row Below".to_string(),
+                                s.table_axis_insert_row_below.clone(),
                                 true,
                                 false,
                                 Self::on_insert_table_row_below,
@@ -331,7 +331,7 @@ impl Editor {
                             Self::render_axis_menu_item(
                                 theme,
                                 "table-axis-duplicate-row",
-                                "Duplicate Row".to_string(),
+                                s.table_axis_duplicate_row.clone(),
                                 true,
                                 false,
                                 Self::on_duplicate_table_row,

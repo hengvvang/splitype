@@ -294,6 +294,18 @@ pub struct I18nStrings {
     pub context_menu_insert: String,
     /// Insert submenu item for tables.
     pub context_menu_table: String,
+    /// Table-axis menu item for inserting a column to the left.
+    pub table_axis_insert_column_left: String,
+    /// Table-axis menu item for inserting a column to the right.
+    pub table_axis_insert_column_right: String,
+    /// Table-axis menu item for duplicating a column.
+    pub table_axis_duplicate_column: String,
+    /// Table-axis menu item for inserting a row above.
+    pub table_axis_insert_row_above: String,
+    /// Table-axis menu item for inserting a row below.
+    pub table_axis_insert_row_below: String,
+    /// Table-axis menu item for duplicating a row.
+    pub table_axis_duplicate_row: String,
     /// Table-axis menu item for left-aligning a column.
     pub table_axis_align_column_left: String,
     /// Table-axis menu item for center-aligning a column.
@@ -525,6 +537,12 @@ pub struct I18nStringsDe {
     view_mode_switch_to_rendered: Option<String>,
     context_menu_insert: Option<String>,
     context_menu_table: Option<String>,
+    table_axis_insert_column_left: Option<String>,
+    table_axis_insert_column_right: Option<String>,
+    table_axis_duplicate_column: Option<String>,
+    table_axis_insert_row_above: Option<String>,
+    table_axis_insert_row_below: Option<String>,
+    table_axis_duplicate_row: Option<String>,
     table_axis_align_column_left: Option<String>,
     table_axis_align_column_center: Option<String>,
     table_axis_align_column_right: Option<String>,
@@ -728,6 +746,12 @@ pub const I18N_STRING_KEYS: &[&str] = &[
     "view_mode_switch_to_rendered",
     "context_menu_insert",
     "context_menu_table",
+    "table_axis_insert_column_left",
+    "table_axis_insert_column_right",
+    "table_axis_duplicate_column",
+    "table_axis_insert_row_above",
+    "table_axis_insert_row_below",
+    "table_axis_duplicate_row",
     "table_axis_align_column_left",
     "table_axis_align_column_center",
     "table_axis_align_column_right",
@@ -1197,6 +1221,24 @@ impl I18nStringsDe {
             context_menu_table: self
                 .context_menu_table
                 .unwrap_or(defaults.context_menu_table),
+            table_axis_insert_column_left: self
+                .table_axis_insert_column_left
+                .unwrap_or(defaults.table_axis_insert_column_left),
+            table_axis_insert_column_right: self
+                .table_axis_insert_column_right
+                .unwrap_or(defaults.table_axis_insert_column_right),
+            table_axis_duplicate_column: self
+                .table_axis_duplicate_column
+                .unwrap_or(defaults.table_axis_duplicate_column),
+            table_axis_insert_row_above: self
+                .table_axis_insert_row_above
+                .unwrap_or(defaults.table_axis_insert_row_above),
+            table_axis_insert_row_below: self
+                .table_axis_insert_row_below
+                .unwrap_or(defaults.table_axis_insert_row_below),
+            table_axis_duplicate_row: self
+                .table_axis_duplicate_row
+                .unwrap_or(defaults.table_axis_duplicate_row),
             table_axis_align_column_left: self
                 .table_axis_align_column_left
                 .unwrap_or(defaults.table_axis_align_column_left),
@@ -1460,6 +1502,12 @@ impl I18nStrings {
             view_mode_switch_to_rendered: "切换到渲染".into(),
             context_menu_insert: "插入".into(),
             context_menu_table: "表格".into(),
+            table_axis_insert_column_left: "在左侧插入列".into(),
+            table_axis_insert_column_right: "在右侧插入列".into(),
+            table_axis_duplicate_column: "复制列".into(),
+            table_axis_insert_row_above: "在上方插入行".into(),
+            table_axis_insert_row_below: "在下方插入行".into(),
+            table_axis_duplicate_row: "复制行".into(),
             table_axis_align_column_left: "左对齐此列".into(),
             table_axis_align_column_center: "居中此列".into(),
             table_axis_align_column_right: "右对齐此列".into(),
@@ -1691,6 +1739,12 @@ impl I18nStrings {
             view_mode_switch_to_rendered: "Switch to Rendered".into(),
             context_menu_insert: "Insert".into(),
             context_menu_table: "Table".into(),
+            table_axis_insert_column_left: "Insert Column Left".into(),
+            table_axis_insert_column_right: "Insert Column Right".into(),
+            table_axis_duplicate_column: "Duplicate Column".into(),
+            table_axis_insert_row_above: "Insert Row Above".into(),
+            table_axis_insert_row_below: "Insert Row Below".into(),
+            table_axis_duplicate_row: "Duplicate Row".into(),
             table_axis_align_column_left: "Align Column Left".into(),
             table_axis_align_column_center: "Align Column Center".into(),
             table_axis_align_column_right: "Align Column Right".into(),

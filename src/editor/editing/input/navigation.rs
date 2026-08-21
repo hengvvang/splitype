@@ -235,6 +235,9 @@ impl Editor {
             return;
         };
         if next >= total_rows * columns {
+            if delta > 0 {
+                self.append_table_row(table_block, cx);
+            }
             return;
         }
 
