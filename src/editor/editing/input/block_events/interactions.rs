@@ -99,11 +99,11 @@ impl Editor {
                     // focus that, matching how a trailing table behaves.
                     if block.read(cx).kind().is_multiline_text_block() {
                         self.ensure_trailing_paragraph_after_structural(block, cx);
-                        let entry = self.doc().flatten_entries();
-                        if let Some(landing) = entry
+                        let entries = self.doc().cloned_entries();
+                        if let Some(landing) = entries
                             .iter()
                             .position(|v| v.entity.entity_id() == block.entity_id())
-                            .and_then(|index| entry.get(index + 1))
+                            .and_then(|index| entries.get(index + 1))
                             .map(|v| v.entity.clone())
                         {
                             self.focus_block(landing.entity_id());
@@ -166,7 +166,7 @@ impl Editor {
                 self.clear_table_axis_preview(cx);
                 self.clear_table_axis_selection(cx);
                 self.focus_block(block.entity_id());
-                for entry in self.doc().flatten_entries() {
+                for entry in self.doc().blocks() {
                     entry.entity.update(cx, |_, cx| cx.notify());
                 }
                 cx.notify();

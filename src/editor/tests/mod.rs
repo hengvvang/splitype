@@ -112,6 +112,3 @@ fn focus_first_block(editor: &gpui::Entity<Editor>, cx: &mut gpui::VisualTestCon
         .expect("document should have a block");
     focus_block(editor, &first, cx);
 }
-fn uniform_strides(count: usize, height: f32) -> Vec<f32> {
-    vec![height; count]
-}

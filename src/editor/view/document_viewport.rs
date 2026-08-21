@@ -209,8 +209,6 @@ impl Editor {
             index += 1;
         }
 
-        let state = self.pane_state(pane_id);
-        state.scroll.prev_row_band = Some((0, rows.len()));
         let block_rows: Vec<AnyElement> = rows
             .iter()
             .map(|plan| {

@@ -157,8 +157,6 @@ pub(crate) struct TableGrids {
 pub(crate) struct ScrollState {
     pub(crate) handle: ScrollHandle,
     pub(crate) last_viewport_size: Option<Size<Pixels>>,
-    /// Row range mounted last frame.
-    pub(crate) prev_row_band: Option<(usize, usize)>,
     pub(crate) scrollbar_hovered: bool,
     pub(crate) scrollbar_visible_until: Instant,
     pub(crate) scrollbar_fade_task: Option<Task<()>>,
@@ -174,7 +172,6 @@ impl Default for ScrollState {
         Self {
             handle: ScrollHandle::new(),
             last_viewport_size: None,
-            prev_row_band: None,
             scrollbar_hovered: false,
             scrollbar_visible_until: Instant::now(),
             scrollbar_fade_task: None,
@@ -326,16 +323,6 @@ pub(crate) struct ScrollbarGeometry {
     pub(crate) max_scroll_y: f32,
 }
 
-/// Windowing result: the run of rows to mount, plus the top/bottom spacer
-/// heights standing in for the culled rows.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct RowBand {
-    pub(crate) run_start: usize,
-    pub(crate) run_end: usize,
-    pub(crate) top_h: f32,
-    pub(crate) bottom_h: f32,
-}
-
 /// Active drag session for the custom scrollbar thumb.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct ScrollbarDragSession {
@@ -469,18 +456,6 @@ impl DocumentTab {
     #[inline]
     pub fn is_source_code(&self) -> bool {
         self.mode.is_source_code()
-    }
-
-    #[inline]
-    #[allow(dead_code)]
-    pub fn is_preview(&self) -> bool {
-        self.mode.is_preview()
-    }
-
-    #[inline]
-    #[allow(dead_code)]
-    pub fn is_outline(&self) -> bool {
-        self.mode.is_outline()
     }
 }
 

@@ -57,18 +57,44 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     // Split / close / kind / join / swap
     // ------------------------------------------------------------------
 
+    /// Resolves a target node ID (either a Leaf ID or a Split divider ID) to an actionable Leaf ID.
+    /// If `target_id` is a Leaf, returns `Some(target_id)`. If it is a Split divider,
+    /// returns its second child leaf (or first child leaf).
+    pub fn resolve_leaf_for_node_or_split(&self, target_id: usize) -> Option<usize> {
+        if self.tree.find_leaf_kind(target_id).is_some() {
+            Some(target_id)
+        } else {
+            self.tree
+                .find_split_second_leaf_id(target_id)
+                .or_else(|| self.tree.find_split_first_leaf_id(target_id))
+        }
+    }
+
     /// Split `target_id` at `ratio` with a sibling of the SAME kind:
     /// the leaf's container is replaced by a `Split` node holding the
     /// original container and a freshly created one. Returns the new
     /// leaf's id.
     pub fn split_leaf(&mut self, target_id: usize, axis: SplitAxis, ratio: f32) -> Option<usize> {
         let kind = self.tree.find_leaf_kind(target_id)?;
-        let new_id = self.next_node_id;
+        let split_id = self.next_node_id;
+        self.next_node_id += 1;
+        let new_leaf_id = self.next_node_id;
         self.next_node_id += 1;
         self.tree
-            .split_leaf_with_ratio(target_id, new_id, axis, ratio, kind);
+            .split_leaf_with_ratio(target_id, split_id, new_leaf_id, axis, ratio, kind);
         self.active_border_menu = None;
-        Some(new_id)
+        Some(new_leaf_id)
+    }
+
+    /// Splits either a leaf or the leaf associated with a divider (Split node).
+    pub fn split_leaf_or_divider(
+        &mut self,
+        target_id: usize,
+        axis: SplitAxis,
+        ratio: f32,
+    ) -> Option<usize> {
+        let leaf_id = self.resolve_leaf_for_node_or_split(target_id)?;
+        self.split_leaf(leaf_id, axis, ratio)
     }
 
     /// Close a leaf; the last leaf is never closable.
@@ -78,6 +104,15 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
             self.retire_leaf(target_id);
         }
         self.active_border_menu = None;
+    }
+
+    /// Closes either a leaf or the leaf associated with a divider (Split node).
+    pub fn close_leaf_or_divider(&mut self, target_id: usize) {
+        if let Some(leaf_id) = self.resolve_leaf_for_node_or_split(target_id) {
+            self.close_leaf(leaf_id);
+        } else {
+            self.active_border_menu = None;
+        }
     }
 
     /// Mark `leaf_id` as the active leaf (the last leaf that received
@@ -420,13 +455,13 @@ mod tests {
         let mut root = test_root();
         assert_eq!(root.tree.count_leaves(), 1);
 
-        root.split_leaf(1, SplitAxis::Horizontal, 0.5);
+        let leaf_2 = root.split_leaf(1, SplitAxis::Horizontal, 0.5).unwrap();
         assert_eq!(root.tree.count_leaves(), 2);
 
-        root.split_leaf(2, SplitAxis::Vertical, 0.5);
+        let _leaf_3 = root.split_leaf(leaf_2, SplitAxis::Vertical, 0.5).unwrap();
         assert_eq!(root.tree.count_leaves(), 3);
 
-        root.close_leaf(2);
+        root.close_leaf(leaf_2);
         assert_eq!(root.tree.count_leaves(), 2);
 
         root.set_kind(1, TestKind::B);
@@ -455,10 +490,10 @@ mod tests {
         assert_eq!(root.tree.find_leaf_kind(1), Some(TestKind::A));
 
         // Split leaf 1 → A + A (same kind, not cycled).
-        root.split_leaf(1, SplitAxis::Horizontal, 0.5);
+        let leaf_2 = root.split_leaf(1, SplitAxis::Horizontal, 0.5).unwrap();
         assert_eq!(root.tree.count_leaves(), 2);
         assert_eq!(root.tree.find_leaf_kind(1), Some(TestKind::A));
-        assert_eq!(root.tree.find_leaf_kind(2), Some(TestKind::A));
+        assert_eq!(root.tree.find_leaf_kind(leaf_2), Some(TestKind::A));
 
         // B splits into B.
         root.set_kind(1, TestKind::B);
@@ -550,11 +585,11 @@ mod tests {
     #[test]
     fn test_join_sibling_leaves() {
         let mut root = test_root();
-        root.split_leaf(1, SplitAxis::Horizontal, 0.5); // ids: 1, 2
+        let leaf_2 = root.split_leaf(1, SplitAxis::Horizontal, 0.5).unwrap();
         assert_eq!(root.tree.count_leaves(), 2);
 
         // Join leaf 2 into leaf 1: remove 2, expand 1.
-        let ok = root.join_leaves(1, 2);
+        let ok = root.join_leaves(1, leaf_2);
         assert!(ok);
         assert_eq!(root.tree.count_leaves(), 1);
         assert_eq!(root.tree.find_leaf_kind(1), Some(TestKind::A));
@@ -563,13 +598,13 @@ mod tests {
     #[test]
     fn test_join_nested_leaves() {
         let mut root = test_root();
-        // Build: Split(H) { Leaf(1), Split(H) { Leaf(2), Leaf(3) } }
-        root.split_leaf(1, SplitAxis::Horizontal, 0.5); // ids: 1, 2
-        root.split_leaf(2, SplitAxis::Horizontal, 0.5); // ids: 1, 2, 3
+        // Build: Split(H) { Leaf(1), Split(H) { Leaf(leaf_2), Leaf(leaf_3) } }
+        let leaf_2 = root.split_leaf(1, SplitAxis::Horizontal, 0.5).unwrap();
+        let _leaf_3 = root.split_leaf(leaf_2, SplitAxis::Horizontal, 0.5).unwrap();
         assert_eq!(root.tree.count_leaves(), 3);
 
         // Join leaf 1 with leaf 2 (different subtrees) → 2 leaves remain.
-        let ok = root.join_leaves(1, 2);
+        let ok = root.join_leaves(1, leaf_2);
         assert!(ok);
         assert_eq!(root.tree.count_leaves(), 2);
     }
@@ -605,5 +640,38 @@ mod tests {
         let facts = root.finish_corner_drag().expect("session present");
         assert_eq!(facts.target_id, 1);
         assert!(root.tree.find_leaf(1).unwrap().active_corner_drag.is_none());
+    }
+
+    #[test]
+    fn test_split_node_id_uniqueness_and_divider_resolution() {
+        let mut root = test_root();
+        // Initially leaf 1.
+        let leaf_2 = root.split_leaf(1, SplitAxis::Horizontal, 0.5).unwrap();
+        assert_ne!(leaf_2, 1);
+
+        // Check that Split node has a distinct ID.
+        if let SplitTree::Split { id, first, second, .. } = &root.tree {
+            assert_ne!(*id, 1);
+            assert_ne!(*id, leaf_2);
+            assert!(matches!(&**first, SplitTree::Leaf(c) if c.id == 1));
+            assert!(matches!(&**second, SplitTree::Leaf(c) if c.id == leaf_2));
+
+            // Test divider resolution
+            assert_eq!(root.resolve_leaf_for_node_or_split(*id), Some(leaf_2));
+            assert_eq!(root.resolve_leaf_for_node_or_split(1), Some(1));
+            assert_eq!(root.resolve_leaf_for_node_or_split(leaf_2), Some(leaf_2));
+
+            // Split via divider ID
+            let split_id = *id;
+            let leaf_3 = root.split_leaf_or_divider(split_id, SplitAxis::Vertical, 0.5).unwrap();
+            assert_eq!(root.tree.count_leaves(), 3);
+            assert!(root.tree.find_leaf(leaf_3).is_some());
+
+            // Close via divider ID
+            root.close_leaf_or_divider(split_id);
+            assert_eq!(root.tree.count_leaves(), 2);
+        } else {
+            panic!("expected split tree");
+        }
     }
 }

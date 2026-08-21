@@ -179,23 +179,4 @@ impl Editor {
             cx.notify();
         }
     }
-
-    /// Executes an atomic document mutation closure within a transaction boundary.
-    ///
-    /// Automatically preserves invariants:
-    /// 1. Marks document as dirty (`self.mark_dirty(cx)`), which increments `document_revision`
-    /// 2. Refreshes the stable document snapshot for background/side derived views (`refresh_stable_document_snapshot(cx)`)
-    /// 3. Triggers change notifications (`cx.notify()`)
-    #[allow(dead_code)]
-    pub(crate) fn transact_document<R>(
-        &mut self,
-        cx: &mut Context<Self>,
-        op: impl FnOnce(&mut crate::editor::tree::document::Document, &mut Context<Self>) -> R,
-    ) -> R {
-        let result = op(&mut self.tab_mut().document, cx);
-        self.mark_dirty(cx);
-        self.refresh_stable_document_snapshot(cx);
-        cx.notify();
-        result
-    }
 }

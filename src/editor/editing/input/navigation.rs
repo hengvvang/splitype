@@ -171,7 +171,7 @@ impl Editor {
         to_block_start: bool,
         cx: &mut Context<Self>,
     ) {
-        let entry = self.doc().flatten_entries();
+        let entry = self.doc().cloned_entries();
         let Some(index) = entry
             .iter()
             .position(|entry| entry.entity.entity_id() == table_block.entity_id())

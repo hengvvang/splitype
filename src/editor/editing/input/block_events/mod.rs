@@ -65,7 +65,7 @@ impl Editor {
             self.clear_cross_block_selection(cx);
         }
 
-        let entries_before = self.doc().flatten_entries();
+        let entries_before = self.doc().cloned_entries();
         let current_entry_index = entries_before
             .iter()
             .position(|entry| entry.entity.entity_id() == block.entity_id())

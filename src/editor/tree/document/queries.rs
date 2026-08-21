@@ -55,11 +55,6 @@ impl Document {
         self.index.entries.clone()
     }
 
-    #[inline]
-    pub(crate) fn flatten_entries(&self) -> Vec<BlockEntry> {
-        self.cloned_entries()
-    }
-
     pub(crate) fn focused_block_entity_id(&self, window: &Window, cx: &App) -> Option<EntityId> {
         self.index
             .entries

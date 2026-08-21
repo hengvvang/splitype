@@ -226,8 +226,9 @@ impl Shell {
         copy_content: bool,
         cx: &mut Context<Self>,
     ) -> Option<NodeId> {
-        let new_id = self.panels.layout.split_leaf(panel_id, axis, ratio)?;
-        if self.panels.layout.tree.find_leaf_kind(panel_id) == Some(WindowPanelKind::Editor) {
+        let target_leaf_id = self.panels.layout.resolve_leaf_for_node_or_split(panel_id)?;
+        let new_id = self.panels.layout.split_leaf(target_leaf_id, axis, ratio)?;
+        if self.panels.layout.tree.find_leaf_kind(target_leaf_id) == Some(WindowPanelKind::Editor) {
             let session = if copy_content {
                 self.primary_editor()
                     .map(|editor| editor.update(cx, |editor, cx| editor.clone_session(cx)))
@@ -258,10 +259,12 @@ impl Shell {
     /// Close an area, clean up its editor session, and drop the content
     /// entity.
     pub(crate) fn close_panel(&mut self, panel_id: NodeId, cx: &mut Context<Self>) {
-        self.panels.layout.close_leaf(panel_id);
-        self.remove_editor_panel(panel_id, cx);
-        self.retained_editor_sessions.remove(&panel_id);
-        self.sync_panel_states(cx);
+        if let Some(target_leaf_id) = self.panels.layout.resolve_leaf_for_node_or_split(panel_id) {
+            self.panels.layout.close_leaf(target_leaf_id);
+            self.remove_editor_panel(target_leaf_id, cx);
+            self.retained_editor_sessions.remove(&target_leaf_id);
+            self.sync_panel_states(cx);
+        }
     }
 
     /// Swap the area kind of area `a` and area `b`. Editor entities and

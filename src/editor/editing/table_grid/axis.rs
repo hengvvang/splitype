@@ -139,10 +139,10 @@ impl Editor {
 
         let visible_tables = self
             .doc()
-            .flatten_entries()
-            .into_iter()
+            .blocks()
+            .iter()
             .filter(|entry| entry.entity.read(cx).kind() == BlockKind::Table)
-            .map(|entry| entry.entity)
+            .map(|entry| entry.entity.clone())
             .collect::<Vec<_>>();
 
         for table_block in &visible_tables {

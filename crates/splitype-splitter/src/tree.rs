@@ -235,13 +235,56 @@ impl<T: Copy + PartialEq> SplitTree<T> {
         }
     }
 
+    /// Finds the first (primary) leaf ID in the subtree rooted at `split_id`.
+    pub fn find_split_first_leaf_id(&self, target_split_id: usize) -> Option<usize> {
+        match self {
+            Self::Leaf(_) => None,
+            Self::Split {
+                id, first, second, ..
+            } => {
+                if *id == target_split_id {
+                    let mut leaves = Vec::new();
+                    first.leaf_ids(&mut leaves);
+                    leaves.first().copied()
+                } else {
+                    first
+                        .find_split_first_leaf_id(target_split_id)
+                        .or_else(|| second.find_split_first_leaf_id(target_split_id))
+                }
+            }
+        }
+    }
+
+    /// Finds the second (secondary) leaf ID in the subtree rooted at `split_id`.
+    pub fn find_split_second_leaf_id(&self, target_split_id: usize) -> Option<usize> {
+        match self {
+            Self::Leaf(_) => None,
+            Self::Split {
+                id, first, second, ..
+            } => {
+                if *id == target_split_id {
+                    let mut leaves = Vec::new();
+                    second.leaf_ids(&mut leaves);
+                    leaves.first().copied()
+                } else {
+                    first
+                        .find_split_second_leaf_id(target_split_id)
+                        .or_else(|| second.find_split_second_leaf_id(target_split_id))
+                }
+            }
+        }
+    }
+
     /// Split a leaf at a specific ratio (clamped to [0.15, 0.85]).
     ///
+    /// `split_id` is the ID assigned to the new `Split` parent node, and
+    /// `new_leaf_id` is the ID assigned to the newly created sibling leaf.
     /// `next_kind` is the area kind assigned to the newly created sibling leaf.
     pub fn split_leaf_with_ratio(
         &mut self,
         target_id: usize,
-        new_id: usize,
+        split_id: usize,
+        new_leaf_id: usize,
         axis: SplitAxis,
         ratio: f32,
         next_kind: T,
@@ -252,11 +295,11 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                 if container.id == target_id {
                     let original = container.clone();
                     *self = Self::Split {
-                        id: new_id,
+                        id: split_id,
                         axis,
                         ratio,
                         first: Box::new(Self::Leaf(original)),
-                        second: Box::new(Self::Leaf(SplitterContainer::new(new_id, next_kind))),
+                        second: Box::new(Self::Leaf(SplitterContainer::new(new_leaf_id, next_kind))),
                     };
                     true
                 } else {
@@ -264,8 +307,21 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                 }
             }
             Self::Split { first, second, .. } => {
-                first.split_leaf_with_ratio(target_id, new_id, axis, ratio, next_kind)
-                    || second.split_leaf_with_ratio(target_id, new_id, axis, ratio, next_kind)
+                first.split_leaf_with_ratio(
+                    target_id,
+                    split_id,
+                    new_leaf_id,
+                    axis,
+                    ratio,
+                    next_kind,
+                ) || second.split_leaf_with_ratio(
+                    target_id,
+                    split_id,
+                    new_leaf_id,
+                    axis,
+                    ratio,
+                    next_kind,
+                )
             }
         }
     }
