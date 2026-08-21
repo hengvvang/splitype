@@ -16,8 +16,8 @@ use crate::editor::editing::input::actions::{
     DismissTransientUi, End, ExitCodeBlock, FocusNext, FocusPrevious, Home, IndentBlock,
     ItalicSelection, JumpToBottom, JumpToTop, MoveLeft, MoveRight, Newline, OutdentBlock, PageDown,
     PageUp, Paste, Redo, SelectAll, SelectEnd, SelectHome, SelectLeft, SelectRight,
-    UnderlineSelection, Undo, WordDeleteBackward, WordDeleteForward, WordMoveLeft, WordMoveRight,
-    WordSelectLeft, WordSelectRight,
+    StrikethroughSelection, UnderlineSelection, Undo, WordDeleteBackward, WordDeleteForward,
+    WordMoveLeft, WordMoveRight, WordSelectLeft, WordSelectRight,
 };
 use crate::infra::config::keybindings::{
     SHORTCUT_DEFINITIONS, ShortcutCommand, default_keys, normalize_shortcut_config,
@@ -64,6 +64,9 @@ fn key_binding_for(
         ShortcutCommand::ItalicSelection => KeyBinding::new(key, ItalicSelection, context),
         ShortcutCommand::UnderlineSelection => KeyBinding::new(key, UnderlineSelection, context),
         ShortcutCommand::CodeSelection => KeyBinding::new(key, CodeSelection, context),
+        ShortcutCommand::StrikethroughSelection => {
+            KeyBinding::new(key, StrikethroughSelection, context)
+        }
         ShortcutCommand::IndentBlock => KeyBinding::new(key, IndentBlock, context),
         ShortcutCommand::OutdentBlock => KeyBinding::new(key, OutdentBlock, context),
         ShortcutCommand::ExitCodeBlock => KeyBinding::new(key, ExitCodeBlock, context),

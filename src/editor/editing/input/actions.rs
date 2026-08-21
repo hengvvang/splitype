@@ -46,6 +46,7 @@ actions!(
         ItalicSelection,
         UnderlineSelection,
         CodeSelection,
+        StrikethroughSelection,
         IndentBlock,
         OutdentBlock,
         ExitCodeBlock,

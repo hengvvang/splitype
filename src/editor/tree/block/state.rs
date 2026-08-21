@@ -13,6 +13,7 @@ pub(crate) enum InlineFormat {
     Italic,
     Underline,
     Code,
+    Strikethrough,
 }
 
 /// Cached standalone image presentation state for a block.

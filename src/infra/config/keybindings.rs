@@ -49,6 +49,7 @@ pub enum ShortcutCommand {
     ItalicSelection,
     UnderlineSelection,
     CodeSelection,
+    StrikethroughSelection,
     IndentBlock,
     OutdentBlock,
     ExitCodeBlock,
@@ -302,6 +303,12 @@ pub const SHORTCUT_DEFINITIONS: &[ShortcutDefinition] = &[
         command: ShortcutCommand::CodeSelection,
         id: "code_selection",
         default_keys: &["cmd-`", "ctrl-`"],
+        context: BLOCK_CONTEXT,
+    },
+    ShortcutDefinition {
+        command: ShortcutCommand::StrikethroughSelection,
+        id: "strikethrough_selection",
+        default_keys: &["cmd-shift-x", "ctrl-shift-x", "alt-shift-5"],
         context: BLOCK_CONTEXT,
     },
     ShortcutDefinition {

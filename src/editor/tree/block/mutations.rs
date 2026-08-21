@@ -188,6 +188,7 @@ impl Block {
             InlineFormat::Italic => next_text.toggle_italic(selection.clone()),
             InlineFormat::Underline => next_text.toggle_underline(selection.clone()),
             InlineFormat::Code => next_text.toggle_code(selection.clone()),
+            InlineFormat::Strikethrough => next_text.toggle_strikethrough(selection.clone()),
         };
         if !changed {
             return;

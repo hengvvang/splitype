@@ -515,6 +515,10 @@ impl BlockText {
         self.toggle_style(range, StyleFlag::Code)
     }
 
+    pub fn toggle_strikethrough(&mut self, range: Range<usize>) -> bool {
+        self.toggle_style(range, StyleFlag::Strikethrough)
+    }
+
     pub fn unwrap_styles_on_fragments(&mut self, targets: &[(usize, StyleFlag)]) {
         if targets.is_empty() {
             return;
@@ -670,5 +674,24 @@ impl BlockText {
             normalized.push(fragment);
         }
         self.fragments = normalized;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_toggle_strikethrough() {
+        let mut text = BlockText::plain("hello world".to_string());
+        assert!(text.toggle_strikethrough(0..5));
+        assert!(text.fragments[0].style.strikethrough);
+        assert_eq!(text.fragments[0].text, "hello");
+        assert!(!text.fragments[1].style.strikethrough);
+        assert_eq!(text.fragments[1].text, " world");
+
+        // Toggling again removes strikethrough
+        assert!(text.toggle_strikethrough(0..5));
+        assert!(!text.fragments[0].style.strikethrough);
     }
 }

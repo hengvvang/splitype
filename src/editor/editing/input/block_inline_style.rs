@@ -5,7 +5,8 @@ use gpui::*;
 
 use crate::editor::block_protocol::BlockEvent;
 use crate::editor::editing::input::actions::{
-    BoldSelection, CodeSelection, ExitCodeBlock, ItalicSelection, UnderlineSelection,
+    BoldSelection, CodeSelection, ExitCodeBlock, ItalicSelection, StrikethroughSelection,
+    UnderlineSelection,
 };
 use crate::editor::tree::block::{Block, InlineFormat};
 use crate::model::inline::text::BlockText;
@@ -44,6 +45,15 @@ impl Block {
         cx: &mut Context<Self>,
     ) {
         self.toggle_inline_format(InlineFormat::Code, cx);
+    }
+
+    pub(crate) fn on_strikethrough_selection(
+        &mut self,
+        _: &StrikethroughSelection,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.toggle_inline_format(InlineFormat::Strikethrough, cx);
     }
 
     pub(crate) fn on_exit_code_block(
