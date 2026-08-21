@@ -28,12 +28,6 @@ pub struct InlineAttributes {
     pub math: Option<InlineLatex>,
 }
 
-impl InlineAttributes {
-    pub fn from_fragment(fragment: &InlineFragment) -> Self {
-        fragment.attributes()
-    }
-}
-
 /// A contiguous run of text with uniform [`InlineAttributes`].
 ///
 /// The [`BlockText`] is simply a `Vec<InlineFragment>` with
@@ -173,27 +167,6 @@ impl BlockText {
 
     pub fn plain_len(&self) -> usize {
         self.fragments.iter().map(|f| f.text.len()).sum()
-    }
-
-    pub fn has_source_preserving_links(&self) -> bool {
-        self.fragments.iter().any(|fragment| {
-            fragment
-                .link
-                .as_ref()
-                .is_some_and(InlineLink::is_source_preserving)
-                || fragment.footnote.is_some()
-                || fragment.math.is_some()
-        })
-    }
-
-    /// Whether any fragment carries an inline `[label](url)` link. Unlike
-    /// reference/autolink links these are not "source preserving", but their
-    /// `[...](...)` markers are still stripped from the fragment text, so an
-    /// edit that re-derives the tree from plain text alone would drop them.
-    pub fn has_inline_links(&self) -> bool {
-        self.fragments
-            .iter()
-            .any(|fragment| matches!(fragment.link, Some(InlineLink::Inline { .. })))
     }
 
     /// Whether any fragment carries an inline math or script span. These need
@@ -517,19 +490,6 @@ impl BlockText {
 
     pub fn toggle_strikethrough(&mut self, range: Range<usize>) -> bool {
         self.toggle_style(range, StyleFlag::Strikethrough)
-    }
-
-    pub fn unwrap_styles_on_fragments(&mut self, targets: &[(usize, StyleFlag)]) {
-        if targets.is_empty() {
-            return;
-        }
-
-        for (fragment_index, flag) in targets {
-            if let Some(fragment) = self.fragments.get_mut(*fragment_index) {
-                fragment.style = set_style_flag(fragment.style, *flag, false);
-            }
-        }
-        self.normalize_fragments();
     }
 
     pub fn replace_plain_range_with_link_references(

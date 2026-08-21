@@ -228,19 +228,11 @@ impl SourceOffsetMap {
         PlainOffset(self.source_to_plain_offset(offset.0))
     }
 
-    pub fn source_to_plain_span(&self, range: Range<SourceOffset>) -> Range<PlainOffset> {
-        self.source_to_plain(range.start)..self.source_to_plain(range.end)
-    }
-
     pub fn plain_to_source_offset(&self, offset: usize) -> usize {
         self.plain_to_source
             .get(offset.min(self.plain_to_source.len().saturating_sub(1)))
             .copied()
             .unwrap_or(0)
-    }
-
-    pub fn plain_to_source_range(&self, range: Range<usize>) -> Range<usize> {
-        self.plain_to_source_offset(range.start)..self.plain_to_source_offset(range.end)
     }
 
     pub fn source_to_plain_offset(&self, offset: usize) -> usize {
@@ -266,10 +258,6 @@ pub struct InlineEditResult {
 impl InlineEditResult {
     pub fn map_plain_offset(&self, offset: PlainOffset) -> PlainOffset {
         PlainOffset(self.map_offset(offset.0))
-    }
-
-    pub fn map_plain_range(&self, range: &Range<PlainOffset>) -> Range<PlainOffset> {
-        self.map_plain_offset(range.start)..self.map_plain_offset(range.end)
     }
 
     pub fn map_offset(&self, offset: usize) -> usize {
@@ -334,22 +322,6 @@ impl ImeConverter {
 
     pub fn display_to_utf16_offset(text: &str, offset: DisplayOffset) -> Utf16Offset {
         Utf16Offset(Self::utf8_to_utf16_in(text, offset.0))
-    }
-
-    pub fn utf16_span_to_display_span(
-        text: &str,
-        range: &Range<Utf16Offset>,
-    ) -> Range<DisplayOffset> {
-        Self::utf16_to_display_offset(text, range.start)
-            ..Self::utf16_to_display_offset(text, range.end)
-    }
-
-    pub fn display_span_to_utf16_span(
-        text: &str,
-        range: &Range<DisplayOffset>,
-    ) -> Range<Utf16Offset> {
-        Self::display_to_utf16_offset(text, range.start)
-            ..Self::display_to_utf16_offset(text, range.end)
     }
 }
 

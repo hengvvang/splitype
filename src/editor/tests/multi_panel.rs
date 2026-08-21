@@ -501,7 +501,11 @@ async fn clicking_a_block_in_another_pane_updates_that_panes_focus_target(cx: &m
                 .and_then(|state| state.focus.active_entity),
         )
     });
-    assert_eq!(focused_pane, Some(pane_2), "clicking pane 2 must focus pane 2");
+    assert_eq!(
+        focused_pane,
+        Some(pane_2),
+        "clicking pane 2 must focus pane 2"
+    );
     assert_eq!(
         pane2_target,
         Some(block_id),
@@ -632,20 +636,24 @@ async fn border_menu_split_and_close_actions_operate_on_divider_split_id(cx: &mu
     });
 
     // 1. Initial state: 1 pane (Leaf 1).
-    assert_eq!(editor.read_with(cx, |ed, _cx| ed.session().root.tree.count_leaves()), 1);
+    assert_eq!(
+        editor.read_with(cx, |ed, _cx| ed.session().root.tree.count_leaves()),
+        1
+    );
 
     // 2. Split leaf 1 horizontally.
     editor.update(cx, |ed, _cx| {
         ed.split_pane_with_ratio(1, crate::splitter::SplitAxis::Horizontal, 0.5);
     });
-    assert_eq!(editor.read_with(cx, |ed, _cx| ed.session().root.tree.count_leaves()), 2);
+    assert_eq!(
+        editor.read_with(cx, |ed, _cx| ed.session().root.tree.count_leaves()),
+        2
+    );
 
     // 3. Get the internal Split node ID (the divider ID passed by border menu).
-    let split_id = editor.read_with(cx, |ed, _cx| {
-        match &ed.session().root.tree {
-            crate::splitter::SplitTree::Split { id, .. } => *id,
-            _ => panic!("expected split tree"),
-        }
+    let split_id = editor.read_with(cx, |ed, _cx| match &ed.session().root.tree {
+        crate::splitter::SplitTree::Split { id, .. } => *id,
+        _ => panic!("expected split tree"),
     });
 
     // 4. Trigger split_pane_with_ratio using split_id (divider right-click action).

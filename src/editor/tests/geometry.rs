@@ -71,4 +71,3 @@ fn centered_column_width_calculation() {
     assert!(width_large < 1200.0);
     assert!(width_large > 0.0);
 }
-

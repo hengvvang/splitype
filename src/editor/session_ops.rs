@@ -64,7 +64,9 @@ impl Editor {
     /// Inner split created via corner drag or divider border menu. The new pane inherits the
     /// dragged/target pane's kind so both sides keep the same view style.
     pub fn split_pane_with_ratio(&mut self, pane_id: NodeId, axis: SplitAxis, ratio: f32) {
-        self.session.root.split_leaf_or_divider(pane_id, axis, ratio);
+        self.session
+            .root
+            .split_leaf_or_divider(pane_id, axis, ratio);
     }
 
     /// Swap pane kinds between two panes.

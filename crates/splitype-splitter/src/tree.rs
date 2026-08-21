@@ -299,7 +299,10 @@ impl<T: Copy + PartialEq> SplitTree<T> {
                         axis,
                         ratio,
                         first: Box::new(Self::Leaf(original)),
-                        second: Box::new(Self::Leaf(SplitterContainer::new(new_leaf_id, next_kind))),
+                        second: Box::new(Self::Leaf(SplitterContainer::new(
+                            new_leaf_id,
+                            next_kind,
+                        ))),
                     };
                     true
                 } else {

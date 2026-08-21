@@ -386,12 +386,6 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
         rects
     }
 
-    /// Get the pixel-space rectangle for a specific leaf, given
-    /// pre-computed rects from [`Self::leaf_rects`].
-    pub fn leaf_rect(&self, leaf_id: usize, rects: &[LeafRect]) -> Option<LeafRect> {
-        rects.iter().find(|rect| rect.id == leaf_id).copied()
-    }
-
     /// Calculate the pixel span (width or height) of a split container.
     pub fn split_pixel_span(&self, split_id: NodeId, container_size: Size<Pixels>) -> Option<f32> {
         let w = f32::from(container_size.width);
@@ -650,7 +644,10 @@ mod tests {
         assert_ne!(leaf_2, 1);
 
         // Check that Split node has a distinct ID.
-        if let SplitTree::Split { id, first, second, .. } = &root.tree {
+        if let SplitTree::Split {
+            id, first, second, ..
+        } = &root.tree
+        {
             assert_ne!(*id, 1);
             assert_ne!(*id, leaf_2);
             assert!(matches!(&**first, SplitTree::Leaf(c) if c.id == 1));
@@ -663,7 +660,9 @@ mod tests {
 
             // Split via divider ID
             let split_id = *id;
-            let leaf_3 = root.split_leaf_or_divider(split_id, SplitAxis::Vertical, 0.5).unwrap();
+            let leaf_3 = root
+                .split_leaf_or_divider(split_id, SplitAxis::Vertical, 0.5)
+                .unwrap();
             assert_eq!(root.tree.count_leaves(), 3);
             assert!(root.tree.find_leaf(leaf_3).is_some());
 

@@ -47,36 +47,6 @@ impl<T> EditorTabList<T> {
     pub fn active_tab(&self) -> Option<&T> {
         self.tabs.get(self.active_tab)
     }
-
-    /// Safely gets a mutable reference to the active tab.
-    #[inline]
-    pub fn active_tab_mut(&mut self) -> Option<&mut T> {
-        self.tabs.get_mut(self.active_tab)
-    }
-
-    /// Safely selects a tab by index, maintaining bounds invariant.
-    pub fn select_tab(&mut self, index: usize) -> bool {
-        if index < self.tabs.len() {
-            self.active_tab = index;
-            true
-        } else {
-            false
-        }
-    }
-
-    /// Removes a tab at `index` and clamps `active_tab` within valid bounds.
-    pub fn remove_tab(&mut self, index: usize) -> Option<T> {
-        if index >= self.tabs.len() {
-            return None;
-        }
-        let removed = self.tabs.remove(index);
-        if self.tabs.is_empty() {
-            self.active_tab = 0;
-        } else if self.active_tab >= index && self.active_tab > 0 {
-            self.active_tab = self.active_tab.min(self.tabs.len() - 1);
-        }
-        Some(removed)
-    }
 }
 
 /// The complete per-area editor state: the document tabs plus the inner
@@ -148,16 +118,6 @@ impl EditorPaneKind {
     #[inline]
     pub fn is_source_code(&self) -> bool {
         matches!(self, Self::SourceCode)
-    }
-
-    #[inline]
-    pub fn is_preview(&self) -> bool {
-        matches!(self, Self::Preview)
-    }
-
-    #[inline]
-    pub fn is_outline(&self) -> bool {
-        matches!(self, Self::Outline)
     }
 
     pub fn name(&self) -> &'static str {

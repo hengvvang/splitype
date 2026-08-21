@@ -226,7 +226,10 @@ impl Shell {
         copy_content: bool,
         cx: &mut Context<Self>,
     ) -> Option<NodeId> {
-        let target_leaf_id = self.panels.layout.resolve_leaf_for_node_or_split(panel_id)?;
+        let target_leaf_id = self
+            .panels
+            .layout
+            .resolve_leaf_for_node_or_split(panel_id)?;
         let new_id = self.panels.layout.split_leaf(target_leaf_id, axis, ratio)?;
         if self.panels.layout.tree.find_leaf_kind(target_leaf_id) == Some(WindowPanelKind::Editor) {
             let session = if copy_content {

@@ -532,7 +532,6 @@ pub const BUILTIN_THEME_SPLITYPE_ID: &str = "splitype";
 pub const BUILTIN_THEME_SPLITYPE_NAME: &str = "Dark";
 pub const BUILTIN_THEME_SPLITYPE_LIGHT_ID: &str = "splitype-light";
 pub const BUILTIN_THEME_SPLITYPE_LIGHT_NAME: &str = "Light";
-pub const CUSTOM_THEME_ID: &str = "custom";
 
 pub fn builtin_theme_catalog() -> Vec<ThemeCatalogEntry> {
     vec![

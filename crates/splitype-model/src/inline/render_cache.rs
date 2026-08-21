@@ -102,14 +102,4 @@ impl InlineRenderCache {
             .and_then(|span| span.link.as_ref())
             .map(|hit| hit.open_target.as_str())
     }
-
-    pub fn footnote_hit_at(
-        &self,
-        offset: usize,
-    ) -> Option<&crate::inline::footnote::InlineFootnoteHit> {
-        self.spans
-            .iter()
-            .find(|span| span.range.start <= offset && offset < span.range.end)
-            .and_then(|span| span.footnote.as_ref())
-    }
 }

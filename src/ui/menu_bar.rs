@@ -66,14 +66,6 @@ pub fn supports_in_window_menu() -> bool {
     supports_in_window_menu_for_target_os(std::env::consts::OS)
 }
 
-pub fn in_window_menu_bar_height_for_target_os(
-    _target_os: &str,
-    _has_menus: bool,
-    _dimensions: &ThemeDimensions,
-) -> f32 {
-    0.0
-}
-
 // ── Panel positioning ─────────────────────────────────────────────────────
 
 pub fn menu_panel_left<S: AsRef<str>>(

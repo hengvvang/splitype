@@ -32,6 +32,9 @@ splitype-splitter = { path = "crates/splitype-splitter" }
 [workspace.lints.rust]
 unused_must_use = "deny"
 keyword_idents_2024 = "deny"
+unused_imports = "warn"
+unused_variables = "warn"
+dead_code = "warn"
 
 [workspace.lints.clippy]
 # Allow stylistic patterns the project doesn't enforce. These mirror the
