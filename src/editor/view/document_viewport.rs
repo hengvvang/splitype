@@ -443,7 +443,7 @@ impl Editor {
                 + scroll_trigger_padding
                 + scroll_beyond_bottom))
             .children(block_rows);
-        let scroll_content = if self.tab().mode == EditorPaneKind::Wysiwyg {
+        let scroll_content = if self.is_wysiwyg() {
             scroll_content.on_mouse_down(
                 MouseButton::Right,
                 cx.listener(move |this, event, window, cx| {
@@ -589,7 +589,7 @@ impl Editor {
         );
 
         let attach_context_menu = |row: Div, entity_id: EntityId| -> Div {
-            if self.tab().mode == EditorPaneKind::Wysiwyg {
+            if self.is_wysiwyg() {
                 let row_editor = editor.clone();
                 row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
                     let _ = row_editor.update(cx, |editor, cx| {

@@ -20,7 +20,7 @@ use crate::editor::tree::block::Block;
 #[derive(Clone)]
 pub(crate) struct Document {
     pub roots: Vec<Entity<Block>>,
-    pub(crate) snapshot: BlockIndex,
+    pub(crate) index: BlockIndex,
     pub(crate) structure_version: u64,
     pub(crate) metadata_rebuild_version: u64,
 }

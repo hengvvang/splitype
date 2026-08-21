@@ -140,6 +140,26 @@ pub enum EditorPaneKind {
 }
 
 impl EditorPaneKind {
+    #[inline]
+    pub fn is_wysiwyg(&self) -> bool {
+        matches!(self, Self::Wysiwyg)
+    }
+
+    #[inline]
+    pub fn is_source_code(&self) -> bool {
+        matches!(self, Self::SourceCode)
+    }
+
+    #[inline]
+    pub fn is_preview(&self) -> bool {
+        matches!(self, Self::Preview)
+    }
+
+    #[inline]
+    pub fn is_outline(&self) -> bool {
+        matches!(self, Self::Outline)
+    }
+
     pub fn name(&self) -> &'static str {
         match self {
             Self::SourceCode => "Source Code",

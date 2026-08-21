@@ -45,7 +45,7 @@ impl Editor {
         // Inner corner drag: translate the pointer into the dragging
         // area's local space (fixing up the recorded start position),
         // refresh the facts, then apply the host's immediate shortcuts:
-        // Ctrl past the threshold swaps the dragged panel with the
+        // Ctrl past the threshold swaps the dragged pane with the
         // hovered one, Shift ends the gesture as a no-op. Plain drags
         // defer to the inner drag policy on mouse-up.
         if self.session.root.corner_drag_panel().is_some() {

@@ -23,7 +23,7 @@ impl Editor {
             return snapshot;
         }
 
-        if self.tab().mode == EditorPaneKind::SourceCode {
+        if self.is_source_code() {
             return self
                 .doc()
                 .first_root()
@@ -75,7 +75,7 @@ impl Editor {
             return snapshot;
         }
 
-        if self.tab().mode == EditorPaneKind::SourceCode {
+        if self.is_source_code() {
             return self
                 .doc()
                 .first_root()

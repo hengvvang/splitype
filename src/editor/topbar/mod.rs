@@ -24,7 +24,7 @@ impl crate::editor::controller::Editor {
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let leaf_id = self.panel_id;
+        let panel_id = self.panel_id;
         let editor = cx.entity().downgrade();
 
         let type_editor = editor.clone();
@@ -33,7 +33,7 @@ impl crate::editor::controller::Editor {
         // plain text.
         let is_active_editor = self.is_active_panel;
         let type_button = small_pill_button(c, d)
-            .id(("panel-topbar-type", leaf_id))
+            .id(("panel-topbar-type", panel_id))
             .text_size(px(12.0))
             .text_color(c.text_default)
             .child(kind.name().to_string())
@@ -48,7 +48,7 @@ impl crate::editor::controller::Editor {
             .on_click(move |_event, _window, cx| {
                 let _ = type_editor.update(cx, |ed, cx| {
                     ed.defer_shell_action(cx, move |shell, cx| {
-                        shell.toggle_panel_dropdown(leaf_id, cx);
+                        shell.toggle_panel_dropdown(panel_id, cx);
                     });
                     cx.notify();
                 });
@@ -56,7 +56,7 @@ impl crate::editor::controller::Editor {
 
         let split_h_editor = editor.clone();
         let split_h_button = icon_chip_button(c, d)
-            .id(("panel-topbar-split-h", leaf_id))
+            .id(("panel-topbar-split-h", panel_id))
             .child(
                 svg()
                     .path(panel_topbar_icon(kind, "split-h"))
@@ -67,7 +67,7 @@ impl crate::editor::controller::Editor {
                 let _ = split_h_editor.update(cx, |ed, cx| {
                     // Same-kind split; Editor panels deep-copy their tabs.
                     ed.defer_shell_action(cx, move |shell, cx| {
-                        shell.split_panel(leaf_id, SplitAxis::Horizontal, 0.5, true, cx);
+                        shell.split_panel(panel_id, SplitAxis::Horizontal, 0.5, true, cx);
                     });
                     cx.notify();
                 });
@@ -75,7 +75,7 @@ impl crate::editor::controller::Editor {
 
         let split_v_editor = editor.clone();
         let split_v_button = icon_chip_button(c, d)
-            .id(("panel-topbar-split-v", leaf_id))
+            .id(("panel-topbar-split-v", panel_id))
             .child(
                 svg()
                     .path(panel_topbar_icon(kind, "split-v"))
@@ -86,7 +86,7 @@ impl crate::editor::controller::Editor {
                 let _ = split_v_editor.update(cx, |ed, cx| {
                     // Same-kind split; Editor panels deep-copy their tabs.
                     ed.defer_shell_action(cx, move |shell, cx| {
-                        shell.split_panel(leaf_id, SplitAxis::Vertical, 0.5, true, cx);
+                        shell.split_panel(panel_id, SplitAxis::Vertical, 0.5, true, cx);
                     });
                     cx.notify();
                 });
@@ -102,7 +102,7 @@ impl crate::editor::controller::Editor {
         if leaf_count > 1 {
             let max_editor = editor.clone();
             let max_button = icon_chip_button(c, d)
-                .id(("panel-topbar-max", leaf_id))
+                .id(("panel-topbar-max", panel_id))
                 .child(
                     svg()
                         .path(if is_maximized {
@@ -116,7 +116,7 @@ impl crate::editor::controller::Editor {
                 .on_click(move |_event, _window, cx| {
                     let _ = max_editor.update(cx, |ed, cx| {
                         ed.defer_shell_action(cx, move |shell, cx| {
-                            shell.toggle_panel_maximize(leaf_id, cx);
+                            shell.toggle_panel_maximize(panel_id, cx);
                         });
                         cx.notify();
                     });
@@ -124,7 +124,7 @@ impl crate::editor::controller::Editor {
 
             let close_editor = editor.clone();
             let close_button = icon_chip_button(c, d)
-                .id(("panel-topbar-close", leaf_id))
+                .id(("panel-topbar-close", panel_id))
                 .child(
                     svg()
                         .path(panel_topbar_icon(kind, "close"))
@@ -134,7 +134,7 @@ impl crate::editor::controller::Editor {
                 .on_click(move |_event, _window, cx| {
                     let _ = close_editor.update(cx, |ed, cx| {
                         ed.defer_shell_action(cx, move |shell, cx| {
-                            shell.close_panel(leaf_id, cx);
+                            shell.close_panel(panel_id, cx);
                         });
                         cx.notify();
                     });
@@ -196,7 +196,7 @@ impl crate::editor::controller::Editor {
                                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                                     let _ = tab_editor.update(cx, |ed, cx| {
                                         ed.defer_shell_action(cx, move |shell, cx| {
-                                            shell.activate_panel(leaf_id, cx);
+                                            shell.activate_panel(panel_id, cx);
                                         });
                                         ed.activate_tab(index, cx);
                                         cx.notify();
@@ -222,7 +222,7 @@ impl crate::editor::controller::Editor {
                                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                                     let _ = close_editor.update(cx, |ed, cx| {
                                         ed.defer_shell_action(cx, move |shell, cx| {
-                                            shell.activate_panel(leaf_id, cx);
+                                            shell.activate_panel(panel_id, cx);
                                         });
                                         ed.close_tab(index, cx);
                                         cx.notify();
@@ -254,7 +254,7 @@ impl crate::editor::controller::Editor {
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = add_editor.update(cx, |ed, cx| {
                             ed.defer_shell_action(cx, move |shell, cx| {
-                                shell.activate_panel(leaf_id, cx);
+                                shell.activate_panel(panel_id, cx);
                             });
                             ed.new_untitled_tab(cx);
                             cx.notify();
@@ -273,7 +273,7 @@ impl crate::editor::controller::Editor {
         }
 
         topbar_container(c, d.topbar_height, 8.0)
-            .id(("panel-topbar", leaf_id))
+            .id(("panel-topbar", panel_id))
             .child(left_section)
             .child(div().flex().items_center().gap(px(6.0)).child(actions))
             .into_any_element()

@@ -471,6 +471,30 @@ pub(crate) enum InfoDialogKind {
     About,
 }
 
+impl DocumentTab {
+    #[inline]
+    pub fn is_wysiwyg(&self) -> bool {
+        self.mode.is_wysiwyg()
+    }
+
+    #[inline]
+    pub fn is_source_code(&self) -> bool {
+        self.mode.is_source_code()
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub fn is_preview(&self) -> bool {
+        self.mode.is_preview()
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub fn is_outline(&self) -> bool {
+        self.mode.is_outline()
+    }
+}
+
 impl Editor {
     pub(crate) const HISTORY_LIMIT: usize = 200;
     pub(crate) const HISTORY_COALESCE_WINDOW: Duration = Duration::from_millis(1_000);
@@ -862,6 +886,16 @@ impl Editor {
     }
 
     /// The active document tab.
+    #[inline]
+    pub fn is_wysiwyg(&self) -> bool {
+        self.tab().is_wysiwyg()
+    }
+
+    #[inline]
+    pub fn is_source_code(&self) -> bool {
+        self.tab().is_source_code()
+    }
+
     pub(crate) fn tab(&self) -> &DocumentTab {
         let list = &self.session.tab_list;
         &list.tabs[list.active_tab]

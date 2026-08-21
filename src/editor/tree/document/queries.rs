@@ -11,7 +11,7 @@ impl Document {
     pub(crate) fn new(roots: Vec<Entity<Block>>) -> Self {
         Self {
             roots,
-            snapshot: BlockIndex::default(),
+            index: BlockIndex::default(),
             structure_version: 0,
             metadata_rebuild_version: 0,
         }
@@ -48,15 +48,20 @@ impl Document {
     }
 
     pub(crate) fn blocks(&self) -> &[BlockEntry] {
-        &self.snapshot.entries
+        &self.index.entries
     }
 
+    pub(crate) fn cloned_entries(&self) -> Vec<BlockEntry> {
+        self.index.entries.clone()
+    }
+
+    #[inline]
     pub(crate) fn flatten_entries(&self) -> Vec<BlockEntry> {
-        self.snapshot.entries.clone()
+        self.cloned_entries()
     }
 
     pub(crate) fn focused_block_entity_id(&self, window: &Window, cx: &App) -> Option<EntityId> {
-        self.snapshot
+        self.index
             .entries
             .iter()
             .find(|entries| entries.entity.read(cx).focus_handle.is_focused(window))
@@ -64,17 +69,17 @@ impl Document {
     }
 
     pub(crate) fn index_for_entity_id(&self, entity_id: EntityId) -> Option<usize> {
-        self.snapshot.index_by_entity.get(&entity_id).copied()
+        self.index.index_by_entity.get(&entity_id).copied()
     }
 
     pub(crate) fn block_entity_by_id(&self, entity_id: EntityId) -> Option<Entity<Block>> {
         self.index_for_entity_id(entity_id)
-            .and_then(|index| self.snapshot.entries.get(index))
+            .and_then(|index| self.index.entries.get(index))
             .map(|entries| entries.entity.clone())
     }
 
     pub(crate) fn find_block_location(&self, entity_id: EntityId) -> Option<BlockLocation> {
-        self.snapshot.location_by_entity.get(&entity_id).cloned()
+        self.index.location_by_entity.get(&entity_id).cloned()
     }
 
     /// Returns the sibling immediately before `entity_id` within the same
@@ -90,7 +95,7 @@ impl Document {
 
     pub(crate) fn last_descendant(&self, entity_id: EntityId) -> Option<Entity<Block>> {
         let descendant_id = self
-            .snapshot
+            .index
             .last_descendant_by_entity
             .get(&entity_id)
             .copied()?;

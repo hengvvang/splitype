@@ -17,7 +17,7 @@ impl Document {
         cx: &mut Context<Editor>,
     ) {
         self.with_structure_mutation(cx, move |tree, cx| {
-            tree.insert_blocks_at_raw(parent, index, blocks, cx);
+            tree.insert_blocks_unindexed(parent, index, blocks, cx);
         });
     }
 
@@ -43,12 +43,12 @@ impl Document {
     /// entries snapshot.
     pub(crate) fn rebuild_metadata_and_snapshot(&mut self, cx: &mut Context<Editor>) {
         Self::normalize_block_list(&mut self.roots, cx);
-        self.snapshot.clear();
+        self.index.clear();
         Self::sync_block_list(
             &self.roots.clone(),
             &TreeInheritanceScope::root(),
             cx,
-            &mut self.snapshot,
+            &mut self.index,
         );
         self.metadata_rebuild_version = self.structure_version;
     }
@@ -64,7 +64,7 @@ impl Document {
         children
     }
 
-    pub(crate) fn insert_blocks_at_raw(
+    pub(crate) fn insert_blocks_unindexed(
         &mut self,
         parent: Option<Entity<Block>>,
         index: usize,
@@ -88,7 +88,7 @@ impl Document {
         }
     }
 
-    pub(crate) fn remove_block_by_id_raw(
+    pub(crate) fn remove_block_unindexed(
         &mut self,
         entity_id: EntityId,
         cx: &mut Context<Editor>,
@@ -112,6 +112,26 @@ impl Document {
     ///
     /// Children attached to leaf blocks are hoisted into the same parent list
     /// immediately after the leaf that previously owned them.
+    #[inline]
+    pub(crate) fn insert_blocks_at_raw(
+        &mut self,
+        parent: Option<Entity<Block>>,
+        index: usize,
+        blocks: Vec<Entity<Block>>,
+        cx: &mut Context<Editor>,
+    ) {
+        self.insert_blocks_unindexed(parent, index, blocks, cx);
+    }
+
+    #[inline]
+    pub(crate) fn remove_block_by_id_raw(
+        &mut self,
+        entity_id: EntityId,
+        cx: &mut Context<Editor>,
+    ) -> Option<(Entity<Block>, BlockLocation)> {
+        self.remove_block_unindexed(entity_id, cx)
+    }
+
     pub(crate) fn normalize_block_list(blocks: &mut Vec<Entity<Block>>, cx: &mut Context<Editor>) {
         let mut index = 0;
         while index < blocks.len() {

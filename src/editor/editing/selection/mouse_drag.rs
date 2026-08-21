@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::controller::{
-    CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, EditorPaneKind,
+    CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, Editor,
 };
 use crate::editor::tree::block::Block;
 
@@ -42,7 +42,7 @@ impl Editor {
             return;
         }
 
-        if self.tab().mode != EditorPaneKind::Wysiwyg {
+        if !self.is_wysiwyg() {
             cx.propagate();
             return;
         }

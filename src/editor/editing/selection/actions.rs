@@ -2,9 +2,7 @@
 
 use gpui::*;
 
-use crate::editor::controller::{
-    CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, EditorPaneKind,
-};
+use crate::editor::controller::{CrossBlockSelection, CrossBlockSelectionEndpoint, Editor};
 use crate::editor::editing::input::actions::{Copy, Cut, Delete, DeleteBackward};
 use crate::editor::tree::block::Block;
 
@@ -177,7 +175,7 @@ impl Editor {
         block: Entity<Block>,
         cx: &mut Context<Self>,
     ) {
-        if self.tab().mode != EditorPaneKind::Wysiwyg {
+        if !self.is_wysiwyg() {
             let state = self.active_pane_state();
             state.selection.select_all_cycle = None;
             return;

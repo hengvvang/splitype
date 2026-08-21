@@ -468,7 +468,7 @@ impl Editor {
         block: &Entity<crate::editor::tree::block::Block>,
         cx: &mut Context<Self>,
     ) -> Option<EntityId> {
-        if self.tab().mode != crate::editor::controller::EditorPaneKind::Wysiwyg {
+        if !self.is_wysiwyg() {
             return None;
         }
 

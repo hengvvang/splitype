@@ -136,7 +136,7 @@ pub enum ExplorerValidation {
 
 /// Text buffer of the inline filename editor. Offsets are UTF-8 byte
 /// offsets; GPUI's IME layer speaks UTF-16 and is bridged in
-/// `filename_editor.rs`.
+/// `src/explorer/filename_editor/`.
 #[derive(Clone, Debug, Default)]
 pub struct ExplorerFilenameEditor {
     pub text: String,

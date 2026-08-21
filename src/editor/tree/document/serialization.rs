@@ -17,7 +17,7 @@ impl Document {
     }
 
     pub(crate) fn serialize_source_text(&self, cx: &App) -> String {
-        self.snapshot
+        self.index
             .entries
             .iter()
             .map(|entries| entries.entity.read(cx).display_text().to_string())
