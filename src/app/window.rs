@@ -69,6 +69,7 @@ pub(crate) fn open_editor_window(
                     last_viewport: None,
                     explorer_file_menu: None,
                     info_dialog: None,
+                    unsaved_dialog: None,
                     update_check_in_progress: false,
                     close_guard_installed: false,
                 });
@@ -149,6 +150,7 @@ pub(crate) fn open_cloned_window(
                     last_viewport: None,
                     explorer_file_menu: None,
                     info_dialog: None,
+                    unsaved_dialog: None,
                     update_check_in_progress: false,
                     close_guard_installed: false,
                 });

@@ -149,15 +149,15 @@ async fn app_menu_opened_dirty_file_window_prompts_only_that_window(cx: &mut Tes
         .expect("second editor window should be open");
 
     first_window
-        .update(cx, |shell, _window, cx| {
-            let editor = shell.primary_editor().expect("editor panel");
-            assert!(!editor.read(cx).tab().file.show_unsaved_changes_dialog);
+        .update(cx, |shell, _window, _cx| {
+            assert!(shell.unsaved_dialog.is_none());
         })
         .expect("first editor window should be open");
     second_window
-        .update(cx, |shell, _window, cx| {
-            let editor = shell.primary_editor().expect("editor panel");
-            assert!(editor.read(cx).tab().file.show_unsaved_changes_dialog);
+        .update(cx, |shell, _window, _cx| {
+            assert!(shell.unsaved_dialog.is_some());
+            let dialog = shell.unsaved_dialog.as_ref().unwrap();
+            assert_eq!(dialog.scope, crate::app::shell::UnsavedDialogScope::Window);
         })
         .expect("second editor window should be open");
 
@@ -187,15 +187,15 @@ async fn app_menu_opened_dirty_window_close_guard_prompts_only_that_window(
         .expect("second editor window should be open");
 
     first_window
-        .update(cx, |shell, _window, cx| {
-            let editor = shell.primary_editor().expect("editor panel");
-            assert!(!editor.read(cx).tab().file.show_unsaved_changes_dialog);
+        .update(cx, |shell, _window, _cx| {
+            assert!(shell.unsaved_dialog.is_none());
         })
         .expect("first editor window should be open");
     second_window
-        .update(cx, |shell, _window, cx| {
-            let editor = shell.primary_editor().expect("editor panel");
-            assert!(editor.read(cx).tab().file.show_unsaved_changes_dialog);
+        .update(cx, |shell, _window, _cx| {
+            assert!(shell.unsaved_dialog.is_some());
+            let dialog = shell.unsaved_dialog.as_ref().unwrap();
+            assert_eq!(dialog.scope, crate::app::shell::UnsavedDialogScope::Window);
         })
         .expect("second editor window should be open");
 }
@@ -222,14 +222,12 @@ async fn quit_application_allows_clean_editor_windows_to_quit(cx: &mut TestAppCo
     // either window (the quit flow itself is asynchronous in tests).
     first_window
         .update(cx, |shell, _window, _cx| {
-            let editor = shell.primary_editor().expect("editor panel");
-            assert!(!editor.read(_cx).tab().file.show_unsaved_changes_dialog);
+            assert!(shell.unsaved_dialog.is_none());
         })
         .expect("first editor window should be open");
     second_window
         .update(cx, |shell, _window, _cx| {
-            let editor = shell.primary_editor().expect("editor panel");
-            assert!(!editor.read(_cx).tab().file.show_unsaved_changes_dialog);
+            assert!(shell.unsaved_dialog.is_none());
         })
         .expect("second editor window should be open");
 }
@@ -272,14 +270,14 @@ async fn quit_application_prompts_dirty_editor_without_quitting(cx: &mut TestApp
     );
     first_window
         .update(cx, |shell, _window, _cx| {
-            let editor = shell.primary_editor().expect("editor panel");
-            assert!(!editor.read(_cx).tab().file.show_unsaved_changes_dialog);
+            assert!(shell.unsaved_dialog.is_none());
         })
         .expect("first editor window should be open");
     second_window
         .update(cx, |shell, _window, _cx| {
-            let editor = shell.primary_editor().expect("editor panel");
-            assert!(editor.read(_cx).tab().file.show_unsaved_changes_dialog);
+            assert!(shell.unsaved_dialog.is_some());
+            let dialog = shell.unsaved_dialog.as_ref().unwrap();
+            assert_eq!(dialog.scope, crate::app::shell::UnsavedDialogScope::Window);
         })
         .expect("second editor window should be open");
 }
@@ -664,4 +662,247 @@ async fn sole_editor_fallback_and_multi_editor_activation_routing(cx: &mut TestA
         .update(cx, |shell, _window, _cx| shell.active_editor_panel())
         .expect("window update");
     assert_eq!(switched_panel, Some(DEFAULT_EDITOR_PANEL_ID));
+}
+
+#[gpui::test]
+async fn window_close_prompts_window_scope_and_discards_all_panels(cx: &mut TestAppContext) {
+    init_editor_test_app(cx);
+
+    let window = cx.update(|cx| crate::app::window::open_editor_window(cx, "panel1".to_string(), None));
+    cx.run_until_parked();
+
+    let split_id = window
+        .update(cx, |shell, _window, cx| {
+            shell.split_panel(
+                DEFAULT_EDITOR_PANEL_ID,
+                crate::splitter::SplitAxis::Horizontal,
+                0.5,
+                true,
+                cx,
+            )
+        })
+        .expect("window update")
+        .expect("split panel created");
+
+    // Mark both editor panels dirty
+    window
+        .update(cx, |shell, _window, cx| {
+            let ed1 = shell.editor_for(DEFAULT_EDITOR_PANEL_ID).unwrap();
+            ed1.update(cx, |e, cx| e.mark_dirty(cx));
+            let ed2 = shell.editor_for(split_id).unwrap();
+            ed2.update(cx, |e, cx| e.mark_dirty(cx));
+        })
+        .expect("mark dirty");
+
+    // Trigger window close
+    window
+        .update(cx, |shell, window, cx| {
+            shell.request_close_current_window(window, cx);
+        })
+        .expect("request close window");
+
+    // Check dialog scope is Window
+    window
+        .update(cx, |shell, _window, _cx| {
+            assert!(shell.unsaved_dialog.is_some());
+            let dialog = shell.unsaved_dialog.as_ref().unwrap();
+            assert_eq!(dialog.scope, crate::app::shell::UnsavedDialogScope::Window);
+        })
+        .expect("check dialog");
+
+    // Discard and close: window should close
+    window
+        .update(cx, |shell, window, cx| {
+            let event = gpui::ClickEvent::default();
+            shell.on_discard_and_close(&event, window, cx);
+        })
+        .expect("discard and close");
+    cx.run_until_parked();
+
+    assert!(cx.update(|cx| cx.windows().is_empty()));
+}
+
+#[gpui::test]
+async fn editor_panel_close_prompts_editor_panel_scope_and_discards_panel_only(
+    cx: &mut TestAppContext,
+) {
+    init_editor_test_app(cx);
+
+    let window = cx.update(|cx| crate::app::window::open_editor_window(cx, "panel1".to_string(), None));
+    cx.run_until_parked();
+
+    let split_id = window
+        .update(cx, |shell, _window, cx| {
+            shell.split_panel(
+                DEFAULT_EDITOR_PANEL_ID,
+                crate::splitter::SplitAxis::Horizontal,
+                0.5,
+                true,
+                cx,
+            )
+        })
+        .expect("window update")
+        .expect("split panel created");
+
+    // Mark both editor panels dirty
+    window
+        .update(cx, |shell, _window, cx| {
+            let ed1 = shell.editor_for(DEFAULT_EDITOR_PANEL_ID).unwrap();
+            ed1.update(cx, |e, cx| e.mark_dirty(cx));
+            let ed2 = shell.editor_for(split_id).unwrap();
+            ed2.update(cx, |e, cx| e.mark_dirty(cx));
+        })
+        .expect("mark dirty");
+
+    // Request closing only split_id editor panel
+    window
+        .update(cx, |shell, _window, cx| {
+            shell.request_close_panel(split_id, cx);
+        })
+        .expect("request close panel");
+
+    // Check dialog scope is EditorPanel(split_id)
+    window
+        .update(cx, |shell, _window, _cx| {
+            assert!(shell.unsaved_dialog.is_some());
+            let dialog = shell.unsaved_dialog.as_ref().unwrap();
+            assert_eq!(
+                dialog.scope,
+                crate::app::shell::UnsavedDialogScope::EditorPanel(split_id)
+            );
+        })
+        .expect("check dialog");
+
+    // Discard and close: only split_id should be removed, window and panel1 remain!
+    window
+        .update(cx, |shell, window, cx| {
+            let event = gpui::ClickEvent::default();
+            shell.on_discard_and_close(&event, window, cx);
+        })
+        .expect("discard and close");
+    cx.run_until_parked();
+
+    // Window must still exist!
+    assert_eq!(cx.update(|cx| cx.windows().len()), 1);
+
+    // split_id editor panel must be gone; DEFAULT_EDITOR_PANEL_ID must remain dirty!
+    window
+        .update(cx, |shell, _window, cx| {
+            assert!(shell.editor_for(split_id).is_none());
+            assert!(shell.editor_for(DEFAULT_EDITOR_PANEL_ID).is_some());
+            let ed1 = shell.editor_for(DEFAULT_EDITOR_PANEL_ID).unwrap();
+            assert!(ed1.read(cx).tab().file.dirty);
+        })
+        .expect("verify remaining panel");
+}
+
+#[gpui::test]
+async fn tab_close_prompts_tab_scope_and_discards_tab_only(cx: &mut TestAppContext) {
+    init_editor_test_app(cx);
+
+    let window = cx.update(|cx| crate::app::window::open_editor_window(cx, "tab0".to_string(), None));
+    cx.run_until_parked();
+
+    // Add a second tab to the editor and mark it dirty
+    window
+        .update(cx, |shell, _window, cx| {
+            let editor = shell.editor_for(DEFAULT_EDITOR_PANEL_ID).unwrap();
+            editor.update(cx, |ed, cx| {
+                let tab = Editor::new_tab_from_markdown(cx, "tab1".to_string(), None);
+                ed.session.tab_list.tabs.push(tab);
+                ed.session.tab_list.tabs[1].file.dirty = true;
+                assert_eq!(ed.session.tab_list.tabs.len(), 2);
+            });
+        })
+        .expect("add second tab");
+
+    // Request closing tab index 1
+    window
+        .update(cx, |shell, _window, cx| {
+            let editor = shell.editor_for(DEFAULT_EDITOR_PANEL_ID).unwrap();
+            editor.update(cx, |ed, cx| {
+                ed.request_close_tab(1, cx);
+            });
+        })
+        .expect("request close tab");
+    cx.run_until_parked();
+
+    // Check dialog scope is Tab { panel_id, index: 1 }
+    window
+        .update(cx, |shell, _window, _cx| {
+            assert!(shell.unsaved_dialog.is_some());
+            let dialog = shell.unsaved_dialog.as_ref().unwrap();
+            assert_eq!(
+                dialog.scope,
+                crate::app::shell::UnsavedDialogScope::Tab {
+                    panel_id: DEFAULT_EDITOR_PANEL_ID,
+                    index: 1,
+                }
+            );
+        })
+        .expect("check dialog");
+
+    // Discard and close: tab 1 is closed; tab 0, editor, and window remain!
+    window
+        .update(cx, |shell, window, cx| {
+            let event = gpui::ClickEvent::default();
+            shell.on_discard_and_close(&event, window, cx);
+        })
+        .expect("discard and close");
+    cx.run_until_parked();
+
+    assert_eq!(cx.update(|cx| cx.windows().len()), 1);
+
+    window
+        .update(cx, |shell, _window, cx| {
+            let editor = shell.editor_for(DEFAULT_EDITOR_PANEL_ID).unwrap();
+            assert_eq!(editor.read(cx).session.tab_list.tabs.len(), 1);
+        })
+        .expect("verify tab count");
+}
+
+#[gpui::test]
+async fn unsaved_dialog_cancel_leaves_document_dirty(cx: &mut TestAppContext) {
+    init_editor_test_app(cx);
+
+    let window = cx.update(|cx| crate::app::window::open_editor_window(cx, "content".to_string(), None));
+    cx.run_until_parked();
+
+    window
+        .update(cx, |shell, _window, cx| {
+            let editor = shell.editor_for(DEFAULT_EDITOR_PANEL_ID).unwrap();
+            editor.update(cx, |ed, cx| {
+                ed.mark_dirty(cx);
+            });
+        })
+        .expect("mark dirty");
+
+    window
+        .update(cx, |shell, _window, cx| {
+            shell.prompt_close_editor_for(DEFAULT_EDITOR_PANEL_ID, cx);
+        })
+        .expect("prompt");
+
+    window
+        .update(cx, |shell, _window, _cx| {
+            assert!(shell.unsaved_dialog.is_some());
+        })
+        .expect("check dialog");
+
+    // Cancel dialog
+    window
+        .update(cx, |shell, window, cx| {
+            let event = gpui::ClickEvent::default();
+            shell.on_cancel_close_dialog(&event, window, cx);
+        })
+        .expect("cancel");
+
+    // Dialog is closed, window and editor are intact and dirty
+    window
+        .update(cx, |shell, _window, cx| {
+            assert!(shell.unsaved_dialog.is_none());
+            let editor = shell.editor_for(DEFAULT_EDITOR_PANEL_ID).unwrap();
+            assert!(editor.read(cx).tab().file.dirty);
+        })
+        .expect("verify cancel");
 }

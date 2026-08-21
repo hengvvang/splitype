@@ -134,7 +134,7 @@ impl crate::editor::controller::Editor {
                 .on_click(move |_event, _window, cx| {
                     let _ = close_editor.update(cx, |ed, cx| {
                         ed.defer_shell_action(cx, move |shell, cx| {
-                            shell.close_panel(panel_id, cx);
+                            shell.request_close_panel(panel_id, cx);
                         });
                         cx.notify();
                     });

@@ -168,6 +168,51 @@ impl Editor {
         .detach();
     }
 
+    pub(crate) fn save_tab_at(
+        &mut self,
+        index: usize,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let list = &self.session.tab_list;
+        if index >= list.tabs.len() {
+            return false;
+        }
+        let tab = &list.tabs[index];
+        if !tab.file.dirty {
+            return true;
+        }
+        if let Some(path) = tab.file.path.clone() {
+            let text = if tab.mode.is_source_code() {
+                tab.document.serialize_source_text(cx)
+            } else {
+                tab.document.serialize_markdown(cx)
+            };
+            if std::fs::write(&path, text).is_ok() {
+                if let Some(tab) = self.session.tab_list.tabs.get_mut(index) {
+                    tab.file.dirty = false;
+                    tab.file.pending_window_edited = false;
+                    tab.file.pending_window_title_refresh = true;
+                }
+                cx.notify();
+                return true;
+            }
+        } else {
+            self.activate_tab(index, cx);
+            self.save_document_via_prompt(window, cx);
+        }
+        false
+    }
+
+    pub(crate) fn save_all_dirty_tabs(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let count = self.session.tab_list.tabs.len();
+        for i in 0..count {
+            if self.session.tab_list.tabs.get(i).is_some_and(|t| t.file.dirty) {
+                self.save_tab_at(i, window, cx);
+            }
+        }
+    }
+
     pub(crate) fn save_document(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(path) = self.tab().file.path.clone() {
             let should_close_after_save = self.tab().file.pending_close_after_save;

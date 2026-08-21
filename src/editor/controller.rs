@@ -688,7 +688,7 @@ impl Editor {
             let panel_id = self.panel_id;
             self.activate_tab(index, cx);
             self.defer_shell_action(cx, move |shell, cx| {
-                shell.prompt_unsaved_changes_for(panel_id, index, cx);
+                shell.prompt_close_tab(panel_id, index, cx);
             });
             return;
         }

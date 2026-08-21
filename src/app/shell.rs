@@ -37,6 +37,32 @@ pub(crate) struct ExplorerFileMenuState {
     pub(crate) is_dir: bool,
 }
 
+/// Scope of an unsaved-changes confirmation dialog.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum UnsavedDialogScope {
+    /// Triggered by titlebar window close, App Menu "Close Window" / "Quit", or Cmd/Ctrl+Shift+W.
+    /// Targets ALL editor panels in the window and ALL open tabs.
+    Window,
+    /// Triggered by Editor panel topbar close button, or "Close Editor" command.
+    /// Targets ONLY the specified Editor Panel and its tabs.
+    EditorPanel(NodeId),
+    /// Triggered by a specific tab's 'x' close button, or Cmd/Ctrl+W.
+    /// Targets ONLY the single specified tab.
+    Tab { panel_id: NodeId, index: usize },
+}
+
+/// State for the window-level unsaved-changes confirmation dialog.
+#[derive(Clone, Debug)]
+#[allow(dead_code)]
+pub(crate) struct UnsavedDialogState {
+    pub(crate) scope: UnsavedDialogScope,
+    pub(crate) target_panel_id: NodeId,
+    pub(crate) target_tab_index: usize,
+    pub(crate) document_name: String,
+    pub(crate) dirty_count: usize,
+    pub(crate) restore_focus: Option<EntityId>,
+}
+
 /// The OS window's root entity: content panel_contents + window lifecycle.
 pub struct Shell {
     /// Content entity per outer area id. An area holds a content entity
@@ -59,6 +85,8 @@ pub struct Shell {
     pub(crate) explorer_file_menu: Option<ExplorerFileMenuState>,
     /// Informational dialog shown from the Help menu (About / update check).
     pub(crate) info_dialog: Option<InfoDialogKind>,
+    /// Unsaved changes confirmation dialog state (Window, Editor Panel, or Single Tab).
+    pub(crate) unsaved_dialog: Option<UnsavedDialogState>,
     /// True while an online update check is running in the background.
     pub(crate) update_check_in_progress: bool,
     /// Whether the window-close guard callback is installed on the window.
@@ -195,15 +223,9 @@ impl Shell {
         }
     }
 
-    /// True when any editor area's active tab shows the unsaved-changes
-    /// dialog (which must not overlap the info dialog).
-    pub(crate) fn is_unsaved_dialog_open(&self, cx: &App) -> bool {
-        self.panel_contents.values().any(|content| match content {
-            PanelContent::Editor(entity) => entity
-                .read(cx)
-                .active_editor_tab()
-                .is_some_and(|tab| tab.file.show_unsaved_changes_dialog),
-        })
+    /// True when the unsaved-changes dialog is active.
+    pub(crate) fn is_unsaved_dialog_open(&self, _cx: &App) -> bool {
+        self.unsaved_dialog.is_some()
     }
 
     /// Toggles the maximized state of `panel_id`'s tile (topbar click).
@@ -509,41 +531,205 @@ impl Shell {
         }
     }
 
-    /// Marks the dirty tab of `panel_id` (from [`Self::first_dirty_tab`])
-    /// as showing the unsaved-changes dialog, restoring its focus on
-    /// cancel.
+    /// Returns total number of leaves in the outer window layout tree.
+    pub(crate) fn layout_leaf_count(&self) -> usize {
+        let mut ids = Vec::new();
+        self.panels.layout.tree.leaf_ids(&mut ids);
+        ids.len()
+    }
+
+    /// Counts dirty tabs across all editor panels and retained sessions.
+    pub(crate) fn count_dirty_tabs(&self, cx: &App) -> usize {
+        let mut count = 0;
+        for session in self.retained_editor_sessions.values() {
+            count += session.tab_list.tabs.iter().filter(|t| t.file.dirty).count();
+        }
+        for content in self.panel_contents.values() {
+            let PanelContent::Editor(entity) = content;
+            count += entity
+                .read(cx)
+                .session
+                .tab_list
+                .tabs
+                .iter()
+                .filter(|t| t.file.dirty)
+                .count();
+        }
+        count
+    }
+
+    /// Returns dirty tab count and first dirty document name for a given panel.
+    pub(crate) fn dirty_tab_info_in_panel(
+        &self,
+        panel_id: NodeId,
+        cx: &App,
+    ) -> (usize, Option<String>) {
+        if let Some(editor) = self.editor_for(panel_id) {
+            let editor = editor.read(cx);
+            let dirty_tabs: Vec<_> = editor
+                .session
+                .tab_list
+                .tabs
+                .iter()
+                .filter(|t| t.file.dirty)
+                .collect();
+            let count = dirty_tabs.len();
+            let name = dirty_tabs.first().map(|t| {
+                t.file
+                    .path
+                    .as_ref()
+                    .and_then(|p| p.file_name())
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "Untitled".to_string())
+            });
+            (count, name)
+        } else if let Some(session) = self.retained_editor_sessions.get(&panel_id) {
+            let dirty_tabs: Vec<_> = session
+                .tab_list
+                .tabs
+                .iter()
+                .filter(|t| t.file.dirty)
+                .collect();
+            let count = dirty_tabs.len();
+            let name = dirty_tabs.first().map(|t| {
+                t.file
+                    .path
+                    .as_ref()
+                    .and_then(|p| p.file_name())
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "Untitled".to_string())
+            });
+            (count, name)
+        } else {
+            (0, None)
+        }
+    }
+
+    /// Prompts window-level unsaved-changes dialog.
+    pub(crate) fn prompt_close_window(&mut self, cx: &mut Context<Self>) {
+        let Some((panel_id, index)) = self.first_dirty_tab(cx) else {
+            return;
+        };
+        let dirty_count = self.count_dirty_tabs(cx);
+        let first_dirty_name = self
+            .editor_for(panel_id)
+            .and_then(|e| {
+                let editor = e.read(cx);
+                editor.session.tab_list.tabs.get(index).map(|t| {
+                    t.file
+                        .path
+                        .as_ref()
+                        .and_then(|p| p.file_name())
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "Untitled".to_string())
+                })
+            })
+            .unwrap_or_else(|| "Untitled".to_string());
+
+        let restore_focus = self.active_editor().and_then(|e| {
+            let ed = e.read(cx);
+            ed.pane_state_ref(ed.active_pane_id())
+                .and_then(|p| p.focus.active_entity)
+        });
+
+        self.unsaved_dialog = Some(UnsavedDialogState {
+            scope: UnsavedDialogScope::Window,
+            target_panel_id: panel_id,
+            target_tab_index: index,
+            document_name: first_dirty_name,
+            dirty_count,
+            restore_focus,
+        });
+        cx.notify();
+    }
+
+    /// Prompts editor-panel-level unsaved-changes dialog.
+    pub(crate) fn prompt_close_editor_for(&mut self, panel_id: NodeId, cx: &mut Context<Self>) {
+        let (dirty_count, first_dirty_name) = self.dirty_tab_info_in_panel(panel_id, cx);
+        if dirty_count == 0 {
+            return;
+        }
+        let document_name = first_dirty_name.unwrap_or_else(|| "Untitled".to_string());
+        let restore_focus = self.editor_for(panel_id).and_then(|e| {
+            let ed = e.read(cx);
+            ed.pane_state_ref(ed.active_pane_id())
+                .and_then(|p| p.focus.active_entity)
+        });
+
+        self.unsaved_dialog = Some(UnsavedDialogState {
+            scope: UnsavedDialogScope::EditorPanel(panel_id),
+            target_panel_id: panel_id,
+            target_tab_index: 0,
+            document_name,
+            dirty_count,
+            restore_focus,
+        });
+        cx.notify();
+    }
+
+    /// Prompts single-tab-level unsaved-changes dialog.
+    pub(crate) fn prompt_close_tab(
+        &mut self,
+        panel_id: NodeId,
+        index: usize,
+        cx: &mut Context<Self>,
+    ) {
+        let document_name = self
+            .editor_for(panel_id)
+            .and_then(|e| {
+                let editor = e.read(cx);
+                editor.session.tab_list.tabs.get(index).map(|t| {
+                    t.file
+                        .path
+                        .as_ref()
+                        .and_then(|p| p.file_name())
+                        .map(|n| n.to_string_lossy().to_string())
+                        .unwrap_or_else(|| "Untitled".to_string())
+                })
+            })
+            .unwrap_or_else(|| "Untitled".to_string());
+
+        let restore_focus = self.editor_for(panel_id).and_then(|e| {
+            let ed = e.read(cx);
+            ed.pane_state_ref(ed.active_pane_id())
+                .and_then(|p| p.focus.active_entity)
+        });
+
+        self.unsaved_dialog = Some(UnsavedDialogState {
+            scope: UnsavedDialogScope::Tab { panel_id, index },
+            target_panel_id: panel_id,
+            target_tab_index: index,
+            document_name,
+            dirty_count: 1,
+            restore_focus,
+        });
+        cx.notify();
+    }
+
+    /// Legacy compatibility helper for prompt_unsaved_changes_for.
     pub(crate) fn prompt_unsaved_changes_for(
         &mut self,
         panel_id: NodeId,
         index: usize,
         cx: &mut Context<Self>,
     ) {
-        if self.editor_for(panel_id).is_none()
-            && self.retained_editor_sessions.contains_key(&panel_id)
-        {
-            let session = self.retained_editor_sessions.remove(&panel_id).unwrap();
-            let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
-            self.panel_contents
-                .insert(panel_id, PanelContent::Editor(editor));
-        }
+        self.prompt_close_tab(panel_id, index, cx);
+    }
 
-        let Some(editor) = self.editor_for(panel_id).cloned() else {
-            return;
-        };
-        self.activate_panel(panel_id, cx);
-        editor.update(cx, |editor, cx| {
-            editor.activate_tab(index, cx);
-            let restore_focus = editor
-                .pane_state_ref(editor.active_pane_id())
-                .and_then(|state| state.focus.active_entity);
-            if let Some(tab) = editor.session.tab_list.tabs.get_mut(index) {
-                tab.file.show_unsaved_changes_dialog = true;
-                tab.file.pending_close_after_save = true;
-                tab.file.close_dialog_restore_focus = restore_focus;
+    /// Request closing an editor panel: checks for unsaved changes in this panel.
+    pub(crate) fn request_close_panel(&mut self, panel_id: NodeId, cx: &mut Context<Self>) {
+        let (dirty_count, _) = self.dirty_tab_info_in_panel(panel_id, cx);
+        if dirty_count > 0 {
+            self.prompt_close_editor_for(panel_id, cx);
+        } else if self.layout_leaf_count() > 1 {
+            self.close_panel(panel_id, cx);
+        } else if let Some(editor) = self.editor_for(panel_id) {
+            editor.update(cx, |editor, cx| {
+                editor.session.tab_list.tabs.clear();
+                editor.session.tab_list.active_tab = 0;
                 cx.notify();
-            }
-        });
-        cx.notify();
+            });
+        }
     }
 
     /// Installs the window-close guard once: the callback aggregates dirty
@@ -580,10 +766,10 @@ impl Shell {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        let Some((panel_id, index)) = self.first_dirty_tab(cx) else {
+        if self.first_dirty_tab(cx).is_none() {
             return true;
-        };
-        self.prompt_unsaved_changes_for(panel_id, index, cx);
+        }
+        self.prompt_close_window(cx);
         false
     }
 
@@ -594,11 +780,11 @@ impl Shell {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some((panel_id, index)) = self.first_dirty_tab(cx) else {
+        if self.first_dirty_tab(cx).is_none() {
             window.remove_window();
             return;
-        };
-        self.prompt_unsaved_changes_for(panel_id, index, cx);
+        }
+        self.prompt_close_window(cx);
     }
 
     /// CloseWindow action handler on the window root: fires before the

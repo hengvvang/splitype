@@ -63,6 +63,7 @@ fn new_test_shell<T: AppContext>(cx: &mut T) -> T::Result<gpui::Entity<Shell>> {
             last_viewport: None,
             explorer_file_menu: None,
             info_dialog: None,
+            unsaved_dialog: None,
             update_check_in_progress: false,
             close_guard_installed: false,
         }

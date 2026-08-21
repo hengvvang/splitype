@@ -14,11 +14,27 @@ pub struct I18nStrings {
     pub unsaved_changes_title: String,
     /// Body message of the unsaved-changes dialog.
     pub unsaved_changes_message: String,
+    /// Title of the window-level unsaved-changes dialog.
+    pub unsaved_changes_window_title: String,
+    /// Message of the window-level unsaved-changes dialog.
+    pub unsaved_changes_window_message: String,
+    /// Title of the editor-panel-level unsaved-changes dialog.
+    pub unsaved_changes_editor_title: String,
+    /// Message of the editor-panel-level unsaved-changes dialog.
+    pub unsaved_changes_editor_message: String,
+    /// Title of the tab-level unsaved-changes dialog.
+    pub unsaved_changes_tab_title: String,
+    /// Message template of the tab-level unsaved-changes dialog. Supports `{name}`.
+    pub unsaved_changes_tab_message_template: String,
+    /// Label for the "save" button.
+    pub unsaved_changes_save: String,
+    /// Label for the "don't save" button.
+    pub unsaved_changes_discard: String,
     /// Label for the "save and close" button.
     pub unsaved_changes_save_and_close: String,
     /// Label for the "discard and close" button.
     pub unsaved_changes_discard_and_close: String,
-    /// Label for the "keep editing" button.
+    /// Label for the "keep editing" / "cancel" button.
     pub unsaved_changes_cancel: String,
     /// Title of the dropped-file replacement dialog.
     pub drop_replace_title: String,
@@ -366,6 +382,14 @@ pub struct I18nStringsDe {
     dirty_title_marker: Option<String>,
     unsaved_changes_title: Option<String>,
     unsaved_changes_message: Option<String>,
+    unsaved_changes_window_title: Option<String>,
+    unsaved_changes_window_message: Option<String>,
+    unsaved_changes_editor_title: Option<String>,
+    unsaved_changes_editor_message: Option<String>,
+    unsaved_changes_tab_title: Option<String>,
+    unsaved_changes_tab_message_template: Option<String>,
+    unsaved_changes_save: Option<String>,
+    unsaved_changes_discard: Option<String>,
     unsaved_changes_save_and_close: Option<String>,
     unsaved_changes_discard_and_close: Option<String>,
     unsaved_changes_cancel: Option<String>,
@@ -575,6 +599,14 @@ pub const I18N_STRING_KEYS: &[&str] = &[
     "dirty_title_marker",
     "unsaved_changes_title",
     "unsaved_changes_message",
+    "unsaved_changes_window_title",
+    "unsaved_changes_window_message",
+    "unsaved_changes_editor_title",
+    "unsaved_changes_editor_message",
+    "unsaved_changes_tab_title",
+    "unsaved_changes_tab_message_template",
+    "unsaved_changes_save",
+    "unsaved_changes_discard",
     "unsaved_changes_save_and_close",
     "unsaved_changes_discard_and_close",
     "unsaved_changes_cancel",
@@ -792,6 +824,30 @@ impl I18nStringsDe {
             unsaved_changes_message: self
                 .unsaved_changes_message
                 .unwrap_or(defaults.unsaved_changes_message),
+            unsaved_changes_window_title: self
+                .unsaved_changes_window_title
+                .unwrap_or(defaults.unsaved_changes_window_title),
+            unsaved_changes_window_message: self
+                .unsaved_changes_window_message
+                .unwrap_or(defaults.unsaved_changes_window_message),
+            unsaved_changes_editor_title: self
+                .unsaved_changes_editor_title
+                .unwrap_or(defaults.unsaved_changes_editor_title),
+            unsaved_changes_editor_message: self
+                .unsaved_changes_editor_message
+                .unwrap_or(defaults.unsaved_changes_editor_message),
+            unsaved_changes_tab_title: self
+                .unsaved_changes_tab_title
+                .unwrap_or(defaults.unsaved_changes_tab_title),
+            unsaved_changes_tab_message_template: self
+                .unsaved_changes_tab_message_template
+                .unwrap_or(defaults.unsaved_changes_tab_message_template),
+            unsaved_changes_save: self
+                .unsaved_changes_save
+                .unwrap_or(defaults.unsaved_changes_save),
+            unsaved_changes_discard: self
+                .unsaved_changes_discard
+                .unwrap_or(defaults.unsaved_changes_discard),
             unsaved_changes_save_and_close: self
                 .unsaved_changes_save_and_close
                 .unwrap_or(defaults.unsaved_changes_save_and_close),
@@ -1334,9 +1390,17 @@ impl I18nStrings {
             dirty_title_marker: "\u{00B7}".into(),
             unsaved_changes_title: "不保存并关闭？".into(),
             unsaved_changes_message: "此文档有未保存的更改。关闭前保存可避免丢失最新编辑。".into(),
+            unsaved_changes_window_title: "关闭窗口？".into(),
+            unsaved_changes_window_message: "窗口中有未保存的更改。关闭前是否保存？".into(),
+            unsaved_changes_editor_title: "关闭编辑器？".into(),
+            unsaved_changes_editor_message: "当前编辑器中有未保存的更改。关闭前是否保存？".into(),
+            unsaved_changes_tab_title: "保存更改？".into(),
+            unsaved_changes_tab_message_template: "关闭前是否保存对“{name}”的更改？".into(),
+            unsaved_changes_save: "保存".into(),
+            unsaved_changes_discard: "不保存".into(),
             unsaved_changes_save_and_close: "保存并关闭".into(),
             unsaved_changes_discard_and_close: "放弃并关闭".into(),
-            unsaved_changes_cancel: "继续编辑".into(),
+            unsaved_changes_cancel: "取消".into(),
             drop_replace_title: "替换当前文档？".into(),
             drop_replace_message: "当前文档有未保存的更改。替换前保存可避免丢失最新编辑。".into(),
             drop_replace_save_and_replace: "保存并替换".into(),
@@ -1555,9 +1619,20 @@ impl I18nStrings {
             unsaved_changes_message:
                 "This document has unsaved changes. Save before closing to avoid losing your latest edits."
                     .into(),
+            unsaved_changes_window_title: "Close Window?".into(),
+            unsaved_changes_window_message:
+                "There are unsaved changes in this window. Save before closing?".into(),
+            unsaved_changes_editor_title: "Close Editor?".into(),
+            unsaved_changes_editor_message:
+                "This editor has unsaved changes. Save before closing?".into(),
+            unsaved_changes_tab_title: "Save Changes?".into(),
+            unsaved_changes_tab_message_template:
+                "Save changes to \"{name}\" before closing?".into(),
+            unsaved_changes_save: "Save".into(),
+            unsaved_changes_discard: "Don't Save".into(),
             unsaved_changes_save_and_close: "Save and Close".into(),
             unsaved_changes_discard_and_close: "Discard and Close".into(),
-            unsaved_changes_cancel: "Keep Editing".into(),
+            unsaved_changes_cancel: "Cancel".into(),
             drop_replace_title: "Replace current document?".into(),
             drop_replace_message:
                 "This document has unsaved changes. Save before replacing it with the dropped file to avoid losing edits."
