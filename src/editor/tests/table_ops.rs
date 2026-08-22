@@ -200,7 +200,7 @@ async fn moving_header_row_down_swaps_with_first_body(cx: &mut TestAppContext) {
 
 #[gpui::test]
 async fn selecting_first_body_row_does_not_highlight_header(cx: &mut TestAppContext) {
-    use crate::model::block::table::{TableAxis, TableAxisHighlight};
+    use crate::model::block::table::{TableAxis, TableAxisMarker};
     let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |", "| 3 | 4 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -209,29 +209,19 @@ async fn selecting_first_body_row_does_not_highlight_header(cx: &mut TestAppCont
         // Visual row 1 is the first body row; the header (row 0) must stay clear.
         editor.select_table_axis(table.entity_id(), TableAxis::Row, 1, cx);
 
-        let grid = table.read(cx).table_grid.clone().expect("grid");
-        for cell in &grid.header {
-            assert_eq!(
-                cell.read(cx).table_axis_highlight,
-                TableAxisHighlight::None,
-                "header should not be highlighted"
-            );
-        }
-        for cell in &grid.rows[0] {
-            assert_eq!(
-                cell.read(cx).table_axis_highlight,
-                TableAxisHighlight::Selected
-            );
-        }
-        for cell in &grid.rows[1] {
-            assert_eq!(cell.read(cx).table_axis_highlight, TableAxisHighlight::None);
-        }
+        assert_eq!(
+            table.read(cx).table_axis_selection,
+            Some(TableAxisMarker {
+                kind: TableAxis::Row,
+                index: 1,
+            })
+        );
     });
 }
 
 #[gpui::test]
 async fn selecting_header_row_highlights_only_header(cx: &mut TestAppContext) {
-    use crate::model::block::table::{TableAxis, TableAxisHighlight};
+    use crate::model::block::table::{TableAxis, TableAxisMarker};
     let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -239,16 +229,13 @@ async fn selecting_header_row_highlights_only_header(cx: &mut TestAppContext) {
         let table = editor.doc().first_root().expect("table root").clone();
         editor.select_table_axis(table.entity_id(), TableAxis::Row, 0, cx);
 
-        let grid = table.read(cx).table_grid.clone().expect("grid");
-        for cell in &grid.header {
-            assert_eq!(
-                cell.read(cx).table_axis_highlight,
-                TableAxisHighlight::Selected
-            );
-        }
-        for cell in &grid.rows[0] {
-            assert_eq!(cell.read(cx).table_axis_highlight, TableAxisHighlight::None);
-        }
+        assert_eq!(
+            table.read(cx).table_axis_selection,
+            Some(TableAxisMarker {
+                kind: TableAxis::Row,
+                index: 0,
+            })
+        );
     });
 }
 

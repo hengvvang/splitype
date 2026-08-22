@@ -4,7 +4,7 @@ use gpui::*;
 
 use crate::editor::controller::{Editor, TableAxisSelection};
 use crate::editor::tree::block::Block;
-use crate::model::block::table::{TableAxis, TableAxisHighlight, TableAxisMarker};
+use crate::model::block::table::{TableAxis, TableAxisMarker};
 use crate::model::parse::BlockKind;
 
 impl Editor {
@@ -220,53 +220,6 @@ impl Editor {
                 block.set_table_axis_visual_state(preview_marker, selected_marker);
                 cx.notify();
             });
-
-            let Some(grid) = table_block.read(cx).table_grid.clone() else {
-                continue;
-            };
-
-            let selected = self
-                .tab()
-                .tables
-                .axis_selection
-                .filter(|selection| selection.table_block_id == block_id);
-            let preview = self
-                .tab()
-                .tables
-                .axis_preview
-                .filter(|selection| selection.table_block_id == block_id);
-
-            // `row` is the visual row index: `0` is the header and body rows
-            // follow at `1..`, matching how row selections are addressed.
-            let mut apply_highlight = |cell: &Entity<Block>, row: usize, column: usize| {
-                let highlight = if selected.is_some_and(|selection| match selection.kind {
-                    TableAxis::Column => selection.index == column,
-                    TableAxis::Row => selection.index == row,
-                }) {
-                    TableAxisHighlight::Selected
-                } else if preview.is_some_and(|selection| match selection.kind {
-                    TableAxis::Column => selection.index == column,
-                    TableAxis::Row => selection.index == row,
-                }) {
-                    TableAxisHighlight::Preview
-                } else {
-                    TableAxisHighlight::None
-                };
-
-                cell.update(cx, move |block, cx| {
-                    block.set_table_axis_highlight(highlight);
-                    cx.notify();
-                });
-            };
-
-            for (column, cell) in grid.header.iter().enumerate() {
-                apply_highlight(cell, 0, column);
-            }
-            for (body_row_index, row) in grid.rows.iter().enumerate() {
-                for (column, cell) in row.iter().enumerate() {
-                    apply_highlight(cell, body_row_index + 1, column);
-                }
-            }
         }
     }
 }

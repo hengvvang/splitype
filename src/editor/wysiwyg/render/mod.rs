@@ -58,7 +58,6 @@ use crate::editor::wysiwyg::render::{
 };
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::{Theme, ThemeDimensions, ThemeManager};
-use crate::model::block::table::TableAxisHighlight;
 use crate::model::parse::BlockKind;
 
 fn wrap_with_quote_guides(content: AnyElement, quote_depth: usize, theme: &Theme) -> AnyElement {
@@ -232,21 +231,10 @@ impl Render for Block {
             // weight) when the show-table-headers preference is enabled.
             let style_as_header =
                 is_header && crate::infra::config::settings::EditorSettings::show_table_headers(cx);
-            let highlight = self.table_axis_highlight;
             let base_bg = if style_as_header {
                 c.table_header_bg
             } else {
                 c.table_cell_bg
-            };
-            let bg = match highlight {
-                TableAxisHighlight::None => base_bg,
-                TableAxisHighlight::Preview => c.table_axis_preview_bg,
-                TableAxisHighlight::Selected => c.table_axis_selected_bg,
-            };
-            let border_color = match highlight {
-                TableAxisHighlight::None => c.table_border,
-                TableAxisHighlight::Preview => c.table_selection_border,
-                TableAxisHighlight::Selected => c.table_selection_border,
             };
             let cell_base = self
                 .render_shell(
@@ -269,8 +257,8 @@ impl Render for Block {
                 .py(px(d.table_cell_padding_y))
                 .border_r(px(1.0))
                 .border_b(px(1.0))
-                .border_color(border_color)
-                .bg(bg)
+                .border_color(c.table_border)
+                .bg(base_bg)
                 .text_size(px(t.text_size))
                 .text_color(c.text_default)
                 .line_height(rems(t.text_line_height));
@@ -322,18 +310,6 @@ impl Render for Block {
                 )
             };
 
-            let focused_outline = if focused {
-                Some(
-                    div()
-                        .absolute()
-                        .inset_0()
-                        .border(px(2.0))
-                        .border_color(c.table_cell_active_outline),
-                )
-            } else {
-                None
-            };
-
             return cell_base
                 .relative()
                 .flex()
@@ -346,7 +322,6 @@ impl Render for Block {
                         .items_center()
                         .child(cell_content),
                 )
-                .children(focused_outline)
                 .into_any_element();
         }
 
