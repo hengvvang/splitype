@@ -589,6 +589,48 @@ async fn switching_to_an_unrendered_tab_mounts_a_full_viewport(cx: &mut TestAppC
 }
 
 #[gpui::test]
+async fn initial_tab_render_does_not_collapse_column_width(cx: &mut TestAppContext) {
+    init_editor_test_app(cx);
+
+    let (editor, cx) = cx.add_window_view({
+        move |_window, cx| Editor::from_markdown(cx, "# 7.6 甘特图 (Gantt)".to_string(), None)
+    });
+    cx.cx
+        .update(|app| ensure_wysiwyg_editing_panel(&editor, app));
+
+    // On initial render of a newly opened tab, the column width must be properly sized
+    editor.update(cx, |editor, cx| {
+        let list = &mut editor.session_mut().tab_list;
+        list.tabs.push(Editor::new_tab_from_markdown(
+            cx,
+            "## 7.6 甘特图 (Gantt)\n\nParagraph text".to_string(),
+            None,
+        ));
+        editor.activate_tab(1, cx);
+    });
+
+    let (viewport_size, _handle_bounds) = editor.read_with(cx, |editor, _cx| {
+        (
+            editor.active_pane_scroll().last_viewport_size,
+            editor.active_pane_scroll().handle.bounds(),
+        )
+    });
+    assert!(
+        viewport_size.is_some_and(|size| size.width > gpui::px(100.0)),
+        "first frame of new tab must sync real viewport width"
+    );
+    let theme = editor.read_with(cx, |_, cx| {
+        cx.global::<crate::infra::theme::ThemeManager>().current_arc()
+    });
+    let centered_width =
+        Editor::centered_column_width(f32::from(viewport_size.unwrap().width), &theme.dimensions);
+    assert!(
+        centered_width >= 320.0,
+        "centered width must be at least 320px, got {centered_width}"
+    );
+}
+
+#[gpui::test]
 async fn focused_thematic_break_accepts_typing(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 

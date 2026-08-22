@@ -76,8 +76,8 @@ impl Editor {
             .pane_state_ref(pane_id)
             .map(|state| f32::from(state.scroll.handle.max_offset().height.max(px(0.0))))
             .unwrap_or(0.0);
-        let viewport_height = f32::from(viewport_bounds.size.height.max(px(1.0)));
-        let viewport_width = f32::from(viewport_bounds.size.width.max(px(1.0)));
+        let viewport_height = f32::from(viewport_size.height.max(px(1.0)));
+        let viewport_width = f32::from(viewport_size.width.max(px(1.0)));
         let has_overflow = max_scroll_y > 0.5;
 
         let centered_width = Self::centered_column_width(viewport_width, &theme.dimensions);

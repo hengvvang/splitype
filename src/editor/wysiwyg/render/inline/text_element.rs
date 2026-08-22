@@ -156,7 +156,7 @@ impl Element for BlockTextElement {
             move |known_dimensions, available_space, window, _cx| {
                 let wrap_width = known_dimensions.width.or(match available_space.width {
                     AvailableSpace::Definite(x) => Some(x),
-                    AvailableSpace::MinContent => Some(px(1.0)),
+                    AvailableSpace::MinContent => None,
                     AvailableSpace::MaxContent => Some(window.viewport_size().width.max(px(1.0))),
                 });
                 let text_wrap_width =
@@ -177,7 +177,9 @@ impl Element for BlockTextElement {
                             total_size.width = total_size.width.max(ls.width);
                         }
                         total_size.width += source_line_number_gutter_width;
-                        *shared_lines_clone.borrow_mut() = Some(lines.into_vec());
+                        if wrap_width.is_some() {
+                            *shared_lines_clone.borrow_mut() = Some(lines.into_vec());
+                        }
                         total_size
                     }
                     Err(_) => Size::default(),
