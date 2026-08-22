@@ -110,22 +110,37 @@ pub fn icon_button(
         .cursor_pointer()
 }
 
-/// Minimal icon chip (padding-only) for toolbar and header actions.
+/// Dynamically computes the square button chip size from bar height.
+pub fn toolbar_button_size(bar_height: f32) -> f32 {
+    (bar_height * 0.72).round().max(16.0)
+}
+
+/// Dynamically computes the icon size from bar height.
+pub fn toolbar_icon_size(bar_height: f32) -> f32 {
+    (bar_height * 0.5).round().max(12.0)
+}
+
+/// Minimal icon chip for toolbar and header actions, dynamically sized from bar height.
 /// Call sites add `.id(...)` when the element needs interactivity state.
 pub fn icon_chip_button(c: &ThemeColors, d: &ThemeDimensions) -> Div {
+    let size = toolbar_button_size(d.topbar_height);
     div()
-        .p(px(3.0))
+        .size(px(size))
+        .flex()
+        .items_center()
+        .justify_center()
         .rounded(px(d.icon_button_radius))
         .hover(|this| this.bg(c.dialog_secondary_button_hover))
         .cursor_pointer()
 }
 
 /// Small pill button with a secondary background (area headers, status
-/// bars). Call sites may add `.id(...)` and override the background for
-/// selected states.
+/// bars), dynamically sized from bar height. Call sites may add `.id(...)`
+/// and override the background for selected states.
 pub fn small_pill_button(c: &ThemeColors, d: &ThemeDimensions) -> Div {
+    let height = toolbar_button_size(d.topbar_height);
     div()
-        .h(px(22.0))
+        .h(px(height))
         .px(px(8.0))
         .flex()
         .items_center()
@@ -174,3 +189,4 @@ fn action_base(
         .active(|this| this.opacity(0.92))
         .cursor_pointer()
 }
+

@@ -7,7 +7,7 @@ use crate::app::shell::Shell;
 
 use crate::infra::theme::Theme;
 use crate::ui::bottombar::bottombar_container;
-use crate::ui::button::icon_chip_button;
+use crate::ui::button::{icon_chip_button, toolbar_icon_size};
 
 impl Shell {
     /// Bottom bar of an Explorer area: add-folder button plus the worktree
@@ -24,6 +24,7 @@ impl Shell {
         let d = &theme.dimensions;
         let shell_add = cx.entity().downgrade();
         let worktree_count = self.panels.explorer.worktrees.len();
+        let btn_icon_size = toolbar_icon_size(d.bottombar_height);
 
         bottombar_container(c, d.bottombar_height, d.bottombar_padding_x)
             .id(("explorer-bottombar", panel_id))
@@ -38,7 +39,7 @@ impl Shell {
                             .child(
                                 svg()
                                     .path("icons/explorer/bottombar/new_folder.svg")
-                                    .size(px(16.0))
+                                    .size(px(btn_icon_size))
                                     .text_color(c.text_default),
                             )
                             .on_click(move |_event, window, cx| {

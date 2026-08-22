@@ -71,3 +71,20 @@ fn centered_column_width_calculation() {
     assert!(width_large < 1200.0);
     assert!(width_large > 0.0);
 }
+
+#[test]
+fn test_toolbar_dynamic_button_and_icon_size() {
+    use crate::ui::button::{toolbar_button_size, toolbar_icon_size};
+
+    // Default bar height 28.0px
+    assert_eq!(toolbar_button_size(28.0), 20.0);
+    assert_eq!(toolbar_icon_size(28.0), 14.0);
+
+    // Scales proportionally when bar height increases
+    assert_eq!(toolbar_button_size(32.0), 23.0);
+    assert_eq!(toolbar_icon_size(32.0), 16.0);
+
+    // Scales proportionally when bar height decreases
+    assert_eq!(toolbar_button_size(24.0), 17.0);
+    assert_eq!(toolbar_icon_size(24.0), 12.0);
+}

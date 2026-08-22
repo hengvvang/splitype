@@ -8,7 +8,7 @@ pub(crate) mod words;
 
 use crate::ui::bottombar::bottombar_container;
 
-use crate::ui::button::{icon_chip_button, small_pill_button};
+use crate::ui::button::{icon_chip_button, small_pill_button, toolbar_icon_size};
 
 use gpui::prelude::*;
 use gpui::*;
@@ -153,6 +153,7 @@ impl Editor {
         // document is opened.
         if let (Some(pane_id), Some(_)) = (focused_pane_id, focused_kind) {
             let editor = cx.entity().downgrade();
+            let btn_icon_size = toolbar_icon_size(d.bottombar_height);
 
             // Split H button.
             let split_h_editor = editor.clone();
@@ -161,7 +162,7 @@ impl Editor {
                     .child(
                         svg()
                             .path("icons/editor/bottombar/split-h.svg")
-                            .size(px(14.0))
+                            .size(px(btn_icon_size))
                             .text_color(c.dialog_muted),
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
@@ -180,7 +181,7 @@ impl Editor {
                     .child(
                         svg()
                             .path("icons/editor/bottombar/split-v.svg")
-                            .size(px(14.0))
+                            .size(px(btn_icon_size))
                             .text_color(c.dialog_muted),
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
@@ -200,7 +201,7 @@ impl Editor {
                         .child(
                             svg()
                                 .path("icons/editor/bottombar/close.svg")
-                                .size(px(14.0))
+                                .size(px(btn_icon_size))
                                 .text_color(c.dialog_muted),
                         )
                         .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {

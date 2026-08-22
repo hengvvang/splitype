@@ -8,7 +8,9 @@ use crate::app::window_layout::panel_topbar_icon;
 use crate::app::window_panels::WindowPanelKind;
 use crate::infra::theme::Theme;
 use crate::splitter::SplitAxis;
-use crate::ui::button::{icon_chip_button, small_pill_button};
+use crate::ui::button::{
+    icon_chip_button, small_pill_button, toolbar_button_size, toolbar_icon_size,
+};
 use crate::ui::topbar::topbar_container;
 
 impl crate::editor::controller::Editor {
@@ -54,13 +56,15 @@ impl crate::editor::controller::Editor {
                 });
             });
 
+        let btn_icon_size = toolbar_icon_size(d.topbar_height);
+
         let split_h_editor = editor.clone();
         let split_h_button = icon_chip_button(c, d)
             .id(("panel-topbar-split-h", panel_id))
             .child(
                 svg()
                     .path(panel_topbar_icon(kind, "split-h"))
-                    .size(px(d.topbar_height * 0.5 + 2.0))
+                    .size(px(btn_icon_size))
                     .text_color(c.dialog_muted),
             )
             .on_click(move |_event, _window, cx| {
@@ -79,7 +83,7 @@ impl crate::editor::controller::Editor {
             .child(
                 svg()
                     .path(panel_topbar_icon(kind, "split-v"))
-                    .size(px(d.topbar_height * 0.5 + 2.0))
+                    .size(px(btn_icon_size))
                     .text_color(c.dialog_muted),
             )
             .on_click(move |_event, _window, cx| {
@@ -110,7 +114,7 @@ impl crate::editor::controller::Editor {
                         } else {
                             panel_topbar_icon(kind, "maximize")
                         })
-                        .size(px(d.topbar_height * 0.5 - 2.0))
+                        .size(px(btn_icon_size))
                         .text_color(c.dialog_muted),
                 )
                 .on_click(move |_event, _window, cx| {
@@ -128,7 +132,7 @@ impl crate::editor::controller::Editor {
                 .child(
                     svg()
                         .path(panel_topbar_icon(kind, "close"))
-                        .size(px(d.topbar_height * 0.5 - 2.0))
+                        .size(px(btn_icon_size))
                         .text_color(c.dialog_muted),
                 )
                 .on_click(move |_event, _window, cx| {
@@ -234,7 +238,7 @@ impl crate::editor::controller::Editor {
             let add_editor = editor.clone();
             tab_elements.push(
                 div()
-                    .size(px(18.0))
+                    .size(px(toolbar_button_size(d.topbar_height)))
                     .flex()
                     .items_center()
                     .justify_center()
@@ -245,7 +249,7 @@ impl crate::editor::controller::Editor {
                     .child(
                         svg()
                             .path("icons/settings/plus.svg")
-                            .size(px(14.0))
+                            .size(px(btn_icon_size))
                             .text_color(c.dialog_muted),
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {

@@ -8,7 +8,7 @@ use crate::app::shell::Shell;
 use crate::app::window_layout::panel_topbar_icon;
 use crate::infra::theme::Theme;
 use crate::splitter::SplitAxis;
-use crate::ui::button::{icon_chip_button, small_pill_button};
+use crate::ui::button::{icon_chip_button, small_pill_button, toolbar_icon_size};
 use crate::ui::topbar::topbar_container;
 
 impl Shell {
@@ -39,13 +39,15 @@ impl Shell {
                 });
             });
 
+        let btn_icon_size = toolbar_icon_size(d.topbar_height);
+
         let split_h_shell = shell.clone();
         let split_h_button = icon_chip_button(c, d)
             .id(("panel-topbar-split-h", panel_id))
             .child(
                 svg()
                     .path(panel_topbar_icon(kind, "split-h"))
-                    .size(px(d.topbar_height * 0.5 + 2.0))
+                    .size(px(btn_icon_size))
                     .text_color(c.dialog_muted),
             )
             .on_click(move |_event, _window, cx| {
@@ -62,7 +64,7 @@ impl Shell {
             .child(
                 svg()
                     .path(panel_topbar_icon(kind, "split-v"))
-                    .size(px(d.topbar_height * 0.5 + 2.0))
+                    .size(px(btn_icon_size))
                     .text_color(c.dialog_muted),
             )
             .on_click(move |_event, _window, cx| {
@@ -91,7 +93,7 @@ impl Shell {
                         } else {
                             panel_topbar_icon(kind, "maximize")
                         })
-                        .size(px(d.topbar_height * 0.5 - 2.0))
+                        .size(px(btn_icon_size))
                         .text_color(c.dialog_muted),
                 )
                 .on_click(move |_event, _window, cx| {
@@ -107,7 +109,7 @@ impl Shell {
                 .child(
                     svg()
                         .path(panel_topbar_icon(kind, "close"))
-                        .size(px(d.topbar_height * 0.5 - 2.0))
+                        .size(px(btn_icon_size))
                         .text_color(c.dialog_muted),
                 )
                 .on_click(move |_event, _window, cx| {
