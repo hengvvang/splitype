@@ -18,12 +18,6 @@ impl Document {
         }
     }
 
-    /// Monoidal summary of the document (blocks, lines, characters) computed in O(1).
-    #[allow(dead_code)]
-    pub(crate) fn summary(&self) -> splitype_model::tree::BlockSummary {
-        *self.tree.summary()
-    }
-
     /// Version of the current block set; grows on every structural edit.
     pub(crate) fn structure_version(&self) -> u64 {
         self.structure_version

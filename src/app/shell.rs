@@ -51,15 +51,21 @@ pub(crate) enum UnsavedDialogScope {
     Tab { panel_id: NodeId, index: usize },
 }
 
+impl UnsavedDialogScope {
+    pub(crate) fn panel_id(&self) -> Option<NodeId> {
+        match self {
+            Self::Window => None,
+            Self::EditorPanel(panel_id) => Some(*panel_id),
+            Self::Tab { panel_id, .. } => Some(*panel_id),
+        }
+    }
+}
+
 /// State for the window-level unsaved-changes confirmation dialog.
 #[derive(Clone, Debug)]
-#[allow(dead_code)]
 pub(crate) struct UnsavedDialogState {
     pub(crate) scope: UnsavedDialogScope,
-    pub(crate) target_panel_id: NodeId,
-    pub(crate) target_tab_index: usize,
     pub(crate) document_name: String,
-    pub(crate) dirty_count: usize,
     pub(crate) restore_focus: Option<EntityId>,
 }
 
@@ -99,7 +105,7 @@ impl Shell {
     pub(crate) fn active_editor_tab<'a>(&self, cx: &'a App) -> Option<&'a DocumentTab> {
         let panel = self.active_editor_panel()?;
         let editor = self.editor_for(panel)?;
-        editor.read(cx).active_editor_tab()
+        editor.read(cx).active_tab()
     }
 
     /// The window's primary (first) editor area content, if any.
@@ -546,26 +552,6 @@ impl Shell {
         ids.len()
     }
 
-    /// Counts dirty tabs across all editor panels and retained sessions.
-    pub(crate) fn count_dirty_tabs(&self, cx: &App) -> usize {
-        let mut count = 0;
-        for session in self.retained_editor_sessions.values() {
-            count += session.tab_list.tabs.iter().filter(|t| t.file.dirty).count();
-        }
-        for content in self.panel_contents.values() {
-            let PanelContent::Editor(entity) = content;
-            count += entity
-                .read(cx)
-                .session
-                .tab_list
-                .tabs
-                .iter()
-                .filter(|t| t.file.dirty)
-                .count();
-        }
-        count
-    }
-
     /// Returns dirty tab count and first dirty document name for a given panel.
     pub(crate) fn dirty_tab_info_in_panel(
         &self,
@@ -618,7 +604,6 @@ impl Shell {
         let Some((panel_id, index)) = self.first_dirty_tab(cx) else {
             return;
         };
-        let dirty_count = self.count_dirty_tabs(cx);
         let first_dirty_name = self
             .editor_for(panel_id)
             .and_then(|e| {
@@ -642,10 +627,7 @@ impl Shell {
 
         self.unsaved_dialog = Some(UnsavedDialogState {
             scope: UnsavedDialogScope::Window,
-            target_panel_id: panel_id,
-            target_tab_index: index,
             document_name: first_dirty_name,
-            dirty_count,
             restore_focus,
         });
         cx.notify();
@@ -666,10 +648,7 @@ impl Shell {
 
         self.unsaved_dialog = Some(UnsavedDialogState {
             scope: UnsavedDialogScope::EditorPanel(panel_id),
-            target_panel_id: panel_id,
-            target_tab_index: 0,
             document_name,
-            dirty_count,
             restore_focus,
         });
         cx.notify();
@@ -705,23 +684,10 @@ impl Shell {
 
         self.unsaved_dialog = Some(UnsavedDialogState {
             scope: UnsavedDialogScope::Tab { panel_id, index },
-            target_panel_id: panel_id,
-            target_tab_index: index,
             document_name,
-            dirty_count: 1,
             restore_focus,
         });
         cx.notify();
-    }
-
-    /// Legacy compatibility helper for prompt_unsaved_changes_for.
-    pub(crate) fn prompt_unsaved_changes_for(
-        &mut self,
-        panel_id: NodeId,
-        index: usize,
-        cx: &mut Context<Self>,
-    ) {
-        self.prompt_close_tab(panel_id, index, cx);
     }
 
     /// Request closing an editor panel: checks for unsaved changes in this panel.

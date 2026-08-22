@@ -74,10 +74,6 @@ pub struct ShortcutDefinition {
 
 const BLOCK_CONTEXT: Option<&str> = Some("BlockEditor");
 const SELECT_ALL_ID: &str = "select_all";
-const LEGACY_SELECT_ALL_IDS: &[&str] = &[
-    "select_all_source_text",
-    "select_focused_block_text_rendered",
-];
 
 // On macOS cmd-q is the system quit shortcut; Windows/Linux use Alt+F4 (OS-handled).
 #[cfg(target_os = "macos")]
@@ -409,19 +405,7 @@ pub fn default_keys(definition: ShortcutDefinition) -> Vec<String> {
         .collect()
 }
 
-/// Legacy preference keys that should feed a modern shortcut definition.
-///
-/// Select-all used to be represented by separate source/rendered commands. The
-/// editor now cycles those behaviors through one action, so old preferences map
-/// forward to `select_all` instead of being silently discarded on load.
-fn legacy_shortcut_ids(definition: ShortcutDefinition) -> &'static [&'static str] {
-    match definition.command {
-        ShortcutCommand::SelectAll => LEGACY_SELECT_ALL_IDS,
-        _ => &[],
-    }
-}
-
-/// Reads a user shortcut override, preferring the current id before aliases.
+/// Reads a user shortcut override for the definition id.
 fn configured_shortcut_keys(
     definition: ShortcutDefinition,
     config: &BTreeMap<String, Vec<String>>,
@@ -429,13 +413,6 @@ fn configured_shortcut_keys(
     config
         .get(definition.id)
         .and_then(|keys| normalize_shortcut_keys(keys))
-        .or_else(|| {
-            legacy_shortcut_ids(definition).iter().find_map(|id| {
-                config
-                    .get(*id)
-                    .and_then(|keys| normalize_shortcut_keys(keys))
-            })
-        })
 }
 
 fn shortcuts_conflict(
@@ -596,47 +573,6 @@ mod tests {
             resolved_shortcut_keys(&config, ShortcutCommand::SelectAll),
             vec!["ctrl-shift-a".to_string()]
         );
-    }
-
-    #[test]
-    fn legacy_split_select_all_shortcut_config_maps_to_unified_command() {
-        let mut config = BTreeMap::new();
-        config.insert(
-            "select_all_source_text".to_string(),
-            vec!["ctrl-shift-a".to_string()],
-        );
-
-        assert_eq!(
-            resolved_shortcut_keys(&config, ShortcutCommand::SelectAll),
-            vec!["ctrl-shift-a".to_string()]
-        );
-
-        let normalized = normalize_shortcut_config(&config);
-        assert_eq!(
-            normalized.get("select_all"),
-            Some(&vec!["ctrl-shift-a".to_string()])
-        );
-        assert!(!normalized.contains_key("select_all_source_text"));
-        assert!(!normalized.contains_key("select_focused_block_text_rendered"));
-
-        config.clear();
-        config.insert(
-            "select_focused_block_text_rendered".to_string(),
-            vec!["ctrl-alt-shift-a".to_string()],
-        );
-
-        assert_eq!(
-            resolved_shortcut_keys(&config, ShortcutCommand::SelectAll),
-            vec!["ctrl-alt-shift-a".to_string()]
-        );
-
-        let normalized = normalize_shortcut_config(&config);
-        assert_eq!(
-            normalized.get("select_all"),
-            Some(&vec!["ctrl-alt-shift-a".to_string()])
-        );
-        assert!(!normalized.contains_key("select_all_source_text"));
-        assert!(!normalized.contains_key("select_focused_block_text_rendered"));
     }
 
     #[test]

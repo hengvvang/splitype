@@ -266,42 +266,6 @@ impl Document {
     ) -> bool {
         use crate::editor::editing::history::delta::DocDelta;
         match delta {
-            DocDelta::InsertBlock { index, block } => {
-                let entity = Editor::new_block(cx, block.clone());
-                let idx = (*index).min(self.roots.len());
-                self.roots.insert(idx, entity);
-                self.rebuild_metadata_and_snapshot(cx);
-                true
-            }
-            DocDelta::RemoveBlock { index, old_block } => {
-                if *index < self.roots.len() {
-                    self.roots.remove(*index);
-                    self.rebuild_metadata_and_snapshot(cx);
-                    true
-                } else if let Some(pos) = self.roots.iter().position(|r| r.read(cx).data.id == old_block.id) {
-                    self.roots.remove(pos);
-                    self.rebuild_metadata_and_snapshot(cx);
-                    true
-                } else {
-                    false
-                }
-            }
-            DocDelta::ReplaceBlock { index, new_block, .. } => {
-                if let Some(target) = self.roots.get(*index) {
-                    let target = target.clone();
-                    target.update(cx, |block, cx| {
-                        block.data = new_block.clone();
-                        block.render_cache = new_block.text.render_cache();
-                        block.sync_code_highlight();
-                        block.refresh_cached_display_text();
-                        cx.notify();
-                    });
-                    self.rebuild_metadata_and_snapshot(cx);
-                    true
-                } else {
-                    false
-                }
-            }
             DocDelta::UpdateBlockText {
                 block_id,
                 new_text,
@@ -315,37 +279,6 @@ impl Document {
                         block.refresh_cached_display_text();
                         cx.notify();
                     });
-                    true
-                } else {
-                    false
-                }
-            }
-            DocDelta::UpdateTable {
-                block_id,
-                new_table,
-                ..
-            } => {
-                if let Some(target) = self.find_entity_by_block_id(*block_id, cx) {
-                    target.update(cx, |block, cx| {
-                        block.data.table = Some(new_table.clone());
-                        cx.notify();
-                    });
-                    true
-                } else {
-                    false
-                }
-            }
-            DocDelta::MoveBlock {
-                from_index,
-                to_index,
-            } => {
-                if *from_index < self.roots.len()
-                    && *to_index < self.roots.len()
-                    && from_index != to_index
-                {
-                    let item = self.roots.remove(*from_index);
-                    self.roots.insert(*to_index, item);
-                    self.rebuild_metadata_and_snapshot(cx);
                     true
                 } else {
                     false

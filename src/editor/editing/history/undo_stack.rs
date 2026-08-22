@@ -8,53 +8,6 @@ use crate::editor::controller::{Editor, HistoryEntry, UndoCaptureKind, UndoSelec
 use crate::editor::editing::history::delta::Transaction;
 
 impl Editor {
-    /// Records a structured transaction into the undo history stack, coalescing adjacent typing edits.
-    #[allow(dead_code)]
-    pub(crate) fn record_transaction(
-        &mut self,
-        tx: Transaction,
-        kind: UndoCaptureKind,
-        cx: &App,
-    ) {
-        if self.tab().undo.restore_in_progress || tx.is_empty() {
-            return;
-        }
-
-        // Fresh edits invalidate redo history
-        self.tab_mut().undo.redo_entries.clear();
-
-        let now = Instant::now();
-        let should_coalesce = matches!(kind, UndoCaptureKind::CoalescibleText)
-            && self.tab().undo.undo_entries.last().is_some_and(|entry| {
-                matches!(entry.kind, UndoCaptureKind::CoalescibleText)
-                    && now.saturating_duration_since(entry.timestamp) <= Self::HISTORY_COALESCE_WINDOW
-            });
-
-        let selection = self.capture_source_selection_snapshot(cx);
-        if should_coalesce {
-            if let Some(last) = self.tab_mut().undo.undo_entries.last_mut() {
-                last.transaction.ops.extend(tx.ops);
-                last.selection_after = selection;
-                last.timestamp = now;
-                return;
-            }
-        }
-
-        let entry = HistoryEntry {
-            selection_before: tx.selection_before.clone(),
-            selection_after: selection,
-            transaction: tx,
-            timestamp: now,
-            kind,
-        };
-
-        self.tab_mut().undo.undo_entries.push(entry);
-        if self.tab().undo.undo_entries.len() > Self::HISTORY_LIMIT {
-            let overflow = self.tab().undo.undo_entries.len() - Self::HISTORY_LIMIT;
-            self.tab_mut().undo.undo_entries.drain(0..overflow);
-        }
-    }
-
     pub(crate) fn prepare_undo_capture(&mut self, kind: UndoCaptureKind, cx: &mut Context<Self>) {
         let target_block_info = self
             .current_edit_target_from_state(cx)

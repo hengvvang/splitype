@@ -922,12 +922,6 @@ impl Editor {
         list.tabs.get(list.active_tab)
     }
 
-    /// Alias for `active_tab` for shell compatibility.
-    #[inline]
-    pub(crate) fn active_editor_tab(&self) -> Option<&DocumentTab> {
-        self.active_tab()
-    }
-
     /// Split `panel_id` with a same-kind sibling and seed the new Editor
     /// area per `copy_content`: `true` deep-copies the source session
     /// (tab list re-materialized from its serialized document, pane

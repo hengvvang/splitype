@@ -202,7 +202,6 @@ pub struct ThemeColors {
 struct ThemeColorsDe {
     editor_background: Hsla,
     source_mode_block_bg: Option<Hsla>,
-    block_focused_bg: Option<Hsla>,
     comment_bg: Option<Hsla>,
     text_default: Hsla,
     text_link: Option<Hsla>,
@@ -235,7 +234,6 @@ struct ThemeColorsDe {
     task_checkbox_checked_bg: Option<Hsla>,
     task_checkbox_check: Option<Hsla>,
     separator: Option<Hsla>,
-    separator_color: Option<Hsla>,
     code_bg: Option<Hsla>,
     code_text: Hsla,
     code_language_input_bg: Option<Hsla>,
@@ -308,7 +306,6 @@ impl<'de> Deserialize<'de> for ThemeColors {
             editor_background: raw.editor_background,
             source_mode_block_bg: raw
                 .source_mode_block_bg
-                .or(raw.block_focused_bg)
                 .unwrap_or_else(|| Hsla::from(rgba(0x313131ff))),
             comment_bg: raw
                 .comment_bg
@@ -383,7 +380,6 @@ impl<'de> Deserialize<'de> for ThemeColors {
                 .unwrap_or_else(|| Hsla::from(rgba(0x18181bff))),
             separator: raw
                 .separator
-                .or(raw.separator_color)
                 .unwrap_or_else(|| Hsla::from(rgba(0xd1d1d8ff))),
             code_bg: raw.code_bg.unwrap_or_else(|| Hsla::from(rgba(0x111827ff))),
             code_text: raw.code_text,

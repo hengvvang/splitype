@@ -708,17 +708,6 @@ mod tests {
     use gpui::rgba;
 
     #[test]
-    fn deserializes_legacy_block_focused_bg_key() {
-        let default_json = Theme::default_theme()
-            .to_json()
-            .expect("default theme should serialize");
-        let legacy_json = default_json.replace("source_mode_block_bg", "block_focused_bg");
-
-        let theme = Theme::from_json(&legacy_json).expect("legacy theme should deserialize");
-        assert!(theme.colors.source_mode_block_bg.a > 0.0);
-    }
-
-    #[test]
     fn border_h2_falls_back_when_omitted() {
         let default_json = Theme::default_theme()
             .to_json()
@@ -785,29 +774,6 @@ mod tests {
             .expect("theme should include dimensions");
         assert!(!dimensions.contains_key(&format!("dialog_{}", "badge_padding_x")));
         assert!(!dimensions.contains_key(&format!("dialog_{}", "badge_padding_y")));
-    }
-
-    #[test]
-    fn legacy_theme_json_with_strings_still_loads() {
-        let default_json = Theme::default_theme()
-            .to_json()
-            .expect("default theme should serialize");
-        let parsed: serde_json::Value =
-            serde_json::from_str(&default_json).expect("default theme json should parse");
-        let mut object = parsed
-            .as_object()
-            .expect("theme should serialize to a json object")
-            .clone();
-        object.insert(
-            "strings".into(),
-            serde_json::json!({
-                "menu_file": "Legacy File",
-                "menu_language": "Legacy Language"
-            }),
-        );
-        let json = serde_json::to_string(&object).expect("theme json should serialize");
-
-        Theme::from_json(&json).expect("legacy theme strings should be ignored safely");
     }
 
     #[test]

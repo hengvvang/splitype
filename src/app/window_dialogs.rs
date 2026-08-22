@@ -91,7 +91,12 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         if let Some(dialog) = self.unsaved_dialog.take() {
-            if let Some(editor) = self.editor_for(dialog.target_panel_id) {
+            let target_editor = dialog
+                .scope
+                .panel_id()
+                .and_then(|id| self.editor_for(id))
+                .or_else(|| self.active_editor());
+            if let Some(editor) = target_editor {
                 editor.update(cx, |editor, cx| {
                     if let Some(restore) = dialog.restore_focus {
                         let pane = editor.active_pane_state();
@@ -222,7 +227,7 @@ impl Shell {
         if let Some(editor) = self.editor_with_dialog(cx, |file| file.show_unsaved_changes_dialog) {
             editor.update(cx, |editor, cx| editor.discard_and_close(cx));
             if let Some((panel_id, index)) = self.first_dirty_tab(cx) {
-                self.prompt_unsaved_changes_for(panel_id, index, cx);
+                self.prompt_close_tab(panel_id, index, cx);
             } else {
                 window.remove_window();
             }
