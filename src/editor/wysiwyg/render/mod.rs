@@ -38,7 +38,6 @@ use gpui::*;
 
 pub(crate) const BLOCK_EDITOR_CONTEXT: &str = "BlockEditor";
 
-use crate::editor::block_protocol::BlockEvent;
 use crate::editor::tree::block::Block;
 use crate::editor::wysiwyg::render::inline::text_element::BlockTextElement;
 use crate::editor::wysiwyg::render::{
@@ -59,7 +58,7 @@ use crate::editor::wysiwyg::render::{
 };
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::{Theme, ThemeDimensions, ThemeManager};
-use crate::model::block::table::{TableAxis, TableAxisHighlight};
+use crate::model::block::table::TableAxisHighlight;
 use crate::model::parse::BlockKind;
 
 fn wrap_with_quote_guides(content: AnyElement, quote_depth: usize, theme: &Theme) -> AnyElement {
@@ -244,14 +243,10 @@ impl Render for Block {
                 TableAxisHighlight::Preview => c.table_axis_preview_bg,
                 TableAxisHighlight::Selected => c.table_axis_selected_bg,
             };
-            let border_color = if focused {
-                c.table_cell_active_outline
-            } else {
-                match highlight {
-                    TableAxisHighlight::None => c.table_border,
-                    TableAxisHighlight::Preview => c.table_selection_border,
-                    TableAxisHighlight::Selected => c.table_selection_border,
-                }
+            let border_color = match highlight {
+                TableAxisHighlight::None => c.table_border,
+                TableAxisHighlight::Preview => c.table_selection_border,
+                TableAxisHighlight::Selected => c.table_selection_border,
             };
             let cell_base = self
                 .render_shell(
@@ -270,9 +265,10 @@ impl Render for Block {
                 .w_full()
                 .h_full()
                 .min_h(px(d.table_cell_min_height))
-                .px(px(0.0))
+                .px(px(d.table_cell_padding_x))
                 .py(px(d.table_cell_padding_y))
-                .border(if focused { px(2.0) } else { px(1.0) })
+                .border_r(px(1.0))
+                .border_b(px(1.0))
                 .border_color(border_color)
                 .bg(bg)
                 .text_size(px(t.text_size))
@@ -326,75 +322,32 @@ impl Render for Block {
                 )
             };
 
-            let left_reserved_slot = div().flex_none().w(px(12.0)).h_full();
+            let focused_outline = if focused {
+                Some(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .border(px(2.0))
+                        .border_color(c.table_cell_active_outline),
+                )
+            } else {
+                None
+            };
 
-            let is_menu_open = self.table_axis_selection.is_some();
-            let menu_block = cx.entity();
-            let cell_pos = self.table_cell_position();
-
-            let cell_menu = div()
-                .id(ElementId::Name(
-                    format!("table-cell-menu-{}", self.data.id).into(),
-                ))
-                .w(px(12.0))
-                .h_full()
+            return cell_base
+                .relative()
                 .flex()
                 .items_center()
-                .justify_center()
-                .cursor_pointer()
-                .opacity(if focused || is_menu_open { 1.0 } else { 0.0 })
-                .hover(|this| this.bg(c.table_append_button_hover).opacity(1.0))
-                .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
-                    if let Some(pos) = cell_pos {
-                        menu_block.update(cx, |_block, cx| {
-                            cx.stop_propagation();
-                            cx.emit(BlockEvent::RequestOpenTableAxisMenu {
-                                kind: TableAxis::Row,
-                                index: pos.row,
-                                position: event.position,
-                            });
-                        });
-                    }
-                })
                 .child(
                     div()
-                        .w(px(3.5))
-                        .h(px(12.0))
-                        .rounded(px(1.5))
-                        .bg(if is_menu_open {
-                            c.table_append_button_text
-                        } else {
-                            c.table_handle_icon
-                        }),
-                );
-
-            let right_reserved_slot = div()
-                .flex_none()
-                .w(px(12.0))
-                .h_full()
-                .flex()
-                .items_center()
-                .justify_center()
-                .child(cell_menu);
-
-            let cell_center_content = div()
-                .flex_1()
-                .min_w(px(0.0))
-                .h_full()
-                .flex()
-                .items_center()
-                .child(cell_content);
-
-            let cell_wrapper = div()
-                .w_full()
-                .h_full()
-                .flex()
-                .items_center()
-                .child(left_reserved_slot)
-                .child(cell_center_content)
-                .child(right_reserved_slot);
-
-            return cell_base.relative().child(cell_wrapper).into_any_element();
+                        .w_full()
+                        .min_w(px(0.0))
+                        .flex()
+                        .items_center()
+                        .child(cell_content),
+                )
+                .children(focused_outline)
+                .into_any_element();
         }
 
         // Verbatim-mode rendering: raw text with no formatting.

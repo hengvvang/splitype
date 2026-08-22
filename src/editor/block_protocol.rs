@@ -142,6 +142,17 @@ pub enum BlockEvent {
         index: usize,
         position: Point<Pixels>,
     },
+    /// Reorder a native table row or column by swapping positions.
+    RequestReorderTableAxis {
+        kind: TableAxis,
+        from: usize,
+        to: usize,
+    },
+    /// Insert a table row or column at a specific boundary index.
+    RequestInsertTableAxisAt {
+        kind: TableAxis,
+        index: usize,
+    },
     /// Cursor reached the top of this block; move focus to the previous
     /// visible block, preserving the preferred horizontal position.
     RequestFocusPrevious { preferred_x: Option<f32> },
@@ -204,7 +215,9 @@ impl BlockEvent {
             | Self::RequestExpandTable
             | Self::RequestTableAxisPreview { .. }
             | Self::RequestSelectTableAxis { .. }
-            | Self::RequestOpenTableAxisMenu { .. } => BlockEventCategory::Table,
+            | Self::RequestOpenTableAxisMenu { .. }
+            | Self::RequestReorderTableAxis { .. }
+            | Self::RequestInsertTableAxisAt { .. } => BlockEventCategory::Table,
             Self::RequestFocusPrevious { .. }
             | Self::RequestFocusNext { .. }
             | Self::RequestBlockUp
@@ -229,6 +242,8 @@ impl BlockEvent {
                 Self::RequestAppendTableColumn
                     | Self::RequestAppendTableRow
                     | Self::RequestExpandTable
+                    | Self::RequestReorderTableAxis { .. }
+                    | Self::RequestInsertTableAxisAt { .. }
             ),
             BlockEventCategory::Lifecycle | BlockEventCategory::Interaction => false,
         }

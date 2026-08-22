@@ -234,9 +234,10 @@ impl TableData {
             .map(|_| BlockText::plain(String::new()))
             .collect::<Vec<_>>();
         if visual_row == 0 {
-            self.rows.insert(0, new_row);
+            let old_header = std::mem::replace(&mut self.header, new_row);
+            self.rows.insert(0, old_header);
         } else {
-            let idx = visual_row.min(self.rows.len());
+            let idx = (visual_row - 1).min(self.rows.len());
             self.rows.insert(idx, new_row);
         }
     }

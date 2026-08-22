@@ -62,6 +62,62 @@ impl Editor {
         }
     }
 
+    pub(crate) fn reorder_table_axis(
+        &mut self,
+        table_block: &Entity<Block>,
+        kind: TableAxis,
+        from: usize,
+        to: usize,
+        cx: &mut Context<Self>,
+    ) {
+        if from == to {
+            return;
+        }
+        self.sync_table_data_from_grid(table_block, cx);
+        let Some(mut table) = table_block.read(cx).data.table.clone() else {
+            return;
+        };
+        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
+            self.prepare_undo_capture(
+                crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
+                cx,
+            );
+            true
+        } else {
+            false
+        };
+        match kind {
+            TableAxis::Row => {
+                let total_rows = table.rows.len() + 1;
+                if from < total_rows && to < total_rows {
+                    table.swap_visual_rows(from, to);
+                }
+            }
+            TableAxis::Column => {
+                let total_cols = table.column_count();
+                if from < total_cols && to < total_cols {
+                    table.swap_columns(from, to);
+                }
+            }
+        }
+        table_block.update(cx, move |block, _cx| {
+            block.data.table = Some(table.clone());
+        });
+        self.rebuild_table_grids(cx);
+        let selection = TableAxisSelection {
+            table_block_id: table_block.entity_id(),
+            kind,
+            index: to,
+        };
+        self.set_table_axis_selection(Some(selection), cx);
+        self.mark_dirty(cx);
+        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+        if started_local_capture {
+            self.finalize_pending_undo_capture(cx);
+        }
+        cx.notify();
+    }
+
     pub(crate) fn table_axis_marker(selection: TableAxisSelection) -> TableAxisMarker {
         TableAxisMarker {
             kind: selection.kind,

@@ -120,6 +120,10 @@ pub(crate) struct TableInteractionState {
     pub(crate) hovered_row: Option<usize>,
     /// Which column is being hovered (for handle visibility).
     pub(crate) hovered_column: Option<usize>,
+    /// Boundary index for inserting a column (0..=col_count).
+    pub(crate) hovered_insert_column: Option<usize>,
+    /// Boundary index for inserting a row (0..=row_count).
+    pub(crate) hovered_insert_row: Option<usize>,
 }
 
 impl TableInteractionState {
@@ -129,6 +133,8 @@ impl TableInteractionState {
         self.row_append.reset();
         self.hovered_row = None;
         self.hovered_column = None;
+        self.hovered_insert_column = None;
+        self.hovered_insert_row = None;
     }
 }
 

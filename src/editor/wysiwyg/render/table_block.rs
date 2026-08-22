@@ -12,6 +12,21 @@ use crate::model::block::table::TableCellPosition;
 use crate::model::block::table::TableColumnAlignment;
 use crate::model::block::table::{TableAxis, TableAxisMarker, TableColumnLayout};
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct DraggedTableAxis {
+    pub(crate) table_block_id: EntityId,
+    pub(crate) kind: TableAxis,
+    pub(crate) index: usize,
+}
+
+pub(crate) struct DraggedTableAxisView;
+
+impl Render for DraggedTableAxisView {
+    fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
+        div().w(px(0.0)).h(px(0.0))
+    }
+}
+
 /// Render a native table block.
 pub(crate) fn render_table(
     block: &mut Block,
@@ -53,49 +68,192 @@ pub(crate) fn render_table(
         .as_ref()
         .map(|table| measure_table_column_layout(table, table_width, window, theme))
         .unwrap_or_else(|| TableColumnLayout::equal(runtime.header.len()));
-    let preview_marker = block.table_axis_preview;
-    let selected_marker = block.table_axis_selection;
     let body_row_count = runtime.rows.len();
-    let right_gutter = px(18.0);
-    let bottom_gutter = px(18.0);
     let column_control_visible = block.table_interaction.column_append.is_visible();
     let row_control_visible = block.table_interaction.row_append.is_visible();
     let column_button_hovered = block.table_interaction.column_append.button_hovered;
     let row_button_hovered = block.table_interaction.row_append.button_hovered;
+    let block_entity_id = cx.entity().entity_id();
     let weak_table_block = cx.entity().downgrade();
 
     let header_cells = runtime.header;
-
     let header_hover_block = weak_table_block.clone();
     let header_select_block = weak_table_block.clone();
     let header_menu_block = weak_table_block.clone();
-    let header_marker = TableAxisMarker {
-        kind: TableAxis::Row,
-        index: 0,
+    let header_drop_block = weak_table_block.clone();
+    let header_drag_move_block = weak_table_block.clone();
+
+    let hovered_insert_row = if block.table_axis_selection.is_none() {
+        block.table_interaction.hovered_insert_row
+    } else {
+        None
     };
-    let is_header_selected = selected_marker == Some(header_marker);
-    let is_header_preview = preview_marker == Some(header_marker);
-    let show_header_handle = is_header_selected || is_header_preview;
+    let hovered_insert_col = if block.table_axis_selection.is_none() {
+        block.table_interaction.hovered_insert_column
+    } else {
+        None
+    };
+
+    let is_header_selected = block.table_axis_selection
+        == Some(TableAxisMarker {
+            kind: TableAxis::Row,
+            index: 0,
+        });
+    let header_selection_overlay = if is_header_selected {
+        Some(
+            div()
+                .absolute()
+                .inset_0()
+                .border(px(2.0))
+                .border_color(c.table_selection_border)
+                .bg(c.table_axis_selected_bg),
+        )
+    } else {
+        None
+    };
+
+    let header_indicator_line = if let (Some(sel), Some(prev)) =
+        (block.table_axis_selection, block.table_axis_preview)
+    {
+        if sel.kind == TableAxis::Row && prev.kind == TableAxis::Row && sel.index != prev.index && prev.index == 0 {
+            Some(
+                div()
+                    .absolute()
+                    .top_0()
+                    .left_0()
+                    .right_0()
+                    .h(px(3.0))
+                    .mt(px(-1.5))
+                    .bg(c.table_selection_border),
+            )
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let header_insert_hover_block = weak_table_block.clone();
+    let header_insert_click_block = weak_table_block.clone();
+    let header_top_insert_band = div()
+        .id(ElementId::Name(
+            format!("row-insert-band-top-{}", block.data.id).into(),
+        ))
+        .absolute()
+        .top(px(-8.0))
+        .h(px(16.0))
+        .left(px(-20.0))
+        .w(px(28.0))
+        .cursor_pointer()
+        .on_hover(move |hovered, _window, cx| {
+            let _ = header_insert_hover_block.update(cx, |block, cx| {
+                block.table_interaction.hovered_insert_row = if *hovered { Some(0) } else { None };
+                cx.notify();
+            });
+        })
+        .on_click(move |_event, _window, cx| {
+            let _ = header_insert_click_block.update(cx, |_block, cx| {
+                cx.emit(BlockEvent::RequestInsertTableAxisAt {
+                    kind: TableAxis::Row,
+                    index: 0,
+                });
+            });
+        })
+        .block_mouse_except_scroll();
+
+    let header_insert_visuals = if hovered_insert_row == Some(0) {
+        let btn_click_block = weak_table_block.clone();
+        vec![
+            div()
+                .absolute()
+                .top(px(-1.0))
+                .left(px(-14.0))
+                .right_0()
+                .h(px(2.0))
+                .bg(c.text_default)
+                .into_any_element(),
+            div()
+                .id(ElementId::Name(
+                    format!("row-insert-btn-top-{}", block.data.id).into(),
+                ))
+                .absolute()
+                .top(px(-8.0))
+                .left(px(-20.0))
+                .size(px(16.0))
+                .rounded_full()
+                .bg(c.text_default)
+                .flex()
+                .items_center()
+                .justify_center()
+                .cursor_pointer()
+                .on_click(move |_event, _window, cx| {
+                    let _ = btn_click_block.update(cx, |_block, cx| {
+                        cx.emit(BlockEvent::RequestInsertTableAxisAt {
+                            kind: TableAxis::Row,
+                            index: 0,
+                        });
+                    });
+                })
+                .block_mouse_except_scroll()
+                .child(
+                    svg()
+                        .path("icons/editor/wysiwyg/table/plus.svg")
+                        .size(px(10.0))
+                        .text_color(c.editor_background),
+                )
+                .into_any_element(),
+        ]
+    } else {
+        Vec::new()
+    };
 
     let column_count = header_cells.len();
+    let total_rows = 1 + body_row_count;
+
     let header_row = div()
         .relative()
         .w_full()
         .flex()
         .gap(px(0.0))
-        // Anytype Left Row Handle on left border
+        .children(header_selection_overlay)
+        .children(header_indicator_line)
+        .child(header_top_insert_band)
+        .children(header_insert_visuals)
+        .on_drag_move::<DraggedTableAxis>(move |_event, _window, cx| {
+            let _ = header_drag_move_block.update(cx, |_block, cx| {
+                cx.emit(BlockEvent::RequestTableAxisPreview {
+                    kind: TableAxis::Row,
+                    index: 0,
+                    hovered: true,
+                });
+            });
+        })
+        .on_drop::<DraggedTableAxis>(move |drag, _window, cx| {
+            if drag.table_block_id == block_entity_id
+                && drag.kind == TableAxis::Row
+                && drag.index != 0
+            {
+                let _ = header_drop_block.update(cx, |_block, cx| {
+                    cx.emit(BlockEvent::RequestReorderTableAxis {
+                        kind: TableAxis::Row,
+                        from: drag.index,
+                        to: 0,
+                    });
+                });
+            }
+        })
+        // Left Row Edge Interaction (ResizeUpDown cursor, drag/drop, left-click select, right-click menu)
         .child(
             div()
                 .id(ElementId::Name(
                     format!("table-header-axis-band-{}", block.data.id).into(),
                 ))
                 .absolute()
-                .left(px(-6.0))
+                .left(px(-8.0))
+                .w(px(8.0))
                 .top_0()
                 .h_full()
-                .flex()
-                .items_center()
-                .cursor_pointer()
+                .cursor(CursorStyle::ResizeUpDown)
                 .on_hover(move |hovered, _window, cx| {
                     let _ = header_hover_block.update(cx, |_block, cx| {
                         cx.emit(BlockEvent::RequestTableAxisPreview {
@@ -124,34 +282,24 @@ pub(crate) fn render_table(
                         });
                     });
                 })
-                .block_mouse_except_scroll()
-                .child(
-                    div()
-                        .w(px(d.table_handle_width))
-                        .h(relative(0.60))
-                        .rounded(px(d.table_handle_radius))
-                        .bg(if is_header_selected {
-                            c.table_selection_border
-                        } else {
-                            c.table_handle_bg
-                        })
-                        .opacity(if show_header_handle { 1.0 } else { 0.0 })
-                        .hover(|this| this.opacity(1.0)),
-                ),
+                .on_drag(
+                    DraggedTableAxis {
+                        table_block_id: block_entity_id,
+                        kind: TableAxis::Row,
+                        index: 0,
+                    },
+                    move |_drag, _point, _window, cx| cx.new(|_| DraggedTableAxisView),
+                )
+                .block_mouse_except_scroll(),
         )
         .children(header_cells.into_iter().enumerate().map(|(column, cell)| {
             let hover_block = weak_table_block.clone();
             let select_block = weak_table_block.clone();
             let menu_block = weak_table_block.clone();
+            let drop_block = weak_table_block.clone();
+            let drop_drag_block = weak_table_block.clone();
             let col_hover_block = weak_table_block.clone();
             let is_last_col = column == column_count - 1;
-            let col_marker = TableAxisMarker {
-                kind: TableAxis::Column,
-                index: column,
-            };
-            let is_col_selected = selected_marker == Some(col_marker);
-            let is_col_preview = preview_marker == Some(col_marker);
-            let show_col_handle = is_col_selected || is_col_preview;
 
             div()
                 .id(ElementId::Name(
@@ -171,7 +319,30 @@ pub(crate) fn render_table(
                         });
                     }
                 })
-                // Anytype Top Column Handle on top border of column header
+                .on_drag_move::<DraggedTableAxis>(move |_event, _window, cx| {
+                    let _ = drop_drag_block.update(cx, |_block, cx| {
+                        cx.emit(BlockEvent::RequestTableAxisPreview {
+                            kind: TableAxis::Column,
+                            index: column,
+                            hovered: true,
+                        });
+                    });
+                })
+                .on_drop::<DraggedTableAxis>(move |drag, _window, cx| {
+                    if drag.table_block_id == block_entity_id
+                        && drag.kind == TableAxis::Column
+                        && drag.index != column
+                    {
+                        let _ = drop_block.update(cx, |_block, cx| {
+                            cx.emit(BlockEvent::RequestReorderTableAxis {
+                                kind: TableAxis::Column,
+                                from: drag.index,
+                                to: column,
+                            });
+                        });
+                    }
+                })
+                // Top Column Edge Interaction (ResizeLeftRight cursor, drag/drop, left-click select, right-click menu)
                 .child(
                     div()
                         .id(ElementId::Name(
@@ -179,12 +350,11 @@ pub(crate) fn render_table(
                                 .into(),
                         ))
                         .absolute()
-                        .top(px(-6.0))
+                        .top(px(-8.0))
+                        .h(px(8.0))
                         .left_0()
                         .w_full()
-                        .flex()
-                        .justify_center()
-                        .cursor_pointer()
+                        .cursor(CursorStyle::ResizeLeftRight)
                         .on_hover(move |hovered, _window, cx| {
                             let _ = hover_block.update(cx, |_block, cx| {
                                 cx.emit(BlockEvent::RequestTableAxisPreview {
@@ -213,20 +383,15 @@ pub(crate) fn render_table(
                                 });
                             });
                         })
-                        .block_mouse_except_scroll()
-                        .child(
-                            div()
-                                .h(px(d.table_handle_width))
-                                .w(relative(0.40))
-                                .rounded(px(d.table_handle_radius))
-                                .bg(if is_col_selected {
-                                    c.table_selection_border
-                                } else {
-                                    c.table_handle_bg
-                                })
-                                .opacity(if show_col_handle { 1.0 } else { 0.0 })
-                                .hover(|this| this.opacity(1.0)),
-                        ),
+                        .on_drag(
+                            DraggedTableAxis {
+                                table_block_id: block_entity_id,
+                                kind: TableAxis::Column,
+                                index: column,
+                            },
+                            move |_drag, _point, _window, cx| cx.new(|_| DraggedTableAxisView),
+                        )
+                        .block_mouse_except_scroll(),
                 )
                 .child(cell)
         }));
@@ -239,16 +404,224 @@ pub(crate) fn render_table(
             let hover_block = weak_table_block.clone();
             let select_block = weak_table_block.clone();
             let menu_block = weak_table_block.clone();
+            let drop_block = weak_table_block.clone();
+            let row_drag_move_block = weak_table_block.clone();
             let row_hover_block = weak_table_block.clone();
             let is_last_body_row = body_row_index == body_row_count - 1;
             let visual_row = body_row_index + 1;
-            let marker = TableAxisMarker {
-                kind: TableAxis::Row,
-                index: visual_row,
+
+            let is_row_selected = block.table_axis_selection
+                == Some(TableAxisMarker {
+                    kind: TableAxis::Row,
+                    index: visual_row,
+                });
+            let row_selection_overlay = if is_row_selected {
+                Some(
+                    div()
+                        .absolute()
+                        .inset_0()
+                        .border(px(2.0))
+                        .border_color(c.table_selection_border)
+                        .bg(c.table_axis_selected_bg),
+                )
+            } else {
+                None
             };
-            let is_row_selected = selected_marker == Some(marker);
-            let is_row_preview = preview_marker == Some(marker);
-            let show_row_handle = is_row_selected || is_row_preview;
+
+            let row_indicator_line = if let (Some(sel), Some(prev)) =
+                (block.table_axis_selection, block.table_axis_preview)
+            {
+                if sel.kind == TableAxis::Row
+                    && prev.kind == TableAxis::Row
+                    && sel.index != prev.index
+                    && prev.index == visual_row
+                {
+                    if sel.index < visual_row {
+                        Some(
+                            div()
+                                .absolute()
+                                .bottom_0()
+                                .left_0()
+                                .right_0()
+                                .h(px(3.0))
+                                .mb(px(-1.5))
+                                .bg(c.table_selection_border),
+                        )
+                    } else {
+                        Some(
+                            div()
+                                .absolute()
+                                .top_0()
+                                .left_0()
+                                .right_0()
+                                .h(px(3.0))
+                                .mt(px(-1.5))
+                                .bg(c.table_selection_border),
+                        )
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            let row_top_insert_hover = weak_table_block.clone();
+            let row_top_insert_click = weak_table_block.clone();
+            let row_top_insert_band = div()
+                .id(ElementId::Name(
+                    format!("row-insert-band-{}-{}", block.data.id, visual_row).into(),
+                ))
+                .absolute()
+                .top(px(-8.0))
+                .h(px(16.0))
+                .left(px(-20.0))
+                .w(px(28.0))
+                .cursor_pointer()
+                .on_hover(move |hovered, _window, cx| {
+                    let _ = row_top_insert_hover.update(cx, |block, cx| {
+                        block.table_interaction.hovered_insert_row =
+                            if *hovered { Some(visual_row) } else { None };
+                        cx.notify();
+                    });
+                })
+                .on_click(move |_event, _window, cx| {
+                    let _ = row_top_insert_click.update(cx, |_block, cx| {
+                        cx.emit(BlockEvent::RequestInsertTableAxisAt {
+                            kind: TableAxis::Row,
+                            index: visual_row,
+                        });
+                    });
+                })
+                .block_mouse_except_scroll();
+
+            let mut row_insert_visuals = Vec::new();
+            if hovered_insert_row == Some(visual_row) {
+                let btn_click = weak_table_block.clone();
+                row_insert_visuals.push(
+                    div()
+                        .absolute()
+                        .top(px(-1.0))
+                        .left(px(-14.0))
+                        .right_0()
+                        .h(px(2.0))
+                        .bg(c.text_default)
+                        .into_any_element(),
+                );
+                row_insert_visuals.push(
+                    div()
+                        .id(ElementId::Name(
+                            format!("row-insert-btn-{}-{}", block.data.id, visual_row).into(),
+                        ))
+                        .absolute()
+                        .top(px(-8.0))
+                        .left(px(-20.0))
+                        .size(px(16.0))
+                        .rounded_full()
+                        .bg(c.text_default)
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .cursor_pointer()
+                        .on_click(move |_event, _window, cx| {
+                            let _ = btn_click.update(cx, |_block, cx| {
+                                cx.emit(BlockEvent::RequestInsertTableAxisAt {
+                                    kind: TableAxis::Row,
+                                    index: visual_row,
+                                });
+                            });
+                        })
+                        .block_mouse_except_scroll()
+                        .child(
+                            svg()
+                                .path("icons/editor/wysiwyg/table/plus.svg")
+                                .size(px(10.0))
+                                .text_color(c.editor_background),
+                        )
+                        .into_any_element(),
+                );
+            }
+
+            let last_row_bottom_insert_band = if is_last_body_row {
+                let bottom_insert_hover = weak_table_block.clone();
+                let bottom_insert_click = weak_table_block.clone();
+                Some(
+                    div()
+                        .id(ElementId::Name(
+                            format!("row-insert-band-bottom-{}", block.data.id).into(),
+                        ))
+                        .absolute()
+                        .bottom(px(-8.0))
+                        .h(px(16.0))
+                        .left(px(-20.0))
+                        .w(px(28.0))
+                        .cursor_pointer()
+                        .on_hover(move |hovered, _window, cx| {
+                            let _ = bottom_insert_hover.update(cx, |block, cx| {
+                                block.table_interaction.hovered_insert_row =
+                                    if *hovered { Some(total_rows) } else { None };
+                                cx.notify();
+                            });
+                        })
+                        .on_click(move |_event, _window, cx| {
+                            let _ = bottom_insert_click.update(cx, |_block, cx| {
+                                cx.emit(BlockEvent::RequestInsertTableAxisAt {
+                                    kind: TableAxis::Row,
+                                    index: total_rows,
+                                });
+                            });
+                        })
+                        .block_mouse_except_scroll(),
+                )
+            } else {
+                None
+            };
+
+            if is_last_body_row && hovered_insert_row == Some(total_rows) {
+                let btn_click = weak_table_block.clone();
+                row_insert_visuals.push(
+                    div()
+                        .absolute()
+                        .bottom(px(-1.0))
+                        .left(px(-14.0))
+                        .right_0()
+                        .h(px(2.0))
+                        .bg(c.text_default)
+                        .into_any_element(),
+                );
+                row_insert_visuals.push(
+                    div()
+                        .id(ElementId::Name(
+                            format!("row-insert-btn-bottom-{}", block.data.id).into(),
+                        ))
+                        .absolute()
+                        .bottom(px(-8.0))
+                        .left(px(-20.0))
+                        .size(px(16.0))
+                        .rounded_full()
+                        .bg(c.text_default)
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .cursor_pointer()
+                        .on_click(move |_event, _window, cx| {
+                            let _ = btn_click.update(cx, |_block, cx| {
+                                cx.emit(BlockEvent::RequestInsertTableAxisAt {
+                                    kind: TableAxis::Row,
+                                    index: total_rows,
+                                });
+                            });
+                        })
+                        .block_mouse_except_scroll()
+                        .child(
+                            svg()
+                                .path("icons/editor/wysiwyg/table/plus.svg")
+                                .size(px(10.0))
+                                .text_color(c.editor_background),
+                        )
+                        .into_any_element(),
+                );
+            }
 
             div()
                 .id(ElementId::Name(
@@ -258,6 +631,11 @@ pub(crate) fn render_table(
                 .w_full()
                 .flex()
                 .gap(px(0.0))
+                .children(row_selection_overlay)
+                .children(row_indicator_line)
+                .child(row_top_insert_band)
+                .children(last_row_bottom_insert_band)
+                .children(row_insert_visuals)
                 .on_hover(move |hovered, _window, cx| {
                     if is_last_body_row {
                         let _ = row_hover_block.update(cx, |block, cx| {
@@ -266,7 +644,30 @@ pub(crate) fn render_table(
                         });
                     }
                 })
-                // Anytype Left Row Handle on left border
+                .on_drag_move::<DraggedTableAxis>(move |_event, _window, cx| {
+                    let _ = row_drag_move_block.update(cx, |_block, cx| {
+                        cx.emit(BlockEvent::RequestTableAxisPreview {
+                            kind: TableAxis::Row,
+                            index: visual_row,
+                            hovered: true,
+                        });
+                    });
+                })
+                .on_drop::<DraggedTableAxis>(move |drag, _window, cx| {
+                    if drag.table_block_id == block_entity_id
+                        && drag.kind == TableAxis::Row
+                        && drag.index != visual_row
+                    {
+                        let _ = drop_block.update(cx, |_block, cx| {
+                            cx.emit(BlockEvent::RequestReorderTableAxis {
+                                kind: TableAxis::Row,
+                                from: drag.index,
+                                to: visual_row,
+                            });
+                        });
+                    }
+                })
+                // Left Row Edge Interaction (ResizeUpDown cursor, drag/drop, left-click select, right-click menu)
                 .child(
                     div()
                         .id(ElementId::Name(
@@ -274,12 +675,11 @@ pub(crate) fn render_table(
                                 .into(),
                         ))
                         .absolute()
-                        .left(px(-6.0))
+                        .left(px(-8.0))
+                        .w(px(8.0))
                         .top_0()
                         .h_full()
-                        .flex()
-                        .items_center()
-                        .cursor_pointer()
+                        .cursor(CursorStyle::ResizeUpDown)
                         .on_hover(move |hovered, _window, cx| {
                             let _ = hover_block.update(cx, |_block, cx| {
                                 cx.emit(BlockEvent::RequestTableAxisPreview {
@@ -308,20 +708,15 @@ pub(crate) fn render_table(
                                 });
                             });
                         })
-                        .block_mouse_except_scroll()
-                        .child(
-                            div()
-                                .w(px(d.table_handle_width))
-                                .h(relative(0.60))
-                                .rounded(px(d.table_handle_radius))
-                                .bg(if is_row_selected {
-                                    c.table_selection_border
-                                } else {
-                                    c.table_handle_bg
-                                })
-                                .opacity(if show_row_handle { 1.0 } else { 0.0 })
-                                .hover(|this| this.opacity(1.0)),
-                        ),
+                        .on_drag(
+                            DraggedTableAxis {
+                                table_block_id: block_entity_id,
+                                kind: TableAxis::Row,
+                                index: visual_row,
+                            },
+                            move |_drag, _point, _window, cx| cx.new(|_| DraggedTableAxisView),
+                        )
+                        .block_mouse_except_scroll(),
                 )
                 .children(row.into_iter().enumerate().map(|(column, cell)| {
                     let col_hover_block = weak_table_block.clone();
@@ -364,10 +759,10 @@ pub(crate) fn render_table(
                 format!("table-append-column-edge-band-{}", block.data.id).into(),
             ))
             .absolute()
-            .top(px(0.0))
-            .right(px(0.0))
-            .w(px(2.0))
-            .h_full()
+            .top_0()
+            .right(px(-6.0))
+            .w(px(12.0))
+            .bottom_0()
             .cursor_pointer()
             .on_hover(cx.listener(Block::on_table_append_column_edge_hover));
 
@@ -376,10 +771,10 @@ pub(crate) fn render_table(
                 format!("table-append-row-edge-band-{}", block.data.id).into(),
             ))
             .absolute()
-            .left(px(0.0))
-            .bottom(px(0.0))
+            .left_0()
+            .bottom(px(-6.0))
             .w_full()
-            .h(px(2.0))
+            .h(px(12.0))
             .cursor_pointer()
             .on_hover(cx.listener(Block::on_table_append_row_edge_hover));
 
@@ -406,13 +801,10 @@ pub(crate) fn render_table(
                     .flex()
                     .items_center()
                     .justify_center()
-                    .rounded(px(crate::infra::theme::dimensions::SEAMLESS_CORNER_RADIUS))
-                    .border(px(1.0))
-                    .border_color(if column_button_hovered {
-                        c.table_append_button_hover
-                    } else {
-                        c.table_border
-                    })
+                    .border_t(px(1.0))
+                    .border_r(px(1.0))
+                    .border_b(px(1.0))
+                    .border_color(c.table_border)
                     .bg(if column_button_hovered {
                         c.table_append_button_hover
                     } else {
@@ -458,13 +850,10 @@ pub(crate) fn render_table(
                     .flex()
                     .items_center()
                     .justify_center()
-                    .rounded(px(crate::infra::theme::dimensions::SEAMLESS_CORNER_RADIUS))
-                    .border(px(1.0))
-                    .border_color(if row_button_hovered {
-                        c.table_append_button_hover
-                    } else {
-                        c.table_border
-                    })
+                    .border_l(px(1.0))
+                    .border_r(px(1.0))
+                    .border_b(px(1.0))
+                    .border_color(c.table_border)
                     .bg(if row_button_hovered {
                         c.table_append_button_hover
                     } else {
@@ -499,13 +888,12 @@ pub(crate) fn render_table(
             .flex()
             .items_center()
             .justify_center()
-            .rounded(px(crate::infra::theme::dimensions::SEAMLESS_CORNER_RADIUS))
-            .border(px(1.0))
+            .border_r(px(1.0))
+            .border_b(px(1.0))
             .border_color(c.table_border)
             .bg(gpui::transparent_black())
             .hover(|this| {
                 this.bg(c.table_append_button_hover)
-                    .border_color(c.table_append_button_hover)
             })
             .cursor_pointer()
             .opacity(if column_control_visible && row_control_visible {
@@ -522,12 +910,169 @@ pub(crate) fn render_table(
                     .text_color(c.table_border),
             );
 
-        let table_grid = div()
+        let col_selection_overlay = if let Some(selection) = block.table_axis_selection {
+            if selection.kind == TableAxis::Column && selection.index < column_count {
+                let left_frac = (0..selection.index).map(|i| column_layout.fraction(i)).sum::<f32>();
+                let width_frac = column_layout.fraction(selection.index);
+                Some(
+                    div()
+                        .absolute()
+                        .top_0()
+                        .bottom_0()
+                        .left(relative(left_frac))
+                        .w(relative(width_frac))
+                        .border(px(2.0))
+                        .border_color(c.table_selection_border)
+                        .bg(c.table_axis_selected_bg),
+                )
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let col_indicator_line = if let (Some(sel), Some(prev)) =
+            (block.table_axis_selection, block.table_axis_preview)
+        {
+            if sel.kind == TableAxis::Column
+                && prev.kind == TableAxis::Column
+                && sel.index != prev.index
+                && prev.index < column_count
+            {
+                let x_frac = if sel.index < prev.index {
+                    (0..=prev.index).map(|i| column_layout.fraction(i)).sum::<f32>()
+                } else {
+                    (0..prev.index).map(|i| column_layout.fraction(i)).sum::<f32>()
+                };
+                Some(
+                    div()
+                        .absolute()
+                        .top_0()
+                        .bottom_0()
+                        .left(relative(x_frac))
+                        .w(px(3.0))
+                        .ml(px(-1.5))
+                        .bg(c.table_selection_border),
+                )
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        let mut col_insert_bands = Vec::with_capacity(column_count + 1);
+        let mut col_insert_visuals = Vec::new();
+
+        for c_idx in 0..=column_count {
+            let x_frac = if c_idx == 0 {
+                0.0
+            } else if c_idx == column_count {
+                1.0
+            } else {
+                (0..c_idx).map(|i| column_layout.fraction(i)).sum::<f32>()
+            };
+            let insert_hover_block = weak_table_block.clone();
+            let insert_click_block = weak_table_block.clone();
+
+            col_insert_bands.push(
+                div()
+                    .id(ElementId::Name(
+                        format!("col-insert-band-{}-{}", block.data.id, c_idx).into(),
+                    ))
+                    .absolute()
+                    .top(px(-18.0))
+                    .h(px(28.0))
+                    .left(relative(x_frac))
+                    .ml(px(-8.0))
+                    .w(px(16.0))
+                    .cursor_pointer()
+                    .on_hover(move |hovered, _window, cx| {
+                        let _ = insert_hover_block.update(cx, |block, cx| {
+                            block.table_interaction.hovered_insert_column =
+                                if *hovered { Some(c_idx) } else { None };
+                            cx.notify();
+                        });
+                    })
+                    .on_click(move |_event, _window, cx| {
+                        let _ = insert_click_block.update(cx, |_block, cx| {
+                            cx.emit(BlockEvent::RequestInsertTableAxisAt {
+                                kind: TableAxis::Column,
+                                index: c_idx,
+                            });
+                        });
+                    })
+                    .block_mouse_except_scroll(),
+            );
+
+            if hovered_insert_col == Some(c_idx) {
+                let btn_click_block = weak_table_block.clone();
+                col_insert_visuals.push(
+                    div()
+                        .absolute()
+                        .top(px(-14.0))
+                        .bottom_0()
+                        .left(relative(x_frac))
+                        .w(px(2.0))
+                        .ml(px(-1.0))
+                        .bg(c.text_default)
+                        .into_any_element(),
+                );
+                col_insert_visuals.push(
+                    div()
+                        .id(ElementId::Name(
+                            format!("col-insert-btn-{}-{}", block.data.id, c_idx).into(),
+                        ))
+                        .absolute()
+                        .top(px(-18.0))
+                        .left(relative(x_frac))
+                        .ml(px(-8.0))
+                        .size(px(16.0))
+                        .rounded_full()
+                        .bg(c.text_default)
+                        .flex()
+                        .items_center()
+                        .justify_center()
+                        .cursor_pointer()
+                        .on_click(move |_event, _window, cx| {
+                            let _ = btn_click_block.update(cx, |_block, cx| {
+                                cx.emit(BlockEvent::RequestInsertTableAxisAt {
+                                    kind: TableAxis::Column,
+                                    index: c_idx,
+                                });
+                            });
+                        })
+                        .block_mouse_except_scroll()
+                        .child(
+                            svg()
+                                .path("icons/editor/wysiwyg/table/plus.svg")
+                                .size(px(10.0))
+                                .text_color(c.editor_background),
+                        )
+                        .into_any_element(),
+                );
+            }
+        }
+
+        let table_box = div()
             .relative()
             .w_full()
+            .border_t(px(1.0))
+            .border_l(px(1.0))
+            .border_color(c.table_border)
             .flex()
             .flex_col()
             .children(rows)
+            .children(col_selection_overlay)
+            .children(col_indicator_line)
+            .children(col_insert_bands)
+            .children(col_insert_visuals);
+
+        let table_grid = div()
+            .relative()
+            .w_full()
+            .child(table_box)
             .child(column_edge_band)
             .child(row_edge_band)
             .child(column_control)
@@ -540,10 +1085,10 @@ pub(crate) fn render_table(
             .relative()
             .flex()
             .flex_col()
-            .pt(px(10.0))
-            .pl(px(10.0))
-            .pr(right_gutter)
-            .pb(bottom_gutter)
+            .pt(px(20.0))
+            .pl(px(20.0))
+            .pr(px(18.0))
+            .pb(px(18.0))
             .gap(px(0.0))
             .child(table_grid)
             .into_any_element()

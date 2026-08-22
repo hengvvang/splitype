@@ -59,6 +59,17 @@ impl Editor {
             } => {
                 self.open_table_axis_menu(block.entity_id(), *kind, *index, *position, cx);
             }
+            BlockEvent::RequestReorderTableAxis { kind, from, to } => {
+                self.reorder_table_axis(block, *kind, *from, *to, cx);
+            }
+            BlockEvent::RequestInsertTableAxisAt { kind, index } => match kind {
+                crate::model::block::table::TableAxis::Column => {
+                    self.insert_table_column_at(block, *index, cx);
+                }
+                crate::model::block::table::TableAxis::Row => {
+                    self.insert_table_row_at(block, *index, cx);
+                }
+            },
             _ => {}
         }
     }

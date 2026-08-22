@@ -3,7 +3,7 @@
 use gpui::{AppContext, TestAppContext};
 
 use crate::editor::controller::Editor;
-use crate::model::block::table::TableColumnAlignment;
+use crate::model::block::table::{TableAxis, TableColumnAlignment};
 use crate::model::parse::BlockKind;
 
 #[gpui::test]
@@ -411,5 +411,88 @@ async fn new_tab_table_grid_initialized_on_activation(cx: &mut TestAppContext) {
         assert_eq!(grid.rows.len(), 1);
         assert_eq!(grid.header[0].read(cx).display_text(), "Header 1");
         assert_eq!(grid.rows[0][0].read(cx).display_text(), "Row 1");
+    });
+}
+
+#[gpui::test]
+async fn reordering_table_columns_swaps_columns(cx: &mut TestAppContext) {
+    let markdown = ["| Col A | Col B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
+    let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
+
+    editor.update(cx, |editor, cx| {
+        let table = editor.doc().first_root().expect("table root").clone();
+        editor.reorder_table_axis(&table, TableAxis::Column, 0, 1, cx);
+    });
+
+    editor.read_with(cx, |editor, cx| {
+        let table = editor.doc().first_root().expect("table root");
+        let grid = table.read(cx).table_grid.as_ref().expect("grid");
+        assert_eq!(grid.header[0].read(cx).display_text(), "Col B");
+        assert_eq!(grid.header[1].read(cx).display_text(), "Col A");
+        assert_eq!(grid.rows[0][0].read(cx).display_text(), "2");
+        assert_eq!(grid.rows[0][1].read(cx).display_text(), "1");
+    });
+}
+
+#[gpui::test]
+async fn reordering_table_rows_swaps_rows(cx: &mut TestAppContext) {
+    let markdown = ["| H1 | H2 |", "| --- | --- |", "| R1 | R2 |", "| R3 | R4 |"].join("\n");
+    let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
+
+    editor.update(cx, |editor, cx| {
+        let table = editor.doc().first_root().expect("table root").clone();
+        // Row 1 (R1, R2) and Row 2 (R3, R4)
+        editor.reorder_table_axis(&table, TableAxis::Row, 1, 2, cx);
+    });
+
+    editor.read_with(cx, |editor, cx| {
+        let table = editor.doc().first_root().expect("table root");
+        let grid = table.read(cx).table_grid.as_ref().expect("grid");
+        assert_eq!(grid.rows[0][0].read(cx).display_text(), "R3");
+        assert_eq!(grid.rows[0][1].read(cx).display_text(), "R4");
+        assert_eq!(grid.rows[1][0].read(cx).display_text(), "R1");
+        assert_eq!(grid.rows[1][1].read(cx).display_text(), "R2");
+    });
+}
+
+#[gpui::test]
+async fn inserting_table_column_at_boundary(cx: &mut TestAppContext) {
+    let markdown = ["| Col A | Col B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
+    let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
+
+    editor.update(cx, |editor, cx| {
+        let table = editor.doc().first_root().expect("table root").clone();
+        editor.insert_table_column_at(&table, 1, cx);
+    });
+
+    editor.read_with(cx, |editor, cx| {
+        let table = editor.doc().first_root().expect("table root");
+        let grid = table.read(cx).table_grid.as_ref().expect("grid");
+        assert_eq!(grid.header.len(), 3);
+        assert_eq!(grid.header[0].read(cx).display_text(), "Col A");
+        assert_eq!(grid.header[1].read(cx).display_text(), "");
+        assert_eq!(grid.header[2].read(cx).display_text(), "Col B");
+        assert_eq!(grid.rows[0][0].read(cx).display_text(), "1");
+        assert_eq!(grid.rows[0][1].read(cx).display_text(), "");
+        assert_eq!(grid.rows[0][2].read(cx).display_text(), "2");
+    });
+}
+
+#[gpui::test]
+async fn inserting_table_row_at_boundary(cx: &mut TestAppContext) {
+    let markdown = ["| H1 | H2 |", "| --- | --- |", "| R1 | R2 |"].join("\n");
+    let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
+
+    editor.update(cx, |editor, cx| {
+        let table = editor.doc().first_root().expect("table root").clone();
+        editor.insert_table_row_at(&table, 1, cx);
+    });
+
+    editor.read_with(cx, |editor, cx| {
+        let table = editor.doc().first_root().expect("table root");
+        let grid = table.read(cx).table_grid.as_ref().expect("grid");
+        assert_eq!(grid.rows.len(), 2);
+        assert_eq!(grid.rows[0][0].read(cx).display_text(), "");
+        assert_eq!(grid.rows[1][0].read(cx).display_text(), "R1");
     });
 }

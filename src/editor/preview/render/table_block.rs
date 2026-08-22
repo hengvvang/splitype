@@ -80,8 +80,6 @@ pub(crate) fn render_preview_table(
                 .w_full()
                 .border(px(1.0))
                 .border_color(c.table_border)
-                .rounded(px(d.table_border_radius))
-                .overflow_hidden()
                 .flex()
                 .flex_col()
                 .child(header_row)
