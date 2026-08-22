@@ -66,6 +66,13 @@ impl EditorPanelMode {
     pub fn is_editing(self) -> bool {
         matches!(self, Self::Editing)
     }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Welcome => "Welcome",
+            Self::Editing => "Editing",
+        }
+    }
 }
 
 /// Window-level panel containers use the engine's default drag policy:

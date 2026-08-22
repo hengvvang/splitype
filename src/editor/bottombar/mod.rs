@@ -93,9 +93,14 @@ impl Editor {
         // editing state it displays the focused panel kind and opens the
         // panel-type dropdown.
         if let (Some(pane_id), Some(focused_kind)) = (focused_pane_id, focused_kind) {
-            let editing = self.panel_mode().is_editing();
+            let mode = self.panel_mode();
+            let editing = mode.is_editing();
             let toggle_editor = cx.entity().downgrade();
-            let label = focused_kind.name().to_string();
+            let label = if editing {
+                focused_kind.name().to_string()
+            } else {
+                mode.name().to_string()
+            };
             let mut mode_pill = small_pill_button(c, d)
                 .text_size(px(11.0))
                 .text_color(if editing {
