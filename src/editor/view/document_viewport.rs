@@ -68,6 +68,13 @@ impl Editor {
         }
         self.sync_scroll_viewport(pane_id, viewport_size, cx);
 
+        if self.doc().blocks().iter().any(|entry| {
+            entry.entity.read(cx).kind() == crate::model::parse::BlockKind::Table
+                && entry.entity.read(cx).table_grid.is_none()
+        }) {
+            self.rebuild_table_grids(cx);
+        }
+
         let theme = cx.global::<ThemeManager>().current_arc();
         let d = &theme.dimensions;
         let blocks = self.doc().blocks();

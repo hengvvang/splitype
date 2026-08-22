@@ -391,3 +391,25 @@ async fn removing_the_only_table_leaves_one_empty_paragraph(cx: &mut TestAppCont
         assert_eq!(roots[0].read(cx).display_text(), "");
     });
 }
+
+#[gpui::test]
+async fn new_tab_table_grid_initialized_on_activation(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, "Initial Tab".to_string(), None));
+
+    editor.update(cx, |editor, cx| {
+        let list = &mut editor.session_mut().tab_list;
+        let table_md = ["| Header 1 | Header 2 |", "| --- | --- |", "| Row 1 | Row 2 |"].join("\n");
+        list.tabs.push(Editor::new_tab_from_markdown(cx, table_md, None));
+        editor.activate_tab(1, cx);
+    });
+
+    editor.read_with(cx, |editor, cx| {
+        let table = editor.doc().first_root().expect("table block").clone();
+        assert_eq!(table.read(cx).kind(), BlockKind::Table);
+        let grid = table.read(cx).table_grid.as_ref().expect("table_grid must be initialized on tab switch");
+        assert_eq!(grid.header.len(), 2);
+        assert_eq!(grid.rows.len(), 1);
+        assert_eq!(grid.header[0].read(cx).display_text(), "Header 1");
+        assert_eq!(grid.rows[0][0].read(cx).display_text(), "Row 1");
+    });
+}

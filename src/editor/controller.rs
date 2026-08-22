@@ -592,6 +592,11 @@ impl Editor {
             // Also reachable right after the first tab is pushed onto an empty
             // editor (welcome state) — notify so the new document renders.
             if index == list.active_tab {
+                self.rebuild_table_grids(cx);
+                self.rebuild_reference_registries(cx);
+                let pane_id = self.active_pane_id();
+                self.refresh_preview_blocks(pane_id, cx);
+                self.refresh_stable_document_snapshot(cx);
                 cx.notify();
                 return;
             }
@@ -604,6 +609,11 @@ impl Editor {
         let tab = &mut self.session.tab_list.tabs[index];
         tab.file.pending_window_title_refresh = true;
         tab.file.pending_window_edited = true;
+        self.rebuild_table_grids(cx);
+        self.rebuild_reference_registries(cx);
+        let pane_id = self.active_pane_id();
+        self.refresh_preview_blocks(pane_id, cx);
+        self.refresh_stable_document_snapshot(cx);
         cx.notify();
     }
 
