@@ -4,6 +4,7 @@
 use gpui::{AppContext, TestAppContext, VisualTestContext};
 
 use crate::editor::controller::Editor;
+use crate::editor::session::EditorPaneKind;
 use crate::model::inline::text::BlockText;
 use crate::model::parse::BlockKind;
 
@@ -676,3 +677,58 @@ async fn border_menu_split_and_close_actions_operate_on_divider_split_id(cx: &mu
         "closing from divider ID must successfully remove a pane"
     );
 }
+
+#[gpui::test]
+async fn switching_pane_focus_syncs_bottombar_dropdown_and_clears_stale_dropdowns(
+    cx: &mut TestAppContext,
+) {
+    init_editor_test_app(cx);
+
+    let (editor, cx) = cx.add_window_view({
+        move |_window, cx| Editor::from_markdown(cx, "alpha\n\nbeta".to_string(), None)
+    });
+
+    // 1. Split leaf 1 into 2 panes.
+    editor.update(cx, |ed, _cx| {
+        ed.split_pane_with_ratio(1, crate::splitter::SplitAxis::Horizontal, 0.5);
+    });
+
+    let mut ids = Vec::new();
+    editor.read_with(cx, |ed, _cx| ed.session().root.tree.leaf_ids(&mut ids));
+    assert_eq!(ids.len(), 2);
+    let pane_1 = ids[0];
+    let pane_2 = ids[1];
+
+    // Set pane 1 to Wysiwyg, pane 2 to SourceCode.
+    editor.update(cx, |ed, _cx| {
+        ed.session.root.tree.set_leaf_kind(pane_1, EditorPaneKind::Wysiwyg);
+        ed.session.root.tree.set_leaf_kind(pane_2, EditorPaneKind::SourceCode);
+    });
+
+    // 2. Focus pane 1 and open its dropdown.
+    editor.update_in(cx, |ed, window, cx| {
+        ed.focus_pane(pane_1, window, cx);
+        ed.toggle_pane_dropdown(pane_1, cx);
+    });
+    assert!(editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_1).unwrap().open_dropdown));
+    assert_eq!(editor.read_with(cx, |ed, _cx| ed.focused_pane_id), Some(pane_1));
+
+    // 3. Switch focus to pane 2: pane 1's dropdown must be dismissed automatically.
+    editor.update_in(cx, |ed, window, cx| {
+        ed.focus_pane(pane_2, window, cx);
+    });
+    assert!(!editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_1).unwrap().open_dropdown));
+    assert_eq!(editor.read_with(cx, |ed, _cx| ed.focused_pane_id), Some(pane_2));
+
+    // 4. Changing pane 2's kind via dropdown menu updates kind and clears dropdowns.
+    editor.update(cx, |ed, cx| {
+        ed.toggle_pane_dropdown(pane_2, cx);
+        ed.change_pane_kind(pane_2, EditorPaneKind::Preview);
+    });
+    assert_eq!(
+        editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf_kind(pane_2)),
+        Some(EditorPaneKind::Preview)
+    );
+    assert!(!editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_2).unwrap().open_dropdown));
+}
+

@@ -59,6 +59,9 @@ impl Editor {
 
     pub fn change_pane_kind(&mut self, pane_id: NodeId, kind: EditorPaneKind) {
         self.session.root.set_kind(pane_id, kind);
+        self.session.root.activate_leaf(pane_id);
+        self.session.root.clear_dropdowns();
+        self.focused_pane_id = Some(pane_id);
     }
 
     /// Inner split created via corner drag or divider border menu. The new pane inherits the

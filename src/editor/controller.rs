@@ -826,6 +826,8 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.focused_pane_id = Some(pane_id);
+        self.session.root.activate_leaf(pane_id);
+        self.session.root.clear_dropdowns();
         let panel_id = self.panel_id;
         self.defer_shell_action(cx, move |shell, cx| shell.activate_panel(panel_id, cx));
         if !self.has_active_tab() {

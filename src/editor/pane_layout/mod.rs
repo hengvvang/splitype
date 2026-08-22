@@ -77,17 +77,13 @@ impl Editor {
 
         let dropdown = {
             let root = &self.session.root;
-            // The open dropdown lives on its pane (pane-level state).
-            let mut ids = Vec::new();
-            root.tree.leaf_ids(&mut ids);
-            let open_pane = ids
-                .into_iter()
-                .find(|id| root.tree.find_leaf(*id).is_some_and(|p| p.open_dropdown));
-            if let Some(pane_id) = open_pane {
+            // The open dropdown belongs to the currently focused pane.
+            let pane_id = self.focused_pane_id.unwrap_or(1);
+            if root.tree.find_leaf(pane_id).is_some_and(|p| p.open_dropdown) {
                 let current_kind = root
                     .tree
                     .find_leaf_kind(pane_id)
-                    .unwrap_or(EditorPaneKind::SourceCode);
+                    .unwrap_or(EditorPaneKind::Wysiwyg);
                 Some(self.render_editor_pane_dropdown_menu(pane_id, current_kind, theme, cx))
             } else {
                 None
