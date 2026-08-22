@@ -88,7 +88,6 @@ impl Element for BlockTextElement {
         let input = self.input.read(cx);
         let shared_text = input.shared_display_text();
         let is_placeholder = self.is_placeholder;
-        let show_inline_code_backgrounds = !input.is_verbatim_mode();
         let show_source_line_numbers = input.show_source_line_numbers();
         let source_line_count = source_line_count(shared_text.as_ref());
         let style = window.text_style();
@@ -132,8 +131,6 @@ impl Element for BlockTextElement {
                     theme.colors.text_link,
                     theme.colors.markdown_marker,
                     theme.colors.footnote_backref,
-                    theme.colors.code_bg,
-                    show_inline_code_backgrounds,
                 )
             }
         } else {
@@ -734,8 +731,6 @@ mod tests {
                 Hsla::from(rgba(0x0066ccff)),
                 Hsla::from(rgba(0x00ff88ff)),
                 Hsla::from(rgba(0x9aa5ceff)),
-                Hsla::from(rgba(0x111111ff)),
-                true,
             );
             let marked_run = runs.last().expect("styled text should create a final run");
 
@@ -785,8 +780,6 @@ mod tests {
                 Hsla::from(rgba(0x0066ccff)),
                 marker_color,
                 Hsla::from(rgba(0x9aa5ceff)),
-                Hsla::from(rgba(0x111111ff)),
-                true,
             );
 
             let mut offset = 0usize;
@@ -841,8 +834,6 @@ mod tests {
                 Hsla::from(rgba(0x0066ccff)),
                 marker_color,
                 footnote_color,
-                Hsla::from(rgba(0x111111ff)),
-                true,
             );
 
             let mut offset = 0usize;

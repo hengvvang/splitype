@@ -60,13 +60,20 @@ pub(crate) fn render_preview_span(
     font_weight: FontWeight,
     theme: &Theme,
 ) -> AnyElement {
-    let color = if span.link.is_some() {
+    let mut color = if span.link.is_some() {
         theme.colors.text_link
     } else if span.footnote.is_some() {
         theme.colors.footnote_backref
     } else {
         base_color
     };
+    if let Some(style) = span.html_style
+        && let Some(html_color) = style.color
+    {
+        color = crate::editor::wysiwyg::render::html_document::html_css_color_to_hsla(
+            html_color, color,
+        );
+    }
 
     let script_offset = match span.style.script {
         InlineScript::Normal => 0.0,
@@ -112,6 +119,13 @@ pub(crate) fn render_preview_span(
             .px(px(theme.dimensions.code_bg_pad_x))
             .py(px(theme.dimensions.code_bg_pad_y))
             .bg(theme.colors.code_bg);
+    }
+    if let Some(style) = span.html_style
+        && let Some(bg_color) = style.background_color
+    {
+        element = element.bg(
+            crate::editor::wysiwyg::render::html_document::html_css_color_to_hsla(bg_color, color),
+        );
     }
 
     // Inline math renders as a small SVG replacing the math span.

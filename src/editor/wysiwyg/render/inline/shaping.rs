@@ -23,8 +23,6 @@ pub fn build_text_runs(
     link_color: Hsla,
     marker_color: Hsla,
     footnote_color: Hsla,
-    code_bg: Hsla,
-    show_inline_code_backgrounds: bool,
 ) -> Vec<TextRun> {
     let spans = input.inline_spans();
     let delimiter_ranges = input.projected_delimiter_ranges();
@@ -124,12 +122,7 @@ pub fn build_text_runs(
             thickness: underline_thickness,
         });
 
-        let mut background_color =
-            if show_inline_code_backgrounds && inline_style.code && !is_delimiter {
-                Some(code_bg)
-            } else {
-                base_run.background_color
-            };
+        let mut background_color = base_run.background_color;
         if let Some(style) = html_style
             && let Some(color) = style.background_color
         {

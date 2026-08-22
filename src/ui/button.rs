@@ -90,25 +90,7 @@ pub fn compact_danger_button(
         .hover(|this| this.bg(c.dialog_danger_button_hover))
 }
 
-/// Compact toolbar icon button (26px wide, full height).
-pub fn icon_button(
-    id: impl Into<ElementId>,
-    c: &ThemeColors,
-    d: &ThemeDimensions,
-) -> Stateful<Div> {
-    div()
-        .id(id)
-        .relative()
-        .w(px(26.0))
-        .h_full()
-        .flex()
-        .items_center()
-        .justify_center()
-        .rounded(px(d.icon_button_radius))
-        .hover(|this| this.bg(c.dialog_secondary_button_hover))
-        .active(|this| this.opacity(0.9))
-        .cursor_pointer()
-}
+
 
 /// Dynamically computes the square button chip size from bar height.
 pub fn toolbar_button_size(bar_height: f32) -> f32 {

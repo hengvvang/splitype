@@ -217,11 +217,7 @@ impl ExpandedInlineProjection {
 
             if let Some(footnote) = fragment.footnote.as_ref() {
                 let plain_range = plain_cursor..plain_cursor + fragment_len;
-                let expand_footnote = Self::fragment_is_touched(
-                    plain_range.clone(),
-                    &plain_selected,
-                    plain_marked.as_ref(),
-                );
+                let expand_footnote = true;
                 let span_display_start = display_cursor;
                 if expand_footnote {
                     any_expanded = true;
@@ -801,10 +797,20 @@ impl ExpandedInlineProjection {
         .into_iter()
         .flatten()
         {
-            if kind.applies_to(style)
-                && Self::fragment_is_touched(fragment_range.clone(), plain_selected, plain_marked)
-            {
-                kinds.push(kind);
+            if kind.applies_to(style) {
+                let always_expanded = matches!(
+                    kind,
+                    ExpandedInlineKind::Strikethrough
+                        | ExpandedInlineKind::SuperscriptMarkdown
+                        | ExpandedInlineKind::SuperscriptHtml
+                        | ExpandedInlineKind::SubscriptMarkdown
+                        | ExpandedInlineKind::SubscriptHtml
+                );
+                if always_expanded
+                    || Self::fragment_is_touched(fragment_range.clone(), plain_selected, plain_marked)
+                {
+                    kinds.push(kind);
+                }
             }
         }
         kinds

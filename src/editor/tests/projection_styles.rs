@@ -242,3 +242,43 @@ async fn inline_code_delimiters_have_no_code_style_and_are_included_in_markers(
         });
     });
 }
+
+#[gpui::test]
+async fn script_and_footnote_always_expand_with_purple_markers_when_line_active(
+    cx: &mut TestAppContext,
+) {
+    let editor = cx.new(|cx| {
+        Editor::from_markdown(
+            cx,
+            "下标: H~2~O, 上标: X^2^, 引用[^note]尾部".to_string(),
+            None,
+        )
+    });
+
+    editor.update(cx, |editor, cx| {
+        let paragraph = editor.doc().first_root().expect("root paragraph").clone();
+        paragraph.update(cx, |block, _cx| {
+            // Caret is at position 0 ("下|标..."), NOT touching ~2~ or ^2^ or [^note]
+            block.selected_range = 0..0;
+            block.rebuild_inline_projection(0..0, None);
+
+            let cache = block.display_cache();
+            let text = cache.text();
+            // All script and footnote syntax must be expanded in source form
+            assert!(text.contains("~2~"), "subscript ~2~ should be expanded: {text}");
+            assert!(text.contains("^2^"), "superscript ^2^ should be expanded: {text}");
+            assert!(text.contains("[^note]"), "footnote reference [^note] should be expanded: {text}");
+
+            let delimiter_ranges = block.projected_delimiter_ranges();
+            let marker_strings: Vec<&str> = delimiter_ranges
+                .iter()
+                .map(|r| &text[r.clone()])
+                .collect();
+            assert!(marker_strings.contains(&"~"), "subscript ~ delimiter in markers");
+            assert!(marker_strings.contains(&"^"), "superscript ^ delimiter in markers");
+            assert!(marker_strings.contains(&"[^"), "footnote [^ delimiter in markers");
+            assert!(marker_strings.contains(&"]"), "footnote ] delimiter in markers");
+        });
+    });
+}
+
