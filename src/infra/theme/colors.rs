@@ -368,7 +368,7 @@ impl<'de> Deserialize<'de> for ThemeColors {
                 .unwrap_or_else(|| Hsla::from(rgba(0x71717a52))),
             footnote_backref: raw
                 .footnote_backref
-                .unwrap_or_else(|| Hsla::from(rgba(0xa1a1aaff))),
+                .unwrap_or_else(|| Hsla::from(rgba(0x67a4e8ff))),
             task_checkbox_border: raw
                 .task_checkbox_border
                 .unwrap_or_else(|| Hsla::from(rgba(0x71717aff))),

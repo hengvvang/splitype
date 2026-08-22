@@ -382,7 +382,7 @@ pub(crate) fn footnote_at_position<'a>(
     bounds: Bounds<Pixels>,
     line_height: Pixels,
     position: Point<Pixels>,
-) -> Option<&'a InlineFootnoteHit> {
+) -> Option<(&'a InlineFootnoteHit, Bounds<Pixels>)> {
     if input.is_verbatim_mode()
         || input.display_text().is_empty()
         || lines.is_empty()
@@ -407,7 +407,7 @@ pub(crate) fn footnote_at_position<'a>(
             range_segment_bounds(lines, bounds, line_height, text, span.range.clone(), align)
         {
             if point_inside_bounds(footnote_bounds, position) {
-                return Some(footnote);
+                return Some((footnote, footnote_bounds));
             }
         }
     }

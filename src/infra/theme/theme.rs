@@ -184,7 +184,7 @@ impl Theme {
                 callout_caution_bg: Hsla::from(rgba(0xdc26261f)),
                 callout_caution_border: Hsla::from(rgba(0xf87171ff)),
                 footnote_border: Hsla::from(rgba(0x71717a52)),
-                footnote_backref: Hsla::from(rgba(0xa1a1aaff)),
+                footnote_backref: Hsla::from(rgba(0x67a4e8ff)),
                 task_checkbox_border: Hsla::from(rgba(0xffffff66)),
                 task_checkbox_bg: Hsla::from(rgba(0x00000000)),
                 task_checkbox_checked_bg: Hsla::from(rgba(0x2383e2ff)),
@@ -447,7 +447,7 @@ impl Theme {
                 callout_caution_bg: Hsla::from(rgba(0xdc262614)),
                 callout_caution_border: Hsla::from(rgba(0xdc2626ff)),
                 footnote_border: Hsla::from(rgba(0xcbd5e1ff)),
-                footnote_backref: Hsla::from(rgba(0x2563ebff)),
+                footnote_backref: Hsla::from(rgba(0x67a4e8ff)),
                 task_checkbox_border: Hsla::from(rgba(0x2b2b2bff)),
                 task_checkbox_bg: Hsla::from(rgba(0xffffffff)),
                 task_checkbox_checked_bg: Hsla::from(rgba(0x2383e2ff)),
@@ -867,7 +867,7 @@ mod tests {
         let theme = Theme::from_json(&json).expect("theme without footnote tokens should load");
 
         assert_eq!(theme.colors.footnote_border, rgba(0x71717a52).into());
-        assert_eq!(theme.colors.footnote_backref, rgba(0xa1a1aaff).into());
+        assert_eq!(theme.colors.footnote_backref, rgba(0x67a4e8ff).into());
     }
 
     #[test]

@@ -2,7 +2,6 @@
 
 use gpui::*;
 
-use crate::editor::preview::render::inline;
 use crate::editor::tree::block::Block;
 use crate::infra::theme::Theme;
 
@@ -17,6 +16,9 @@ pub(crate) fn render_preview_footnote_definition(
     let d = &theme.dimensions;
     let t = &theme.typography;
 
+    let plain_text = block.data.text.plain_text();
+    let (id, content) =
+        crate::model::block::footnote::split_footnote_definition_text(&plain_text);
     let mut header = base
         .w_full()
         .flex()
@@ -24,19 +26,25 @@ pub(crate) fn render_preview_footnote_definition(
         .items_center()
         .gap(px(d.list_marker_gap))
         .text_size(px(t.code_size))
-        .text_color(c.text_quote)
+        .text_color(c.text_default)
         .child(
             div()
                 .min_w(px(0.0))
                 .flex_grow()
-                .text_color(c.text_quote)
-                .child(inline::render_preview_inline(
-                    &block.data.text,
-                    c.text_quote,
-                    t.code_size,
-                    FontWeight::NORMAL,
-                    theme,
-                )),
+                .flex()
+                .flex_row()
+                .flex_wrap()
+                .items_baseline()
+                .child(
+                    div()
+                        .text_color(c.footnote_backref)
+                        .child(id.to_string()),
+                )
+                .child(
+                    div()
+                        .text_color(c.text_default)
+                        .child(format!(": {}", content)),
+                ),
         );
 
     if block.has_footnote_definition_backref() {

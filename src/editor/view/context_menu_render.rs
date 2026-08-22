@@ -68,13 +68,20 @@ impl Editor {
     ) -> Option<AnyElement> {
         let tooltip = self.footnote_tooltip.as_ref()?;
         let c = &theme.colors;
-        let d = &theme.dimensions;
         let origin = self.panel_rect.map(|rect| rect.origin).unwrap_or_default();
-        let left = tooltip.position.x - origin.x + px(14.0);
-        let top = tooltip.position.y - origin.y + px(18.0);
+        let top = (tooltip.position.y - origin.y + px(4.0)).max(px(0.0));
 
         let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
-        let max_width = (viewport_width - f32::from(left)).max(160.0);
+        let panel_width = self
+            .panel_rect
+            .map(|r| f32::from(r.size.width))
+            .unwrap_or(viewport_width);
+        let max_width = 420.0_f32;
+        let mut left_f32 = f32::from(tooltip.position.x - origin.x);
+        if left_f32 + 200.0 > panel_width {
+            left_f32 = (panel_width - max_width.min(panel_width) - 16.0).max(8.0);
+        }
+        let left = px(left_f32.max(8.0));
 
         Some(
             div()
@@ -82,17 +89,17 @@ impl Editor {
                 .occlude()
                 .left(left)
                 .top(top)
-                .max_w(px(max_width.min(420.0)))
+                .max_w(px(max_width))
                 .px(px(10.0))
-                .py(px(8.0))
-                .rounded(px(d.menu_panel_radius))
+                .py(px(6.0))
+                .rounded(px(5.0))
                 .bg(c.dialog_surface)
                 .border(px(1.0))
                 .border_color(c.dialog_border)
-                .shadow_lg()
-                .text_size(px(d.menu_text_size))
-                .text_color(c.dialog_body)
-                .line_height(rems(theme.typography.text_line_height))
+                .shadow_md()
+                .text_size(px(13.0))
+                .text_color(c.dialog_muted)
+                .line_height(relative(1.5))
                 .child(tooltip.content.clone())
                 .into_any_element(),
         )

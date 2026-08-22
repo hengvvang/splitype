@@ -63,7 +63,7 @@ pub(crate) fn render_preview_span(
     let color = if span.link.is_some() {
         theme.colors.text_link
     } else if span.footnote.is_some() {
-        theme.colors.text_quote
+        theme.colors.footnote_backref
     } else {
         base_color
     };

@@ -12,21 +12,27 @@ async fn footnote_tooltip_resolves_definition_content_only_when_bound(cx: &mut T
 
     editor.update(cx, |editor, cx| {
         let position = Point::new(px(100.0), px(100.0));
-        // Reference with a definition resolves the definition text.
+        // Reference with a definition resolves the definition text (prefix stripped).
         editor.update_footnote_tooltip("a", None, position, true, cx);
         assert_eq!(
             editor
                 .footnote_tooltip
                 .as_ref()
                 .map(|t| t.content.to_string()),
-            Some("a: A 脚注内容".to_string())
+            Some("A 脚注内容".to_string())
         );
         // Reference without a definition hides the tooltip.
         editor.update_footnote_tooltip("missing", None, position, true, cx);
         assert!(editor.footnote_tooltip.is_none());
-        // Definition headers carry their own text directly.
+        // Definition headers carry their own text directly and get stripped.
         editor.update_footnote_tooltip("a", Some("a: A 脚注内容".into()), position, true, cx);
-        assert!(editor.footnote_tooltip.is_some());
+        assert_eq!(
+            editor
+                .footnote_tooltip
+                .as_ref()
+                .map(|t| t.content.to_string()),
+            Some("A 脚注内容".to_string())
+        );
         // Hiding clears it.
         editor.update_footnote_tooltip("a", None, position, false, cx);
         assert!(editor.footnote_tooltip.is_none());
@@ -228,3 +234,29 @@ async fn unresolved_footnote_reference_renders_real_id_without_binding(cx: &mut 
         assert_eq!(editor.doc().serialize_markdown(cx), markdown);
     });
 }
+
+#[gpui::test]
+async fn footnote_tooltip_anchors_to_reference_and_renders_compact_element(cx: &mut TestAppContext) {
+    super::init_editor_test_app(cx);
+
+    let markdown = "这是第二个引用[^note2]。\n\n[^note2]: 第二个脚注内容。".to_string();
+    let (editor, cx) = cx.add_window_view({
+        move |_window, cx| Editor::from_markdown(cx, markdown.clone(), None)
+    });
+
+    let theme = crate::infra::theme::Theme::default_theme();
+
+    editor.update_in(cx, |editor, window, cx| {
+        let anchor_position = Point::new(px(150.0), px(80.0));
+        editor.update_footnote_tooltip("note2", None, anchor_position, true, cx);
+        assert!(editor.footnote_tooltip.is_some());
+        assert_eq!(
+            editor.footnote_tooltip.as_ref().unwrap().content.as_ref(),
+            "第二个脚注内容。"
+        );
+
+        let element = editor.render_footnote_tooltip(&theme, window, cx);
+        assert!(element.is_some());
+    });
+}
+

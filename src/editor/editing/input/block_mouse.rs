@@ -135,7 +135,7 @@ impl Block {
                         event.position,
                     )
                 })
-                .cloned();
+                .map(|(footnote, _)| footnote.clone());
             if let Some(footnote) = footnote {
                 cx.stop_propagation();
                 cx.emit(BlockEvent::RequestJumpToFootnoteDefinition { id: footnote.id });
@@ -192,7 +192,7 @@ impl Block {
 
         // Footnote reference hover: surface the definition content in a
         // tooltip while the pointer rests on a rendered reference.
-        let hovered = self
+        let hit = self
             .last_paint_at(event.position)
             .and_then(|paint| {
                 crate::editor::geometry::text_layout::footnote_at_position(
@@ -203,36 +203,22 @@ impl Block {
                     event.position,
                 )
             })
-            .map(|footnote| footnote.id.clone());
+            .map(|(footnote, bounds)| (footnote.id.clone(), point(bounds.left(), bounds.bottom())));
+        let hovered = hit.as_ref().map(|(id, _)| id.clone());
         if hovered != self.hovered_footnote_id {
             let show = hovered.is_some();
             self.hovered_footnote_id = hovered.clone();
+            let anchor_pos = hit
+                .as_ref()
+                .map(|(_, pos)| *pos)
+                .unwrap_or(event.position);
             cx.emit(BlockEvent::RequestFootnoteTooltip {
                 id: hovered.unwrap_or_default(),
                 content: None,
-                position: event.position,
+                position: anchor_pos,
                 show,
             });
         }
-    }
-
-    /// Show the definition content tooltip while the pointer hovers a
-    /// footnote definition header; hide it when the pointer leaves.
-    pub(crate) fn on_footnote_header_hover(
-        &mut self,
-        hovered: &bool,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        if self.hovered_footnote_id.is_some() {
-            self.hovered_footnote_id = None;
-        }
-        cx.emit(BlockEvent::RequestFootnoteTooltip {
-            id: self.footnote_definition_id().unwrap_or_default(),
-            content: (*hovered).then(|| self.data.text.plain_text().into()),
-            position: window.mouse_position(),
-            show: *hovered,
-        });
     }
 
     pub(crate) fn on_task_checkbox_mouse_down(

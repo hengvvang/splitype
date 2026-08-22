@@ -225,9 +225,7 @@ impl Block {
         let mut color = if span.link.is_some() {
             theme.colors.text_link
         } else if span.footnote.is_some() {
-            // Footnote references share the definition head's muted gray so the
-            // body superscript and its `[^id]:` row read as one unit.
-            theme.colors.text_quote
+            theme.colors.footnote_backref
         } else {
             base_color
         };

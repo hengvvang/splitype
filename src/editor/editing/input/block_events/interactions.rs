@@ -17,8 +17,10 @@ impl Editor {
         let next = if !show {
             None
         } else if let Some(text) = content {
+            let (_, pure_content) =
+                crate::model::block::footnote::split_footnote_definition_text(&text);
             Some(FootnoteTooltipState {
-                content: text,
+                content: pure_content.to_string().into(),
                 position,
             })
         } else {
@@ -27,9 +29,14 @@ impl Editor {
                 .footnotes
                 .binding(id)
                 .and_then(|binding| self.focusable_entity_by_id(binding.definition_entity_id))
-                .map(|entity| FootnoteTooltipState {
-                    content: entity.read(cx).data.text.plain_text().into(),
-                    position,
+                .map(|entity| {
+                    let plain = entity.read(cx).data.text.plain_text();
+                    let (_, pure_content) =
+                        crate::model::block::footnote::split_footnote_definition_text(&plain);
+                    FootnoteTooltipState {
+                        content: pure_content.to_string().into(),
+                        position,
+                    }
                 })
         };
         if self.footnote_tooltip != next {

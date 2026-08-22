@@ -33,10 +33,29 @@ pub fn build_text_runs(
         boundaries.push(span.range.start);
         boundaries.push(span.range.end);
     }
+    for range in &delimiter_ranges {
+        boundaries.push(range.start);
+        boundaries.push(range.end);
+    }
     if let Some(marked_range) = input.marked_range.as_ref() {
         boundaries.push(marked_range.start);
         boundaries.push(marked_range.end);
     }
+
+    let footnote_def_id_range = if input.kind().is_footnote_definition() {
+        if display_text.starts_with("[^") {
+            display_text.find("]:").map(|end| 2..end)
+        } else {
+            display_text.find(':').map(|end| 0..end)
+        }
+    } else {
+        None
+    };
+    if let Some(range) = footnote_def_id_range.as_ref() {
+        boundaries.push(range.start);
+        boundaries.push(range.end);
+    }
+
     boundaries.sort_unstable();
     boundaries.dedup();
 
@@ -61,13 +80,13 @@ pub fn build_text_runs(
         let html_style = active_span.and_then(|s| s.html_style);
         let is_link = active_span.map(|s| s.link.is_some()).unwrap_or(false);
         let is_footnote = active_span.map(|s| s.footnote.is_some()).unwrap_or(false);
-        let is_delimiter = active_span
-            .map(|span| {
-                delimiter_ranges
-                    .iter()
-                    .any(|range| range.start <= span.range.start && span.range.end <= range.end)
-            })
+        let is_footnote_id = footnote_def_id_range
+            .as_ref()
+            .map(|range| start >= range.start && end <= range.end)
             .unwrap_or(false);
+        let is_delimiter = delimiter_ranges
+            .iter()
+            .any(|range| range.start <= start && end <= range.end);
         let is_marked = marked_range
             .map(|range| start < range.end && range.start < end)
             .unwrap_or(false);
@@ -82,7 +101,7 @@ pub fn build_text_runs(
 
         let mut run_color = if is_delimiter {
             marker_color
-        } else if is_footnote {
+        } else if is_footnote || is_footnote_id {
             footnote_color
         } else if is_link {
             link_color

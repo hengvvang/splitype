@@ -25,20 +25,19 @@ pub(crate) fn render_footnote_definition(
         .items_center()
         .gap(px(d.list_marker_gap))
         .text_size(px(t.code_size))
-        .text_color(c.text_quote)
-        .on_hover(cx.listener(Block::on_footnote_header_hover))
+        .text_color(c.text_default)
         .child(
             div()
                 .min_w(px(0.0))
                 .flex_grow()
-                .text_color(c.text_quote)
+                .text_color(c.text_default)
                 .child(block.render_text_or_mixed_inline_visuals(
                     theme,
                     focused,
                     is_placeholder,
                     None,
                     None,
-                    c.text_quote,
+                    c.text_default,
                     t.code_size,
                     FontWeight::NORMAL,
                     cx,

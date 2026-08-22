@@ -131,7 +131,7 @@ impl Element for BlockTextElement {
                     px(theme.dimensions.underline_thickness),
                     theme.colors.text_link,
                     theme.colors.markdown_marker,
-                    theme.colors.text_quote,
+                    theme.colors.footnote_backref,
                     theme.colors.code_bg,
                     show_inline_code_backgrounds,
                 )
