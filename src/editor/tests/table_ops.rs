@@ -350,11 +350,9 @@ async fn deleting_last_body_row_leaves_header_only_table(cx: &mut TestAppContext
 async fn removing_table_block_replaces_it_with_empty_paragraph(cx: &mut TestAppContext) {
     let markdown = [
         "intro",
-        "",
         "| A | B |",
         "| --- | --- |",
         "| 1 | 2 |",
-        "",
         "outro",
     ]
     .join("\n");

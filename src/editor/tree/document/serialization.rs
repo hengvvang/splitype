@@ -35,47 +35,9 @@ impl Document {
         cx: &App,
         lines: &mut Vec<String>,
     ) {
-        let mut pending_empty_roots = 0usize;
-        let mut wrote_non_empty_root = false;
-        let mut previous_was_list_item = false;
-
         for block in blocks {
             let block_ref = block.read(cx);
-            if Self::is_empty_root_paragraph(block_ref) {
-                pending_empty_roots += 1;
-                continue;
-            }
-
-            let current_is_list_item = block_ref.kind().is_list_item();
-            let current_is_footnote = block_ref.kind() == BlockKind::FootnoteDefinition;
-            if wrote_non_empty_root {
-                let separator_count = if previous_was_list_item && current_is_list_item {
-                    pending_empty_roots
-                } else if current_is_footnote && pending_empty_roots == 0 {
-                    // Adjacent footnote definitions (or a definition directly
-                    // after a paragraph) stay tight: no blank line is forced
-                    // between them, so `[^a]: x\n[^b]: y` round-trips.
-                    0
-                } else {
-                    pending_empty_roots + 1
-                };
-                lines.extend(std::iter::repeat_n(String::new(), separator_count));
-            } else if pending_empty_roots > 0 {
-                lines.extend(std::iter::repeat_n(String::new(), pending_empty_roots));
-            }
-
             Self::collect_single_block_markdown_lines(block_ref, 0, cx, lines);
-            wrote_non_empty_root = true;
-            pending_empty_roots = 0;
-            previous_was_list_item = current_is_list_item;
-        }
-
-        if wrote_non_empty_root {
-            if pending_empty_roots > 0 {
-                lines.extend(std::iter::repeat_n(String::new(), pending_empty_roots + 1));
-            }
-        } else if pending_empty_roots > 1 {
-            lines.extend(std::iter::repeat_n(String::new(), pending_empty_roots));
         }
     }
 
@@ -179,8 +141,7 @@ impl Document {
                 }
 
                 if !block_ref.children.is_empty() {
-                    lines.push(String::new());
-                    Self::collect_markdown_lines(&block_ref.children, 2, cx, lines, true);
+                    Self::collect_markdown_lines(&block_ref.children, 2, cx, lines, false);
                 }
             }
             BlockKind::RawMarkdown | BlockKind::HtmlComment | BlockKind::HtmlBlock => {

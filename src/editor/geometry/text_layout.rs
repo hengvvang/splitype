@@ -96,7 +96,7 @@ pub(crate) fn aligned_line_left(
 }
 
 pub(crate) fn wrapped_line_height(line: &WrappedLine, line_height: Pixels) -> Pixels {
-    line.size(line_height).height
+    line.size(line_height).height.max(line_height)
 }
 
 pub(crate) fn wrapped_line_top(

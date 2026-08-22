@@ -18,12 +18,14 @@ fn roots(markdown: &str) -> Vec<BlockData> {
 #[test]
 fn parses_headings_paragraphs_and_rules() {
     let blocks = roots("# Title\n\nbody text\n\n---\n");
-    assert_eq!(blocks.len(), 3);
+    assert_eq!(blocks.len(), 5);
     assert_eq!(blocks[0].kind, BlockKind::Heading { level: 1 });
     assert_eq!(blocks[0].text.plain_text(), "Title");
-    assert_eq!(blocks[1].kind, BlockKind::Paragraph);
-    assert_eq!(blocks[1].text.plain_text(), "body text");
-    assert_eq!(blocks[2].kind, BlockKind::ThematicBreak);
+    assert!(blocks[1].text.plain_text().is_empty());
+    assert_eq!(blocks[2].kind, BlockKind::Paragraph);
+    assert_eq!(blocks[2].text.plain_text(), "body text");
+    assert!(blocks[3].text.plain_text().is_empty());
+    assert_eq!(blocks[4].kind, BlockKind::ThematicBreak);
 }
 
 /// Parent-child relationships are reconstructed from indentation.
@@ -162,10 +164,11 @@ fn block_text_serializes_serialize_markdown() {
 #[test]
 fn longer_closing_fence_closes_code_block() {
     let blocks = roots("```rust\ncode\n````\n\nafter\n");
-    assert_eq!(blocks.len(), 2);
+    assert_eq!(blocks.len(), 3);
     assert!(blocks[0].kind.is_code_block());
     assert_eq!(blocks[0].text.plain_text(), "code");
-    assert_eq!(blocks[1].text.plain_text(), "after");
+    assert!(blocks[1].text.plain_text().is_empty());
+    assert_eq!(blocks[2].text.plain_text(), "after");
 }
 
 /// Footnote parser ignores fake footnote heads inside code spans.
@@ -177,3 +180,24 @@ fn footnote_parser_ignores_fake_heads_in_code_spans() {
     assert!(blocks[0].text.plain_text().starts_with("1: "));
     assert!(blocks[0].text.plain_text().contains("[^2]: not a footnote"));
 }
+
+/// Footnote definitions followed by blank lines preserve trailing empty blocks.
+#[test]
+fn footnote_definition_trailing_blank_lines_are_preserved_not_swallowed() {
+    let blocks = roots("[^1]: First footnote\n\n[^2]: Second footnote\n\nParagraph text\n");
+    // [^1] definition, empty separator, [^2] definition, empty separator, paragraph
+    assert!(blocks.len() >= 3, "must parse all footnote definitions and following paragraph");
+    assert_eq!(blocks[0].kind, BlockKind::FootnoteDefinition);
+    assert!(blocks[0].text.plain_text().starts_with("1: "));
+
+    let second_def = blocks
+        .iter()
+        .find(|b| b.kind == BlockKind::FootnoteDefinition && b.text.plain_text().starts_with("2: "));
+    assert!(second_def.is_some(), "second footnote definition must exist");
+
+    let paragraph = blocks
+        .iter()
+        .find(|b| b.kind == BlockKind::Paragraph && b.text.plain_text() == "Paragraph text");
+    assert!(paragraph.is_some(), "following paragraph must exist and not be swallowed");
+}
+

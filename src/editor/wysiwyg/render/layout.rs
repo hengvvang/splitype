@@ -23,6 +23,7 @@ pub struct RowSpacingInfo {
     pub is_callout_header: bool,
     pub footnote_group_id: Option<BlockId>,
     pub is_footnote_header: bool,
+    pub is_empty_paragraph: bool,
 }
 
 impl RowSpacingInfo {
@@ -36,14 +37,17 @@ impl RowSpacingInfo {
             is_callout_header: block.kind().is_callout(),
             footnote_group_id: block.footnote_group_id,
             is_footnote_header: block.kind().is_footnote_definition(),
+            is_empty_paragraph: block.kind() == crate::model::parse::BlockKind::Paragraph
+                && block.data.text.plain_text().is_empty()
+                && block.children.is_empty(),
         }
     }
 }
 
 /// Gap between two consecutive rendered rows.
 ///
-/// Returns 0 for rows that share a quote group; otherwise returns the
-/// default block gap from the theme.
+/// Returns 0 for rows that share a quote group or border an empty paragraph
+/// row; otherwise returns the default block gap from the theme.
 pub fn row_top_gap(
     previous: Option<RowSpacingInfo>,
     current: RowSpacingInfo,
@@ -52,7 +56,10 @@ pub fn row_top_gap(
     let Some(previous) = previous else {
         return 0.0;
     };
-    if previous.quote_group_id.is_some() && previous.quote_group_id == current.quote_group_id {
+    if (previous.quote_group_id.is_some() && previous.quote_group_id == current.quote_group_id)
+        || previous.is_empty_paragraph
+        || current.is_empty_paragraph
+    {
         0.0
     } else {
         default_gap

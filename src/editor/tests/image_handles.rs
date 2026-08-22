@@ -201,7 +201,7 @@ async fn html_fallback_before_image_does_not_swallow_standalone_image(cx: &mut T
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.read_with(cx, |editor, cx| {
-        assert_eq!(editor.doc().root_count(), 2);
+        assert_eq!(editor.doc().root_count(), 3);
         {
             let html = editor.doc().root_blocks()[0].read(cx);
             assert_eq!(html.kind(), BlockKind::HtmlBlock);
@@ -217,7 +217,7 @@ async fn html_fallback_before_image_does_not_swallow_standalone_image(cx: &mut T
             );
         }
 
-        let image = editor.doc().root_blocks()[1].read(cx);
+        let image = editor.doc().root_blocks()[2].read(cx);
         let handle = image.image_handle().expect("image handle");
         assert_eq!(handle.alt, "image-20250820094109009");
         assert_eq!(handle.src, image_url);

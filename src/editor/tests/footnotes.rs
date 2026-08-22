@@ -57,21 +57,7 @@ async fn root_level_footnotes_render_real_ids_and_keep_in_place(cx: &mut TestApp
         "    Second paragraph in the footnote.",
     ]
     .join("\n");
-    let canonical_markdown = [
-        "Here is a footnote reference.[^1]",
-        "",
-        "Here is another footnote reference.[^longnote]",
-        "",
-        "A footnote can appear after multiple paragraphs, lists, and code blocks.",
-        "[^1]: Footnote text.",
-        "[^longnote]: Footnote text with **bold**, `code`, and a nested list:",
-        "",
-        "    - item 1",
-        "    - item 2",
-        "",
-        "    Second paragraph in the footnote.",
-    ]
-    .join("\n");
+    let canonical_markdown = markdown.clone();
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
 
     editor.read_with(cx, |editor, cx| {

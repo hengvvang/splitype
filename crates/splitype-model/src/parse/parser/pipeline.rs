@@ -18,8 +18,11 @@ use crate::parse::indent::{is_quote_start, strip_indented_code_prefix};
 use crate::parse::kind::BlockKind;
 
 pub fn parse_document(markdown: &str) -> Vec<BlockData> {
+    if markdown.is_empty() {
+        return Vec::new();
+    }
     let lines = markdown
-        .split('\n')
+        .lines()
         .map(ToOwned::to_owned)
         .collect::<Vec<_>>();
     build_blocks_from_lines_internal(&lines, true)
@@ -43,29 +46,8 @@ pub(crate) fn build_blocks_from_lines_internal(
     while index < lines.len() {
         let line = &lines[index];
         if line.trim().is_empty() {
-            let blank_start = index;
-            while index < lines.len() && lines[index].trim().is_empty() {
-                index += 1;
-            }
-
-            let blank_run_len = index - blank_start;
-            let previous_root_is_list_item = roots
-                .last()
-                .map(|block: &BlockData| block.kind.is_list_item())
-                .unwrap_or(false);
-            let next_root_is_list_item = lines
-                .get(index)
-                .is_some_and(|line| parse_list_marker(line).is_some());
-            let preserved_empty_blocks =
-                if roots.is_empty() || (previous_root_is_list_item && next_root_is_list_item) {
-                    blank_run_len
-                } else {
-                    blank_run_len.saturating_sub(1)
-                };
-
-            roots.resize_with(roots.len() + preserved_empty_blocks, || {
-                native_block(BlockKind::Paragraph, "")
-            });
+            roots.push(native_block(BlockKind::Paragraph, ""));
+            index += 1;
             continue;
         }
 

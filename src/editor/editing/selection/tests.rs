@@ -74,7 +74,8 @@ mod tests {
 
         editor.update(&mut cx, |editor, cx| {
             assign_visible_block_bounds(editor, cx);
-            set_selection(editor, 0, 0, 2, 2, cx);
+            let last_index = editor.doc().blocks().len() - 1;
+            set_selection(editor, 0, 0, last_index, 2, cx);
             assert!(editor.active_pane_selection().cross_block.is_some());
             assert!(
                 editor.doc().blocks().iter().any(|entries| entries
@@ -111,7 +112,8 @@ mod tests {
             cx.new(|cx| Editor::from_markdown(cx, "alpha\n\nbeta\n\ngamma".to_string(), None));
 
         editor.update(&mut cx, |editor, cx| {
-            set_selection(editor, 0, 2, 2, 2, cx);
+            let last_index = editor.doc().blocks().len() - 1;
+            set_selection(editor, 0, 2, last_index, 2, cx);
             assert!(editor.replace_cross_block_selection_with_text(
                 "X",
                 None,
@@ -138,7 +140,8 @@ mod tests {
             cx.new(|cx| Editor::from_markdown(cx, "alpha\n\nbeta\n\ngamma".to_string(), None));
 
         editor.update(&mut cx, |editor, cx| {
-            set_selection(editor, 0, 2, 2, 2, cx);
+            let last_index = editor.doc().blocks().len() - 1;
+            set_selection(editor, 0, 2, last_index, 2, cx);
             assert!(editor.replace_cross_block_selection_with_text(
                 "ni",
                 Some(2..2),
@@ -170,9 +173,9 @@ mod tests {
 
         editor.update(&mut cx, |editor, cx| {
             let entries = editor.doc().blocks().to_vec();
-            assert_eq!(entries.len(), 3);
-            let end_len = entries[2].entity.read(cx).display_len();
-            set_selection(editor, 0, 0, 2, end_len, cx);
+            let last_index = entries.len() - 1;
+            let end_len = entries[last_index].entity.read(cx).display_len();
+            set_selection(editor, 0, 0, last_index, end_len, cx);
 
             assert_eq!(
                 editor.cross_block_selected_markdown(cx).as_deref(),
@@ -180,7 +183,9 @@ mod tests {
             );
             for entries in entries {
                 let block = entries.entity.read(cx);
-                assert_eq!(block.editor_selection_range, Some(0..block.display_len()));
+                if block.display_len() > 0 {
+                    assert_eq!(block.editor_selection_range, Some(0..block.display_len()));
+                }
             }
         });
         cx.quit();
@@ -208,7 +213,7 @@ mod tests {
             set_selection(editor, 0, 0, last_index, end_len, cx);
             assert_eq!(
                 editor.cross_block_selected_markdown(cx).as_deref(),
-                Some("正文段落测试[^note]\n[^note]: 脚注内容测试文字")
+                Some("正文段落测试[^note]\n\n[^note]: 脚注内容测试文字")
             );
 
             // Partial selection inside the footnote definition row.
@@ -245,7 +250,8 @@ mod tests {
         redraw(cx);
 
         editor.update(cx, |editor, cx| {
-            set_selection(editor, 0, 2, 2, 2, cx);
+            let last_index = editor.doc().blocks().len() - 1;
+            set_selection(editor, 0, 2, last_index, 2, cx);
             assert_eq!(
                 editor.cross_block_selected_markdown(cx).as_deref(),
                 Some("pha\n\nbeta\n\nga")
@@ -304,10 +310,10 @@ mod tests {
 
         editor.update(&mut cx, |editor, cx| {
             let entries = editor.doc().blocks().to_vec();
-            assert_eq!(entries.len(), 3);
-            let end_len = entries[2].entity.read(cx).display_len();
+            let last_index = entries.len() - 1;
+            let end_len = entries[last_index].entity.read(cx).display_len();
             // The table sits in the interior of the selection.
-            set_selection(editor, 0, 0, 2, end_len, cx);
+            set_selection(editor, 0, 0, last_index, end_len, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
             let text = editor.doc().serialize_markdown(cx);
@@ -325,15 +331,11 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, TABLE_DOC.to_string(), None));
 
         editor.update(&mut cx, |editor, cx| {
-            assert_eq!(editor.doc().blocks().len(), 3);
-            // Selection ends at the start of the table block: the previously
-            // broken case where the trailing atomic block was left behind.
-            set_selection(editor, 0, 0, 1, 0, cx);
+            // Table is at index 2 (alpha is 0, empty is 1, table is 2).
+            set_selection(editor, 0, 0, 2, 0, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
-            // The table is removed in full; only `gamma` survives (deleting from
-            // the document start leaves the table's trailing blank line, which
-            // reparses to leading empty paragraphs, harmless and trimmable).
+            // The table is removed in full; only `gamma` survives
             let text = editor.doc().serialize_markdown(cx);
             assert!(
                 !text.contains('|'),
@@ -352,11 +354,10 @@ mod tests {
 
         editor.update(&mut cx, |editor, cx| {
             let entries = editor.doc().blocks().to_vec();
-            assert_eq!(entries.len(), 3);
             let alpha_len = entries[0].entity.read(cx).display_len();
             // Drag from the end of the paragraph above onto the table: only the
             // table is removed, and re-parse normalizes the spacing.
-            set_selection(editor, 0, alpha_len, 1, 0, cx);
+            set_selection(editor, 0, alpha_len, 2, 0, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
             assert_eq!(editor.doc().serialize_markdown(cx), "alpha\n\ngamma");
@@ -375,9 +376,9 @@ mod tests {
 
         editor.update(&mut cx, |editor, cx| {
             let entries = editor.doc().blocks().to_vec();
-            assert_eq!(entries.len(), 3);
-            let end_len = entries[2].entity.read(cx).display_len();
-            set_selection(editor, 0, 0, 2, end_len, cx);
+            let last_index = entries.len() - 1;
+            let end_len = entries[last_index].entity.read(cx).display_len();
+            set_selection(editor, 0, 0, last_index, end_len, cx);
 
             // The clipboard markdown serializes the full table, matching what
             // delete removes; otherwise cut would drop it from the clipboard.
@@ -406,9 +407,9 @@ mod tests {
 
         editor.update(&mut cx, |editor, cx| {
             let entries = editor.doc().blocks().to_vec();
-            assert_eq!(entries.len(), 3);
-            let end_len = entries[2].entity.read(cx).display_len();
-            set_selection(editor, 0, 0, 2, end_len, cx);
+            let last_index = entries.len() - 1;
+            let end_len = entries[last_index].entity.read(cx).display_len();
+            set_selection(editor, 0, 0, last_index, end_len, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
             let text = editor.doc().serialize_markdown(cx);
@@ -429,8 +430,7 @@ mod tests {
 
         editor.update(&mut cx, |editor, cx| {
             // Append a trailing empty paragraph, exactly as inserting a table at
-            // the end of a document does. Ending the selection on it used to
-            // abort deletion because empty roots had no source span.
+            // the end of a document does.
             let empty =
                 Editor::new_block(cx, crate::model::parse::BlockData::paragraph(String::new()));
             let index = editor.doc().root_count();
@@ -439,10 +439,10 @@ mod tests {
                 .insert_blocks_at(None, index, vec![empty], cx);
 
             let entries = editor.doc().blocks().to_vec();
-            assert_eq!(entries.len(), 3);
             let alpha_len = entries[0].entity.read(cx).display_len();
+            let last_index = entries.len() - 1;
             // From the end of `alpha` onto the trailing empty paragraph.
-            set_selection(editor, 0, alpha_len, 2, 0, cx);
+            set_selection(editor, 0, alpha_len, last_index, 0, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
             let text = editor.doc().serialize_markdown(cx);
@@ -468,9 +468,9 @@ mod tests {
             editor.doc_mut().insert_blocks_at(None, 0, vec![empty], cx);
 
             let entries = editor.doc().blocks().to_vec();
-            assert_eq!(entries.len(), 3);
+            let last_index = entries.len() - 1;
             // From the empty paragraph (index 0) to the start of `gamma`.
-            set_selection(editor, 0, 0, 2, 0, cx);
+            set_selection(editor, 0, 0, last_index, 0, cx);
             assert!(editor.delete_cross_block_selection(cx));
 
             let text = editor.doc().serialize_markdown(cx);

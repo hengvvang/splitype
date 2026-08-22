@@ -328,6 +328,7 @@ pub(crate) fn collect_reference_definition_region(lines: &[String], start: usize
 }
 
 pub(crate) fn collect_footnote_definition_region(lines: &[String], start: usize) -> usize {
+    let mut last_valid_end = start + 1;
     let mut index = start + 1;
     while index < lines.len() {
         let line = &lines[index];
@@ -339,12 +340,13 @@ pub(crate) fn collect_footnote_definition_region(lines: &[String], start: usize)
         let (indent_columns, _) = leading_indent_columns_and_bytes(line);
         if indent_columns > 0 {
             index += 1;
+            last_valid_end = index;
             continue;
         }
 
         break;
     }
-    index
+    last_valid_end
 }
 
 pub(crate) fn is_display_math_start(line: &str) -> bool {

@@ -173,7 +173,7 @@ impl Element for BlockTextElement {
                         let mut total_size: Size<Pixels> = Size::default();
                         for line in &lines {
                             let ls = line.size(line_height);
-                            total_size.height += ls.height;
+                            total_size.height += ls.height.max(line_height);
                             total_size.width = total_size.width.max(ls.width);
                         }
                         total_size.width += source_line_number_gutter_width;

@@ -23,16 +23,17 @@ mod tests {
             editor.on_block_event(quote, &BlockEvent::RequestQuoteBreak, cx);
 
             let entries = editor.doc().blocks();
-            assert_eq!(entries.len(), 2);
+            assert_eq!(entries.len(), 3);
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
             assert_eq!(entries[0].entity.read(cx).display_text(), "first");
-            assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Blockquote);
-            assert_eq!(entries[1].entity.read(cx).display_text(), "");
-            assert_eq!(entries[1].entity.read(cx).quote_depth, 1);
+            assert!(entries[1].entity.read(cx).data.text.plain_text().is_empty());
+            assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Blockquote);
+            assert_eq!(entries[2].entity.read(cx).display_text(), "");
+            assert_eq!(entries[2].entity.read(cx).quote_depth, 1);
             assert_eq!(editor.doc().serialize_markdown(cx), "> first\n\n> ");
             assert_eq!(
                 editor.active_pane_focus().pending,
-                Some(entries[1].entity.entity_id())
+                Some(entries[2].entity.entity_id())
             );
         });
     }
@@ -295,7 +296,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).display_text(), "child text");
             assert_eq!(entries[1].entity.read(cx).render_depth, 0);
             assert_eq!(entries[1].entity.entity_id(), child_id);
-            assert_eq!(editor.doc().serialize_markdown(cx), "- item\n\nchild text");
+            assert_eq!(editor.doc().serialize_markdown(cx), "- item\nchild text");
         });
     }
 
@@ -337,7 +338,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
             assert_eq!(entries[1].entity.entity_id(), child_id);
             assert_eq!(entries[1].entity.read(cx).render_depth, 0);
-            assert_eq!(editor.doc().serialize_markdown(cx), "- item\n\n");
+            assert_eq!(editor.doc().serialize_markdown(cx), "- item\n");
         });
     }
 
@@ -404,7 +405,7 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "H2O");
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
-            assert_eq!(editor.doc().serialize_markdown(cx), "H~2~O\n\n");
+            assert_eq!(editor.doc().serialize_markdown(cx), "H~2~O\n");
         });
     }
 
@@ -431,7 +432,7 @@ mod tests {
             assert!(!entries[0].entity.read(cx).edits_verbatim_text());
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
-            assert_eq!(editor.doc().serialize_markdown(cx), "$n^2$\n\n");
+            assert_eq!(editor.doc().serialize_markdown(cx), "$n^2$\n");
         });
     }
 
@@ -468,7 +469,7 @@ mod tests {
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
             assert_eq!(
                 editor.doc().serialize_markdown(cx),
-                "```rust\nlet x = 1;\n```\n\n"
+                "```rust\nlet x = 1;\n```\n"
             );
         });
     }
@@ -478,11 +479,12 @@ mod tests {
         cx: &mut TestAppContext,
     ) {
         let cx = cx.add_empty_window();
-        let editor = cx.new(|cx| Editor::from_markdown(cx, "Title\n\n=====".to_string(), None));
+        let editor = cx.new(|cx| Editor::from_markdown(cx, "Title".to_string(), None));
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let underline = editor.doc().blocks()[1].entity.clone();
+                let underline = Editor::new_block(cx, BlockData::paragraph("====="));
+                editor.doc_mut().insert_blocks_at(None, 1, vec![underline.clone()], cx);
                 underline.update(cx, |block, block_cx| {
                     block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
@@ -500,13 +502,13 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "Title");
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
-            assert_eq!(editor.doc().serialize_markdown(cx), "# Title\n\n");
+            assert_eq!(editor.doc().serialize_markdown(cx), "# Title\n");
         });
 
-        // Reversible: undo restores the two original paragraphs.
+        // Reversible: undo restores the original paragraphs.
         editor.update(cx, |editor, cx| {
             editor.undo_document(cx);
-            assert_eq!(editor.doc().serialize_markdown(cx), "Title\n\n=====");
+            assert_eq!(editor.doc().serialize_markdown(cx), "Title\n=====");
         });
     }
 
@@ -515,16 +517,13 @@ mod tests {
         cx: &mut TestAppContext,
     ) {
         let cx = cx.add_empty_window();
-        // A bare "-----" in source parses as a thematic break, so simulate the
-        // user typing the underline into the paragraph below the title instead.
-        let editor = cx.new(|cx| Editor::from_markdown(cx, "Title\n\nx".to_string(), None));
+        let editor = cx.new(|cx| Editor::from_markdown(cx, "Title".to_string(), None));
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let underline = editor.doc().blocks()[1].entity.clone();
+                let underline = Editor::new_block(cx, BlockData::paragraph("-----"));
+                editor.doc_mut().insert_blocks_at(None, 1, vec![underline.clone()], cx);
                 underline.update(cx, |block, block_cx| {
-                    let end = block.display_len();
-                    block.replace_text_in_display_range(0..end, "-----", None, false, block_cx);
                     block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
@@ -533,12 +532,15 @@ mod tests {
 
         editor.update(cx, |editor, cx| {
             let entries = editor.doc().blocks();
+            assert_eq!(entries.len(), 2);
             assert_eq!(
                 entries[0].entity.read(cx).kind(),
                 BlockKind::Heading { level: 2 }
             );
             assert_eq!(entries[0].entity.read(cx).display_text(), "Title");
-            assert_eq!(editor.doc().serialize_markdown(cx), "## Title\n\n");
+            assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+            assert_eq!(entries[1].entity.read(cx).display_text(), "");
+            assert_eq!(editor.doc().serialize_markdown(cx), "## Title\n");
         });
     }
 
@@ -668,12 +670,13 @@ mod tests {
     async fn delimiter_row_enter_forms_native_table(cx: &mut TestAppContext) {
         let cx = cx.add_empty_window();
         let editor = cx.new(|cx| {
-            Editor::from_markdown(cx, "| Name | Score |\n\n| --- | --- |".to_string(), None)
+            Editor::from_markdown(cx, "| Name | Score |".to_string(), None)
         });
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let delimiter = editor.doc().root_blocks()[1].clone();
+                let delimiter = Editor::new_block(cx, BlockData::paragraph("| --- | --- |"));
+                editor.doc_mut().insert_blocks_at(None, 1, vec![delimiter.clone()], cx);
                 delimiter.update(cx, |block, block_cx| {
                     block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
@@ -692,7 +695,7 @@ mod tests {
             assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(
                 editor.doc().serialize_markdown(cx),
-                "| Name | Score |\n| --- | --- |\n\n"
+                "| Name | Score |\n| --- | --- |\n"
             );
         });
 
@@ -701,7 +704,7 @@ mod tests {
             editor.undo_document(cx);
             assert_eq!(
                 editor.doc().serialize_markdown(cx),
-                "| Name | Score |\n\n| --- | --- |"
+                "| Name | Score |\n| --- | --- |"
             );
         });
     }
@@ -710,13 +713,14 @@ mod tests {
     async fn pipe_row_below_table_is_absorbed_as_a_row(cx: &mut TestAppContext) {
         let cx = cx.add_empty_window();
         let editor = cx.new(|cx| {
-            Editor::from_markdown(cx, "| Name | Score |\n\n| --- | --- |".to_string(), None)
+            Editor::from_markdown(cx, "| Name | Score |".to_string(), None)
         });
 
         // Form the table.
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let delimiter = editor.doc().root_blocks()[1].clone();
+                let delimiter = Editor::new_block(cx, BlockData::paragraph("| --- | --- |"));
+                editor.doc_mut().insert_blocks_at(None, 1, vec![delimiter.clone()], cx);
                 delimiter.update(cx, |block, block_cx| {
                     block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
@@ -749,8 +753,6 @@ mod tests {
             assert_eq!(table.rows.len(), 1);
             assert_eq!(table.rows[0][0].serialize_markdown(), "Alice");
             assert_eq!(table.rows[0][1].serialize_markdown(), "10");
-            assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
-            assert_eq!(roots[1].read(cx).display_text(), "");
         });
     }
 
@@ -758,11 +760,12 @@ mod tests {
     async fn pipeless_delimiter_row_enter_forms_native_table(cx: &mut TestAppContext) {
         let cx = cx.add_empty_window();
         let editor =
-            cx.new(|cx| Editor::from_markdown(cx, "Name | Score\n\n---- | ----".to_string(), None));
+            cx.new(|cx| Editor::from_markdown(cx, "Name | Score".to_string(), None));
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let delimiter = editor.doc().root_blocks()[1].clone();
+                let delimiter = Editor::new_block(cx, BlockData::paragraph("---- | ----"));
+                editor.doc_mut().insert_blocks_at(None, 1, vec![delimiter.clone()], cx);
                 delimiter.update(cx, |block, block_cx| {
                     block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
@@ -779,7 +782,6 @@ mod tests {
             assert_eq!(table.header[0].serialize_markdown(), "Name");
             assert_eq!(table.header[1].serialize_markdown(), "Score");
             assert!(table.rows.is_empty());
-            assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
         });
     }
 
@@ -787,11 +789,12 @@ mod tests {
     async fn pipeless_row_below_table_is_absorbed_as_a_row(cx: &mut TestAppContext) {
         let cx = cx.add_empty_window();
         let editor =
-            cx.new(|cx| Editor::from_markdown(cx, "Name | Score\n\n---- | ----".to_string(), None));
+            cx.new(|cx| Editor::from_markdown(cx, "Name | Score".to_string(), None));
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let delimiter = editor.doc().root_blocks()[1].clone();
+                let delimiter = Editor::new_block(cx, BlockData::paragraph("---- | ----"));
+                editor.doc_mut().insert_blocks_at(None, 1, vec![delimiter.clone()], cx);
                 delimiter.update(cx, |block, block_cx| {
                     block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
@@ -818,7 +821,6 @@ mod tests {
             assert_eq!(table.rows.len(), 1);
             assert_eq!(table.rows[0][0].serialize_markdown(), "Alice");
             assert_eq!(table.rows[0][1].serialize_markdown(), "10");
-            assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
         });
     }
 
@@ -826,11 +828,12 @@ mod tests {
     async fn ragged_pipeless_row_below_table_is_padded_to_width(cx: &mut TestAppContext) {
         let cx = cx.add_empty_window();
         let editor = cx
-            .new(|cx| Editor::from_markdown(cx, "A | B | C\n\n--- | --- | ---".to_string(), None));
+            .new(|cx| Editor::from_markdown(cx, "A | B | C".to_string(), None));
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
-                let delimiter = editor.doc().root_blocks()[1].clone();
+                let delimiter = Editor::new_block(cx, BlockData::paragraph("--- | --- | ---"));
+                editor.doc_mut().insert_blocks_at(None, 1, vec![delimiter.clone()], cx);
                 delimiter.update(cx, |block, block_cx| {
                     block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
@@ -910,7 +913,7 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "n^2");
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
-            assert_eq!(editor.doc().serialize_markdown(cx), "$$n^2$$\n\n");
+            assert_eq!(editor.doc().serialize_markdown(cx), "$$n^2$$\n");
         });
     }
 
@@ -1036,7 +1039,7 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "");
             assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
             assert_eq!(entries[1].entity.read(cx).display_text(), "");
-            assert_eq!(editor.doc().serialize_markdown(cx), "$$\n\n$$\n\n");
+            assert_eq!(editor.doc().serialize_markdown(cx), "$$\n\n$$\n");
         });
     }
 

@@ -43,7 +43,7 @@ async fn dropped_markdown_replaces_clean_editor_in_current_window(cx: &mut TestA
         assert!(editor.tab().mode == EditorPaneKind::Wysiwyg);
         assert!(!editor.tab().file.dirty);
         assert!(!editor.tab().file.show_drop_replace_dialog);
-        assert_eq!(editor.doc().root_count(), 2);
+        assert_eq!(editor.doc().root_count(), 3);
         assert_eq!(
             editor
                 .doc()

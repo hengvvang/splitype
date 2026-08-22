@@ -363,7 +363,7 @@ async fn switching_tabs_renders_the_new_document_immediately(cx: &mut TestAppCon
     redraw(cx);
     let (tab1_ids, tab1_text) = active_blocks(&editor, cx);
     assert_eq!(tab1_text, "gamma\n\ndelta");
-    assert_eq!(tab1_ids.len(), 2);
+    assert_eq!(tab1_ids.len(), 3);
 
     // Switch back to tab 0 (alpha/beta): the very next frame must render
     // tab 0's blocks, not the previous tab's.

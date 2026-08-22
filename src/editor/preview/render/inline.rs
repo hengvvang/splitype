@@ -75,17 +75,15 @@ pub(crate) fn render_preview_span(
         );
     }
 
-    let script_offset = match span.style.script {
-        InlineScript::Normal => 0.0,
-        InlineScript::Superscript => -font_size * 0.28,
-        InlineScript::Subscript => font_size * 0.22,
-    };
-    let display_font_size = if span.footnote.is_some() {
-        theme.typography.code_size
-    } else if span.style.has_script() {
-        (font_size * 0.72).max(6.0)
+    let display_font_size = if span.style.has_script() || span.footnote.is_some() {
+        (font_size * 0.70).max(6.0)
     } else {
         font_size
+    };
+    let script_offset = match span.style.script {
+        InlineScript::Normal => 0.0,
+        InlineScript::Superscript => -font_size * 0.20,
+        InlineScript::Subscript => font_size * 0.16,
     };
 
     let mut element = div()

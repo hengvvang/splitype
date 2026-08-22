@@ -17,7 +17,7 @@ async fn toggle_view_mode_preserves_paragraph_caret_position(cx: &mut TestAppCon
     let editor = cx.new(|cx| Editor::from_markdown(cx, "alpha\n\nbeta".to_string(), None));
 
     editor.update(cx, |editor, cx| {
-        let target = editor.doc().blocks()[1].entity.clone();
+        let target = editor.doc().blocks()[2].entity.clone();
         target.update(cx, |block, _cx| {
             block.selected_range = 2..2;
         });
@@ -32,17 +32,17 @@ async fn toggle_view_mode_preserves_paragraph_caret_position(cx: &mut TestAppCon
         editor.toggle_view_mode(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
         let entries = editor.doc().blocks();
-        assert_eq!(entries.len(), 2);
+        assert_eq!(entries.len(), 3);
         assert!(
             entries
                 .iter()
                 .all(|entries| !entries.entity.read(cx).show_source_line_numbers())
         );
-        assert_eq!(entries[1].entity.read(cx).display_text(), "beta");
-        assert_eq!(entries[1].entity.read(cx).selected_range, 2..2);
+        assert_eq!(entries[2].entity.read(cx).display_text(), "beta");
+        assert_eq!(entries[2].entity.read(cx).selected_range, 2..2);
         assert_eq!(
             editor.active_pane_focus().pending,
-            Some(entries[1].entity.entity_id())
+            Some(entries[2].entity.entity_id())
         );
     });
 }
@@ -704,7 +704,7 @@ async fn ctrl_enter_exits_focused_math_block(cx: &mut TestAppContext) {
         assert_eq!(entries[0].entity.read(cx).display_text(), "n^2");
         assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(entries[1].entity.read(cx).display_text(), "");
-        assert_eq!(editor.doc().serialize_markdown(cx), "$$n^2$$\n\n");
+        assert_eq!(editor.doc().serialize_markdown(cx), "$$n^2$$\n");
     });
 }
 

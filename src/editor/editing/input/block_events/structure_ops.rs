@@ -50,14 +50,10 @@ impl Editor {
                     cx,
                     BlockData::new(BlockKind::Blockquote, BlockText::plain(String::new())),
                 );
-                let blocks = if parent.is_none() {
-                    vec![new_quote.clone()]
-                } else {
-                    vec![
-                        Self::new_block(cx, BlockData::paragraph(String::new())),
-                        new_quote.clone(),
-                    ]
-                };
+                let blocks = vec![
+                    Self::new_block(cx, BlockData::paragraph(String::new())),
+                    new_quote.clone(),
+                ];
                 self.doc_mut()
                     .insert_blocks_at(parent, insert_index, blocks, cx);
                 self.focus_block(new_quote.entity_id());

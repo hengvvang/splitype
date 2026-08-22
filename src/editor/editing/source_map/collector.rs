@@ -198,19 +198,9 @@ impl Editor {
 
         if kind == BlockKind::FootnoteDefinition {
             let mut total_len = own_len;
-            let mut previous_kind = Some(BlockKind::Paragraph);
             for child in &children {
-                let current_kind = child.read(cx).kind();
                 if total_len > 0 {
-                    total_len += if previous_kind.is_none() {
-                        1
-                    } else if previous_kind.as_ref().is_some_and(|previous| {
-                        previous.is_list_item() && current_kind.is_list_item()
-                    }) {
-                        1
-                    } else {
-                        2
-                    };
+                    total_len += 1;
                 }
                 total_len += self.collect_single_block_source_mappings(
                     child,
@@ -221,7 +211,6 @@ impl Editor {
                     block_ranges,
                     cx,
                 );
-                previous_kind = Some(current_kind);
             }
             block_ranges.insert(
                 block.entity_id(),

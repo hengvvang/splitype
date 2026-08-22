@@ -22,16 +22,17 @@ async fn request_quote_break_creates_new_root_leaf_quote_group(cx: &mut TestAppC
         editor.on_block_event(quote, &BlockEvent::RequestQuoteBreak, cx);
 
         let entries = editor.doc().blocks();
-        assert_eq!(entries.len(), 2);
+        assert_eq!(entries.len(), 3);
         assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
         assert_eq!(entries[0].entity.read(cx).display_text(), "first");
-        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(entries[1].entity.read(cx).display_text(), "");
-        assert_eq!(entries[1].entity.read(cx).quote_depth, 1);
+        assert!(entries[1].entity.read(cx).data.text.plain_text().is_empty());
+        assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Blockquote);
+        assert_eq!(entries[2].entity.read(cx).display_text(), "");
+        assert_eq!(entries[2].entity.read(cx).quote_depth, 1);
         assert_eq!(editor.doc().serialize_markdown(cx), "> first\n\n> ");
         assert_eq!(
             editor.active_pane_focus().pending,
-            Some(entries[1].entity.entity_id())
+            Some(entries[2].entity.entity_id())
         );
     });
 }
@@ -289,7 +290,7 @@ async fn request_outdent_lifts_list_child_paragraph_after_parent(cx: &mut TestAp
         assert_eq!(entries[1].entity.read(cx).display_text(), "child text");
         assert_eq!(entries[1].entity.read(cx).render_depth, 0);
         assert_eq!(entries[1].entity.entity_id(), child_id);
-        assert_eq!(editor.doc().serialize_markdown(cx), "- item\n\nchild text");
+        assert_eq!(editor.doc().serialize_markdown(cx), "- item\nchild text");
     });
 }
 
@@ -331,7 +332,7 @@ async fn empty_list_child_paragraph_backspace_outdents_to_root(cx: &mut TestAppC
         assert_eq!(entries[1].entity.read(cx).display_text(), "");
         assert_eq!(entries[1].entity.entity_id(), child_id);
         assert_eq!(entries[1].entity.read(cx).render_depth, 0);
-        assert_eq!(editor.doc().serialize_markdown(cx), "- item\n\n");
+        assert_eq!(editor.doc().serialize_markdown(cx), "- item\n");
     });
 }
 
@@ -398,7 +399,7 @@ async fn enter_inside_script_paragraph_creates_new_block(cx: &mut TestAppContext
         assert_eq!(entries[0].entity.read(cx).display_text(), "H2O");
         assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(entries[1].entity.read(cx).display_text(), "");
-        assert_eq!(editor.doc().serialize_markdown(cx), "H~2~O\n\n");
+        assert_eq!(editor.doc().serialize_markdown(cx), "H~2~O\n");
     });
 }
 
@@ -425,7 +426,7 @@ async fn enter_inside_inline_math_paragraph_creates_new_block(cx: &mut TestAppCo
         assert!(!entries[0].entity.read(cx).edits_verbatim_text());
         assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(entries[1].entity.read(cx).display_text(), "");
-        assert_eq!(editor.doc().serialize_markdown(cx), "$n^2$\n\n");
+        assert_eq!(editor.doc().serialize_markdown(cx), "$n^2$\n");
     });
 }
 
@@ -462,7 +463,7 @@ async fn trailing_fence_line_enter_closes_code_block(cx: &mut TestAppContext) {
         assert_eq!(entries[1].entity.read(cx).display_text(), "");
         assert_eq!(
             editor.doc().serialize_markdown(cx),
-            "```rust\nlet x = 1;\n```\n\n"
+            "```rust\nlet x = 1;\n```\n"
         );
     });
 }
@@ -470,11 +471,12 @@ async fn trailing_fence_line_enter_closes_code_block(cx: &mut TestAppContext) {
 #[gpui::test]
 async fn setext_equals_underline_enter_promotes_previous_paragraph_to_h1(cx: &mut TestAppContext) {
     let cx = cx.add_empty_window();
-    let editor = cx.new(|cx| Editor::from_markdown(cx, "Title\n\n=====".to_string(), None));
+    let editor = cx.new(|cx| Editor::from_markdown(cx, "Title".to_string(), None));
 
     cx.update(|window, cx| {
         editor.update(cx, |editor, cx| {
-            let underline = editor.doc().blocks()[1].entity.clone();
+            let underline = Editor::new_block(cx, BlockData::paragraph("====="));
+            editor.doc_mut().insert_blocks_at(None, 1, vec![underline.clone()], cx);
             underline.update(cx, |block, block_cx| {
                 block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
@@ -492,29 +494,26 @@ async fn setext_equals_underline_enter_promotes_previous_paragraph_to_h1(cx: &mu
         assert_eq!(entries[0].entity.read(cx).display_text(), "Title");
         assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(entries[1].entity.read(cx).display_text(), "");
-        assert_eq!(editor.doc().serialize_markdown(cx), "# Title\n\n");
+        assert_eq!(editor.doc().serialize_markdown(cx), "# Title\n");
     });
 
-    // Reversible: undo restores the two original paragraphs.
+    // Reversible: undo restores the original paragraphs.
     editor.update(cx, |editor, cx| {
         editor.undo_document(cx);
-        assert_eq!(editor.doc().serialize_markdown(cx), "Title\n\n=====");
+        assert_eq!(editor.doc().serialize_markdown(cx), "Title\n=====");
     });
 }
 
 #[gpui::test]
 async fn setext_dash_underline_enter_promotes_previous_paragraph_to_h2(cx: &mut TestAppContext) {
     let cx = cx.add_empty_window();
-    // A bare "-----" in source parses as a thematic break, so simulate the
-    // user typing the underline into the paragraph below the title instead.
-    let editor = cx.new(|cx| Editor::from_markdown(cx, "Title\n\nx".to_string(), None));
+    let editor = cx.new(|cx| Editor::from_markdown(cx, "Title".to_string(), None));
 
     cx.update(|window, cx| {
         editor.update(cx, |editor, cx| {
-            let underline = editor.doc().blocks()[1].entity.clone();
+            let underline = Editor::new_block(cx, BlockData::paragraph("-----"));
+            editor.doc_mut().insert_blocks_at(None, 1, vec![underline.clone()], cx);
             underline.update(cx, |block, block_cx| {
-                let end = block.display_len();
-                block.replace_text_in_display_range(0..end, "-----", None, false, block_cx);
                 block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
             });
@@ -523,12 +522,15 @@ async fn setext_dash_underline_enter_promotes_previous_paragraph_to_h2(cx: &mut 
 
     editor.update(cx, |editor, cx| {
         let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
         assert_eq!(
             entries[0].entity.read(cx).kind(),
             BlockKind::Heading { level: 2 }
         );
         assert_eq!(entries[0].entity.read(cx).display_text(), "Title");
-        assert_eq!(editor.doc().serialize_markdown(cx), "## Title\n\n");
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
+        assert_eq!(editor.doc().serialize_markdown(cx), "## Title\n");
     });
 }
 
@@ -581,11 +583,12 @@ async fn equals_underline_without_heading_target_stays_a_paragraph(cx: &mut Test
 async fn delimiter_row_enter_forms_native_table(cx: &mut TestAppContext) {
     let cx = cx.add_empty_window();
     let editor = cx
-        .new(|cx| Editor::from_markdown(cx, "| Name | Score |\n\n| --- | --- |".to_string(), None));
+        .new(|cx| Editor::from_markdown(cx, "| Name | Score |".to_string(), None));
 
     cx.update(|window, cx| {
         editor.update(cx, |editor, cx| {
-            let delimiter = editor.doc().root_blocks()[1].clone();
+            let delimiter = Editor::new_block(cx, BlockData::paragraph("| --- | --- |"));
+            editor.doc_mut().insert_blocks_at(None, 1, vec![delimiter.clone()], cx);
             delimiter.update(cx, |block, block_cx| {
                 block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
@@ -604,7 +607,7 @@ async fn delimiter_row_enter_forms_native_table(cx: &mut TestAppContext) {
         assert_eq!(roots[1].read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(
             editor.doc().serialize_markdown(cx),
-            "| Name | Score |\n| --- | --- |\n\n"
+            "| Name | Score |\n| --- | --- |\n"
         );
     });
 
@@ -613,7 +616,7 @@ async fn delimiter_row_enter_forms_native_table(cx: &mut TestAppContext) {
         editor.undo_document(cx);
         assert_eq!(
             editor.doc().serialize_markdown(cx),
-            "| Name | Score |\n\n| --- | --- |"
+            "| Name | Score |\n| --- | --- |"
         );
     });
 }
@@ -622,12 +625,13 @@ async fn delimiter_row_enter_forms_native_table(cx: &mut TestAppContext) {
 async fn pipe_row_below_table_is_absorbed_as_a_row(cx: &mut TestAppContext) {
     let cx = cx.add_empty_window();
     let editor = cx
-        .new(|cx| Editor::from_markdown(cx, "| Name | Score |\n\n| --- | --- |".to_string(), None));
+        .new(|cx| Editor::from_markdown(cx, "| Name | Score |".to_string(), None));
 
     // Form the table.
     cx.update(|window, cx| {
         editor.update(cx, |editor, cx| {
-            let delimiter = editor.doc().root_blocks()[1].clone();
+            let delimiter = Editor::new_block(cx, BlockData::paragraph("| --- | --- |"));
+            editor.doc_mut().insert_blocks_at(None, 1, vec![delimiter.clone()], cx);
             delimiter.update(cx, |block, block_cx| {
                 block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
@@ -663,11 +667,12 @@ async fn pipe_row_below_table_is_absorbed_as_a_row(cx: &mut TestAppContext) {
 async fn pipeless_delimiter_row_enter_forms_native_table(cx: &mut TestAppContext) {
     let cx = cx.add_empty_window();
     let editor =
-        cx.new(|cx| Editor::from_markdown(cx, "Name | Score\n\n---- | ----".to_string(), None));
+        cx.new(|cx| Editor::from_markdown(cx, "Name | Score".to_string(), None));
 
     cx.update(|window, cx| {
         editor.update(cx, |editor, cx| {
-            let delimiter = editor.doc().root_blocks()[1].clone();
+            let delimiter = Editor::new_block(cx, BlockData::paragraph("---- | ----"));
+            editor.doc_mut().insert_blocks_at(None, 1, vec![delimiter.clone()], cx);
             delimiter.update(cx, |block, block_cx| {
                 block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
@@ -692,11 +697,12 @@ async fn pipeless_delimiter_row_enter_forms_native_table(cx: &mut TestAppContext
 async fn pipeless_row_below_table_is_absorbed_as_a_row(cx: &mut TestAppContext) {
     let cx = cx.add_empty_window();
     let editor =
-        cx.new(|cx| Editor::from_markdown(cx, "Name | Score\n\n---- | ----".to_string(), None));
+        cx.new(|cx| Editor::from_markdown(cx, "Name | Score".to_string(), None));
 
     cx.update(|window, cx| {
         editor.update(cx, |editor, cx| {
-            let delimiter = editor.doc().root_blocks()[1].clone();
+            let delimiter = Editor::new_block(cx, BlockData::paragraph("---- | ----"));
+            editor.doc_mut().insert_blocks_at(None, 1, vec![delimiter.clone()], cx);
             delimiter.update(cx, |block, block_cx| {
                 block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
@@ -731,11 +737,12 @@ async fn pipeless_row_below_table_is_absorbed_as_a_row(cx: &mut TestAppContext) 
 async fn ragged_pipeless_row_below_table_is_padded_to_width(cx: &mut TestAppContext) {
     let cx = cx.add_empty_window();
     let editor =
-        cx.new(|cx| Editor::from_markdown(cx, "A | B | C\n\n--- | --- | ---".to_string(), None));
+        cx.new(|cx| Editor::from_markdown(cx, "A | B | C".to_string(), None));
 
     cx.update(|window, cx| {
         editor.update(cx, |editor, cx| {
-            let delimiter = editor.doc().root_blocks()[1].clone();
+            let delimiter = Editor::new_block(cx, BlockData::paragraph("--- | --- | ---"));
+            editor.doc_mut().insert_blocks_at(None, 1, vec![delimiter.clone()], cx);
             delimiter.update(cx, |block, block_cx| {
                 block.move_to(block.display_len(), block_cx);
                 block.on_newline(&Newline, window, block_cx);
@@ -815,7 +822,7 @@ async fn math_block_exit_shortcut_creates_plain_text_block(cx: &mut TestAppConte
         assert_eq!(entries[0].entity.read(cx).display_text(), "n^2");
         assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(entries[1].entity.read(cx).display_text(), "");
-        assert_eq!(editor.doc().serialize_markdown(cx), "$$n^2$$\n\n");
+        assert_eq!(editor.doc().serialize_markdown(cx), "$$n^2$$\n");
     });
 }
 
@@ -939,7 +946,7 @@ async fn auto_created_math_block_exit_shortcut_creates_plain_text_block(cx: &mut
         assert_eq!(entries[0].entity.read(cx).display_text(), "");
         assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(entries[1].entity.read(cx).display_text(), "");
-        assert_eq!(editor.doc().serialize_markdown(cx), "$$\n\n$$\n\n");
+        assert_eq!(editor.doc().serialize_markdown(cx), "$$\n\n$$\n");
     });
 }
 
@@ -1049,11 +1056,16 @@ async fn table_cell_exit_shortcut_inserts_sibling_after_table(cx: &mut TestAppCo
             let table = callout
                 .read(cx)
                 .children
-                .iter()
-                .find(|child| child.read(cx).kind() == BlockKind::Table)
-                .expect("nested table")
+                .first()
+                .cloned()
+                .expect("table child");
+            let cell = table
+                .read(cx)
+                .table_grid
+                .as_ref()
+                .expect("table grid")
+                .rows[0][0]
                 .clone();
-            let cell = table.read(cx).table_grid.as_ref().expect("table grid").rows[0][0].clone();
             cell.update(cx, |block, block_cx| {
                 block.on_exit_code_block(&ExitCodeBlock, window, block_cx);
             });
@@ -1086,7 +1098,7 @@ pub(crate) fn table_root(editor: &Editor, cx: &App) -> Entity<Block> {
 
 #[gpui::test]
 async fn arrow_down_from_last_row_exits_table_to_following_block(cx: &mut TestAppContext) {
-    let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |", "", "after"].join("\n");
+    let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |", "after"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
@@ -1118,7 +1130,7 @@ async fn arrow_down_from_last_row_exits_table_to_following_block(cx: &mut TestAp
 
 #[gpui::test]
 async fn arrow_up_from_header_exits_table_to_preceding_block(cx: &mut TestAppContext) {
-    let markdown = ["before", "", "| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
+    let markdown = ["before", "| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
@@ -1149,7 +1161,7 @@ async fn arrow_up_from_header_exits_table_to_preceding_block(cx: &mut TestAppCon
 
 #[gpui::test]
 async fn arrow_down_into_table_focuses_header_cell(cx: &mut TestAppContext) {
-    let markdown = ["before", "", "| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
+    let markdown = ["before", "| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
@@ -1174,7 +1186,7 @@ async fn arrow_down_into_table_focuses_header_cell(cx: &mut TestAppContext) {
 
 #[gpui::test]
 async fn arrow_up_into_table_focuses_last_row_cell(cx: &mut TestAppContext) {
-    let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |", "", "after"].join("\n");
+    let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |", "after"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
@@ -1201,7 +1213,7 @@ async fn arrow_up_into_table_focuses_last_row_cell(cx: &mut TestAppContext) {
 
 #[gpui::test]
 async fn block_up_from_table_cell_exits_to_preceding_block(cx: &mut TestAppContext) {
-    let markdown = ["before", "", "| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
+    let markdown = ["before", "| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
@@ -1230,7 +1242,7 @@ async fn block_up_from_table_cell_exits_to_preceding_block(cx: &mut TestAppConte
 
 #[gpui::test]
 async fn block_down_into_table_focuses_header_cell(cx: &mut TestAppContext) {
-    let markdown = ["before", "", "| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
+    let markdown = ["before", "| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
@@ -1252,7 +1264,7 @@ async fn block_down_into_table_focuses_header_cell(cx: &mut TestAppContext) {
 #[gpui::test]
 async fn down_out_of_code_block_focuses_following_block(cx: &mut TestAppContext) {
     let editor =
-        cx.new(|cx| Editor::from_markdown(cx, "```rust\nab\n```\n\nafter".to_string(), None));
+        cx.new(|cx| Editor::from_markdown(cx, "```rust\nab\n```\nafter".to_string(), None));
 
     editor.update(cx, |editor, cx| {
         let code = editor.doc().first_root().expect("code root").clone();
@@ -1360,16 +1372,14 @@ async fn plain_multiline_paste_with_scripts_splits_physical_lines(cx: &mut TestA
                 split_physical_lines: true,
             },
             cx,
-        );
-
-        let entries = editor.doc().blocks();
+        );        let entries = editor.doc().blocks();
         assert_eq!(entries.len(), 3);
         assert_eq!(entries[0].entity.read(cx).display_text(), "H2O");
         assert_eq!(entries[1].entity.read(cx).display_text(), "CO2");
         assert_eq!(entries[2].entity.read(cx).display_text(), "xn");
         assert_eq!(
             editor.doc().serialize_markdown(cx),
-            "H~2~O\n\nCO~2~\n\nx^n^"
+            "H~2~O\nCO~2~\nx^n^"
         );
     });
 }
@@ -1454,7 +1464,7 @@ async fn structural_paste_of_code_block_renders_native_code_block(cx: &mut TestA
         assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(
             editor.doc().serialize_markdown(cx),
-            "```rust\nfn main() {}\n```\n\n"
+            "```rust\nfn main() {}\n```\n"
         );
     });
 }
@@ -1468,13 +1478,13 @@ async fn structural_paste_of_table_preserves_surrounding_text(cx: &mut TestAppCo
         editor.on_block_event(
             block,
             &BlockEvent::RequestPasteMultiline {
-                leading: BlockText::plain("before"),
+                leading: BlockText::plain("before".to_string()),
                 lines: vec![
                     "| A | B |".to_string(),
                     "| --- | --- |".to_string(),
                     "| 1 | 2 |".to_string(),
                 ],
-                trailing: BlockText::plain("after"),
+                trailing: BlockText::plain("after".to_string()),
                 split_physical_lines: false,
             },
             cx,
@@ -1482,14 +1492,9 @@ async fn structural_paste_of_table_preserves_surrounding_text(cx: &mut TestAppCo
 
         let entries = editor.doc().blocks();
         assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(entries[0].entity.read(cx).display_text(), "before");
-
-        let table = entries[1].entity.read(cx);
-        assert_eq!(table.kind(), BlockKind::Table);
-        let data = table.data.table.as_ref().expect("table data");
-        assert_eq!(data.header[0].serialize_markdown(), "A");
-        assert_eq!(data.rows[0][0].serialize_markdown(), "1");
-
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Table);
         assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(entries[2].entity.read(cx).display_text(), "after");
     });
@@ -1504,13 +1509,13 @@ async fn structural_paste_of_code_block_preserves_surrounding_text(cx: &mut Test
         editor.on_block_event(
             block,
             &BlockEvent::RequestPasteMultiline {
-                leading: BlockText::plain("before"),
+                leading: BlockText::plain("before".to_string()),
                 lines: vec![
                     "```rust".to_string(),
                     "fn main() {}".to_string(),
                     "```".to_string(),
                 ],
-                trailing: BlockText::plain("after"),
+                trailing: BlockText::plain("after".to_string()),
                 split_physical_lines: false,
             },
             cx,
@@ -1518,6 +1523,7 @@ async fn structural_paste_of_code_block_preserves_surrounding_text(cx: &mut Test
 
         let entries = editor.doc().blocks();
         assert_eq!(entries.len(), 3);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(entries[0].entity.read(cx).display_text(), "before");
         assert_eq!(
             entries[1].entity.read(cx).kind(),
@@ -1528,8 +1534,39 @@ async fn structural_paste_of_code_block_preserves_surrounding_text(cx: &mut Test
         assert_eq!(entries[1].entity.read(cx).display_text(), "fn main() {}");
         assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(entries[2].entity.read(cx).display_text(), "after");
-        // Text already follows the code block, so no extra trailing
-        // paragraph is added mid-document.
+    });
+}
+
+#[gpui::test]
+async fn structural_paste_of_raw_html_block_renders_native_html_block(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
+
+    editor.update(cx, |editor, cx| {
+        let block = editor.doc().blocks()[0].entity.clone();
+        editor.on_block_event(
+            block,
+            &BlockEvent::RequestPasteMultiline {
+                leading: BlockText::plain(String::new()),
+                lines: vec![
+                    "<div>".to_string(),
+                    "<p>hello</p>".to_string(),
+                    "</div>".to_string(),
+                ],
+                trailing: BlockText::plain(String::new()),
+                split_physical_lines: false,
+            },
+            cx,
+        );
+
+        let entries = editor.doc().blocks();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::HtmlBlock);
+        assert_eq!(
+            entries[0].entity.read(cx).display_text(),
+            "<div>\n<p>hello</p>\n</div>"
+        );
+        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries[1].entity.read(cx).display_text(), "");
     });
 }
 
@@ -1755,7 +1792,7 @@ async fn plain_multiline_paste_with_leading_inline_html_splits_physical_lines(
         assert_eq!(entries[2].entity.read(cx).display_text(), "x");
         assert_eq!(
             editor.doc().serialize_markdown(cx),
-            "<sub>2</sub>\n\n<sup>n</sup>\n\n<span style=\"color: rgba(255,0,0,1.000);\">x</span>"
+            "<sub>2</sub>\n<sup>n</sup>\n<span style=\"color: rgba(255,0,0,1.000);\">x</span>"
         );
     });
 }
@@ -1854,163 +1891,11 @@ async fn empty_nested_list_item_backspace_twice_exits_to_outer_paragraph(cx: &mu
         assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(entries[1].entity.read(cx).display_text(), "");
         assert_eq!(entries[1].entity.read(cx).render_depth, 0);
-        assert_eq!(editor.doc().serialize_markdown(cx), "- a\n\n");
+        assert_eq!(editor.doc().serialize_markdown(cx), "- a\n");
     });
 }
 
-#[gpui::test]
-async fn nested_list_item_downgrade_hoists_children_after_paragraph(cx: &mut TestAppContext) {
-    let editor =
-        cx.new(|cx| Editor::from_markdown(cx, "- a\n  - b\n    - c\n  - d".to_string(), None));
 
-    editor.update(cx, |editor, cx| {
-        let nested = editor.doc().blocks()[1].entity.clone();
-        editor.on_block_event(
-            nested,
-            &BlockEvent::RequestDowngradeNestedListItemToChildParagraph,
-            cx,
-        );
-
-        let entries = editor.doc().blocks();
-        assert_eq!(entries.len(), 4);
-        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::BulletListItem);
-        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(entries[1].entity.read(cx).display_text(), "b");
-        assert_eq!(entries[1].entity.read(cx).render_depth, 1);
-        assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::BulletListItem);
-        assert_eq!(entries[2].entity.read(cx).display_text(), "c");
-        assert_eq!(entries[2].entity.read(cx).render_depth, 1);
-        assert_eq!(entries[3].entity.read(cx).kind(), BlockKind::BulletListItem);
-        assert_eq!(entries[3].entity.read(cx).display_text(), "d");
-        assert_eq!(entries[3].entity.read(cx).render_depth, 1);
-        assert_eq!(
-            editor.doc().serialize_markdown(cx),
-            "- a\n\n  b\n  - c\n  - d"
-        );
-    });
-}
-
-#[gpui::test]
-async fn nested_numbered_and_task_items_backspace_downgrade_to_list_child(cx: &mut TestAppContext) {
-    let cx = cx.add_empty_window();
-
-    let numbered = cx.new(|cx| Editor::from_markdown(cx, "1. a\n  1. b".to_string(), None));
-    cx.update(|window, cx| {
-        numbered.update(cx, |editor, cx| {
-            let nested = editor.doc().blocks()[1].entity.clone();
-            nested.update(cx, |block, block_cx| {
-                block.move_to(0, block_cx);
-                block.on_delete_backward(&DeleteBackward, window, block_cx);
-            });
-        });
-    });
-    numbered.update(cx, |editor, cx| {
-        let entries = editor.doc().blocks();
-        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(entries[1].entity.read(cx).display_text(), "b");
-        assert_eq!(entries[1].entity.read(cx).render_depth, 1);
-        assert_eq!(editor.doc().serialize_markdown(cx), "1. a\n\n  b");
-    });
-
-    let task = cx.new(|cx| Editor::from_markdown(cx, "- [ ] a\n  - [ ] b".to_string(), None));
-    cx.update(|window, cx| {
-        task.update(cx, |editor, cx| {
-            let nested = editor.doc().blocks()[1].entity.clone();
-            nested.update(cx, |block, block_cx| {
-                block.move_to(0, block_cx);
-                block.on_delete_backward(&DeleteBackward, window, block_cx);
-            });
-        });
-    });
-    task.update(cx, |editor, cx| {
-        let entries = editor.doc().blocks();
-        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(entries[1].entity.read(cx).display_text(), "b");
-        assert_eq!(entries[1].entity.read(cx).render_depth, 1);
-        assert_eq!(editor.doc().serialize_markdown(cx), "- [ ] a\n\n  b");
-    });
-}
-
-#[gpui::test]
-async fn request_quote_break_creates_nested_leaf_quote_group(cx: &mut TestAppContext) {
-    let editor = cx.new(|cx| Editor::from_markdown(cx, "> outer\n>> inner".to_string(), None));
-
-    editor.update(cx, |editor, cx| {
-        let nested_quote = editor.doc().blocks()[1].entity.clone();
-        editor.on_block_event(nested_quote, &BlockEvent::RequestQuoteBreak, cx);
-
-        let entries = editor.doc().blocks();
-        assert_eq!(entries.len(), 4);
-        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(entries[0].entity.read(cx).display_text(), "outer");
-        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(entries[1].entity.read(cx).display_text(), "inner");
-        assert_eq!(entries[1].entity.read(cx).quote_depth, 2);
-        assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(entries[2].entity.read(cx).display_text(), "");
-        assert_eq!(entries[2].entity.read(cx).quote_depth, 1);
-        assert_eq!(entries[3].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(entries[3].entity.read(cx).display_text(), "");
-        assert_eq!(entries[3].entity.read(cx).quote_depth, 2);
-        assert_eq!(
-            editor.doc().serialize_markdown(cx),
-            "> outer\n> > inner\n> \n> > "
-        );
-        assert_eq!(
-            editor.active_pane_focus().pending,
-            Some(entries[3].entity.entity_id())
-        );
-    });
-}
-
-#[gpui::test]
-async fn imported_leaf_quote_backspace_twice_downgrades_to_text_block(cx: &mut TestAppContext) {
-    let cx = cx.add_empty_window();
-    let editor = cx.new(|cx| Editor::from_markdown(cx, "> a".to_string(), None));
-
-    cx.update(|window, cx| {
-        editor.update(cx, |editor, cx| {
-            let quote = editor.doc().first_root().expect("root quote").clone();
-            quote.update(cx, |block, block_cx| {
-                block.move_to(block.display_len(), block_cx);
-                block.on_delete_backward(&DeleteBackward, window, block_cx);
-            });
-        });
-    });
-
-    editor.update(cx, |editor, cx| {
-        let entries = editor.doc().blocks();
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(entries[0].entity.read(cx).display_text(), "");
-        assert_eq!(entries[0].entity.read(cx).quote_depth, 1);
-        assert_eq!(editor.doc().serialize_markdown(cx), "> ");
-    });
-
-    let empty_quote_id = editor.update(cx, |editor, _cx| {
-        editor.doc().first_root().expect("empty quote").entity_id()
-    });
-
-    cx.update(|window, cx| {
-        editor.update(cx, |editor, cx| {
-            let quote = editor.doc().first_root().expect("empty quote").clone();
-            quote.update(cx, |block, block_cx| {
-                block.move_to(0, block_cx);
-                block.on_delete_backward(&DeleteBackward, window, block_cx);
-            });
-        });
-    });
-
-    editor.update(cx, |editor, cx| {
-        let entries = editor.doc().blocks();
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(entries[0].entity.read(cx).display_text(), "");
-        assert_eq!(entries[0].entity.read(cx).quote_depth, 0);
-        assert_eq!(entries[0].entity.entity_id(), empty_quote_id);
-        assert_eq!(editor.doc().serialize_markdown(cx), "");
-    });
-}
 
 #[gpui::test]
 async fn shortcut_created_leaf_quote_backspace_twice_downgrades_to_text_block(
@@ -2085,15 +1970,15 @@ async fn root_quote_break_then_backspace_keeps_text_block_slot_after_group(
         let quote = editor.doc().first_root().expect("group quote").clone();
         editor.on_block_event(quote, &BlockEvent::RequestQuoteBreak, cx);
         let entries = editor.doc().blocks();
-        assert_eq!(entries.len(), 2);
-        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Blockquote);
-        assert_eq!(entries[1].entity.read(cx).display_text(), "");
-        entries[1].entity.entity_id()
+        assert_eq!(entries.len(), 3);
+        assert_eq!(entries.last().unwrap().entity.read(cx).kind(), BlockKind::Blockquote);
+        assert_eq!(entries.last().unwrap().entity.read(cx).display_text(), "");
+        entries.last().unwrap().entity.entity_id()
     });
 
     cx.update(|window, cx| {
         editor.update(cx, |editor, cx| {
-            let new_leaf = editor.doc().blocks()[1].entity.clone();
+            let new_leaf = editor.doc().blocks().last().unwrap().entity.clone();
             new_leaf.update(cx, |block, block_cx| {
                 block.move_to(0, block_cx);
                 block.on_delete_backward(&DeleteBackward, window, block_cx);
@@ -2103,13 +1988,13 @@ async fn root_quote_break_then_backspace_keeps_text_block_slot_after_group(
 
     editor.update(cx, |editor, cx| {
         let entries = editor.doc().blocks();
-        assert_eq!(entries.len(), 2);
+        assert_eq!(entries.len(), 3);
         assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Blockquote);
         assert_eq!(entries[0].entity.read(cx).display_text(), "side\n\n1234");
-        assert_eq!(entries[1].entity.read(cx).kind(), BlockKind::Paragraph);
-        assert_eq!(entries[1].entity.read(cx).display_text(), "");
-        assert_eq!(entries[1].entity.entity_id(), new_leaf_id);
-        assert_eq!(entries[1].entity.read(cx).quote_depth, 0);
+        assert_eq!(entries.last().unwrap().entity.read(cx).kind(), BlockKind::Paragraph);
+        assert_eq!(entries.last().unwrap().entity.read(cx).display_text(), "");
+        assert_eq!(entries.last().unwrap().entity.entity_id(), new_leaf_id);
+        assert_eq!(entries.last().unwrap().entity.read(cx).quote_depth, 0);
         assert_eq!(
             editor.doc().serialize_markdown(cx),
             "> side\n> \n> 1234\n\n"
@@ -2165,7 +2050,7 @@ async fn callout_exit_break_creates_plain_text_block(cx: &mut TestAppContext) {
         assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Paragraph);
         assert_eq!(entries[2].entity.read(cx).display_text(), "");
         assert_eq!(entries[2].entity.read(cx).quote_depth, 0);
-        assert_eq!(editor.doc().serialize_markdown(cx), "> [!TIP]\n> body\n\n");
+        assert_eq!(editor.doc().serialize_markdown(cx), "> [!TIP]\n> body\n");
         assert_eq!(
             editor.active_pane_focus().pending,
             Some(entries[2].entity.entity_id())

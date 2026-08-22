@@ -299,8 +299,6 @@ impl Editor {
         // are recognized it could even fabricate a heading from two paragraphs.
         let mut result = String::new();
         let mut wrote_chunk = false;
-        let mut pending_empty = 0usize;
-        let mut previous_was_list_item = false;
 
         for index in selection.block_index_range() {
             let entity = entries.get(index)?.entity.clone();
@@ -317,36 +315,13 @@ impl Editor {
             };
             let full_block =
                 range.start == 0 && range.end == len && (!selection.is_single_block() || len > 0);
-            // Cut deletes any atomic block covered by a multi-block selection
-            // (see cross_block_source_range_for_normalized), so the clipboard
-            // must serialize those blocks too, including boundary ones, not
-            // just interior. Otherwise cut would drop a table from the clipboard
-            // that it nonetheless removed from the document.
             let include_atomic = len == 0 && !selection.is_single_block();
-            if range.is_empty() && !include_atomic {
+            if range.is_empty() && !include_atomic && !Editor::is_empty_root_paragraph(block) {
                 continue;
             }
 
-            // Empty paragraphs are blank-line separators, not content: defer
-            // them so the gap between real blocks is reproduced as a blank line
-            // rather than collapsed. Atomic content (tables, separators, images)
-            // is len 0 too but is not an empty paragraph, so it still serializes.
-            if (full_block || include_atomic) && Editor::is_empty_root_paragraph(block) {
-                pending_empty += 1;
-                continue;
-            }
-
-            let current_is_list_item = block.kind().is_list_item();
-            let current_is_footnote = block.kind() == BlockKind::FootnoteDefinition;
             if wrote_chunk {
-                let separator_lines = if previous_was_list_item && current_is_list_item {
-                    pending_empty
-                } else if current_is_footnote && pending_empty == 0 {
-                    0
-                } else {
-                    pending_empty + 1
-                };
-                result.push_str(&"\n".repeat(separator_lines + 1));
+                result.push('\n');
             }
             result.push_str(&self.markdown_chunk_for_block(
                 &entity,
@@ -357,8 +332,6 @@ impl Editor {
                 cx,
             ));
             wrote_chunk = true;
-            pending_empty = 0;
-            previous_was_list_item = current_is_list_item;
         }
 
         Some(result)

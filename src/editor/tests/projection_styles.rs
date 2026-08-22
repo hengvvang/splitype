@@ -282,3 +282,57 @@ async fn script_and_footnote_always_expand_with_purple_markers_when_line_active(
     });
 }
 
+#[gpui::test]
+async fn footnote_definition_displays_clean_when_unfocused_and_projects_when_focused(
+    cx: &mut TestAppContext,
+) {
+    let editor = cx.new(|cx| {
+        Editor::from_markdown(
+            cx,
+            "正文内容[^note1]。\n\n[^note1]: 这里是脚注内容".to_string(),
+            None,
+        )
+    });
+
+    editor.update(cx, |editor, cx| {
+        let definition = editor
+            .doc()
+            .blocks()
+            .iter()
+            .find(|entry| entry.entity.read(cx).kind() == BlockKind::FootnoteDefinition)
+            .expect("footnote definition block")
+            .entity
+            .clone();
+
+        definition.update(cx, |block, _cx| {
+            // In unfocused state, footnote definitions display clean "note1: 脚注内容" without raw markdown markers
+            block.sync_inline_projection_for_focus(false);
+            let unfocused_text = block.display_text();
+            assert_eq!(
+                unfocused_text,
+                "note1: 这里是脚注内容",
+                "unfocused footnote definition must show clean rendered text"
+            );
+
+            // In focused state, footnote definitions project full markdown source syntax "[^note1]: 这里是脚注内容"
+            block.sync_inline_projection_for_focus(true);
+            let focused_text = block.display_text();
+            assert_eq!(
+                focused_text,
+                "[^note1]: 这里是脚注内容",
+                "focused footnote definition must project markdown syntax markers"
+            );
+
+            let delimiter_ranges = block.projected_delimiter_ranges();
+            let marker_strings: Vec<&str> = delimiter_ranges
+                .iter()
+                .map(|r| &focused_text[r.clone()])
+                .collect();
+            assert!(marker_strings.contains(&"[^"), "missing [^ delimiter in markers");
+            assert!(marker_strings.contains(&"]"), "missing ] delimiter in markers");
+        });
+    });
+}
+
+
+
