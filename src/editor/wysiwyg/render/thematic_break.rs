@@ -19,8 +19,8 @@ pub(crate) fn render_thematic_break_unfocused(
     let line_slot_height = px(t.text_size * t.text_line_height);
     let line = div()
         .w_full()
-        .border_b(px(d.separator_thickness))
-        .border_color(c.separator);
+        .h(px(d.quote_border_width))
+        .bg(c.separator);
 
     focused_base
         .w_full()

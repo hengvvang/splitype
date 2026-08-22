@@ -24,7 +24,7 @@ pub(crate) fn render_preview_callout(
     let header_text = if text_is_empty {
         div()
             .text_size(px(theme.typography.text_size))
-            .font_weight(FontWeight::LIGHT)
+            .font_weight(FontWeight::NORMAL)
             .text_color(accent)
             .child(header_label)
             .into_any_element()
@@ -33,13 +33,13 @@ pub(crate) fn render_preview_callout(
             .min_w(px(0.0))
             .flex_grow()
             .text_size(px(theme.typography.text_size))
-            .font_weight(FontWeight::LIGHT)
+            .font_weight(FontWeight::NORMAL)
             .text_color(accent)
             .child(inline::render_preview_inline(
                 &block.data.text,
                 accent,
                 theme.typography.text_size,
-                FontWeight::LIGHT,
+                FontWeight::NORMAL,
                 theme,
             ))
             .into_any_element()

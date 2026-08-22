@@ -25,7 +25,7 @@ pub(crate) fn render_callout(
     let header_text = if show_static_default_label {
         div()
             .text_size(px(theme.typography.text_size))
-            .font_weight(FontWeight::LIGHT)
+            .font_weight(FontWeight::NORMAL)
             .text_color(accent)
             .child(header_label.clone())
             .into_any_element()
@@ -34,7 +34,7 @@ pub(crate) fn render_callout(
             .min_w(px(0.0))
             .flex_grow()
             .text_size(px(theme.typography.text_size))
-            .font_weight(FontWeight::LIGHT)
+            .font_weight(FontWeight::NORMAL)
             .text_color(accent)
             .child(block.render_text_or_mixed_inline_visuals(
                 theme,
@@ -44,7 +44,7 @@ pub(crate) fn render_callout(
                 Some(accent),
                 accent,
                 theme.typography.text_size,
-                FontWeight::LIGHT,
+                FontWeight::NORMAL,
                 cx,
             ))
             .into_any_element()
