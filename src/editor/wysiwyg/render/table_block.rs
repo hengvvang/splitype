@@ -78,7 +78,6 @@ pub(crate) fn render_table(
     let header_cells = runtime.header;
     let header_select_block = weak_table_block.clone();
     let header_menu_block = weak_table_block.clone();
-    let header_drag_block = weak_table_block.clone();
     let header_drop_block = weak_table_block.clone();
     let header_drag_move_block = weak_table_block.clone();
 
@@ -208,13 +207,49 @@ pub(crate) fn render_table(
     let column_count = header_cells.len();
     let total_rows = 1 + body_row_count;
 
+    let header_axis_band = div()
+        .id(ElementId::Name(
+            format!("table-header-axis-band-{}", block.data.id).into(),
+        ))
+        .absolute()
+        .left(px(-10.0))
+        .w(px(10.0))
+        .top_0()
+        .h_full()
+        .cursor(CursorStyle::ResizeUpDown)
+        .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+            let _ = header_select_block.update(cx, |_block, cx| {
+                cx.emit(BlockEvent::RequestSelectTableAxis {
+                    kind: TableAxis::Row,
+                    index: 0,
+                });
+            });
+        })
+        .on_mouse_down(MouseButton::Right, move |event, _window, cx| {
+            let _ = header_menu_block.update(cx, |_block, cx| {
+                cx.stop_propagation();
+                cx.emit(BlockEvent::RequestOpenTableAxisMenu {
+                    kind: TableAxis::Row,
+                    index: 0,
+                    position: event.position,
+                });
+            });
+        })
+        .on_drag(
+            DraggedTableAxis {
+                table_block_id: block_entity_id,
+                kind: TableAxis::Row,
+                index: 0,
+            },
+            move |_drag, _point, _window, cx| cx.new(|_| DraggedTableAxisView),
+        );
+
     let header_row = div()
         .relative()
         .w_full()
         .flex()
         .gap(px(0.0))
-        .children(header_selection_overlay)
-        .children(header_indicator_line)
+        .child(header_axis_band)
         .child(header_top_insert_band)
         .children(header_insert_visuals)
         .on_drag_move::<DraggedTableAxis>(move |_event, _window, cx| {
@@ -240,57 +275,9 @@ pub(crate) fn render_table(
                 });
             }
         })
-        // Left Row Edge Interaction (ResizeUpDown cursor, drag/drop, left-click select, right-click menu)
-        .child(
-            div()
-                .id(ElementId::Name(
-                    format!("table-header-axis-band-{}", block.data.id).into(),
-                ))
-                .absolute()
-                .left(px(-10.0))
-                .w(px(12.0))
-                .top_0()
-                .h_full()
-                .cursor(CursorStyle::ResizeUpDown)
-                .on_click(move |_event, _window, cx| {
-                    let _ = header_select_block.update(cx, |_block, cx| {
-                        cx.emit(BlockEvent::RequestSelectTableAxis {
-                            kind: TableAxis::Row,
-                            index: 0,
-                        });
-                    });
-                })
-                .on_mouse_down(MouseButton::Right, move |event, _window, cx| {
-                    let _ = header_menu_block.update(cx, |_block, cx| {
-                        cx.stop_propagation();
-                        cx.emit(BlockEvent::RequestOpenTableAxisMenu {
-                            kind: TableAxis::Row,
-                            index: 0,
-                            position: event.position,
-                        });
-                    });
-                })
-                .on_drag(
-                    DraggedTableAxis {
-                        table_block_id: block_entity_id,
-                        kind: TableAxis::Row,
-                        index: 0,
-                    },
-                    move |_drag, _point, _window, cx| {
-                        let _ = header_drag_block.update(cx, |_block, cx| {
-                            cx.emit(BlockEvent::RequestSelectTableAxis {
-                                kind: TableAxis::Row,
-                                index: 0,
-                            });
-                        });
-                        cx.new(|_| DraggedTableAxisView)
-                    },
-                ),
-        )
         .children(header_cells.into_iter().enumerate().map(|(column, cell)| {
             let select_block = weak_table_block.clone();
             let menu_block = weak_table_block.clone();
-            let drag_block = weak_table_block.clone();
             let drop_block = weak_table_block.clone();
             let drop_drag_block = weak_table_block.clone();
             let col_hover_block = weak_table_block.clone();
@@ -372,11 +359,11 @@ pub(crate) fn render_table(
                         ))
                         .absolute()
                         .top(px(-10.0))
-                        .h(px(12.0))
+                        .h(px(10.0))
                         .left_0()
                         .w_full()
                         .cursor(CursorStyle::ResizeLeftRight)
-                        .on_click(move |_event, _window, cx| {
+                        .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                             let _ = select_block.update(cx, |_block, cx| {
                                 cx.emit(BlockEvent::RequestSelectTableAxis {
                                     kind: TableAxis::Column,
@@ -400,19 +387,13 @@ pub(crate) fn render_table(
                                 kind: TableAxis::Column,
                                 index: column,
                             },
-                            move |_drag, _point, _window, cx| {
-                                let _ = drag_block.update(cx, |_block, cx| {
-                                    cx.emit(BlockEvent::RequestSelectTableAxis {
-                                        kind: TableAxis::Column,
-                                        index: column,
-                                    });
-                                });
-                                cx.new(|_| DraggedTableAxisView)
-                            },
+                            move |_drag, _point, _window, cx| cx.new(|_| DraggedTableAxisView),
                         ),
                 )
                 .child(cell)
-        }));
+        }))
+        .children(header_selection_overlay)
+        .children(header_indicator_line);
 
     let body_rows = runtime
         .rows
@@ -421,7 +402,6 @@ pub(crate) fn render_table(
         .map(|(body_row_index, row)| {
             let select_block = weak_table_block.clone();
             let menu_block = weak_table_block.clone();
-            let drag_block = weak_table_block.clone();
             let drop_block = weak_table_block.clone();
             let row_drag_move_block = weak_table_block.clone();
             let row_hover_block = weak_table_block.clone();
@@ -642,6 +622,44 @@ pub(crate) fn render_table(
                 );
             }
 
+            let row_axis_band = div()
+                .id(ElementId::Name(
+                    format!("table-row-axis-band-{}-{}", block.data.id, body_row_index)
+                        .into(),
+                ))
+                .absolute()
+                .left(px(-10.0))
+                .w(px(10.0))
+                .top_0()
+                .h_full()
+                .cursor(CursorStyle::ResizeUpDown)
+                .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                    let _ = select_block.update(cx, |_block, cx| {
+                        cx.emit(BlockEvent::RequestSelectTableAxis {
+                            kind: TableAxis::Row,
+                            index: visual_row,
+                        });
+                    });
+                })
+                .on_mouse_down(MouseButton::Right, move |event, _window, cx| {
+                    let _ = menu_block.update(cx, |_block, cx| {
+                        cx.stop_propagation();
+                        cx.emit(BlockEvent::RequestOpenTableAxisMenu {
+                            kind: TableAxis::Row,
+                            index: visual_row,
+                            position: event.position,
+                        });
+                    });
+                })
+                .on_drag(
+                    DraggedTableAxis {
+                        table_block_id: block_entity_id,
+                        kind: TableAxis::Row,
+                        index: visual_row,
+                    },
+                    move |_drag, _point, _window, cx| cx.new(|_| DraggedTableAxisView),
+                );
+
             div()
                 .id(ElementId::Name(
                     format!("table-body-row-wrap-{}-{}", block.data.id, body_row_index).into(),
@@ -650,11 +668,10 @@ pub(crate) fn render_table(
                 .w_full()
                 .flex()
                 .gap(px(0.0))
-                .children(row_selection_overlay)
-                .children(row_indicator_line)
                 .child(row_top_insert_band)
                 .children(last_row_bottom_insert_band)
                 .children(row_insert_visuals)
+                .child(row_axis_band)
                 .on_hover(move |hovered, _window, cx| {
                     if is_last_body_row {
                         let _ = row_hover_block.update(cx, |block, cx| {
@@ -686,54 +703,6 @@ pub(crate) fn render_table(
                         });
                     }
                 })
-                // Left Row Edge Interaction (ResizeUpDown cursor, drag/drop, left-click select, right-click menu)
-                .child(
-                    div()
-                        .id(ElementId::Name(
-                            format!("table-row-axis-band-{}-{}", block.data.id, body_row_index)
-                                .into(),
-                        ))
-                        .absolute()
-                        .left(px(-10.0))
-                        .w(px(12.0))
-                        .top_0()
-                        .h_full()
-                        .cursor(CursorStyle::ResizeUpDown)
-                        .on_click(move |_event, _window, cx| {
-                            let _ = select_block.update(cx, |_block, cx| {
-                                cx.emit(BlockEvent::RequestSelectTableAxis {
-                                    kind: TableAxis::Row,
-                                    index: visual_row,
-                                });
-                            });
-                        })
-                        .on_mouse_down(MouseButton::Right, move |event, _window, cx| {
-                            let _ = menu_block.update(cx, |_block, cx| {
-                                cx.stop_propagation();
-                                cx.emit(BlockEvent::RequestOpenTableAxisMenu {
-                                    kind: TableAxis::Row,
-                                    index: visual_row,
-                                    position: event.position,
-                                });
-                            });
-                        })
-                        .on_drag(
-                            DraggedTableAxis {
-                                table_block_id: block_entity_id,
-                                kind: TableAxis::Row,
-                                index: visual_row,
-                            },
-                            move |_drag, _point, _window, cx| {
-                                let _ = drag_block.update(cx, |_block, cx| {
-                                    cx.emit(BlockEvent::RequestSelectTableAxis {
-                                        kind: TableAxis::Row,
-                                        index: visual_row,
-                                    });
-                                });
-                                cx.new(|_| DraggedTableAxisView)
-                            },
-                        ),
-                )
                 .children(row.into_iter().enumerate().map(|(column, cell)| {
                     let col_hover_block = weak_table_block.clone();
                     let cell_drop_block = weak_table_block.clone();
@@ -812,6 +781,8 @@ pub(crate) fn render_table(
                         })
                         .child(cell)
                 }))
+                .children(row_selection_overlay)
+                .children(row_indicator_line)
         });
 
     let block_id = ElementId::Name(format!("block-{}", block.data.id).into());
@@ -827,9 +798,9 @@ pub(crate) fn render_table(
             ))
             .absolute()
             .top_0()
-            .right(px(-6.0))
-            .w(px(12.0))
-            .bottom_0()
+            .right(px(-10.0))
+            .w(px(20.0))
+            .bottom(px(-18.0))
             .cursor_pointer()
             .on_hover(cx.listener(Block::on_table_append_column_edge_hover));
 
@@ -839,9 +810,10 @@ pub(crate) fn render_table(
             ))
             .absolute()
             .left_0()
-            .bottom(px(-6.0))
+            .bottom(px(-10.0))
             .w_full()
-            .h(px(12.0))
+            .h(px(20.0))
+            .right(px(-18.0))
             .cursor_pointer()
             .on_hover(cx.listener(Block::on_table_append_row_edge_hover));
 
@@ -949,6 +921,8 @@ pub(crate) fn render_table(
                     ),
             );
 
+        let expand_control_visible = column_control_visible || row_control_visible;
+
         let expand_control = div()
             .id(ElementId::Name(
                 format!("table-expand-button-{}", block.data.id).into(),
@@ -969,12 +943,13 @@ pub(crate) fn render_table(
                 this.bg(c.table_append_button_hover)
             })
             .cursor_pointer()
-            .opacity(if column_control_visible && row_control_visible {
+            .opacity(if expand_control_visible {
                 1.0
             } else {
                 0.0
             })
             .block_mouse_except_scroll()
+            .on_hover(cx.listener(Block::on_table_append_expand_hover))
             .on_click(cx.listener(Block::on_expand_table))
             .child(
                 svg()

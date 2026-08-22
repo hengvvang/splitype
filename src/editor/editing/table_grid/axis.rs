@@ -90,13 +90,13 @@ impl Editor {
             TableAxis::Row => {
                 let total_rows = table.rows.len() + 1;
                 if from < total_rows && to < total_rows {
-                    table.swap_visual_rows(from, to);
+                    table.move_visual_row(from, to);
                 }
             }
             TableAxis::Column => {
                 let total_cols = table.column_count();
                 if from < total_cols && to < total_cols {
-                    table.swap_columns(from, to);
+                    table.move_column(from, to);
                 }
             }
         }
@@ -109,6 +109,7 @@ impl Editor {
             kind,
             index: to,
         };
+        self.tab_mut().tables.axis_preview = None;
         self.set_table_axis_selection(Some(selection), cx);
         self.mark_dirty(cx);
         self.request_active_block_scroll_into_view(self.active_pane_id(), cx);

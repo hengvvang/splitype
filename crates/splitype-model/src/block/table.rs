@@ -161,6 +161,22 @@ impl TableData {
         }
     }
 
+    /// Moves a visual row from `from` to `to`.
+    pub fn move_visual_row(&mut self, from: usize, to: usize) {
+        self.normalize_shape();
+        let total = self.rows.len() + 1;
+        if from >= total || to >= total || from == to {
+            return;
+        }
+        let mut all_rows = Vec::with_capacity(total);
+        all_rows.push(std::mem::take(&mut self.header));
+        all_rows.extend(self.rows.drain(..));
+        let row = all_rows.remove(from);
+        all_rows.insert(to, row);
+        self.header = all_rows.remove(0);
+        self.rows = all_rows;
+    }
+
     /// Swaps two columns across header, body, and alignment vectors.
     pub fn swap_columns(&mut self, col_a: usize, col_b: usize) {
         self.normalize_shape();
@@ -173,6 +189,23 @@ impl TableData {
         self.alignments.swap(col_a, col_b);
         for row in &mut self.rows {
             row.swap(col_a, col_b);
+        }
+    }
+
+    /// Moves a column from `from` to `to`.
+    pub fn move_column(&mut self, from: usize, to: usize) {
+        self.normalize_shape();
+        let columns = self.column_count();
+        if from >= columns || to >= columns || from == to {
+            return;
+        }
+        let h = self.header.remove(from);
+        self.header.insert(to, h);
+        let a = self.alignments.remove(from);
+        self.alignments.insert(to, a);
+        for row in &mut self.rows {
+            let c = row.remove(from);
+            row.insert(to, c);
         }
     }
 
@@ -976,6 +1009,66 @@ mod tests {
         assert_eq!(
             table.alignments,
             vec![TableColumnAlignment::Right, TableColumnAlignment::Left]
+        );
+    }
+
+    #[test]
+    fn move_visual_row_reorders_correctly() {
+        let mut table = TableData {
+            header: vec![BlockText::plain("H".to_string())],
+            rows: vec![
+                vec![BlockText::plain("R1".to_string())],
+                vec![BlockText::plain("R2".to_string())],
+                vec![BlockText::plain("R3".to_string())],
+            ],
+            alignments: vec![TableColumnAlignment::None],
+        };
+        // Move header (0) to after R2 (2) -> [R1, R2, H, R3]
+        table.move_visual_row(0, 2);
+        assert_eq!(table.header[0].serialize_markdown(), "R1");
+        assert_eq!(table.rows[0][0].serialize_markdown(), "R2");
+        assert_eq!(table.rows[1][0].serialize_markdown(), "H");
+        assert_eq!(table.rows[2][0].serialize_markdown(), "R3");
+
+        // Move row at 2 ("H") back to top (0) -> [H, R1, R2, R3]
+        table.move_visual_row(2, 0);
+        assert_eq!(table.header[0].serialize_markdown(), "H");
+        assert_eq!(table.rows[0][0].serialize_markdown(), "R1");
+        assert_eq!(table.rows[1][0].serialize_markdown(), "R2");
+        assert_eq!(table.rows[2][0].serialize_markdown(), "R3");
+    }
+
+    #[test]
+    fn move_column_reorders_correctly() {
+        let mut table = TableData {
+            header: vec![
+                BlockText::plain("C0".to_string()),
+                BlockText::plain("C1".to_string()),
+                BlockText::plain("C2".to_string()),
+            ],
+            rows: vec![vec![
+                BlockText::plain("0".to_string()),
+                BlockText::plain("1".to_string()),
+                BlockText::plain("2".to_string()),
+            ]],
+            alignments: vec![
+                TableColumnAlignment::Left,
+                TableColumnAlignment::Center,
+                TableColumnAlignment::Right,
+            ],
+        };
+        // Move C0 to position 2 -> [C1, C2, C0]
+        table.move_column(0, 2);
+        assert_eq!(table.header[0].serialize_markdown(), "C1");
+        assert_eq!(table.header[1].serialize_markdown(), "C2");
+        assert_eq!(table.header[2].serialize_markdown(), "C0");
+        assert_eq!(
+            table.alignments,
+            vec![
+                TableColumnAlignment::Center,
+                TableColumnAlignment::Right,
+                TableColumnAlignment::Left,
+            ]
         );
     }
 
