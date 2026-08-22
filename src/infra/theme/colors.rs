@@ -316,7 +316,7 @@ impl<'de> Deserialize<'de> for ThemeColors {
                 .unwrap_or_else(|| Hsla::from(rgba(0x60a5faff))),
             markdown_marker: raw
                 .markdown_marker
-                .unwrap_or_else(|| Hsla::from(rgba(0x89ddffff))),
+                .unwrap_or_else(|| Hsla::from(rgba(0x9333eaff))),
             text_placeholder: raw.text_placeholder,
             text_h1: raw.text_h1,
             text_h2: raw.text_h2,

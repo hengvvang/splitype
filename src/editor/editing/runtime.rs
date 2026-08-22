@@ -217,13 +217,21 @@ impl Editor {
     /// Reference definitions are only ever detected in raw-preserving block
     /// kinds or in text containing `]:`; footnote bindings need `[^` markers;
     /// standalone images start with `![`. Code-block text is fence-suppressed
-    /// by the scanners, so it is excluded.
     fn block_has_registry_candidates(block: &Block) -> bool {
         if block.data.preserves_raw_source() || block.kind() == BlockKind::FootnoteDefinition {
             return true;
         }
         if matches!(block.kind(), BlockKind::CodeBlock { .. }) {
             return false;
+        }
+        if block
+            .data
+            .text
+            .fragments
+            .iter()
+            .any(|f| f.link.is_some() || f.footnote.is_some())
+        {
+            return true;
         }
         let plain_text = block.data.text.plain_text();
         plain_text.contains("]:") || plain_text.contains("[^") || plain_text.contains("![")

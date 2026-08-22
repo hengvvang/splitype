@@ -155,3 +155,43 @@ async fn projected_delimiter_ranges_cover_script_and_footnote_markers(cx: &mut T
         });
     });
 }
+
+#[gpui::test]
+async fn projected_delimiter_ranges_cover_link_and_image_markers(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| {
+        Editor::from_markdown(
+            cx,
+            "链接 [title](https://example.com) 和图片 ![alt](image.png)".to_string(),
+            None,
+        )
+    });
+
+    editor.update(cx, |editor, cx| {
+        let paragraph = editor.doc().first_root().expect("root paragraph").clone();
+        paragraph.update(cx, |block, _cx| {
+            let len = block.display_len();
+            block.selected_range = 0..len;
+            block.rebuild_inline_projection(0..len, None);
+
+            let text = block.display_cache().text();
+            let ranges = block.projected_delimiter_ranges();
+            let markers: Vec<&str> = ranges.iter().map(|range| &text[range.clone()]).collect();
+            assert!(
+                markers.contains(&"["),
+                "link open delimiter missing: {markers:?}"
+            );
+            assert!(
+                markers.contains(&"]("),
+                "link middle delimiter missing: {markers:?}"
+            );
+            assert!(
+                markers.contains(&")"),
+                "link close delimiter missing: {markers:?}"
+            );
+            assert!(
+                markers.contains(&"!["),
+                "image open delimiter missing: {markers:?}"
+            );
+        });
+    });
+}

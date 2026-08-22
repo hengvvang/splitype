@@ -285,14 +285,18 @@ pub(crate) fn parse_until(
                 continue;
             }
 
-            if let Some(next_index) = parse_inline_link(
-                tokens,
-                index,
-                extra_style,
-                extra_html_style,
-                builder,
-                reference_definitions,
-            ) {
+            if (tokens[index].ch == '['
+                || (tokens[index].ch == '!'
+                    && tokens.get(index + 1).map(|t| t.ch) == Some('[')))
+                && let Some(next_index) = parse_inline_link(
+                    tokens,
+                    index,
+                    extra_style,
+                    extra_html_style,
+                    builder,
+                    reference_definitions,
+                )
+            {
                 index = next_index;
                 continue;
             }
@@ -586,7 +590,8 @@ pub(crate) fn parse_inline_link(
 ) -> Option<usize> {
     let located = locate_inline_link(tokens, index, reference_definitions)?;
     let label_end = located.label_end;
-    let label_tokens = &tokens[index + 1..label_end];
+    let bracket_index = if located.link.is_image() { index + 1 } else { index };
+    let label_tokens = &tokens[bracket_index + 1..label_end];
     let label_markdown = tokens_to_string(label_tokens);
     let mut label_result = BlockText::plain(label_markdown)
         .normalize_inline_syntax_with_link_references(reference_definitions);
@@ -600,8 +605,10 @@ pub(crate) fn parse_inline_link(
     let normalized_start = builder.normalized_len;
     let label_len = label_result.tree.plain_len();
 
-    for boundary in tokens[index].source_range.start..=tokens[index].source_range.end {
-        builder.visible_to_normalized[boundary] = normalized_start;
+    for token in &tokens[index..=bracket_index] {
+        for boundary in token.source_range.start..=token.source_range.end {
+            builder.visible_to_normalized[boundary] = normalized_start;
+        }
     }
 
     let mut local_boundary = 0usize;
@@ -826,15 +833,21 @@ fn locate_inline_link(
     index: usize,
     reference_definitions: &LinkReferenceDefinitions,
 ) -> Option<LocatedInlineLink> {
-    if tokens.get(index)?.ch != '[' {
+    let (is_image, bracket_index) = if tokens.get(index)?.ch == '!'
+        && tokens.get(index + 1).map(|token| token.ch) == Some('[')
+    {
+        (true, index + 1)
+    } else if tokens.get(index)?.ch == '[' {
+        if index > 0 && matches!(tokens[index - 1].ch, '!' | ']') {
+            return None;
+        }
+        (false, index)
+    } else {
         return None;
-    }
-    if index > 0 && matches!(tokens[index - 1].ch, '!' | ']') {
-        return None;
-    }
+    };
 
     let mut label_depth = 0usize;
-    let mut cursor = index + 1;
+    let mut cursor = bracket_index + 1;
     let label_end = loop {
         let token = tokens.get(cursor)?;
         if token.ch == '\\' {
@@ -883,7 +896,11 @@ fn locate_inline_link(
             Some(LocatedInlineLink {
                 label_end,
                 end_index: url_end,
-                link: InlineLink::Inline { destination, title },
+                link: InlineLink::Inline {
+                    destination,
+                    title,
+                    is_image,
+                },
             })
         }
         Some('[') => {
@@ -903,7 +920,7 @@ fn locate_inline_link(
 
             let raw_label = tokens_to_string(&tokens[reference_start..reference_end]);
             let link_label = if raw_label.is_empty() {
-                tokens_to_string(&tokens[index + 1..label_end])
+                tokens_to_string(&tokens[bracket_index + 1..label_end])
             } else {
                 raw_label
             };
@@ -916,11 +933,12 @@ fn locate_inline_link(
                 link: InlineLink::Reference {
                     label: link_label,
                     destination,
+                    is_image,
                 },
             })
         }
         _ => {
-            let raw_label = tokens_to_string(&tokens[index + 1..label_end]);
+            let raw_label = tokens_to_string(&tokens[bracket_index + 1..label_end]);
             let normalized_label = crate::block::image::normalize_reference_label(&raw_label)?;
             let LinkReferenceDefinition { destination, .. } =
                 reference_definitions.get(&normalized_label)?.clone();
@@ -930,6 +948,7 @@ fn locate_inline_link(
                 link: InlineLink::Reference {
                     label: raw_label,
                     destination,
+                    is_image,
                 },
             })
         }

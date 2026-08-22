@@ -161,7 +161,7 @@ impl Theme {
                 comment_bg: Hsla::from(rgba(0xfbbf2426)),
                 text_default: Hsla::from(rgba(0xf0efedff)),
                 text_link: Hsla::from(rgba(0x60a5faff)),
-                markdown_marker: Hsla::from(rgba(0x89ddffff)),
+                markdown_marker: Hsla::from(rgba(0xa855f7ff)),
                 text_placeholder: hsla(0., 0., 0.6, 1.0),
                 text_h1: Hsla::from(rgba(0xf0efedff)),
                 text_h2: Hsla::from(rgba(0xf0efedff)),

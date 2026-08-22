@@ -6,13 +6,18 @@
 /// Link metadata attached to a formatted inline text fragment.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InlineLink {
-    /// Inline destination and optional title: `[label](url "title")`.
+    /// Inline destination and optional title: `[label](url "title")` or `![label](url "title")`.
     Inline {
         destination: String,
         title: Option<String>,
+        is_image: bool,
     },
-    /// Reference-style link resolved from `[label][ref]` syntax.
-    Reference { label: String, destination: String },
+    /// Reference-style link resolved from `[label][ref]` or `![label][ref]` syntax.
+    Reference {
+        label: String,
+        destination: String,
+        is_image: bool,
+    },
     /// Autolink from `<scheme:target>` or email-like syntax.
     Autolink { destination: String },
 }
@@ -44,6 +49,14 @@ impl InlineLink {
         }
     }
 
+    /// Whether this link represents an image expression (`![alt](src)`).
+    pub fn is_image(&self) -> bool {
+        match self {
+            Self::Inline { is_image, .. } | Self::Reference { is_image, .. } => *is_image,
+            Self::Autolink { .. } => false,
+        }
+    }
+
     /// Build a hit-test payload from this link.
     pub(crate) fn hit(&self) -> InlineLinkHit {
         InlineLinkHit {
@@ -62,6 +75,7 @@ impl InlineLink {
     pub fn open_marker(&self) -> &'static str {
         match self {
             Self::Autolink { .. } => "<",
+            Self::Inline { is_image: true, .. } | Self::Reference { is_image: true, .. } => "![",
             Self::Inline { .. } | Self::Reference { .. } => "[",
         }
     }
@@ -78,9 +92,9 @@ impl InlineLink {
     /// The editable portion of the link syntax (URL + optional title, or reference label).
     pub fn editable_text(&self) -> Option<String> {
         match self {
-            Self::Inline { destination, title } => {
-                Some(format_inline_link_target(destination, title.as_deref()))
-            }
+            Self::Inline {
+                destination, title, ..
+            } => Some(format_inline_link_target(destination, title.as_deref())),
             Self::Reference { label, .. } => Some(label.clone()),
             Self::Autolink { .. } => None,
         }
