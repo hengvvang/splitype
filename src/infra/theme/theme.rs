@@ -275,16 +275,16 @@ impl Theme {
                 cursor_width: 2.0,
                 underline_thickness: 1.0,
                 h1_border_width: 1.0,
-                quote_border_width: 3.0,
+                quote_border_width: 4.0,
                 quote_padding_left: 12.0,
                 callout_padding_x: 8.0,
                 callout_padding_y: 10.0,
                 callout_body_gap: 8.0,
                 callout_radius: 4.0,
-                callout_border_width: 3.0,
+                callout_border_width: 4.0,
                 callout_header_gap: 6.0,
                 callout_header_margin_bottom: 6.0,
-                separator_thickness: 4.0,
+                separator_thickness: 1.0,
                 separator_inset_x: 40.0,
                 separator_margin_y: 10.0,
                 code_block_padding_y: 8.0,
@@ -805,7 +805,7 @@ mod tests {
         assert_eq!(theme.dimensions.callout_padding_y, 10.0);
         assert_eq!(theme.dimensions.callout_body_gap, 8.0);
         assert_eq!(theme.dimensions.callout_radius, 4.0);
-        assert_eq!(theme.dimensions.callout_border_width, 3.0);
+        assert_eq!(theme.dimensions.callout_border_width, 4.0);
         assert_eq!(theme.dimensions.callout_header_gap, 6.0);
         assert_eq!(theme.dimensions.callout_header_margin_bottom, 6.0);
     }

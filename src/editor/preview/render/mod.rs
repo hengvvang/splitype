@@ -204,7 +204,7 @@ pub(crate) fn render_preview_block(
                     .top_0()
                     .bottom_0()
                     .left_0()
-                    .w(px(d.quote_border_width))
+                    .w(px(d.callout_border_width))
                     .bg(accent),
             )
             .into_any_element()

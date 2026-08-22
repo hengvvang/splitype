@@ -69,7 +69,7 @@ a {{ color: var(--vlt-link); text-decoration-thickness: 0.08em; text-underline-o
 blockquote {{
   margin-left: 0;
   padding: 0.5rem 0 0.5rem 1rem;
-  border-left: 3px solid;
+  border-left: 4px solid;
   border-color: var(--vlt-quote-border);
   color: var(--vlt-quote-text);
 }}
@@ -79,7 +79,7 @@ blockquote.markdown-alert-important,
 blockquote.markdown-alert-warning,
 blockquote.markdown-alert-caution {{
   padding: 0.5rem 0 0.5rem 1rem;
-  border-left: 3px solid;
+  border-left: 4px solid;
   border-radius: 0px;
 }}
 blockquote.markdown-alert-note {{ background-color: var(--vlt-callout-note-bg); border-color: var(--vlt-callout-note-border); }}

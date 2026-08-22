@@ -13,7 +13,7 @@ pub(crate) fn render_preview_thematic_break(theme: &Theme) -> AnyElement {
     let line_slot_height = px(t.text_size * t.text_line_height);
     let line = div()
         .w_full()
-        .h(px(d.quote_border_width))
+        .h(px(d.separator_thickness))
         .bg(c.separator);
 
     div()

@@ -919,10 +919,16 @@ impl ExpandedInlineProjection {
     }
 }
 
-fn marker_style_for_projection(style: InlineStyle, _kind: ExpandedInlineKind) -> InlineStyle {
+fn marker_style_for_projection(style: InlineStyle, kind: ExpandedInlineKind) -> InlineStyle {
     // Delimiters keep the fragment's own style so editing a script still
     // shows its `^…^` / `~…~` markers at the superscript/subscript size and
     // vertical offset instead of popping back to normal text.
+    // However, code delimiters (`...`) do not carry code style so the
+    // background pill highlight remains restricted to the inner content.
+    let mut style = style;
+    if matches!(kind, ExpandedInlineKind::Code) {
+        style.code = false;
+    }
     style
 }
 

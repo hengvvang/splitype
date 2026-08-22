@@ -195,3 +195,50 @@ async fn projected_delimiter_ranges_cover_link_and_image_markers(cx: &mut TestAp
         });
     });
 }
+
+#[gpui::test]
+async fn inline_code_delimiters_have_no_code_style_and_are_included_in_markers(
+    cx: &mut TestAppContext,
+) {
+    let editor = cx.new(|cx| {
+        Editor::from_markdown(
+            cx,
+            "调用 `printf(\"Hello World\")` 函数".to_string(),
+            None,
+        )
+    });
+
+    editor.update(cx, |editor, cx| {
+        let paragraph = editor.doc().first_root().expect("root paragraph").clone();
+        paragraph.update(cx, |block, _cx| {
+            let len = block.display_len();
+            block.selected_range = 0..len;
+            block.rebuild_inline_projection(0..len, None);
+
+            let cache = block.display_cache();
+            let text = cache.text();
+            assert!(text.contains("`printf(\"Hello World\")`"));
+
+            // Check that the backtick delimiters are in projected_delimiter_ranges
+            let ranges = block.projected_delimiter_ranges();
+            let markers: Vec<&str> = ranges.iter().map(|range| &text[range.clone()]).collect();
+            assert!(markers.contains(&"`"), "backtick delimiter missing in markers");
+
+            // Check that the backtick spans do NOT have code style, while inner text DOES
+            for span in cache.spans() {
+                let segment = &text[span.range.clone()];
+                if segment == "`" {
+                    assert!(
+                        !span.style.code,
+                        "backtick delimiter should not have code style (no background highlight)"
+                    );
+                } else if segment.contains("printf") {
+                    assert!(
+                        span.style.code,
+                        "inner code text should have code style (background highlight)"
+                    );
+                }
+            }
+        });
+    });
+}

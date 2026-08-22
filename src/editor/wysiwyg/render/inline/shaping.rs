@@ -124,11 +124,12 @@ pub fn build_text_runs(
             thickness: underline_thickness,
         });
 
-        let mut background_color = if show_inline_code_backgrounds && inline_style.code {
-            Some(code_bg)
-        } else {
-            base_run.background_color
-        };
+        let mut background_color =
+            if show_inline_code_backgrounds && inline_style.code && !is_delimiter {
+                Some(code_bg)
+            } else {
+                base_run.background_color
+            };
         if let Some(style) = html_style
             && let Some(color) = style.background_color
         {
