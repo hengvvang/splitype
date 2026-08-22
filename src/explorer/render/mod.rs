@@ -210,7 +210,9 @@ impl Shell {
         strings: &I18nStrings,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        self.sync_explorer_models(cx);
+        if !self.panels.explorer.worktrees.is_empty() {
+            self.sync_explorer_models(cx);
+        }
         self.render_explorer_files_tree(panel_id, theme, strings, cx)
     }
 }

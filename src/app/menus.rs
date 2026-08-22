@@ -407,6 +407,10 @@ pub(crate) fn dispatch_menu_action_for_editor(
             let _ = shell.update(cx, |shell, cx| {
                 shell.toggle_explorer_drawer(window, cx);
             });
+        } else if let Some(window_shell) = window.window_handle().downcast::<Shell>() {
+            let _ = window_shell.update(cx, |shell, window, cx| {
+                shell.toggle_explorer_drawer(window, cx);
+            });
         }
     } else if action.as_any().is::<CloseExplorerFolder>() {
         let shell = target
@@ -415,6 +419,8 @@ pub(crate) fn dispatch_menu_action_for_editor(
             .flatten();
         if let Some(shell) = shell {
             let _ = shell.update(cx, |shell, cx| shell.close_explorer_folder(cx));
+        } else if let Some(window_shell) = window.window_handle().downcast::<Shell>() {
+            let _ = window_shell.update(cx, |shell, _window, cx| shell.close_explorer_folder(cx));
         }
     }
 }

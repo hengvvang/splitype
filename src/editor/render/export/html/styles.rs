@@ -78,9 +78,9 @@ blockquote.markdown-alert-tip,
 blockquote.markdown-alert-important,
 blockquote.markdown-alert-warning,
 blockquote.markdown-alert-caution {{
-  padding: 0.75rem 1rem;
-  border-left: 4px solid;
-  border-radius: {}px;
+  padding: 0.5rem 0 0.5rem 1rem;
+  border-left: 3px solid;
+  border-radius: 0px;
 }}
 blockquote.markdown-alert-note {{ background-color: var(--vlt-callout-note-bg); border-color: var(--vlt-callout-note-border); }}
 blockquote.markdown-alert-tip {{ background-color: var(--vlt-callout-tip-bg); border-color: var(--vlt-callout-tip-border); }}
@@ -217,7 +217,6 @@ hr {{ border: 0; border-top: 1px solid; border-color: var(--vlt-border); }}
         t.h5_size,
         css_color(c.text_h6),
         t.h6_size,
-        d.callout_radius,
         "\"SFMono-Regular\", Consolas, \"Liberation Mono\", Menlo, monospace",
         t.code_size,
         pre_overflow,

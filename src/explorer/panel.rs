@@ -77,6 +77,7 @@ impl Shell {
     pub(crate) fn close_explorer_folder(&mut self, cx: &mut Context<Self>) {
         let explorer = &mut self.panels.explorer;
         explorer.worktrees.clear();
+        explorer.trees_cache.clear();
         explorer.expanded.clear();
         explorer.file_error = None;
         explorer.entries.clear();
@@ -92,6 +93,7 @@ impl Shell {
         explorer.hover_scroll_task = None;
         explorer.hover_scroll_generation += 1;
         explorer.previous_drag_position = None;
+        self.rebuild_explorer_entries();
         cx.notify();
     }
 
@@ -261,12 +263,7 @@ impl Shell {
         self.add_explorer_worktree(path, cx);
     }
     pub(crate) fn sync_explorer_after_document_path_change(&mut self, cx: &mut Context<Self>) {
-        if self.panels.explorer.worktrees.is_empty()
-            && let Some(path) = self.explorer_root_for_current_file(cx)
-        {
-            self.add_explorer_worktree(path, cx);
-        }
-        if self.panels.explorer.is_open {
+        if self.panels.explorer.is_open && !self.panels.explorer.worktrees.is_empty() {
             self.sync_explorer_models(cx);
         }
     }
@@ -275,11 +272,6 @@ impl Shell {
         // the welcome state (no tabs). Each Editor entity syncs its own
         // outline from its active document when it renders.
         self.sync_explorer_file_tree(cx);
-    }
-    pub(crate) fn explorer_root_for_current_file(&self, cx: &App) -> Option<PathBuf> {
-        self.active_editor_tab(cx)
-            .and_then(|tab| tab.file.path.as_ref())
-            .and_then(|path| path.parent().map(Path::to_path_buf))
     }
     pub(crate) fn prompt_open_explorer_folder(
         &mut self,

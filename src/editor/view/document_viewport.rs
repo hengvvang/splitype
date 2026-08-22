@@ -539,15 +539,25 @@ impl Editor {
                     .max_w(relative(1.0))
                     .flex_shrink_0()
                     .mt(px(plan.outer_gap))
-                    .flex()
-                    .flex_col()
-                    .gap(px(0.0))
-                    .px(px(d.callout_padding_x))
-                    .py(px(d.callout_padding_y))
-                    .rounded_r(px(d.callout_radius))
-                    .border_l(px(d.callout_border_width))
-                    .border_color(accent)
-                    .children(group_children)
+                    .relative()
+                    .pl(px(d.quote_padding_left))
+                    .child(
+                        div()
+                            .w_full()
+                            .flex()
+                            .flex_col()
+                            .gap(px(0.0))
+                            .children(group_children),
+                    )
+                    .child(
+                        div()
+                            .absolute()
+                            .top_0()
+                            .bottom_0()
+                            .left_0()
+                            .w(px(d.quote_border_width))
+                            .bg(accent),
+                    )
                     .into_any_element()
             }
         }

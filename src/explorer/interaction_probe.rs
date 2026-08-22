@@ -245,3 +245,64 @@ async fn rescan_preserves_expanded_subfolder(cx: &mut TestAppContext) {
         );
     });
 }
+
+/// Closing the explorer folder must clear worktrees, cached tree nodes, and
+/// visible rows even when the editor has an active document from that folder.
+#[gpui::test]
+async fn close_explorer_folder_clears_trees_and_entries_even_with_open_file(cx: &mut TestAppContext) {
+    init_explorer_test_app(cx);
+    let root = temp_explorer_root("close-explorer");
+    let file = root.join("top.md");
+
+    let shell = cx.new(|cx| {
+        let editor = cx.new(|cx| Editor::from_markdown(cx, "# top".to_string(), Some(file.clone())));
+        Shell {
+            panel_contents: [(DEFAULT_EDITOR_PANEL_ID, PanelContent::Editor(editor))].into(),
+            retained_editor_sessions: HashMap::new(),
+            menu_bar: MenuBarState::default(),
+            panels: WindowPanels::default(),
+            last_viewport: None,
+            explorer_file_menu: None,
+            info_dialog: None,
+            unsaved_dialog: None,
+            update_check_in_progress: false,
+            close_guard_installed: false,
+        }
+    });
+
+    shell.update(cx, |shell, cx| {
+        shell.add_explorer_worktree(root.clone(), cx);
+    });
+    cx.run_until_parked();
+
+    shell.read_with(cx, |shell, _cx| {
+        assert_eq!(shell.panels.explorer.worktrees.len(), 1);
+        assert!(!shell.panels.explorer.trees_cache.is_empty());
+        assert!(!shell.panels.explorer.entries.is_empty());
+    });
+
+    shell.update(cx, |shell, cx| {
+        shell.close_explorer_folder(cx);
+    });
+
+    // Simulate subsequent frame syncs
+    shell.update(cx, |shell, cx| {
+        shell.sync_explorer_models(cx);
+    });
+
+    shell.read_with(cx, |shell, _cx| {
+        assert!(
+            shell.panels.explorer.worktrees.is_empty(),
+            "worktrees must remain empty after close"
+        );
+        assert!(
+            shell.panels.explorer.trees_cache.is_empty(),
+            "trees_cache must remain empty after close"
+        );
+        assert!(
+            shell.panels.explorer.entries.is_empty(),
+            "entries must remain empty after close"
+        );
+    });
+}
+

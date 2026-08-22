@@ -140,10 +140,6 @@ impl Shell {
     /// exists yet (e.g. deriving one from the active document).
     pub(crate) fn sync_explorer_file_tree(&mut self, cx: &mut Context<Self>) {
         if self.panels.explorer.worktrees.is_empty() {
-            if let Some(path) = self.explorer_root_for_current_file(cx) {
-                self.add_explorer_worktree(path, cx);
-                return;
-            }
             self.panels.explorer.selected = None;
             self.panels.explorer.entries.clear();
             return;

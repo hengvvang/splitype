@@ -191,7 +191,26 @@ pub(crate) fn render_preview_block(
         .children(children_elements)
         .into_any_element();
 
-    wrap_with_preview_quote_guides(combined, effective_quote_depth, theme)
+    if let BlockKind::Callout(variant) = block.kind() {
+        let (accent, _) = crate::editor::wysiwyg::render::layout::callout_colors(variant, theme);
+        div()
+            .w_full()
+            .relative()
+            .pl(px(d.quote_padding_left))
+            .child(combined)
+            .child(
+                div()
+                    .absolute()
+                    .top_0()
+                    .bottom_0()
+                    .left_0()
+                    .w(px(d.quote_border_width))
+                    .bg(accent),
+            )
+            .into_any_element()
+    } else {
+        wrap_with_preview_quote_guides(combined, effective_quote_depth, theme)
+    }
 }
 
 /// Computes the centered content column width for the preview, mirroring the
