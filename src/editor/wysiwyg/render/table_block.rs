@@ -81,17 +81,6 @@ pub(crate) fn render_table(
     let header_drop_block = weak_table_block.clone();
     let header_drag_move_block = weak_table_block.clone();
 
-    let hovered_insert_row = if block.table_axis_selection.is_none() {
-        block.table_interaction.hovered_insert_row
-    } else {
-        None
-    };
-    let hovered_insert_col = if block.table_axis_selection.is_none() {
-        block.table_interaction.hovered_insert_column
-    } else {
-        None
-    };
-
     let is_header_selected = block.table_axis_selection
         == Some(TableAxisMarker {
             kind: TableAxis::Row,
@@ -130,82 +119,7 @@ pub(crate) fn render_table(
         None
     };
 
-    let header_insert_hover_block = weak_table_block.clone();
-    let header_insert_click_block = weak_table_block.clone();
-    let header_top_insert_band = div()
-        .id(ElementId::Name(
-            format!("row-insert-band-top-{}", block.data.id).into(),
-        ))
-        .absolute()
-        .top(px(-8.0))
-        .h(px(16.0))
-        .left(px(-20.0))
-        .w(px(28.0))
-        .cursor_pointer()
-        .on_hover(move |hovered, _window, cx| {
-            let _ = header_insert_hover_block.update(cx, |block, cx| {
-                block.table_interaction.hovered_insert_row = if *hovered { Some(0) } else { None };
-                cx.notify();
-            });
-        })
-        .on_click(move |_event, _window, cx| {
-            let _ = header_insert_click_block.update(cx, |_block, cx| {
-                cx.emit(BlockEvent::RequestInsertTableAxisAt {
-                    kind: TableAxis::Row,
-                    index: 0,
-                });
-            });
-        })
-        .block_mouse_except_scroll();
-
-    let header_insert_visuals = if hovered_insert_row == Some(0) {
-        let btn_click_block = weak_table_block.clone();
-        vec![
-            div()
-                .absolute()
-                .top(px(-1.0))
-                .left(px(-14.0))
-                .right_0()
-                .h(px(2.0))
-                .bg(c.text_default)
-                .into_any_element(),
-            div()
-                .id(ElementId::Name(
-                    format!("row-insert-btn-top-{}", block.data.id).into(),
-                ))
-                .absolute()
-                .top(px(-8.0))
-                .left(px(-20.0))
-                .size(px(16.0))
-                .rounded_full()
-                .bg(c.text_default)
-                .flex()
-                .items_center()
-                .justify_center()
-                .cursor_pointer()
-                .on_click(move |_event, _window, cx| {
-                    let _ = btn_click_block.update(cx, |_block, cx| {
-                        cx.emit(BlockEvent::RequestInsertTableAxisAt {
-                            kind: TableAxis::Row,
-                            index: 0,
-                        });
-                    });
-                })
-                .block_mouse_except_scroll()
-                .child(
-                    svg()
-                        .path("icons/editor/wysiwyg/table/plus.svg")
-                        .size(px(10.0))
-                        .text_color(c.editor_background),
-                )
-                .into_any_element(),
-        ]
-    } else {
-        Vec::new()
-    };
-
     let column_count = header_cells.len();
-    let total_rows = 1 + body_row_count;
 
     let header_axis_band = div()
         .id(ElementId::Name(
@@ -250,8 +164,6 @@ pub(crate) fn render_table(
         .flex()
         .gap(px(0.0))
         .child(header_axis_band)
-        .child(header_top_insert_band)
-        .children(header_insert_visuals)
         .on_drag_move::<DraggedTableAxis>(move |_event, _window, cx| {
             let _ = header_drag_move_block.update(cx, |_block, cx| {
                 cx.emit(BlockEvent::RequestTableAxisPreview {
@@ -463,165 +375,6 @@ pub(crate) fn render_table(
                 None
             };
 
-            let row_top_insert_band = {
-                let insert_hover = weak_table_block.clone();
-                let insert_click = weak_table_block.clone();
-                div()
-                    .id(ElementId::Name(
-                        format!("row-insert-band-top-{}-{}", block.data.id, body_row_index).into(),
-                    ))
-                    .absolute()
-                    .top(px(-8.0))
-                    .h(px(16.0))
-                    .left(px(-20.0))
-                    .w(px(28.0))
-                    .cursor_pointer()
-                    .on_hover(move |hovered, _window, cx| {
-                        let _ = insert_hover.update(cx, |block, cx| {
-                            block.table_interaction.hovered_insert_row =
-                                if *hovered { Some(visual_row) } else { None };
-                            cx.notify();
-                        });
-                    })
-                    .on_click(move |_event, _window, cx| {
-                        let _ = insert_click.update(cx, |_block, cx| {
-                            cx.emit(BlockEvent::RequestInsertTableAxisAt {
-                                kind: TableAxis::Row,
-                                index: visual_row,
-                            });
-                        });
-                    })
-                    .block_mouse_except_scroll()
-            };
-
-            let mut row_insert_visuals = Vec::new();
-            if hovered_insert_row == Some(visual_row) {
-                let btn_click = weak_table_block.clone();
-                row_insert_visuals.push(
-                    div()
-                        .absolute()
-                        .top(px(-1.0))
-                        .left(px(-14.0))
-                        .right_0()
-                        .h(px(2.0))
-                        .bg(c.text_default)
-                        .into_any_element(),
-                );
-                row_insert_visuals.push(
-                    div()
-                        .id(ElementId::Name(
-                            format!("row-insert-btn-top-{}-{}", block.data.id, body_row_index).into(),
-                        ))
-                        .absolute()
-                        .top(px(-8.0))
-                        .left(px(-20.0))
-                        .size(px(16.0))
-                        .rounded_full()
-                        .bg(c.text_default)
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .cursor_pointer()
-                        .on_click(move |_event, _window, cx| {
-                            let _ = btn_click.update(cx, |_block, cx| {
-                                cx.emit(BlockEvent::RequestInsertTableAxisAt {
-                                    kind: TableAxis::Row,
-                                    index: visual_row,
-                                });
-                            });
-                        })
-                        .block_mouse_except_scroll()
-                        .child(
-                            svg()
-                                .path("icons/editor/wysiwyg/table/plus.svg")
-                                .size(px(10.0))
-                                .text_color(c.editor_background),
-                        )
-                        .into_any_element(),
-                );
-            }
-
-            let last_row_bottom_insert_band = if is_last_body_row {
-                let insert_hover = weak_table_block.clone();
-                let insert_click = weak_table_block.clone();
-                Some(
-                    div()
-                        .id(ElementId::Name(
-                            format!("row-insert-band-bottom-{}", block.data.id).into(),
-                        ))
-                        .absolute()
-                        .bottom(px(-8.0))
-                        .h(px(16.0))
-                        .left(px(-20.0))
-                        .w(px(28.0))
-                        .cursor_pointer()
-                        .on_hover(move |hovered, _window, cx| {
-                            let _ = insert_hover.update(cx, |block, cx| {
-                                block.table_interaction.hovered_insert_row =
-                                    if *hovered { Some(total_rows) } else { None };
-                                cx.notify();
-                            });
-                        })
-                        .on_click(move |_event, _window, cx| {
-                            let _ = insert_click.update(cx, |_block, cx| {
-                                cx.emit(BlockEvent::RequestInsertTableAxisAt {
-                                    kind: TableAxis::Row,
-                                    index: total_rows,
-                                });
-                            });
-                        })
-                        .block_mouse_except_scroll(),
-                )
-            } else {
-                None
-            };
-
-            if is_last_body_row && hovered_insert_row == Some(total_rows) {
-                let btn_click = weak_table_block.clone();
-                row_insert_visuals.push(
-                    div()
-                        .absolute()
-                        .bottom(px(-1.0))
-                        .left(px(-14.0))
-                        .right_0()
-                        .h(px(2.0))
-                        .bg(c.text_default)
-                        .into_any_element(),
-                );
-                row_insert_visuals.push(
-                    div()
-                        .id(ElementId::Name(
-                            format!("row-insert-btn-bottom-{}", block.data.id).into(),
-                        ))
-                        .absolute()
-                        .bottom(px(-8.0))
-                        .left(px(-20.0))
-                        .size(px(16.0))
-                        .rounded_full()
-                        .bg(c.text_default)
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .cursor_pointer()
-                        .on_click(move |_event, _window, cx| {
-                            let _ = btn_click.update(cx, |_block, cx| {
-                                cx.emit(BlockEvent::RequestInsertTableAxisAt {
-                                    kind: TableAxis::Row,
-                                    index: total_rows,
-                                });
-                            });
-                        })
-                        .block_mouse_except_scroll()
-                        .child(
-                            svg()
-                                .path("icons/editor/wysiwyg/table/plus.svg")
-                                .size(px(10.0))
-                                .text_color(c.editor_background),
-                        )
-                        .into_any_element(),
-                );
-            }
-
             let row_axis_band = div()
                 .id(ElementId::Name(
                     format!("table-row-axis-band-{}-{}", block.data.id, body_row_index)
@@ -668,9 +421,6 @@ pub(crate) fn render_table(
                 .w_full()
                 .flex()
                 .gap(px(0.0))
-                .child(row_top_insert_band)
-                .children(last_row_bottom_insert_band)
-                .children(row_insert_visuals)
                 .child(row_axis_band)
                 .on_hover(move |hovered, _window, cx| {
                     if is_last_body_row {
@@ -798,9 +548,9 @@ pub(crate) fn render_table(
             ))
             .absolute()
             .top_0()
-            .right(px(-10.0))
-            .w(px(20.0))
-            .bottom(px(-18.0))
+            .bottom_0()
+            .right(px(-18.0))
+            .w(px(26.0))
             .cursor_pointer()
             .on_hover(cx.listener(Block::on_table_append_column_edge_hover));
 
@@ -810,10 +560,9 @@ pub(crate) fn render_table(
             ))
             .absolute()
             .left_0()
-            .bottom(px(-10.0))
-            .w_full()
-            .h(px(20.0))
-            .right(px(-18.0))
+            .right_0()
+            .bottom(px(-18.0))
+            .h(px(26.0))
             .cursor_pointer()
             .on_hover(cx.listener(Block::on_table_append_row_edge_hover));
 
@@ -850,11 +599,7 @@ pub(crate) fn render_table(
                     .border_r(px(1.0))
                     .border_b(px(1.0))
                     .border_color(c.table_border)
-                    .bg(if column_button_hovered {
-                        c.table_append_button_hover
-                    } else {
-                        gpui::transparent_black()
-                    })
+                    .bg(gpui::transparent_black())
                     .cursor_pointer()
                     .opacity(if column_control_visible { 1.0 } else { 0.0 })
                     .block_mouse_except_scroll()
@@ -865,7 +610,7 @@ pub(crate) fn render_table(
                             .path("icons/editor/wysiwyg/table/plus.svg")
                             .size(px(12.0))
                             .text_color(if column_button_hovered {
-                                c.table_append_button_text
+                                c.text_default
                             } else {
                                 c.table_border
                             }),
@@ -899,11 +644,7 @@ pub(crate) fn render_table(
                     .border_r(px(1.0))
                     .border_b(px(1.0))
                     .border_color(c.table_border)
-                    .bg(if row_button_hovered {
-                        c.table_append_button_hover
-                    } else {
-                        gpui::transparent_black()
-                    })
+                    .bg(gpui::transparent_black())
                     .cursor_pointer()
                     .opacity(if row_control_visible { 1.0 } else { 0.0 })
                     .block_mouse_except_scroll()
@@ -914,7 +655,7 @@ pub(crate) fn render_table(
                             .path("icons/editor/wysiwyg/table/plus.svg")
                             .size(px(12.0))
                             .text_color(if row_button_hovered {
-                                c.table_append_button_text
+                                c.text_default
                             } else {
                                 c.table_border
                             }),
@@ -922,6 +663,7 @@ pub(crate) fn render_table(
             );
 
         let expand_control_visible = column_control_visible || row_control_visible;
+        let expand_button_hovered = column_button_hovered && row_button_hovered;
 
         let expand_control = div()
             .id(ElementId::Name(
@@ -939,9 +681,6 @@ pub(crate) fn render_table(
             .border_b(px(1.0))
             .border_color(c.table_border)
             .bg(gpui::transparent_black())
-            .hover(|this| {
-                this.bg(c.table_append_button_hover)
-            })
             .cursor_pointer()
             .opacity(if expand_control_visible {
                 1.0
@@ -955,7 +694,11 @@ pub(crate) fn render_table(
                 svg()
                     .path("icons/editor/wysiwyg/table/plus.svg")
                     .size(px(12.0))
-                    .text_color(c.table_border),
+                    .text_color(if expand_button_hovered {
+                        c.text_default
+                    } else {
+                        c.table_border
+                    }),
             );
 
         let col_selection_overlay = if let Some(selection) = block.table_axis_selection {
@@ -1009,99 +752,6 @@ pub(crate) fn render_table(
             None
         };
 
-        let mut col_insert_bands = Vec::with_capacity(column_count + 1);
-        let mut col_insert_visuals = Vec::new();
-
-        for c_idx in 0..=column_count {
-            let x_frac = if c_idx == 0 {
-                0.0
-            } else if c_idx == column_count {
-                1.0
-            } else {
-                (0..c_idx).map(|i| column_layout.fraction(i)).sum::<f32>()
-            };
-            let insert_hover_block = weak_table_block.clone();
-            let insert_click_block = weak_table_block.clone();
-
-            col_insert_bands.push(
-                div()
-                    .id(ElementId::Name(
-                        format!("col-insert-band-{}-{}", block.data.id, c_idx).into(),
-                    ))
-                    .absolute()
-                    .top(px(-18.0))
-                    .h(px(28.0))
-                    .left(relative(x_frac))
-                    .ml(px(-8.0))
-                    .w(px(16.0))
-                    .cursor_pointer()
-                    .on_hover(move |hovered, _window, cx| {
-                        let _ = insert_hover_block.update(cx, |block, cx| {
-                            block.table_interaction.hovered_insert_column =
-                                if *hovered { Some(c_idx) } else { None };
-                            cx.notify();
-                        });
-                    })
-                    .on_click(move |_event, _window, cx| {
-                        let _ = insert_click_block.update(cx, |_block, cx| {
-                            cx.emit(BlockEvent::RequestInsertTableAxisAt {
-                                kind: TableAxis::Column,
-                                index: c_idx,
-                            });
-                        });
-                    })
-                    .block_mouse_except_scroll(),
-            );
-
-            if hovered_insert_col == Some(c_idx) {
-                let btn_click_block = weak_table_block.clone();
-                col_insert_visuals.push(
-                    div()
-                        .absolute()
-                        .top(px(-14.0))
-                        .bottom_0()
-                        .left(relative(x_frac))
-                        .w(px(2.0))
-                        .ml(px(-1.0))
-                        .bg(c.text_default)
-                        .into_any_element(),
-                );
-                col_insert_visuals.push(
-                    div()
-                        .id(ElementId::Name(
-                            format!("col-insert-btn-{}-{}", block.data.id, c_idx).into(),
-                        ))
-                        .absolute()
-                        .top(px(-18.0))
-                        .left(relative(x_frac))
-                        .ml(px(-8.0))
-                        .size(px(16.0))
-                        .rounded_full()
-                        .bg(c.text_default)
-                        .flex()
-                        .items_center()
-                        .justify_center()
-                        .cursor_pointer()
-                        .on_click(move |_event, _window, cx| {
-                            let _ = btn_click_block.update(cx, |_block, cx| {
-                                cx.emit(BlockEvent::RequestInsertTableAxisAt {
-                                    kind: TableAxis::Column,
-                                    index: c_idx,
-                                });
-                            });
-                        })
-                        .block_mouse_except_scroll()
-                        .child(
-                            svg()
-                                .path("icons/editor/wysiwyg/table/plus.svg")
-                                .size(px(10.0))
-                                .text_color(c.editor_background),
-                        )
-                        .into_any_element(),
-                );
-            }
-        }
-
         let table_box = div()
             .relative()
             .w_full()
@@ -1112,9 +762,7 @@ pub(crate) fn render_table(
             .flex_col()
             .children(rows)
             .children(col_selection_overlay)
-            .children(col_indicator_line)
-            .children(col_insert_bands)
-            .children(col_insert_visuals);
+            .children(col_indicator_line);
 
         let table_grid = div()
             .relative()
