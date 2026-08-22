@@ -115,6 +115,17 @@ pub fn run(args: Args) {
         init_editor(cx, &settings.keybindings);
         init_app_menu(cx);
 
+        // Prewarm CPU-intensive resources (Tree-sitter grammars, font fallbacks) in a
+        // background thread on startup so the first file open is instant and stutter-free.
+        #[cfg(feature = "code-highlight-core")]
+        std::thread::Builder::new()
+            .name("splitype-prewarm".to_string())
+            .spawn(|| {
+                crate::editor::render::code_highlight::highlight::prewarm_code_highlight_registry();
+                let _ = crate::editor::wysiwyg::render::layout::editor_text_font();
+            })
+            .ok();
+
         #[cfg(target_os = "macos")]
         cx.spawn(async move |cx| {
             while let Some(path) = open_file_rx.next().await {

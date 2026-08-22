@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 use std::ops::Range;
 #[cfg(feature = "code-highlight-core")]
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock, RwLock};
 
 use gpui::Hsla;
 #[cfg(feature = "code-highlight-core")]
@@ -240,7 +240,7 @@ const HIGHLIGHT_NAMES: &[&str] = &[
 /// Lazily built tree-sitter highlighter registry.
 #[cfg(feature = "code-highlight-core")]
 struct CodeHighlightRegistry {
-    configs: HashMap<CodeLanguageKey, HighlightConfiguration>,
+    configs: RwLock<HashMap<CodeLanguageKey, Arc<HighlightConfiguration>>>,
 }
 
 #[cfg(feature = "code-highlight-core")]
@@ -250,83 +250,107 @@ static CODE_HIGHLIGHT_REGISTRY: LazyLock<CodeHighlightRegistry> =
 #[cfg(feature = "code-highlight-core")]
 impl CodeHighlightRegistry {
     fn new() -> Self {
-        let mut configs = HashMap::new();
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(&mut configs, CodeLanguageKey::Rust, build_rust_config());
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(
-            &mut configs,
-            CodeLanguageKey::JavaScript,
-            build_javascript_config(),
-        );
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(
-            &mut configs,
-            CodeLanguageKey::JavaScriptJsx,
-            build_jsx_config(),
-        );
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(
-            &mut configs,
-            CodeLanguageKey::TypeScript,
-            build_typescript_config(),
-        );
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(
-            &mut configs,
-            CodeLanguageKey::TypeScriptTsx,
-            build_tsx_config(),
-        );
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(&mut configs, CodeLanguageKey::Json, build_json_config());
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(
-            &mut configs,
-            CodeLanguageKey::Markdown,
-            build_markdown_config(),
-        );
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(&mut configs, CodeLanguageKey::Bash, build_bash_config());
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(&mut configs, CodeLanguageKey::C, build_c_config());
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(&mut configs, CodeLanguageKey::Cpp, build_cpp_config());
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(&mut configs, CodeLanguageKey::CSharp, build_csharp_config());
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(&mut configs, CodeLanguageKey::Css, build_css_config());
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(&mut configs, CodeLanguageKey::Go, build_go_config());
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(&mut configs, CodeLanguageKey::Html, build_html_config());
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(&mut configs, CodeLanguageKey::Java, build_java_config());
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(&mut configs, CodeLanguageKey::Php, build_php_config());
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(&mut configs, CodeLanguageKey::Python, build_python_config());
-        #[cfg(feature = "code-highlight-official")]
-        maybe_insert_config(&mut configs, CodeLanguageKey::Ruby, build_ruby_config());
-        #[cfg(feature = "code-highlight-config")]
-        maybe_insert_config(&mut configs, CodeLanguageKey::Yaml, build_yaml_config());
-        #[cfg(feature = "code-highlight-config")]
-        maybe_insert_config(&mut configs, CodeLanguageKey::Toml, build_toml_config());
-        Self { configs }
+        Self {
+            configs: RwLock::new(HashMap::new()),
+        }
     }
 
-    fn config_for(&self, key: CodeLanguageKey) -> Option<&HighlightConfiguration> {
-        self.configs.get(&key)
+    fn config_for(&self, key: CodeLanguageKey) -> Option<Arc<HighlightConfiguration>> {
+        if let Ok(read_guard) = self.configs.read() {
+            if let Some(config) = read_guard.get(&key) {
+                return Some(Arc::clone(config));
+            }
+        }
+
+        let config = build_config_for(key)?;
+        let arc_config = Arc::new(config);
+
+        if let Ok(mut write_guard) = self.configs.write() {
+            write_guard.insert(key, Arc::clone(&arc_config));
+        }
+
+        Some(arc_config)
+    }
+
+    fn prewarm_all(&self) {
+        const ALL_KEYS: &[CodeLanguageKey] = &[
+            CodeLanguageKey::Rust,
+            CodeLanguageKey::JavaScript,
+            CodeLanguageKey::JavaScriptJsx,
+            CodeLanguageKey::TypeScript,
+            CodeLanguageKey::TypeScriptTsx,
+            CodeLanguageKey::Json,
+            CodeLanguageKey::Markdown,
+            CodeLanguageKey::Bash,
+            CodeLanguageKey::Python,
+            CodeLanguageKey::C,
+            CodeLanguageKey::Cpp,
+            CodeLanguageKey::CSharp,
+            CodeLanguageKey::Css,
+            CodeLanguageKey::Go,
+            CodeLanguageKey::Html,
+            CodeLanguageKey::Java,
+            CodeLanguageKey::Php,
+            CodeLanguageKey::Ruby,
+            CodeLanguageKey::Yaml,
+            CodeLanguageKey::Toml,
+        ];
+
+        for &key in ALL_KEYS {
+            let _ = self.config_for(key);
+        }
     }
 }
 
 #[cfg(feature = "code-highlight-core")]
-fn maybe_insert_config(
-    configs: &mut HashMap<CodeLanguageKey, HighlightConfiguration>,
-    key: CodeLanguageKey,
-    config: Option<HighlightConfiguration>,
-) {
-    if let Some(config) = config {
-        configs.insert(key, config);
+pub(crate) fn prewarm_code_highlight_registry() {
+    CODE_HIGHLIGHT_REGISTRY.prewarm_all();
+}
+
+#[cfg(feature = "code-highlight-core")]
+fn build_config_for(key: CodeLanguageKey) -> Option<HighlightConfiguration> {
+    match key {
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Rust => build_rust_config(),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::JavaScript => build_javascript_config(),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::JavaScriptJsx => build_jsx_config(),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::TypeScript => build_typescript_config(),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::TypeScriptTsx => build_tsx_config(),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Json => build_json_config(),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Markdown => build_markdown_config(),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Bash => build_bash_config(),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::C => build_c_config(),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Cpp => build_cpp_config(),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::CSharp => build_csharp_config(),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Css => build_css_config(),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Go => build_go_config(),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Html => build_html_config(),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Java => build_java_config(),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Php => build_php_config(),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Python => build_python_config(),
+        #[cfg(feature = "code-highlight-official")]
+        CodeLanguageKey::Ruby => build_ruby_config(),
+        #[cfg(feature = "code-highlight-config")]
+        CodeLanguageKey::Yaml => build_yaml_config(),
+        #[cfg(feature = "code-highlight-config")]
+        CodeLanguageKey::Toml => build_toml_config(),
+        _ => None,
     }
 }
 
@@ -606,7 +630,7 @@ pub(crate) fn highlight_code_block(
     #[cfg(feature = "code-highlight-core")]
     if let Some(config) = CODE_HIGHLIGHT_REGISTRY.config_for(key) {
         let mut highlighter = Highlighter::new();
-        let events = match highlighter.highlight(config, source.as_bytes(), None, |_| None) {
+        let events = match highlighter.highlight(&config, source.as_bytes(), None, |_| None) {
             Ok(events) => events,
             Err(_) => {
                 return Some(CodeHighlightResult {
