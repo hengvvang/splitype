@@ -24,10 +24,6 @@ impl Editor {
         if hovered {
             self.set_table_axis_preview(Some(marker), cx);
         } else if self.tab().tables.axis_preview == Some(marker) {
-            // Only clear on a leave that still owns the preview. Adjacent
-            // handles share one preview slot, and a leave can arrive after
-            // the next handle's enter; clearing unconditionally would erase
-            // the highlight the pointer just moved onto.
             self.set_table_axis_preview(None, cx);
         }
     }
