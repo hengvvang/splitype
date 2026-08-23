@@ -26,7 +26,6 @@ use crate::editor::tree::footnotes::FootnoteMap;
 use crate::model::block::CalloutKind;
 use crate::model::block::image::ImageReferenceDefinitions;
 use crate::model::block::link::LinkReferenceDefinitions;
-use crate::model::block::table::TableAxisHighlight;
 use crate::model::block::table::{TableAxisMarker, TableCellPosition, TableColumnAlignment};
 use crate::model::inline::render_cache::InlineRenderCache;
 use crate::model::parse::BlockId;
@@ -99,7 +98,6 @@ pub struct Block {
     pub(crate) table_cell_alignment: Option<TableColumnAlignment>,
     pub(crate) table_axis_preview: Option<TableAxisMarker>,
     pub(crate) table_axis_selection: Option<TableAxisMarker>,
-    pub(crate) table_axis_highlight: TableAxisHighlight,
     pub(crate) table_interaction: TableInteractionState,
     pub(crate) image_handle: Option<ImageHandle>,
     pub(crate) html_details_open: bool,
@@ -173,7 +171,6 @@ impl Block {
             table_cell_alignment: None,
             table_axis_preview: None,
             table_axis_selection: None,
-            table_axis_highlight: TableAxisHighlight::None,
             table_interaction: TableInteractionState::default(),
             image_handle: None,
             html_details_open: false,

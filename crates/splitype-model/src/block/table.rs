@@ -38,18 +38,6 @@ pub struct TableAxisMarker {
     pub index: usize,
 }
 
-/// Visual emphasis level used when previewing or selecting table axes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum TableAxisHighlight {
-    /// No axis emphasis.
-    #[default]
-    None,
-    /// Hover preview emphasis.
-    Preview,
-    /// Persistent selected-axis emphasis.
-    Selected,
-}
-
 /// Persistent cell contents for a native table block.
 #[derive(Debug, Clone)]
 pub struct TableData {

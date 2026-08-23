@@ -11,6 +11,106 @@ use crate::model::block::table::TableCellPosition;
 use crate::model::block::table::TableColumnAlignment;
 use crate::model::block::table::{TableAxis, TableAxisMarker, TableColumnLayout};
 
+/// Visual highlight priority state for table row and column axes: Dragging > Selected > Hovered > Editing > None.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum TableAxisVisualState {
+    /// Default: no visual highlight.
+    None = 0,
+    /// Priority 1 (Lowest): cell within this axis is being actively edited (1.5px green indicator on outer edge).
+    Editing = 1,
+    /// Priority 2: cursor is hovering over cell or axis handle (1.5px gray indicator on outer edge).
+    Hovered = 2,
+    /// Priority 3: axis is clicked and selected (2.0px blue full bounding box).
+    Selected = 3,
+    /// Priority 4 (Highest): axis is actively being dragged (2.0px blue full bounding box on source axis).
+    Dragging = 4,
+}
+
+/// Unified highlight priority resolver for table row and column axes.
+pub(crate) struct TableHighlightResolver {
+    pub(crate) active_cell: Option<(usize, usize)>, // (row, col)
+    pub(crate) hovered_row: Option<usize>,
+    pub(crate) hovered_column: Option<usize>,
+    pub(crate) selected_axis: Option<TableAxisMarker>,
+    pub(crate) is_dragging_axis: bool,
+}
+
+impl TableHighlightResolver {
+    pub(crate) fn new(
+        active_cell: Option<(usize, usize)>,
+        hovered_row: Option<usize>,
+        hovered_column: Option<usize>,
+        selected_axis: Option<TableAxisMarker>,
+        is_dragging_axis: bool,
+    ) -> Self {
+        Self {
+            active_cell,
+            hovered_row,
+            hovered_column,
+            selected_axis,
+            is_dragging_axis,
+        }
+    }
+
+    /// Resolve visual highlight priority for a specific column.
+    pub(crate) fn resolve_column(&self, col: usize) -> TableAxisVisualState {
+        // Priority 4 (Highest): actively dragging this column
+        if self.is_dragging_axis {
+            if let Some(sel) = self.selected_axis {
+                if sel.kind == TableAxis::Column && sel.index == col {
+                    return TableAxisVisualState::Dragging;
+                }
+            }
+        }
+        // Priority 3: clicked/selected column
+        if let Some(sel) = self.selected_axis {
+            if sel.kind == TableAxis::Column && sel.index == col {
+                return TableAxisVisualState::Selected;
+            }
+        }
+        // Priority 2: cursor hovering over column
+        if self.hovered_column == Some(col) {
+            return TableAxisVisualState::Hovered;
+        }
+        // Priority 1 (Lowest): active cell in column
+        if let Some((_, c)) = self.active_cell {
+            if c == col {
+                return TableAxisVisualState::Editing;
+            }
+        }
+        TableAxisVisualState::None
+    }
+
+    /// Resolve visual highlight priority for a specific row (0 for header row, 1+ for body rows).
+    pub(crate) fn resolve_row(&self, row: usize) -> TableAxisVisualState {
+        // Priority 4 (Highest): actively dragging this row
+        if self.is_dragging_axis {
+            if let Some(sel) = self.selected_axis {
+                if sel.kind == TableAxis::Row && sel.index == row {
+                    return TableAxisVisualState::Dragging;
+                }
+            }
+        }
+        // Priority 3: clicked/selected row
+        if let Some(sel) = self.selected_axis {
+            if sel.kind == TableAxis::Row && sel.index == row {
+                return TableAxisVisualState::Selected;
+            }
+        }
+        // Priority 2: cursor hovering over row
+        if self.hovered_row == Some(row) {
+            return TableAxisVisualState::Hovered;
+        }
+        // Priority 1 (Lowest): active cell in row
+        if let Some((r, _)) = self.active_cell {
+            if r == row {
+                return TableAxisVisualState::Editing;
+            }
+        }
+        TableAxisVisualState::None
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct DraggedTableAxis {
     pub(crate) table_block_id: EntityId,
@@ -20,100 +120,37 @@ pub(crate) struct DraggedTableAxis {
 
 pub(crate) struct DraggedTableAxisView {
     pub(crate) theme: Theme,
-    pub(crate) kind: TableAxis,
-    pub(crate) cells: Vec<String>,
-    pub(crate) width: Pixels,
-    pub(crate) col_widths: Vec<Pixels>,
-    pub(crate) cell_heights: Vec<Option<Pixels>>,
 }
 
 impl Render for DraggedTableAxisView {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
         let c = &self.theme.colors;
-        let d = &self.theme.dimensions;
-        let t = &self.theme.typography;
-        match self.kind {
-            TableAxis::Column => div()
-                .flex()
-                .flex_col()
-                .w(self.width)
-                .bg(c.table_cell_bg)
-                .border(px(2.0))
-                .border_color(c.table_selection_border)
-                .rounded(px(4.0))
-                .shadow_lg()
-                .opacity(0.95)
-                .children(self.cells.iter().enumerate().map(|(i, text)| {
-                    let mut cell_div = div()
-                        .w_full()
-                        .px(px(d.table_cell_padding_x))
-                        .py(px(d.table_cell_padding_y))
-                        .border_b(if i + 1 < self.cells.len() {
-                            px(1.0)
-                        } else {
-                            px(0.0)
-                        })
-                        .border_color(c.table_border)
-                        .bg(if i == 0 {
-                            c.table_header_bg
-                        } else {
-                            c.table_cell_bg
-                        })
-                        .text_size(px(t.text_size))
-                        .text_color(c.text_default)
-                        .line_height(rems(t.text_line_height))
-                        .font_weight(if i == 0 {
-                            FontWeight::MEDIUM
-                        } else {
-                            FontWeight::NORMAL
-                        })
-                        .flex()
-                        .items_center()
-                        .child(if text.is_empty() { " " } else { text.as_str() }.to_string());
-                    if let Some(Some(h)) = self.cell_heights.get(i) {
-                        cell_div = cell_div.h(*h);
-                    } else {
-                        cell_div = cell_div.min_h(px(d.table_cell_min_height));
-                    }
-                    cell_div
-                })),
-            TableAxis::Row => div()
-                .flex()
-                .flex_row()
-                .w(self.width)
-                .bg(c.table_cell_bg)
-                .border(px(2.0))
-                .border_color(c.table_selection_border)
-                .rounded(px(4.0))
-                .shadow_lg()
-                .opacity(0.95)
-                .children(self.cells.iter().enumerate().map(|(i, text)| {
-                    let cell_w = self.col_widths.get(i).copied().unwrap_or(px(100.0));
-                    let mut cell_div = div()
-                        .w(cell_w)
-                        .px(px(d.table_cell_padding_x))
-                        .py(px(d.table_cell_padding_y))
-                        .border_r(if i + 1 < self.cells.len() {
-                            px(1.0)
-                        } else {
-                            px(0.0)
-                        })
-                        .border_color(c.table_border)
-                        .bg(c.table_cell_bg)
-                        .text_size(px(t.text_size))
-                        .text_color(c.text_default)
-                        .line_height(rems(t.text_line_height))
-                        .flex()
-                        .items_center()
-                        .child(if text.is_empty() { " " } else { text.as_str() }.to_string());
-                    if let Some(Some(h)) = self.cell_heights.first() {
-                        cell_div = cell_div.h(*h);
-                    } else {
-                        cell_div = cell_div.min_h(px(d.table_cell_min_height));
-                    }
-                    cell_div
-                })),
-        }
+        let axis_len = px(432.0);
+        let half_len = px(216.0);
+
+        div()
+            .relative()
+            .size(px(0.0))
+            // Horizontal solid crosshair line (432px, 1.0px thickness, centered at drag cursor)
+            .child(
+                div()
+                    .absolute()
+                    .left(-half_len)
+                    .w(axis_len)
+                    .top(px(-0.5))
+                    .h(px(1.0))
+                    .bg(c.table_selection_border),
+            )
+            // Vertical solid crosshair line (432px, 1.0px thickness, centered at drag cursor)
+            .child(
+                div()
+                    .absolute()
+                    .top(-half_len)
+                    .h(axis_len)
+                    .left(px(-0.5))
+                    .w(px(1.0))
+                    .bg(c.table_selection_border),
+            )
     }
 }
 
@@ -167,50 +204,14 @@ pub(crate) fn render_table(
     let block_entity_id = cx.entity().entity_id();
     let weak_table_block = cx.entity().downgrade();
 
-    let exact_col_widths: Vec<Pixels> = (0..column_count)
-        .map(|col| {
-            runtime
-                .header
-                .get(col)
-                .and_then(|cell| cell.read(cx).last_paint().map(|p| p.bounds.size.width))
-                .unwrap_or_else(|| px(table_width * column_layout.fraction(col)))
-        })
+    let col_fractions: Vec<f32> = (0..column_count)
+        .map(|i| column_layout.fraction(i))
         .collect();
-
-    let header_row_height: Option<Pixels> = runtime
-        .header
-        .first()
-        .and_then(|cell| cell.read(cx).last_paint().map(|p| p.bounds.size.height));
-
-    let body_row_heights: Vec<Option<Pixels>> = runtime
-        .rows
-        .iter()
-        .map(|row| {
-            row.first()
-                .and_then(|cell| cell.read(cx).last_paint().map(|p| p.bounds.size.height))
-        })
-        .collect();
-
-    let all_column_cell_heights: Vec<Vec<Option<Pixels>>> = (0..column_count)
-        .map(|col| {
-            let mut heights = Vec::with_capacity(1 + body_row_count);
-            heights.push(
-                runtime
-                    .header
-                    .get(col)
-                    .and_then(|cell| cell.read(cx).last_paint().map(|p| p.bounds.size.height)),
-            );
-            for row in &runtime.rows {
-                heights.push(
-                    row.get(col)
-                        .and_then(|cell| cell.read(cx).last_paint().map(|p| p.bounds.size.height)),
-                );
-            }
-            heights
-        })
-        .collect();
-
-    let col_widths = exact_col_widths.clone();
+    let mut col_cumulative_fracs: Vec<f32> = Vec::with_capacity(column_count + 1);
+    col_cumulative_fracs.push(0.0);
+    for f in &col_fractions {
+        col_cumulative_fracs.push(col_cumulative_fracs.last().copied().unwrap_or(0.0) + f);
+    }
 
     let active_cell = {
         let mut active = None;
@@ -233,39 +234,53 @@ pub(crate) fn render_table(
         active
     };
 
-    let header_cell_texts: Vec<String> = runtime
-        .header
-        .iter()
-        .map(|c| c.read(cx).display_text().to_string())
-        .collect();
+    let is_dragging_axis = block.table_axis_preview.is_some();
 
-    let body_cell_texts: Vec<Vec<String>> = runtime
-        .rows
-        .iter()
-        .map(|row| {
-            row.iter()
-                .map(|c| c.read(cx).display_text().to_string())
-                .collect()
-        })
-        .collect();
+    let resolver = TableHighlightResolver::new(
+        active_cell,
+        block.table_interaction.hovered_row,
+        block.table_interaction.hovered_column,
+        block.table_axis_selection,
+        is_dragging_axis,
+    );
 
     let header_cells = runtime.header;
     let header_select_block = weak_table_block.clone();
     let header_menu_block = weak_table_block.clone();
-    let header_drop_block = weak_table_block.clone();
-    let header_drag_move_block = weak_table_block.clone();
     let header_axis_hover_block = weak_table_block.clone();
 
-    let is_header_selected = block.table_axis_selection
-        == Some(TableAxisMarker {
-            kind: TableAxis::Row,
-            index: 0,
-        });
-    let header_selection_overlay = if is_header_selected {
+    let row_0_state = resolver.resolve_row(0);
+
+    let header_left_indicator = match row_0_state {
+        TableAxisVisualState::Editing => Some(
+            div()
+                .absolute()
+                .left(px(-1.0))
+                .top_0()
+                .bottom_0()
+                .w(px(1.5))
+                .bg(Hsla::from(rgba(0x22c55eff))),
+        ),
+        TableAxisVisualState::Hovered => Some(
+            div()
+                .absolute()
+                .left(px(-1.0))
+                .top_0()
+                .bottom_0()
+                .w(px(1.5))
+                .bg(c.table_handle_icon),
+        ),
+        TableAxisVisualState::Selected | TableAxisVisualState::Dragging | TableAxisVisualState::None => None,
+    };
+
+    let row_0_selection_box = if row_0_state >= TableAxisVisualState::Selected {
         Some(
             div()
                 .absolute()
-                .inset_0()
+                .left(px(-1.0))
+                .right(px(-1.0))
+                .top(px(-1.0))
+                .bottom(px(-1.0))
                 .border(px(2.0))
                 .border_color(c.table_selection_border),
         )
@@ -273,37 +288,33 @@ pub(crate) fn render_table(
         None
     };
 
-    let is_col_slot_0_target = block.table_axis_preview == Some(TableAxisMarker {
-        kind: TableAxis::Column,
-        index: 0,
-    });
-    let is_header_hovered = block.table_interaction.hovered_row == Some(0);
-    let is_header_editing = active_cell.map(|(r, _)| r) == Some(0);
-
-    let header_left_border_color = if is_col_slot_0_target {
-        c.table_selection_border
-    } else if is_header_hovered {
-        c.table_handle_icon
-    } else if is_header_editing {
-        Hsla::from(rgba(0x22c55eff))
+    let row_0_insert_line = if block.table_axis_preview
+        == Some(TableAxisMarker {
+            kind: TableAxis::Row,
+            index: 0,
+        }) {
+        Some(
+            div()
+                .absolute()
+                .left(px(-1.0))
+                .right(px(-1.0))
+                .top(px(-1.0))
+                .h(px(2.0))
+                .bg(c.table_selection_border),
+        )
     } else {
-        c.table_border
+        None
     };
 
-    let header_axis_row_texts = header_cell_texts.clone();
     let header_axis_theme = theme.clone();
-    let header_axis_col_widths = col_widths.clone();
-    let header_axis_total_width = header_axis_col_widths
-        .iter()
-        .fold(px(0.0), |acc, w| acc + *w);
 
     let header_axis_band = div()
         .id(ElementId::Name(
             format!("table-header-axis-band-{}", block.data.id).into(),
         ))
         .absolute()
-        .left(px(-10.0))
-        .w(px(10.0))
+        .left(px(-12.0))
+        .w(px(16.0))
         .top_0()
         .h_full()
         .cursor(CursorStyle::ResizeUpDown)
@@ -342,17 +353,8 @@ pub(crate) fn render_table(
                 index: 0,
             },
             move |_drag, _point, _window, cx| {
-                let cells = header_axis_row_texts.clone();
                 let theme = header_axis_theme.clone();
-                let col_widths = header_axis_col_widths.clone();
-                cx.new(|_| DraggedTableAxisView {
-                    theme,
-                    kind: TableAxis::Row,
-                    cells,
-                    width: header_axis_total_width,
-                    col_widths,
-                    cell_heights: vec![header_row_height],
-                })
+                cx.new(|_| DraggedTableAxisView { theme })
             },
         );
 
@@ -361,129 +363,42 @@ pub(crate) fn render_table(
         .w_full()
         .flex()
         .gap(px(0.0))
-        .border_l(px(2.0))
-        .border_color(header_left_border_color)
+        .border_l(px(1.0))
+        .border_color(c.table_border)
         .child(header_axis_band)
-        .on_drag_move::<DraggedTableAxis>(move |drag, _window, cx| {
-            let kind = drag.drag(cx).kind;
-            let from = drag.drag(cx).index;
-            let _ = header_drag_move_block.update(cx, |_block, cx| {
-                if kind == TableAxis::Row {
-                    if from == 0 {
-                        cx.emit(BlockEvent::RequestTableAxisPreview {
-                            kind: TableAxis::Row,
-                            index: 0,
-                            hovered: false,
-                        });
-                    } else {
-                        cx.emit(BlockEvent::RequestTableAxisPreview {
-                            kind: TableAxis::Row,
-                            index: 0,
-                            hovered: true,
-                        });
-                    }
-                }
-            });
-        })
-        .on_drop::<DraggedTableAxis>(move |drag, _window, cx| {
-            if drag.table_block_id == block_entity_id {
-                let kind = drag.kind;
-                let from = drag.index;
-                let _ = header_drop_block.update(cx, |block, cx| {
-                    if let Some(prev) = block.table_axis_preview {
-                        if prev.kind == kind && prev.index != from && prev.index != from + 1 {
-                            let slot = prev.index;
-                            let to = if slot < from { slot } else { slot - 1 };
-                            cx.emit(BlockEvent::RequestReorderTableAxis {
-                                kind,
-                                from,
-                                to,
-                            });
-                        }
-                    }
-                });
-            }
-        })
         .children(header_cells.into_iter().enumerate().map(|(column, cell)| {
             let select_block = weak_table_block.clone();
             let menu_block = weak_table_block.clone();
-            let drop_block = weak_table_block.clone();
-            let drop_drag_block = weak_table_block.clone();
             let col_hover_block = weak_table_block.clone();
             let cell_hover_block = weak_table_block.clone();
             let col_axis_hover_block = weak_table_block.clone();
             let is_last_col = column == column_count - 1;
 
-            let is_row_slot_0_target = block.table_axis_preview == Some(TableAxisMarker {
-                kind: TableAxis::Row,
-                index: 0,
-            });
-            let is_col_target_right = block.table_axis_preview == Some(TableAxisMarker {
-                kind: TableAxis::Column,
-                index: column + 1,
-            });
-            let is_row_0_target_bottom = block.table_axis_preview == Some(TableAxisMarker {
-                kind: TableAxis::Row,
-                index: 1,
-            });
+            let col_state = resolver.resolve_column(column);
 
-            let is_col_hovered = block.table_interaction.hovered_column == Some(column);
-            let is_col_editing = active_cell.map(|(_, col)| col) == Some(column);
-
-            let col_top_border_color = if is_row_slot_0_target {
-                c.table_selection_border
-            } else if is_col_hovered {
-                c.table_handle_icon
-            } else if is_col_editing {
-                Hsla::from(rgba(0x22c55eff))
-            } else {
-                c.table_border
-            };
-
-            let right_line = if is_col_target_right {
-                Some(
-                    div()
-                        .absolute()
-                        .right_0()
-                        .top_0()
-                        .bottom_0()
-                        .w(px(2.0))
-                        .bg(c.table_selection_border),
-                )
-            } else {
-                None
-            };
-
-            let bottom_line = if is_row_0_target_bottom {
-                Some(
+            let col_top_indicator = match col_state {
+                TableAxisVisualState::Editing => Some(
                     div()
                         .absolute()
                         .left_0()
                         .right_0()
-                        .bottom_0()
-                        .h(px(2.0))
-                        .bg(c.table_selection_border),
-                )
-            } else {
-                None
+                        .top(px(-1.0))
+                        .h(px(1.5))
+                        .bg(Hsla::from(rgba(0x22c55eff))),
+                ),
+                TableAxisVisualState::Hovered => Some(
+                    div()
+                        .absolute()
+                        .left_0()
+                        .right_0()
+                        .top(px(-1.0))
+                        .h(px(1.5))
+                        .bg(c.table_handle_icon),
+                ),
+                TableAxisVisualState::Selected | TableAxisVisualState::Dragging | TableAxisVisualState::None => None,
             };
 
-            let mut column_cell_texts = Vec::with_capacity(1 + body_row_count);
-            if let Some(h) = header_cell_texts.get(column) {
-                column_cell_texts.push(h.clone());
-            }
-            for r in &body_cell_texts {
-                if let Some(c) = r.get(column) {
-                    column_cell_texts.push(c.clone());
-                }
-            }
             let col_axis_theme = theme.clone();
-            let col_axis_col_widths = col_widths.clone();
-            let col_axis_cell_heights = all_column_cell_heights
-                .get(column)
-                .cloned()
-                .unwrap_or_default();
-            let col_width = col_widths.get(column).copied().unwrap_or(px(100.0));
 
             div()
                 .id(ElementId::Name(
@@ -495,8 +410,8 @@ pub(crate) fn render_table(
                 .w(relative(column_layout.fraction(column)))
                 .h_full()
                 .min_w(px(0.0))
-                .border_t(px(2.0))
-                .border_color(col_top_border_color)
+                .border_t(px(1.0))
+                .border_color(c.table_border)
                 .on_hover(move |hovered, _window, cx| {
                     if is_last_col {
                         let _ = col_hover_block.update(cx, |block, cx| {
@@ -517,82 +432,6 @@ pub(crate) fn render_table(
                         cx.notify();
                     });
                 })
-                .on_drag_move::<DraggedTableAxis>(move |drag, _window, cx| {
-                    let kind = drag.drag(cx).kind;
-                    let from = drag.drag(cx).index;
-                    let bounds = drag.bounds;
-                    let pos = drag.event.position;
-                    let _ = drop_drag_block.update(cx, |block, cx| {
-                        match kind {
-                            TableAxis::Column => {
-                                let is_left_half =
-                                    pos.x < bounds.origin.x + bounds.size.width / 2.0;
-                                let slot = if is_left_half { column } else { column + 1 };
-                                let is_no_op = slot == from || slot == from + 1;
-                                if is_no_op {
-                                    if let Some(prev) = block.table_axis_preview {
-                                        if prev.kind == TableAxis::Column {
-                                            cx.emit(BlockEvent::RequestTableAxisPreview {
-                                                kind: TableAxis::Column,
-                                                index: prev.index,
-                                                hovered: false,
-                                            });
-                                        }
-                                    }
-                                } else {
-                                    cx.emit(BlockEvent::RequestTableAxisPreview {
-                                        kind: TableAxis::Column,
-                                        index: slot,
-                                        hovered: true,
-                                    });
-                                }
-                            }
-                            TableAxis::Row => {
-                                let is_top_half =
-                                    pos.y < bounds.origin.y + bounds.size.height / 2.0;
-                                let slot = if is_top_half { 0 } else { 1 };
-                                let is_no_op = slot == from || slot == from + 1;
-                                if is_no_op {
-                                    if let Some(prev) = block.table_axis_preview {
-                                        if prev.kind == TableAxis::Row {
-                                            cx.emit(BlockEvent::RequestTableAxisPreview {
-                                                kind: TableAxis::Row,
-                                                index: prev.index,
-                                                hovered: false,
-                                            });
-                                        }
-                                    }
-                                } else {
-                                    cx.emit(BlockEvent::RequestTableAxisPreview {
-                                        kind: TableAxis::Row,
-                                        index: slot,
-                                        hovered: true,
-                                    });
-                                }
-                            }
-                        }
-                    });
-                })
-                .on_drop::<DraggedTableAxis>(move |drag, _window, cx| {
-                    if drag.table_block_id == block_entity_id {
-                        let kind = drag.kind;
-                        let from = drag.index;
-                        let _ = drop_block.update(cx, |block, cx| {
-                            if let Some(prev) = block.table_axis_preview {
-                                if prev.kind == kind && prev.index != from && prev.index != from + 1 {
-                                    let slot = prev.index;
-                                    let to = if slot < from { slot } else { slot - 1 };
-                                    cx.emit(BlockEvent::RequestReorderTableAxis {
-                                        kind,
-                                        from,
-                                        to,
-                                    });
-                                }
-                            }
-                        });
-                    }
-                })
-                // Top Column Edge Interaction (Indicator bar, ResizeLeftRight cursor, drag/drop, left-click select, right-click menu)
                 .child(
                     div()
                         .id(ElementId::Name(
@@ -600,8 +439,8 @@ pub(crate) fn render_table(
                                 .into(),
                         ))
                         .absolute()
-                        .top(px(-10.0))
-                        .h(px(10.0))
+                        .top(px(-12.0))
+                        .h(px(16.0))
                         .left_0()
                         .w_full()
                         .cursor(CursorStyle::ResizeLeftRight)
@@ -640,26 +479,17 @@ pub(crate) fn render_table(
                                 index: column,
                             },
                             move |_drag, _point, _window, cx| {
-                                let cells = column_cell_texts.clone();
                                 let theme = col_axis_theme.clone();
-                                let col_widths = col_axis_col_widths.clone();
-                                let cell_heights = col_axis_cell_heights.clone();
-                                cx.new(|_| DraggedTableAxisView {
-                                    theme,
-                                    kind: TableAxis::Column,
-                                    cells,
-                                    width: col_width,
-                                    col_widths,
-                                    cell_heights,
-                                })
+                                cx.new(|_| DraggedTableAxisView { theme })
                             },
                         ),
                 )
                 .child(cell)
-                .children(right_line)
-                .children(bottom_line)
+                .children(col_top_indicator)
         }))
-        .children(header_selection_overlay);
+        .children(header_left_indicator)
+        .children(row_0_selection_box)
+        .children(row_0_insert_line);
 
     let body_rows = runtime
         .rows
@@ -672,17 +502,38 @@ pub(crate) fn render_table(
             let row_axis_hover_block = weak_table_block.clone();
             let is_last_body_row = body_row_index == body_row_count - 1;
             let visual_row = body_row_index + 1;
+            let row_state = resolver.resolve_row(visual_row);
 
-            let is_row_selected = block.table_axis_selection
-                == Some(TableAxisMarker {
-                    kind: TableAxis::Row,
-                    index: visual_row,
-                });
-            let row_selection_overlay = if is_row_selected {
+            let row_left_indicator = match row_state {
+                TableAxisVisualState::Editing => Some(
+                    div()
+                        .absolute()
+                        .left(px(-1.0))
+                        .top_0()
+                        .bottom_0()
+                        .w(px(1.5))
+                        .bg(Hsla::from(rgba(0x22c55eff))),
+                ),
+                TableAxisVisualState::Hovered => Some(
+                    div()
+                        .absolute()
+                        .left(px(-1.0))
+                        .top_0()
+                        .bottom_0()
+                        .w(px(1.5))
+                        .bg(c.table_handle_icon),
+                ),
+                TableAxisVisualState::Selected | TableAxisVisualState::Dragging | TableAxisVisualState::None => None,
+            };
+
+            let row_selection_box = if row_state >= TableAxisVisualState::Selected {
                 Some(
                     div()
                         .absolute()
-                        .inset_0()
+                        .left(px(-1.0))
+                        .right(px(-1.0))
+                        .top(px(-1.0))
+                        .bottom(px(-1.0))
                         .border(px(2.0))
                         .border_color(c.table_selection_border),
                 )
@@ -690,33 +541,44 @@ pub(crate) fn render_table(
                 None
             };
 
-            let is_col_slot_0_target = block.table_axis_preview == Some(TableAxisMarker {
-                kind: TableAxis::Column,
-                index: 0,
-            });
-            let is_row_hovered = block.table_interaction.hovered_row == Some(visual_row);
-            let is_row_editing = active_cell.map(|(r, _)| r) == Some(visual_row);
-
-            let row_left_border_color = if is_col_slot_0_target {
-                c.table_selection_border
-            } else if is_row_hovered {
-                c.table_handle_icon
-            } else if is_row_editing {
-                Hsla::from(rgba(0x22c55eff))
+            let row_insert_line_top = if block.table_axis_preview
+                == Some(TableAxisMarker {
+                    kind: TableAxis::Row,
+                    index: visual_row,
+                }) {
+                Some(
+                    div()
+                        .absolute()
+                        .left(px(-1.0))
+                        .right(px(-1.0))
+                        .top(px(-1.0))
+                        .h(px(2.0))
+                        .bg(c.table_selection_border),
+                )
             } else {
-                c.table_border
+                None
             };
 
-            let row_axis_texts = body_cell_texts
-                .get(body_row_index)
-                .cloned()
-                .unwrap_or_default();
+            let row_insert_line_bottom = if is_last_body_row
+                && block.table_axis_preview
+                    == Some(TableAxisMarker {
+                        kind: TableAxis::Row,
+                        index: visual_row + 1,
+                    }) {
+                Some(
+                    div()
+                        .absolute()
+                        .left(px(-1.0))
+                        .right(px(-1.0))
+                        .bottom(px(-1.0))
+                        .h(px(2.0))
+                        .bg(c.table_selection_border),
+                )
+            } else {
+                None
+            };
+
             let row_axis_theme = theme.clone();
-            let row_axis_col_widths = col_widths.clone();
-            let row_axis_total_width = row_axis_col_widths
-                .iter()
-                .fold(px(0.0), |acc, w| acc + *w);
-            let row_axis_cell_heights = vec![body_row_heights.get(body_row_index).copied().flatten()];
 
             let row_axis_band = div()
                 .id(ElementId::Name(
@@ -724,8 +586,8 @@ pub(crate) fn render_table(
                         .into(),
                 ))
                 .absolute()
-                .left(px(-10.0))
-                .w(px(10.0))
+                .left(px(-12.0))
+                .w(px(16.0))
                 .top_0()
                 .h_full()
                 .cursor(CursorStyle::ResizeUpDown)
@@ -764,18 +626,8 @@ pub(crate) fn render_table(
                         index: visual_row,
                     },
                     move |_drag, _point, _window, cx| {
-                        let cells = row_axis_texts.clone();
                         let theme = row_axis_theme.clone();
-                        let col_widths = row_axis_col_widths.clone();
-                        let cell_heights = row_axis_cell_heights.clone();
-                        cx.new(|_| DraggedTableAxisView {
-                            theme,
-                            kind: TableAxis::Row,
-                            cells,
-                            width: row_axis_total_width,
-                            col_widths,
-                            cell_heights,
-                        })
+                        cx.new(|_| DraggedTableAxisView { theme })
                     },
                 );
 
@@ -787,8 +639,8 @@ pub(crate) fn render_table(
                 .w_full()
                 .flex()
                 .gap(px(0.0))
-                .border_l(px(2.0))
-                .border_color(row_left_border_color)
+                .border_l(px(1.0))
+                .border_color(c.table_border)
                 .child(row_axis_band)
                 .on_hover(move |hovered, _window, cx| {
                     if is_last_body_row {
@@ -801,46 +653,7 @@ pub(crate) fn render_table(
                 .children(row.into_iter().enumerate().map(|(column, cell)| {
                     let col_hover_block = weak_table_block.clone();
                     let cell_hover_block = weak_table_block.clone();
-                    let cell_drop_block = weak_table_block.clone();
-                    let cell_drop_drag_block = weak_table_block.clone();
                     let is_last_col = column == column_count - 1;
-
-                    let is_col_target_right = block.table_axis_preview == Some(TableAxisMarker {
-                        kind: TableAxis::Column,
-                        index: column + 1,
-                    });
-                    let is_row_target_bottom = block.table_axis_preview == Some(TableAxisMarker {
-                        kind: TableAxis::Row,
-                        index: visual_row + 1,
-                    });
-
-                    let right_line = if is_col_target_right {
-                        Some(
-                            div()
-                                .absolute()
-                                .right_0()
-                                .top_0()
-                                .bottom_0()
-                                .w(px(2.0))
-                                .bg(c.table_selection_border),
-                        )
-                    } else {
-                        None
-                    };
-
-                    let bottom_line = if is_row_target_bottom {
-                        Some(
-                            div()
-                                .absolute()
-                                .left_0()
-                                .right_0()
-                                .bottom_0()
-                                .h(px(2.0))
-                                .bg(c.table_selection_border),
-                        )
-                    } else {
-                        None
-                    };
 
                     div()
                         .id(ElementId::Name(
@@ -876,86 +689,12 @@ pub(crate) fn render_table(
                                 cx.notify();
                             });
                         })
-                        .on_drag_move::<DraggedTableAxis>(move |drag, _window, cx| {
-                            let kind = drag.drag(cx).kind;
-                            let from = drag.drag(cx).index;
-                            let bounds = drag.bounds;
-                            let pos = drag.event.position;
-                            let _ = cell_drop_drag_block.update(cx, |block, cx| {
-                                match kind {
-                                    TableAxis::Column => {
-                                        let is_left_half =
-                                            pos.x < bounds.origin.x + bounds.size.width / 2.0;
-                                        let slot = if is_left_half { column } else { column + 1 };
-                                        let is_no_op = slot == from || slot == from + 1;
-                                        if is_no_op {
-                                            if let Some(prev) = block.table_axis_preview {
-                                                if prev.kind == TableAxis::Column {
-                                                    cx.emit(BlockEvent::RequestTableAxisPreview {
-                                                        kind: TableAxis::Column,
-                                                        index: prev.index,
-                                                        hovered: false,
-                                                    });
-                                                }
-                                            }
-                                        } else {
-                                            cx.emit(BlockEvent::RequestTableAxisPreview {
-                                                kind: TableAxis::Column,
-                                                index: slot,
-                                                hovered: true,
-                                            });
-                                        }
-                                    }
-                                    TableAxis::Row => {
-                                        let is_top_half =
-                                            pos.y < bounds.origin.y + bounds.size.height / 2.0;
-                                        let slot = if is_top_half { visual_row } else { visual_row + 1 };
-                                        let is_no_op = slot == from || slot == from + 1;
-                                        if is_no_op {
-                                            if let Some(prev) = block.table_axis_preview {
-                                                if prev.kind == TableAxis::Row {
-                                                    cx.emit(BlockEvent::RequestTableAxisPreview {
-                                                        kind: TableAxis::Row,
-                                                        index: prev.index,
-                                                        hovered: false,
-                                                    });
-                                                }
-                                            }
-                                        } else {
-                                            cx.emit(BlockEvent::RequestTableAxisPreview {
-                                                kind: TableAxis::Row,
-                                                index: slot,
-                                                hovered: true,
-                                            });
-                                        }
-                                    }
-                                }
-                            });
-                        })
-                        .on_drop::<DraggedTableAxis>(move |drag, _window, cx| {
-                            if drag.table_block_id == block_entity_id {
-                                let kind = drag.kind;
-                                let from = drag.index;
-                                let _ = cell_drop_block.update(cx, |block, cx| {
-                                    if let Some(prev) = block.table_axis_preview {
-                                        if prev.kind == kind && prev.index != from && prev.index != from + 1 {
-                                            let slot = prev.index;
-                                            let to = if slot < from { slot } else { slot - 1 };
-                                            cx.emit(BlockEvent::RequestReorderTableAxis {
-                                                kind,
-                                                from,
-                                                to,
-                                            });
-                                        }
-                                    }
-                                });
-                            }
-                        })
                         .child(cell)
-                        .children(right_line)
-                        .children(bottom_line)
                 }))
-                .children(row_selection_overlay)
+                .children(row_left_indicator)
+                .children(row_selection_box)
+                .children(row_insert_line_top)
+                .children(row_insert_line_bottom)
         });
 
     let block_id = ElementId::Name(format!("block-{}", block.data.id).into());
@@ -1124,19 +863,38 @@ pub(crate) fn render_table(
                     }),
             );
 
-        let col_selection_overlay = if let Some(selection) = block.table_axis_selection {
-            if selection.kind == TableAxis::Column && selection.index < column_count {
-                let left_frac = (0..selection.index).map(|i| column_layout.fraction(i)).sum::<f32>();
-                let width_frac = column_layout.fraction(selection.index);
+        let table_drag_move_block = weak_table_block.clone();
+        let table_drop_block = weak_table_block.clone();
+
+        let col_cumulative = col_cumulative_fracs.clone();
+
+        let col_selection_overlay = (0..column_count)
+            .find(|&c| resolver.resolve_column(c) >= TableAxisVisualState::Selected)
+            .map(|col| {
+                let left_frac = (0..col).map(|i| column_layout.fraction(i)).sum::<f32>();
+                let width_frac = column_layout.fraction(col);
+                div()
+                    .absolute()
+                    .top(px(-1.0))
+                    .bottom(px(-1.0))
+                    .left(relative(left_frac))
+                    .w(relative(width_frac))
+                    .border(px(2.0))
+                    .border_color(c.table_selection_border)
+            });
+
+        let col_insertion_line = if let Some(prev) = block.table_axis_preview {
+            if prev.kind == TableAxis::Column && prev.index <= column_count {
+                let x_frac = (0..prev.index).map(|i| column_layout.fraction(i)).sum::<f32>();
                 Some(
                     div()
                         .absolute()
-                        .top_0()
-                        .bottom_0()
-                        .left(relative(left_frac))
-                        .w(relative(width_frac))
-                        .border(px(2.0))
-                        .border_color(c.table_selection_border),
+                        .top(px(-1.0))
+                        .bottom(px(-1.0))
+                        .left(relative(x_frac))
+                        .w(px(2.0))
+                        .ml(px(-1.0))
+                        .bg(c.table_selection_border),
                 )
             } else {
                 None
@@ -1146,12 +904,91 @@ pub(crate) fn render_table(
         };
 
         let table_box = div()
+            .id(ElementId::Name(format!("table-box-{}", block.data.id).into()))
             .relative()
             .w_full()
             .flex()
             .flex_col()
             .children(rows)
-            .children(col_selection_overlay);
+            .children(col_selection_overlay)
+            .children(col_insertion_line)
+            .on_drag_move::<DraggedTableAxis>(move |drag, _window, cx| {
+                let kind = drag.drag(cx).kind;
+                let bounds = drag.bounds;
+                let pos = drag.event.position;
+
+                let _ = table_drag_move_block.update(cx, |block, cx| {
+                    match kind {
+                        TableAxis::Column => {
+                            if column_count == 0 {
+                                return;
+                            }
+                            let rel_x = (pos.x - bounds.origin.x).clamp(px(0.0), bounds.size.width);
+                            let x_frac = (f32::from(rel_x) / f32::from(bounds.size.width.max(px(1.0)))).clamp(0.0, 1.0);
+
+                            let mut slot = column_count;
+                            for c in 0..column_count {
+                                let left_f = col_cumulative[c];
+                                let right_f = col_cumulative[c + 1];
+                                let mid_f = (left_f + right_f) / 2.0;
+
+                                if x_frac < right_f || c == column_count - 1 {
+                                    slot = if x_frac < mid_f { c } else { c + 1 };
+                                    break;
+                                }
+                            }
+
+                            if block.table_axis_preview != Some(TableAxisMarker { kind: TableAxis::Column, index: slot }) {
+                                cx.emit(BlockEvent::RequestTableAxisPreview {
+                                    kind: TableAxis::Column,
+                                    index: slot,
+                                    hovered: true,
+                                });
+                            }
+                        }
+                        TableAxis::Row => {
+                            let total_rows = 1 + body_row_count;
+                            if total_rows == 0 {
+                                return;
+                            }
+                            let rel_y = (pos.y - bounds.origin.y).clamp(px(0.0), bounds.size.height);
+                            let y_frac = (f32::from(rel_y) / f32::from(bounds.size.height.max(px(1.0)))).clamp(0.0, 1.0);
+                            let row_f = y_frac * total_rows as f32;
+                            let row_idx = (row_f.floor() as usize).min(total_rows - 1);
+                            let mid_f = row_idx as f32 + 0.5;
+
+                            let slot = if row_f < mid_f { row_idx } else { row_idx + 1 };
+
+                            if block.table_axis_preview != Some(TableAxisMarker { kind: TableAxis::Row, index: slot }) {
+                                cx.emit(BlockEvent::RequestTableAxisPreview {
+                                    kind: TableAxis::Row,
+                                    index: slot,
+                                    hovered: true,
+                                });
+                            }
+                        }
+                    }
+                });
+            })
+            .on_drop::<DraggedTableAxis>(move |drag, _window, cx| {
+                if drag.table_block_id == block_entity_id {
+                    let kind = drag.kind;
+                    let from = drag.index;
+                    let _ = table_drop_block.update(cx, |block, cx| {
+                        if let Some(prev) = block.table_axis_preview {
+                            if prev.kind == kind && prev.index != from && prev.index != from + 1 {
+                                let slot = prev.index;
+                                let to = if slot <= from { slot } else { slot - 1 };
+                                cx.emit(BlockEvent::RequestReorderTableAxis {
+                                    kind,
+                                    from,
+                                    to,
+                                });
+                            }
+                        }
+                    });
+                }
+            });
 
         let table_grid = div()
             .relative()
@@ -1223,7 +1060,6 @@ impl Block {
         self.table_grid = None;
         self.table_axis_preview = None;
         self.table_axis_selection = None;
-        self.table_axis_highlight = crate::model::block::table::TableAxisHighlight::None;
         self.table_interaction.clear();
     }
 

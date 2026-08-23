@@ -40,7 +40,7 @@ impl Editor {
             kind,
             index,
         };
-        self.set_table_axis_preview(Some(selection), cx);
+        self.set_table_axis_preview(None, cx);
         self.set_table_axis_selection(Some(selection), cx);
     }
 
