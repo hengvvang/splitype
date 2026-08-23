@@ -178,6 +178,25 @@ impl Editor {
         }
     }
 
+    pub(crate) fn table_axis_preview_valid(
+        &self,
+        preview: TableAxisSelection,
+        cx: &App,
+    ) -> bool {
+        let Some(table_block) = self.table_block_by_id(preview.table_block_id, cx) else {
+            return false;
+        };
+        let Some(grid) = table_block.read(cx).table_grid.as_ref() else {
+            return false;
+        };
+        match preview.kind {
+            // Insertion boundary can be from 0 up to grid.header.len() (after the last column)
+            TableAxis::Column => preview.index <= grid.header.len(),
+            // Insertion boundary can be from 0 up to grid.rows.len() + 1 (after the last row)
+            TableAxis::Row => preview.index <= grid.rows.len() + 1,
+        }
+    }
+
     pub(crate) fn normalize_table_axis_state(&mut self, cx: &mut Context<Self>) {
         if let Some(selection) = self.tab().tables.axis_selection
             && !self.table_axis_selection_valid(selection, cx)
@@ -185,7 +204,7 @@ impl Editor {
             self.tab_mut().tables.axis_selection = None;
         }
         if let Some(preview) = self.tab().tables.axis_preview
-            && !self.table_axis_selection_valid(preview, cx)
+            && !self.table_axis_preview_valid(preview, cx)
         {
             self.tab_mut().tables.axis_preview = None;
         }
