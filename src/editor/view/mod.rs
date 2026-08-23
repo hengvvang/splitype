@@ -167,6 +167,11 @@ impl Render for Editor {
         } else {
             base
         };
+        let base = if let Some(picker) = self.render_table_size_picker_overlay(&theme, window, cx) {
+            base.child(picker)
+        } else {
+            base
+        };
         // Window-level dialogs (unsaved changes, drop-replace, Help-menu
         // info) render on the Shell at the window root.
         base.into_any_element()

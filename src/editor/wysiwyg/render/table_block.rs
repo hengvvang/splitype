@@ -891,12 +891,11 @@ pub(crate) fn render_table(
                     ),
             );
 
-        let expand_control_visible = column_control_visible || row_control_visible;
-        let expand_button_hovered = column_button_hovered && row_button_hovered;
+        let picker_weak_block = weak_table_block.clone();
 
-        let expand_control = div()
+        let size_picker_control = div()
             .id(ElementId::Name(
-                format!("table-expand-button-{}", block.data.id).into(),
+                format!("table-size-picker-button-{}", block.data.id).into(),
             ))
             .absolute()
             .right(px(-18.0))
@@ -906,28 +905,21 @@ pub(crate) fn render_table(
             .flex()
             .items_center()
             .justify_center()
-            .border_r(px(1.0))
-            .border_b(px(1.0))
-            .border_color(c.table_border)
-            .bg(gpui::transparent_black())
             .cursor_pointer()
-            .opacity(if expand_control_visible {
-                1.0
-            } else {
-                0.0
-            })
             .block_mouse_except_scroll()
-            .on_hover(cx.listener(Block::on_table_append_expand_hover))
-            .on_click(cx.listener(Block::on_expand_table))
+            .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
+                cx.stop_propagation();
+                let _ = picker_weak_block.update(cx, |_block, cx| {
+                    cx.emit(BlockEvent::RequestOpenTableSizePicker {
+                        position: event.position,
+                    });
+                });
+            })
             .child(
-                svg()
-                    .path("icons/editor/wysiwyg/table/plus.svg")
-                    .size(px(12.0))
-                    .text_color(if expand_button_hovered {
-                        c.text_default
-                    } else {
-                        c.table_border
-                    }),
+                div()
+                    .size(px(6.0))
+                    .rounded_full()
+                    .bg(c.table_selection_border),
             );
 
         let table_drag_move_block = weak_table_block.clone();
@@ -988,7 +980,7 @@ pub(crate) fn render_table(
             .children(row_edge_band)
             .child(column_control)
             .child(row_control)
-            .child(expand_control)
+            .child(size_picker_control)
             .on_drag_move::<DraggedTableAxis>(move |drag, _window, cx| {
                 let kind = drag.drag(cx).kind;
                 let bounds = drag.bounds;

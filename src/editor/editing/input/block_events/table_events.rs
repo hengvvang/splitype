@@ -34,14 +34,6 @@ impl Editor {
                 self.append_table_row(block, cx);
                 self.finalize_pending_undo_capture(cx);
             }
-            BlockEvent::RequestExpandTable => {
-                self.prepare_undo_capture(
-                    crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
-                    cx,
-                );
-                self.expand_table_block(block, cx);
-                self.finalize_pending_undo_capture(cx);
-            }
             BlockEvent::RequestTableAxisPreview {
                 kind,
                 index,
@@ -58,6 +50,9 @@ impl Editor {
                 position,
             } => {
                 self.open_table_axis_menu(block.entity_id(), *kind, *index, *position, cx);
+            }
+            BlockEvent::RequestOpenTableSizePicker { position } => {
+                self.open_table_size_picker(block.entity_id(), *position, cx);
             }
             BlockEvent::RequestReorderTableAxis { kind, from, to } => {
                 self.reorder_table_axis(block, *kind, *from, *to, cx);

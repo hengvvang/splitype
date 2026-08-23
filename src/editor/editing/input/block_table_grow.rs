@@ -152,16 +152,6 @@ impl Block {
         self.set_table_row_hover_region(TableHoverRegion::Edge, *hovered, cx);
     }
 
-    pub(crate) fn on_table_append_expand_hover(
-        &mut self,
-        hovered: &bool,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.set_table_column_hover_region(TableHoverRegion::AppendButton, *hovered, cx);
-        self.set_table_row_hover_region(TableHoverRegion::AppendButton, *hovered, cx);
-    }
-
     pub(crate) fn on_append_table_column(
         &mut self,
         _: &ClickEvent,
@@ -181,17 +171,6 @@ impl Block {
     ) {
         if self.kind() == BlockKind::Table {
             cx.emit(BlockEvent::RequestAppendTableRow);
-        }
-    }
-
-    pub(crate) fn on_expand_table(
-        &mut self,
-        _: &ClickEvent,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        if self.kind() == BlockKind::Table {
-            cx.emit(BlockEvent::RequestExpandTable);
         }
     }
 }
@@ -264,20 +243,6 @@ mod tests {
             assert!(!block.table_interaction.column_append.is_active);
             assert!(block.table_interaction.column_append.dismiss_task.is_none());
             assert!(block.table_interaction.row_append.dismiss_task.is_none());
-        });
-    }
-
-    #[gpui::test]
-    async fn expand_button_hover_activates_both_controls(cx: &mut TestAppContext) {
-        let block = cx.new(|cx| Block::with_data(cx, BlockData::paragraph(String::new())));
-
-        block.update(cx, |block, cx| {
-            block.set_table_column_hover_region(TableHoverRegion::AppendButton, true, cx);
-            block.set_table_row_hover_region(TableHoverRegion::AppendButton, true, cx);
-            assert!(block.table_interaction.column_append.is_active);
-            assert!(block.table_interaction.row_append.is_active);
-            assert!(block.table_interaction.column_append.button_hovered);
-            assert!(block.table_interaction.row_append.button_hovered);
         });
     }
 }

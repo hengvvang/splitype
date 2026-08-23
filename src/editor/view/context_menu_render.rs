@@ -458,4 +458,200 @@ impl Editor {
             }
         }
     }
+
+    /// Renders the interactive Table Size Matrix Picker popup.
+    pub(crate) fn render_table_size_picker_overlay(
+        &self,
+        theme: &Theme,
+        window: &Window,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
+        let picker = self.table_size_picker.as_ref()?;
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+
+        let table_block_id = picker.table_block_id;
+        let origin = self.panel_rect.map(|rect| rect.origin).unwrap_or_default();
+        let pos_x = picker.position.x - origin.x;
+        let pos_y = picker.position.y - origin.y;
+
+        let panel_width = 162.0_f32;
+        let panel_height = 240.0_f32;
+
+        let viewport = window.viewport_size();
+        let max_x = f32::from(viewport.width) - panel_width - 16.0;
+        let max_y = f32::from(viewport.height) - panel_height - 16.0;
+
+        let panel_x = px(f32::from(pos_x - px(panel_width)).clamp(8.0, max_x.max(8.0)));
+        let panel_y = px(f32::from(pos_y + px(10.0)).clamp(8.0, max_y.max(8.0)));
+
+        let max_matrix_rows = 8usize;
+        let max_matrix_cols = 6usize;
+
+        let current_rows = picker.current_rows;
+        let current_cols = picker.current_cols;
+
+        let display_rows = picker
+            .hovered_rows
+            .unwrap_or(picker.current_rows)
+            .clamp(1, max_matrix_rows);
+        let display_cols = picker
+            .hovered_cols
+            .unwrap_or(picker.current_cols)
+            .clamp(1, max_matrix_cols);
+
+        let is_dark = c.dialog_surface.l < 0.5;
+        let (inactive_bg, current_only_bg, hover_only_bg, overlap_bg) = if is_dark {
+            (
+                Hsla::from(rgba(0x27272aff)), // Inactive block base (dark zinc)
+                Hsla::from(rgba(0x3f3f46ff)), // Current layout only: 浅灰
+                Hsla::from(rgba(0x71717aff)), // Hovered selection only: 中度灰色
+                Hsla::from(rgba(0xa1a1aaff)), // Both current & hovered: 深灰
+            )
+        } else {
+            (
+                Hsla::from(rgba(0xf3f4f6ff)), // Inactive block base (very light gray)
+                Hsla::from(rgba(0xd1d5dbff)), // Current layout only: 浅灰
+                Hsla::from(rgba(0x9ca3afff)), // Hovered selection only: 中度灰色
+                Hsla::from(rgba(0x4b5563ff)), // Both current & hovered: 深灰
+            )
+        };
+
+        let top_indicator = div()
+            .w_full()
+            .flex()
+            .items_center()
+            .justify_center()
+            .gap(px(6.0))
+            .pb(px(8.0))
+            .border_b(px(1.0))
+            .border_color(c.dialog_border)
+            .child(
+                div()
+                    .px(px(10.0))
+                    .py(px(2.0))
+                    .border(px(1.0))
+                    .border_color(c.dialog_border)
+                    .rounded(px(3.0))
+                    .text_size(px(12.0))
+                    .font_weight(FontWeight::MEDIUM)
+                    .text_color(c.text_default)
+                    .child(format!("{}", display_rows)),
+            )
+            .child(
+                div()
+                    .text_size(px(12.0))
+                    .text_color(c.dialog_muted)
+                    .child("x"),
+            )
+            .child(
+                div()
+                    .px(px(10.0))
+                    .py(px(2.0))
+                    .border(px(1.0))
+                    .border_color(c.dialog_border)
+                    .rounded(px(3.0))
+                    .text_size(px(12.0))
+                    .font_weight(FontWeight::MEDIUM)
+                    .text_color(c.text_default)
+                    .child(format!("{}", display_cols)),
+            );
+
+        let mut grid_rows = Vec::with_capacity(max_matrix_rows);
+        for r in 0..max_matrix_rows {
+            let row_num = r + 1;
+            let mut row_cells = Vec::with_capacity(max_matrix_cols);
+            for col in 0..max_matrix_cols {
+                let col_num = col + 1;
+                let is_in_current = r < current_rows && col < current_cols;
+                let is_in_hovered = if let (Some(h_r), Some(h_c)) = (picker.hovered_rows, picker.hovered_cols) {
+                    r < h_r && col < h_c
+                } else {
+                    false
+                };
+
+                let cell_bg = match (is_in_current, is_in_hovered) {
+                    (true, true) => overlap_bg,
+                    (false, true) => hover_only_bg,
+                    (true, false) => current_only_bg,
+                    (false, false) => inactive_bg,
+                };
+
+                let cell = div()
+                    .id(ElementId::Name(format!("table-size-cell-{}-{}", r, col).into()))
+                    .size(px(20.0))
+                    .rounded(px(3.0))
+                    .bg(cell_bg)
+                    .cursor_pointer()
+                    .on_hover(cx.listener(move |editor, hovered: &bool, _window, cx| {
+                        if *hovered {
+                            editor.set_table_size_picker_hover(Some(row_num), Some(col_num), cx);
+                        }
+                    }))
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(move |editor, _event, _window, cx| {
+                            editor.resize_table(table_block_id, row_num, col_num, cx);
+                        }),
+                    );
+                row_cells.push(cell);
+            }
+            grid_rows.push(
+                div()
+                    .flex()
+                    .gap(px(3.0))
+                    .children(row_cells),
+            );
+        }
+
+        let matrix_grid = div()
+            .id("table-size-matrix-grid")
+            .flex()
+            .flex_col()
+            .gap(px(3.0))
+            .pt(px(6.0))
+            .on_hover(cx.listener(|editor, hovered: &bool, _window, cx| {
+                if !*hovered {
+                    editor.set_table_size_picker_hover(None, None, cx);
+                }
+            }))
+            .children(grid_rows);
+
+        Some(
+            deferred(
+                overlay()
+                    .id("table-size-picker-overlay")
+                    .occlude()
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(|editor, _event, _window, cx| {
+                            editor.close_table_size_picker(cx);
+                        }),
+                    )
+                    .child(
+                        div()
+                            .id("table-size-picker-panel")
+                            .absolute()
+                            .left(panel_x)
+                            .top(panel_y)
+                            .p(px(12.0))
+                            .flex()
+                            .flex_col()
+                            .gap(px(4.0))
+                            .bg(c.dialog_surface)
+                            .border(px(d.dialog_border_width))
+                            .border_color(c.dialog_border)
+                            .rounded(px(d.menu_panel_radius))
+                            .shadow_lg()
+                            .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
+                                cx.stop_propagation();
+                            })
+                            .child(top_indicator)
+                            .child(matrix_grid),
+                    )
+                    .into_any_element(),
+            )
+            .into_any_element(),
+        )
+    }
 }

@@ -292,30 +292,4 @@ impl Editor {
         cx.notify();
     }
 
-    pub(crate) fn expand_table_block(
-        &mut self,
-        table_block: &Entity<Block>,
-        cx: &mut Context<Self>,
-    ) {
-        self.sync_table_data_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).data.table.clone() else {
-            return;
-        };
-        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
-            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
-            true
-        } else {
-            false
-        };
-        table.expand_table();
-        table_block.update(cx, move |block, _cx| {
-            block.data.table = Some(table.clone());
-        });
-        self.rebuild_table_grids(cx);
-        self.mark_dirty(cx);
-        if started_local_capture {
-            self.finalize_pending_undo_capture(cx);
-        }
-        cx.notify();
-    }
 }

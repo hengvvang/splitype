@@ -124,8 +124,6 @@ pub enum BlockEvent {
     RequestAppendTableColumn,
     /// Append one empty body row to a native table.
     RequestAppendTableRow,
-    /// Expand table by appending 1 row and 1 column simultaneously.
-    RequestExpandTable,
     /// A native table axis handle was entered or left by the pointer.
     /// `hovered` distinguishes the two so the editor can ignore a leave
     /// that arrives after an adjacent handle has already taken the preview.
@@ -140,6 +138,10 @@ pub enum BlockEvent {
     RequestOpenTableAxisMenu {
         kind: TableAxis,
         index: usize,
+        position: Point<Pixels>,
+    },
+    /// Open the table size matrix picker from the bottom-right corner control.
+    RequestOpenTableSizePicker {
         position: Point<Pixels>,
     },
     /// Reorder a native table row or column by swapping positions.
@@ -212,10 +214,10 @@ impl BlockEvent {
             | Self::RequestTableCellMoveVertical { .. }
             | Self::RequestAppendTableColumn
             | Self::RequestAppendTableRow
-            | Self::RequestExpandTable
             | Self::RequestTableAxisPreview { .. }
             | Self::RequestSelectTableAxis { .. }
             | Self::RequestOpenTableAxisMenu { .. }
+            | Self::RequestOpenTableSizePicker { .. }
             | Self::RequestReorderTableAxis { .. }
             | Self::RequestInsertTableAxisAt { .. } => BlockEventCategory::Table,
             Self::RequestFocusPrevious { .. }
@@ -241,7 +243,6 @@ impl BlockEvent {
                 self,
                 Self::RequestAppendTableColumn
                     | Self::RequestAppendTableRow
-                    | Self::RequestExpandTable
                     | Self::RequestReorderTableAxis { .. }
                     | Self::RequestInsertTableAxisAt { .. }
             ),
@@ -314,7 +315,7 @@ mod tests {
         assert!(!BlockEvent::RequestFocus.clears_cross_block_selection());
         assert!(!BlockEvent::RequestFocus.is_structural());
 
-        assert!(BlockEvent::RequestExpandTable.clears_cross_block_selection());
+        assert!(BlockEvent::RequestAppendTableColumn.clears_cross_block_selection());
         assert!(
             !BlockEvent::RequestTableCellMoveHorizontal { delta: 1 }.clears_cross_block_selection()
         );

@@ -238,4 +238,80 @@ impl Editor {
             });
         }
     }
+
+    pub(crate) fn open_table_size_picker(
+        &mut self,
+        table_block_id: EntityId,
+        position: Point<Pixels>,
+        cx: &mut Context<Self>,
+    ) {
+        let Some(table_block) = self.table_block_by_id(table_block_id, cx) else {
+            return;
+        };
+        let (current_rows, current_cols) = if let Some(table) = table_block.read(cx).data.table.as_ref() {
+            (table.rows.len() + 1, table.column_count())
+        } else if let Some(grid) = table_block.read(cx).table_grid.as_ref() {
+            (grid.rows.len() + 1, grid.header.len())
+        } else {
+            (2, 2)
+        };
+
+        self.table_size_picker = Some(crate::editor::controller::TableSizePickerState {
+            table_block_id,
+            position,
+            current_rows,
+            current_cols,
+            hovered_rows: None,
+            hovered_cols: None,
+        });
+        cx.notify();
+    }
+
+    pub(crate) fn close_table_size_picker(&mut self, cx: &mut Context<Self>) {
+        if self.table_size_picker.take().is_some() {
+            cx.notify();
+        }
+    }
+
+    pub(crate) fn set_table_size_picker_hover(
+        &mut self,
+        rows: Option<usize>,
+        cols: Option<usize>,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(picker) = self.table_size_picker.as_mut() {
+            picker.hovered_rows = rows;
+            picker.hovered_cols = cols;
+            cx.notify();
+        }
+    }
+
+    pub(crate) fn resize_table(
+        &mut self,
+        table_block_id: EntityId,
+        target_rows: usize,
+        target_cols: usize,
+        cx: &mut Context<Self>,
+    ) {
+        self.close_table_size_picker(cx);
+        let Some(table_block) = self.table_block_by_id(table_block_id, cx) else {
+            return;
+        };
+        self.sync_table_data_from_grid(&table_block, cx);
+        let Some(mut table) = table_block.read(cx).data.table.clone() else {
+            return;
+        };
+        self.prepare_undo_capture(
+            crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
+            cx,
+        );
+        table.resize_shape(target_rows, target_cols);
+        table_block.update(cx, move |block, _cx| {
+            block.data.table = Some(table.clone());
+        });
+        self.rebuild_table_grids(cx);
+        self.finalize_pending_undo_capture(cx);
+        self.mark_dirty(cx);
+        cx.notify();
+    }
 }

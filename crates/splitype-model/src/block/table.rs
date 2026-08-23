@@ -292,10 +292,47 @@ impl TableData {
         }
     }
 
-    /// Expands the table by adding 1 row and 1 column simultaneously (Anytype onPlus).
-    pub fn expand_table(&mut self) {
-        self.append_column(TableColumnAlignment::Default);
-        self.append_row();
+    /// Resizes the table to have exactly `target_rows` total rows (1 header + body rows) and `target_cols` columns.
+    /// Preserves existing cell contents, expanding with empty cells or truncating as needed.
+    pub fn resize_shape(&mut self, target_rows: usize, target_cols: usize) {
+        self.normalize_shape();
+        let target_rows = target_rows.max(1);
+        let target_cols = target_cols.max(1);
+
+        // Adjust column count
+        if target_cols > self.header.len() {
+            while self.header.len() < target_cols {
+                self.header.push(BlockText::plain(String::new()));
+            }
+            while self.alignments.len() < target_cols {
+                self.alignments.push(TableColumnAlignment::Default);
+            }
+            for row in &mut self.rows {
+                while row.len() < target_cols {
+                    row.push(BlockText::plain(String::new()));
+                }
+            }
+        } else if target_cols < self.header.len() {
+            self.header.truncate(target_cols);
+            self.alignments.truncate(target_cols);
+            for row in &mut self.rows {
+                row.truncate(target_cols);
+            }
+        }
+
+        // Adjust row count (target_rows includes 1 header row + (target_rows - 1) body rows)
+        let target_body_rows = target_rows - 1;
+        if target_body_rows > self.rows.len() {
+            while self.rows.len() < target_body_rows {
+                self.rows.push(
+                    (0..target_cols)
+                        .map(|_| BlockText::plain(String::new()))
+                        .collect(),
+                );
+            }
+        } else if target_body_rows < self.rows.len() {
+            self.rows.truncate(target_body_rows);
+        }
     }
 
     /// Serializes this table to Markdown lines joined by newline.
@@ -1013,7 +1050,7 @@ mod tests {
                 vec![BlockText::plain("R2".to_string())],
                 vec![BlockText::plain("R3".to_string())],
             ],
-            alignments: vec![TableColumnAlignment::None],
+            alignments: vec![TableColumnAlignment::Default],
         };
         // Move header (0) to after R2 (2) -> [R1, R2, H, R3]
         table.move_visual_row(0, 2);
@@ -1126,6 +1163,26 @@ mod tests {
         assert_eq!(reparsed.header.len(), 2);
         assert_eq!(reparsed.rows.len(), 1);
         assert_eq!(reparsed.rows[0].len(), 2);
+    }
+
+    #[test]
+    fn table_resize_shape_expands_and_shrinks() {
+        let mut table = TableData::new_empty(2, 2); // 1 header + 2 body rows = 3 rows, 2 columns
+        assert_eq!(table.rows.len() + 1, 3);
+        assert_eq!(table.column_count(), 2);
+
+        // Expand to 4 rows, 5 columns
+        table.resize_shape(4, 5);
+        assert_eq!(table.rows.len() + 1, 4);
+        assert_eq!(table.column_count(), 5);
+        assert_eq!(table.header.len(), 5);
+        assert_eq!(table.rows[0].len(), 5);
+
+        // Shrink to 2 rows, 3 columns
+        table.resize_shape(2, 3);
+        assert_eq!(table.rows.len() + 1, 2);
+        assert_eq!(table.column_count(), 3);
+        assert_eq!(table.header.len(), 3);
     }
 }
 

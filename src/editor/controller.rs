@@ -285,6 +285,8 @@ pub struct Editor {
     pub(crate) footnote_tooltip: Option<FootnoteTooltipState>,
     /// Table insertion dialog opened from the context menu.
     pub(crate) table_insert_dialog: Option<TableInsertDialogState>,
+    /// Table size matrix picker opened from the bottom-right corner dot.
+    pub(crate) table_size_picker: Option<TableSizePickerState>,
     /// Timestamp of the last welcome-prompt click, used to detect a
     /// double-click across repaints. GPUI rebuilds elements (and their
     /// closures) every frame, so the timestamp must live in editor state
@@ -311,6 +313,17 @@ pub(crate) struct TableAxisSelection {
     pub(crate) table_block_id: EntityId,
     pub(crate) kind: TableAxis,
     pub(crate) index: usize,
+}
+
+/// State for the interactive Table Size Matrix Picker popup.
+#[derive(Clone, Debug)]
+pub(crate) struct TableSizePickerState {
+    pub(crate) table_block_id: EntityId,
+    pub(crate) position: Point<Pixels>,
+    pub(crate) current_rows: usize,
+    pub(crate) current_cols: usize,
+    pub(crate) hovered_rows: Option<usize>,
+    pub(crate) hovered_cols: Option<usize>,
 }
 
 /// Pixel geometry for the custom editor scrollbar.
@@ -503,6 +516,7 @@ impl Editor {
             context_menu_submenu_close_task: None,
             footnote_tooltip: None,
             table_insert_dialog: None,
+            table_size_picker: None,
             welcome_last_click: None,
             focused_pane_id: None,
         }
@@ -532,6 +546,7 @@ impl Editor {
             context_menu_submenu_close_task: None,
             footnote_tooltip: None,
             table_insert_dialog: None,
+            table_size_picker: None,
             welcome_last_click: None,
             focused_pane_id: None,
         };
