@@ -676,7 +676,3 @@ pub(crate) fn append_separator_children(children: &mut Vec<BlockData>, count: us
         children.push(BlockData::paragraph(""));
     }
 }
-
-// ---------------------------------------------------------------------------
-// Collectors - return (block(s), next_index)
-// ---------------------------------------------------------------------------

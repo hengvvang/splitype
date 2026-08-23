@@ -69,7 +69,3 @@ pub(crate) fn collect_paragraph_block(lines: &[String], start: usize) -> (BlockD
         index,
     )
 }
-
-// ---------------------------------------------------------------------------
-// Compound block builders - return Vec<BlockData> with parent-child ids set up
-// ---------------------------------------------------------------------------

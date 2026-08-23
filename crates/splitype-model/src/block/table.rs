@@ -170,7 +170,7 @@ impl TableData {
         }
         let mut all_rows = Vec::with_capacity(total);
         all_rows.push(std::mem::take(&mut self.header));
-        all_rows.extend(self.rows.drain(..));
+        all_rows.append(&mut self.rows);
         let row = all_rows.remove(from);
         all_rows.insert(to, row);
         self.header = all_rows.remove(0);
