@@ -29,15 +29,15 @@
 
 |       SPLIT                     |
 | -------------------------------- |
-| ![预览](./assets/showcase/split.png) | 
+| ![预览](../assets/showcase/split.png) | 
 
 
 ### 多模态编辑
 > Splitype 分屏预览编辑和实时编辑两种工作流
 
-| 源码编辑                         | 所见即所得编辑                   |              预览                  |
-| -------------------------------- | --------------------------------- | -------------------------------- |
-| ![预览](./assets/showcase/source_code.png) | ![预览](./assets/showcase/wysiwyg.png) | ![预览](./assets/showcase/preview.png) |
+| 分屏编辑                         | 所见即所得编辑                   |
+| -------------------------------- | -------------------------------- |
+| ![预览](../assets/showcase/workflow_source-preview.png) | ![预览](../assets/showcase/workflow_wysiwyg.png) |
 
 
 

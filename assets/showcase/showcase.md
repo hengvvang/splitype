@@ -6,92 +6,67 @@
 
 > **Note that the syntax supported in the plan, as well as some less common syntax, is not yet supported for rendering and will be displayed in plain text style:**
 
-| Paragraphs, line breaks, blank lines |
-| ------------------------------------ |
-|![1](1.png)                           |
 
 | Headings |
 | -------- |
-|![2](2.png)                           |
+|![Headings](headings.png)                           |
 
 | Emphasis, strong, nested emphasis, and edge cases |
 | ------------------------------------------------- |
-|![3](3.png)                                        |
+|![Emphasis](emphasis.png)                                        |
 
 | Inline code and code span |
 | ------------------------- |
-|![4](4.png)                |
+|![Inline](inline.png)                |
 
-| Links, images, autolinks, reference links |
+<!--| Links, images, autolinks, reference links |
 | ----------------------------------------- |
-|![5](5.png)                                |
+|![Image](image.png)                                |-->
 
 | Lists |
 | ----- |
-|![6](6.png)    |
-|![61](6_1.png) |
+|![List](list.png)    |
 
 | Blockquotes |
 | ----------- |
-|![7](7.png)  |
+|![Quote](quote.png)  |
 
 | Code blocks |
 | ----------- |
-|![8](8.png)    |
-|![81](8_1.png) |
-|![82](8_2.png) |
+|![code_blocks](code_blocks.png)    |
 
-| Horizontal rules |
-| ---------------- |
-|![9](9.png)       |
-
-| HTML blocks |
-| ----------- |
-|![10](10.png) |
-
-| Escapes and entities |
-| -------------------- |
-|![11](11.png)         |
 
 | Table block |
 | ----------- |
-|![12](12.png) |
+|![Table](table.png) |
 
 | Task lists |
 | ---------- |
-|![13](13.png) |
+|![Task](task.png) |
 
 | Footnotes |
 | --------- |
-|![14](14.png) |
+|![Footnote](footnote.png) |
 
 | Strikethrough |
 | ------------- |
-|![15](15.png)  |
+|![Strikethrough ](strikethrough.png)  |
 
-| Definition list style |
-| --------------------- |
-|![16](16.png)          |
 
 | Superscript and subscript style |
 | ------------------------------- |
-|![17](17.png)                    |
+|![Superscript and subscript](superscript_subscript.png)                    |
 
-| Emoji and mention style |
+<!--| Emoji and mention style |
 | ----------------------- |
 |![18](18.png)            |
 
-> Tip: The Emoji index has not been created, but directly entering Emoji characters is supported for rendering.
+> Tip: The Emoji index has not been created, but directly entering Emoji characters is supported for rendering.-->
 
 | Math style (LaTeX) |
 | ------------------ |
-|![19](19.png)       |
+|![Latex](latex.png)       |
 
 | Callout style |
 | ------------- |
-|![20](20.png)  |
-
-| Mixed tests |
-| ----------- |
-|![21](21.png)    |
-|![211](21_1.png) |
+|![Callout](callout.png)  |

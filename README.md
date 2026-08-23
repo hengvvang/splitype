@@ -35,9 +35,9 @@
 ### Multi-modal editing
 > Splitype offers two workflows: split-preview editing and live WYSIWYG editing.
 
-| Source editing                 | WYSIWYG editing                |              Preview           |
-| -------------------------------- | --------------------------------- | -------------------------------- |
-| ![Preview](./assets/showcase/source_code.png) | ![Preview](./assets/showcase/wysiwyg.png) | ![Preview](./assets/showcase/preview.png) |
+| Source editing                   | WYSIWYG editing                   |
+| -------------------------------- | --------------------------------- |
+| ![Preview](./assets/showcase/workflow_source-preview.png) | ![Preview](./assets/showcase/workflow_wysiwyg.png) |
 
 
 
