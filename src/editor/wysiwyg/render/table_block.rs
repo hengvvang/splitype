@@ -111,6 +111,80 @@ impl TableHighlightResolver {
     }
 }
 
+/// Layout parameters and column/row geometry for a table block.
+#[derive(Clone, Debug)]
+pub(crate) struct TableLayoutParameters {
+    pub(crate) column_count: usize,
+    pub(crate) total_rows: usize,
+    pub(crate) column_fractions: Vec<f32>,
+    pub(crate) column_cumulative_fractions: Vec<f32>,
+}
+
+impl TableLayoutParameters {
+    pub(crate) fn new(column_layout: &TableColumnLayout, total_rows: usize) -> Self {
+        let column_count = column_layout.column_count();
+        let column_fractions: Vec<f32> = (0..column_count)
+            .map(|i| column_layout.fraction(i))
+            .collect();
+        let mut column_cumulative_fractions = Vec::with_capacity(column_count + 1);
+        column_cumulative_fractions.push(0.0);
+        for &f in &column_fractions {
+            column_cumulative_fractions.push(column_cumulative_fractions.last().copied().unwrap_or(0.0) + f);
+        }
+
+        Self {
+            column_count,
+            total_rows,
+            column_fractions,
+            column_cumulative_fractions,
+        }
+    }
+
+    /// Resolve column insertion slot from local X fraction [0.0, 1.0].
+    /// Evaluates if the cursor is past the column midpoint to select between left and right boundary.
+    pub(crate) fn resolve_column_slot(&self, x_frac: f32) -> usize {
+        if self.column_count == 0 {
+            return 0;
+        }
+        let x = x_frac.clamp(0.0, 1.0);
+        for c in 0..self.column_count {
+            let left = self.column_cumulative_fractions[c];
+            let right = self.column_cumulative_fractions[c + 1];
+            let mid = (left + right) / 2.0;
+
+            if x < right || c == self.column_count - 1 {
+                return if x < mid { c } else { c + 1 };
+            }
+        }
+        self.column_count
+    }
+
+    /// Resolve row insertion slot from local Y fraction [0.0, 1.0].
+    /// Evaluates if the cursor is past the row midpoint to select between top and bottom boundary.
+    pub(crate) fn resolve_row_slot(&self, y_frac: f32) -> usize {
+        if self.total_rows == 0 {
+            return 0;
+        }
+        let y = y_frac.clamp(0.0, 1.0);
+        let row_f = y * self.total_rows as f32;
+        let row_idx = (row_f.floor() as usize).min(self.total_rows - 1);
+        let mid = row_idx as f32 + 0.5;
+
+        if row_f < mid { row_idx } else { row_idx + 1 }
+    }
+
+    /// Map insertion slot to reorder target index `to`.
+    pub(crate) fn slot_to_target_index(from: usize, slot: usize) -> Option<usize> {
+        if slot == from || slot == from + 1 {
+            None
+        } else if slot <= from {
+            Some(slot)
+        } else {
+            Some(slot - 1)
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct DraggedTableAxis {
     pub(crate) table_block_id: EntityId,
@@ -204,14 +278,7 @@ pub(crate) fn render_table(
     let block_entity_id = cx.entity().entity_id();
     let weak_table_block = cx.entity().downgrade();
 
-    let col_fractions: Vec<f32> = (0..column_count)
-        .map(|i| column_layout.fraction(i))
-        .collect();
-    let mut col_cumulative_fracs: Vec<f32> = Vec::with_capacity(column_count + 1);
-    col_cumulative_fracs.push(0.0);
-    for f in &col_fractions {
-        col_cumulative_fracs.push(col_cumulative_fracs.last().copied().unwrap_or(0.0) + f);
-    }
+    let layout_params = TableLayoutParameters::new(&column_layout, 1 + body_row_count);
 
     let active_cell = {
         let mut active = None;
@@ -866,13 +933,11 @@ pub(crate) fn render_table(
         let table_drag_move_block = weak_table_block.clone();
         let table_drop_block = weak_table_block.clone();
 
-        let col_cumulative = col_cumulative_fracs.clone();
-
         let col_selection_overlay = (0..column_count)
             .find(|&c| resolver.resolve_column(c) >= TableAxisVisualState::Selected)
             .map(|col| {
-                let left_frac = (0..col).map(|i| column_layout.fraction(i)).sum::<f32>();
-                let width_frac = column_layout.fraction(col);
+                let left_frac = layout_params.column_cumulative_fractions[col];
+                let width_frac = layout_params.column_fractions[col];
                 div()
                     .absolute()
                     .top(px(-1.0))
@@ -885,7 +950,7 @@ pub(crate) fn render_table(
 
         let col_insertion_line = if let Some(prev) = block.table_axis_preview {
             if prev.kind == TableAxis::Column && prev.index <= column_count {
-                let x_frac = (0..prev.index).map(|i| column_layout.fraction(i)).sum::<f32>();
+                let x_frac = layout_params.column_cumulative_fractions[prev.index];
                 Some(
                     div()
                         .absolute()
@@ -911,7 +976,19 @@ pub(crate) fn render_table(
             .flex_col()
             .children(rows)
             .children(col_selection_overlay)
-            .children(col_insertion_line)
+            .children(col_insertion_line);
+
+        let drag_params = layout_params.clone();
+
+        let table_grid = div()
+            .relative()
+            .w_full()
+            .child(table_box)
+            .children(column_edge_band)
+            .children(row_edge_band)
+            .child(column_control)
+            .child(row_control)
+            .child(expand_control)
             .on_drag_move::<DraggedTableAxis>(move |drag, _window, cx| {
                 let kind = drag.drag(cx).kind;
                 let bounds = drag.bounds;
@@ -920,23 +997,9 @@ pub(crate) fn render_table(
                 let _ = table_drag_move_block.update(cx, |block, cx| {
                     match kind {
                         TableAxis::Column => {
-                            if column_count == 0 {
-                                return;
-                            }
                             let rel_x = (pos.x - bounds.origin.x).clamp(px(0.0), bounds.size.width);
-                            let x_frac = (f32::from(rel_x) / f32::from(bounds.size.width.max(px(1.0)))).clamp(0.0, 1.0);
-
-                            let mut slot = column_count;
-                            for c in 0..column_count {
-                                let left_f = col_cumulative[c];
-                                let right_f = col_cumulative[c + 1];
-                                let mid_f = (left_f + right_f) / 2.0;
-
-                                if x_frac < right_f || c == column_count - 1 {
-                                    slot = if x_frac < mid_f { c } else { c + 1 };
-                                    break;
-                                }
-                            }
+                            let x_frac = f32::from(rel_x) / f32::from(bounds.size.width.max(px(1.0)));
+                            let slot = drag_params.resolve_column_slot(x_frac);
 
                             if block.table_axis_preview != Some(TableAxisMarker { kind: TableAxis::Column, index: slot }) {
                                 cx.emit(BlockEvent::RequestTableAxisPreview {
@@ -947,17 +1010,9 @@ pub(crate) fn render_table(
                             }
                         }
                         TableAxis::Row => {
-                            let total_rows = 1 + body_row_count;
-                            if total_rows == 0 {
-                                return;
-                            }
                             let rel_y = (pos.y - bounds.origin.y).clamp(px(0.0), bounds.size.height);
-                            let y_frac = (f32::from(rel_y) / f32::from(bounds.size.height.max(px(1.0)))).clamp(0.0, 1.0);
-                            let row_f = y_frac * total_rows as f32;
-                            let row_idx = (row_f.floor() as usize).min(total_rows - 1);
-                            let mid_f = row_idx as f32 + 0.5;
-
-                            let slot = if row_f < mid_f { row_idx } else { row_idx + 1 };
+                            let y_frac = f32::from(rel_y) / f32::from(bounds.size.height.max(px(1.0)));
+                            let slot = drag_params.resolve_row_slot(y_frac);
 
                             if block.table_axis_preview != Some(TableAxisMarker { kind: TableAxis::Row, index: slot }) {
                                 cx.emit(BlockEvent::RequestTableAxisPreview {
@@ -976,29 +1031,19 @@ pub(crate) fn render_table(
                     let from = drag.index;
                     let _ = table_drop_block.update(cx, |block, cx| {
                         if let Some(prev) = block.table_axis_preview {
-                            if prev.kind == kind && prev.index != from && prev.index != from + 1 {
-                                let slot = prev.index;
-                                let to = if slot <= from { slot } else { slot - 1 };
-                                cx.emit(BlockEvent::RequestReorderTableAxis {
-                                    kind,
-                                    from,
-                                    to,
-                                });
+                            if prev.kind == kind {
+                                if let Some(to) = TableLayoutParameters::slot_to_target_index(from, prev.index) {
+                                    cx.emit(BlockEvent::RequestReorderTableAxis {
+                                        kind,
+                                        from,
+                                        to,
+                                    });
+                                }
                             }
                         }
                     });
                 }
             });
-
-        let table_grid = div()
-            .relative()
-            .w_full()
-            .child(table_box)
-            .children(column_edge_band)
-            .children(row_edge_band)
-            .child(column_control)
-            .child(row_control)
-            .child(expand_control);
 
         div()
             .id(block_id)

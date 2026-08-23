@@ -317,6 +317,10 @@ impl TableColumnLayout {
         }
     }
 
+    pub fn column_count(&self) -> usize {
+        self.fractions.len()
+    }
+
     #[cfg(test)]
     pub(crate) fn fractions(&self) -> &[f32] {
         &self.fractions
