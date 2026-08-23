@@ -191,9 +191,6 @@ impl Render for Block {
         let focused = self.focus_handle.is_focused(window);
         let code_language_focused = self.code_language_focus_handle.is_focused(window);
         let input_active = focused || code_language_focused;
-        if self.sync_image_focus_state(focused) {
-            cx.notify();
-        }
 
         let showing_rendered_image = self.is_showing_rendered_image() && !focused;
         // Inline math and images stay in the projected view while focused (their

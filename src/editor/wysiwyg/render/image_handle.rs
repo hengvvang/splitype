@@ -82,10 +82,6 @@ impl Block {
             .then_some(serialized)
     }
 
-    pub(crate) fn sync_image_focus_state(&mut self, _focused: bool) -> bool {
-        false
-    }
-
     pub(crate) fn is_showing_rendered_image(&self) -> bool {
         self.image_handle.is_some() && !self.is_verbatim_mode()
     }
