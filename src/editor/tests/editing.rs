@@ -991,6 +991,37 @@ async fn callout_header_text_runs_have_purple_delimiters_and_accent_type(cx: &mu
 }
 
 #[gpui::test]
+async fn callout_break_and_retype_syntax_reenters_callout(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, "> [!WARNING] Watch out!".to_string(), None));
+
+    editor.update(cx, |editor, cx| {
+        let callout = editor.doc().first_root().expect("callout root").clone();
+        callout.update(cx, |block, cx| {
+            block.sync_inline_projection_for_focus(true);
+            assert_eq!(block.display_text(), "[!warning] Watch out!");
+            assert_eq!(block.kind(), BlockKind::Callout(crate::model::block::CalloutKind::Warning));
+
+            // 1. Break syntax by deleting 'g' at offset 8..9 -> "[!warnin] Watch out!"
+            block.replace_text_in_display_range(8..9, "", None, false, cx);
+            assert_eq!(block.kind(), BlockKind::Blockquote);
+            assert_eq!(block.display_text(), "[!warnin] Watch out!");
+
+            // 2. Type 'g' back at offset 8..8 -> "[!warning] Watch out!"
+            block.replace_text_in_display_range(8..8, "g", None, false, cx);
+            assert_eq!(block.kind(), BlockKind::Callout(crate::model::block::CalloutKind::Warning));
+            assert_eq!(block.display_text(), "[!warning] Watch out!");
+
+            // 3. Change 'warning' to 'tip' (range 2..9 replaced by 'tip')
+            block.replace_text_in_display_range(2..9, "tip", None, false, cx);
+            assert_eq!(block.kind(), BlockKind::Callout(crate::model::block::CalloutKind::Tip));
+            assert_eq!(block.display_text(), "[!tip] Watch out!");
+        });
+
+        assert_eq!(editor.doc().serialize_markdown(cx), "> [!TIP] Watch out!");
+    });
+}
+
+#[gpui::test]
 async fn image_focus_expands_to_source_syntax_with_markers(cx: &mut TestAppContext) {
     let markdown = "![diagram](https://example.com/a.png)".to_string();
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));

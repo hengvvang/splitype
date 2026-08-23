@@ -490,14 +490,19 @@ impl Block {
         mark_inserted_text: bool,
         cx: &mut Context<Self>,
     ) -> bool {
-        let BlockKind::Callout(_variant) = self.kind() else {
+        let is_callout = matches!(self.kind(), BlockKind::Callout(_));
+        let is_blockquote = self.kind() == BlockKind::Blockquote;
+        if !is_callout && !is_blockquote {
             return false;
-        };
-        let Some(prefix_range) = self.callout_projection_prefix_range() else {
-            return false;
-        };
-        if display_range.start > prefix_range.end {
-            return false;
+        }
+
+        if is_callout {
+            let Some(prefix_range) = self.callout_projection_prefix_range() else {
+                return false;
+            };
+            if display_range.start > prefix_range.end {
+                return false;
+            }
         }
 
         let display_text = self.display_text().to_string();
@@ -505,6 +510,11 @@ impl Block {
         if display_range.start <= source.len() && display_range.end <= source.len() {
             source.replace_range(display_range.clone(), new_text);
         } else {
+            return false;
+        }
+
+        let parsed_callout = crate::model::block::CalloutKind::parse_header_line(&source);
+        if is_blockquote && parsed_callout.is_none() {
             return false;
         }
 
@@ -522,9 +532,7 @@ impl Block {
         };
 
         let (next_kind, next_text, content_source_start) =
-            if let Some((parsed_variant, content)) =
-                crate::model::block::CalloutKind::parse_header_line(&source)
-            {
+            if let Some((parsed_variant, content)) = parsed_callout {
                 let prefix_str = if content.is_empty() {
                     format!("[!{}]", parsed_variant.marker_lower())
                 } else {
