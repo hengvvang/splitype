@@ -457,7 +457,9 @@ impl Block {
         content_source_start: usize,
         source_offset: usize,
     ) -> usize {
-        if matches!(self.kind(), BlockKind::Heading { .. }) && source_offset <= content_source_start
+        if (matches!(self.kind(), BlockKind::Heading { .. })
+            || matches!(self.kind(), BlockKind::Callout(_)))
+            && source_offset <= content_source_start
         {
             source_offset
         } else {
@@ -468,6 +470,122 @@ impl Block {
                 .source_to_plain_offset(source_offset.saturating_sub(content_source_start));
             self.plain_to_display_cursor_offset(plain)
         }
+    }
+
+    pub(crate) fn callout_projection_prefix_range(&self) -> Option<Range<usize>> {
+        if matches!(self.kind(), BlockKind::Callout(_)) {
+            self.projection
+                .as_ref()
+                .and_then(|projection| projection.block_prefix_range.clone())
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn apply_callout_prefix_edit(
+        &mut self,
+        display_range: Range<usize>,
+        new_text: &str,
+        selected_range_relative: Option<Range<usize>>,
+        mark_inserted_text: bool,
+        cx: &mut Context<Self>,
+    ) -> bool {
+        let BlockKind::Callout(_variant) = self.kind() else {
+            return false;
+        };
+        let Some(prefix_range) = self.callout_projection_prefix_range() else {
+            return false;
+        };
+        if display_range.start > prefix_range.end {
+            return false;
+        }
+
+        let display_text = self.display_text().to_string();
+        let mut source = display_text;
+        if display_range.start <= source.len() && display_range.end <= source.len() {
+            source.replace_range(display_range.clone(), new_text);
+        } else {
+            return false;
+        }
+
+        let selected_source_range = selected_range_relative
+            .as_ref()
+            .map(|relative| display_range.start + relative.start..display_range.start + relative.end);
+        let cursor_source = selected_source_range
+            .as_ref()
+            .map(|range| range.end)
+            .unwrap_or(display_range.start + new_text.len());
+        let marked_source_range = if mark_inserted_text && !new_text.is_empty() {
+            Some(display_range.start..display_range.start + new_text.len())
+        } else {
+            None
+        };
+
+        let (next_kind, next_text, content_source_start) =
+            if let Some((parsed_variant, content)) =
+                crate::model::block::CalloutKind::parse_header_line(&source)
+            {
+                let prefix_str = if content.is_empty() {
+                    format!("[!{}]", parsed_variant.marker_lower())
+                } else {
+                    format!("[!{}] ", parsed_variant.marker_lower())
+                };
+                (
+                    BlockKind::Callout(parsed_variant),
+                    BlockText::from_markdown_with_link_references(
+                        &content,
+                        &self.link_reference_definitions,
+                    ),
+                    prefix_str.len(),
+                )
+            } else {
+                (
+                    BlockKind::Blockquote,
+                    BlockText::from_markdown_with_link_references(
+                        &source,
+                        &self.link_reference_definitions,
+                    ),
+                    0,
+                )
+            };
+
+        let next_selected_source = selected_source_range
+            .clone()
+            .unwrap_or(cursor_source..cursor_source);
+        let next_selected_plain = Self::source_range_to_plain_range(
+            &next_text,
+            content_source_start,
+            next_selected_source.clone(),
+        );
+        let next_marked_plain = marked_source_range.as_ref().map(|range| {
+            Self::source_range_to_plain_range(&next_text, content_source_start, range.clone())
+        });
+
+        self.data.kind = next_kind;
+        self.data.set_text(next_text);
+        self.sync_edit_mode_from_kind();
+        self.sync_render_cache();
+        if self.edit_mode.supports_inline_projection() {
+            self.rebuild_inline_projection(next_selected_plain, next_marked_plain);
+        }
+
+        self.selected_range = self.content_source_offset_to_display_offset(
+            content_source_start,
+            next_selected_source.start,
+        )
+            ..self.content_source_offset_to_display_offset(
+                content_source_start,
+                next_selected_source.end,
+            );
+        self.selection_reversed = false;
+        self.marked_range = marked_source_range.map(|range| {
+            self.content_source_offset_to_display_offset(content_source_start, range.start)
+                ..self.content_source_offset_to_display_offset(content_source_start, range.end)
+        });
+        self.cursor_blink_epoch = std::time::Instant::now();
+        cx.emit(BlockEvent::Changed);
+        cx.notify();
+        true
     }
 
     pub(crate) fn apply_heading_prefix_edit(
@@ -592,6 +710,16 @@ impl Block {
         mark_inserted_text: bool,
         cx: &mut Context<Self>,
     ) {
+        if self.apply_callout_prefix_edit(
+            display_range.clone(),
+            new_text,
+            selected_range_relative.clone(),
+            mark_inserted_text,
+            cx,
+        ) {
+            return;
+        }
+
         if self.apply_heading_prefix_edit(
             display_range.clone(),
             new_text,

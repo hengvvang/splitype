@@ -29,9 +29,20 @@ impl CalloutKind {
         }
     }
 
+    /// The lowercase `[!type]` marker text of this callout.
+    pub fn marker_lower(self) -> &'static str {
+        match self {
+            Self::Note => "note",
+            Self::Tip => "tip",
+            Self::Important => "important",
+            Self::Warning => "warning",
+            Self::Caution => "caution",
+        }
+    }
+
     /// The display label of this callout.
     pub fn label(self) -> &'static str {
-        self.marker()
+        self.marker_lower()
     }
 
     /// Parse a `[!TYPE]` header line, returning the kind and trailing text.

@@ -855,3 +855,139 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
         );
     });
 }
+
+#[gpui::test]
+async fn callout_header_unfocused_label_and_focus_projection_offset(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, "> [!WARNING]".to_string(), None));
+
+    editor.update(cx, |editor, cx| {
+        let callout = editor.doc().first_root().expect("callout root").clone();
+        callout.update(cx, |block, _cx| {
+            assert_eq!(block.kind(), BlockKind::Callout(crate::model::block::CalloutKind::Warning));
+            // When unfocused, displays lowercase variant label
+            assert_eq!(block.display_text(), "warning");
+
+            // Click at character offset 3 ('r' in "warning")
+            block.selected_range = 3..3;
+            block.sync_inline_projection_for_focus(true);
+
+            // When focused, expands to "[!warning]" and maps offset 3 to 5 (2 + 3)
+            assert_eq!(block.display_text(), "[!warning]");
+            assert_eq!(block.selected_range, 5..5);
+
+            // Unfocusing restores plain label
+            block.sync_inline_projection_for_focus(false);
+            assert_eq!(block.display_text(), "warning");
+        });
+    });
+}
+
+#[gpui::test]
+async fn callout_header_with_custom_title_projection_offset(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, "> [!WARNING] Custom Title".to_string(), None));
+
+    editor.update(cx, |editor, cx| {
+        let callout = editor.doc().first_root().expect("callout root").clone();
+        callout.update(cx, |block, _cx| {
+            assert_eq!(block.kind(), BlockKind::Callout(crate::model::block::CalloutKind::Warning));
+            // When unfocused, displays custom title
+            assert_eq!(block.display_text(), "Custom Title");
+
+            // Click at character offset 7 (' ' in "Custom Title")
+            block.selected_range = 7..7;
+            block.sync_inline_projection_for_focus(true);
+
+            // When focused, expands to "[!warning] Custom Title"
+            assert_eq!(block.display_text(), "[!warning] Custom Title");
+            // Prefix "[!warning] " has length 11, so 11 + 7 = 18
+            assert_eq!(block.selected_range, 18..18);
+        });
+    });
+}
+
+#[gpui::test]
+async fn callout_header_prefix_editing_updates_variant(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, "> [!WARNING]".to_string(), None));
+
+    editor.update(cx, |editor, cx| {
+        let callout = editor.doc().first_root().expect("callout root").clone();
+        callout.update(cx, |block, cx| {
+            block.sync_inline_projection_for_focus(true);
+            assert_eq!(block.display_text(), "[!warning]");
+
+            // Edit "warning" to "note" (replace range 2..9 with "note")
+            block.replace_text_in_display_range(2..9, "note", None, false, cx);
+            assert_eq!(block.kind(), BlockKind::Callout(crate::model::block::CalloutKind::Note));
+            assert_eq!(block.display_text(), "[!note]");
+        });
+
+        assert_eq!(editor.doc().serialize_markdown(cx), "> [!NOTE]");
+    });
+}
+
+#[gpui::test]
+async fn callout_header_prefix_deletion_downgrades_to_quote(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, "> [!WARNING]".to_string(), None));
+
+    editor.update(cx, |editor, cx| {
+        let callout = editor.doc().first_root().expect("callout root").clone();
+        callout.update(cx, |block, cx| {
+            block.sync_inline_projection_for_focus(true);
+            assert_eq!(block.display_text(), "[!warning]");
+
+            // Delete entire prefix and replace with "plain quote"
+            block.replace_text_in_display_range(0..10, "plain quote", None, false, cx);
+            assert_eq!(block.kind(), BlockKind::Blockquote);
+            assert_eq!(block.display_text(), "plain quote");
+        });
+    });
+}
+
+#[gpui::test]
+async fn callout_header_text_runs_have_purple_delimiters_and_accent_type(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, "> [!WARNING]".to_string(), None));
+
+    editor.update(cx, |editor, cx| {
+        let callout = editor.doc().first_root().expect("callout root").clone();
+        callout.update(cx, |block, _cx| {
+            block.sync_inline_projection_for_focus(true);
+            let display_text = gpui::SharedString::from(block.display_text().to_string());
+            assert_eq!(display_text.as_ref(), "[!warning]");
+
+            let accent = gpui::Hsla::from(gpui::rgba(0xf97316ff)); // orange
+            let purple = gpui::Hsla::from(gpui::rgba(0xa855f7ff)); // purple
+            let base_run = gpui::TextRun {
+                len: display_text.len(),
+                font: gpui::font("Segoe UI"),
+                color: accent,
+                background_color: None,
+                underline: None,
+                strikethrough: None,
+            };
+
+            let runs = crate::editor::wysiwyg::render::inline::shaping::build_text_runs(
+                block,
+                &display_text,
+                &base_run,
+                gpui::px(1.0),
+                accent,
+                purple,
+                purple,
+            );
+
+            // Runs:
+            // 0..2: "[!" -> purple
+            // 2..9: "warning" -> accent (orange)
+            // 9..10: "]" -> purple
+            assert_eq!(runs.len(), 3);
+            assert_eq!(runs[0].len, 2);
+            assert_eq!(runs[0].color, purple);
+            assert_eq!(runs[1].len, 7);
+            assert_eq!(runs[1].color, accent);
+            assert_eq!(runs[2].len, 1);
+            assert_eq!(runs[2].color, purple);
+        });
+    });
+}
+
+

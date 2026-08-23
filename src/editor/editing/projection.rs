@@ -912,16 +912,30 @@ impl ExpandedInlineProjection {
     /// these runs distinctly so revealed source reads as syntax-highlighted
     /// Markdown instead of plain text.
     pub(crate) fn delimiter_ranges(&self) -> Vec<Range<usize>> {
-        self.segments
-            .iter()
-            .filter_map(|segment| match segment.kind {
+        let mut ranges = Vec::new();
+        for segment in &self.segments {
+            match &segment.kind {
                 ExpandedInlineSegmentKind::OpeningDelimiter(_)
                 | ExpandedInlineSegmentKind::ClosingDelimiter(_)
-                | ExpandedInlineSegmentKind::MiddleDelimiter(_)
-                | ExpandedInlineSegmentKind::BlockPrefix => Some(segment.display_range.clone()),
-                _ => None,
-            })
-            .collect()
+                | ExpandedInlineSegmentKind::MiddleDelimiter(_) => {
+                    ranges.push(segment.display_range.clone());
+                }
+                ExpandedInlineSegmentKind::BlockPrefix => {
+                    let prefix_text = &self.cache.text()[segment.display_range.clone()];
+                    if prefix_text.starts_with("[!") && let Some(bracket_end) = prefix_text.find(']') {
+                        ranges.push(segment.display_range.start..segment.display_range.start + 2);
+                        ranges.push(
+                            segment.display_range.start + bracket_end
+                                ..segment.display_range.start + bracket_end + 1,
+                        );
+                    } else {
+                        ranges.push(segment.display_range.clone());
+                    }
+                }
+                _ => {}
+            }
+        }
+        ranges
     }
 }
 

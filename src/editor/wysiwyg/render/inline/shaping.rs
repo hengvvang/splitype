@@ -54,6 +54,25 @@ pub fn build_text_runs(
         boundaries.push(range.end);
     }
 
+    let callout_prefix_ranges =
+        if matches!(input.kind(), crate::model::parse::BlockKind::Callout(_)) {
+            if display_text.starts_with("[!") && let Some(marker_end) = display_text.find(']') {
+                Some((0..2, 2..marker_end, marker_end..marker_end + 1))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+    if let Some((open, name, close)) = callout_prefix_ranges.as_ref() {
+        boundaries.push(open.start);
+        boundaries.push(open.end);
+        boundaries.push(name.start);
+        boundaries.push(name.end);
+        boundaries.push(close.start);
+        boundaries.push(close.end);
+    }
+
     boundaries.sort_unstable();
     boundaries.dedup();
 
@@ -82,9 +101,17 @@ pub fn build_text_runs(
             .as_ref()
             .map(|range| start >= range.start && end <= range.end)
             .unwrap_or(false);
-        let is_delimiter = delimiter_ranges
-            .iter()
-            .any(|range| range.start <= start && end <= range.end);
+        let is_callout_delim = callout_prefix_ranges
+            .as_ref()
+            .map(|(open, _, close)| {
+                (start >= open.start && end <= open.end)
+                    || (start >= close.start && end <= close.end)
+            })
+            .unwrap_or(false);
+        let is_delimiter = is_callout_delim
+            || delimiter_ranges
+                .iter()
+                .any(|range| range.start <= start && end <= range.end);
         let is_marked = marked_range
             .map(|range| start < range.end && range.start < end)
             .unwrap_or(false);
@@ -211,3 +238,4 @@ pub fn build_code_text_runs(
         runs
     }
 }
+

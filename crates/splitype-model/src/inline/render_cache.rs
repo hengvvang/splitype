@@ -64,6 +64,25 @@ impl InlineRenderCache {
         Self { text, spans }
     }
 
+    /// Construct a simple render cache holding a plain string without special formatting.
+    pub fn plain(text: impl Into<String>) -> Self {
+        let text = text.into();
+        let len = text.len();
+        let spans = if len > 0 {
+            vec![InlineSpan {
+                range: 0..len,
+                style: InlineStyle::default(),
+                html_style: None,
+                link: None,
+                footnote: None,
+                math: None,
+            }]
+        } else {
+            Vec::new()
+        };
+        Self { text, spans }
+    }
+
     pub fn text(&self) -> &str {
         &self.text
     }

@@ -126,7 +126,13 @@ pub struct Block {
 impl Block {
     pub fn with_data(cx: &mut Context<Self>, data: BlockData) -> Self {
         let edit_mode = BlockEditMode::for_kind(&data.kind);
-        let render_cache = data.text.render_cache();
+        let render_cache = if let BlockKind::Callout(variant) = &data.kind
+            && data.text.plain_text().is_empty()
+        {
+            InlineRenderCache::plain(variant.marker_lower())
+        } else {
+            data.text.render_cache()
+        };
         let mut block = Self {
             data,
             render_cache,

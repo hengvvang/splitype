@@ -47,14 +47,15 @@ impl Block {
             .marked_range
             .clone()
             .map(|range| self.display_to_plain_range(range));
-        let heading_level = match self.kind() {
+        let kind_key = match self.kind() {
             BlockKind::Heading { level } => Some(level),
+            BlockKind::Callout(variant) => Some(10 + variant as u8),
             _ => None,
         };
-        if let Some((cached_supports, cached_heading, cached_selected, cached_marked)) =
+        if let Some((cached_supports, cached_kind, cached_selected, cached_marked)) =
             &self.projection_cache_key
             && *cached_supports == supports_projection
-            && *cached_heading == heading_level
+            && *cached_kind == kind_key
             && *cached_selected == plain_selected
             && *cached_marked == plain_marked
         {
@@ -84,10 +85,16 @@ impl Block {
             self.selection_reversed = snapshot.selection_reversed;
             self.collapsed_caret_affinity = CollapsedCaretAffinity::Default;
         } else if plain_selected.is_empty() {
-            let offset = self.plain_to_display_cursor_offset_with_affinity(
-                plain_selected.start,
-                collapsed_affinity,
-            );
+            let offset = if let BlockKind::Callout(variant) = self.kind()
+                && self.data.text.plain_text().is_empty()
+            {
+                2 + plain_selected.start.min(variant.marker_lower().len())
+            } else {
+                self.plain_to_display_cursor_offset_with_affinity(
+                    plain_selected.start,
+                    collapsed_affinity,
+                )
+            };
             self.assign_collapsed_selection_offset(offset, collapsed_affinity, None);
         } else {
             self.set_selection_from_plain_anchor_focus(
@@ -125,13 +132,14 @@ impl Block {
         plain_selected: Range<usize>,
         plain_marked: Option<Range<usize>>,
     ) {
-        let heading_level = match self.kind() {
+        let kind_key = match self.kind() {
             BlockKind::Heading { level } => Some(level),
+            BlockKind::Callout(variant) => Some(10 + variant as u8),
             _ => None,
         };
         self.projection_cache_key = Some((
             self.edit_mode.supports_inline_projection(),
-            heading_level,
+            kind_key,
             plain_selected.clone(),
             plain_marked.clone(),
         ));
@@ -147,6 +155,14 @@ impl Block {
                     .find(':')
                     .unwrap_or_else(|| self.data.text.plain_len());
                 (Some("[^".to_string()), Some(head_len))
+            }
+            BlockKind::Callout(variant) => {
+                let prefix = if self.data.text.plain_text().is_empty() {
+                    format!("[!{}]", variant.marker_lower())
+                } else {
+                    format!("[!{}] ", variant.marker_lower())
+                };
+                (Some(prefix), None)
             }
             _ => (None, None),
         };

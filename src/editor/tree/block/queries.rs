@@ -8,10 +8,11 @@ use super::Block;
 use super::state::CollapsedCaretAffinity;
 use crate::editor::tree::footnotes::FootnoteMap;
 use crate::model::block::link::LinkReferenceDefinitions;
-use crate::model::inline::render_cache::InlineSpan;
+use crate::model::inline::render_cache::{InlineRenderCache, InlineSpan};
 #[cfg(test)]
 use crate::model::inline::style::InlineStyle;
 use crate::model::inline::text::BlockText;
+use crate::model::parse::BlockKind;
 use std::sync::Arc;
 
 impl Block {
@@ -147,7 +148,13 @@ impl Block {
         let collapsed_affinity = self.display_collapsed_caret_affinity();
         let keep_projection =
             self.projection.is_some() && self.edit_mode.supports_inline_projection();
-        self.render_cache = self.data.text.render_cache();
+        self.render_cache = if let BlockKind::Callout(variant) = self.kind()
+            && self.data.text.plain_text().is_empty()
+        {
+            InlineRenderCache::plain(variant.marker_lower())
+        } else {
+            self.data.text.render_cache()
+        };
         self.sync_code_highlight();
         self.sync_image_handle();
         self.projection = None;
