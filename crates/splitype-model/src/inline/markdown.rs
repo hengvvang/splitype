@@ -628,22 +628,33 @@ pub(crate) fn parse_inline_link(
         }
     }
 
-    for mut fragment in label_result.tree.fragments {
-        fragment.link = Some(link.clone());
-        fragment.footnote = None;
-        fragment.math = None;
-        builder.normalized_len += fragment.text.len();
-        if let Some(last) = builder.fragments.last_mut()
-            && last.style == fragment.style
-            && last.html_style == fragment.html_style
-            && last.link == fragment.link
-            && last.footnote == fragment.footnote
-            && last.math.is_none()
-            && fragment.math.is_none()
-        {
-            last.text.push_str(&fragment.text);
-        } else {
-            builder.fragments.push(fragment);
+    if label_result.tree.fragments.is_empty() {
+        builder.fragments.push(InlineFragment {
+            text: String::new(),
+            style: extra_style,
+            html_style: extra_html_style,
+            link: Some(link),
+            footnote: None,
+            math: None,
+        });
+    } else {
+        for mut fragment in label_result.tree.fragments {
+            fragment.link = Some(link.clone());
+            fragment.footnote = None;
+            fragment.math = None;
+            builder.normalized_len += fragment.text.len();
+            if let Some(last) = builder.fragments.last_mut()
+                && last.style == fragment.style
+                && last.html_style == fragment.html_style
+                && last.link == fragment.link
+                && last.footnote == fragment.footnote
+                && last.math.is_none()
+                && fragment.math.is_none()
+            {
+                last.text.push_str(&fragment.text);
+            } else {
+                builder.fragments.push(fragment);
+            }
         }
     }
 

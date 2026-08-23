@@ -210,7 +210,11 @@ impl ExpandedInlineProjection {
         while fragment_index < fragments.len() {
             let fragment = &fragments[fragment_index];
             let fragment_len = fragment.text.len();
-            if fragment_len == 0 {
+            if fragment_len == 0
+                && fragment.link.is_none()
+                && fragment.footnote.is_none()
+                && fragment.math.is_none()
+            {
                 fragment_index += 1;
                 continue;
             }

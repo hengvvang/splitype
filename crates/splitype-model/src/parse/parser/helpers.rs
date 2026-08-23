@@ -638,7 +638,7 @@ pub(crate) fn plain_text_paragraph_block(text: String) -> BlockData {
 }
 
 pub(crate) fn standalone_image_block(markdown: String) -> BlockData {
-    BlockData::paragraph(markdown.trim().to_string())
+    native_block(BlockKind::Paragraph, markdown.trim())
 }
 
 pub(crate) fn is_standalone_image_paragraph(lines: &[String]) -> bool {

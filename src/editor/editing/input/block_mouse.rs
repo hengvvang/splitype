@@ -12,26 +12,6 @@ impl Block {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if self.is_showing_rendered_image() {
-            let offset = self.index_for_mouse_position(event.position);
-            let was_focused = self.focus_handle.is_focused(window);
-
-            if was_focused {
-                self.is_selecting = true;
-                if event.modifiers.shift {
-                    self.select_to(offset, cx);
-                } else {
-                    self.move_to(offset, cx);
-                }
-            } else {
-                self.is_selecting = false;
-                self.move_to(offset, cx);
-                cx.emit(BlockEvent::RequestFocus);
-            }
-            cx.stop_propagation();
-            return;
-        }
-
         let offset = self.index_for_mouse_position(event.position);
         let was_focused = self.focus_handle.is_focused(window);
 

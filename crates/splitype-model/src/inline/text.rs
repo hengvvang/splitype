@@ -615,7 +615,11 @@ impl BlockText {
     fn normalize_fragments(&mut self) {
         let mut normalized: Vec<InlineFragment> = Vec::new();
         for fragment in self.fragments.drain(..) {
-            if fragment.text.is_empty() {
+            if fragment.text.is_empty()
+                && fragment.link.is_none()
+                && fragment.footnote.is_none()
+                && fragment.math.is_none()
+            {
                 continue;
             }
 

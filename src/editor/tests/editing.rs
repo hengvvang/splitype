@@ -990,4 +990,95 @@ async fn callout_header_text_runs_have_purple_delimiters_and_accent_type(cx: &mu
     });
 }
 
+#[gpui::test]
+async fn image_focus_expands_to_source_syntax_with_markers(cx: &mut TestAppContext) {
+    let markdown = "![diagram](https://example.com/a.png)".to_string();
+    let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
+
+    editor.update(cx, |editor, cx| {
+        let block = editor.doc().first_root().expect("first root").clone();
+        block.update(cx, |block, _cx| {
+            assert!(block.is_showing_rendered_image());
+
+            block.sync_inline_projection_for_focus(true);
+            assert_eq!(block.display_text(), "![diagram](https://example.com/a.png)");
+
+            let text_color = gpui::Hsla::from(gpui::rgba(0x111111ff));
+            let purple = gpui::Hsla::from(gpui::rgba(0xa855f7ff));
+            let base_run = gpui::TextRun {
+                len: block.display_text().len(),
+                font: gpui::font("Segoe UI"),
+                color: text_color,
+                background_color: None,
+                underline: None,
+                strikethrough: None,
+            };
+
+            let display_text = gpui::SharedString::from(block.display_text().to_string());
+            let runs = crate::editor::wysiwyg::render::inline::shaping::build_text_runs(
+                block,
+                &display_text,
+                &base_run,
+                gpui::px(1.0),
+                purple,
+                purple,
+                purple,
+            );
+
+            // Delimiters "![" (0..2), "](" (9..11), ")" (36..37) are purple markers
+            assert_eq!(runs[0].len, 2);
+            assert_eq!(runs[0].color, purple); // "!["
+            assert_eq!(runs[1].len, 7); // "diagram"
+            assert_eq!(runs[2].len, 2); // "]("
+            assert_eq!(runs[2].color, purple);
+            assert_eq!(runs[3].len, 25); // "https://example.com/a.png"
+            assert_eq!(runs[4].len, 1); // ")"
+            assert_eq!(runs[4].color, purple);
+        });
+
+        assert_eq!(editor.doc().serialize_markdown(cx), markdown);
+    });
+}
+
+#[gpui::test]
+async fn empty_alt_image_focus_expands_to_source_syntax(cx: &mut TestAppContext) {
+    let markdown = "![](https://example.com/b.png)".to_string();
+    let editor = cx.new(|cx| Editor::from_markdown(cx, markdown.clone(), None));
+
+    editor.update(cx, |editor, cx| {
+        let block = editor.doc().first_root().expect("first root").clone();
+        block.update(cx, |block, _cx| {
+            block.sync_inline_projection_for_focus(true);
+            assert_eq!(block.display_text(), "![](https://example.com/b.png)");
+        });
+
+        assert_eq!(editor.doc().serialize_markdown(cx), markdown);
+    });
+}
+
+#[gpui::test]
+async fn editing_image_syntax_updates_markdown_and_handle(cx: &mut TestAppContext) {
+    let markdown = "![old](https://example.com/old.png)".to_string();
+    let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
+
+    editor.update(cx, |editor, cx| {
+        let block = editor.doc().first_root().expect("first root").clone();
+        block.update(cx, |block, cx| {
+            block.sync_inline_projection_for_focus(true);
+            assert_eq!(block.display_text(), "![old](https://example.com/old.png)");
+
+            // Replace "old" alt text (range 2..5) with "new_diagram"
+            block.replace_text_in_display_range(2..5, "new_diagram", None, false, cx);
+            assert_eq!(block.display_text(), "![new_diagram](https://example.com/old.png)");
+        });
+
+        assert_eq!(
+            editor.doc().serialize_markdown(cx),
+            "![new_diagram](https://example.com/old.png)"
+        );
+        let handle = block.read(cx).image_handle().expect("image handle");
+        assert_eq!(handle.alt, "new_diagram");
+    });
+}
+
 

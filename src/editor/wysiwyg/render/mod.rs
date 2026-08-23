@@ -195,12 +195,12 @@ impl Render for Block {
             cx.notify();
         }
 
-        let showing_rendered_image = self.is_showing_rendered_image();
-        // Inline math stays in the projected view while focused (its `$...$`
-        // source shows as editable text), so links and other styling in the same
+        let showing_rendered_image = self.is_showing_rendered_image() && !focused;
+        // Inline math and images stay in the projected view while focused (their
+        // Markdown source shows as editable text), so links and other styling in the same
         // block keep their attributes instead of collapsing to raw Markdown, the
         // same way script spans already behave.
-        self.sync_inline_projection_for_focus(focused && !showing_rendered_image);
+        self.sync_inline_projection_for_focus(focused);
 
         if input_active && self.cursor_blink_task.is_none() {
             self.start_cursor_blink(cx);
@@ -388,7 +388,7 @@ impl Render for Block {
             cx,
         );
 
-        if showing_rendered_image && self.kind() == BlockKind::Paragraph {
+        if self.is_showing_rendered_image() && self.kind() == BlockKind::Paragraph {
             let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
             let max_width = px(effective_image_width(self, viewport_width, d));
             if let Some(runtime) = self.image_handle() {
@@ -417,8 +417,8 @@ impl Render for Block {
                         .w_full()
                         .px(px(d.code_block_padding_x))
                         .py(px(d.code_block_padding_y))
-                        .text_size(px(t.code_size))
-                        .text_color(c.code_text)
+                        .text_size(px(t.text_size))
+                        .text_color(c.text_default)
                         .line_height(rems(t.text_line_height))
                         .child(editor_input);
 
