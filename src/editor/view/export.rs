@@ -1,14 +1,12 @@
-//! Document export flow: HTML/PDF save prompts and byte writing.
-
 use std::path::{Path, PathBuf};
 use std::thread;
 
-use anyhow::Context as _;
 use futures::channel::oneshot;
 use gpui::*;
 
 use crate::editor::controller::Editor;
 use crate::editor::render::export::{self as document_export, ExportFormat};
+use crate::infra::error::ExportError;
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::{Theme, ThemeManager};
 
@@ -51,7 +49,7 @@ impl Editor {
         theme: &Theme,
         title: &str,
         source_base_dir: Option<&Path>,
-    ) -> anyhow::Result<Vec<u8>> {
+    ) -> Result<Vec<u8>, ExportError> {
         match format {
             ExportFormat::Html => Ok(document_export::render_html_with_base_dir(
                 markdown,
@@ -60,12 +58,16 @@ impl Editor {
                 source_base_dir,
             )
             .into_bytes()),
-            ExportFormat::Pdf => Ok(document_export::render_pdf(
+            ExportFormat::Pdf => document_export::render_pdf(
                 markdown,
                 theme,
                 title,
                 source_base_dir,
-            )?),
+            )
+            .map_err(|err| ExportError::PdfProcessFailed {
+                status: None,
+                details: err.to_string(),
+            }),
         }
     }
 
@@ -76,9 +78,12 @@ impl Editor {
         title: &str,
         path: &Path,
         source_base_dir: Option<&Path>,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), ExportError> {
         let bytes = Self::render_export_bytes(format, markdown, theme, title, source_base_dir)?;
-        std::fs::write(path, bytes).with_context(|| format!("failed to write '{}'", path.display()))
+        std::fs::write(path, bytes).map_err(|source| ExportError::IoFailed {
+            path: path.to_path_buf(),
+            source,
+        })
     }
 
     #[cfg_attr(not(test), allow(dead_code))]
@@ -87,7 +92,7 @@ impl Editor {
         format: ExportFormat,
         path: &Path,
         cx: &App,
-    ) -> anyhow::Result<()> {
+    ) -> Result<(), ExportError> {
         let markdown = self.serialized_document_text(cx);
         let theme = cx.global::<ThemeManager>().current().clone();
         let title = self.export_title();
@@ -149,13 +154,12 @@ impl Editor {
                         &title,
                         &path,
                         source_base_dir.as_deref(),
-                    )
-                    .map_err(|err| err.to_string());
+                    );
                     let _ = sender.send(result);
                 });
 
             if let Err(err) = spawn_result {
-                let detail = format!("failed to start export task: {err}");
+                let detail = ExportError::TaskSpawnFailed(err.to_string()).to_string();
                 let _ = cx.update_window(
                     window_handle,
                     move |_view: AnyView, window: &mut Window, cx: &mut App| {
@@ -167,8 +171,9 @@ impl Editor {
 
             let result = receiver
                 .await
-                .unwrap_or_else(|_| Err("export task stopped before reporting a result".into()));
-            if let Err(detail) = result {
+                .unwrap_or(Err(ExportError::TaskAborted));
+            if let Err(err) = result {
+                let detail = err.to_string();
                 let _ = cx.update_window(
                     window_handle,
                     move |_view: AnyView, window: &mut Window, cx: &mut App| {

@@ -7,6 +7,7 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::infra::error::ExplorerError;
 use super::utils::copy_dir_all;
 
 /// One reversible file-tree operation recorded in the undo history.
@@ -75,49 +76,72 @@ pub fn remove_path_symlink_safe(path: &Path) -> std::io::Result<()> {
 }
 
 /// Execute a recorded file operation (redo).
-pub fn execute_explorer_change(change: &ExplorerChange) {
+pub fn execute_explorer_change(change: &ExplorerChange) -> Result<(), ExplorerError> {
     match change {
         ExplorerChange::Created { path, is_dir } => {
             if *is_dir {
-                let _ = std::fs::create_dir_all(path);
+                std::fs::create_dir_all(path).map_err(|source| ExplorerError::CreateDirFailed {
+                    path: path.clone(),
+                    source,
+                })?;
             } else if let Some(parent) = path.parent() {
-                let _ = std::fs::create_dir_all(parent);
-                let _ = std::fs::write(path, "");
+                std::fs::create_dir_all(parent).map_err(|source| ExplorerError::CreateDirFailed {
+                    path: parent.to_path_buf(),
+                    source,
+                })?;
+                std::fs::write(path, "").map_err(|source| ExplorerError::WriteFailed {
+                    path: path.clone(),
+                    source,
+                })?;
             }
+            Ok(())
         }
         ExplorerChange::Renamed { from, to } | ExplorerChange::Moved { from, to } => {
-            let _ = std::fs::rename(from, to);
+            std::fs::rename(from, to).map_err(|source| ExplorerError::RenameFailed {
+                from: from.clone(),
+                to: to.clone(),
+                source,
+            })
         }
         ExplorerChange::Copied { source, dest } => {
-            let result = if source.is_dir() {
-                copy_dir_all(source, dest)
+            if source.is_dir() {
+                copy_dir_all(source, dest).map_err(|source_err| ExplorerError::WriteFailed {
+                    path: dest.clone(),
+                    source: source_err,
+                })
             } else {
-                std::fs::copy(source, dest).map(|_| ())
-            };
-            if let Err(err) = result {
-                tracing::error!(path = %dest.display(), error = %err, "failed to redo copy");
+                std::fs::copy(source, dest)
+                    .map(|_| ())
+                    .map_err(|source_err| ExplorerError::WriteFailed {
+                        path: dest.clone(),
+                        source: source_err,
+                    })
             }
         }
     }
 }
 
 /// Execute the inverse of a recorded operation (undo).
-pub fn execute_explorer_change_inverse(change: &ExplorerChange) {
+pub fn execute_explorer_change_inverse(change: &ExplorerChange) -> Result<(), ExplorerError> {
     match change {
         ExplorerChange::Created { path, .. } => {
-            if let Err(err) = remove_path_symlink_safe(path) {
-                tracing::error!(path = %path.display(), error = %err, "failed to undo create");
-            }
+            remove_path_symlink_safe(path).map_err(|source| ExplorerError::DeleteFailed {
+                path: path.clone(),
+                source,
+            })
         }
         ExplorerChange::Renamed { from, to } | ExplorerChange::Moved { from, to } => {
-            if let Err(err) = std::fs::rename(to, from) {
-                tracing::error!(path = %to.display(), error = %err, "failed to undo rename");
-            }
+            std::fs::rename(to, from).map_err(|source| ExplorerError::RenameFailed {
+                from: to.clone(),
+                to: from.clone(),
+                source,
+            })
         }
         ExplorerChange::Copied { dest, .. } => {
-            if let Err(err) = remove_path_symlink_safe(dest) {
-                tracing::error!(path = %dest.display(), error = %err, "failed to undo copy");
-            }
+            remove_path_symlink_safe(dest).map_err(|source| ExplorerError::DeleteFailed {
+                path: dest.clone(),
+                source,
+            })
         }
     }
 }

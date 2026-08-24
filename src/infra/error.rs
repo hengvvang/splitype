@@ -164,6 +164,8 @@ pub enum ExportError {
     ChromiumNotFound,
     PdfProcessFailed { status: Option<i32>, details: String },
     IoFailed { path: PathBuf, source: std::io::Error },
+    TaskSpawnFailed(String),
+    TaskAborted,
 }
 
 impl fmt::Display for ExportError {
@@ -182,6 +184,8 @@ impl fmt::Display for ExportError {
             Self::IoFailed { path, source } => {
                 write!(f, "Export I/O failed for '{}': {source}", path.display())
             }
+            Self::TaskSpawnFailed(msg) => write!(f, "Failed to start export task: {msg}"),
+            Self::TaskAborted => write!(f, "Export task stopped before reporting a result"),
         }
     }
 }

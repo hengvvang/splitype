@@ -285,9 +285,12 @@ impl Shell {
         let weak_shell = cx.entity().downgrade();
         let change_for_execution = change.clone();
         let _ = cx.spawn(async move |_this, cx: &mut AsyncApp| {
-            cx.background_executor()
+            let result = cx.background_executor()
                 .spawn(async move { execute_explorer_change_inverse(&change_for_execution) })
                 .await;
+            if let Err(err) = result {
+                tracing::error!(error = %err, "failed to execute explorer undo");
+            }
             let _ = weak_shell.update(cx, |shell, cx| {
                 shell.panels.explorer.undo_history.redo_stack.push(change);
                 shell.rescan_explorer_worktrees(cx);
@@ -305,9 +308,12 @@ impl Shell {
         let weak_shell = cx.entity().downgrade();
         let change_for_execution = change.clone();
         let _ = cx.spawn(async move |_this, cx: &mut AsyncApp| {
-            cx.background_executor()
+            let result = cx.background_executor()
                 .spawn(async move { execute_explorer_change(&change_for_execution) })
                 .await;
+            if let Err(err) = result {
+                tracing::error!(error = %err, "failed to execute explorer redo");
+            }
             let _ = weak_shell.update(cx, |shell, cx| {
                 shell.panels.explorer.undo_history.undo_stack.push(change);
                 shell.rescan_explorer_worktrees(cx);
