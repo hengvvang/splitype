@@ -95,9 +95,11 @@ impl Editor {
         let c = &theme.colors;
         let t = &theme.typography;
 
-        empty_state_container()
+        empty_state_container("outline-empty-state")
             .gap(px(10.0))
             .px(px(24.0))
+            .pt(px(96.0))
+            .pb(px(24.0))
             .child(
                 svg()
                     .path("icons/editor/outline/markdown.svg")

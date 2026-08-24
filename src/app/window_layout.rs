@@ -530,6 +530,7 @@ impl Shell {
                 .flex_1()
                 .min_h(px(0.0))
                 .relative()
+                .overflow_hidden()
                 .child(panel_body);
 
             // Panel card with overflow hidden (no corner handles inside, to avoid clipping).
@@ -540,6 +541,7 @@ impl Shell {
                 .flex()
                 .flex_col()
                 .relative()
+                .overflow_hidden()
                 .rounded(px(radius))
                 .bg(c.dialog_surface)
                 .border(px(d.dialog_border_width))

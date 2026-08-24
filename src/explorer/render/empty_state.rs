@@ -37,9 +37,11 @@ impl Shell {
         // non-empty messages (e.g. scan errors) are still rendered.
         let has_message = !message.is_empty();
 
-        empty_state_container()
+        empty_state_container(("explorer-empty-state-scroll", panel_id))
             .gap(px(10.0))
             .px(px(24.0))
+            .pt(px(96.0))
+            .pb(px(24.0))
             // Dropping folders onto the empty state opens them as worktrees
             // (mirrors Zed's empty-state drop-to-open).
             .drag_over::<ExternalPaths>(move |this, _, _, _| this.bg(drop_target_bg))
