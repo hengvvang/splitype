@@ -140,37 +140,61 @@ impl TableLayoutParameters {
         }
     }
 
-    /// Resolve column insertion slot from local X fraction [0.0, 1.0].
-    /// Evaluates if the cursor is past the column midpoint to select between left and right boundary.
+    /// Resolve column insertion line slot from local X fraction.
+    /// Zone 0: x < mid_0 (including all x < 0 outside left edge) -> Line 0 (leftmost border)
+    /// Zone c (1..C-1): mid_{c-1} <= x < mid_c -> Line c (centered on Line c spanning 50% of left and right column)
+    /// Zone C: x >= mid_{C-1} (including all x > 1.0 outside right edge) -> Line C (rightmost border)
     pub(crate) fn resolve_column_slot(&self, x_frac: f32) -> usize {
         if self.column_count == 0 {
             return 0;
         }
-        let x = x_frac.clamp(0.0, 1.0);
-        for c in 0..self.column_count {
-            let left = self.column_cumulative_fractions[c];
-            let right = self.column_cumulative_fractions[c + 1];
-            let mid = (left + right) / 2.0;
+        if self.column_count == 1 {
+            return if x_frac < 0.5 { 0 } else { 1 };
+        }
 
-            if x < right || c == self.column_count - 1 {
-                return if x < mid { c } else { c + 1 };
+        let mid_0 = (self.column_cumulative_fractions[0] + self.column_cumulative_fractions[1]) / 2.0;
+        if x_frac < mid_0 {
+            return 0;
+        }
+
+        for c in 0..(self.column_count - 1) {
+            let mid_c = (self.column_cumulative_fractions[c] + self.column_cumulative_fractions[c + 1]) / 2.0;
+            let mid_next = (self.column_cumulative_fractions[c + 1] + self.column_cumulative_fractions[c + 2]) / 2.0;
+            if x_frac >= mid_c && x_frac < mid_next {
+                return c + 1;
             }
         }
+
         self.column_count
     }
 
-    /// Resolve row insertion slot from local Y fraction [0.0, 1.0].
-    /// Evaluates if the cursor is past the row midpoint to select between top and bottom boundary.
+    /// Resolve row insertion line slot from local Y fraction.
+    /// Zone 0: y < mid_0 (including all y < 0 outside top edge) -> Line 0 (topmost border)
+    /// Zone r (1..R-1): mid_{r-1} <= y < mid_r -> Line r (centered on Line r spanning 50% of above and below row)
+    /// Zone R: y >= mid_{R-1} (including all y > 1.0 outside bottom edge) -> Line R (bottommost border)
     pub(crate) fn resolve_row_slot(&self, y_frac: f32) -> usize {
         if self.total_rows == 0 {
             return 0;
         }
-        let y = y_frac.clamp(0.0, 1.0);
-        let row_f = y * self.total_rows as f32;
-        let row_idx = (row_f.floor() as usize).min(self.total_rows - 1);
-        let mid = row_idx as f32 + 0.5;
+        if self.total_rows == 1 {
+            return if y_frac < 0.5 { 0 } else { 1 };
+        }
 
-        if row_f < mid { row_idx } else { row_idx + 1 }
+        let total_r = self.total_rows as f32;
+        let mid_0 = 0.5 / total_r;
+        if y_frac < mid_0 {
+            return 0;
+        }
+
+        for r in 0..(self.total_rows - 1) {
+            let mid_r = (r as f32 + 0.5) / total_r;
+            let mid_next = (r as f32 + 1.5) / total_r;
+            if y_frac >= mid_r && y_frac < mid_next {
+                return r + 1;
+            }
+        }
+
+        self.total_rows
     }
 
     /// Map insertion slot to reorder target index `to`.
@@ -194,6 +218,7 @@ pub(crate) struct DraggedTableAxis {
 
 pub(crate) struct DraggedTableAxisView {
     pub(crate) theme: Theme,
+    pub(crate) offset: Point<Pixels>,
 }
 
 impl Render for DraggedTableAxisView {
@@ -201,6 +226,8 @@ impl Render for DraggedTableAxisView {
         let c = &self.theme.colors;
         let axis_len = px(432.0);
         let half_len = px(216.0);
+        let ox = self.offset.x;
+        let oy = self.offset.y;
 
         div()
             .relative()
@@ -209,9 +236,9 @@ impl Render for DraggedTableAxisView {
             .child(
                 div()
                     .absolute()
-                    .left(-half_len)
+                    .left(ox - half_len)
                     .w(axis_len)
-                    .top(px(-0.5))
+                    .top(oy - px(0.5))
                     .h(px(1.0))
                     .bg(c.table_selection_border),
             )
@@ -219,9 +246,9 @@ impl Render for DraggedTableAxisView {
             .child(
                 div()
                     .absolute()
-                    .top(-half_len)
+                    .top(oy - half_len)
                     .h(axis_len)
-                    .left(px(-0.5))
+                    .left(ox - px(0.5))
                     .w(px(1.0))
                     .bg(c.table_selection_border),
             )
@@ -355,24 +382,6 @@ pub(crate) fn render_table(
         None
     };
 
-    let row_0_insert_line = if block.table_axis_preview
-        == Some(TableAxisMarker {
-            kind: TableAxis::Row,
-            index: 0,
-        }) {
-        Some(
-            div()
-                .absolute()
-                .left(px(-1.0))
-                .right(px(-1.0))
-                .top(px(-1.0))
-                .h(px(2.0))
-                .bg(c.table_selection_border),
-        )
-    } else {
-        None
-    };
-
     let header_axis_theme = theme.clone();
 
     let header_axis_band = div()
@@ -419,9 +428,12 @@ pub(crate) fn render_table(
                 kind: TableAxis::Row,
                 index: 0,
             },
-            move |_drag, _point, _window, cx| {
+            move |_drag, point, _window, cx| {
                 let theme = header_axis_theme.clone();
-                cx.new(|_| DraggedTableAxisView { theme })
+                cx.new(|_| DraggedTableAxisView {
+                    theme,
+                    offset: point,
+                })
             },
         );
 
@@ -545,9 +557,12 @@ pub(crate) fn render_table(
                                 kind: TableAxis::Column,
                                 index: column,
                             },
-                            move |_drag, _point, _window, cx| {
+                            move |_drag, point, _window, cx| {
                                 let theme = col_axis_theme.clone();
-                                cx.new(|_| DraggedTableAxisView { theme })
+                                cx.new(|_| DraggedTableAxisView {
+                                    theme,
+                                    offset: point,
+                                })
                             },
                         ),
                 )
@@ -555,8 +570,7 @@ pub(crate) fn render_table(
                 .children(col_top_indicator)
         }))
         .children(header_left_indicator)
-        .children(row_0_selection_box)
-        .children(row_0_insert_line);
+        .children(row_0_selection_box);
 
     let body_rows = runtime
         .rows
@@ -603,43 +617,6 @@ pub(crate) fn render_table(
                         .bottom(px(-1.0))
                         .border(px(2.0))
                         .border_color(c.table_selection_border),
-                )
-            } else {
-                None
-            };
-
-            let row_insert_line_top = if block.table_axis_preview
-                == Some(TableAxisMarker {
-                    kind: TableAxis::Row,
-                    index: visual_row,
-                }) {
-                Some(
-                    div()
-                        .absolute()
-                        .left(px(-1.0))
-                        .right(px(-1.0))
-                        .top(px(-1.0))
-                        .h(px(2.0))
-                        .bg(c.table_selection_border),
-                )
-            } else {
-                None
-            };
-
-            let row_insert_line_bottom = if is_last_body_row
-                && block.table_axis_preview
-                    == Some(TableAxisMarker {
-                        kind: TableAxis::Row,
-                        index: visual_row + 1,
-                    }) {
-                Some(
-                    div()
-                        .absolute()
-                        .left(px(-1.0))
-                        .right(px(-1.0))
-                        .bottom(px(-1.0))
-                        .h(px(2.0))
-                        .bg(c.table_selection_border),
                 )
             } else {
                 None
@@ -692,9 +669,12 @@ pub(crate) fn render_table(
                         kind: TableAxis::Row,
                         index: visual_row,
                     },
-                    move |_drag, _point, _window, cx| {
+                    move |_drag, point, _window, cx| {
                         let theme = row_axis_theme.clone();
-                        cx.new(|_| DraggedTableAxisView { theme })
+                        cx.new(|_| DraggedTableAxisView {
+                            theme,
+                            offset: point,
+                        })
                     },
                 );
 
@@ -760,8 +740,6 @@ pub(crate) fn render_table(
                 }))
                 .children(row_left_indicator)
                 .children(row_selection_box)
-                .children(row_insert_line_top)
-                .children(row_insert_line_bottom)
         });
 
     let block_id = ElementId::Name(format!("block-{}", block.data.id).into());
@@ -960,6 +938,27 @@ pub(crate) fn render_table(
             None
         };
 
+        let row_insertion_line = if let Some(prev) = block.table_axis_preview {
+            if prev.kind == TableAxis::Row && prev.index <= 1 + body_row_count {
+                let total_r = (1 + body_row_count) as f32;
+                let y_frac = prev.index as f32 / total_r;
+                Some(
+                    div()
+                        .absolute()
+                        .left(px(-1.0))
+                        .right(px(-1.0))
+                        .top(relative(y_frac))
+                        .h(px(2.0))
+                        .mt(px(-1.0))
+                        .bg(c.table_selection_border),
+                )
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
         let table_box = div()
             .id(ElementId::Name(format!("table-box-{}", block.data.id).into()))
             .relative()
@@ -968,7 +967,8 @@ pub(crate) fn render_table(
             .flex_col()
             .children(rows)
             .children(col_selection_overlay)
-            .children(col_insertion_line);
+            .children(col_insertion_line)
+            .children(row_insertion_line);
 
         let drag_params = layout_params.clone();
 
@@ -989,7 +989,7 @@ pub(crate) fn render_table(
                 let _ = table_drag_move_block.update(cx, |block, cx| {
                     match kind {
                         TableAxis::Column => {
-                            let rel_x = (pos.x - bounds.origin.x).clamp(px(0.0), bounds.size.width);
+                            let rel_x = pos.x - bounds.origin.x;
                             let x_frac = f32::from(rel_x) / f32::from(bounds.size.width.max(px(1.0)));
                             let slot = drag_params.resolve_column_slot(x_frac);
 
@@ -1002,7 +1002,7 @@ pub(crate) fn render_table(
                             }
                         }
                         TableAxis::Row => {
-                            let rel_y = (pos.y - bounds.origin.y).clamp(px(0.0), bounds.size.height);
+                            let rel_y = pos.y - bounds.origin.y;
                             let y_frac = f32::from(rel_y) / f32::from(bounds.size.height.max(px(1.0)));
                             let slot = drag_params.resolve_row_slot(y_frac);
 

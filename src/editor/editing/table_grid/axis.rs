@@ -297,21 +297,8 @@ impl Editor {
         let Some(table_block) = self.table_block_by_id(table_block_id, cx) else {
             return;
         };
-        self.sync_table_data_from_grid(&table_block, cx);
-        let Some(mut table) = table_block.read(cx).data.table.clone() else {
-            return;
-        };
-        self.prepare_undo_capture(
-            crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
-            cx,
-        );
-        table.resize_shape(target_rows, target_cols);
-        table_block.update(cx, move |block, _cx| {
-            block.data.table = Some(table.clone());
+        self.mutate_table(&table_block, cx, |table| {
+            table.resize_shape(target_rows, target_cols);
         });
-        self.rebuild_table_grids(cx);
-        self.finalize_pending_undo_capture(cx);
-        self.mark_dirty(cx);
-        cx.notify();
     }
 }

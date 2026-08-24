@@ -10,23 +10,9 @@ use crate::model::parse::BlockData;
 
 impl Editor {
     pub(crate) fn append_table_row(&mut self, table_block: &Entity<Block>, cx: &mut Context<Self>) {
-        self.sync_table_data_from_grid(table_block, cx);
-
-        let Some(mut table) = table_block.read(cx).data.table.clone() else {
-            return;
-        };
-        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
-            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
-            true
-        } else {
-            false
-        };
-        table.append_row();
-
-        table_block.update(cx, move |block, _cx| {
-            block.data.table = Some(table.clone());
+        self.mutate_table(table_block, cx, |table| {
+            table.append_row();
         });
-        self.rebuild_table_grids(cx);
         if let Some(cell) = table_block
             .read(cx)
             .table_grid
@@ -36,12 +22,7 @@ impl Editor {
         {
             self.focus_block(cell.entity_id());
         }
-        self.mark_dirty(cx);
         self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
-        if started_local_capture {
-            self.finalize_pending_undo_capture(cx);
-        }
-        cx.notify();
     }
 
     pub(crate) fn move_table_row(
@@ -51,55 +32,38 @@ impl Editor {
         delta: i32,
         cx: &mut Context<Self>,
     ) {
-        self.sync_table_data_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).data.table.clone() else {
-            return;
-        };
-        let total_rows = table.rows.len() + 1;
-        let next_row = if delta < 0 {
-            visual_row.checked_sub(delta.unsigned_abs() as usize)
-        } else {
-            visual_row.checked_add(delta as usize)
-        };
-        let Some(next_row) = next_row else {
-            return;
-        };
-        // Visual rows are the header (0) plus every body row, so the last valid
-        // index is `rows.len()`.
-        if next_row >= total_rows {
-            return;
-        }
-        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
-            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
-            true
-        } else {
-            false
-        };
-        table.swap_visual_rows(visual_row, next_row);
-        table_block.update(cx, move |block, _cx| {
-            block.data.table = Some(table.clone());
+        let mut target_row = None;
+        self.mutate_table(table_block, cx, |table| {
+            let total_rows = table.rows.len() + 1;
+            let next_row = if delta < 0 {
+                visual_row.checked_sub(delta.unsigned_abs() as usize)
+            } else {
+                visual_row.checked_add(delta as usize)
+            };
+            if let Some(next_row) = next_row {
+                if next_row < total_rows {
+                    table.swap_visual_rows(visual_row, next_row);
+                    target_row = Some(next_row);
+                }
+            }
         });
-        self.rebuild_table_grids(cx);
-        let selection = TableAxisSelection {
-            table_block_id: table_block.entity_id(),
-            kind: TableAxis::Row,
-            index: next_row,
-        };
-        self.set_table_axis_selection(Some(selection), cx);
-        self.focus_table_cell_position(
-            table_block,
-            TableCellPosition {
-                row: next_row,
-                column: 0,
-            },
-            cx,
-        );
-        self.mark_dirty(cx);
-        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
-        if started_local_capture {
-            self.finalize_pending_undo_capture(cx);
+        if let Some(next_row) = target_row {
+            let selection = TableAxisSelection {
+                table_block_id: table_block.entity_id(),
+                kind: TableAxis::Row,
+                index: next_row,
+            };
+            self.set_table_axis_selection(Some(selection), cx);
+            self.focus_table_cell_position(
+                table_block,
+                TableCellPosition {
+                    row: next_row,
+                    column: 0,
+                },
+                cx,
+            );
+            self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
         }
-        cx.notify();
     }
 
     pub(crate) fn delete_table_row(
@@ -108,34 +72,19 @@ impl Editor {
         row_index: usize,
         cx: &mut Context<Self>,
     ) {
-        self.sync_table_data_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).data.table.clone() else {
-            return;
-        };
-        if row_index >= table.rows.len() {
-            return;
-        }
-        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
-            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
-            true
-        } else {
-            false
-        };
-        table.remove_body_row(row_index);
-        let remaining_body_rows = table.rows.len();
-        table_block.update(cx, move |block, _cx| {
-            block.data.table = Some(table.clone());
+        let mut remaining_rows = 0;
+        self.mutate_table(table_block, cx, |table| {
+            if row_index < table.rows.len() {
+                table.remove_body_row(row_index);
+            }
+            remaining_rows = table.rows.len();
         });
-        self.rebuild_table_grids(cx);
-        // Row selections are addressed by visual index, where the first body row
-        // is `1` (the header is `0`). With no body rows left, fall back to the
-        // header so focus lands on a cell that still exists.
-        let focus_visual_row = if remaining_body_rows == 0 {
+        let focus_visual_row = if remaining_rows == 0 {
             0
         } else {
-            row_index.min(remaining_body_rows - 1) + 1
+            row_index.min(remaining_rows - 1) + 1
         };
-        if remaining_body_rows == 0 {
+        if remaining_rows == 0 {
             self.clear_table_axis_selection(cx);
         } else {
             self.set_table_axis_selection(
@@ -155,12 +104,7 @@ impl Editor {
             },
             cx,
         );
-        self.mark_dirty(cx);
         self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
-        if started_local_capture {
-            self.finalize_pending_undo_capture(cx);
-        }
-        cx.notify();
     }
 
     pub(crate) fn delete_table_header_row(
@@ -168,34 +112,17 @@ impl Editor {
         table_block: &Entity<Block>,
         cx: &mut Context<Self>,
     ) {
-        self.sync_table_data_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).data.table.clone() else {
-            return;
-        };
-        // The first body row is promoted into the header, so there must be at
-        // least one body row to delete the header.
-        if table.rows.is_empty() {
-            return;
-        }
-        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
-            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
-            true
-        } else {
-            false
-        };
-        table.remove_header_row();
-        table_block.update(cx, move |block, _cx| {
-            block.data.table = Some(table.clone());
+        let mut deleted = false;
+        self.mutate_table(table_block, cx, |table| {
+            if !table.rows.is_empty() {
+                deleted = table.remove_header_row();
+            }
         });
-        self.rebuild_table_grids(cx);
-        self.clear_table_axis_selection(cx);
-        self.focus_table_cell_position(table_block, TableCellPosition { row: 0, column: 0 }, cx);
-        self.mark_dirty(cx);
-        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
-        if started_local_capture {
-            self.finalize_pending_undo_capture(cx);
+        if deleted {
+            self.clear_table_axis_selection(cx);
+            self.focus_table_cell_position(table_block, TableCellPosition { row: 0, column: 0 }, cx);
+            self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
         }
-        cx.notify();
     }
 
     pub(crate) fn remove_table_block(
@@ -242,26 +169,9 @@ impl Editor {
         visual_row: usize,
         cx: &mut Context<Self>,
     ) {
-        self.sync_table_data_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).data.table.clone() else {
-            return;
-        };
-        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
-            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
-            true
-        } else {
-            false
-        };
-        table.insert_row_at(visual_row);
-        table_block.update(cx, move |block, _cx| {
-            block.data.table = Some(table.clone());
+        self.mutate_table(table_block, cx, |table| {
+            table.insert_row_at(visual_row);
         });
-        self.rebuild_table_grids(cx);
-        self.mark_dirty(cx);
-        if started_local_capture {
-            self.finalize_pending_undo_capture(cx);
-        }
-        cx.notify();
     }
 
     pub(crate) fn duplicate_table_row(
@@ -270,26 +180,8 @@ impl Editor {
         visual_row: usize,
         cx: &mut Context<Self>,
     ) {
-        self.sync_table_data_from_grid(table_block, cx);
-        let Some(mut table) = table_block.read(cx).data.table.clone() else {
-            return;
-        };
-        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
-            self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
-            true
-        } else {
-            false
-        };
-        table.duplicate_row(visual_row);
-        table_block.update(cx, move |block, _cx| {
-            block.data.table = Some(table.clone());
+        self.mutate_table(table_block, cx, |table| {
+            table.duplicate_row(visual_row);
         });
-        self.rebuild_table_grids(cx);
-        self.mark_dirty(cx);
-        if started_local_capture {
-            self.finalize_pending_undo_capture(cx);
-        }
-        cx.notify();
     }
-
 }

@@ -163,4 +163,35 @@ impl Editor {
             });
         });
     }
+
+    /// Executes an atomic table mutation with automatic undo snapshotting, grid resync, and dirty tracking.
+    pub(crate) fn mutate_table<R>(
+        &mut self,
+        table_block: &Entity<Block>,
+        cx: &mut Context<Self>,
+        f: impl FnOnce(&mut TableData) -> R,
+    ) -> Option<R> {
+        self.sync_table_data_from_grid(table_block, cx);
+        let mut table = table_block.read(cx).data.table.clone()?;
+        let started_local_capture = if self.tab().undo.pending_capture.is_none() {
+            self.prepare_undo_capture(
+                crate::editor::block_protocol::UndoCaptureKind::NonCoalescible,
+                cx,
+            );
+            true
+        } else {
+            false
+        };
+        let result = f(&mut table);
+        table_block.update(cx, move |block, _cx| {
+            block.data.table = Some(table);
+        });
+        self.rebuild_table_grids(cx);
+        self.mark_dirty(cx);
+        if started_local_capture {
+            self.finalize_pending_undo_capture(cx);
+        }
+        cx.notify();
+        Some(result)
+    }
 }
