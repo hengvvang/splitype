@@ -12,6 +12,9 @@
 //! engines (`model`, `layout`) remain separate crates.
 
 pub mod config;
+pub mod error;
 pub mod i18n;
 pub mod net;
 pub mod theme;
+
+pub use error::*;

@@ -757,9 +757,7 @@ impl Editor {
         if let Some(pane_id) = self.focused_pane_id {
             return pane_id;
         }
-        let mut ids = Vec::new();
-        self.session.root.tree.leaf_ids(&mut ids);
-        ids.first().copied().unwrap_or(0)
+        self.session.root.tree.first_leaf_id().unwrap_or(0)
     }
 
     /// The active pane's view state, creating it lazily.
@@ -770,19 +768,13 @@ impl Editor {
 
     /// The view state of the pane with `pane_id`, creating it lazily.
     pub(crate) fn pane_state(&mut self, pane_id: usize) -> &mut PaneState {
-        let list = &mut self.session.tab_list;
-        list.set_active_tab(list.active_tab);
-        let tab_index = list.active_tab;
-        list.tabs[tab_index]
-            .panes
-            .entry(pane_id)
-            .or_default()
+        let tab = self.tab_mut();
+        tab.panes.entry(pane_id).or_default()
     }
 
     /// The view state of the pane with `pane_id`, if it exists.
     pub(crate) fn pane_state_ref(&self, pane_id: usize) -> Option<&PaneState> {
-        let list = &self.session.tab_list;
-        let tab = list.tabs.get(list.active_tab)?;
+        let tab = self.tab();
         tab.panes.get(&pane_id)
     }
 

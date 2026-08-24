@@ -98,6 +98,14 @@ impl<T: Copy + PartialEq> SplitTree<T> {
         }
     }
 
+    /// Returns the ID of the very first leaf in depth-first order.
+    pub fn first_leaf_id(&self) -> Option<NodeId> {
+        match self {
+            Self::Leaf(container) => Some(container.id),
+            Self::Split { first, .. } => first.first_leaf_id(),
+        }
+    }
+
     pub fn find_leaf_kind(&self, leaf_id: NodeId) -> Option<T> {
         match self {
             Self::Leaf(container) => (container.id == leaf_id).then_some(container.kind),
