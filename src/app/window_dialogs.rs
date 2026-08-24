@@ -13,7 +13,7 @@ use gpui::*;
 use futures::FutureExt;
 use futures::channel::oneshot;
 
-use crate::app::shell::{PanelContent, Shell};
+use crate::app::shell::Shell;
 use crate::editor::controller::{Editor, InfoDialogKind};
 use crate::editor::view::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
 use crate::infra::i18n::{I18nManager, I18nStrings};
@@ -34,14 +34,13 @@ impl Shell {
     ) -> Option<Entity<Editor>> {
         self.panel_contents
             .values()
-            .find_map(|content| match content {
-                PanelContent::Editor(entity) => {
-                    let editor = entity.read(cx);
-                    if editor.session.tab_list.tabs.iter().any(|tab| show(&tab.file)) {
-                        Some(entity.clone())
-                    } else {
-                        None
-                    }
+            .find_map(|content| {
+                let entity = content.as_editor()?;
+                let editor = entity.read(cx);
+                if editor.session.tab_list.iter().any(|tab| show(&tab.file)) {
+                    Some(entity.clone())
+                } else {
+                    None
                 }
             })
     }
@@ -123,10 +122,11 @@ impl Shell {
             match dialog.scope {
                 crate::app::shell::UnsavedDialogScope::Window => {
                     for content in self.panel_contents.values() {
-                        let PanelContent::Editor(editor) = content;
-                        editor.update(cx, |ed, cx| {
-                            ed.save_all_dirty_tabs(window, cx);
-                        });
+                        if let Some(editor) = content.as_editor() {
+                            editor.update(cx, |ed, cx| {
+                                ed.save_all_dirty_tabs(window, cx);
+                            });
+                        }
                     }
                     window.remove_window();
                 }
@@ -140,8 +140,7 @@ impl Shell {
                         self.close_panel(panel_id, cx);
                     } else if let Some(editor) = self.editor_for(panel_id) {
                         editor.update(cx, |ed, cx| {
-                            ed.session.tab_list.tabs.clear();
-                            ed.session.tab_list.active_tab = 0;
+                            ed.session.tab_list = crate::editor::session::EditorTabList::empty();
                             cx.notify();
                         });
                     }
@@ -175,18 +174,19 @@ impl Shell {
             match dialog.scope {
                 crate::app::shell::UnsavedDialogScope::Window => {
                     for session in self.retained_editor_sessions.values_mut() {
-                        for tab in &mut session.tab_list.tabs {
+                        for tab in session.tab_list.iter_mut() {
                             tab.file.dirty = false;
                         }
                     }
                     for content in self.panel_contents.values() {
-                        let PanelContent::Editor(editor) = content;
-                        editor.update(cx, |ed, cx| {
-                            for tab in &mut ed.session.tab_list.tabs {
-                                tab.file.dirty = false;
-                            }
-                            cx.notify();
-                        });
+                        if let Some(editor) = content.as_editor() {
+                            editor.update(cx, |ed, cx| {
+                                for tab in ed.session.tab_list.iter_mut() {
+                                    tab.file.dirty = false;
+                                }
+                                cx.notify();
+                            });
+                        }
                     }
                     window.remove_window();
                 }

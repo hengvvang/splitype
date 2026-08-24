@@ -128,7 +128,7 @@ impl Shell {
                     let editors: Vec<Entity<crate::editor::controller::Editor>> = shell
                         .panel_contents
                         .values()
-                        .map(|crate::app::shell::PanelContent::Editor(entity)| entity.clone())
+                        .filter_map(|content| content.as_editor().cloned())
                         .collect();
                     for editor in editors {
                         if editor.update(cx, |editor, _cx| editor.update_inner_drag(pos, window)) {
@@ -229,7 +229,7 @@ impl Shell {
         let editors: Vec<Entity<crate::editor::controller::Editor>> = self
             .panel_contents
             .values()
-            .map(|crate::app::shell::PanelContent::Editor(entity)| entity.clone())
+            .filter_map(|content| content.as_editor().cloned())
             .collect();
         for editor in editors {
             editor.update(cx, |editor, cx| editor.finish_inner_drag(window, cx));

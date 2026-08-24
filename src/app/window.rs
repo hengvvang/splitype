@@ -9,8 +9,9 @@ use gpui::*;
 use crate::app::menus::install_menus;
 use crate::app::shell::{PanelContent, Shell};
 use crate::app::window_chrome::MenuBarState;
-use crate::app::window_panels::WindowPanels;
-use crate::app::window_panels::{DEFAULT_EDITOR_PANEL_ID, WindowPanelKind};
+use crate::app::window_panels::{
+    DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowPanelKind, WindowPanels,
+};
 use crate::editor::controller::Editor;
 use crate::editor::session::EditorSession;
 use crate::explorer::state::state::ExplorerState;
@@ -30,11 +31,11 @@ fn window_title(file_path: Option<&Path>) -> SharedString {
             "Splitype - {}",
             path.file_name()
                 .map(|name| name.to_string_lossy())
-                .unwrap_or_else(|| path.to_string_lossy())
+                .unwrap_or_else(|| "".into())
         )
         .into()
     } else {
-        SharedString::new("Splitype")
+        "Splitype".into()
     }
 }
 
@@ -44,8 +45,11 @@ pub(crate) fn open_editor_window(
     markdown: String,
     file_path: Option<PathBuf>,
 ) -> WindowHandle<Shell> {
-    let bounds = Bounds::centered(None, size(px(1080.), px(720.)), cx);
+    if let Some(ref path) = file_path {
+        let _ = record_recent_file(path);
+    }
     let title = window_title(file_path.as_deref());
+    let bounds = Bounds::centered(None, size(px(1024.0), px(768.0)), cx);
     let handle = cx
         .open_window(
             splitype_window_options(title, bounds),
@@ -61,8 +65,11 @@ pub(crate) fn open_editor_window(
                 let shell = cx.new(move |_cx| Shell {
                     // The default layout is Explorer (left) + Editor (right);
                     // only Editor panel_contents carry content entities.
-                    panel_contents: [(DEFAULT_EDITOR_PANEL_ID, PanelContent::Editor(editor))]
-                        .into(),
+                    panel_contents: [
+                        (ROOT_PANEL_ID, PanelContent::Explorer),
+                        (DEFAULT_EDITOR_PANEL_ID, PanelContent::Editor(editor)),
+                    ]
+                    .into(),
                     retained_editor_sessions: HashMap::new(),
                     menu_bar: MenuBarState::default(),
                     panels: WindowPanels::default(),
@@ -79,7 +86,7 @@ pub(crate) fn open_editor_window(
                     .read(cx)
                     .panel_contents
                     .values()
-                    .map(|PanelContent::Editor(entity)| entity.clone())
+                    .filter_map(|content| content.as_editor().cloned())
                     .collect();
                 for editor in editors {
                     editor.update(cx, |e, _cx| e.shell = Some(shell_weak.clone()));
@@ -99,19 +106,18 @@ pub(crate) fn open_editor_window(
     handle
 }
 
-/// Opens a new independent window hosting a cloned container (Shift-drag
-/// default): the caller supplies the fresh tree (a single-leaf layout of
-/// the dragged panel when produced by the default Shift policy), the
-/// deep-copied sessions of its Editor panel_contents, and — for an Explorer area —
-/// the deep-copied file-tree state.
+/// Opens a new window hosting a cloned sub-tree handed over by a
+/// Shift-drag gesture. Materializes one `Editor` entity per cloned
+/// session, inherits the window layout tree, and clones the file
+/// explorer state so the new window sees the same directory tree.
 pub(crate) fn open_cloned_window(
     tree: SplitTree<WindowPanelKind>,
-    next_node_id: usize,
+    next_node_id: NodeId,
     sessions: HashMap<NodeId, EditorSession>,
     explorer: Option<ExplorerState>,
     cx: &mut App,
 ) -> WindowHandle<Shell> {
-    let bounds = Bounds::centered(None, size(px(1080.), px(720.)), cx);
+    let bounds = Bounds::centered(None, size(px(1024.0), px(768.0)), cx);
     let handle = cx
         .open_window(
             splitype_window_options(SharedString::new("Splitype"), bounds),
@@ -130,14 +136,8 @@ pub(crate) fn open_cloned_window(
                     panels.explorer = explorer;
                 }
                 // Activate the first Editor leaf of the cloned layout
-                // (the empty constructor seeds the default area id,
-                // which the clone may not contain).
-                let mut ids = Vec::new();
-                panels.layout.tree.leaf_ids(&mut ids);
-                if let Some(id) = ids.into_iter().find(|id| {
-                    panels.layout.tree.find_leaf_kind(*id) == Some(WindowPanelKind::Editor)
-                }) {
-                    panels.layout.activate_leaf(id);
+                if let Some(container) = panels.layout.tree.find_first_leaf_by_kind(WindowPanelKind::Editor) {
+                    panels.layout.activate_leaf(container.id);
                 } else {
                     panels.layout.active_leaf = None;
                     panels.layout.activation_history.clear();
@@ -160,7 +160,7 @@ pub(crate) fn open_cloned_window(
                     .read(cx)
                     .panel_contents
                     .values()
-                    .map(|PanelContent::Editor(entity)| entity.clone())
+                    .filter_map(|content| content.as_editor().cloned())
                     .collect();
                 for editor in editors {
                     editor.update(cx, |e, _cx| e.shell = Some(shell_weak.clone()));
