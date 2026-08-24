@@ -7,8 +7,6 @@ use crate::container::SplitterContainer;
 
 /// The one id concept of the engine: every node of every container
 /// (leaves and split nodes alike) is numbered from this single space.
-/// The one id concept of the engine: every node of every container
-/// (leaves and split nodes alike) is numbered from this single space.
 pub type NodeId = usize;
 
 /// Split orientation between adjacent leaves in the layout tree.

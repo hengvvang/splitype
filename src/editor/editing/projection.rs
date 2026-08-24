@@ -7,7 +7,7 @@ use crate::model::inline::link::InlineLink;
 use crate::model::inline::render_cache::InlineRenderCache;
 use crate::model::inline::serialize::can_use_markdown_script_delimiters;
 use crate::model::inline::style::{InlineScript, InlineStyle};
-use crate::model::inline::text::{BlockText, InlineFragment};
+use crate::model::inline::text::{BlockText, InlineAttributes, InlineFragment};
 
 use crate::editor::tree::block::CollapsedCaretAffinity;
 
@@ -179,14 +179,7 @@ impl ExpandedInlineProjection {
 
         if let Some(prefix) = block_prefix.filter(|prefix| !prefix.is_empty()) {
             let prefix_len = prefix.len();
-            projected_fragments.push(InlineFragment {
-                text: prefix.to_string(),
-                style: InlineStyle::default(),
-                html_style: None,
-                link: None,
-                footnote: None,
-                math: None,
-            });
+            projected_fragments.push(InlineFragment::plain(prefix.to_string()));
             segments.push(ExpandedInlineSegment {
                 display_range: 0..prefix_len,
                 plain_range: 0..0,
@@ -210,16 +203,12 @@ impl ExpandedInlineProjection {
         while fragment_index < fragments.len() {
             let fragment = &fragments[fragment_index];
             let fragment_len = fragment.text.len();
-            if fragment_len == 0
-                && fragment.link.is_none()
-                && fragment.footnote.is_none()
-                && fragment.math.is_none()
-            {
+            if fragment_len == 0 && !fragment.has_extra() {
                 fragment_index += 1;
                 continue;
             }
 
-            if let Some(footnote) = fragment.footnote.as_ref() {
+            if let Some(footnote) = fragment.footnote() {
                 let plain_range = plain_cursor..plain_cursor + fragment_len;
                 let expand_footnote = true;
                 let span_display_start = display_cursor;
@@ -227,14 +216,13 @@ impl ExpandedInlineProjection {
                     any_expanded = true;
                     let open_marker = "[^".to_string();
                     let open_len = open_marker.len();
-                    projected_fragments.push(InlineFragment {
-                        text: open_marker,
-                        style: fragment.style,
-                        html_style: None,
-                        link: None,
-                        footnote: None,
-                        math: None,
-                    });
+                    projected_fragments.push(InlineFragment::new(
+                        open_marker,
+                        InlineAttributes {
+                            style: fragment.style,
+                            ..Default::default()
+                        },
+                    ));
                     segments.push(ExpandedInlineSegment {
                         display_range: display_cursor..display_cursor + open_len,
                         plain_range: plain_range.start..plain_range.start,
@@ -249,14 +237,15 @@ impl ExpandedInlineProjection {
 
                     let id_text = footnote.id.clone();
                     let id_len = id_text.len();
-                    projected_fragments.push(InlineFragment {
-                        text: id_text,
-                        style: fragment.style,
-                        html_style: fragment.html_style,
-                        link: None,
-                        footnote: Some(footnote.clone()),
-                        math: None,
-                    });
+                    projected_fragments.push(InlineFragment::new(
+                        id_text,
+                        InlineAttributes {
+                            style: fragment.style,
+                            html_style: fragment.html_style(),
+                            footnote: Some(footnote.clone()),
+                            ..Default::default()
+                        },
+                    ));
                     segments.push(ExpandedInlineSegment {
                         display_range: display_cursor..display_cursor + id_len,
                         plain_range: plain_range.clone(),
@@ -284,14 +273,13 @@ impl ExpandedInlineProjection {
                     display_cursor += id_len;
                     let close_marker = "]".to_string();
                     let close_len = close_marker.len();
-                    projected_fragments.push(InlineFragment {
-                        text: close_marker,
-                        style: fragment.style,
-                        html_style: None,
-                        link: None,
-                        footnote: None,
-                        math: None,
-                    });
+                    projected_fragments.push(InlineFragment::new(
+                        close_marker,
+                        InlineAttributes {
+                            style: fragment.style,
+                            ..Default::default()
+                        },
+                    ));
                     segments.push(ExpandedInlineSegment {
                         display_range: display_cursor..display_cursor + close_len,
                         plain_range: plain_range.end..plain_range.end,
@@ -333,14 +321,14 @@ impl ExpandedInlineProjection {
                 continue;
             }
 
-            if let Some(link) = fragment.link.as_ref() {
+            if let Some(link) = fragment.link() {
                 let span_start = fragment_index;
                 let span_plain_start = plain_cursor;
                 let mut span_end = fragment_index;
                 let mut span_plain_end = plain_cursor;
                 while span_end < fragments.len() {
                     let span_fragment = &fragments[span_end];
-                    if span_fragment.link.as_ref() != Some(link) {
+                    if span_fragment.link() != Some(link) {
                         break;
                     }
                     span_plain_end += span_fragment.text.len();
@@ -359,14 +347,7 @@ impl ExpandedInlineProjection {
                     any_expanded = true;
                     let open_marker = link.open_marker().to_string();
                     let open_len = open_marker.len();
-                    projected_fragments.push(InlineFragment {
-                        text: open_marker,
-                        style: InlineStyle::default(),
-                        html_style: None,
-                        link: None,
-                        footnote: None,
-                        math: None,
-                    });
+                    projected_fragments.push(InlineFragment::plain(open_marker));
                     segments.push(ExpandedInlineSegment {
                         display_range: display_cursor..display_cursor + open_len,
                         plain_range: span_plain_start..span_plain_start,
@@ -439,7 +420,7 @@ impl ExpandedInlineProjection {
                         let target_len = link_target.len();
                         if target_len > 0 {
                             let mut target_fragment = InlineFragment::plain(link_target);
-                            target_fragment.link = Some(link.clone());
+                            target_fragment.set_link(Some(link.clone()));
                             projected_fragments.push(target_fragment);
                             segments.push(ExpandedInlineSegment {
                                 display_range: display_cursor..display_cursor + target_len,
@@ -982,14 +963,14 @@ fn push_projected_fragment(
         let marker = kind.open_marker().to_string();
         let marker_len = marker.len();
         let marker_style = marker_style_for_projection(fragment.style, *kind);
-        projected_fragments.push(InlineFragment {
-            text: marker,
-            style: marker_style,
-            html_style: fragment.html_style,
-            link: None,
-            footnote: None,
-            math: None,
-        });
+        projected_fragments.push(InlineFragment::new(
+            marker,
+            InlineAttributes {
+                style: marker_style,
+                html_style: fragment.html_style(),
+                ..Default::default()
+            },
+        ));
         segments.push(ExpandedInlineSegment {
             display_range: *display_cursor..*display_cursor + marker_len,
             plain_range: plain_range.start..plain_range.start,
@@ -1028,14 +1009,14 @@ fn push_projected_fragment(
         let marker = kind.close_marker().to_string();
         let marker_len = marker.len();
         let marker_style = marker_style_for_projection(fragment.style, *kind);
-        projected_fragments.push(InlineFragment {
-            text: marker,
-            style: marker_style,
-            html_style: fragment.html_style,
-            link: None,
-            footnote: None,
-            math: None,
-        });
+        projected_fragments.push(InlineFragment::new(
+            marker,
+            InlineAttributes {
+                style: marker_style,
+                html_style: fragment.html_style(),
+                ..Default::default()
+            },
+        ));
         segments.push(ExpandedInlineSegment {
             display_range: *display_cursor..*display_cursor + marker_len,
             plain_range: plain_range.end..plain_range.end,

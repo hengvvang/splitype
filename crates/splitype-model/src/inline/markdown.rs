@@ -11,7 +11,7 @@ use super::serialize::{
     has_closing_delimiter, match_open_delimiter,
 };
 use super::style::InlineStyle;
-use super::text::{BlockText, InlineFragment};
+use super::text::{BlockText, InlineAttributes, InlineFragment};
 use crate::block::html::{
     HtmlAttr, HtmlNode, HtmlNodeKind, has_dangerous_attrs, is_inline_tag, parse_html_attrs,
     style_for_node,
@@ -127,23 +127,23 @@ impl NormalizeBuilder {
 
         if let Some(last) = self.fragments.last_mut()
             && last.style == style
-            && last.html_style == html_style
-            && last.link.is_none()
-            && last.footnote.is_none()
-            && last.math.is_none()
+            && last.html_style() == html_style
+            && last.link().is_none()
+            && last.footnote().is_none()
+            && last.math().is_none()
         {
             last.text.push_str(&text);
             return;
         }
 
-        self.fragments.push(InlineFragment {
+        self.fragments.push(InlineFragment::new(
             text,
-            style,
-            html_style,
-            link: None,
-            footnote: None,
-            math: None,
-        });
+            InlineAttributes {
+                style,
+                html_style,
+                ..Default::default()
+            },
+        ));
     }
 
     fn emit_inline_math(
@@ -170,14 +170,15 @@ impl NormalizeBuilder {
         }
 
         self.normalized_len += plain_len;
-        self.fragments.push(InlineFragment {
-            text: source,
-            style: extra_style,
-            html_style: extra_html_style,
-            link: None,
-            footnote: None,
-            math: Some(math),
-        });
+        self.fragments.push(InlineFragment::new(
+            source,
+            InlineAttributes {
+                style: extra_style,
+                html_style: extra_html_style,
+                math: Some(math),
+                ..Default::default()
+            },
+        ));
     }
 }
 
@@ -191,7 +192,7 @@ pub(crate) fn flatten_tokens(fragments: &[InlineFragment]) -> Vec<CharToken> {
             tokens.push(CharToken {
                 ch,
                 style: fragment.style,
-                html_style: fragment.html_style,
+                html_style: fragment.html_style(),
                 source_range: plain_offset..plain_offset + len,
             });
             plain_offset += len;
@@ -530,17 +531,18 @@ pub(crate) fn parse_footnote_reference(
 
     let raw_markdown = tokens_to_string(&tokens[index..=end_index]);
     let id = parse_inline_footnote_reference(&raw_markdown)?;
-    let fragments = vec![InlineFragment {
-        text: raw_markdown.clone(),
-        style: extra_style,
-        html_style: extra_html_style,
-        link: None,
-        footnote: Some(InlineFootnoteReference {
-            id,
-            occurrence_index: 0,
-        }),
-        math: None,
-    }];
+    let fragments = vec![InlineFragment::new(
+        raw_markdown.clone(),
+        InlineAttributes {
+            style: extra_style,
+            html_style: extra_html_style,
+            footnote: Some(InlineFootnoteReference {
+                id,
+                occurrence_index: 0,
+            }),
+            ..Default::default()
+        },
+    )];
 
     let normalized_start = builder.normalized_len;
     let plain_len = raw_markdown.len();
@@ -557,11 +559,9 @@ pub(crate) fn parse_footnote_reference(
         builder.normalized_len += fragment.text.len();
         if let Some(last) = builder.fragments.last_mut()
             && last.style == fragment.style
-            && last.html_style == fragment.html_style
-            && last.link == fragment.link
-            && last.footnote == fragment.footnote
-            && last.math.is_none()
-            && fragment.math.is_none()
+            && last.extra == fragment.extra
+            && last.math().is_none()
+            && fragment.math().is_none()
         {
             last.text.push_str(&fragment.text);
         } else {
@@ -629,27 +629,26 @@ pub(crate) fn parse_inline_link(
     }
 
     if label_result.tree.fragments.is_empty() {
-        builder.fragments.push(InlineFragment {
-            text: String::new(),
-            style: extra_style,
-            html_style: extra_html_style,
-            link: Some(link),
-            footnote: None,
-            math: None,
-        });
+        builder.fragments.push(InlineFragment::new(
+            String::new(),
+            InlineAttributes {
+                style: extra_style,
+                html_style: extra_html_style,
+                link: Some(link),
+                ..Default::default()
+            },
+        ));
     } else {
         for mut fragment in label_result.tree.fragments {
-            fragment.link = Some(link.clone());
-            fragment.footnote = None;
-            fragment.math = None;
+            fragment.set_link(Some(link.clone()));
+            fragment.set_footnote(None);
+            fragment.set_math(None);
             builder.normalized_len += fragment.text.len();
             if let Some(last) = builder.fragments.last_mut()
                 && last.style == fragment.style
-                && last.html_style == fragment.html_style
-                && last.link == fragment.link
-                && last.footnote == fragment.footnote
-                && last.math.is_none()
-                && fragment.math.is_none()
+                && last.extra == fragment.extra
+                && last.math().is_none()
+                && fragment.math().is_none()
             {
                 last.text.push_str(&fragment.text);
             } else {
@@ -676,16 +675,17 @@ pub(crate) fn parse_autolink(
     let end_index = locate_autolink(tokens, index)?;
     let target_tokens = &tokens[index + 1..end_index];
     let target = tokens_to_string(target_tokens);
-    let fragments = vec![InlineFragment {
-        text: target.clone(),
-        style: extra_style,
-        html_style: extra_html_style,
-        link: Some(InlineLink::Autolink {
-            destination: target.clone(),
-        }),
-        footnote: None,
-        math: None,
-    }];
+    let fragments = vec![InlineFragment::new(
+        target.clone(),
+        InlineAttributes {
+            style: extra_style,
+            html_style: extra_html_style,
+            link: Some(InlineLink::Autolink {
+                destination: target.clone(),
+            }),
+            ..Default::default()
+        },
+    )];
 
     let normalized_start = builder.normalized_len;
     let target_len = target.len();
@@ -713,11 +713,9 @@ pub(crate) fn parse_autolink(
         builder.normalized_len += fragment.text.len();
         if let Some(last) = builder.fragments.last_mut()
             && last.style == fragment.style
-            && last.html_style == fragment.html_style
-            && last.link == fragment.link
-            && last.footnote == fragment.footnote
-            && last.math.is_none()
-            && fragment.math.is_none()
+            && last.extra == fragment.extra
+            && last.math().is_none()
+            && fragment.math().is_none()
         {
             last.text.push_str(&fragment.text);
         } else {
@@ -1210,7 +1208,7 @@ fn apply_extra_style_to_fragments(
         if extra_style.has_script() {
             fragment.style.script = extra_style.script;
         }
-        fragment.html_style = merge_html_styles(extra_html_style, fragment.html_style);
+        fragment.set_html_style(merge_html_styles(extra_html_style, fragment.html_style()));
     }
 }
 pub(crate) fn locate_script_close(

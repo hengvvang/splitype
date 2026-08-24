@@ -48,13 +48,12 @@ impl InlineRenderCache {
                 spans.push(InlineSpan {
                     range: fragment_start..fragment_start + fragment_len,
                     style: fragment.style,
-                    html_style: fragment.html_style,
-                    link: fragment.link.as_ref().map(InlineLink::hit),
+                    html_style: fragment.html_style(),
+                    link: fragment.link().map(InlineLink::hit),
                     footnote: fragment
-                        .footnote
-                        .as_ref()
+                        .footnote()
                         .and_then(InlineFootnoteReference::hit),
-                    math: fragment.math.clone(),
+                    math: fragment.math().cloned(),
                 });
             }
 

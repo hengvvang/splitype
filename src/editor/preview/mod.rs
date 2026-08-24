@@ -107,7 +107,7 @@ impl Editor {
             let block_id = block.data.id;
             let mut occurrences = Vec::new();
             for fragment in &block.data.text.fragments {
-                let Some(footnote) = fragment.footnote.as_ref() else {
+                let Some(footnote) = fragment.footnote() else {
                     continue;
                 };
                 if let Some(binding) = bindings.get_mut(&footnote.id)

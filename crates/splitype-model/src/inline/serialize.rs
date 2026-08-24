@@ -38,7 +38,7 @@ pub(crate) fn serialize_fragment_run_with_offset_map(
     let mut plain_cursor = 0usize;
 
     for (fragment, next_stack) in fragments.iter().zip(stacks.iter()) {
-        if current_html_style != fragment.html_style {
+        if current_html_style != fragment.html_style() {
             let transition = stack_transition_string(&current_stack, &[]);
             push_markdown_marker(&mut output, &mut source_to_plain, plain_cursor, &transition);
             current_stack.clear();
@@ -46,12 +46,12 @@ pub(crate) fn serialize_fragment_run_with_offset_map(
             if current_html_style.is_some() {
                 push_markdown_marker(&mut output, &mut source_to_plain, plain_cursor, "</span>");
             }
-            if let Some(style) = fragment.html_style
+            if let Some(style) = fragment.html_style()
                 && let Some(marker) = html_style_open_marker(style)
             {
                 push_markdown_marker(&mut output, &mut source_to_plain, plain_cursor, &marker);
             }
-            current_html_style = fragment.html_style;
+            current_html_style = fragment.html_style();
         }
 
         let transition = stack_transition_string(&current_stack, next_stack);
@@ -62,7 +62,7 @@ pub(crate) fn serialize_fragment_run_with_offset_map(
             source_to_plain[transition_start + local] = plain_cursor;
         }
 
-        let escaped = if let Some(math) = fragment.math.as_ref() {
+        let escaped = if let Some(math) = fragment.math() {
             identity_text_with_offset_map(&math.source)
         } else if fragment.style.code {
             escape_code_span_text_with_offset_map(&fragment.text)
@@ -649,12 +649,11 @@ pub fn can_use_markdown_script_delimiters(
         .chars()
         .next_back()
         .is_some_and(|ch| ch.is_ascii_alphanumeric())
-        && previous.html_style == fragment.html_style
-        && previous.link == fragment.link
-        && previous.footnote.is_none()
-        && fragment.footnote.is_none()
-        && previous.math.is_none()
-        && fragment.math.is_none()
+        && previous.extra == fragment.extra
+        && previous.footnote().is_none()
+        && fragment.footnote().is_none()
+        && previous.math().is_none()
+        && fragment.math().is_none()
         && styles_match_ignoring_script(previous.style, fragment.style)
 }
 

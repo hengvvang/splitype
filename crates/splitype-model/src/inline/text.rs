@@ -28,6 +28,28 @@ pub struct InlineAttributes {
     pub math: Option<InlineLatex>,
 }
 
+/// Sparse semantic and formatting attributes attached to an [`InlineFragment`].
+///
+/// Kept on the heap via `Option<Box<InlineExtraAttributes>>` so that common
+/// plain/formatted text fragments stay compact (40 bytes instead of 152 bytes).
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct InlineExtraAttributes {
+    pub html_style: Option<HtmlInlineStyle>,
+    pub link: Option<InlineLink>,
+    pub footnote: Option<InlineFootnoteReference>,
+    pub math: Option<InlineLatex>,
+}
+
+impl InlineExtraAttributes {
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.html_style.is_none()
+            && self.link.is_none()
+            && self.footnote.is_none()
+            && self.math.is_none()
+    }
+}
+
 /// A contiguous run of text with uniform [`InlineAttributes`].
 ///
 /// The [`BlockText`] is simply a `Vec<InlineFragment>` with
@@ -36,21 +58,29 @@ pub struct InlineAttributes {
 pub struct InlineFragment {
     pub text: String,
     pub style: InlineStyle,
-    pub html_style: Option<HtmlInlineStyle>,
-    pub link: Option<InlineLink>,
-    pub footnote: Option<InlineFootnoteReference>,
-    pub math: Option<InlineLatex>,
+    pub extra: Option<Box<InlineExtraAttributes>>,
 }
 
 impl InlineFragment {
     pub fn new(text: impl Into<String>, attrs: InlineAttributes) -> Self {
+        let extra = if attrs.html_style.is_some()
+            || attrs.link.is_some()
+            || attrs.footnote.is_some()
+            || attrs.math.is_some()
+        {
+            Some(Box::new(InlineExtraAttributes {
+                html_style: attrs.html_style,
+                link: attrs.link,
+                footnote: attrs.footnote,
+                math: attrs.math,
+            }))
+        } else {
+            None
+        };
         Self {
             text: text.into(),
             style: attrs.style,
-            html_style: attrs.html_style,
-            link: attrs.link,
-            footnote: attrs.footnote,
-            math: attrs.math,
+            extra,
         }
     }
 
@@ -58,31 +88,107 @@ impl InlineFragment {
         Self {
             text: text.into(),
             style: InlineStyle::default(),
-            html_style: None,
-            link: None,
-            footnote: None,
-            math: None,
+            extra: None,
         }
+    }
+
+    #[inline]
+    pub fn has_extra(&self) -> bool {
+        self.extra.as_ref().is_some_and(|e| !e.is_empty())
+    }
+
+    #[inline]
+    pub fn html_style(&self) -> Option<HtmlInlineStyle> {
+        self.extra.as_ref().and_then(|e| e.html_style)
+    }
+
+    #[inline]
+    pub fn link(&self) -> Option<&InlineLink> {
+        self.extra.as_ref().and_then(|e| e.link.as_ref())
+    }
+
+    #[inline]
+    pub fn footnote(&self) -> Option<&InlineFootnoteReference> {
+        self.extra.as_ref().and_then(|e| e.footnote.as_ref())
+    }
+
+    #[inline]
+    pub fn footnote_mut(&mut self) -> Option<&mut InlineFootnoteReference> {
+        self.extra.as_deref_mut().and_then(|e| e.footnote.as_mut())
+    }
+
+    #[inline]
+    pub fn math(&self) -> Option<&InlineLatex> {
+        self.extra.as_ref().and_then(|e| e.math.as_ref())
+    }
+
+    #[inline]
+    pub fn math_mut(&mut self) -> Option<&mut InlineLatex> {
+        self.extra.as_deref_mut().and_then(|e| e.math.as_mut())
     }
 
     pub fn attributes(&self) -> InlineAttributes {
         InlineAttributes {
             style: self.style,
-            html_style: self.html_style,
-            link: self.link.clone(),
-            footnote: self.footnote.clone(),
-            math: self.math.clone(),
+            html_style: self.html_style(),
+            link: self.link().cloned(),
+            footnote: self.footnote().cloned(),
+            math: self.math().cloned(),
         }
     }
 
     pub fn with_attributes(text: impl Into<String>, attrs: &InlineAttributes) -> Self {
-        Self {
-            text: text.into(),
-            style: attrs.style,
-            html_style: attrs.html_style,
-            link: attrs.link.clone(),
-            footnote: attrs.footnote.clone(),
-            math: attrs.math.clone(),
+        Self::new(text, attrs.clone())
+    }
+
+    pub fn ensure_extra(&mut self) -> &mut InlineExtraAttributes {
+        if self.extra.is_none() {
+            self.extra = Some(Box::default());
+        }
+        self.extra.as_deref_mut().unwrap()
+    }
+
+    pub fn prune_empty_extra(&mut self) {
+        if let Some(extra) = &self.extra {
+            if extra.is_empty() {
+                self.extra = None;
+            }
+        }
+    }
+
+    pub fn set_html_style(&mut self, style: Option<HtmlInlineStyle>) {
+        if let Some(style) = style {
+            self.ensure_extra().html_style = Some(style);
+        } else if let Some(extra) = self.extra.as_deref_mut() {
+            extra.html_style = None;
+            self.prune_empty_extra();
+        }
+    }
+
+    pub fn set_link(&mut self, link: Option<InlineLink>) {
+        if let Some(link) = link {
+            self.ensure_extra().link = Some(link);
+        } else if let Some(extra) = self.extra.as_deref_mut() {
+            extra.link = None;
+            self.prune_empty_extra();
+        }
+    }
+
+    pub fn set_footnote(&mut self, footnote: Option<InlineFootnoteReference>) {
+        if let Some(footnote) = footnote {
+            self.ensure_extra().footnote = Some(footnote);
+        } else if let Some(extra) = self.extra.as_deref_mut() {
+            extra.footnote = None;
+            self.prune_empty_extra();
+        }
+    }
+
+    pub fn set_math(&mut self, math: Option<InlineLatex>) {
+        if let Some(math) = math {
+            self.ensure_extra().math = Some(math);
+        } else if let Some(extra) = self.extra.as_deref_mut() {
+            extra.math = None;
+            self.prune_empty_extra();
         }
     }
 }
@@ -178,13 +284,13 @@ impl BlockText {
     pub fn has_mixed_inline_visuals(&self) -> bool {
         self.fragments
             .iter()
-            .any(|fragment| fragment.math.is_some() || fragment.style.has_script())
+            .any(|fragment| fragment.math().is_some() || fragment.style.has_script())
     }
 
     pub fn has_footnote_references(&self) -> bool {
         self.fragments
             .iter()
-            .any(|fragment| fragment.footnote.is_some())
+            .any(|fragment| fragment.footnote().is_some())
     }
 
     /// Resolves footnote references against the document registry: every
@@ -198,7 +304,7 @@ impl BlockText {
         use crate::inline::style::InlineScript;
 
         for fragment in &mut self.fragments {
-            let Some(footnote) = fragment.footnote.as_mut() else {
+            let Some(footnote) = fragment.footnote_mut() else {
                 continue;
             };
             footnote.occurrence_index = resolve(&footnote.id).unwrap_or(0);
@@ -236,7 +342,7 @@ impl BlockText {
         let mut plain_cursor = 0usize;
         let mut index = 0usize;
         while index < self.fragments.len() {
-            if let Some(footnote) = self.fragments[index].footnote.clone() {
+            if let Some(footnote) = self.fragments[index].footnote().cloned() {
                 let raw_markdown = footnote.raw_markdown();
                 let raw_len = raw_markdown.len();
                 let run_plain_len = self.fragments[index].text.len();
@@ -268,7 +374,7 @@ impl BlockText {
                 continue;
             }
 
-            if let Some(math) = self.fragments[index].math.clone() {
+            if let Some(math) = self.fragments[index].math().cloned() {
                 let raw_markdown = math.source;
                 let raw_len = raw_markdown.len();
                 let run_plain_len = self.fragments[index].text.len();
@@ -292,12 +398,12 @@ impl BlockText {
                 continue;
             }
 
-            let link = self.fragments[index].link.clone();
+            let link = self.fragments[index].link().cloned();
             let mut end = index + 1;
             while end < self.fragments.len()
-                && self.fragments[end].link == link
-                && self.fragments[end].footnote.is_none()
-                && self.fragments[end].math.is_none()
+                && self.fragments[end].link() == link.as_ref()
+                && self.fragments[end].footnote().is_none()
+                && self.fragments[end].math().is_none()
             {
                 end += 1;
             }
@@ -506,14 +612,10 @@ impl BlockText {
 
         let mut temp = before;
         if !new_text.is_empty() {
-            temp.fragments.push(InlineFragment {
-                text: new_text.to_string(),
-                style: inserted_attributes.style,
-                html_style: inserted_attributes.html_style,
-                link: inserted_attributes.link,
-                footnote: inserted_attributes.footnote,
-                math: inserted_attributes.math,
-            });
+            temp.fragments.push(InlineFragment::new(
+                new_text.to_string(),
+                inserted_attributes,
+            ));
         }
         temp.append(after);
         temp.normalize_fragments();
@@ -537,14 +639,10 @@ impl BlockText {
 
         let mut temp = before;
         if !new_text.is_empty() {
-            temp.fragments.push(InlineFragment {
-                text: new_text.to_string(),
-                style: inserted_attributes.style,
-                html_style: inserted_attributes.html_style,
-                link: inserted_attributes.link,
-                footnote: inserted_attributes.footnote,
-                math: inserted_attributes.math,
-            });
+            temp.fragments.push(InlineFragment::new(
+                new_text.to_string(),
+                inserted_attributes,
+            ));
         }
         temp.append(after);
         temp.normalize_fragments();
@@ -615,21 +713,15 @@ impl BlockText {
     fn normalize_fragments(&mut self) {
         let mut normalized: Vec<InlineFragment> = Vec::new();
         for fragment in self.fragments.drain(..) {
-            if fragment.text.is_empty()
-                && fragment.link.is_none()
-                && fragment.footnote.is_none()
-                && fragment.math.is_none()
-            {
+            if fragment.text.is_empty() && !fragment.has_extra() {
                 continue;
             }
 
             if let Some(last) = normalized.last_mut()
                 && last.style == fragment.style
-                && last.html_style == fragment.html_style
-                && last.link == fragment.link
-                && last.footnote == fragment.footnote
-                && last.math.is_none()
-                && fragment.math.is_none()
+                && last.extra == fragment.extra
+                && last.math().is_none()
+                && fragment.math().is_none()
             {
                 last.text.push_str(&fragment.text);
                 continue;

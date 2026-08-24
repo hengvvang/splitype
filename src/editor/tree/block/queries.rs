@@ -92,8 +92,7 @@ impl Block {
         for fragment in &self.data.text.fragments {
             let len = fragment.text.len();
             if fragment
-                .footnote
-                .as_ref()
+                .footnote()
                 .is_some_and(|footnote| footnote.occurrence_index == occurrence_index)
             {
                 return Some(self.plain_to_display_range(plain_offset..plain_offset + len));

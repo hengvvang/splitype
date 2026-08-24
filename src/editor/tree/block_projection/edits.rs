@@ -122,14 +122,14 @@ impl Block {
     pub(crate) fn replacement_is_pure_link_span(fragments: &[InlineFragment]) -> bool {
         let Some(first_link) = fragments
             .first()
-            .and_then(|fragment| fragment.link.as_ref())
+            .and_then(|fragment| fragment.link())
         else {
             return false;
         };
 
         fragments
             .iter()
-            .all(|fragment| fragment.link.as_ref() == Some(first_link))
+            .all(|fragment| fragment.link() == Some(first_link))
     }
 
     pub(crate) fn apply_link_projection_edit(
@@ -264,37 +264,25 @@ impl Block {
                         && display_offset <= segment.display_range.end =>
                 {
                     let fragment = &self.data.text.fragments[segment.fragment_index];
-                    return InlineInsertionAttributes {
-                        style: fragment.style,
-                        html_style: fragment.html_style,
-                        link: fragment.link.clone(),
-                        footnote: fragment.footnote.clone(),
-                        math: None,
-                    };
+                    let mut attrs = fragment.attributes();
+                    attrs.math = None;
+                    return attrs;
                 }
                 ExpandedInlineSegmentKind::OpeningDelimiter(_)
                     if display_offset == segment.display_range.end =>
                 {
                     let fragment = &self.data.text.fragments[segment.fragment_index];
-                    return InlineInsertionAttributes {
-                        style: fragment.style,
-                        html_style: fragment.html_style,
-                        link: fragment.link.clone(),
-                        footnote: fragment.footnote.clone(),
-                        math: None,
-                    };
+                    let mut attrs = fragment.attributes();
+                    attrs.math = None;
+                    return attrs;
                 }
                 ExpandedInlineSegmentKind::ClosingDelimiter(_)
                     if display_offset == segment.display_range.start =>
                 {
                     let fragment = &self.data.text.fragments[segment.fragment_index];
-                    return InlineInsertionAttributes {
-                        style: fragment.style,
-                        html_style: fragment.html_style,
-                        link: fragment.link.clone(),
-                        footnote: fragment.footnote.clone(),
-                        math: None,
-                    };
+                    let mut attrs = fragment.attributes();
+                    attrs.math = None;
+                    return attrs;
                 }
                 // Caret just outside a span: after a closing delimiter or before
                 // an opening one. Insert plain text so it isn't absorbed back into

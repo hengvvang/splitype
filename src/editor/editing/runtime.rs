@@ -182,7 +182,7 @@ impl Editor {
             let block = entry.entity.read(cx);
             let block_id = block.data.id;
             for fragment in &block.data.text.fragments {
-                let Some(footnote) = fragment.footnote.as_ref() else {
+                let Some(footnote) = fragment.footnote() else {
                     continue;
                 };
                 if let Some(binding) = bindings.get_mut(&footnote.id)
@@ -229,7 +229,7 @@ impl Editor {
             .text
             .fragments
             .iter()
-            .any(|f| f.link.is_some() || f.footnote.is_some())
+            .any(|f| f.link().is_some() || f.footnote().is_some())
         {
             return true;
         }
