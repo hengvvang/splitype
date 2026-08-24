@@ -8,7 +8,7 @@ use crate::infra::theme::Theme;
 impl Editor {
     pub(crate) fn render_welcome_prompt(
         &mut self,
-        pane_id: usize,
+        pane_id: splitype_splitter::tree::NodeId,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {

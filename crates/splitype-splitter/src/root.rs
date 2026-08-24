@@ -41,7 +41,7 @@ pub struct SplitterRoot<T: Copy + PartialEq> {
 impl<T: Copy + PartialEq> SplitterRoot<T> {
     /// A root with one leaf (one panel container), used to seed editor
     /// pane containers.
-    pub fn single_leaf(initial_id: usize, kind: T) -> Self {
+    pub fn single_leaf(initial_id: NodeId, kind: T) -> Self {
         Self {
             tree: SplitTree::Leaf(SplitterContainer::new(initial_id, kind)),
             next_node_id: initial_id + 1,
@@ -60,7 +60,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     /// Resolves a target node ID (either a Leaf ID or a Split divider ID) to an actionable Leaf ID.
     /// If `target_id` is a Leaf, returns `Some(target_id)`. If it is a Split divider,
     /// returns its second child leaf (or first child leaf).
-    pub fn resolve_leaf(&self, target_id: usize) -> Option<usize> {
+    pub fn resolve_leaf(&self, target_id: NodeId) -> Option<NodeId> {
         if self.tree.find_leaf_kind(target_id).is_some() {
             Some(target_id)
         } else {
@@ -74,7 +74,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     /// the leaf's container is replaced by a `Split` node holding the
     /// original container and a freshly created one. Returns the new
     /// leaf's id.
-    pub fn split_leaf(&mut self, target_id: usize, axis: SplitAxis, ratio: f32) -> Option<usize> {
+    pub fn split_leaf(&mut self, target_id: NodeId, axis: SplitAxis, ratio: f32) -> Option<NodeId> {
         let leaf_id = self.resolve_leaf(target_id)?;
         let kind = self.tree.find_leaf_kind(leaf_id)?;
         let split_id = self.next_node_id;
@@ -88,7 +88,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     }
 
     /// Close a leaf or divider; the last leaf is never closable.
-    pub fn close_leaf(&mut self, target_id: usize) {
+    pub fn close_leaf(&mut self, target_id: NodeId) {
         if let Some(leaf_id) = self.resolve_leaf(target_id) {
             if self.tree.count_leaves() > 1 {
                 self.tree.remove_leaf(leaf_id);
@@ -100,7 +100,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
 
     /// Mark `leaf_id` as the active leaf (the last leaf that received
     /// focus). Records the activation for fallback ordering.
-    pub fn activate_leaf(&mut self, leaf_id: usize) {
+    pub fn activate_leaf(&mut self, leaf_id: NodeId) {
         self.activation_history.retain(|id| *id != leaf_id);
         self.activation_history.push(leaf_id);
         self.active_leaf = Some(leaf_id);
@@ -124,7 +124,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     }
 
     /// Drop a leaf from activation tracking and recompute the active leaf.
-    fn retire_leaf(&mut self, removed: usize) {
+    fn retire_leaf(&mut self, removed: NodeId) {
         self.activation_history.retain(|id| *id != removed);
         if self.active_leaf == Some(removed) {
             self.active_leaf = None;
@@ -136,7 +136,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     /// activation history — the host re-activates it when the new kind
     /// should be the active one. (Kind-agnostic rule: any kind mutation
     /// retires, no matter which kinds are involved.)
-    pub fn set_kind(&mut self, leaf_id: usize, kind: T) {
+    pub fn set_kind(&mut self, leaf_id: NodeId, kind: T) {
         let previous = self.tree.find_leaf_kind(leaf_id);
         self.tree.set_leaf_kind(leaf_id, kind);
         if previous != Some(kind) {
@@ -148,7 +148,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     /// Join `removed` into `into`. The removed leaf is closed and its
     /// space is absorbed by the `into` leaf. The two must be adjacent
     /// (share an edge) in the layout.
-    pub fn join_leaves(&mut self, into: usize, removed: usize) -> bool {
+    pub fn join_leaves(&mut self, into: NodeId, removed: NodeId) -> bool {
         if into == removed || self.tree.count_leaves() <= 1 {
             return false;
         }
@@ -162,7 +162,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
 
     /// Swap the kind of leaf `a` and leaf `b`. Both leaves leave the
     /// activation history (same rule as [`Self::set_kind`]).
-    pub fn swap_kinds(&mut self, a: usize, b: usize) {
+    pub fn swap_kinds(&mut self, a: NodeId, b: NodeId) {
         let kind_a = self.tree.find_leaf_kind(a);
         let kind_b = self.tree.find_leaf_kind(b);
         if let (Some(ta), Some(tb)) = (kind_a, kind_b) {
@@ -179,11 +179,11 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     /// If `dock_target` is `Center`, it swaps kinds between source and target instead.
     pub fn move_and_dock_leaf(
         &mut self,
-        source_id: usize,
-        target_id: usize,
+        source_id: NodeId,
+        target_id: NodeId,
         dock_target: crate::sessions::AreaDockTarget,
         ratio: f32,
-    ) -> Option<usize> {
+    ) -> Option<NodeId> {
         if source_id == target_id {
             return None;
         }
@@ -249,7 +249,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     // Maximise / dropdown (panel-level flags)
     // ------------------------------------------------------------------
 
-    pub fn toggle_maximize(&mut self, leaf_id: usize) {
+    pub fn toggle_maximize(&mut self, leaf_id: NodeId) {
         if let Some(panel) = self.tree.find_leaf_mut(leaf_id) {
             panel.maximized = !panel.maximized;
         }
@@ -257,7 +257,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
 
     /// Toggle the dropdown of `leaf_id`; opening one closes any other
     /// open dropdown in this root (only one dropdown at a time).
-    pub fn toggle_dropdown(&mut self, leaf_id: usize) {
+    pub fn toggle_dropdown(&mut self, leaf_id: NodeId) {
         let mut ids = Vec::new();
         self.tree.leaf_ids(&mut ids);
         let mut target_state = None;
@@ -314,7 +314,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     /// itself (panels stay self-contained).
     pub fn start_corner_drag(
         &mut self,
-        target_id: usize,
+        target_id: NodeId,
         pos: Point<Pixels>,
         modifier: CornerDragModifier,
     ) {

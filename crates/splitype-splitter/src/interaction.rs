@@ -15,7 +15,7 @@ use gpui::*;
 
 use crate::root::SplitterRoot;
 use crate::sessions::{CornerDragModifier, CornerDragSession};
-use crate::tree::SplitAxis;
+use crate::tree::{NodeId, SplitAxis};
 
 /// Visual parameters for split interaction overlays.
 #[derive(Clone, Copy, Debug)]
@@ -172,7 +172,7 @@ pub fn splitter_bar_v(
 /// refreshed on the first move event.
 pub fn start_splitter_drag<T: Copy + PartialEq>(
     container: &mut SplitterRoot<T>,
-    split_id: usize,
+    split_id: NodeId,
     axis: SplitAxis,
     start_pointer_pos: f32,
     current_ratio: f32,
@@ -189,7 +189,7 @@ pub fn start_splitter_drag<T: Copy + PartialEq>(
 /// Open the border context menu on a split bar (right click).
 pub fn open_border_menu<T: Copy + PartialEq>(
     container: &mut SplitterRoot<T>,
-    split_id: usize,
+    split_id: NodeId,
     axis: SplitAxis,
     position: Point<Pixels>,
 ) {
@@ -276,7 +276,7 @@ fn corner_drag_modifier(event: &MouseDownEvent) -> CornerDragModifier {
 /// pointer position, and the app context on a left mouse-down.
 pub fn corner_drag_handles<F>(
     id_prefix: &'static str,
-    target_id: usize,
+    target_id: NodeId,
     gap: f32,
     handle_size: f32,
     rounded: bool,

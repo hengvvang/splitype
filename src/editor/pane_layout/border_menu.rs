@@ -85,7 +85,7 @@ impl Editor {
 
     pub(crate) fn render_editor_pane_dropdown_menu(
         &mut self,
-        pane_id: usize,
+        pane_id: splitype_splitter::tree::NodeId,
         current_kind: crate::editor::session::EditorPaneKind,
         theme: &Theme,
         cx: &mut Context<Self>,

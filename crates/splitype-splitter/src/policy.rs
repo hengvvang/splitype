@@ -18,7 +18,7 @@ use crate::tree::{NodeId, SplitAxis, SplitTree};
 #[derive(Clone, Debug, PartialEq)]
 pub struct ClonedContainer<T: Copy + PartialEq> {
     pub tree: SplitTree<T>,
-    pub next_node_id: usize,
+    pub next_node_id: NodeId,
     /// Old node id → new node id.
     pub id_map: HashMap<NodeId, NodeId>,
 }

@@ -8,12 +8,13 @@
 
 use gpui::{Pixels, Point};
 
-use crate::tree::{Direction, LeafRect, SplitAxis};
+use crate::tree::{Direction, LeafRect, NodeId, SplitAxis};
 
 /// Modifier key held during a corner drag — a raw gesture fact.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum CornerDragModifier {
     /// Plain drag.
+    #[default]
     None,
     /// Ctrl + drag — the host decides (default: swap area contents).
     Ctrl,
@@ -26,9 +27,10 @@ pub enum CornerDragModifier {
 
 /// Target edge or region within a hovered area during a move/dock/join/swap drag.
 /// Direct 1:1 match with Blender's `AreaDockTarget`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum AreaDockTarget {
     /// No target / dragging within same area.
+    #[default]
     None,
     /// Dock to the top edge of target area (horizontal split).
     Top,
@@ -45,7 +47,7 @@ pub enum AreaDockTarget {
 /// Active drag session for resizing a split bar.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SplitterDragSession {
-    pub split_id: usize,
+    pub split_id: NodeId,
     pub axis: SplitAxis,
     pub start_pointer_pos: f32,
     pub start_ratio: f32,
@@ -71,7 +73,7 @@ impl SplitterDragSession {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CornerDragSession {
     /// The area (outer level) or panel (inner level) whose corner was grabbed.
-    pub target_id: usize,
+    pub target_id: NodeId,
     /// Where the drag started (in window coords).
     pub start_pos: Point<Pixels>,
     /// Cardinal direction deduced from the mouse delta so far.
@@ -81,7 +83,7 @@ pub struct CornerDragSession {
     /// The pointer's latest position (same coordinate space as the drag).
     pub pointer_pos: Option<Point<Pixels>>,
     /// The leaf the pointer is currently over, if any.
-    pub hover_leaf: Option<usize>,
+    pub hover_leaf: Option<NodeId>,
     /// The computed dock target when hovering another leaf.
     pub dock_target: AreaDockTarget,
     /// The computed dynamic dock/split ratio.
@@ -95,7 +97,7 @@ pub struct CornerDragSession {
 /// target that leaf) and swap (which needs the split id) all use one value.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BorderMenuState {
-    pub split_id: usize,
+    pub split_id: NodeId,
     pub axis: SplitAxis,
     pub position: Point<Pixels>,
 }
@@ -141,7 +143,7 @@ pub fn calculate_dock_target(
     pointer_pos: Point<Pixels>,
     ctrl_held: bool,
 ) -> (AreaDockTarget, f32) {
-    if target_rect.width <= 0.0 || target_rect.height <= 0.0 {
+    if target_rect.width <= 1.0 || target_rect.height <= 1.0 {
         return (AreaDockTarget::None, 0.5);
     }
     if ctrl_held {
@@ -253,7 +255,7 @@ pub fn past_shortcut_threshold(facts: &CornerDragSession) -> bool {
 /// Return the id of the element that contains `pos`, given pixel-space rects.
 /// Generic over layout level: the id is an `NodeId` when called with outer
 /// rects and a `NodeId` when called with inner rects.
-pub fn id_at_point(rects: &[LeafRect], pos: Point<Pixels>) -> Option<usize> {
+pub fn id_at_point(rects: &[LeafRect], pos: Point<Pixels>) -> Option<NodeId> {
     let px = f32::from(pos.x);
     let py = f32::from(pos.y);
     for rect in rects {

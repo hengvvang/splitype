@@ -202,6 +202,7 @@ pub(crate) struct DocumentTab {
     /// states travel with the tab, so each tab remembers where every pane
     /// was.
     pub(crate) panes: HashMap<usize, PaneState>,
+    pub(crate) fallback_pane: PaneState,
 }
 
 /// The independent view state of one pane inside an editor area.
@@ -593,6 +594,7 @@ impl Editor {
             references: ReferenceRegistries::default(),
             tables: TableGrids::default(),
             panes: HashMap::new(),
+            fallback_pane: PaneState::default(),
         }
     }
 
@@ -795,17 +797,29 @@ impl Editor {
     /// The active pane's focus state — the routing target for events
     /// without a pane context.
     pub(crate) fn active_pane_focus(&self) -> &FocusState {
-        &self.tab().panes[&self.active_pane_id()].focus
+        self.tab()
+            .panes
+            .get(&self.active_pane_id())
+            .map(|p| &p.focus)
+            .unwrap_or(&self.tab().fallback_pane.focus)
     }
 
     /// The active pane's selection state.
     pub(crate) fn active_pane_selection(&self) -> &SelectionState {
-        &self.tab().panes[&self.active_pane_id()].selection
+        self.tab()
+            .panes
+            .get(&self.active_pane_id())
+            .map(|p| &p.selection)
+            .unwrap_or(&self.tab().fallback_pane.selection)
     }
 
     /// The active pane's scroll state.
     pub(crate) fn active_pane_scroll(&self) -> &ScrollState {
-        &self.tab().panes[&self.active_pane_id()].scroll
+        self.tab()
+            .panes
+            .get(&self.active_pane_id())
+            .map(|p| &p.scroll)
+            .unwrap_or(&self.tab().fallback_pane.scroll)
     }
 }
 

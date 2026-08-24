@@ -19,7 +19,7 @@ use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::{Theme, ThemeManager};
 use splitype_splitter::policy::CornerDragResult;
 use splitype_splitter::sessions::CornerDragModifier;
-use splitype_splitter::tree::{SplitAxis, SplitTree};
+use splitype_splitter::tree::{NodeId, SplitAxis, SplitTree};
 
 /// Icon path for a window-panel top-bar button, per panel kind.
 ///
@@ -463,7 +463,7 @@ impl Shell {
     }
     pub(crate) fn render_window_panel_tile(
         &mut self,
-        leaf_id: usize,
+        leaf_id: NodeId,
         kind: crate::app::window_panels::WindowPanelKind,
         theme: &Theme,
         strings: &I18nStrings,
@@ -623,7 +623,7 @@ impl Shell {
 
     pub(crate) fn render_panel_type_dropdown_menu(
         &mut self,
-        leaf_id: usize,
+        leaf_id: NodeId,
         current_kind: crate::app::window_panels::WindowPanelKind,
         theme: &Theme,
         cx: &mut Context<Self>,
