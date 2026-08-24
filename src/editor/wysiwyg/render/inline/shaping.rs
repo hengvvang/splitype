@@ -108,6 +108,7 @@ pub fn build_text_runs(
                     || (start >= close.start && end <= close.end)
             })
             .unwrap_or(false);
+        let is_focused = input.projection.is_some();
         let is_delimiter = is_callout_delim
             || delimiter_ranges
                 .iter()
@@ -124,7 +125,13 @@ pub fn build_text_runs(
             font.style = FontStyle::Italic;
         }
 
-        let mut run_color = if is_delimiter {
+        let mut run_color = if is_callout_delim {
+            if is_focused {
+                marker_color
+            } else {
+                hsla(0.0, 0.0, 0.0, 0.0)
+            }
+        } else if is_delimiter {
             marker_color
         } else if is_footnote || is_footnote_id {
             footnote_color

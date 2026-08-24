@@ -40,8 +40,6 @@ pub(crate) fn render_heading(
             theme,
             focused,
             is_placeholder,
-            None,
-            None,
             style.text_color,
             style.font_size,
             style.font_weight,

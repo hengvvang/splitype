@@ -25,8 +25,6 @@ pub(crate) fn render_blockquote(
             theme,
             focused,
             is_placeholder,
-            None,
-            None,
             c.text_quote,
             t.text_size,
             FontWeight::NORMAL,

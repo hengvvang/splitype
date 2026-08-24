@@ -866,20 +866,30 @@ async fn callout_header_unfocused_label_and_focus_projection_offset(cx: &mut Tes
         let callout = editor.doc().first_root().expect("callout root").clone();
         callout.update(cx, |block, _cx| {
             assert_eq!(block.kind(), BlockKind::Callout(crate::model::block::CalloutKind::Warning));
-            // When unfocused, displays lowercase variant label
-            assert_eq!(block.display_text(), "warning");
+            // In transparent delimiter design, text remains "[!warning]" in both unfocused and focused states
+            // with [! and ] rendered transparently in unfocused mode
+            assert_eq!(block.display_text(), "[!warning]");
 
-            // Click at character offset 3 ('r' in "warning")
-            block.selected_range = 3..3;
+            // Click at character offset 4 ('r' in "[!warning]")
+            block.selected_range = 4..4;
             block.sync_inline_projection_for_focus(true);
 
-            // When focused, expands to "[!warning]" and maps offset 3 to 5 (2 + 3)
+            // When focused, text is "[!warning]" and offset remains precisely 4
             assert_eq!(block.display_text(), "[!warning]");
-            assert_eq!(block.selected_range, 5..5);
+            assert_eq!(block.selected_range, 4..4);
 
-            // Unfocusing restores plain label
+            // Crucial: Subsequent render passes stably preserve the caret at 4 ('r'), not reset
+            block.sync_inline_projection_for_focus(true);
+            assert_eq!(block.selected_range, 4..4);
+
+            // While focused, moving/clicking inside the prefix (e.g. offset 7 'i') remains stable
+            block.selected_range = 7..7;
+            block.sync_inline_projection_for_focus(true);
+            assert_eq!(block.selected_range, 7..7);
+
+            // Unfocusing keeps display text as "[!warning]"
             block.sync_inline_projection_for_focus(false);
-            assert_eq!(block.display_text(), "warning");
+            assert_eq!(block.display_text(), "[!warning]");
         });
     });
 }
@@ -903,6 +913,15 @@ async fn callout_header_with_custom_title_projection_offset(cx: &mut TestAppCont
             assert_eq!(block.display_text(), "[!warning] Custom Title");
             // Prefix "[!warning] " has length 11, so 11 + 7 = 18
             assert_eq!(block.selected_range, 18..18);
+
+            // Subsequent render passes preserve caret in body text
+            block.sync_inline_projection_for_focus(true);
+            assert_eq!(block.selected_range, 18..18);
+
+            // While focused, clicking inside the prefix (e.g. offset 4 'r') preserves prefix caret position
+            block.selected_range = 4..4;
+            block.sync_inline_projection_for_focus(true);
+            assert_eq!(block.selected_range, 4..4);
         });
     });
 }

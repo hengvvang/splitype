@@ -26,6 +26,29 @@ impl Block {
             return;
         }
 
+        let projected_prefix_selection = if self.projection.is_some() {
+            self.projection.as_ref().and_then(|projection| {
+                projection.block_prefix_range.as_ref().and_then(|prefix_range| {
+                    if self.selected_range.start <= prefix_range.end
+                        && self.selected_range.end <= prefix_range.end
+                    {
+                        Some((
+                            self.selected_range.clone(),
+                            self.selection_reversed,
+                        ))
+                    } else {
+                        None
+                    }
+                })
+            })
+        } else if matches!(self.kind(), BlockKind::Callout(_))
+            && self.data.text.plain_text().is_empty()
+        {
+            Some((self.selected_range.clone(), self.selection_reversed))
+        } else {
+            None
+        };
+
         let projected_link_selection = self.projection.as_ref().and_then(|projection| {
             projection
                 .link_span_fully_covering_range(&self.selected_range)
@@ -65,7 +88,18 @@ impl Block {
         let (anchor_affinity, focus_affinity) = self.selection_endpoint_affinities();
         let collapsed_affinity = self.display_collapsed_caret_affinity();
         self.rebuild_inline_projection(plain_selected.clone(), plain_marked.clone());
-        if let Some(snapshot) = projected_link_selection
+        if let Some((prefix_range, reversed)) = projected_prefix_selection
+            && let Some(new_prefix_range) = self
+                .projection
+                .as_ref()
+                .and_then(|projection| projection.block_prefix_range.clone())
+        {
+            let start = prefix_range.start.min(new_prefix_range.end);
+            let end = prefix_range.end.min(new_prefix_range.end);
+            self.selected_range = start..end;
+            self.selection_reversed = reversed;
+            self.collapsed_caret_affinity = CollapsedCaretAffinity::Default;
+        } else if let Some(snapshot) = projected_link_selection
             && let Some(span) = self
                 .projection
                 .as_ref()
@@ -85,16 +119,10 @@ impl Block {
             self.selection_reversed = snapshot.selection_reversed;
             self.collapsed_caret_affinity = CollapsedCaretAffinity::Default;
         } else if plain_selected.is_empty() {
-            let offset = if let BlockKind::Callout(variant) = self.kind()
-                && self.data.text.plain_text().is_empty()
-            {
-                2 + plain_selected.start.min(variant.marker_lower().len())
-            } else {
-                self.plain_to_display_cursor_offset_with_affinity(
-                    plain_selected.start,
-                    collapsed_affinity,
-                )
-            };
+            let offset = self.plain_to_display_cursor_offset_with_affinity(
+                plain_selected.start,
+                collapsed_affinity,
+            );
             self.assign_collapsed_selection_offset(offset, collapsed_affinity, None);
         } else {
             self.set_selection_from_plain_anchor_focus(

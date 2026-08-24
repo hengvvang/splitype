@@ -16,8 +16,6 @@ use crate::infra::theme::ThemeManager;
 pub struct BlockTextElement {
     input: Entity<Block>,
     is_placeholder: bool,
-    placeholder_text: Option<SharedString>,
-    placeholder_color: Option<Hsla>,
 }
 
 impl BlockTextElement {
@@ -25,22 +23,6 @@ impl BlockTextElement {
         Self {
             input,
             is_placeholder,
-            placeholder_text: None,
-            placeholder_color: None,
-        }
-    }
-
-    pub fn with_placeholder(
-        input: Entity<Block>,
-        is_placeholder: bool,
-        placeholder_text: SharedString,
-        placeholder_color: Option<Hsla>,
-    ) -> Self {
-        Self {
-            input,
-            is_placeholder,
-            placeholder_text: Some(placeholder_text),
-            placeholder_color,
         }
     }
 }
@@ -94,11 +76,8 @@ impl Element for BlockTextElement {
 
         let (display_text, text_color): (SharedString, Hsla) = if is_placeholder {
             (
-                self.placeholder_text
-                    .clone()
-                    .unwrap_or_else(|| theme.placeholders.empty_editing.clone().into()),
-                self.placeholder_color
-                    .unwrap_or(theme.colors.text_placeholder),
+                theme.placeholders.empty_editing.clone().into(),
+                theme.colors.text_placeholder,
             )
         } else {
             (shared_text, style.color)

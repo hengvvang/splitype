@@ -25,8 +25,6 @@ pub(crate) fn render_raw_markdown(
             theme,
             focused,
             is_placeholder,
-            None,
-            None,
             c.text_default,
             t.text_size,
             FontWeight::NORMAL,

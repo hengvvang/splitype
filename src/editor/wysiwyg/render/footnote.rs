@@ -35,8 +35,6 @@ pub(crate) fn render_footnote_definition(
                     theme,
                     focused,
                     is_placeholder,
-                    None,
-                    None,
                     c.text_default,
                     t.code_size,
                     FontWeight::NORMAL,

@@ -12,8 +12,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+#[cfg(not(test))]
 use futures::StreamExt;
 use gpui::*;
+#[cfg(not(test))]
 use notify::Watcher as _;
 
 // ── Entry model ─────────────────────────────────────────────────────────
@@ -70,8 +72,10 @@ pub struct Worktree {
     next_entry_id: Arc<AtomicU64>,
     /// Skip dotfiles in scans (persisted explorer setting).
     hide_hidden: bool,
+    #[allow(dead_code)]
     fs_watch_task: Option<Task<()>>,
     scan_task: Option<Task<()>>,
+    #[allow(dead_code)]
     fs_refresh_task: Option<Task<()>>,
     needs_rescan: bool,
 }
@@ -183,7 +187,6 @@ impl Worktree {
         #[cfg(test)]
         {
             let _ = cx;
-            return;
         }
         #[cfg(not(test))]
         {
@@ -216,6 +219,7 @@ impl Worktree {
     }
 
     /// Debounce filesystem events into a single background rescan.
+    #[allow(dead_code)]
     fn on_fs_event(&mut self, cx: &mut Context<Self>) {
         if self.fs_refresh_task.is_some() {
             return;

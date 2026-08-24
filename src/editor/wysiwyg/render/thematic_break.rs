@@ -53,8 +53,6 @@ pub(crate) fn render_thematic_break_focused(
         theme,
         focused,
         is_placeholder,
-        None,
-        None,
         c.text_default,
         t.text_size,
         FontWeight::NORMAL,

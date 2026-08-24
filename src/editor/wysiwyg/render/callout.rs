@@ -18,25 +18,20 @@ pub(crate) fn render_callout(
     cx: &mut Context<Block>,
 ) -> AnyElement {
     let (accent, _) = callout_colors(variant, theme);
-    let header_label = SharedString::from(variant.label());
-    let header_text = div()
-        .min_w(px(0.0))
-        .flex_grow(1.0)
-        .text_size(px(theme.typography.text_size))
-        .font_weight(FontWeight::NORMAL)
+    let t = &theme.typography;
+
+    focused_base
+        .text_size(px(t.text_size))
         .text_color(accent)
+        .line_height(rems(t.text_line_height))
         .child(block.render_text_or_mixed_inline_visuals(
             theme,
             focused,
             is_placeholder,
-            Some(header_label),
-            Some(accent),
             accent,
-            theme.typography.text_size,
+            t.text_size,
             FontWeight::NORMAL,
             cx,
         ))
-        .into_any_element();
-
-    focused_base.w_full().child(header_text).into_any_element()
+        .into_any_element()
 }

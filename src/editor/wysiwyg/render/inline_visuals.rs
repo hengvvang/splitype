@@ -23,8 +23,6 @@ impl Block {
         theme: &Theme,
         focused: bool,
         is_placeholder: bool,
-        placeholder_text: Option<SharedString>,
-        placeholder_color: Option<Hsla>,
         text_color: Hsla,
         font_size: f32,
         font_weight: FontWeight,
@@ -34,16 +32,7 @@ impl Block {
         // takes over so caret movement, projection markers, and IME ranges stay
         // anchored to editable text rather than rendered SVG/script offsets.
         if focused || is_placeholder || !self.has_mixed_inline_visuals() {
-            return match placeholder_text {
-                Some(placeholder) => BlockTextElement::with_placeholder(
-                    cx.entity(),
-                    is_placeholder,
-                    placeholder,
-                    placeholder_color,
-                )
-                .into_any_element(),
-                None => BlockTextElement::new(cx.entity(), is_placeholder).into_any_element(),
-            };
+            return BlockTextElement::new(cx.entity(), is_placeholder).into_any_element();
         }
 
         self.render_mixed_inline_visual_runs(theme, text_color, font_size, font_weight, cx)

@@ -712,7 +712,7 @@ mod tests {
                 entries[0].entity.read(cx).kind(),
                 BlockKind::Callout(CalloutKind::Note)
             );
-            assert_eq!(entries[0].entity.read(cx).display_text(), "note");
+            assert_eq!(entries[0].entity.read(cx).display_text(), "[!note]");
             assert!(entries[0].entity.read(cx).children.is_empty());
             assert_eq!(entries[0].entity.read(cx).quote_depth, 1);
             assert_eq!(editor.doc().serialize_markdown(cx), "> [!NOTE]");

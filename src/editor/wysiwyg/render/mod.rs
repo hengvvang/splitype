@@ -294,8 +294,6 @@ impl Render for Block {
                     &theme,
                     focused,
                     is_placeholder,
-                    None,
-                    None,
                     c.text_default,
                     t.text_size,
                     if style_as_header {
