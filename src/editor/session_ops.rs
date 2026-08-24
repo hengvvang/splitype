@@ -67,6 +67,9 @@ impl Editor {
     /// Inner split created via corner drag or divider border menu. The new pane inherits the
     /// dragged/target pane's kind so both sides keep the same view style.
     pub fn split_pane_with_ratio(&mut self, pane_id: NodeId, axis: SplitAxis, ratio: f32) {
+        if let Some(panel) = self.session.root.tree.find_leaf_mut(pane_id) {
+            panel.maximized = false;
+        }
         self.session
             .root
             .split_leaf(pane_id, axis, ratio);
@@ -80,5 +83,10 @@ impl Editor {
     /// Swap the two sides of a pane split node (border-menu action).
     pub fn swap_pane_split_sides(&mut self, split_id: NodeId) {
         self.session.root.swap_split_sides(split_id);
+    }
+
+    /// Toggle the maximized state of an inner editor pane.
+    pub fn toggle_pane_maximize(&mut self, pane_id: NodeId) {
+        self.session.root.toggle_maximize(pane_id);
     }
 }

@@ -27,9 +27,10 @@ use crate::infra::theme::{Theme, ThemeManager};
 use crate::ui::button::menu_bar_button;
 use crate::ui::custom_titlebar::{custom_titlebar_height, render_custom_titlebar};
 use crate::ui::menu_bar::{
-    TITLEBAR_MENU_BUTTON_GAP, menu_bar_button_width, menu_panel_left, menu_panel_width_for_labels,
-    owned_menu_item_labels, scrollable_import_menu_scroll_height, submenu_bridge_geometry,
-    submenu_panel_top, supports_in_window_menu,
+    TITLEBAR_MENU_BUTTON_GAP, menu_bar_button_width, menu_items_visual_height_with_gaps,
+    menu_panel_left, menu_panel_width_for_labels, owned_menu_item_labels,
+    scrollable_import_menu_scroll_height, submenu_bridge_geometry, submenu_panel_top,
+    supports_in_window_menu,
 };
 use crate::ui::menu_item::{menu_item, menu_item_row};
 use crate::ui::popover::overlay;
@@ -263,7 +264,7 @@ impl Shell {
                 menus.as_deref(),
                 &menu_labels,
                 titlebar_height,
-                f32::from(window.viewport_size().height.max(px(1.0))),
+                window.viewport_size(),
                 editor,
             )
         });
@@ -451,7 +452,14 @@ impl Shell {
                         c.dialog_secondary_button_text
                     })
                     .child(
-                        left_elem.unwrap_or_else(|| div().child(name.clone()).into_any_element()),
+                        left_elem.unwrap_or_else(|| {
+                            div()
+                                .flex_1()
+                                .min_w(px(0.0))
+                                .truncate()
+                                .child(name.clone())
+                                .into_any_element()
+                        }),
                     )
                     .when(is_theme_or_lang, |this| {
                         this.child(if is_selected {
@@ -535,9 +543,11 @@ impl Shell {
         menus: Option<&[gpui::OwnedMenu]>,
         menu_labels: &[SharedString],
         top_offset: f32,
-        viewport_height: f32,
+        viewport_size: Size<Pixels>,
         editor: WeakEntity<Editor>,
     ) -> Option<AnyElement> {
+        let viewport_width = f32::from(viewport_size.width.max(px(1.0)));
+        let viewport_height = f32::from(viewport_size.height.max(px(1.0)));
         let open_index = self.menu_bar.open?;
         let menus = menus?;
         let menu = menus.get(open_index)?.clone();
@@ -583,11 +593,32 @@ impl Shell {
                 match menu_items.get(submenu_index)? {
                     OwnedMenuItem::Submenu(submenu) => {
                         let submenu_labels = owned_menu_item_labels(&submenu.items);
-                        let left = menu_panel_left(open_index, menu_labels, d)
+                        let main_panel_left = menu_panel_left(open_index, menu_labels, d);
+                        let raw_left = main_panel_left
                             + menu_panel_width
                             + d.menu_panel_gap;
-                        let top = submenu_panel_top(&menu_items, submenu_index, d);
                         let submenu_width = menu_panel_width_for_labels(&submenu_labels, d);
+                        let left = if raw_left + submenu_width > viewport_width - 8.0
+                            && main_panel_left >= submenu_width + d.menu_panel_gap
+                        {
+                            main_panel_left - submenu_width - d.menu_panel_gap
+                        } else {
+                            raw_left
+                        };
+                        let ideal_top = submenu_panel_top(&menu_items, submenu_index, d);
+                        let total_submenu_height =
+                            menu_items_visual_height_with_gaps(&submenu.items, d)
+                                + d.menu_panel_padding * 2.0;
+                        let top = if top_offset + ideal_top + total_submenu_height
+                            > viewport_height - 16.0
+                        {
+                            (viewport_height - top_offset - total_submenu_height - 16.0)
+                                .max(d.menu_panel_top)
+                        } else {
+                            ideal_top
+                        };
+                        let max_panel_height = (viewport_height - (top_offset + top) - 16.0)
+                            .max(d.menu_item_height * 3.0);
                         let submenu_items = submenu.items.clone().into_iter().enumerate().map(
                             |(item_index, item)| match item {
                                 OwnedMenuItem::Separator => div()
@@ -595,6 +626,7 @@ impl Shell {
                                         "app-submenu-separator",
                                         submenu_index * 1000 + item_index,
                                     ))
+                                    .flex_shrink_0()
                                     .mx(px(d.menu_separator_margin_x))
                                     .my(px(d.menu_separator_margin_y))
                                     .h(px(d.menu_separator_height))
@@ -621,18 +653,18 @@ impl Shell {
                                             "icons/titlebar/app_menu/moon.svg"
                                         };
                                         left_elem = Some(
-                                            div()
-                                                .flex()
-                                                .items_center()
-                                                .gap(px(6.0))
-                                                .child(
-                                                    svg()
-                                                        .path(item_icon)
-                                                        .size(px(15.0))
-                                                        .text_color(c.text_default),
-                                                )
-                                                .child(name.clone())
-                                                .into_any_element(),
+                                             div()
+                                                 .flex()
+                                                 .items_center()
+                                                 .gap(px(6.0))
+                                                 .child(
+                                                     svg()
+                                                         .path(item_icon)
+                                                         .size(px(15.0))
+                                                         .text_color(c.text_default),
+                                                 )
+                                                 .child(name.clone())
+                                                 .into_any_element(),
                                         );
                                     } else if let Some(act) =
                                         action.as_ref().as_any().downcast_ref::<SelectLanguage>()
@@ -649,6 +681,7 @@ impl Shell {
                                     let base = div()
                                         .id(("app-submenu-item", submenu_index * 1000 + item_index))
                                         .w_full()
+                                        .flex_shrink_0()
                                         .h(px(d.menu_item_height))
                                         .px(px(d.menu_item_padding_x))
                                         .flex()
@@ -668,7 +701,12 @@ impl Shell {
                                             c.dialog_secondary_button_text
                                         })
                                         .child(left_elem.unwrap_or_else(|| {
-                                            div().child(name.clone()).into_any_element()
+                                            div()
+                                                .flex_1()
+                                                .min_w(px(0.0))
+                                                .truncate()
+                                                .child(name.clone())
+                                                .into_any_element()
                                         }))
                                         .when(is_theme_or_lang, |this| {
                                             this.child(if is_selected {
@@ -705,6 +743,7 @@ impl Shell {
                                 OwnedMenuItem::Submenu(submenu) => div()
                                     .id(("app-submenu-nested", submenu_index * 1000 + item_index))
                                     .w_full()
+                                    .flex_shrink_0()
                                     .h(px(d.menu_item_height))
                                     .px(px(d.menu_item_padding_x))
                                     .flex()
@@ -725,6 +764,7 @@ impl Shell {
                                 OwnedMenuItem::SystemMenu(os_menu) => div()
                                     .id(("app-submenu-system", submenu_index * 1000 + item_index))
                                     .w_full()
+                                    .flex_shrink_0()
                                     .h(px(d.menu_item_height))
                                     .px(px(d.menu_item_padding_x))
                                     .flex()
@@ -746,6 +786,8 @@ impl Shell {
                                 .top(px(top_offset + top))
                                 .left(px(left))
                                 .w(px(submenu_width))
+                                .max_h(px(max_panel_height))
+                                .overflow_y_scroll()
                                 .p(px(d.menu_panel_padding))
                                 .flex()
                                 .flex_col()
@@ -856,7 +898,13 @@ impl Shell {
                     )
                 });
 
-            main_panel.children(items).into_any_element()
+            let max_main_height = (viewport_height - (top_offset + d.menu_panel_top) - 16.0)
+                .max(d.menu_item_height * 3.0);
+            main_panel
+                .max_h(px(max_main_height))
+                .overflow_y_scroll()
+                .children(items)
+                .into_any_element()
         };
 
         let layer = overlay()

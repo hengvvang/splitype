@@ -197,6 +197,12 @@ impl AssetSource for SplitypeAssets {
             "icons/editor/bottombar/checkmark.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/bottombar/checkmark.svg"
             )))),
+            "icons/editor/bottombar/maximize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/bottombar/maximize.svg"
+            )))),
+            "icons/editor/bottombar/restore.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/bottombar/restore.svg"
+            )))),
 
             // ── Editor: context menu ──────────────────────────────────────
             "icons/editor/context_menu/chevron-right.svg" => Ok(Some(Cow::Borrowed(

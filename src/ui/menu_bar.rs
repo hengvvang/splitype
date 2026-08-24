@@ -81,6 +81,8 @@ pub fn menu_panel_left<S: AsRef<str>>(
     TITLEBAR_MENU_START_X + prior_width + TITLEBAR_MENU_BUTTON_GAP * open_index as f32
 }
 
+pub const MENU_PANEL_MAX_WIDTH: f32 = 560.0;
+
 pub fn menu_panel_width_for_labels<S: AsRef<str>>(
     labels: &[S],
     dimensions: &ThemeDimensions,
@@ -90,7 +92,10 @@ pub fn menu_panel_width_for_labels<S: AsRef<str>>(
         .map(|label| estimated_menu_label_width(label.as_ref(), dimensions.menu_text_size))
         .fold(0.0, f32::max);
     let content_width = widest_label + dimensions.menu_item_padding_x * 2.0;
-    dimensions.menu_panel_width.max(content_width.ceil())
+    dimensions
+        .menu_panel_width
+        .max(content_width.ceil())
+        .min(MENU_PANEL_MAX_WIDTH)
 }
 
 // ── Item labelling ────────────────────────────────────────────────────────

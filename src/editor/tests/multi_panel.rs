@@ -777,3 +777,55 @@ async fn switching_pane_focus_syncs_bottombar_dropdown_and_clears_stale_dropdown
     assert!(!editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_2).unwrap().open_dropdown));
 }
 
+#[gpui::test]
+fn editor_pane_maximize_and_restore_and_unmaximize_on_split(cx: &mut gpui::TestAppContext) {
+    init_editor_test_app(cx);
+
+    let (editor, cx) = cx.add_window_view({
+        move |_window, cx| Editor::from_markdown(cx, "hello world".to_string(), None)
+    });
+
+    // 1. Split leaf 1 into 2 panes.
+    editor.update(cx, |ed, _cx| {
+        ed.split_pane_with_ratio(1, crate::splitter::SplitAxis::Horizontal, 0.5);
+    });
+
+    let mut ids = Vec::new();
+    editor.read_with(cx, |ed, _cx| ed.session().root.tree.leaf_ids(&mut ids));
+    assert_eq!(ids.len(), 2);
+    let pane_1 = ids[0];
+    let pane_2 = ids[1];
+
+    // Initially neither pane is maximized.
+    assert!(!editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_1).unwrap().maximized));
+    assert!(!editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_2).unwrap().maximized));
+
+    // 2. Maximize pane 1.
+    editor.update(cx, |ed, _cx| {
+        ed.toggle_pane_maximize(pane_1);
+    });
+    assert!(editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_1).unwrap().maximized));
+    assert!(!editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_2).unwrap().maximized));
+
+    // 3. Restore pane 1 by toggling maximize again.
+    editor.update(cx, |ed, _cx| {
+        ed.toggle_pane_maximize(pane_1);
+    });
+    assert!(!editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_1).unwrap().maximized));
+
+    // 4. Maximize pane 2, then split pane 2 -> should unmaximize on split.
+    editor.update(cx, |ed, _cx| {
+        ed.toggle_pane_maximize(pane_2);
+    });
+    assert!(editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_2).unwrap().maximized));
+
+    editor.update(cx, |ed, _cx| {
+        ed.split_pane_with_ratio(pane_2, crate::splitter::SplitAxis::Vertical, 0.5);
+    });
+    assert!(!editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_2).unwrap().maximized));
+
+    let mut new_ids = Vec::new();
+    editor.read_with(cx, |ed, _cx| ed.session().root.tree.leaf_ids(&mut new_ids));
+    assert_eq!(new_ids.len(), 3);
+}
+

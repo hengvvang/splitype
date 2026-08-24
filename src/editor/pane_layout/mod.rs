@@ -73,7 +73,26 @@ impl Editor {
             }
         }
 
-        let inner_rendered = self.render_editor_pane_node(&inner_tree, theme, strings, window, cx);
+        let maximized_pane_id = {
+            let root = &self.session.root.tree;
+            let mut ids = Vec::new();
+            root.leaf_ids(&mut ids);
+            ids.into_iter()
+                .find(|id| root.find_leaf(*id).is_some_and(|p| p.maximized))
+        };
+
+        let inner_rendered = if let Some(max_id) = maximized_pane_id {
+            if let Some(kind) = inner_tree.find_leaf_kind(max_id) {
+                let single = splitype_splitter::tree::SplitTree::Leaf(
+                    splitype_splitter::container::SplitterContainer::new(max_id, kind),
+                );
+                self.render_editor_pane_node(&single, theme, strings, window, cx)
+            } else {
+                self.render_editor_pane_node(&inner_tree, theme, strings, window, cx)
+            }
+        } else {
+            self.render_editor_pane_node(&inner_tree, theme, strings, window, cx)
+        };
 
         let dropdown = {
             let root = &self.session.root;
@@ -101,60 +120,62 @@ impl Editor {
             container = container.child(dropdown);
         }
 
-        // Inner corner-drag preview: rendered inside the pane layout container so
-        // the normalized rects position with `relative()` against the
-        // layout's initialization region (topbar/bottombar excluded). Host
-        // policy: only plain (no-modifier) drags show an indicator.
-        let d = &theme.dimensions;
-        let overlay_style = splitype_splitter::interaction::OverlayStyle {
-            accent: c.split_indicator,
-            tile_radius: d.panel_tile_radius,
-            border: c.dialog_border,
-            selection: c.selection,
-            active: c.focus_accent,
-            surface: c.dialog_surface,
-            text: c.dialog_title,
-        };
-        let inner_size = self
-            .panel_rect
-            .map(|rect| size(rect.size.width, rect.size.height))
-            .unwrap_or_else(|| window.viewport_size());
-        // The corner-drag session lives on the dragging panel itself;
-        // find it via the root.
-        if let Some(drag_panel) = self.session_mut().root.corner_drag_panel() {
-            let drag = self
-                .session_mut()
-                .root
-                .tree
-                .find_leaf(drag_panel)
-                .unwrap()
-                .active_corner_drag
-                .unwrap();
-            if drag.modifier == splitype_splitter::sessions::CornerDragModifier::None
-                || drag.modifier == splitype_splitter::sessions::CornerDragModifier::Ctrl
-                || drag.modifier == splitype_splitter::sessions::CornerDragModifier::Shift
-            {
-                if let Some(preview) =
-                    crate::editor::corner_drag_preview::render_corner_drag_preview(
-                        &self.session_mut().root,
-                        &drag,
-                        inner_size,
-                        &overlay_style,
-                    )
+        if maximized_pane_id.is_none() {
+            // Inner corner-drag preview: rendered inside the pane layout container so
+            // the normalized rects position with `relative()` against the
+            // layout's initialization region (topbar/bottombar excluded). Host
+            // policy: only plain (no-modifier) drags show an indicator.
+            let d = &theme.dimensions;
+            let overlay_style = splitype_splitter::interaction::OverlayStyle {
+                accent: c.split_indicator,
+                tile_radius: d.panel_tile_radius,
+                border: c.dialog_border,
+                selection: c.selection,
+                active: c.focus_accent,
+                surface: c.dialog_surface,
+                text: c.dialog_title,
+            };
+            let inner_size = self
+                .panel_rect
+                .map(|rect| size(rect.size.width, rect.size.height))
+                .unwrap_or_else(|| window.viewport_size());
+            // The corner-drag session lives on the dragging panel itself;
+            // find it via the root.
+            if let Some(drag_panel) = self.session_mut().root.corner_drag_panel() {
+                let drag = self
+                    .session_mut()
+                    .root
+                    .tree
+                    .find_leaf(drag_panel)
+                    .unwrap()
+                    .active_corner_drag
+                    .unwrap();
+                if drag.modifier == splitype_splitter::sessions::CornerDragModifier::None
+                    || drag.modifier == splitype_splitter::sessions::CornerDragModifier::Ctrl
+                    || drag.modifier == splitype_splitter::sessions::CornerDragModifier::Shift
                 {
-                    container = container.child(preview);
+                    if let Some(preview) =
+                        crate::editor::corner_drag_preview::render_corner_drag_preview(
+                            &self.session_mut().root,
+                            &drag,
+                            inner_size,
+                            &overlay_style,
+                        )
+                    {
+                        container = container.child(preview);
+                    }
                 }
             }
-        }
 
-        // Pane border menu: same context menu as the outer window
-        // panels, rendered by the layout crate and wired to the per-panel
-        // pane operations. The split node id doubles as the id of
-        // its second (right/bottom) leaf, matching the outer tree's
-        // semantics: Split/Close act on that side, Swap flips the sides.
-        if let Some(border_menu) = self.session_mut().root.active_border_menu {
-            let menu_overlay = self.render_editor_pane_border_menu(border_menu, theme, cx);
-            container = container.child(menu_overlay);
+            // Pane border menu: same context menu as the outer window
+            // panels, rendered by the layout crate and wired to the per-panel
+            // pane operations. The split node id doubles as the id of
+            // its second (right/bottom) leaf, matching the outer tree's
+            // semantics: Split/Close act on that side, Swap flips the sides.
+            if let Some(border_menu) = self.session_mut().root.active_border_menu {
+                let menu_overlay = self.render_editor_pane_border_menu(border_menu, theme, cx);
+                container = container.child(menu_overlay);
+            }
         }
 
         container.into_any_element()

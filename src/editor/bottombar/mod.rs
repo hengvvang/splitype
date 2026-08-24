@@ -148,9 +148,13 @@ impl Editor {
             ));
         }
 
-        // Split / close buttons on the far right of the status bar. Available
+        // Split / close / maximize buttons on the far right of the status bar. Available
         // even in the welcome state so the panels can be split before any
         // document is opened.
+        let is_pane_maximized = focused_pane_id
+            .and_then(|id| self.session().root.tree.find_leaf(id))
+            .is_some_and(|p| p.maximized);
+
         if let (Some(pane_id), Some(_)) = (focused_pane_id, focused_kind) {
             let editor = cx.entity().downgrade();
             let btn_icon_size = toolbar_icon_size(d.bottombar_height);
@@ -192,6 +196,31 @@ impl Editor {
                     })
                     .into_any_element(),
             );
+
+            // Maximize / Restore button (when multiple panes or currently maximized).
+            if inner_leaf_count > 1 || is_pane_maximized {
+                let max_editor = editor.clone();
+                right_items.push(
+                    icon_chip_button(c, d)
+                        .child(
+                            svg()
+                                .path(if is_pane_maximized {
+                                    "icons/editor/bottombar/restore.svg"
+                                } else {
+                                    "icons/editor/bottombar/maximize.svg"
+                                })
+                                .size(px(btn_icon_size))
+                                .text_color(c.dialog_muted),
+                        )
+                        .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                            let _ = max_editor.update(cx, |ed, cx| {
+                                ed.toggle_pane_maximize(pane_id);
+                                cx.notify();
+                            });
+                        })
+                        .into_any_element(),
+                );
+            }
 
             // Close button (only when multiple panels).
             if inner_leaf_count > 1 {
