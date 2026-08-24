@@ -1,24 +1,17 @@
 //! Corner-drag indicator rendering (host-side logic).
 //!
 //! The splitter engine reports only raw gesture facts ([`CornerDragSession`]);
-//! this module owns the *rendering*: what the indicator looks like. Hosts
-//! decide when to call [`render_corner_drag_preview`] (e.g. only for
-//! no-modifier drags — Shift drags never show an indicator).
+//! this module owns the *rendering*: what the indicator looks like.
 
 use gpui::*;
 
 use splitype_splitter::interaction::{OverlayStyle, overlay_container};
 use splitype_splitter::root::SplitterRoot;
-use splitype_splitter::sessions::CornerDragSession;
-use splitype_splitter::tree::{Direction, LeafRect, SplitAxis};
+use splitype_splitter::sessions::{AreaDockTarget, CornerDragModifier, CornerDragSession};
+use splitype_splitter::tree::{LeafRect, SplitAxis};
 
 /// Render the corner-drag indicator, or `None` when there is nothing to
 /// show yet (no gesture direction).
-///
-/// Hovering another leaf draws a join highlight on that leaf; hovering the
-/// dragged leaf (or outside) draws the split line inside it. The overlay
-/// positions with `relative()` against the container, so the indicator
-/// tracks the tree geometry exactly.
 pub fn render_corner_drag_preview<T: Copy + PartialEq>(
     root: &SplitterRoot<T>,
     drag: &CornerDragSession,
@@ -28,11 +21,42 @@ pub fn render_corner_drag_preview<T: Copy + PartialEq>(
     let mut rects = Vec::new();
     root.tree.collect_leaf_rects(0.0, 0.0, 1.0, 1.0, &mut rects);
     let target_rect = rect_by_id(&rects, drag.target_id)?;
+
+    // 0. Shift drag preview: Duplicate Area into New Window
+    if drag.modifier == CornerDragModifier::Shift {
+        return Some(new_window_preview_overlay(target_rect, style));
+    }
+
     match drag.hover_leaf {
         Some(hover) if hover != drag.target_id => {
-            let target = rect_by_id(&rects, hover)?;
-            let dir = drag.gesture_dir?;
-            Some(join_preview_overlay(target, dir, style))
+            let hover_target = rect_by_id(&rects, hover)?;
+
+            // 1. Swap preview (Ctrl held or hovering Center)
+            if drag.modifier == CornerDragModifier::Ctrl
+                || drag.dock_target == AreaDockTarget::Center
+            {
+                return Some(swap_preview_overlay(target_rect, hover_target, style));
+            }
+
+            // 2. Dock preview (Top, Bottom, Left, Right)
+            if matches!(
+                drag.dock_target,
+                AreaDockTarget::Top
+                    | AreaDockTarget::Bottom
+                    | AreaDockTarget::Left
+                    | AreaDockTarget::Right
+            ) {
+                return Some(dock_preview_overlay(
+                    target_rect,
+                    hover_target,
+                    drag.dock_target,
+                    drag.dock_ratio,
+                    style,
+                ));
+            }
+
+            // 3. Direct Join preview (when dock_target is None)
+            Some(join_preview_overlay(target_rect, hover_target, style))
         }
         _ => {
             let (axis, ratio) = root.corner_split_facts(drag, container_size)?;
@@ -46,33 +70,33 @@ fn rect_by_id(rects: &[LeafRect], id: usize) -> Option<&LeafRect> {
 }
 
 /// The split preview line for a horizontal split (left|right): a vertical
-/// divider at `ratio` of the target rect's width. Deliberately thin (1px)
-/// like IDE split guides. `rect` is normalized (0..1).
+/// divider at `ratio` of the target rect's width with prominent 2.5px thickness.
+/// `rect` is normalized (0..1).
 fn split_line_horizontal(rect: &LeafRect, ratio: f32, accent: Hsla) -> Div {
     div()
         .absolute()
         .left(relative(rect.x + rect.width * ratio))
         .top(relative(rect.y))
-        .w(px(1.0))
+        .w(px(2.5))
         .h(relative(rect.height))
         .bg(accent)
 }
 
 /// The split preview line for a vertical split (top|bottom): a horizontal
-/// divider at `ratio` of the target rect's height. Deliberately thin (1px)
-/// like IDE split guides. `rect` is normalized (0..1).
+/// divider at `ratio` of the target rect's height with prominent 2.5px thickness.
+/// `rect` is normalized (0..1).
 fn split_line_vertical(rect: &LeafRect, ratio: f32, accent: Hsla) -> Div {
     div()
         .absolute()
         .top(relative(rect.y + rect.height * ratio))
         .left(relative(rect.x))
-        .h(px(1.0))
+        .h(px(2.5))
         .w(relative(rect.width))
         .bg(accent)
 }
 
-/// A full-window overlay drawing the split line plus a faint highlight over
-/// the leaf being split. `rect` is normalized (0..1).
+/// A full-window overlay drawing the split line plus a pure background highlight
+/// over the leaf being split. `rect` is normalized (0..1).
 fn split_preview_overlay(
     rect: &LeafRect,
     direction: SplitAxis,
@@ -92,30 +116,33 @@ fn split_preview_overlay(
                 .w(relative(rect.width))
                 .h(relative(rect.height))
                 .rounded(px(style.tile_radius))
-                .bg(style.accent.opacity(0.1)),
+                .bg(style.accent.opacity(0.12)),
         )
         .child(line)
         .into_any_element()
 }
 
-/// Arrow symbol for a join direction.
-fn join_arrow(direction: Direction) -> &'static str {
-    match direction {
-        Direction::Up => "▲",
-        Direction::Down => "▼",
-        Direction::Right => "▶",
-        Direction::Left => "◀",
-    }
+/// A unified floating indicator badge styled as a clean card matching the theme surface (dark on dark, white on light).
+fn unified_badge(text: &'static str, style: &OverlayStyle) -> Div {
+    div()
+        .px(px(16.0))
+        .py(px(8.0))
+        .rounded(px(crate::infra::theme::dimensions::CONTROL_CORNER_RADIUS))
+        .bg(style.surface)
+        .border(px(1.0))
+        .border_color(style.border)
+        .shadow_md()
+        .text_color(style.text)
+        .text_size(px(13.5))
+        .font_weight(FontWeight::SEMIBOLD)
+        .child(text)
 }
 
-/// A full-window overlay highlighting the join target with an arrow badge.
-/// `target` is normalized (0..1).
-fn join_preview_overlay(
+/// A full-window overlay highlighting the dragged panel with a themed "Duplicate into New Window" card.
+fn new_window_preview_overlay(
     target: &LeafRect,
-    direction: Direction,
     style: &OverlayStyle,
 ) -> AnyElement {
-    let arrow = join_arrow(direction);
     overlay_container()
         .child(
             div()
@@ -125,24 +152,181 @@ fn join_preview_overlay(
                 .w(relative(target.width))
                 .h(relative(target.height))
                 .rounded(px(style.tile_radius))
-                .bg(style.accent.opacity(0.25))
-                .border(px(2.0))
+                .bg(style.accent.opacity(0.18))
+                .border(px(1.5))
                 .border_color(style.accent)
                 .flex()
                 .flex_col()
                 .items_center()
                 .justify_center()
-                .child(
-                    div()
-                        .px(px(12.0))
-                        .py(px(6.0))
-                        .rounded(px(crate::infra::theme::dimensions::CONTROL_CORNER_RADIUS))
-                        .bg(hsla(0.0, 0.0, 0.0, 0.75))
-                        .text_color(hsla(0.0, 0.0, 1.0, 0.95))
-                        .text_size(px(15.0))
-                        .font_weight(FontWeight::BOLD)
-                        .child(format!("{arrow} Join Panel")),
-                ),
+                .child(unified_badge("Duplicate Area into New Window", style)),
         )
+        .into_any_element()
+}
+
+/// A full-window overlay highlighting the COMBINED merged area (the bounding box
+/// of both the source and target areas combined), 1:1 matching Blender's `screen_draw_join_highlight`.
+/// `source` and `target` are normalized (0..1).
+fn join_preview_overlay(
+    source: &LeafRect,
+    target: &LeafRect,
+    style: &OverlayStyle,
+) -> AnyElement {
+    let combined_x = source.x.min(target.x);
+    let combined_y = source.y.min(target.y);
+    let combined_w = (source.x + source.width).max(target.x + target.width) - combined_x;
+    let combined_h = (source.y + source.height).max(target.y + target.height) - combined_y;
+
+    overlay_container()
+        // Single combined merged rectangle covering the whole merged space
+        .child(
+            div()
+                .absolute()
+                .left(relative(combined_x))
+                .top(relative(combined_y))
+                .w(relative(combined_w))
+                .h(relative(combined_h))
+                .rounded(px(style.tile_radius))
+                .bg(style.accent.opacity(0.18))
+                .flex()
+                .flex_col()
+                .items_center()
+                .justify_center()
+                .child(unified_badge("Join Panel", style)),
+        )
+        .into_any_element()
+}
+
+/// A full-window overlay highlighting BOTH the source and target panels with a pure text Swap badge.
+fn swap_preview_overlay(
+    source: &LeafRect,
+    target: &LeafRect,
+    style: &OverlayStyle,
+) -> AnyElement {
+    overlay_container()
+        // Source panel highlight
+        .child(
+            div()
+                .absolute()
+                .left(relative(source.x))
+                .top(relative(source.y))
+                .w(relative(source.width))
+                .h(relative(source.height))
+                .rounded(px(style.tile_radius))
+                .bg(style.accent.opacity(0.18)),
+        )
+        // Target panel highlight with Swap badge
+        .child(
+            div()
+                .absolute()
+                .left(relative(target.x))
+                .top(relative(target.y))
+                .w(relative(target.width))
+                .h(relative(target.height))
+                .rounded(px(style.tile_radius))
+                .bg(style.accent.opacity(0.18))
+                .flex()
+                .flex_col()
+                .items_center()
+                .justify_center()
+                .child(unified_badge("Swap Areas", style)),
+        )
+        .into_any_element()
+}
+
+/// A full-window overlay previewing moving and docking a source panel onto a target panel's edge.
+fn dock_preview_overlay(
+    source: &LeafRect,
+    target: &LeafRect,
+    dock_target: AreaDockTarget,
+    ratio: f32,
+    style: &OverlayStyle,
+) -> AnyElement {
+    let (sub_x, sub_y, sub_w, sub_h, line_div) = match dock_target {
+        AreaDockTarget::Left => (
+            target.x,
+            target.y,
+            target.width * ratio,
+            target.height,
+            div()
+                .absolute()
+                .left(relative(target.x + target.width * ratio))
+                .top(relative(target.y))
+                .w(px(2.5))
+                .h(relative(target.height))
+                .bg(style.accent),
+        ),
+        AreaDockTarget::Right => (
+            target.x + target.width * (1.0 - ratio),
+            target.y,
+            target.width * ratio,
+            target.height,
+            div()
+                .absolute()
+                .left(relative(target.x + target.width * (1.0 - ratio)))
+                .top(relative(target.y))
+                .w(px(2.5))
+                .h(relative(target.height))
+                .bg(style.accent),
+        ),
+        AreaDockTarget::Top => (
+            target.x,
+            target.y,
+            target.width,
+            target.height * ratio,
+            div()
+                .absolute()
+                .top(relative(target.y + target.height * ratio))
+                .left(relative(target.x))
+                .h(px(2.5))
+                .w(relative(target.width))
+                .bg(style.accent),
+        ),
+        AreaDockTarget::Bottom => (
+            target.x,
+            target.y + target.height * (1.0 - ratio),
+            target.width,
+            target.height * ratio,
+            div()
+                .absolute()
+                .top(relative(target.y + target.height * (1.0 - ratio)))
+                .left(relative(target.x))
+                .h(px(2.5))
+                .w(relative(target.width))
+                .bg(style.accent),
+        ),
+        _ => (
+            target.x,
+            target.y,
+            target.width,
+            target.height,
+            div().absolute(),
+        ),
+    };
+
+    overlay_container()
+        // Source panel highlight (being moved)
+        .child(
+            div()
+                .absolute()
+                .left(relative(source.x))
+                .top(relative(source.y))
+                .w(relative(source.width))
+                .h(relative(source.height))
+                .rounded(px(style.tile_radius))
+                .bg(style.accent.opacity(0.12)),
+        )
+        // Target sub-area highlight (destination slot)
+        .child(
+            div()
+                .absolute()
+                .left(relative(sub_x))
+                .top(relative(sub_y))
+                .w(relative(sub_w))
+                .h(relative(sub_h))
+                .rounded(px(style.tile_radius))
+                .bg(style.accent.opacity(0.20)),
+        )
+        .child(line_div)
         .into_any_element()
 }

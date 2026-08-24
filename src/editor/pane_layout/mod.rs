@@ -112,6 +112,8 @@ impl Editor {
             border: c.dialog_border,
             selection: c.selection,
             active: c.focus_accent,
+            surface: c.dialog_surface,
+            text: c.dialog_title,
         };
         let inner_size = self
             .panel_rect
@@ -128,7 +130,10 @@ impl Editor {
                 .unwrap()
                 .active_corner_drag
                 .unwrap();
-            if drag.modifier == splitype_splitter::sessions::CornerDragModifier::None {
+            if drag.modifier == splitype_splitter::sessions::CornerDragModifier::None
+                || drag.modifier == splitype_splitter::sessions::CornerDragModifier::Ctrl
+                || drag.modifier == splitype_splitter::sessions::CornerDragModifier::Shift
+            {
                 if let Some(preview) =
                     crate::editor::corner_drag_preview::render_corner_drag_preview(
                         &self.session_mut().root,

@@ -30,6 +30,10 @@ pub struct OverlayStyle {
     pub selection: Hsla,
     /// Splitter bar drag-in-progress color (line + hit-zone glow).
     pub active: Hsla,
+    /// Surface card background color for central indicator badges.
+    pub surface: Hsla,
+    /// Text color for central indicator badges.
+    pub text: Hsla,
 }
 
 impl Default for OverlayStyle {
@@ -38,10 +42,12 @@ impl Default for OverlayStyle {
             // Professional blue used by IDE split previews (≈ #60a5fa).
             accent: hsla(0.592, 0.94, 0.68, 0.9),
             tile_radius: 8.0,
-            border: hsla(0.0, 0.0, 0.0, 0.2),
+            border: hsla(0.0, 0.0, 1.0, 0.15),
             selection: hsla(0.58, 0.6, 0.6, 0.8),
             // Sky blue (≈ #72cffe) for the active drag highlight.
             active: hsla(0.556, 0.99, 0.72, 0.9),
+            surface: hsla(0.0, 0.0, 0.12, 0.95),
+            text: hsla(0.0, 0.0, 0.95, 1.0),
         }
     }
 }
@@ -69,14 +75,14 @@ pub fn splitter_bar_h(
     style: &OverlayStyle,
 ) -> Stateful<Div> {
     if active {
-        // Drag-in-progress: highlight only the 1px boundary line.
+        // Drag-in-progress: highlight the boundary line with 2.5px thickness.
         div()
             .id(id)
             .absolute()
             .left(relative(ratio))
             .top_0()
             .bottom_0()
-            .w(px(4.0))
+            .w(px(5.0))
             .cursor_col_resize()
             .child(
                 div()
@@ -84,7 +90,7 @@ pub fn splitter_bar_h(
                     .left_0()
                     .top_0()
                     .bottom_0()
-                    .w(px(1.0))
+                    .w(px(2.5))
                     .bg(style.active),
             )
     } else {
@@ -112,7 +118,7 @@ pub fn splitter_bar_h(
 /// Vertical splitter bar (resizes columns).
 ///
 /// Same overlay model as [`splitter_bar_h`]: floats on the boundary at
-/// `ratio` of the container height, 4px hit zone plus a 1px guide line.
+/// `ratio` of the container height, 4px hit zone plus a guide line.
 pub fn splitter_bar_v(
     id: impl Into<ElementId>,
     ratio: f32,
@@ -120,14 +126,14 @@ pub fn splitter_bar_v(
     style: &OverlayStyle,
 ) -> Stateful<Div> {
     if active {
-        // Drag-in-progress: highlight only the 1px boundary line.
+        // Drag-in-progress: highlight the boundary line with 2.5px thickness.
         div()
             .id(id)
             .absolute()
             .top(relative(ratio))
             .left_0()
             .right_0()
-            .h(px(4.0))
+            .h(px(5.0))
             .cursor_row_resize()
             .child(
                 div()
@@ -135,7 +141,7 @@ pub fn splitter_bar_v(
                     .top_0()
                     .left_0()
                     .right_0()
-                    .h(px(1.0))
+                    .h(px(2.5))
                     .bg(style.active),
             )
     } else {

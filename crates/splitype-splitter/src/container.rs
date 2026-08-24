@@ -50,6 +50,8 @@ impl<T: Copy + PartialEq> SplitterContainer<T> {
             modifier,
             pointer_pos: Some(pos),
             hover_leaf: None,
+            dock_target: crate::sessions::AreaDockTarget::None,
+            dock_ratio: 0.5,
         });
     }
 

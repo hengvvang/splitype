@@ -190,6 +190,78 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
         }
     }
 
+    /// Move a source leaf and dock it onto a target leaf at the specified edge,
+    /// closing the source leaf and rearranging its former neighbors, while splitting
+    /// the target leaf to accommodate the moved leaf at the specified ratio.
+    /// If `dock_target` is `Center`, it swaps kinds between source and target instead.
+    pub fn move_and_dock_leaf(
+        &mut self,
+        source_id: usize,
+        target_id: usize,
+        dock_target: crate::sessions::AreaDockTarget,
+        ratio: f32,
+    ) -> Option<usize> {
+        if source_id == target_id {
+            return None;
+        }
+        if dock_target == crate::sessions::AreaDockTarget::Center {
+            self.swap_kinds(source_id, target_id);
+            return None;
+        }
+        let source_kind = self.tree.find_leaf_kind(source_id)?;
+        let target_kind = self.tree.find_leaf_kind(target_id)?;
+
+        // 1. Remove source leaf (collapsing source parent Split node and expanding neighbors)
+        self.tree.remove_leaf(source_id);
+        self.retire_leaf(source_id);
+
+        // 2. Allocate new IDs
+        let split_id = self.next_node_id;
+        self.next_node_id += 1;
+        let new_leaf_id = self.next_node_id;
+        self.next_node_id += 1;
+
+        // 3. Split target leaf based on dock_target
+        let (axis, split_ratio, source_first) = match dock_target {
+            crate::sessions::AreaDockTarget::Left => {
+                (SplitAxis::Horizontal, ratio.clamp(0.01, 0.99), true)
+            }
+            crate::sessions::AreaDockTarget::Right => {
+                (SplitAxis::Horizontal, (1.0 - ratio).clamp(0.01, 0.99), false)
+            }
+            crate::sessions::AreaDockTarget::Top => {
+                (SplitAxis::Vertical, ratio.clamp(0.01, 0.99), true)
+            }
+            crate::sessions::AreaDockTarget::Bottom => {
+                (SplitAxis::Vertical, (1.0 - ratio).clamp(0.01, 0.99), false)
+            }
+            _ => (SplitAxis::Horizontal, 0.5, true),
+        };
+
+        if source_first {
+            self.tree.split_leaf_with_ratio(
+                target_id,
+                split_id,
+                new_leaf_id,
+                axis,
+                split_ratio,
+                target_kind,
+            );
+            self.tree.set_leaf_kind(target_id, source_kind);
+        } else {
+            self.tree.split_leaf_with_ratio(
+                target_id,
+                split_id,
+                new_leaf_id,
+                axis,
+                split_ratio,
+                source_kind,
+            );
+        }
+        self.active_border_menu = None;
+        Some(new_leaf_id)
+    }
+
     // ------------------------------------------------------------------
     // Maximise / dropdown (panel-level flags)
     // ------------------------------------------------------------------
@@ -329,6 +401,28 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
         let leaf_rects = self.leaf_rects(container_size);
         let over_id = id_at_point(&leaf_rects, current_pos);
 
+        let (dock_target, dock_ratio) = if let Some(over) = over_id {
+            if over != target_id {
+                let target_rect = leaf_rects.iter().find(|r| r.id == over);
+                let source_rect = leaf_rects.iter().find(|r| r.id == target_id);
+                if let (Some(target_rect), Some(source_rect)) = (target_rect, source_rect) {
+                    crate::sessions::calculate_dock_target(
+                        source_rect,
+                        target_rect,
+                        dir,
+                        current_pos,
+                        session.modifier == CornerDragModifier::Ctrl,
+                    )
+                } else {
+                    (crate::sessions::AreaDockTarget::None, 0.5)
+                }
+            } else {
+                (crate::sessions::AreaDockTarget::None, 0.5)
+            }
+        } else {
+            (crate::sessions::AreaDockTarget::None, 0.5)
+        };
+
         if let Some(panel) = self.tree.find_leaf_mut(target_id) {
             panel.active_corner_drag = Some(CornerDragSession {
                 target_id,
@@ -337,6 +431,8 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
                 modifier: session.modifier,
                 pointer_pos: Some(current_pos),
                 hover_leaf: over_id,
+                dock_target,
+                dock_ratio,
             });
             true
         } else {
@@ -414,10 +510,14 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
         };
         let norm_x = f32::from(pos.x) / f32::from(container_size.width);
         let norm_y = f32::from(pos.y) / f32::from(container_size.height);
-        let ratio = match axis {
-            SplitAxis::Horizontal => ((norm_x - target.x) / target.width).clamp(0.15, 0.85),
-            SplitAxis::Vertical => ((norm_y - target.y) / target.height).clamp(0.15, 0.85),
+        let raw_ratio = match axis {
+            SplitAxis::Horizontal => (norm_x - target.x) / target.width,
+            SplitAxis::Vertical => (norm_y - target.y) / target.height,
         };
+        let ratio = crate::sessions::calc_snapped_ratio(
+            raw_ratio,
+            facts.modifier == CornerDragModifier::Ctrl,
+        );
         Some((axis, ratio))
     }
 
@@ -672,5 +772,99 @@ mod tests {
         } else {
             panic!("expected split tree");
         }
+    }
+
+    #[test]
+    fn test_move_and_dock_leaf_rearranges_layout() {
+        let mut root = test_root();
+        let leaf_2 = root.split_leaf(1, SplitAxis::Horizontal, 0.5).unwrap();
+        let leaf_3 = root.split_leaf(leaf_2, SplitAxis::Vertical, 0.5).unwrap();
+        assert_eq!(root.tree.count_leaves(), 3);
+
+        // Move leaf 3 and dock onto leaf 1 at Left with ratio 0.4
+        let new_leaf = root
+            .move_and_dock_leaf(leaf_3, 1, crate::sessions::AreaDockTarget::Left, 0.4)
+            .expect("dock should succeed");
+        assert_eq!(root.tree.count_leaves(), 3);
+        assert!(root.tree.find_leaf(new_leaf).is_some());
+    }
+
+    #[test]
+    fn test_calc_snapped_ratio_magnetic_half() {
+        use crate::sessions::calc_snapped_ratio;
+        // Magnetic 0.5 snapping
+        assert_eq!(calc_snapped_ratio(0.48, false), 0.5);
+        assert_eq!(calc_snapped_ratio(0.50, false), 0.5);
+        assert_eq!(calc_snapped_ratio(0.52, false), 0.5);
+
+        // Outside 0.5 range without Ctrl
+        assert!((calc_snapped_ratio(0.30, false) - 0.30).abs() < 0.001);
+
+        // With Ctrl (snaps to 1/12 grid)
+        assert_eq!(calc_snapped_ratio(0.24, true), 0.25); // 3/12 = 0.25
+        assert_eq!(calc_snapped_ratio(0.33, true), 0.33333334); // 4/12 = 1/3
+    }
+
+    #[test]
+    fn test_calculate_dock_target_quadrants() {
+        use crate::sessions::{calculate_dock_target, AreaDockTarget};
+        let source = LeafRect {
+            id: 1,
+            x: 0.0,
+            y: 0.0,
+            width: 500.0,
+            height: 800.0,
+        };
+        let target = LeafRect {
+            id: 2,
+            x: 500.0,
+            y: 0.0,
+            width: 500.0,
+            height: 800.0,
+        };
+        // 1. Direct neighbor near shared border (fac_x = 0.10 <= 0.15) -> Join!
+        let (dock, _) = calculate_dock_target(&source, &target, Direction::Right, point(px(550.0), px(400.0)), false);
+        assert_eq!(dock, AreaDockTarget::None);
+
+        // 1b. Direct neighbor past Join zone (fac_x = 0.35 -> raw_pos = (0.35 - 0.15)/0.35 = 0.571) -> Dock Left!
+        let (dock, ratio) = calculate_dock_target(&source, &target, Direction::Right, point(px(675.0), px(400.0)), false);
+        assert_eq!(dock, AreaDockTarget::Left);
+        assert!((ratio - (0.20 / 0.35)).abs() < 0.01);
+
+        // 2. Direct neighbor towards Top edge (fac_y = 0.125 -> ratio = 0.25) -> Dock Top!
+        let (dock, ratio) = calculate_dock_target(&source, &target, Direction::Right, point(px(750.0), px(100.0)), false);
+        assert_eq!(dock, AreaDockTarget::Top);
+        assert!((ratio - 0.25).abs() < 0.01);
+
+        // 2b. Direct neighbor at top outer edge (fac_y = 0.0 -> ratio = 0.0) -> Dock Top can reach 0%!
+        let (dock, ratio) = calculate_dock_target(&source, &target, Direction::Right, point(px(750.0), px(0.0)), false);
+        assert_eq!(dock, AreaDockTarget::Top);
+        assert_eq!(ratio, 0.0);
+
+        // 3. Direct neighbor towards Bottom edge (1.0 - fac_y = 0.125 -> ratio = 0.25) -> Dock Bottom!
+        let (dock, ratio) = calculate_dock_target(&source, &target, Direction::Right, point(px(750.0), px(700.0)), false);
+        assert_eq!(dock, AreaDockTarget::Bottom);
+        assert!((ratio - 0.25).abs() < 0.01);
+
+        // 4. Direct neighbor towards Right edge (1.0 - fac_x = 0.10 -> ratio = 0.20) -> Dock Right!
+        let (dock, ratio) = calculate_dock_target(&source, &target, Direction::Right, point(px(950.0), px(400.0)), false);
+        assert_eq!(dock, AreaDockTarget::Right);
+        assert!((ratio - 0.20).abs() < 0.01);
+
+        // 5. Direct neighbor Center -> Swap
+        let (dock, _) = calculate_dock_target(&source, &target, Direction::Right, point(px(750.0), px(400.0)), false);
+        assert_eq!(dock, AreaDockTarget::Center);
+
+        // 6. Non-neighbor panel -> Dock Top
+        let non_neighbor = LeafRect {
+            id: 3,
+            x: 0.0,
+            y: 900.0,
+            width: 500.0,
+            height: 800.0,
+        };
+        let (dock, ratio) = calculate_dock_target(&source, &non_neighbor, Direction::Down, point(px(250.0), px(950.0)), false);
+        assert_eq!(dock, AreaDockTarget::Top);
+        assert!((ratio - 0.125).abs() < 0.01);
     }
 }

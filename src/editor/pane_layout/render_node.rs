@@ -26,6 +26,8 @@ impl Editor {
             border: c.dialog_border,
             selection: c.selection,
             active: c.focus_accent,
+            surface: c.dialog_surface,
+            text: c.dialog_title,
         };
 
         match node {

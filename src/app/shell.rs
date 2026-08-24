@@ -450,6 +450,75 @@ impl Shell {
         }
     }
 
+    /// Move a panel and dock it to a target edge, rearranging surrounding panels and updating contents.
+    pub(crate) fn move_and_dock_panel(
+        &mut self,
+        source_id: NodeId,
+        target_id: NodeId,
+        dock_target: splitype_splitter::sessions::AreaDockTarget,
+        ratio: f32,
+        cx: &mut Context<Self>,
+    ) {
+        if dock_target == splitype_splitter::sessions::AreaDockTarget::Center {
+            self.swap_panel_kinds(source_id, target_id, cx);
+            return;
+        }
+        let source_content = self.panel_contents.remove(&source_id);
+        let source_retained = self.retained_editor_sessions.remove(&source_id);
+        let target_content = self.panel_contents.remove(&target_id);
+        let target_retained = self.retained_editor_sessions.remove(&target_id);
+
+        let source_first = matches!(
+            dock_target,
+            splitype_splitter::sessions::AreaDockTarget::Left
+                | splitype_splitter::sessions::AreaDockTarget::Top
+        );
+
+        if let Some(new_id) = self.panels.layout.move_and_dock_leaf(
+            source_id,
+            target_id,
+            dock_target,
+            ratio,
+        ) {
+            if source_first {
+                // target_id gets source content
+                if let Some(PanelContent::Editor(entity)) = source_content {
+                    entity.update(cx, |editor, _cx| editor.panel_id = target_id);
+                    self.panel_contents.insert(target_id, PanelContent::Editor(entity));
+                }
+                if let Some(session) = source_retained {
+                    self.retained_editor_sessions.insert(target_id, session);
+                }
+                // new_id gets target content
+                if let Some(PanelContent::Editor(entity)) = target_content {
+                    entity.update(cx, |editor, _cx| editor.panel_id = new_id);
+                    self.panel_contents.insert(new_id, PanelContent::Editor(entity));
+                }
+                if let Some(session) = target_retained {
+                    self.retained_editor_sessions.insert(new_id, session);
+                }
+            } else {
+                // target_id keeps target content
+                if let Some(PanelContent::Editor(entity)) = target_content {
+                    entity.update(cx, |editor, _cx| editor.panel_id = target_id);
+                    self.panel_contents.insert(target_id, PanelContent::Editor(entity));
+                }
+                if let Some(session) = target_retained {
+                    self.retained_editor_sessions.insert(target_id, session);
+                }
+                // new_id gets source content
+                if let Some(PanelContent::Editor(entity)) = source_content {
+                    entity.update(cx, |editor, _cx| editor.panel_id = new_id);
+                    self.panel_contents.insert(new_id, PanelContent::Editor(entity));
+                }
+                if let Some(session) = source_retained {
+                    self.retained_editor_sessions.insert(new_id, session);
+                }
+            }
+            self.sync_panel_states(cx);
+        }
+    }
+
     /// Aligns the panel_contents map with an area-kind change: entering Editor
     /// recreates the entity (restoring a retained session when one exists);
     /// leaving Editor removes the entity, retaining its session while it
@@ -813,6 +882,18 @@ impl Shell {
     ) {
         crate::app::cli_install::uninstall_cli_tool(cx);
     }
+
+    pub(crate) fn on_toggle_maximize_area_action(
+        &mut self,
+        _: &crate::app::actions::ToggleMaximizeArea,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if let Some(active) = self.panels.layout.active_leaf {
+            self.panels.layout.toggle_maximize(active);
+            cx.notify();
+        }
+    }
 }
 
 impl Render for Shell {
@@ -836,6 +917,7 @@ impl Render for Shell {
             .bg(theme.colors.editor_background)
             .on_action(cx.listener(Self::on_close_window))
             .on_action(cx.listener(Self::on_toggle_explorer_action))
+            .on_action(cx.listener(Self::on_toggle_maximize_area_action))
             .on_action(cx.listener(Self::on_close_explorer_folder_action))
             .on_action(cx.listener(Self::on_quit_application))
             .on_action(cx.listener(Self::on_install_cli_tool))

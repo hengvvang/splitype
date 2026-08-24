@@ -102,8 +102,8 @@ pub trait DragPolicy<T: Copy + PartialEq> {
     }
 }
 
-/// Shared plain-drag geometry: join the dragged panel into the hovered
-/// neighbor, or split it (returning the new leaf's id).
+/// Shared plain-drag geometry: join or move/dock the dragged panel into the hovered
+/// neighbor/target, or split it (returning the new leaf's id).
 fn split_or_join<T: Copy + PartialEq>(
     root: &mut SplitterRoot<T>,
     facts: &CornerDragSession,
@@ -111,8 +111,21 @@ fn split_or_join<T: Copy + PartialEq>(
 ) -> Option<NodeId> {
     match facts.hover_leaf {
         Some(hover) if hover != facts.target_id => {
-            root.join_leaves(hover, facts.target_id);
-            None
+            if facts.dock_target == crate::sessions::AreaDockTarget::Center {
+                root.swap_kinds(facts.target_id, hover);
+                None
+            } else if facts.dock_target != crate::sessions::AreaDockTarget::None {
+                // Try move and dock to target edge
+                root.move_and_dock_leaf(
+                    facts.target_id,
+                    hover,
+                    facts.dock_target,
+                    facts.dock_ratio,
+                )
+            } else {
+                root.join_leaves(hover, facts.target_id);
+                None
+            }
         }
         _ => {
             let (direction, ratio) = root.corner_split_facts(facts, container_size)?;
@@ -152,6 +165,8 @@ mod tests {
             modifier: CornerDragModifier::Shift,
             pointer_pos: None,
             hover_leaf: None,
+            dock_target: crate::sessions::AreaDockTarget::None,
+            dock_ratio: 0.5,
         };
         let cloned = <SplitterContainer<TestKind> as DragPolicy<TestKind>>::on_shift_drag(
             &mut root,

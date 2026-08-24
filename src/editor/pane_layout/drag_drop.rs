@@ -7,7 +7,6 @@ use crate::editor::session::EditorPaneKind;
 use crate::splitter::{CornerDragModifier, SplitAxis};
 use splitype_splitter::container::SplitterContainer;
 use splitype_splitter::policy::DragPolicy;
-use splitype_splitter::sessions::{id_at_point, past_shortcut_threshold};
 
 impl Editor {
     pub(crate) fn update_inner_drag(&mut self, pos: Point<Pixels>, _window: &Window) -> bool {
@@ -57,7 +56,6 @@ impl Editor {
                 .find_leaf(drag_panel)
                 .and_then(|p| p.active_corner_drag)
                 .unwrap();
-            let mut pending_swap: Option<(usize, usize)> = None;
             let mut handled = false;
             if let Some(outer_rect) = self.panel_rect {
                 let origin = outer_rect.origin;
@@ -78,39 +76,12 @@ impl Editor {
                 }
                 // Write the corrected start pos back onto the panel's own
                 // session, then let the root update the facts (hover,
-                // direction).
+                // direction, dock target).
                 if let Some(panel) = session.root.tree.find_leaf_mut(drag_panel) {
                     panel.active_corner_drag = Some(updated);
                 }
                 session.root.update_corner_drag(inner_pos, inner_size);
-                let drag = session
-                    .root
-                    .tree
-                    .find_leaf(drag_panel)
-                    .and_then(|p| p.active_corner_drag);
-                if let Some(drag) = drag {
-                    if past_shortcut_threshold(&drag) {
-                        match drag.modifier {
-                            CornerDragModifier::Ctrl => {
-                                let rects = session.root.leaf_rects(inner_size);
-                                if let Some(over) = id_at_point(&rects, inner_pos) {
-                                    if over != drag.target_id {
-                                        pending_swap = Some((drag.target_id, over));
-                                    }
-                                }
-                                session.root.end_corner_drag();
-                            }
-                            CornerDragModifier::Shift => {
-                                session.root.end_corner_drag();
-                            }
-                            CornerDragModifier::None | CornerDragModifier::Alt => {}
-                        }
-                    }
-                }
                 handled = true;
-            }
-            if let Some((from, to)) = pending_swap {
-                self.swap_pane_kinds(from, to);
             }
             return handled;
         }

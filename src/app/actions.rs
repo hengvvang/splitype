@@ -25,6 +25,7 @@ actions!(
         InstallCliTool,
         UninstallCliTool,
         ToggleExplorer,
+        ToggleMaximizeArea,
         CloseExplorerFolder,
         OpenSplitypeRepository,
         OpenBugReport,

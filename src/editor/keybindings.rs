@@ -9,7 +9,9 @@ use std::collections::BTreeMap;
 
 use gpui::*;
 
-use crate::app::actions::{CloseWindow, NewWindow, OpenFile, QuitApplication, ToggleExplorer};
+use crate::app::actions::{
+    CloseWindow, NewWindow, OpenFile, QuitApplication, ToggleExplorer, ToggleMaximizeArea,
+};
 use crate::editor::actions::{SaveDocument, SaveDocumentAs, ToggleViewMode};
 use crate::editor::editing::input::actions::{
     BlockDown, BlockUp, BoldSelection, CodeSelection, Copy, Cut, Delete, DeleteBackward,
@@ -79,6 +81,7 @@ fn key_binding_for(
         ShortcutCommand::DismissTransientUi => KeyBinding::new(key, DismissTransientUi, context),
         ShortcutCommand::ToggleViewMode => KeyBinding::new(key, ToggleViewMode, context),
         ShortcutCommand::ToggleExplorer => KeyBinding::new(key, ToggleExplorer, context),
+        ShortcutCommand::ToggleMaximizeArea => KeyBinding::new(key, ToggleMaximizeArea, context),
     }
 }
 

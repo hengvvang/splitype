@@ -25,6 +25,8 @@ pub mod tree;
 
 pub use container::SplitterContainer;
 pub use policy::{ClonedContainer, DragPolicy};
-pub use root::SplitterRoot;
-pub use sessions::{BorderMenuState, CornerDragModifier};
-pub use tree::{NodeId, SplitAxis, SplitTree};
+pub use sessions::{
+    AreaDockTarget, BorderMenuState, CornerDragModifier, CornerDragSession, calc_snapped_ratio,
+    calculate_dock_target,
+};
+pub use tree::{Direction, LeafRect, NodeId, SplitAxis, SplitTree};

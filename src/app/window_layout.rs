@@ -20,7 +20,7 @@ use crate::infra::theme::Theme;
 use crate::splitter::{CornerDragModifier, SplitAxis};
 use splitype_splitter::container::SplitterContainer;
 use splitype_splitter::policy::DragPolicy;
-use splitype_splitter::sessions::{id_at_point, past_shortcut_threshold};
+use splitype_splitter::sessions::past_shortcut_threshold;
 use splitype_splitter::tree::SplitTree;
 
 /// Icon path for a window-panel top-bar button, per panel kind.
@@ -105,6 +105,12 @@ impl Shell {
         let root_shell_up = cx.entity().downgrade();
         let root_shell_up_out = cx.entity().downgrade();
 
+        let titlebar_height = crate::ui::custom_titlebar::custom_titlebar_height_for_target_os(
+            std::env::consts::OS,
+            Decorations::Server,
+            &theme.dimensions,
+        );
+
         let container = div()
             .id("tiled-layout-root")
             .w_full()
@@ -118,45 +124,17 @@ impl Shell {
                 let _ = root_shell_move.update(cx, |shell, cx| {
                     let mut changed = false;
                     let viewport = window.viewport_size();
+                    let body_height = (f32::from(viewport.height) - titlebar_height).max(0.0);
+                    let body_size = size(viewport.width, px(body_height));
+                    let body_pos = point(pos.x, px((f32::from(pos.y) - titlebar_height).max(0.0)));
                     if splitype_splitter::interaction::update_splitter_drag(
                         &mut shell.panels.layout,
-                        pos,
-                        viewport,
+                        body_pos,
+                        body_size,
                     ) {
                         changed = true;
                     }
                     // Outer gesture shortcuts (host-owned, immediate):
-                    // Ctrl past the threshold swaps the dragged area with
-                    // the hovered one and ends the gesture. Shift drags
-                    // defer to the drag policy on mouse-up (open the
-                    // dragged area in a new window); they never show the
-                    // visual indicator.
-                    // The corner-drag session lives on the dragging panel
-                    // itself; find it via the root.
-                    if let Some(drag_panel) = shell.panels.layout.corner_drag_panel() {
-                        let drag = shell
-                            .panels
-                            .layout
-                            .tree
-                            .find_leaf(drag_panel)
-                            .and_then(|p| p.active_corner_drag);
-                        if let Some(drag) = drag {
-                            if past_shortcut_threshold(&drag)
-                                && drag.modifier == CornerDragModifier::Ctrl
-                            {
-                                let rects = shell.panels.layout.leaf_rects(viewport);
-                                if let Some(over) = id_at_point(&rects, pos) {
-                                    if over != drag.target_id {
-                                        shell.swap_panel_kinds(drag.target_id, over, cx);
-                                    }
-                                }
-                                shell.panels.layout.end_corner_drag();
-                            }
-                        }
-                    }
-                    // Inner-level gestures (splitter bars and panel corner
-                    // drags) drive each area's session through the shared
-                    // container API; the handling lives in `panel_layout`.
                     // Forward to every editor entity — only the one with an
                     // active drag reports a change.
                     let editors: Vec<Entity<crate::editor::controller::Editor>> = shell
@@ -184,16 +162,18 @@ impl Shell {
             })
             .child(layout_tree);
 
-        // Build the preview overlay for corner drag gestures. Host policy:
-        // only plain (no-modifier) drags show an indicator; modifier drags
-        // have their own immediate behaviors.
+        // Build the preview overlay for corner drag gestures.
         let overlay_style = splitype_splitter::interaction::OverlayStyle {
             accent: theme.colors.split_indicator,
             tile_radius: theme.dimensions.panel_tile_radius,
             border: theme.colors.dialog_border,
             selection: theme.colors.selection,
             active: theme.colors.focus_accent,
+            surface: theme.colors.dialog_surface,
+            text: theme.colors.dialog_title,
         };
+        let body_height = (f32::from(window.viewport_size().height) - titlebar_height).max(0.0);
+        let body_size = size(window.viewport_size().width, px(body_height));
         let preview_overlay = self.panels.layout.corner_drag_panel().and_then(|panel_id| {
             let drag = self
                 .panels
@@ -201,13 +181,16 @@ impl Shell {
                 .tree
                 .find_leaf(panel_id)
                 .and_then(|p| p.active_corner_drag)?;
-            if drag.modifier != CornerDragModifier::None {
+            if drag.modifier != CornerDragModifier::None
+                && drag.modifier != CornerDragModifier::Ctrl
+                && drag.modifier != CornerDragModifier::Shift
+            {
                 return None;
             }
             render_corner_drag_preview(
                 &self.panels.layout,
                 &drag,
-                window.viewport_size(),
+                body_size,
                 &overlay_style,
             )
         });
@@ -227,7 +210,29 @@ impl Shell {
             let viewport = window.viewport_size();
             match facts.modifier {
                 CornerDragModifier::None => {
-                    if let Some(new_id) = <SplitterContainer<WindowPanelKind> as DragPolicy<
+                    if let Some(hover) = facts.hover_leaf {
+                        if hover != facts.target_id {
+                            if facts.dock_target == splitype_splitter::sessions::AreaDockTarget::Center {
+                                self.swap_panel_kinds(facts.target_id, hover, cx);
+                            } else if facts.dock_target != splitype_splitter::sessions::AreaDockTarget::None {
+                                self.move_and_dock_panel(
+                                    facts.target_id,
+                                    hover,
+                                    facts.dock_target,
+                                    facts.dock_ratio,
+                                    cx,
+                                );
+                            } else {
+                                self.panels.layout.join_leaves(hover, facts.target_id);
+                            }
+                        } else if let Some(new_id) = <SplitterContainer<WindowPanelKind> as DragPolicy<
+                            WindowPanelKind,
+                        >>::on_plain_drag(
+                            &mut self.panels.layout, &facts, viewport
+                        ) {
+                            self.seed_split_panel(new_id, cx);
+                        }
+                    } else if let Some(new_id) = <SplitterContainer<WindowPanelKind> as DragPolicy<
                         WindowPanelKind,
                     >>::on_plain_drag(
                         &mut self.panels.layout, &facts, viewport
@@ -245,11 +250,11 @@ impl Shell {
                     }
                 }
                 CornerDragModifier::Ctrl => {
-                    <SplitterContainer<WindowPanelKind> as DragPolicy<
-                        WindowPanelKind,
-                    >>::on_ctrl_drag(
-                        &mut self.panels.layout, &facts, viewport
-                    );
+                    if let Some(hover) = facts.hover_leaf {
+                        if hover != facts.target_id && past_shortcut_threshold(&facts) {
+                            self.swap_panel_kinds(facts.target_id, hover, cx);
+                        }
+                    }
                 }
                 CornerDragModifier::Alt => {
                     <SplitterContainer<WindowPanelKind> as DragPolicy<
@@ -287,6 +292,8 @@ impl Shell {
             border: c.dialog_border,
             selection: c.selection,
             active: c.focus_accent,
+            surface: c.dialog_surface,
+            text: c.dialog_title,
         };
         let shell = cx.entity().downgrade();
 
@@ -596,6 +603,12 @@ impl Shell {
             })
             .child(panel_card);
 
+        let titlebar_height = crate::ui::custom_titlebar::custom_titlebar_height_for_target_os(
+            std::env::consts::OS,
+            Decorations::Server,
+            &theme.dimensions,
+        );
+
         // Corner drag handles positioned at the four outer corners of the tile card.
         let shell_corner = cx.entity().downgrade();
         let corner_handles = splitype_splitter::interaction::corner_drag_handles(
@@ -607,10 +620,11 @@ impl Shell {
             false,
             move |modifier, pos, cx| {
                 let _ = shell_corner.update(cx, |shell, cx| {
+                    let body_pos = point(pos.x, px((f32::from(pos.y) - titlebar_height).max(0.0)));
                     shell
                         .panels
                         .layout
-                        .start_corner_drag(leaf_id, pos, modifier);
+                        .start_corner_drag(leaf_id, body_pos, modifier);
                     cx.notify();
                 });
             },

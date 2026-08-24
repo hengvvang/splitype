@@ -62,6 +62,7 @@ pub enum ShortcutCommand {
     DismissTransientUi,
     ToggleViewMode,
     ToggleExplorer,
+    ToggleMaximizeArea,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -377,6 +378,12 @@ pub const SHORTCUT_DEFINITIONS: &[ShortcutDefinition] = &[
         command: ShortcutCommand::ToggleExplorer,
         id: "toggle_explorer",
         default_keys: &["ctrl-w"],
+        context: None,
+    },
+    ShortcutDefinition {
+        command: ShortcutCommand::ToggleMaximizeArea,
+        id: "toggle_maximize_area",
+        default_keys: &["ctrl-space", "cmd-space"],
         context: None,
     },
 ];
