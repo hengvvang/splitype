@@ -29,7 +29,6 @@ impl Editor {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
-        self.tab_list_mut();
         let inner_tree = self.session.root.tree.clone();
 
         // Drop view states of panes that were closed or joined. (One Editor
@@ -62,34 +61,22 @@ impl Editor {
             } else if self.doc().block_entity_by_id(target_id).is_some() {
                 // Keyboard focus sits in the shared document: point at the
                 // panel's first Wysiwyg pane.
-                let mut ids = Vec::new();
-                inner_tree.leaf_ids(&mut ids);
-                if let Some(pane_id) = ids
-                    .into_iter()
-                    .find(|id| inner_tree.find_leaf_kind(*id) == Some(EditorPaneKind::Wysiwyg))
-                {
-                    self.focused_pane_id = Some(pane_id);
+                if let Some(pane) = inner_tree.find_first_leaf_by_kind(EditorPaneKind::Wysiwyg) {
+                    self.focused_pane_id = Some(pane.id);
                 }
             }
         }
 
-        let maximized_pane_id = {
-            let root = &self.session.root.tree;
-            let mut ids = Vec::new();
-            root.leaf_ids(&mut ids);
-            ids.into_iter()
-                .find(|id| root.find_leaf(*id).is_some_and(|p| p.maximized))
-        };
-
-        let inner_rendered = if let Some(max_id) = maximized_pane_id {
-            if let Some(kind) = inner_tree.find_leaf_kind(max_id) {
-                let single = splitype_splitter::tree::SplitTree::Leaf(
-                    splitype_splitter::container::SplitterContainer::new(max_id, kind),
-                );
-                self.render_editor_pane_node(&single, theme, strings, window, cx)
-            } else {
-                self.render_editor_pane_node(&inner_tree, theme, strings, window, cx)
-            }
+        let maximized_pane = inner_tree.find_maximized_leaf();
+        let is_maximized = maximized_pane.is_some();
+        let inner_rendered = if let Some(maximized_pane) = maximized_pane {
+            let single = splitype_splitter::tree::SplitTree::Leaf(
+                splitype_splitter::container::SplitterContainer::new(
+                    maximized_pane.id,
+                    maximized_pane.kind,
+                ),
+            );
+            self.render_editor_pane_node(&single, theme, strings, window, cx)
         } else {
             self.render_editor_pane_node(&inner_tree, theme, strings, window, cx)
         };
@@ -120,7 +107,7 @@ impl Editor {
             container = container.child(dropdown);
         }
 
-        if maximized_pane_id.is_none() {
+        if !is_maximized {
             // Inner corner-drag preview: rendered inside the pane layout container so
             // the normalized rects position with `relative()` against the
             // layout's initialization region (topbar/bottombar excluded). Host

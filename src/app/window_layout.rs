@@ -75,27 +75,17 @@ impl Shell {
         let leaf_count = root.count_leaves();
 
         // The maximized flag lives on its panel (panel-level state).
-        let maximized_id = {
-            let mut ids = Vec::new();
-            root.leaf_ids(&mut ids);
-            ids.into_iter()
-                .find(|id| root.find_leaf(*id).is_some_and(|p| p.maximized))
-        };
-        let layout_tree = if let Some(maximized_id) = maximized_id {
-            if let Some(kind) = root.find_leaf_kind(maximized_id) {
-                self.render_window_panel_tile(
-                    maximized_id,
-                    kind,
-                    theme,
-                    strings,
-                    leaf_count,
-                    true,
-                    window,
-                    cx,
-                )
-            } else {
-                self.render_window_panel_node(&root, theme, strings, leaf_count, window, cx)
-            }
+        let layout_tree = if let Some(maximized_leaf) = root.find_maximized_leaf() {
+            self.render_window_panel_tile(
+                maximized_leaf.id,
+                maximized_leaf.kind,
+                theme,
+                strings,
+                leaf_count,
+                true,
+                window,
+                cx,
+            )
         } else {
             self.render_window_panel_node(&root, theme, strings, leaf_count, window, cx)
         };

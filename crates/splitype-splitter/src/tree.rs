@@ -127,6 +127,26 @@ impl<T: Copy + PartialEq> SplitTree<T> {
         }
     }
 
+    /// Finds the first leaf container that is currently maximized, if any.
+    pub fn find_maximized_leaf(&self) -> Option<&SplitterContainer<T>> {
+        match self {
+            Self::Leaf(container) => container.maximized.then_some(container),
+            Self::Split { first, second, .. } => first
+                .find_maximized_leaf()
+                .or_else(|| second.find_maximized_leaf()),
+        }
+    }
+
+    /// Finds the first leaf container matching the given `kind`, if any.
+    pub fn find_first_leaf_by_kind(&self, kind: T) -> Option<&SplitterContainer<T>> {
+        match self {
+            Self::Leaf(container) => (container.kind == kind).then_some(container),
+            Self::Split { first, second, .. } => first
+                .find_first_leaf_by_kind(kind)
+                .or_else(|| second.find_first_leaf_by_kind(kind)),
+        }
+    }
+
     pub fn set_leaf_kind(&mut self, leaf_id: NodeId, new_kind: T) -> bool {
         match self {
             Self::Leaf(container) => {
