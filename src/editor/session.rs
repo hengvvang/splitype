@@ -38,6 +38,25 @@ impl<T> EditorTabList<T> {
         self.tabs.len()
     }
 
+    /// Pushes a new tab to the list and returns its index.
+    pub fn push(&mut self, tab: T) -> usize {
+        let index = self.tabs.len();
+        self.tabs.push(tab);
+        index
+    }
+
+    /// Safely gets a reference to the tab at `index`.
+    #[inline]
+    pub fn get(&self, index: usize) -> Option<&T> {
+        self.tabs.get(index)
+    }
+
+    /// Safely gets a mutable reference to the tab at `index`.
+    #[inline]
+    pub fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        self.tabs.get_mut(index)
+    }
+
     /// Safely gets a reference to the active tab.
     #[inline]
     pub fn active_tab(&self) -> Option<&T> {
@@ -76,6 +95,16 @@ impl<T> EditorTabList<T> {
         }
         Some(removed)
     }
+
+    #[inline]
+    pub fn iter(&self) -> std::slice::Iter<'_, T> {
+        self.tabs.iter()
+    }
+
+    #[inline]
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, T> {
+        self.tabs.iter_mut()
+    }
 }
 
 /// The complete per-area editor state: the document tabs plus the inner
@@ -103,6 +132,51 @@ impl EditorSession {
             tab_list: EditorTabList::empty(),
             root: SplitterRoot::single_leaf(1, EditorPaneKind::SourceCode),
         }
+    }
+
+    #[inline]
+    pub fn has_tabs(&self) -> bool {
+        !self.tab_list.is_empty()
+    }
+
+    #[inline]
+    pub fn tab_count(&self) -> usize {
+        self.tab_list.len()
+    }
+
+    #[inline]
+    pub fn active_tab_index(&self) -> usize {
+        self.tab_list.active_tab
+    }
+
+    #[inline]
+    pub(crate) fn active_tab(&self) -> Option<&crate::editor::controller::DocumentTab> {
+        self.tab_list.active_tab()
+    }
+
+    #[inline]
+    pub(crate) fn active_tab_mut(&mut self) -> Option<&mut crate::editor::controller::DocumentTab> {
+        self.tab_list.active_tab_mut()
+    }
+
+    #[inline]
+    pub(crate) fn tab(&self, index: usize) -> Option<&crate::editor::controller::DocumentTab> {
+        self.tab_list.get(index)
+    }
+
+    #[inline]
+    pub(crate) fn tab_mut(&mut self, index: usize) -> Option<&mut crate::editor::controller::DocumentTab> {
+        self.tab_list.get_mut(index)
+    }
+
+    #[inline]
+    pub fn set_active_tab(&mut self, index: usize) {
+        self.tab_list.set_active_tab(index);
+    }
+
+    #[inline]
+    pub(crate) fn close_tab(&mut self, index: usize) -> Option<crate::editor::controller::DocumentTab> {
+        self.tab_list.close_tab(index)
     }
 }
 

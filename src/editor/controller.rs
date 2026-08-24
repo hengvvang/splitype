@@ -527,7 +527,7 @@ impl Editor {
 
     /// True when the active editor has at least one document tab.
     pub(crate) fn has_active_tab(&self) -> bool {
-        !self.session.tab_list.tabs.is_empty()
+        self.session.has_tabs()
     }
 
     pub fn from_markdown(
@@ -553,7 +553,7 @@ impl Editor {
             welcome_last_click: None,
             focused_pane_id: None,
         };
-        editor.session.tab_list.tabs.push(tab);
+        editor.session.tab_list.push(tab);
         editor.rebuild_table_grids(cx);
         editor.rebuild_reference_registries(cx);
         let pane_id = editor.active_pane_id();
@@ -604,31 +604,29 @@ impl Editor {
     /// Activates the tab at `index`, restoring its focus and window
     /// chrome.
     pub(crate) fn activate_tab(&mut self, index: usize, cx: &mut Context<Self>) {
-        {
-            let list = &mut self.session.tab_list;
-            if index >= list.tabs.len() {
-                return;
-            }
-            // Also reachable right after the first tab is pushed onto an empty
-            // editor (welcome state) — notify so the new document renders.
-            if index == list.active_tab {
-                self.rebuild_table_grids(cx);
-                self.rebuild_reference_registries(cx);
-                let pane_id = self.active_pane_id();
-                self.refresh_preview_blocks(pane_id, cx);
-                self.refresh_stable_document_snapshot(cx);
-                cx.notify();
-                return;
-            }
-            list.active_tab = index;
+        if index >= self.session.tab_count() {
+            return;
         }
+        // Also reachable right after the first tab is pushed onto an empty
+        // editor (welcome state) — notify so the new document renders.
+        if index == self.session.active_tab_index() {
+            self.rebuild_table_grids(cx);
+            self.rebuild_reference_registries(cx);
+            let pane_id = self.active_pane_id();
+            self.refresh_preview_blocks(pane_id, cx);
+            self.refresh_stable_document_snapshot(cx);
+            cx.notify();
+            return;
+        }
+        self.session.set_active_tab(index);
         let pane = self.active_pane_state();
         if pane.focus.pending.is_none() {
             pane.focus.pending = pane.focus.active_entity;
         }
-        let tab = &mut self.session.tab_list.tabs[index];
-        tab.file.pending_window_title_refresh = true;
-        tab.file.pending_window_edited = true;
+        if let Some(tab) = self.session.tab_mut(index) {
+            tab.file.pending_window_title_refresh = true;
+            tab.file.pending_window_edited = true;
+        }
         self.rebuild_table_grids(cx);
         self.rebuild_reference_registries(cx);
         let pane_id = self.active_pane_id();
@@ -648,7 +646,6 @@ impl Editor {
         let already_open = self
             .session
             .tab_list
-            .tabs
             .iter()
             .position(|t| t.file.path.as_deref() == Some(path));
         if let Some(index) = already_open {
@@ -668,13 +665,11 @@ impl Editor {
             }
         };
         let markdown = String::from_utf8_lossy(&bytes).to_string();
-        let list = &mut self.session.tab_list;
-        list.tabs.push(Self::new_tab_from_markdown(
+        let last = self.session.tab_list.push(Self::new_tab_from_markdown(
             cx,
             markdown,
             Some(path.to_path_buf()),
         ));
-        let last = list.tabs.len() - 1;
         self.activate_tab(last, cx);
         crate::app::menus::record_recent_file_from_editor(path, cx);
     }
@@ -700,21 +695,20 @@ impl Editor {
 
     /// Opens a fresh untitled tab in this editor.
     pub(crate) fn new_untitled_tab(&mut self, cx: &mut Context<Self>) {
-        let list = &mut self.session.tab_list;
-        list.tabs
+        let last = self
+            .session
+            .tab_list
             .push(Self::new_tab_from_markdown(cx, String::new(), None));
-        let last = list.tabs.len() - 1;
         self.activate_tab(last, cx);
     }
 
     /// Requests to close the tab at `index`. If dirty, prompts for confirmation;
     /// otherwise closes immediately.
     pub(crate) fn request_close_tab(&mut self, index: usize, cx: &mut Context<Self>) {
-        let list = &self.session.tab_list;
-        if index >= list.tabs.len() {
+        let Some(tab) = self.session.tab(index) else {
             return;
-        }
-        if list.tabs[index].file.dirty {
+        };
+        if tab.file.dirty {
             let panel_id = self.panel_id;
             self.activate_tab(index, cx);
             self.defer_shell_action(cx, move |shell, cx| {
@@ -728,10 +722,10 @@ impl Editor {
     /// Closes the tab at `index`, activating a neighbor. Closing the last
     /// tab leaves the editor back in the welcome state (no tabs).
     pub(crate) fn close_tab(&mut self, index: usize, cx: &mut Context<Self>) {
-        if self.session.tab_list.close_tab(index).is_none() {
+        if self.session.close_tab(index).is_none() {
             return;
         }
-        if self.session.tab_list.is_empty() {
+        if !self.session.has_tabs() {
             // Last tab: back to the welcome mode. The pane tree keeps its
             // kinds, so the layout is restored unchanged when editing
             // resumes.
@@ -742,9 +736,10 @@ impl Editor {
         if pane.focus.pending.is_none() {
             pane.focus.pending = pane.focus.active_entity;
         }
-        let tab = &mut self.session.tab_list.tabs[self.session.tab_list.active_tab];
-        tab.file.pending_window_title_refresh = true;
-        tab.file.pending_window_edited = true;
+        if let Some(tab) = self.session.active_tab_mut() {
+            tab.file.pending_window_title_refresh = true;
+            tab.file.pending_window_edited = true;
+        }
         cx.notify();
     }
 }
@@ -918,16 +913,20 @@ impl Editor {
         self.tab().is_source_code()
     }
 
+    #[inline]
     pub(crate) fn tab(&self) -> &DocumentTab {
-        let list = &self.session.tab_list;
-        &list.tabs[list.active_tab.min(list.tabs.len().saturating_sub(1))]
+        self.session
+            .active_tab()
+            .or_else(|| self.session.tab(0))
+            .expect("active tab requested on empty editor")
     }
 
     /// The active document tab, mutably.
+    #[inline]
     pub(crate) fn tab_mut(&mut self) -> &mut DocumentTab {
-        let list = &mut self.session.tab_list;
-        let index = list.active_tab.min(list.tabs.len().saturating_sub(1));
-        &mut list.tabs[index]
+        self.session
+            .active_tab_mut()
+            .expect("active tab mut requested on empty editor")
     }
 
     /// The active tab's document.
@@ -945,8 +944,9 @@ impl Editor {
     // ------------------------------------------------------------------
 
     /// True when this editor has at least one document tab.
+    #[inline]
     pub(crate) fn has_tabs(&self) -> bool {
-        !self.session.tab_list.tabs.is_empty()
+        self.session.has_tabs()
     }
 
     /// This editor's tab list, mutably.
@@ -957,8 +957,7 @@ impl Editor {
     /// The active tab of this editor, if any.
     #[inline]
     pub(crate) fn active_tab(&self) -> Option<&DocumentTab> {
-        let list = &self.session.tab_list;
-        list.tabs.get(list.active_tab)
+        self.session.active_tab()
     }
 
     /// Split `panel_id` with a same-kind sibling and seed the new Editor
@@ -978,10 +977,10 @@ impl Editor {
         root.next_node_id = next_id;
 
         let mut list = EditorTabList {
-            tabs: Vec::with_capacity(self.session.tab_list.tabs.len()),
+            tabs: Vec::with_capacity(self.session.tab_list.len()),
             active_tab: 0,
         };
-        for tab in &self.session.tab_list.tabs {
+        for tab in self.session.tab_list.iter() {
             let text = if tab.mode == EditorPaneKind::SourceCode {
                 tab.document.serialize_source_text(cx)
             } else {
@@ -990,13 +989,9 @@ impl Editor {
             let mut copy = Self::new_tab_from_markdown(cx, text, tab.file.path.clone());
             copy.mode = tab.mode;
             copy.file.dirty = tab.file.dirty;
-            list.tabs.push(copy);
+            list.push(copy);
         }
-        list.active_tab = self
-            .session
-            .tab_list
-            .active_tab
-            .min(list.tabs.len().saturating_sub(1));
+        list.set_active_tab(self.session.active_tab_index());
         EditorSession {
             tab_list: list,
             root,
@@ -1006,7 +1001,7 @@ impl Editor {
     /// First dirty tab in this editor, if any. Window-wide aggregation
     /// (across every editor area) lives on the Shell.
     pub(crate) fn first_dirty_tab(&self) -> Option<(NodeId, usize)> {
-        for (index, tab) in self.session.tab_list.tabs.iter().enumerate() {
+        for (index, tab) in self.session.tab_list.iter().enumerate() {
             if tab.file.dirty {
                 return Some((self.panel_id, index));
             }

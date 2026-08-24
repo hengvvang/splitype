@@ -174,11 +174,9 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        let list = &self.session.tab_list;
-        if index >= list.tabs.len() {
+        let Some(tab) = self.session.tab(index) else {
             return false;
-        }
-        let tab = &list.tabs[index];
+        };
         if !tab.file.dirty {
             return true;
         }
@@ -189,7 +187,7 @@ impl Editor {
                 tab.document.serialize_markdown(cx)
             };
             if std::fs::write(&path, text).is_ok() {
-                if let Some(tab) = self.session.tab_list.tabs.get_mut(index) {
+                if let Some(tab) = self.session.tab_mut(index) {
                     tab.file.dirty = false;
                     tab.file.pending_window_edited = false;
                     tab.file.pending_window_title_refresh = true;
@@ -205,9 +203,9 @@ impl Editor {
     }
 
     pub(crate) fn save_all_dirty_tabs(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let count = self.session.tab_list.tabs.len();
+        let count = self.session.tab_count();
         for i in 0..count {
-            if self.session.tab_list.tabs.get(i).is_some_and(|t| t.file.dirty) {
+            if self.session.tab(i).is_some_and(|t| t.file.dirty) {
                 self.save_tab_at(i, window, cx);
             }
         }

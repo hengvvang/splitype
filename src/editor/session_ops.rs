@@ -28,8 +28,7 @@ impl Editor {
     /// holds tabs. Renderers and editor-internal operations only consult
     /// this dimension.
     pub fn panel_mode(&self) -> EditorPanelMode {
-        let has_tabs = !self.session.tab_list.tabs.is_empty();
-        if has_tabs {
+        if self.session.has_tabs() {
             EditorPanelMode::Editing
         } else {
             EditorPanelMode::Welcome

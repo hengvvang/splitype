@@ -21,7 +21,7 @@ impl Editor {
     /// multiple source panels edit independently; the document content
     /// itself stays shared.
     pub(crate) fn sync_source_pane(&mut self, pane_id: usize, cx: &mut Context<Self>) {
-        let tab_index = self.session.tab_list.active_tab;
+        let tab_index = self.session.active_tab_index();
         let revision = self.tab().document_revision;
         let needs_sync = match self.pane_state_ref(pane_id) {
             Some(state) => {
@@ -93,7 +93,7 @@ impl Editor {
         // user's bytes; the document is the parsed form.
         let synced_hash = Self::hash_str(&self.doc().serialize_markdown(cx));
         let revision = self.tab().document_revision;
-        let tab_index = self.session.tab_list.active_tab;
+        let tab_index = self.session.active_tab_index();
         let state = self.pane_state(pane_id);
         state.synced_doc_hash = synced_hash;
         state.synced_revision = Some(revision);

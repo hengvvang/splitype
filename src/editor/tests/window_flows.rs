@@ -374,7 +374,7 @@ async fn welcome_pane_click_defers_panel_activation(cx: &mut TestAppContext) {
         .update(cx, |shell, _window, cx| {
             let editor = shell.primary_editor().expect("editor window has an editor");
             let panel_id = editor.read(cx).panel_id;
-            let tab_count = editor.read(cx).session().tab_list.tabs.len();
+            let tab_count = editor.read(cx).session().tab_count();
             (shell.panels.layout.active_leaf, panel_id, tab_count)
         })
         .expect("window update");
@@ -809,9 +809,9 @@ fn tab_close_prompts_tab_scope_and_discards_tab_only(cx: &mut TestAppContext) {
             let editor = shell.editor_for(DEFAULT_EDITOR_PANEL_ID).unwrap();
             editor.update(cx, |ed, cx| {
                 let tab = Editor::new_tab_from_markdown(cx, "tab1".to_string(), None);
-                ed.session.tab_list.tabs.push(tab);
-                ed.session.tab_list.tabs[1].file.dirty = true;
-                assert_eq!(ed.session.tab_list.tabs.len(), 2);
+                let idx = ed.session.tab_list.push(tab);
+                ed.session.tab_mut(idx).unwrap().file.dirty = true;
+                assert_eq!(ed.session.tab_count(), 2);
             });
         })
         .expect("add second tab");
@@ -856,7 +856,7 @@ fn tab_close_prompts_tab_scope_and_discards_tab_only(cx: &mut TestAppContext) {
     window
         .update(cx, |shell, _window, cx| {
             let editor = shell.editor_for(DEFAULT_EDITOR_PANEL_ID).unwrap();
-            assert_eq!(editor.read(cx).session.tab_list.tabs.len(), 1);
+            assert_eq!(editor.read(cx).session().tab_count(), 1);
         })
         .expect("verify tab count");
 }

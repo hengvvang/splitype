@@ -32,7 +32,7 @@ impl Editor {
     /// (routed from the Shell's dialog overlay).
     pub(crate) fn cancel_close_dialog(&mut self, cx: &mut Context<Self>) {
         let mut restore_entity = None;
-        for tab in &mut self.session.tab_list.tabs {
+        for tab in self.session.tab_list.iter_mut() {
             if tab.file.show_unsaved_changes_dialog {
                 tab.file.show_unsaved_changes_dialog = false;
                 tab.file.pending_close_after_save = false;
@@ -51,7 +51,7 @@ impl Editor {
     /// Save the current document and then close the window (routed from
     /// the Shell's dialog overlay).
     pub(crate) fn save_and_close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        for tab in &mut self.session.tab_list.tabs {
+        for tab in self.session.tab_list.iter_mut() {
             if tab.file.show_unsaved_changes_dialog {
                 tab.file.show_unsaved_changes_dialog = false;
                 tab.file.pending_close_after_save = true;
@@ -63,7 +63,7 @@ impl Editor {
     /// Discard unsaved changes and close the window immediately (routed
     /// from the Shell's dialog overlay). Clears the dirty flag so close can proceed.
     pub(crate) fn discard_and_close(&mut self, cx: &mut Context<Self>) {
-        for tab in &mut self.session.tab_list.tabs {
+        for tab in self.session.tab_list.iter_mut() {
             if tab.file.show_unsaved_changes_dialog {
                 tab.file.show_unsaved_changes_dialog = false;
                 tab.file.pending_close_after_save = false;
