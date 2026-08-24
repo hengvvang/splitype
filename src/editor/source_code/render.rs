@@ -8,7 +8,7 @@ use crate::infra::theme::Theme;
 impl Editor {
     pub(crate) fn render_source_pane(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         theme: &Theme,
         _cx: &mut Context<Self>,
     ) -> AnyElement {

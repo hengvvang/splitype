@@ -32,7 +32,7 @@ use crate::model::parse::BlockKind;
 impl Editor {
     pub(crate) fn render_preview_pane(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         theme: &Theme,
         _strings: &I18nStrings,
         window: &mut Window,

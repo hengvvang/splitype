@@ -1,15 +1,14 @@
-//! Shortcuts settings tab for the in-editor slide-over panel.
-
 use gpui::*;
 
 use crate::app::shell::Shell;
+use crate::app::window_panels::PanelId;
 use crate::infra::theme::Theme;
-use crate::settings::panels::common::{make_row, make_section};
+use crate::settings::common::{make_row, make_section};
 
 impl Shell {
     pub(crate) fn render_panel_shortcuts_tab(
         &mut self,
-        panel_id: usize,
+        panel_id: PanelId,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> Vec<AnyElement> {
@@ -38,24 +37,18 @@ impl Shell {
                     .child(item.shortcut)
                     .into_any_element();
 
-                sec1_items.push(make_row(item.name, item.description, ctrl_sc, theme, inner_border_color));
+                sec1_items.push(make_row(inner_border_color, c, d, item.name, item.description, ctrl_sc));
             }
         }
 
-        let sec1_shell = cx.entity().downgrade();
         sections.push(make_section(
-            "pref-sec-doc-actions",
+            c,
+            d,
+            ("pref-sec-doc-actions", panel_id.0),
             "Document Actions",
             is_sec1_expanded,
-            Box::new(move |_event, _window, cx| {
-                let _ = sec1_shell.update(cx, |shell, cx| {
-                    shell.panels.settings.toggle_section(sec1_key);
-                    cx.notify();
-                });
-            }),
+            self.toggle_settings_section_handler(cx, sec1_key),
             sec1_items,
-            theme,
-            panel_id,
         ));
 
         // Section 2: Interface & View Controls
@@ -76,24 +69,18 @@ impl Shell {
                     .child(item.shortcut)
                     .into_any_element();
 
-                sec2_items.push(make_row(item.name, item.description, ctrl_sc, theme, inner_border_color));
+                sec2_items.push(make_row(inner_border_color, c, d, item.name, item.description, ctrl_sc));
             }
         }
 
-        let sec2_shell = cx.entity().downgrade();
         sections.push(make_section(
-            "pref-sec-view-controls",
+            c,
+            d,
+            ("pref-sec-view-controls", panel_id.0),
             "Interface & View Controls",
             is_sec2_expanded,
-            Box::new(move |_event, _window, cx| {
-                let _ = sec2_shell.update(cx, |shell, cx| {
-                    shell.panels.settings.toggle_section(sec2_key);
-                    cx.notify();
-                });
-            }),
+            self.toggle_settings_section_handler(cx, sec2_key),
             sec2_items,
-            theme,
-            panel_id,
         ));
 
         sections

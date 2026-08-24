@@ -386,7 +386,7 @@ async fn new_tab_table_grid_initialized_on_activation(cx: &mut TestAppContext) {
     editor.update(cx, |editor, cx| {
         let list = &mut editor.session_mut().tab_list;
         let table_md = ["| Header 1 | Header 2 |", "| --- | --- |", "| Row 1 | Row 2 |"].join("\n");
-        list.tabs.push(Editor::new_tab_from_markdown(cx, table_md, None));
+        list.push(Editor::new_tab_from_markdown(cx, table_md, None));
         editor.activate_tab(1, cx);
     });
 

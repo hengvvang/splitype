@@ -19,8 +19,7 @@ use gpui::{AppContext, TestAppContext};
 
 use crate::app::shell::{PanelContent, Shell};
 use crate::app::window_chrome::MenuBarState;
-use crate::app::window_panels::DEFAULT_EDITOR_PANEL_ID;
-use crate::app::window_panels::WindowPanels;
+use crate::app::window_panels::{PanelId, DEFAULT_EDITOR_PANEL_ID, WindowPanels};
 use crate::editor::controller::Editor;
 use crate::explorer::state::state::*;
 
@@ -56,7 +55,7 @@ fn new_test_shell<T: AppContext>(cx: &mut T) -> gpui::Entity<Shell> {
     cx.new(|cx| {
         let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
         Shell {
-            panel_contents: [(DEFAULT_EDITOR_PANEL_ID, PanelContent::Editor(editor))].into(),
+            panel_contents: [(PanelId(DEFAULT_EDITOR_PANEL_ID), PanelContent::Editor(editor))].into(),
             retained_editor_sessions: HashMap::new(),
             menu_bar: MenuBarState::default(),
             panels: WindowPanels::default(),
@@ -257,7 +256,7 @@ fn close_explorer_folder_clears_trees_and_entries_even_with_open_file(cx: &mut T
     let shell = cx.new(|cx| {
         let editor = cx.new(|cx| Editor::from_markdown(cx, "# top".to_string(), Some(file.clone())));
         Shell {
-            panel_contents: [(DEFAULT_EDITOR_PANEL_ID, PanelContent::Editor(editor))].into(),
+            panel_contents: [(PanelId(DEFAULT_EDITOR_PANEL_ID), PanelContent::Editor(editor))].into(),
             retained_editor_sessions: HashMap::new(),
             menu_bar: MenuBarState::default(),
             panels: WindowPanels::default(),

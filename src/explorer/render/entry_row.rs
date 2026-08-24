@@ -1,10 +1,9 @@
-//! Explorer entry row rendering: file and folder items, indentation guides, and selection/drag.
-
 use std::path::{Path, PathBuf};
 
 use gpui::*;
 
 use crate::app::shell::Shell;
+use crate::app::window_panels::PanelId;
 use crate::explorer::drag_and_drop::DraggedExplorerEntryView;
 use crate::explorer::state::state::{
     DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerEntryKind,
@@ -31,7 +30,7 @@ impl Shell {
     pub(crate) fn render_explorer_row(
         &self,
         row: &ExplorerRow,
-        panel_id: usize,
+        panel_id: PanelId,
         drag_highlight: Option<&Path>,
         theme: &Theme,
         shell: &WeakEntity<Shell>,
@@ -52,7 +51,7 @@ impl Shell {
     pub(crate) fn render_explorer_entry_row(
         &self,
         entry: &VisibleExplorerEntry,
-        panel_id: usize,
+        panel_id: PanelId,
         drag_highlight: Option<&Path>,
         theme: &Theme,
         shell: &WeakEntity<Shell>,

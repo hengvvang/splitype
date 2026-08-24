@@ -82,7 +82,7 @@ impl Editor {
 
         let focused_pane_id = self.focused_pane_id;
         let focused_kind =
-            focused_pane_id.and_then(|pane_id| self.session().root.tree.find_leaf_kind(pane_id));
+            focused_pane_id.and_then(|pane_id| self.session().root.tree.find_leaf_kind(pane_id.0));
 
         let mut left_items: Vec<AnyElement> = Vec::new();
         let mut right_items: Vec<AnyElement> = Vec::new();
@@ -151,7 +151,7 @@ impl Editor {
         // even in the welcome state so the panels can be split before any
         // document is opened.
         let is_pane_maximized = focused_pane_id
-            .and_then(|id| self.session().root.tree.find_leaf(id))
+            .and_then(|id| self.session().root.tree.find_leaf(id.0))
             .is_some_and(|p| p.maximized);
 
         if let (Some(pane_id), Some(_)) = (focused_pane_id, focused_kind) {

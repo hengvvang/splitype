@@ -3,7 +3,7 @@
 
 use gpui::{AppContext, TestAppContext, VisualTestContext};
 
-use crate::editor::controller::Editor;
+use crate::editor::controller::{Editor, PaneId};
 use crate::editor::session::EditorPaneKind;
 use crate::model::inline::text::BlockText;
 use crate::model::parse::BlockKind;
@@ -33,7 +33,6 @@ async fn rendering_one_editor_panel_keeps_other_panels_source_block(cx: &mut Tes
         second
             .session
             .tab_list
-            .tabs
             .push(Editor::new_tab_from_markdown(
                 cx,
                 "gamma\ndelta".to_string(),
@@ -51,11 +50,11 @@ async fn rendering_one_editor_panel_keeps_other_panels_source_block(cx: &mut Tes
     fn source_block_id(
         editor: &gpui::Entity<Editor>,
         cx: &mut gpui::VisualTestContext,
-        _panel_id: usize,
+        _panel_id: crate::app::window_panels::PanelId,
     ) -> Option<gpui::EntityId> {
         editor.read_with(cx, |editor, _cx| {
             editor
-                .pane_state_ref(1)
+                .pane_state_ref(PaneId(1))
                 .and_then(|state| state.source_block.as_ref().map(|block| block.entity_id()))
         })
     }
@@ -64,23 +63,23 @@ async fn rendering_one_editor_panel_keeps_other_panels_source_block(cx: &mut Tes
     // frame must keep it alive (rendering used to drop other panels'
     // source pane states, rebuilding the block entity every frame).
     redraw(cx);
-    let before = source_block_id(&editor, cx, DEFAULT_EDITOR_PANEL_ID);
+    let before = source_block_id(&editor, cx, crate::app::window_panels::PanelId(DEFAULT_EDITOR_PANEL_ID));
     assert!(before.is_some(), "first area source block should exist");
     for _ in 0..3 {
         redraw(cx);
         assert_eq!(
             before,
-            source_block_id(&editor, cx, DEFAULT_EDITOR_PANEL_ID),
+            source_block_id(&editor, cx, crate::app::window_panels::PanelId(DEFAULT_EDITOR_PANEL_ID)),
             "source block entity must survive other render passes"
         );
     }
 
     // The second area's entity owns its own pane state, fully independent
     // of the first area's entity.
-    second.update(&mut cx.cx, |second, cx| second.sync_source_pane(1, cx));
+    second.update(&mut cx.cx, |second, cx| second.sync_source_pane(PaneId(1), cx));
     let second_id = second.read_with(&cx.cx, |second, _cx| {
         second
-            .pane_state_ref(1)
+            .pane_state_ref(PaneId(1))
             .and_then(|state| state.source_block.as_ref().map(|block| block.entity_id()))
     });
     assert!(second_id.is_some(), "second area source block should exist");
@@ -98,7 +97,7 @@ async fn switching_tabs_rebuilds_the_source_pane_block(cx: &mut TestAppContext) 
     });
     editor.update(cx, |editor, cx| {
         let list = &mut editor.session_mut().tab_list;
-        list.tabs.push(Editor::new_tab_from_markdown(
+        list.push(Editor::new_tab_from_markdown(
             cx,
             "gamma\ndelta".to_string(),
             None,
@@ -108,7 +107,7 @@ async fn switching_tabs_rebuilds_the_source_pane_block(cx: &mut TestAppContext) 
     fn source_text(editor: &gpui::Entity<Editor>, cx: &mut VisualTestContext) -> String {
         editor.read_with(cx, |editor, _cx| {
             editor
-                .pane_state_ref(1)
+                .pane_state_ref(PaneId(1))
                 .and_then(|state| state.source_block.as_ref())
                 .map(|block| block.read(_cx).display_text().to_string())
                 .unwrap_or_default()
@@ -116,21 +115,21 @@ async fn switching_tabs_rebuilds_the_source_pane_block(cx: &mut TestAppContext) 
     }
 
     // The default pane tree holds a single SourceCode pane with id 1.
-    editor.update(cx, |editor, cx| editor.sync_source_pane(1, cx));
+    editor.update(cx, |editor, cx| editor.sync_source_pane(PaneId(1), cx));
     assert_eq!(source_text(&editor, cx), "alpha\nbeta");
 
     // Switching to the second tab must rebuild the source block even though
     // both tabs share revision 0.
     editor.update(cx, |editor, cx| {
         editor.activate_tab(1, cx);
-        editor.sync_source_pane(1, cx);
+        editor.sync_source_pane(PaneId(1), cx);
     });
     assert_eq!(source_text(&editor, cx), "gamma\ndelta");
 
     // And back again.
     editor.update(cx, |editor, cx| {
         editor.activate_tab(0, cx);
-        editor.sync_source_pane(1, cx);
+        editor.sync_source_pane(PaneId(1), cx);
     });
     assert_eq!(source_text(&editor, cx), "alpha\nbeta");
 }
@@ -144,7 +143,7 @@ async fn stale_source_block_events_do_not_clobber_the_active_tab(cx: &mut TestAp
     });
     editor.update(cx, |editor, cx| {
         let list = &mut editor.session_mut().tab_list;
-        list.tabs.push(Editor::new_tab_from_markdown(
+        list.push(Editor::new_tab_from_markdown(
             cx,
             "gamma\ndelta".to_string(),
             None,
@@ -154,22 +153,22 @@ async fn stale_source_block_events_do_not_clobber_the_active_tab(cx: &mut TestAp
     // Sync the pane against tab A, then switch to tab B: the rebuild drops
     // the old block entity, but a handle to it can stay alive (mounted,
     // even focused) for a frame or two after the rebuild.
-    editor.update(cx, |editor, cx| editor.sync_source_pane(1, cx));
+    editor.update(cx, |editor, cx| editor.sync_source_pane(PaneId(1), cx));
     let stale_block = editor
         .read_with(cx, |editor, _cx| {
             editor
-                .pane_state_ref(1)
+                .pane_state_ref(PaneId(1))
                 .and_then(|state| state.source_block.clone())
         })
         .expect("source block must exist");
     editor.update(cx, |editor, cx| {
         editor.activate_tab(1, cx);
-        editor.sync_source_pane(1, cx);
+        editor.sync_source_pane(PaneId(1), cx);
     });
     let current_block = editor
         .read_with(cx, |editor, _cx| {
             editor
-                .pane_state_ref(1)
+                .pane_state_ref(PaneId(1))
                 .and_then(|state| state.source_block.clone())
         })
         .expect("source block must exist");
@@ -204,7 +203,7 @@ async fn typing_in_the_source_block_after_a_tab_switch_still_syncs(cx: &mut Test
     });
     editor.update(cx, |editor, cx| {
         let list = &mut editor.session_mut().tab_list;
-        list.tabs.push(Editor::new_tab_from_markdown(
+        list.push(Editor::new_tab_from_markdown(
             cx,
             "gamma\ndelta".to_string(),
             None,
@@ -214,12 +213,12 @@ async fn typing_in_the_source_block_after_a_tab_switch_still_syncs(cx: &mut Test
     // Switch to tab B and sync: the pane block is rebuilt from tab B.
     editor.update(cx, |editor, cx| {
         editor.activate_tab(1, cx);
-        editor.sync_source_pane(1, cx);
+        editor.sync_source_pane(PaneId(1), cx);
     });
     let block = editor
         .read_with(cx, |editor, _cx| {
             editor
-                .pane_state_ref(1)
+                .pane_state_ref(PaneId(1))
                 .and_then(|state| state.source_block.clone())
         })
         .expect("source block must exist");
@@ -339,7 +338,7 @@ async fn switching_tabs_renders_the_new_document_immediately(cx: &mut TestAppCon
     });
     editor.update(cx, |editor, cx| {
         let list = &mut editor.session_mut().tab_list;
-        list.tabs.push(Editor::new_tab_from_markdown(
+        list.push(Editor::new_tab_from_markdown(
             cx,
             "gamma\n\ndelta".to_string(),
             None,
@@ -421,14 +420,14 @@ async fn wysiwyg_panes_scroll_independently(cx: &mut TestAppContext) {
     // The two Wysiwyg panes share the document but own separate scroll
     // handles: scrolling pane 1 must not move pane 2.
     editor.update(cx, |editor, _cx| {
-        let pane_a = &mut editor.pane_state(1).scroll;
+        let pane_a = &mut editor.pane_state(PaneId(1)).scroll;
         pane_a
             .handle
             .set_offset(gpui::point(gpui::px(0.0), gpui::px(-100.0)));
     });
     editor.update(cx, |editor, _cx| {
         let pane_b_offset = editor
-            .pane_state_ref(pane_2)
+            .pane_state_ref(PaneId(pane_2))
             .map(|state| state.scroll.handle.offset());
         assert_eq!(
             pane_b_offset,
@@ -436,7 +435,7 @@ async fn wysiwyg_panes_scroll_independently(cx: &mut TestAppContext) {
             "each Wysiwyg pane must own its own scroll position"
         );
         let pane_a_offset = editor
-            .pane_state_ref(1)
+            .pane_state_ref(PaneId(1))
             .map(|state| state.scroll.handle.offset());
         assert_eq!(
             pane_a_offset,
@@ -468,7 +467,7 @@ async fn clicking_a_block_in_another_pane_updates_that_panes_focus_target(cx: &m
 
     let pane1_target_before = editor.read_with(cx, |editor, _cx| {
         editor
-            .pane_state_ref(1)
+            .pane_state_ref(PaneId(1))
             .and_then(|state| state.focus.active_entity)
     });
 
@@ -498,16 +497,16 @@ async fn clicking_a_block_in_another_pane_updates_that_panes_focus_target(cx: &m
         (
             editor.focused_pane_id,
             editor
-                .pane_state_ref(1)
+                .pane_state_ref(PaneId(1))
                 .and_then(|state| state.focus.active_entity),
             editor
-                .pane_state_ref(pane_2)
+                .pane_state_ref(PaneId(pane_2))
                 .and_then(|state| state.focus.active_entity),
         )
     });
     assert_eq!(
         focused_pane,
-        Some(pane_2),
+        Some(PaneId(pane_2)),
         "clicking pane 2 must focus pane 2"
     );
     assert_eq!(
@@ -542,19 +541,33 @@ async fn switching_to_an_unrendered_tab_mounts_a_full_viewport(cx: &mut TestAppC
         .join("\n\n");
     editor.update(cx, |editor, cx| {
         let list = &mut editor.session_mut().tab_list;
-        list.tabs
-            .push(Editor::new_tab_from_markdown(cx, long_doc, None));
+        list.push(Editor::new_tab_from_markdown(cx, long_doc, None));
         editor.activate_tab(1, cx);
     });
 
     // Sanity check: the two tabs must NOT share a ScrollHandle.
     editor.update(cx, |editor, _cx| {
         let session = editor.session_mut();
-        session.tab_list.tabs[0].panes[&1]
+        session
+            .tab_list
+            .get_mut(0)
+            .unwrap()
+            .panes
+            .get_mut(&PaneId(1))
+            .unwrap()
             .scroll
             .handle
             .set_offset(gpui::point(gpui::px(0.0), gpui::px(-500.0)));
-        let tab1_offset = session.tab_list.tabs[1].panes[&1].scroll.handle.offset();
+        let tab1_offset = session
+            .tab_list
+            .get(1)
+            .unwrap()
+            .panes
+            .get(&PaneId(1))
+            .unwrap()
+            .scroll
+            .handle
+            .offset();
         assert_eq!(
             tab1_offset,
             gpui::point(gpui::px(0.0), gpui::px(0.0)),
@@ -604,7 +617,7 @@ async fn initial_tab_render_does_not_collapse_column_width(cx: &mut TestAppConte
     // On initial render of a newly opened tab, the column width must be properly sized
     editor.update(cx, |editor, cx| {
         let list = &mut editor.session_mut().tab_list;
-        list.tabs.push(Editor::new_tab_from_markdown(
+        list.push(Editor::new_tab_from_markdown(
             cx,
             "## 7.6 甘特图 (Gantt)\n\nParagraph text".to_string(),
             None,
@@ -756,14 +769,14 @@ async fn switching_pane_focus_syncs_bottombar_dropdown_and_clears_stale_dropdown
         ed.toggle_pane_dropdown(pane_1, cx);
     });
     assert!(editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_1).unwrap().open_dropdown));
-    assert_eq!(editor.read_with(cx, |ed, _cx| ed.focused_pane_id), Some(pane_1));
+    assert_eq!(editor.read_with(cx, |ed, _cx| ed.focused_pane_id), Some(PaneId(pane_1)));
 
     // 3. Switch focus to pane 2: pane 1's dropdown must be dismissed automatically.
     editor.update_in(cx, |ed, window, cx| {
         ed.focus_pane(pane_2, window, cx);
     });
     assert!(!editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_1).unwrap().open_dropdown));
-    assert_eq!(editor.read_with(cx, |ed, _cx| ed.focused_pane_id), Some(pane_2));
+    assert_eq!(editor.read_with(cx, |ed, _cx| ed.focused_pane_id), Some(PaneId(pane_2)));
 
     // 4. Changing pane 2's kind via dropdown menu updates kind and clears dropdowns.
     editor.update(cx, |ed, cx| {
@@ -880,16 +893,16 @@ fn test_toggle_maximize_pane_action(cx: &mut gpui::TestAppContext) {
     redraw(cx);
 
     // Initially neither is maximized.
-    assert!(!editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_1).unwrap().maximized));
+    assert!(!editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_1.0).unwrap().maximized));
 
     // Dispatch ToggleMaximizePane -> pane 1 maximized.
     cx.dispatch_action(ToggleMaximizePane);
     redraw(cx);
-    assert!(editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_1).unwrap().maximized));
+    assert!(editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_1.0).unwrap().maximized));
 
     // Dispatch ToggleMaximizePane again -> pane 1 restored.
     cx.dispatch_action(ToggleMaximizePane);
     redraw(cx);
-    assert!(!editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_1).unwrap().maximized));
+    assert!(!editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_1.0).unwrap().maximized));
 }
 

@@ -4,7 +4,7 @@ use gpui::*;
 
 use crate::infra::config::settings::{EditorSettings, ImagePasteBehavior, StartupOpenSetting};
 use crate::infra::theme::Theme;
-use crate::settings::tabs::common::{make_row, make_section, render_zed_stepper};
+use crate::settings::common::{make_row, make_section, render_zed_stepper};
 use crate::settings::window::SettingsWindow;
 use crate::ui::select::{select_option, select_panel, select_trigger};
 use crate::ui::switch::Switch;
@@ -19,7 +19,6 @@ impl SettingsWindow {
         let d = &theme.dimensions;
         let mut inner_border_color = c.dialog_border;
         inner_border_color.a *= 0.4;
-        let toggle_section_ed = cx.entity().downgrade();
 
         let mut sections: Vec<AnyElement> = Vec::new();
 
@@ -149,10 +148,9 @@ impl SettingsWindow {
             c,
             d,
             "win-sec-typo",
-            sec1_key,
             "Typography & Formatting",
             self.expanded_sections.contains(sec1_key),
-            toggle_section_ed.clone(),
+            self.toggle_section_handler(cx, sec1_key),
             sec1_items,
         ));
 
@@ -284,10 +282,9 @@ impl SettingsWindow {
             c,
             d,
             "win-sec-markdown",
-            sec2_key,
             "Markdown & Assets",
             self.expanded_sections.contains(sec2_key),
-            toggle_section_ed.clone(),
+            self.toggle_section_handler(cx, sec2_key),
             sec2_items,
         ));
 
@@ -299,20 +296,18 @@ impl SettingsWindow {
             StartupOpenSetting::NewFile => "New Blank Document",
             StartupOpenSetting::LastOpenedFile => "Open Last Opened File",
         };
+
         let startup_btn_ed = cx.entity().downgrade();
         let mut startup_btn_wrap = div().relative().child(
-            select_trigger("pref-btn-win-startup", c, d)
-                .text_size(px(12.0))
-                .text_color(c.text_default)
+            select_trigger("win-startup-select-trigger", c, d)
                 .child(
                     div()
-                        .flex_1()
-                        .min_w(px(0.0))
-                        .truncate()
+                        .text_size(px(12.0))
+                        .text_color(c.text_default)
                         .child(startup_label),
                 )
                 .child(
-                    div().flex_shrink_0().pl(px(4.0)).child(
+                    div().flex().items_center().child(
                         svg()
                             .path("icons/settings/select-chevron.svg")
                             .size(px(16.0))
@@ -322,9 +317,9 @@ impl SettingsWindow {
                 .on_click(move |_event, _window, cx| {
                     let _ = startup_btn_ed.update(cx, |this, cx| {
                         this.startup_dropdown_open = !this.startup_dropdown_open;
-                        this.image_dropdown_open = false;
                         this.theme_dropdown_open = false;
                         this.lang_dropdown_open = false;
+                        this.image_dropdown_open = false;
                         cx.notify();
                     });
                 }),
@@ -333,7 +328,10 @@ impl SettingsWindow {
         if self.startup_dropdown_open {
             let startup_opts = [
                 (StartupOpenSetting::NewFile, "New Blank Document"),
-                (StartupOpenSetting::LastOpenedFile, "Open Last Opened File"),
+                (
+                    StartupOpenSetting::LastOpenedFile,
+                    "Open Last Opened File",
+                ),
             ];
             let mut menu_items = Vec::new();
             for (pref, label) in startup_opts {
@@ -351,29 +349,25 @@ impl SettingsWindow {
                     } else {
                         c.dialog_surface
                     })
-                    .text_size(px(12.0))
-                    .text_color(c.text_default)
-                    .child(label)
-                    .child(if is_selected {
-                        svg()
-                            .path("icons/settings/checkmark.svg")
-                            .size(px(15.0))
-                            .text_color(c.dialog_primary_button_bg)
-                            .into_any_element()
-                    } else {
-                        div().w(px(13.0)).into_any_element()
-                    })
-                    .on_click(move |event, window, cx| {
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .text_color(if is_selected {
+                                c.dialog_primary_button_bg
+                            } else {
+                                c.text_default
+                            })
+                            .child(label),
+                    )
+                    .on_click(move |_event, _window, cx| {
                         let _ = item_ed.update(cx, |this, cx| {
                             this.startup_open = pref;
                             this.startup_dropdown_open = false;
-                            this.save(event, window, cx);
+                            cx.notify();
                         });
-                    })
-                    .into_any_element(),
+                    }),
                 );
             }
-
             startup_btn_wrap =
                 startup_btn_wrap.child(gpui::deferred(select_panel(c, d).children(menu_items)));
         }
@@ -391,10 +385,9 @@ impl SettingsWindow {
             c,
             d,
             "win-sec-startup",
-            sec3_key,
             "Startup Options",
             self.expanded_sections.contains(sec3_key),
-            toggle_section_ed,
+            self.toggle_section_handler(cx, sec3_key),
             sec3_items,
         ));
 

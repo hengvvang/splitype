@@ -45,7 +45,6 @@ pub(crate) fn render_zed_stepper(
     d: &ThemeDimensions,
     id_dec: impl Into<ElementId>,
     id_inc: impl Into<ElementId>,
-    center_id: impl Into<ElementId>,
     val_num: String,
     unit_str: &'static str,
     is_editing: bool,
@@ -55,8 +54,9 @@ pub(crate) fn render_zed_stepper(
 ) -> AnyElement {
     let dec_id = id_dec.into();
     let inc_id = id_inc.into();
+    let center_id = ElementId::from((dec_id.clone(), "center"));
     let mut center_box = stepper_value()
-        .id(center_id.into())
+        .id(center_id)
         .bg(if is_editing {
             c.dialog_surface
         } else {
@@ -120,15 +120,17 @@ pub(crate) fn render_zed_stepper(
 pub(crate) fn make_section(
     c: &ThemeColors,
     d: &ThemeDimensions,
-    header_id: impl Into<ElementId>,
-    card_id: impl Into<ElementId>,
+    id: impl Into<ElementId>,
     title: &'static str,
     expanded: bool,
     toggle_fn: SettingsClickHandler,
     items: Vec<AnyElement>,
 ) -> AnyElement {
+    let base_id = id.into();
+    let header_id = ElementId::from((base_id.clone(), "header"));
+    let card_id = ElementId::from((base_id, "card"));
     let header = section_header()
-        .id(header_id.into())
+        .id(header_id)
         .child(
             svg()
                 .path(if expanded {
@@ -148,7 +150,7 @@ pub(crate) fn make_section(
         )
         .on_click(move |event, window, cx| toggle_fn(event, window, cx));
 
-    let mut card = section_card(c, d).id(card_id.into()).child(header);
+    let mut card = section_card(c, d).id(card_id).child(header);
 
     if expanded && !items.is_empty() {
         let body = div()

@@ -4,6 +4,7 @@ use std::time::Instant;
 
 use gpui::*;
 
+use crate::app::window_panels::PanelId;
 use crate::editor::controller::*;
 use crate::editor::tree::document::BlockEntry;
 use crate::editor::wysiwyg::render::layout::{
@@ -39,7 +40,7 @@ impl Editor {
     /// access hits this editor's own tab set.
     pub(crate) fn render_document_view(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -415,7 +416,7 @@ impl Editor {
         plan: &PlannedRow,
         blocks: &[BlockEntry],
         editor: WeakEntity<Self>,
-        panel_id: usize,
+        panel_id: PanelId,
         centered_width: f32,
         theme: &Theme,
         d: &ThemeDimensions,

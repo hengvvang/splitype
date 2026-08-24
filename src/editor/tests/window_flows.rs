@@ -378,7 +378,7 @@ async fn welcome_pane_click_defers_panel_activation(cx: &mut TestAppContext) {
             (shell.panels.layout.active_leaf, panel_id, tab_count)
         })
         .expect("window update");
-    assert_eq!(active_leaf, Some(panel_id));
+    assert_eq!(active_leaf, Some(panel_id.0));
     assert_eq!(tab_count, 0);
 }
 
@@ -430,7 +430,7 @@ fn editing_pane_click_defers_panel_activation_without_panic(cx: &mut TestAppCont
         })
         .expect("window update");
     assert!(focused_pane.is_some());
-    assert_eq!(active_leaf, Some(panel_id));
+    assert_eq!(active_leaf, Some(panel_id.0));
 }
 
 #[gpui::test]
@@ -639,7 +639,7 @@ fn sole_editor_fallback_and_multi_editor_activation_routing(cx: &mut TestAppCont
                 cx,
             );
             if let Some(id) = split_id {
-                shell.panels.layout.activate_leaf(id);
+                shell.panels.layout.activate_leaf(id.0);
             }
             split_id
         })
@@ -649,7 +649,7 @@ fn sole_editor_fallback_and_multi_editor_activation_routing(cx: &mut TestAppCont
     let active_panel = window
         .update(cx, |shell, _window, _cx| shell.active_editor_panel())
         .expect("window update");
-    assert_eq!(active_panel, Some(new_panel_id));
+    assert_eq!(active_panel, Some(new_panel_id.0));
 
     // 3. Switch active leaf back to the first editor: active_editor_panel should follow
     window
@@ -797,32 +797,23 @@ fn editor_panel_close_prompts_editor_panel_scope_and_discards_panel_only(
 }
 
 #[gpui::test]
-fn tab_close_prompts_tab_scope_and_discards_tab_only(cx: &mut TestAppContext) {
+fn test_unsaved_dialog_tab_discard_and_close(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
-    let window = cx.update(|cx| crate::app::window::open_editor_window(cx, "tab0".to_string(), None));
+    let window = cx.update(|cx| crate::app::window::open_editor_window(cx, "tab 1".to_string(), None));
     cx.run_until_parked();
 
-    // Add a second tab to the editor and mark it dirty
     window
         .update(cx, |shell, _window, cx| {
-            let editor = shell.editor_for(DEFAULT_EDITOR_PANEL_ID).unwrap();
-            editor.update(cx, |ed, cx| {
-                let tab = Editor::new_tab_from_markdown(cx, "tab1".to_string(), None);
-                let idx = ed.session.tab_list.push(tab);
-                ed.session.tab_mut(idx).unwrap().file.dirty = true;
-                assert_eq!(ed.session.tab_count(), 2);
+            // Add a second dirty tab to the default editor panel
+            let editor = shell.editor_for(DEFAULT_EDITOR_PANEL_ID).unwrap().clone();
+            editor.update(cx, |editor, cx| {
+                let tab = Editor::new_tab_from_markdown(cx, "tab 2".to_string(), None);
+                let tab_idx = editor.session_mut().tab_list.push(tab);
+                editor.session_mut().tab_list.get_mut(tab_idx).unwrap().file.dirty = true;
             });
-        })
-        .expect("add second tab");
-
-    // Request closing tab index 1
-    window
-        .update(cx, |shell, _window, cx| {
-            let editor = shell.editor_for(DEFAULT_EDITOR_PANEL_ID).unwrap();
-            editor.update(cx, |ed, cx| {
-                ed.request_close_tab(1, cx);
-            });
+            // Request close tab index 1
+            shell.request_close_tab(DEFAULT_EDITOR_PANEL_ID, 1, cx);
         })
         .expect("request close tab");
     cx.run_until_parked();
@@ -835,7 +826,7 @@ fn tab_close_prompts_tab_scope_and_discards_tab_only(cx: &mut TestAppContext) {
             assert_eq!(
                 dialog.scope,
                 crate::app::shell::UnsavedDialogScope::Tab {
-                    panel_id: DEFAULT_EDITOR_PANEL_ID,
+                    panel_id: crate::app::window_panels::PanelId(DEFAULT_EDITOR_PANEL_ID),
                     index: 1,
                 }
             );

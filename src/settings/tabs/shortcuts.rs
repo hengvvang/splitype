@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::infra::theme::Theme;
-use crate::settings::tabs::common::{make_row, make_section};
+use crate::settings::common::{make_row, make_section};
 use crate::settings::window::SettingsWindow;
 
 impl SettingsWindow {
@@ -16,7 +16,6 @@ impl SettingsWindow {
         let d = &theme.dimensions;
         let mut inner_border_color = c.dialog_border;
         inner_border_color.a *= 0.4;
-        let toggle_section_ed = cx.entity().downgrade();
 
         let mut sections: Vec<AnyElement> = Vec::new();
 
@@ -43,10 +42,9 @@ impl SettingsWindow {
             c,
             d,
             "win-sec-doc-actions",
-            sec1_key,
             "Document Actions",
             self.expanded_sections.contains(sec1_key),
-            toggle_section_ed.clone(),
+            self.toggle_section_handler(cx, sec1_key),
             sec1_items,
         ));
 
@@ -73,10 +71,9 @@ impl SettingsWindow {
             c,
             d,
             "win-sec-view-controls",
-            sec2_key,
             "Interface & View Controls",
             self.expanded_sections.contains(sec2_key),
-            toggle_section_ed,
+            self.toggle_section_handler(cx, sec2_key),
             sec2_items,
         ));
 

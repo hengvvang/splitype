@@ -6,6 +6,7 @@
 
 use gpui::*;
 
+use crate::app::window_panels::PanelId;
 use crate::editor::controller::Editor;
 use crate::editor::outline::state::{
     OUTLINE_NODE_HEIGHT, OUTLINE_NODE_INDENT, OutlineNode, OutlineNodeKind, outline_node_hash,
@@ -67,7 +68,7 @@ impl Editor {
 
     pub(crate) fn render_outline_tree(
         &self,
-        panel_id: usize,
+        panel_id: PanelId,
         theme: &Theme,
         strings: &I18nStrings,
         editor: &WeakEntity<Editor>,
@@ -140,7 +141,7 @@ impl Editor {
         &self,
         nodes: &[OutlineNode],
         depth: usize,
-        panel_id: usize,
+        panel_id: PanelId,
         theme: &Theme,
         editor: &WeakEntity<Editor>,
     ) -> Vec<AnyElement> {
@@ -163,7 +164,7 @@ impl Editor {
         &self,
         node: &OutlineNode,
         depth: usize,
-        panel_id: usize,
+        panel_id: PanelId,
         theme: &Theme,
         editor: &WeakEntity<Editor>,
     ) -> AnyElement {

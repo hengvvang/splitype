@@ -1,17 +1,16 @@
-//! Editing settings tab for the in-editor slide-over panel.
-
 use gpui::*;
 
 use crate::app::shell::Shell;
+use crate::app::window_panels::PanelId;
 use crate::infra::theme::Theme;
-use crate::settings::panels::common::{make_row, make_section, render_zed_stepper};
+use crate::settings::common::{make_row, make_section, render_zed_stepper};
 use crate::ui::select::{select_option, select_panel, select_trigger};
 use crate::ui::switch::Switch;
 
 impl Shell {
     pub(crate) fn render_panel_editing_tab(
         &mut self,
-        panel_id: usize,
+        panel_id: PanelId,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> Vec<AnyElement> {
@@ -35,8 +34,10 @@ impl Shell {
             let is_editing_font = self.panels.settings.editing_stepper.as_deref() == Some("font");
 
             let ctrl_font = render_zed_stepper(
-                "font-dec",
-                "font-inc",
+                c,
+                d,
+                ("font-dec", panel_id.0),
+                ("font-inc", panel_id.0),
                 format!("{}", curr_size),
                 "px",
                 is_editing_font,
@@ -74,16 +75,15 @@ impl Shell {
                         cx.notify();
                     });
                 }),
-                theme,
-                panel_id,
             );
 
             sec1_items.push(make_row(
+                inner_border_color,
+                c,
+                d,
                 "Editor Font Size",
                 "Baseline font size in pixels for text editor content",
                 ctrl_font,
-                theme,
-                inner_border_color,
             ));
 
             let lh_dec = cx.entity().downgrade();
@@ -94,8 +94,10 @@ impl Shell {
                 self.panels.settings.editing_stepper.as_deref() == Some("line_height");
 
             let ctrl_lh = render_zed_stepper(
-                "lh-dec",
-                "lh-inc",
+                c,
+                d,
+                ("lh-dec", panel_id.0),
+                ("lh-inc", panel_id.0),
                 format!("{:.1}", curr_lh),
                 "",
                 is_editing_lh,
@@ -137,33 +139,26 @@ impl Shell {
                         cx.notify();
                     });
                 }),
-                theme,
-                panel_id,
             );
 
             sec1_items.push(make_row(
+                inner_border_color,
+                c,
+                d,
                 "Line Height Multiplier",
                 "Adjust vertical line spacing ratio for reading comfort",
                 ctrl_lh,
-                theme,
-                inner_border_color,
             ));
         }
 
-        let sec1_shell = cx.entity().downgrade();
         sections.push(make_section(
-            "pref-sec-typo",
+            c,
+            d,
+            ("pref-sec-typo", panel_id.0),
             "Typography & Formatting",
             is_sec1_expanded,
-            Box::new(move |_event, _window, cx| {
-                let _ = sec1_shell.update(cx, |shell, cx| {
-                    shell.panels.settings.toggle_section(sec1_key);
-                    cx.notify();
-                });
-            }),
+            self.toggle_settings_section_handler(cx, sec1_key),
             sec1_items,
-            theme,
-            panel_id,
         ));
 
         // Section 2: Markdown & Assets
@@ -199,11 +194,12 @@ impl Shell {
                 .into_any_element();
 
             sec2_items.push(make_row(
+                inner_border_color,
+                c,
+                d,
                 "Table Column Headers",
                 "Automatically render header row when formatting markdown tables",
                 ctrl_tbl,
-                theme,
-                inner_border_color,
             ));
 
             let mut img_btn_wrap = div().relative().child(
@@ -281,28 +277,23 @@ impl Shell {
             }
 
             sec2_items.push(make_row(
+                inner_border_color,
+                c,
+                d,
                 "Image Paste Action",
                 "Default storage location when pasting images into document",
                 img_btn_wrap.into_any_element(),
-                theme,
-                inner_border_color,
             ));
         }
 
-        let sec2_shell = cx.entity().downgrade();
         sections.push(make_section(
-            "pref-sec-md",
+            c,
+            d,
+            ("pref-sec-md", panel_id.0),
             "Markdown & Assets",
             is_sec2_expanded,
-            Box::new(move |_event, _window, cx| {
-                let _ = sec2_shell.update(cx, |shell, cx| {
-                    shell.panels.settings.toggle_section(sec2_key);
-                    cx.notify();
-                });
-            }),
+            self.toggle_settings_section_handler(cx, sec2_key),
             sec2_items,
-            theme,
-            panel_id,
         ));
 
         // Section 3: Startup Behavior
@@ -394,28 +385,23 @@ impl Shell {
             }
 
             sec3_items.push(make_row(
+                inner_border_color,
+                c,
+                d,
                 "On Startup",
                 "Choose default document state when launching splitype editor",
                 startup_btn_wrap.into_any_element(),
-                theme,
-                inner_border_color,
             ));
         }
 
-        let sec3_shell = cx.entity().downgrade();
         sections.push(make_section(
-            "pref-sec-startup",
+            c,
+            d,
+            ("pref-sec-startup", panel_id.0),
             "Startup Behavior",
             is_sec3_expanded,
-            Box::new(move |_event, _window, cx| {
-                let _ = sec3_shell.update(cx, |shell, cx| {
-                    shell.panels.settings.toggle_section(sec3_key);
-                    cx.notify();
-                });
-            }),
+            self.toggle_settings_section_handler(cx, sec3_key),
             sec3_items,
-            theme,
-            panel_id,
         ));
 
         sections

@@ -1,17 +1,16 @@
-//! Interface settings tab for the in-editor slide-over panel.
-
 use gpui::*;
 
 use crate::app::shell::Shell;
+use crate::app::window_panels::PanelId;
 use crate::infra::theme::{Theme, ThemeManager};
-use crate::settings::panels::common::{make_row, make_section};
+use crate::settings::common::{make_row, make_section};
 use crate::ui::select::{select_option, select_panel, select_trigger};
 use crate::ui::switch::Switch;
 
 impl Shell {
     pub(crate) fn render_panel_interface_tab(
         &mut self,
-        panel_id: usize,
+        panel_id: PanelId,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> Vec<AnyElement> {
@@ -155,11 +154,12 @@ impl Shell {
             }
 
             sec1_items.push(make_row(
+                inner_border_color,
+                c,
+                d,
                 "Interface Theme",
                 "Customize overall application color scheme and appearance",
                 theme_btn_wrap.into_any_element(),
-                theme,
-                inner_border_color,
             ));
 
             let mut lang_btn_wrap = div().relative().child(
@@ -230,28 +230,23 @@ impl Shell {
             }
 
             sec1_items.push(make_row(
+                inner_border_color,
+                c,
+                d,
                 "Display Language",
                 "Select preferred language for editor UI and dialogs",
                 lang_btn_wrap.into_any_element(),
-                theme,
-                inner_border_color,
             ));
         }
 
-        let sec1_shell = cx.entity().downgrade();
         sections.push(make_section(
-            "pref-sec-theme",
+            c,
+            d,
+            ("pref-sec-theme", panel_id.0),
             "Visual Theme & Language",
             is_sec1_expanded,
-            Box::new(move |_event, _window, cx| {
-                let _ = sec1_shell.update(cx, |shell, cx| {
-                    shell.panels.settings.toggle_section(sec1_key);
-                    cx.notify();
-                });
-            }),
+            self.toggle_settings_section_handler(cx, sec1_key),
             sec1_items,
-            theme,
-            panel_id,
         ));
 
         // Section 2: Status Bar Options
@@ -273,11 +268,12 @@ impl Shell {
                 .into_any_element();
 
             sec2_items.push(make_row(
+                inner_border_color,
+                c,
+                d,
                 "Status Bar Visibility",
                 "Show or hide the persistent bottom status bar across window",
                 ctrl_sb_main,
-                theme,
-                inner_border_color,
             ));
 
             let sub2_shell = cx.entity().downgrade();
@@ -293,11 +289,12 @@ impl Shell {
                 .into_any_element();
 
             sec2_items.push(make_row(
+                inner_border_color,
+                c,
+                d,
                 "Word Count Badge",
                 "Display real-time document word count in status bar",
                 ctrl_sb_words,
-                theme,
-                inner_border_color,
             ));
 
             let sub3_shell = cx.entity().downgrade();
@@ -313,28 +310,23 @@ impl Shell {
                 .into_any_element();
 
             sec2_items.push(make_row(
+                inner_border_color,
+                c,
+                d,
                 "Cursor Position Badge",
                 "Display line and column coordinates in status bar",
                 ctrl_sb_pos,
-                theme,
-                inner_border_color,
             ));
         }
 
-        let sec2_shell = cx.entity().downgrade();
         sections.push(make_section(
-            "pref-sec-sb",
+            c,
+            d,
+            ("pref-sec-sb", panel_id.0),
             "Status Bar Options",
             is_sec2_expanded,
-            Box::new(move |_event, _window, cx| {
-                let _ = sec2_shell.update(cx, |shell, cx| {
-                    shell.panels.settings.toggle_section(sec2_key);
-                    cx.notify();
-                });
-            }),
+            self.toggle_settings_section_handler(cx, sec2_key),
             sec2_items,
-            theme,
-            panel_id,
         ));
 
         sections

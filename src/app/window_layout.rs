@@ -483,15 +483,16 @@ impl Shell {
             };
             entity.into_any_element()
         } else {
+            let panel_id = crate::app::window_panels::PanelId(leaf_id);
             let topbar = match kind {
                 WindowPanelKind::Editor => {
                     unreachable!("editor leaf without an entity is rendered by its entity")
                 }
                 WindowPanelKind::Explorer => {
-                    self.render_explorer_topbar(leaf_id, kind, theme, leaf_count, is_maximized, cx)
+                    self.render_explorer_topbar(panel_id, kind, theme, leaf_count, is_maximized, cx)
                 }
                 WindowPanelKind::Settings => {
-                    self.render_settings_topbar(leaf_id, kind, theme, leaf_count, is_maximized, cx)
+                    self.render_settings_topbar(panel_id, kind, theme, leaf_count, is_maximized, cx)
                 }
             };
 
@@ -499,8 +500,8 @@ impl Shell {
                 WindowPanelKind::Editor => {
                     unreachable!("editor leaf without an entity is rendered by its entity")
                 }
-                WindowPanelKind::Explorer => self.render_explorer_body(leaf_id, theme, strings, cx),
-                WindowPanelKind::Settings => self.render_settings_body(leaf_id, theme, strings, cx),
+                WindowPanelKind::Explorer => self.render_explorer_body(panel_id, theme, strings, cx),
+                WindowPanelKind::Settings => self.render_settings_body(panel_id, theme, strings, cx),
             };
 
             let bottombar = match kind {
@@ -508,10 +509,10 @@ impl Shell {
                     unreachable!("editor leaf without an entity is rendered by its entity")
                 }
                 WindowPanelKind::Explorer => {
-                    Some(self.render_explorer_bottombar(leaf_id, theme, cx))
+                    Some(self.render_explorer_bottombar(panel_id, theme, cx))
                 }
                 WindowPanelKind::Settings => {
-                    Some(self.render_settings_bottombar(leaf_id, theme, cx))
+                    Some(self.render_settings_bottombar(panel_id, theme, cx))
                 }
             };
 

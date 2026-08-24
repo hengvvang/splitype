@@ -85,11 +85,12 @@ impl Editor {
 
     pub(crate) fn render_editor_pane_dropdown_menu(
         &mut self,
-        pane_id: splitype_splitter::tree::NodeId,
+        pane_id: impl Into<PaneId>,
         current_kind: crate::editor::session::EditorPaneKind,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        let pane_id = pane_id.into();
         let c = &theme.colors;
         let d = &theme.dimensions;
         let t = &theme.typography;
@@ -98,7 +99,7 @@ impl Editor {
         let available_kinds = EditorPaneKind::all();
 
         menu_panel(c, d)
-            .id(("inner-pane-dropdown-overlay", pane_id))
+            .id(("inner-pane-dropdown-overlay", pane_id.0))
             .absolute()
             .occlude()
             .left(px(0.0))

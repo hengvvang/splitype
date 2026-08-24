@@ -1,8 +1,7 @@
-//! Inline create / rename editor row for explorer file tree.
-
 use gpui::*;
 
 use crate::app::shell::Shell;
+use crate::app::window_panels::PanelId;
 use crate::explorer::filename_editor::ExplorerFilenameInputElement;
 use crate::explorer::state::state::{
     EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerValidation, FILE_ICON, FOLDER_ICON,
@@ -14,7 +13,7 @@ impl Shell {
     /// handling, IME bridge, and live validation feedback.
     pub(crate) fn render_explorer_edit_row(
         &self,
-        panel_id: usize,
+        panel_id: PanelId,
         theme: &Theme,
         _shell: &WeakEntity<Shell>,
         cx: &mut Context<Self>,
@@ -76,7 +75,7 @@ impl Shell {
             )
             .child(
                 div()
-                    .id(("explorer-filename-input-box", panel_id))
+                    .id(("explorer-filename-input-box", panel_id.0))
                     .key_context("ExplorerFilenameInput")
                     .track_focus(&focus_handle)
                     .flex_1()

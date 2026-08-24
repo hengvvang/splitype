@@ -53,8 +53,7 @@ impl Default for SettingsUiState {
 }
 
 impl SettingsUiState {
-    /// Open the settings panel on the Interface tab with the default
-    /// sections expanded.
+    /// Open the settings panel on the Interface tab.
     pub fn new() -> Self {
         let mut sections = HashSet::new();
         sections.insert("theme".to_string());
@@ -78,14 +77,6 @@ impl SettingsUiState {
             pref_startup_option: 0,
             open_dropdown: None,
             editing_stepper: None,
-        }
-    }
-
-    pub fn toggle_section(&mut self, section_key: &str) {
-        if self.expanded_sections.contains(section_key) {
-            self.expanded_sections.remove(section_key);
-        } else {
-            self.expanded_sections.insert(section_key.to_string());
         }
     }
 }

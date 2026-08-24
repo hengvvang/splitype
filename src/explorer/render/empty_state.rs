@@ -1,10 +1,9 @@
-//! Empty state view for explorer with drag-to-open and recent history.
-
 use std::path::PathBuf;
 
 use gpui::*;
 
 use crate::app::shell::Shell;
+use crate::app::window_panels::PanelId;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 use crate::ui::empty_state::empty_state_container;
@@ -14,7 +13,7 @@ impl Shell {
         &self,
         title: &str,
         message: &str,
-        panel_id: usize,
+        panel_id: PanelId,
         theme: &Theme,
         strings: &I18nStrings,
         recent_folders: &[PathBuf],
@@ -37,7 +36,7 @@ impl Shell {
         // non-empty messages (e.g. scan errors) are still rendered.
         let has_message = !message.is_empty();
 
-        empty_state_container(("explorer-empty-state-scroll", panel_id))
+        empty_state_container(("explorer-empty-state-scroll", panel_id.0))
             .gap(px(10.0))
             .px(px(24.0))
             .pt(px(96.0))
@@ -79,7 +78,7 @@ impl Shell {
             })
             .child(
                 div()
-                    .id(("explorer-empty-open-btn", panel_id))
+                    .id(("explorer-empty-open-btn", panel_id.0))
                     .cursor_pointer()
                     .mt(px(4.0))
                     .h(px(28.0))

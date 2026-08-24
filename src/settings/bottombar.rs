@@ -8,7 +8,7 @@
 use gpui::*;
 
 use crate::app::shell::Shell;
-
+use crate::app::window_panels::PanelId;
 use crate::infra::theme::Theme;
 use crate::ui::bottombar::bottombar_container;
 
@@ -17,7 +17,7 @@ impl Shell {
     /// content yet, so the area keeps the same layout as Editor / Explorer.
     pub(crate) fn render_settings_bottombar(
         &self,
-        panel_id: usize,
+        panel_id: PanelId,
         theme: &Theme,
         _cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -25,7 +25,7 @@ impl Shell {
         let d = &theme.dimensions;
 
         bottombar_container(c, d.bottombar_height, d.bottombar_padding_x)
-            .id(("settings-bottombar", panel_id))
+            .id(("settings-bottombar", panel_id.0))
             .into_any_element()
     }
 }

@@ -92,6 +92,13 @@ impl From<PanelId> for NodeId {
     }
 }
 
+impl From<PanelId> for gpui::ElementId {
+    #[inline]
+    fn from(id: PanelId) -> Self {
+        id.0.into()
+    }
+}
+
 impl std::fmt::Display for PanelId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)

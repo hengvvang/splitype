@@ -81,7 +81,7 @@ impl Editor {
 
     pub(crate) fn request_active_block_scroll_into_view(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         cx: &mut Context<Self>,
     ) {
         let state = self.pane_state(pane_id);

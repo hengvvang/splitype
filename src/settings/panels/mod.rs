@@ -1,6 +1,5 @@
 //! Settings panel rendered inside the editor's tiled layout.
 
-pub(crate) mod common;
 pub(crate) mod editing;
 pub(crate) mod interface;
 pub(crate) mod shortcuts;
@@ -8,6 +7,7 @@ pub(crate) mod shortcuts;
 use gpui::*;
 
 use crate::app::shell::Shell;
+use crate::app::window_panels::PanelId;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 use crate::settings::state::SettingsTab;
@@ -16,7 +16,7 @@ use crate::ui::tab::nav_tab;
 impl Shell {
     pub(crate) fn render_settings_body(
         &mut self,
-        panel_id: usize,
+        panel_id: PanelId,
         theme: &Theme,
         _strings: &I18nStrings,
         cx: &mut Context<Self>,
@@ -94,7 +94,7 @@ impl Shell {
         };
 
         let right_content = div()
-            .id(("pref-right-content", panel_id))
+            .id(("pref-right-content", panel_id.0))
             .relative()
             .flex_1()
             .h_full()
@@ -115,5 +115,23 @@ impl Shell {
             .child(left_nav)
             .child(right_content)
             .into_any_element()
+    }
+
+    pub(crate) fn toggle_settings_section_handler(
+        &self,
+        cx: &mut Context<Self>,
+        key: &'static str,
+    ) -> crate::settings::common::SettingsClickHandler {
+        let handle = cx.entity().downgrade();
+        Box::new(move |_event, _window, cx| {
+            let _ = handle.update(cx, |this, cx| {
+                if this.panels.settings.expanded_sections.contains(key) {
+                    this.panels.settings.expanded_sections.remove(key);
+                } else {
+                    this.panels.settings.expanded_sections.insert(key.to_string());
+                }
+                cx.notify();
+            });
+        })
     }
 }

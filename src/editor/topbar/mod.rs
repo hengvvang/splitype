@@ -35,7 +35,7 @@ impl crate::editor::controller::Editor {
         // plain text.
         let is_active_editor = self.is_active_panel;
         let type_button = small_pill_button(c, d)
-            .id(("panel-topbar-type", panel_id))
+            .id(("panel-topbar-type", panel_id.0))
             .text_size(px(12.0))
             .text_color(c.text_default)
             .child(kind.name().to_string())
@@ -60,7 +60,7 @@ impl crate::editor::controller::Editor {
 
         let split_h_editor = editor.clone();
         let split_h_button = icon_chip_button(c, d)
-            .id(("panel-topbar-split-h", panel_id))
+            .id(("panel-topbar-split-h", panel_id.0))
             .child(
                 svg()
                     .path(panel_topbar_icon(kind, "split-h"))
@@ -79,7 +79,7 @@ impl crate::editor::controller::Editor {
 
         let split_v_editor = editor.clone();
         let split_v_button = icon_chip_button(c, d)
-            .id(("panel-topbar-split-v", panel_id))
+            .id(("panel-topbar-split-v", panel_id.0))
             .child(
                 svg()
                     .path(panel_topbar_icon(kind, "split-v"))
@@ -106,7 +106,7 @@ impl crate::editor::controller::Editor {
         if leaf_count > 1 {
             let max_editor = editor.clone();
             let max_button = icon_chip_button(c, d)
-                .id(("panel-topbar-max", panel_id))
+                .id(("panel-topbar-max", panel_id.0))
                 .child(
                     svg()
                         .path(if is_maximized {
@@ -128,7 +128,7 @@ impl crate::editor::controller::Editor {
 
             let close_editor = editor.clone();
             let close_button = icon_chip_button(c, d)
-                .id(("panel-topbar-close", panel_id))
+                .id(("panel-topbar-close", panel_id.0))
                 .child(
                     svg()
                         .path(panel_topbar_icon(kind, "close"))
@@ -156,9 +156,8 @@ impl crate::editor::controller::Editor {
             // switched back, or may be brand new — rendering must never
             // panic on a missing session.
             let list = self.tab_list_mut();
-            let active_tab = list.active_tab;
+            let active_tab = list.active_index();
             let tab_names: Vec<String> = list
-                .tabs
                 .iter()
                 .map(|tab| {
                     tab.file
@@ -274,7 +273,7 @@ impl crate::editor::controller::Editor {
         }
 
         topbar_container(c, d.topbar_height, 8.0)
-            .id(("panel-topbar", panel_id))
+            .id(("panel-topbar", panel_id.0))
             .child(left_section)
             .child(div().flex().items_center().gap(px(6.0)).child(actions))
             .into_any_element()

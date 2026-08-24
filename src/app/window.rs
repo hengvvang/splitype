@@ -10,7 +10,7 @@ use crate::app::menus::install_menus;
 use crate::app::shell::{PanelContent, Shell};
 use crate::app::window_chrome::MenuBarState;
 use crate::app::window_panels::{
-    DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowPanelKind, WindowPanels,
+    PanelId, DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowPanelKind, WindowPanels,
 };
 use crate::editor::controller::Editor;
 use crate::editor::session::EditorSession;
@@ -66,8 +66,8 @@ pub(crate) fn open_editor_window(
                     // The default layout is Explorer (left) + Editor (right);
                     // only Editor panel_contents carry content entities.
                     panel_contents: [
-                        (ROOT_PANEL_ID, PanelContent::Explorer),
-                        (DEFAULT_EDITOR_PANEL_ID, PanelContent::Editor(editor)),
+                        (PanelId(ROOT_PANEL_ID), PanelContent::Explorer),
+                        (PanelId(DEFAULT_EDITOR_PANEL_ID), PanelContent::Editor(editor)),
                     ]
                     .into(),
                     retained_editor_sessions: HashMap::new(),
@@ -113,7 +113,7 @@ pub(crate) fn open_editor_window(
 pub(crate) fn open_cloned_window(
     tree: SplitTree<WindowPanelKind>,
     next_node_id: NodeId,
-    sessions: HashMap<NodeId, EditorSession>,
+    sessions: HashMap<PanelId, EditorSession>,
     explorer: Option<ExplorerState>,
     cx: &mut App,
 ) -> WindowHandle<Shell> {

@@ -1,10 +1,9 @@
-//! Worktree root row rendering with actions toolbar and collapse/expand controls.
-
 use std::path::Path;
 
 use gpui::*;
 
 use crate::app::shell::Shell;
+use crate::app::window_panels::PanelId;
 use crate::explorer::drag_and_drop::DraggedExplorerEntryView;
 use crate::explorer::state::state::{
     DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, ExplorerEntryKind, ExplorerSelection,
@@ -22,7 +21,7 @@ impl Shell {
     pub(crate) fn render_explorer_root_row(
         &self,
         entry: &VisibleExplorerEntry,
-        panel_id: usize,
+        panel_id: PanelId,
         drag_highlight: Option<&Path>,
         theme: &Theme,
         shell: &WeakEntity<Shell>,
@@ -121,7 +120,7 @@ impl Shell {
                 .gap(px(2.0))
                 .child(
                     icon_chip_button(c, &theme.dimensions)
-                        .id(("explorer-tb-replace", panel_id))
+                        .id(("explorer-tb-replace", panel_id.0))
                         .child(
                             svg()
                                 .path("icons/explorer/worktree/replace_folder.svg")
@@ -137,7 +136,7 @@ impl Shell {
                 )
                 .child(
                     icon_chip_button(c, &theme.dimensions)
-                        .id(("explorer-tb-hidden", panel_id))
+                        .id(("explorer-tb-hidden", panel_id.0))
                         .child(
                             svg()
                                 .path(if hide_hidden {
@@ -161,7 +160,7 @@ impl Shell {
                 )
                 .child(
                     icon_chip_button(c, &theme.dimensions)
-                        .id(("explorer-tb-refresh", panel_id))
+                        .id(("explorer-tb-refresh", panel_id.0))
                         .child(
                             svg()
                                 .path("icons/explorer/worktree/sync_folder.svg")
@@ -177,7 +176,7 @@ impl Shell {
                 )
                 .child(
                     icon_chip_button(c, &theme.dimensions)
-                        .id(("explorer-tb-collapse", panel_id))
+                        .id(("explorer-tb-collapse", panel_id.0))
                         .child(
                             svg()
                                 .path("icons/explorer/worktree/collapse-all.svg")

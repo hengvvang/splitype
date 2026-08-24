@@ -32,7 +32,7 @@ impl Editor {
 
         match node {
             SplitTree::Leaf(container) => {
-                let pane_id = container.id;
+                let pane_id = PaneId(container.id);
                 let kind = container.kind;
                 let inner_editor = cx.entity().downgrade();
 
@@ -62,7 +62,7 @@ impl Editor {
 
                 let corner_handles = splitype_splitter::interaction::corner_drag_handles(
                     "inner-corner",
-                    pane_id,
+                    pane_id.0,
                     d.pane_gap,
                     20.0,
                     false,
@@ -71,7 +71,7 @@ impl Editor {
                         let _ = inner_editor.update(cx, |ed, cx| {
                             ed.session_mut()
                                 .root
-                                .start_corner_drag(pane_id, pos, modifier);
+                                .start_corner_drag(pane_id.0, pos, modifier);
                             cx.notify();
                         });
                     },
@@ -94,13 +94,13 @@ impl Editor {
                 // pane floats inside it with a uniform inset on all four
                 // sides and carries the content.
                 div()
-                    .id(("pane-wrapper", pane_id))
+                    .id(("pane-wrapper", pane_id.0))
                     .w_full()
                     .h_full()
                     .relative()
                     .child(
                         div()
-                            .id(("pane-card", pane_id))
+                            .id(("pane-card", pane_id.0))
                             .absolute()
                             .inset(px(panel_gap))
                             .overflow_hidden()

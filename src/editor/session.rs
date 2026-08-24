@@ -14,13 +14,17 @@ use splitype_splitter::root::SplitterRoot;
 /// editors (Shift-drag).
 /// Tab payload type is owned by the host (editor); the container only
 /// stores and reorders tabs, so it stays generic over the payload.
-#[derive(Debug, Default, Clone)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct EditorTabList<T> {
-    pub tabs: Vec<T>,
-    pub active_tab: usize,
+    tabs: Vec<T>,
+    active_tab: usize,
 }
 
 impl<T> EditorTabList<T> {
+    pub fn new() -> Self {
+        Self::empty()
+    }
+
     pub fn empty() -> Self {
         Self {
             tabs: Vec::new(),
@@ -36,6 +40,11 @@ impl<T> EditorTabList<T> {
     #[inline]
     pub fn len(&self) -> usize {
         self.tabs.len()
+    }
+
+    #[inline]
+    pub fn active_index(&self) -> usize {
+        self.active_tab
     }
 
     /// Pushes a new tab to the list and returns its index.
@@ -96,6 +105,27 @@ impl<T> EditorTabList<T> {
         Some(removed)
     }
 
+    pub fn clear(&mut self) {
+        self.tabs.clear();
+        self.active_tab = 0;
+    }
+
+    #[inline]
+    pub fn as_slice(&self) -> &[T] {
+        &self.tabs
+    }
+
+    pub fn swap(&mut self, a: usize, b: usize) {
+        if a < self.tabs.len() && b < self.tabs.len() {
+            self.tabs.swap(a, b);
+            if self.active_tab == a {
+                self.active_tab = b;
+            } else if self.active_tab == b {
+                self.active_tab = a;
+            }
+        }
+    }
+
     #[inline]
     pub fn iter(&self) -> std::slice::Iter<'_, T> {
         self.tabs.iter()
@@ -104,6 +134,24 @@ impl<T> EditorTabList<T> {
     #[inline]
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, T> {
         self.tabs.iter_mut()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a EditorTabList<T> {
+    type Item = &'a T;
+    type IntoIter = std::slice::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut EditorTabList<T> {
+    type Item = &'a mut T;
+    type IntoIter = std::slice::IterMut<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter_mut()
     }
 }
 

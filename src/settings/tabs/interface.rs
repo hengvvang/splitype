@@ -5,7 +5,7 @@ use gpui::*;
 use crate::infra::config::settings::apply_configured_language;
 use crate::infra::i18n::manager::I18nManager;
 use crate::infra::theme::Theme;
-use crate::settings::tabs::common::{make_row, make_section};
+use crate::settings::common::{make_row, make_section};
 use crate::settings::window::SettingsWindow;
 use crate::ui::select::{select_option, select_panel, select_trigger};
 use crate::ui::switch::Switch;
@@ -20,7 +20,6 @@ impl SettingsWindow {
         let d = &theme.dimensions;
         let mut inner_border_color = c.dialog_border;
         inner_border_color.a *= 0.4;
-        let toggle_section_ed = cx.entity().downgrade();
 
         let mut sections: Vec<AnyElement> = Vec::new();
 
@@ -237,10 +236,9 @@ impl SettingsWindow {
             c,
             d,
             "win-sec-theme",
-            sec1_key,
             "Visual Theme & Language",
             self.expanded_sections.contains(sec1_key),
-            toggle_section_ed.clone(),
+            self.toggle_section_handler(cx, sec1_key),
             sec1_items,
         ));
 
@@ -248,13 +246,13 @@ impl SettingsWindow {
         let sec2_key = "status_bar";
         let mut sec2_items = Vec::new();
 
-        let sb_main_ed = cx.entity().downgrade();
-        let ctrl_sb_main = Switch::new("win-switch-sb-main")
+        let sb_toggle_ed = cx.entity().downgrade();
+        let ctrl_sb_en = Switch::new("pref-switch-win-sb-en")
             .checked(self.status_bar_enabled)
-            .on_click(move |event, window, cx| {
-                let _ = sb_main_ed.update(cx, |this, cx| {
+            .on_click(move |_event, _window, cx| {
+                let _ = sb_toggle_ed.update(cx, |this, cx| {
                     this.status_bar_enabled = !this.status_bar_enabled;
-                    this.save(event, window, cx);
+                    cx.notify();
                 });
             })
             .into_any_element();
@@ -263,18 +261,18 @@ impl SettingsWindow {
             inner_border_color,
             c,
             d,
-            "Status Bar Visibility",
-            "Show or hide the persistent bottom status bar across window",
-            ctrl_sb_main,
+            "Enable Status Bar",
+            "Toggle bottom status information bar visibility",
+            ctrl_sb_en,
         ));
 
-        let sb_words_ed = cx.entity().downgrade();
-        let ctrl_sb_words = Switch::new("win-switch-sb-words")
+        let sb_wc_ed = cx.entity().downgrade();
+        let ctrl_sb_wc = Switch::new("pref-switch-win-sb-wc")
             .checked(self.status_bar_show_word_count)
-            .on_click(move |event, window, cx| {
-                let _ = sb_words_ed.update(cx, |this, cx| {
+            .on_click(move |_event, _window, cx| {
+                let _ = sb_wc_ed.update(cx, |this, cx| {
                     this.status_bar_show_word_count = !this.status_bar_show_word_count;
-                    this.save(event, window, cx);
+                    cx.notify();
                 });
             })
             .into_any_element();
@@ -283,18 +281,18 @@ impl SettingsWindow {
             inner_border_color,
             c,
             d,
-            "Word Count Badge",
-            "Display real-time document word count in status bar",
-            ctrl_sb_words,
+            "Word Counter Badge",
+            "Display live word and character counters in status bar",
+            ctrl_sb_wc,
         ));
 
         let sb_pos_ed = cx.entity().downgrade();
-        let ctrl_sb_pos = Switch::new("win-switch-sb-pos")
+        let ctrl_sb_pos = Switch::new("pref-switch-win-sb-pos")
             .checked(self.status_bar_show_cursor_position)
-            .on_click(move |event, window, cx| {
+            .on_click(move |_event, _window, cx| {
                 let _ = sb_pos_ed.update(cx, |this, cx| {
                     this.status_bar_show_cursor_position = !this.status_bar_show_cursor_position;
-                    this.save(event, window, cx);
+                    cx.notify();
                 });
             })
             .into_any_element();
@@ -312,10 +310,9 @@ impl SettingsWindow {
             c,
             d,
             "win-sec-sb",
-            sec2_key,
             "Status Bar Options",
             self.expanded_sections.contains(sec2_key),
-            toggle_section_ed,
+            self.toggle_section_handler(cx, sec2_key),
             sec2_items,
         ));
 

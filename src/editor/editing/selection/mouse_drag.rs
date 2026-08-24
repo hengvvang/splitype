@@ -1,16 +1,14 @@
-//! Mouse drag interactions and pointer hit-testing for cross-block selections.
-
 use gpui::*;
 
 use crate::editor::controller::{
-    CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, Editor,
+    CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, PaneId,
 };
 use crate::editor::tree::block::Block;
 
 impl Editor {
     pub(crate) fn begin_cross_block_drag_at_point(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         position: Point<Pixels>,
         cx: &mut Context<Self>,
     ) {
@@ -32,7 +30,7 @@ impl Editor {
 
     pub(crate) fn on_editor_capture_mouse_down(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         event: &MouseDownEvent,
         _window: &mut Window,
         cx: &mut Context<Self>,
@@ -55,7 +53,7 @@ impl Editor {
 
     pub(crate) fn on_editor_mouse_move(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         event: &MouseMoveEvent,
         _window: &mut Window,
         cx: &mut Context<Self>,
@@ -99,7 +97,7 @@ impl Editor {
 
     pub(crate) fn on_editor_mouse_up(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         _event: &MouseUpEvent,
         _window: &mut Window,
         cx: &mut Context<Self>,

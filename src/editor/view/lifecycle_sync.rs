@@ -12,7 +12,7 @@ impl Editor {
     /// until their pane becomes active.
     pub(crate) fn apply_pending_focus(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -26,7 +26,7 @@ impl Editor {
 
     pub(crate) fn ensure_focused_caret_visible(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         window: &Window,
         cx: &App,
     ) -> bool {
@@ -70,7 +70,7 @@ impl Editor {
 
     pub(crate) fn apply_pending_scroll_into_view(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         window: &Window,
         cx: &mut Context<Self>,
     ) {
@@ -151,7 +151,7 @@ impl Editor {
 
     pub(crate) fn sync_scroll_viewport(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         viewport_size: Size<Pixels>,
         cx: &mut Context<Self>,
     ) {

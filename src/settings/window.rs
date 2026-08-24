@@ -104,6 +104,24 @@ impl SettingsWindow {
         }
     }
 
+    pub(crate) fn toggle_section_handler(
+        &self,
+        cx: &mut Context<Self>,
+        key: &'static str,
+    ) -> crate::settings::common::SettingsClickHandler {
+        let handle = cx.entity().downgrade();
+        Box::new(move |_event, _window, cx| {
+            let _ = handle.update(cx, |this, cx| {
+                if this.expanded_sections.contains(key) {
+                    this.expanded_sections.remove(key);
+                } else {
+                    this.expanded_sections.insert(key.to_string());
+                }
+                cx.notify();
+            });
+        })
+    }
+
     pub(crate) fn selected_theme_name(&self) -> String {
         self.theme_options
             .iter()

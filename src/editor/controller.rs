@@ -64,6 +64,13 @@ impl From<PaneId> for NodeId {
     }
 }
 
+impl From<PaneId> for gpui::ElementId {
+    #[inline]
+    fn from(id: PaneId) -> Self {
+        id.0.into()
+    }
+}
+
 impl std::fmt::Display for PaneId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -226,7 +233,7 @@ pub(crate) struct DocumentTab {
     /// preview — while all panes render the same shared `document`. Pane
     /// states travel with the tab, so each tab remembers where every pane
     /// was.
-    pub(crate) panes: HashMap<usize, PaneState>,
+    pub(crate) panes: HashMap<PaneId, PaneState>,
     pub(crate) fallback_pane: PaneState,
     /// Cached (revision, word_count) to avoid full serialization on every status bar frame.
     pub(crate) cached_word_count: Option<(u64, usize)>,
@@ -278,7 +285,7 @@ pub struct Editor {
     /// The outer window panel this editor renders inside. An Editor entity
     /// serves exactly one area (Shell owns the area layout); window-level
     /// state such as the layout tree and sidebar panels lives on the Shell.
-    pub(crate) panel_id: NodeId,
+    pub(crate) panel_id: PanelId,
     /// The Shell that owns this editor.s window panel. Used to request
     /// window-level operations (splitting an area creates a fresh Editor
     /// entity on the Shell; closing one removes it). None in tests that
@@ -324,7 +331,7 @@ pub struct Editor {
     /// routing target for events without a pane context (block events,
     /// keyboard commands). One Editor entity serves one area, so the area
     /// (panel) id alone identifies it.
-    pub(crate) focused_pane_id: Option<usize>,
+    pub(crate) focused_pane_id: Option<PaneId>,
 }
 
 /// Binding between a table block and one cell editor.
@@ -513,13 +520,13 @@ impl Editor {
     /// layout seeds a left Explorer area and a right Editor area with an
     /// empty tab bar.
     pub(crate) fn empty(cx: &mut Context<Self>) -> Self {
-        Self::empty_for_panel(DEFAULT_EDITOR_PANEL_ID, cx)
+        Self::empty_for_panel(PanelId(DEFAULT_EDITOR_PANEL_ID), cx)
     }
 
     /// Creates an editor serving `panel_id` with no document tabs. The
     /// Shell seeds each Editor area with its own entity via this
     /// constructor.
-    pub(crate) fn empty_for_panel(panel_id: NodeId, _cx: &mut Context<Self>) -> Self {
+    pub(crate) fn empty_for_panel(panel_id: impl Into<PanelId>, _cx: &mut Context<Self>) -> Self {
         Self::with_session(panel_id, EditorSession::welcome(), _cx)
     }
 
@@ -527,12 +534,12 @@ impl Editor {
     /// list + pane split root). The Shell uses this to materialize
     /// split-off and restored editor panel_contents; `shell` is wired in afterwards.
     pub(crate) fn with_session(
-        panel_id: NodeId,
+        panel_id: impl Into<PanelId>,
         session: EditorSession,
         _cx: &mut Context<Self>,
     ) -> Self {
         Self {
-            panel_id,
+            panel_id: panel_id.into(),
             shell: None,
             session,
             panel_rect: None,
@@ -562,7 +569,7 @@ impl Editor {
     ) -> Self {
         let tab = Self::new_tab_from_markdown(cx, markdown, file_path);
         let mut editor = Self {
-            panel_id: DEFAULT_EDITOR_PANEL_ID,
+            panel_id: PanelId(DEFAULT_EDITOR_PANEL_ID),
             shell: None,
             session: EditorSession::welcome(),
             panel_rect: None,
@@ -778,11 +785,11 @@ impl Editor {
     /// of the layout tree before any focus was set. Events without a pane
     /// context (block events, keyboard commands) route here, because the
     /// window keyboard focus sits in exactly one pane at a time.
-    pub(crate) fn active_pane_id(&self) -> usize {
+    pub(crate) fn active_pane_id(&self) -> PaneId {
         if let Some(pane_id) = self.focused_pane_id {
             return pane_id;
         }
-        self.session.root.tree.first_leaf_id().unwrap_or(0)
+        PaneId(self.session.root.tree.first_leaf_id().unwrap_or(0))
     }
 
     /// The active pane's view state, creating it lazily.
@@ -792,13 +799,13 @@ impl Editor {
     }
 
     /// The view state of the pane with `pane_id`, creating it lazily.
-    pub(crate) fn pane_state(&mut self, pane_id: usize) -> &mut PaneState {
+    pub(crate) fn pane_state(&mut self, pane_id: PaneId) -> &mut PaneState {
         let tab = self.tab_mut();
         tab.panes.entry(pane_id).or_default()
     }
 
     /// The view state of the pane with `pane_id`, if it exists.
-    pub(crate) fn pane_state_ref(&self, pane_id: usize) -> Option<&PaneState> {
+    pub(crate) fn pane_state_ref(&self, pane_id: PaneId) -> Option<&PaneState> {
         let tab = self.tab();
         tab.panes.get(&pane_id)
     }
@@ -869,12 +876,13 @@ impl Editor {
     /// without an edit target (Preview / Outline).
     pub(crate) fn focus_pane(
         &mut self,
-        pane_id: NodeId,
+        pane_id: impl Into<PaneId>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let pane_id = pane_id.into();
         self.focused_pane_id = Some(pane_id);
-        self.session.root.activate_leaf(pane_id);
+        self.session.root.activate_leaf(pane_id.0);
         self.session.root.clear_dropdowns();
         let panel_id = self.panel_id;
         self.defer_shell_action(cx, move |shell, cx| shell.activate_panel(panel_id, cx));
@@ -885,7 +893,7 @@ impl Editor {
             return;
         }
         {
-            let kind = self.session.root.tree.find_leaf_kind(pane_id);
+            let kind = self.session.root.tree.find_leaf_kind(pane_id.0);
             match kind {
                 // The source panel's own block becomes the edit target.
                 Some(EditorPaneKind::SourceCode) => {
@@ -993,10 +1001,7 @@ impl Editor {
         root.tree = self.session.root.tree.clone_with_new_ids(&mut next_id);
         root.next_node_id = next_id;
 
-        let mut list = EditorTabList {
-            tabs: Vec::with_capacity(self.session.tab_list.len()),
-            active_tab: 0,
-        };
+        let mut list = EditorTabList::new();
         for tab in self.session.tab_list.iter() {
             let text = if tab.mode == EditorPaneKind::SourceCode {
                 tab.document.serialize_source_text(cx)
@@ -1017,7 +1022,7 @@ impl Editor {
 
     /// First dirty tab in this editor, if any. Window-wide aggregation
     /// (across every editor area) lives on the Shell.
-    pub(crate) fn first_dirty_tab(&self) -> Option<(NodeId, usize)> {
+    pub(crate) fn first_dirty_tab(&self) -> Option<(PanelId, usize)> {
         for (index, tab) in self.session.tab_list.iter().enumerate() {
             if tab.file.dirty {
                 return Some((self.panel_id, index));

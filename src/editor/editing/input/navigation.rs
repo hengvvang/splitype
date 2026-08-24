@@ -68,7 +68,7 @@ impl Editor {
     /// One page is the current viewport height, so the step tracks window size.
     pub(crate) fn scroll_viewport_by(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         delta: Pixels,
         cx: &mut Context<Self>,
     ) {
@@ -83,7 +83,7 @@ impl Editor {
     /// range. Offsets run from 0 at the top to `-max_offset` at the bottom.
     pub(crate) fn set_vertical_scroll_offset(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         target_y: Pixels,
         cx: &mut Context<Self>,
     ) {

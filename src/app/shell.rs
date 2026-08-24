@@ -13,8 +13,7 @@ use gpui::*;
 
 use crate::app::actions::{InstallCliTool, QuitApplication, UninstallCliTool};
 use crate::app::window_chrome::MenuBarState;
-use crate::app::window_panels::WindowPanelKind;
-use crate::app::window_panels::WindowPanels;
+use crate::app::window_panels::{PanelId, WindowPanelKind, WindowPanels};
 use crate::editor::controller::{DocumentTab, Editor, InfoDialogKind};
 use crate::editor::session::EditorSession;
 use crate::infra::i18n::I18nManager;
@@ -85,14 +84,14 @@ pub(crate) enum UnsavedDialogScope {
     Window,
     /// Triggered by Editor panel topbar close button, or "Close Editor" command.
     /// Targets ONLY the specified Editor Panel and its tabs.
-    EditorPanel(NodeId),
+    EditorPanel(PanelId),
     /// Triggered by a specific tab's 'x' close button, or Cmd/Ctrl+W.
     /// Targets ONLY the single specified tab.
-    Tab { panel_id: NodeId, index: usize },
+    Tab { panel_id: PanelId, index: usize },
 }
 
 impl UnsavedDialogScope {
-    pub(crate) fn panel_id(&self) -> Option<NodeId> {
+    pub(crate) fn panel_id(&self) -> Option<PanelId> {
         match self {
             Self::Window => None,
             Self::EditorPanel(panel_id) => Some(*panel_id),
@@ -114,11 +113,11 @@ pub struct Shell {
     /// Content entity per outer area id. An area holds a content entity
     /// only while its kind is `Editor`; switching kinds moves the entity
     /// away (its session is retained while it still holds tabs).
-    pub(crate) panel_contents: HashMap<NodeId, PanelContent>,
+    pub(crate) panel_contents: HashMap<PanelId, PanelContent>,
     /// Sessions of Editor panel_contents that left the Editor kind with tabs
     /// (background editing): switching back recreates the entity with the
     /// retained session.
-    pub(crate) retained_editor_sessions: HashMap<NodeId, EditorSession>,
+    pub(crate) retained_editor_sessions: HashMap<PanelId, EditorSession>,
     /// Open/hover state for the in-window titlebar menu bar.
     pub(crate) menu_bar: MenuBarState,
     /// Window panel state: the outer area layout tree plus the explorer /
@@ -183,7 +182,7 @@ impl Shell {
         let outer_rects = self.panels.layout.leaf_rects(body_size);
         let active = self.panels.layout.active_leaf;
         let leaf_count = self.panels.layout.tree.count_leaves();
-        let editors: Vec<(NodeId, Entity<Editor>)> = self
+        let editors: Vec<(PanelId, Entity<Editor>)> = self
             .panel_contents
             .iter()
             .filter_map(|(panel_id, content)| {
@@ -193,7 +192,7 @@ impl Shell {
         for (panel_id, entity) in editors {
             let rect = outer_rects
                 .iter()
-                .find(|rect| rect.id == panel_id)
+                .find(|rect| rect.id == panel_id.0)
                 .map(|rect| Bounds {
                     origin: point(px(rect.x), px(rect.y + titlebar_height)),
                     size: size(px(rect.width), px(rect.height)),
@@ -202,11 +201,11 @@ impl Shell {
                 .panels
                 .layout
                 .tree
-                .find_leaf(panel_id)
+                .find_leaf(panel_id.0)
                 .is_some_and(|panel| panel.maximized);
             entity.update(cx, |editor, _cx| {
                 editor.panel_rect = rect;
-                editor.is_active_panel = active == Some(panel_id);
+                editor.is_active_panel = active == Some(panel_id.0);
                 editor.is_maximized = is_maximized;
                 editor.leaf_count = leaf_count;
             });
@@ -215,8 +214,8 @@ impl Shell {
 
     /// Marks `panel_id` as the active editor area and re-pushes the
     /// active-flag to every editor entity.
-    pub(crate) fn activate_panel(&mut self, panel_id: NodeId, cx: &mut Context<Self>) {
-        self.panels.layout.activate_leaf(panel_id);
+    pub(crate) fn activate_panel(&mut self, panel_id: impl Into<PanelId>, cx: &mut Context<Self>) {
+        self.panels.layout.activate_leaf(panel_id.into().0);
         self.sync_panel_states(cx);
     }
 
@@ -256,8 +255,12 @@ impl Shell {
     }
 
     /// Opens or closes the area-type dropdown of `panel_id` (topbar click).
-    pub(crate) fn toggle_panel_dropdown(&mut self, panel_id: NodeId, cx: &mut Context<Self>) {
-        self.panels.layout.toggle_dropdown(panel_id);
+    pub(crate) fn toggle_panel_dropdown(
+        &mut self,
+        panel_id: impl Into<PanelId>,
+        cx: &mut Context<Self>,
+    ) {
+        self.panels.layout.toggle_dropdown(panel_id.into().0);
         cx.notify();
     }
 
@@ -284,8 +287,12 @@ impl Shell {
     }
 
     /// Toggles the maximized state of `panel_id`'s tile (topbar click).
-    pub(crate) fn toggle_panel_maximize(&mut self, panel_id: NodeId, cx: &mut Context<Self>) {
-        self.panels.layout.toggle_maximize(panel_id);
+    pub(crate) fn toggle_panel_maximize(
+        &mut self,
+        panel_id: impl Into<PanelId>,
+        cx: &mut Context<Self>,
+    ) {
+        self.panels.layout.toggle_maximize(panel_id.into().0);
         self.sync_panel_states(cx);
         cx.notify();
     }
@@ -297,13 +304,14 @@ impl Shell {
     /// area's id.
     pub(crate) fn split_panel(
         &mut self,
-        panel_id: NodeId,
+        panel_id: impl Into<PanelId>,
         axis: SplitAxis,
         ratio: f32,
         copy_content: bool,
         cx: &mut Context<Self>,
-    ) -> Option<NodeId> {
-        let target_leaf_id = self.panels.layout.resolve_leaf(panel_id)?;
+    ) -> Option<PanelId> {
+        let panel_id = panel_id.into();
+        let target_leaf_id = self.panels.layout.resolve_leaf(panel_id.0)?;
         let new_id = self.panels.layout.split_leaf(target_leaf_id, axis, ratio)?;
         if self.panels.layout.tree.find_leaf_kind(target_leaf_id) == Some(WindowPanelKind::Editor) {
             let session = if copy_content {
@@ -316,14 +324,15 @@ impl Shell {
             self.add_editor_panel(new_id, session, cx);
         }
         self.sync_panel_states(cx);
-        Some(new_id)
+        Some(PanelId(new_id))
     }
 
     /// Materialize the fresh sibling leaf of a plain-drag split: for an
     /// Editor-kind leaf, deep-copy the primary editor's session into a new
     /// entity. Non-Editor panel_contents have no content to copy.
-    pub(crate) fn seed_split_panel(&mut self, new_id: NodeId, cx: &mut Context<Self>) {
-        if self.panels.layout.tree.find_leaf_kind(new_id) == Some(WindowPanelKind::Editor) {
+    pub(crate) fn seed_split_panel(&mut self, new_id: impl Into<PanelId>, cx: &mut Context<Self>) {
+        let new_id = new_id.into();
+        if self.panels.layout.tree.find_leaf_kind(new_id.0) == Some(WindowPanelKind::Editor) {
             let session = self
                 .primary_editor()
                 .map(|editor| editor.update(cx, |editor, cx| editor.clone_session(cx)))
@@ -335,11 +344,12 @@ impl Shell {
 
     /// Close an area, clean up its editor session, and drop the content
     /// entity.
-    pub(crate) fn close_panel(&mut self, panel_id: NodeId, cx: &mut Context<Self>) {
-        if let Some(target_leaf_id) = self.panels.layout.resolve_leaf(panel_id) {
+    pub(crate) fn close_panel(&mut self, panel_id: impl Into<PanelId>, cx: &mut Context<Self>) {
+        let panel_id = panel_id.into();
+        if let Some(target_leaf_id) = self.panels.layout.resolve_leaf(panel_id.0) {
             self.panels.layout.close_leaf(target_leaf_id);
             self.remove_editor_panel(target_leaf_id, cx);
-            self.retained_editor_sessions.remove(&target_leaf_id);
+            self.retained_editor_sessions.remove(&PanelId(target_leaf_id));
             self.sync_panel_states(cx);
         }
     }
@@ -347,7 +357,7 @@ impl Shell {
     /// Clean up a joined panel's editor session and sync panel states.
     pub(crate) fn handle_joined_panel(&mut self, removed_id: NodeId, cx: &mut Context<Self>) {
         self.remove_editor_panel(removed_id, cx);
-        self.retained_editor_sessions.remove(&removed_id);
+        self.retained_editor_sessions.remove(&PanelId(removed_id));
         self.sync_panel_states(cx);
     }
 
@@ -432,18 +442,22 @@ impl Shell {
     /// Creates a fresh Editor entity serving `panel_id` and registers it in
     /// the panel_contents map. The new entity is wired to this Shell and its
     /// reference registries are rebuilt for the (possibly cloned) document
+    //    /// Creates a fresh Editor entity serving `panel_id` and registers it in
+    /// the panel_contents map. The new entity is wired to this Shell and its
+    /// reference registries are rebuilt for the (possibly cloned) document
     /// tabs.
     pub(crate) fn add_editor_panel(
         &mut self,
-        panel_id: NodeId,
+        panel_id: impl Into<PanelId>,
         session: EditorSession,
         cx: &mut Context<Self>,
     ) -> Entity<Editor> {
+        let panel_id = panel_id.into();
         let shell = cx.entity().downgrade();
         let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
         editor.update(cx, |editor, cx| {
             editor.shell = Some(shell);
-            if !editor.session.tab_list.tabs.is_empty() {
+            if !editor.session.tab_list.is_empty() {
                 editor.rebuild_table_grids(cx);
                 editor.rebuild_reference_registries(cx);
                 let pane_id = editor.active_pane_id();
@@ -460,9 +474,10 @@ impl Shell {
     /// session so the caller can retain or discard it.
     pub(crate) fn remove_editor_panel(
         &mut self,
-        panel_id: NodeId,
+        panel_id: impl Into<PanelId>,
         cx: &mut Context<Self>,
     ) -> Option<EditorSession> {
+        let panel_id = panel_id.into();
         let content = self.panel_contents.remove(&panel_id)?;
         let entity = match content {
             PanelContent::Editor(entity) => entity,
@@ -475,7 +490,14 @@ impl Shell {
 
     /// Swaps the content entities of two panel_contents so they follow the swapped
     /// area kinds; retained sessions swap along with them.
-    pub(crate) fn swap_panel_contents(&mut self, a: NodeId, b: NodeId, cx: &mut Context<Self>) {
+    pub(crate) fn swap_panel_contents(
+        &mut self,
+        a: impl Into<PanelId>,
+        b: impl Into<PanelId>,
+        cx: &mut Context<Self>,
+    ) {
+        let a = a.into();
+        let b = b.into();
         let content_a = self.panel_contents.remove(&a);
         let content_b = self.panel_contents.remove(&b);
         if let Some(content) = content_a {
@@ -504,12 +526,15 @@ impl Shell {
     /// Update panel contents when a move_and_dock operation has rearranged the layout tree.
     pub(crate) fn handle_moved_and_docked_panel(
         &mut self,
-        source_id: NodeId,
-        target_id: NodeId,
-        new_leaf_id: NodeId,
+        source_id: impl Into<PanelId>,
+        target_id: impl Into<PanelId>,
+        new_leaf_id: impl Into<PanelId>,
         dock_target: splitype_splitter::sessions::AreaDockTarget,
         cx: &mut Context<Self>,
     ) {
+        let source_id = source_id.into();
+        let target_id = target_id.into();
+        let new_leaf_id = new_leaf_id.into();
         let source_content = self.panel_contents.remove(&source_id);
         let source_retained = self.retained_editor_sessions.remove(&source_id);
         let target_content = self.panel_contents.remove(&target_id);
@@ -573,10 +598,11 @@ impl Shell {
     /// still holds tabs (background editing).
     pub(crate) fn sync_panel_kind(
         &mut self,
-        panel_id: NodeId,
+        panel_id: impl Into<PanelId>,
         is_editor: bool,
         cx: &mut Context<Self>,
     ) {
+        let panel_id = panel_id.into();
         if is_editor {
             if self.panel_contents.get(&panel_id).is_some_and(|c| c.is_editor()) {
                 return;
@@ -592,7 +618,7 @@ impl Shell {
                     self.retained_editor_sessions.insert(panel_id, session);
                 }
             }
-            if let Some(kind) = self.panels.layout.tree.find_leaf_kind(panel_id) {
+            if let Some(kind) = self.panels.layout.tree.find_leaf_kind(panel_id.0) {
                 match kind {
                     WindowPanelKind::Explorer => {
                         self.panel_contents.insert(panel_id, PanelContent::Explorer);
@@ -609,7 +635,7 @@ impl Shell {
     /// First dirty tab across every editor area (foreground entities and
     /// retained background sessions), if any. Consumed by the window-close
     /// flow on the Shell.
-    pub(crate) fn first_dirty_tab(&mut self, cx: &mut Context<Self>) -> Option<(NodeId, usize)> {
+    pub(crate) fn first_dirty_tab(&mut self, cx: &mut Context<Self>) -> Option<(PanelId, usize)> {
         for (panel_id, session) in &self.retained_editor_sessions {
             for (index, tab) in session.tab_list.iter().enumerate() {
                 if tab.file.dirty {
@@ -645,7 +671,7 @@ impl Shell {
                 Some(crate::app::window_panels::WindowPanelKind::Editor) => {
                     if let Some(editor) = self.editor_for(*old_id) {
                         let session = editor.update(cx, |editor, cx| editor.clone_session(cx));
-                        sessions.insert(*new_id, session);
+                        sessions.insert(PanelId(*new_id), session);
                     }
                 }
                 Some(crate::app::window_panels::WindowPanelKind::Explorer) => {
@@ -666,8 +692,8 @@ impl Shell {
     }
 
     /// The editor content entity of `panel_id`, if the area holds one.
-    pub(crate) fn editor_for(&self, panel_id: NodeId) -> Option<&Entity<Editor>> {
-        self.panel_contents.get(&panel_id).and_then(|c| c.as_editor())
+    pub(crate) fn editor_for(&self, panel_id: impl Into<PanelId>) -> Option<&Entity<Editor>> {
+        self.panel_contents.get(&panel_id.into()).and_then(|c| c.as_editor())
     }
 
     /// Returns total number of leaves in the outer window layout tree.
@@ -675,18 +701,18 @@ impl Shell {
         self.panels.layout.tree.count_leaves()
     }
 
-    /// Returns dirty tab count and first dirty document name for a given panel.
+    /// The count and first document name of dirty tabs in the given panel.
     pub(crate) fn dirty_tab_info_in_panel(
         &self,
-        panel_id: NodeId,
+        panel_id: impl Into<PanelId>,
         cx: &App,
     ) -> (usize, Option<String>) {
+        let panel_id = panel_id.into();
         if let Some(editor) = self.editor_for(panel_id) {
             let editor = editor.read(cx);
             let dirty_tabs: Vec<_> = editor
                 .session
                 .tab_list
-                .tabs
                 .iter()
                 .filter(|t| t.file.dirty)
                 .collect();
@@ -703,7 +729,6 @@ impl Shell {
         } else if let Some(session) = self.retained_editor_sessions.get(&panel_id) {
             let dirty_tabs: Vec<_> = session
                 .tab_list
-                .tabs
                 .iter()
                 .filter(|t| t.file.dirty)
                 .collect();
@@ -731,7 +756,7 @@ impl Shell {
             .editor_for(panel_id)
             .and_then(|e| {
                 let editor = e.read(cx);
-                editor.session.tab_list.tabs.get(index).map(|t| {
+                editor.session.tab_list.get(index).map(|t| {
                     t.file
                         .path
                         .as_ref()
@@ -757,7 +782,12 @@ impl Shell {
     }
 
     /// Prompts editor-panel-level unsaved-changes dialog.
-    pub(crate) fn prompt_close_editor_for(&mut self, panel_id: NodeId, cx: &mut Context<Self>) {
+    pub(crate) fn prompt_close_editor_for(
+        &mut self,
+        panel_id: impl Into<PanelId>,
+        cx: &mut Context<Self>,
+    ) {
+        let panel_id = panel_id.into();
         let (dirty_count, first_dirty_name) = self.dirty_tab_info_in_panel(panel_id, cx);
         if dirty_count == 0 {
             return;
@@ -780,15 +810,16 @@ impl Shell {
     /// Prompts single-tab-level unsaved-changes dialog.
     pub(crate) fn prompt_close_tab(
         &mut self,
-        panel_id: NodeId,
+        panel_id: impl Into<PanelId>,
         index: usize,
         cx: &mut Context<Self>,
     ) {
+        let panel_id = panel_id.into();
         let document_name = self
             .editor_for(panel_id)
             .and_then(|e| {
                 let editor = e.read(cx);
-                editor.session.tab_list.tabs.get(index).map(|t| {
+                editor.session.tab_list.get(index).map(|t| {
                     t.file
                         .path
                         .as_ref()
@@ -814,7 +845,12 @@ impl Shell {
     }
 
     /// Request closing an editor panel: checks for unsaved changes in this panel.
-    pub(crate) fn request_close_panel(&mut self, panel_id: NodeId, cx: &mut Context<Self>) {
+    pub(crate) fn request_close_panel(
+        &mut self,
+        panel_id: impl Into<PanelId>,
+        cx: &mut Context<Self>,
+    ) {
+        let panel_id = panel_id.into();
         let (dirty_count, _) = self.dirty_tab_info_in_panel(panel_id, cx);
         if dirty_count > 0 {
             self.prompt_close_editor_for(panel_id, cx);
@@ -822,9 +858,30 @@ impl Shell {
             self.close_panel(panel_id, cx);
         } else if let Some(editor) = self.editor_for(panel_id) {
             editor.update(cx, |editor, cx| {
-                editor.session.tab_list.tabs.clear();
-                editor.session.tab_list.active_tab = 0;
+                editor.session.tab_list.clear();
                 cx.notify();
+            });
+        }
+    }
+
+    /// Request closing a single tab in an editor panel.
+    #[allow(dead_code)]
+    pub(crate) fn request_close_tab(
+        &mut self,
+        panel_id: impl Into<PanelId>,
+        index: usize,
+        cx: &mut Context<Self>,
+    ) {
+        let panel_id = panel_id.into();
+        let is_dirty = self
+            .editor_for(panel_id)
+            .and_then(|e| e.read(cx).session.tab_list.get(index).map(|t| t.file.dirty))
+            .unwrap_or(false);
+        if is_dirty {
+            self.prompt_close_tab(panel_id, index, cx);
+        } else if let Some(editor) = self.editor_for(panel_id) {
+            editor.update(cx, |editor, cx| {
+                editor.close_tab(index, cx);
             });
         }
     }

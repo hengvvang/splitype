@@ -5,7 +5,7 @@ pub(crate) mod render;
 use gpui::*;
 
 use crate::editor::block_protocol::BlockEvent;
-use crate::editor::controller::Editor;
+use crate::editor::controller::{Editor, PaneId};
 use crate::editor::tree::block::Block;
 use crate::model::parse::BlockData;
 
@@ -20,7 +20,7 @@ impl Editor {
     /// Each Source pane keeps its own block in its own [`PaneState`], so
     /// multiple source panels edit independently; the document content
     /// itself stays shared.
-    pub(crate) fn sync_source_pane(&mut self, pane_id: usize, cx: &mut Context<Self>) {
+    pub(crate) fn sync_source_pane(&mut self, pane_id: PaneId, cx: &mut Context<Self>) {
         let tab_index = self.session.active_tab_index();
         let revision = self.tab().document_revision;
         let needs_sync = match self.pane_state_ref(pane_id) {
@@ -59,7 +59,7 @@ impl Editor {
     /// processing.
     pub(crate) fn on_source_pane_changed(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         block: Entity<Block>,
         event: &BlockEvent,
         cx: &mut Context<Self>,

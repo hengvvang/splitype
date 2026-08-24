@@ -36,7 +36,7 @@ impl Editor {
         // render pass.)
         if self.has_active_tab() {
             let tab = self.tab_mut();
-            tab.panes.retain(|pane, _| inner_tree.contains_leaf(*pane));
+            tab.panes.retain(|pane, _| inner_tree.contains_leaf(pane.0));
         }
 
         // Derive the focused pane from the keyboard focus when nothing is
@@ -55,14 +55,14 @@ impl Editor {
                     .is_some_and(|block| block.entity_id() == target_id)
             }) {
                 // Keyboard focus sits in a source pane's own block.
-                if inner_tree.contains_leaf(*pane_id) {
+                if inner_tree.contains_leaf(pane_id.0) {
                     self.focused_pane_id = Some(*pane_id);
                 }
             } else if self.doc().block_entity_by_id(target_id).is_some() {
                 // Keyboard focus sits in the shared document: point at the
                 // panel's first Wysiwyg pane.
                 if let Some(pane) = inner_tree.find_first_leaf_by_kind(EditorPaneKind::Wysiwyg) {
-                    self.focused_pane_id = Some(pane.id);
+                    self.focused_pane_id = Some(PaneId(pane.id));
                 }
             }
         }
@@ -84,11 +84,11 @@ impl Editor {
         let dropdown = {
             let root = &self.session.root;
             // The open dropdown belongs to the currently focused pane.
-            let pane_id = self.focused_pane_id.unwrap_or(1);
-            if root.tree.find_leaf(pane_id).is_some_and(|p| p.open_dropdown) {
+            let pane_id = self.focused_pane_id.unwrap_or(PaneId(1));
+            if root.tree.find_leaf(pane_id.0).is_some_and(|p| p.open_dropdown) {
                 let current_kind = root
                     .tree
-                    .find_leaf_kind(pane_id)
+                    .find_leaf_kind(pane_id.0)
                     .unwrap_or(EditorPaneKind::Wysiwyg);
                 Some(self.render_editor_pane_dropdown_menu(pane_id, current_kind, theme, cx))
             } else {

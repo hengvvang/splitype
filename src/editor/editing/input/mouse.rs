@@ -11,7 +11,7 @@ use gpui::*;
 use crate::editor::controller::*;
 
 impl Editor {
-    pub(crate) fn bump_scrollbar_visibility(&mut self, pane_id: usize, cx: &mut Context<Self>) {
+    pub(crate) fn bump_scrollbar_visibility(&mut self, pane_id: PaneId, cx: &mut Context<Self>) {
         // One Editor entity serves one area; the scrollbar belongs to the
         // pane's own document view. The fade task captures the pane id so it
         // clears the right fade task later.
@@ -41,7 +41,7 @@ impl Editor {
 
     pub(crate) fn on_editor_hover(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         hovered: &bool,
         _window: &mut Window,
         cx: &mut Context<Self>,
@@ -72,7 +72,7 @@ impl Editor {
 
     pub(crate) fn on_editor_scroll_wheel(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         _event: &ScrollWheelEvent,
         _window: &mut Window,
         cx: &mut Context<Self>,
@@ -88,7 +88,7 @@ impl Editor {
 
     pub(crate) fn start_scrollbar_drag(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         pointer_offset_y: f32,
         track_height: f32,
         thumb_height: f32,
@@ -112,7 +112,7 @@ impl Editor {
 
     pub(crate) fn update_scrollbar_drag(
         &mut self,
-        pane_id: usize,
+        pane_id: PaneId,
         pointer_y_in_track: f32,
         cx: &mut Context<Self>,
     ) {
@@ -145,7 +145,7 @@ impl Editor {
         cx.notify();
     }
 
-    pub(crate) fn end_scrollbar_drag(&mut self, pane_id: usize, cx: &mut Context<Self>) {
+    pub(crate) fn end_scrollbar_drag(&mut self, pane_id: PaneId, cx: &mut Context<Self>) {
         let state = self.pane_state(pane_id);
         if state.scroll.scrollbar_drag.take().is_some() {
             self.bump_scrollbar_visibility(pane_id, cx);

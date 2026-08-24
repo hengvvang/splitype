@@ -79,7 +79,7 @@ impl Shell {
         ) else {
             return;
         };
-        self.panels.layout.activate_leaf(new_id);
+        self.panels.layout.activate_leaf(new_id.0);
         if let Some(editor) = self.editor_for(new_id) {
             editor.update(cx, |editor, cx| {
                 editor.open_file_in_panel(&path, window, cx);

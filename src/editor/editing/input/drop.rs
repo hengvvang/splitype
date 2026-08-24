@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context as AnyhowContext, Result};
 use gpui::*;
 
-use crate::editor::controller::{Editor, EditorPaneKind};
+use crate::editor::controller::{Editor, EditorPaneKind, PaneId};
 
 /// Returns true when `path` exists and has a `.md` or `.markdown` extension.
 pub(crate) fn is_markdown_file_path(path: &Path) -> bool {
@@ -73,7 +73,7 @@ impl Editor {
         // The whole document was replaced: every pane starts over at the
         // first block, scrolled to the top.
         let pending_focus = self.first_focusable_entity_id(cx);
-        let pane_ids: Vec<usize> = self.tab().panes.keys().copied().collect();
+        let pane_ids: Vec<PaneId> = self.tab().panes.keys().copied().collect();
         for pane_id in pane_ids {
             let pane = self.pane_state(pane_id);
             pane.focus.pending_scroll_active_block_into_view = true;

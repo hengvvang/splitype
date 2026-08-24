@@ -8,10 +8,11 @@ use crate::infra::theme::Theme;
 impl Editor {
     pub(crate) fn render_welcome_prompt(
         &mut self,
-        pane_id: splitype_splitter::tree::NodeId,
+        pane_id: impl Into<PaneId>,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        let pane_id = pane_id.into();
         let c = &theme.colors;
         let d = &theme.dimensions;
         let panel_id = self.panel_id;
@@ -19,7 +20,7 @@ impl Editor {
 
         div()
             .id(ElementId::Name(
-                format!("welcome-prompt-{panel_id}-{pane_id}").into(),
+                format!("welcome-prompt-{}-{pane_id}", panel_id.0, pane_id = pane_id.0).into(),
             ))
             .w_full()
             .h_full()

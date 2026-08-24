@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use gpui::*;
 
-use crate::editor::controller::Editor;
+use crate::editor::controller::{Editor, PaneId};
 use crate::editor::tree::block::Block;
 use crate::editor::tree::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
@@ -34,7 +34,7 @@ impl Editor {
     /// The document revision guards the expensive whole-document
     /// serialization: it only runs after an edit bumped the revision, never
     /// on unchanged frames.
-    pub(crate) fn refresh_preview_blocks(&mut self, pane_id: usize, cx: &mut Context<Self>) {
+    pub(crate) fn refresh_preview_blocks(&mut self, pane_id: PaneId, cx: &mut Context<Self>) {
         let revision = self.tab().document_revision;
         let synced = self
             .pane_state_ref(pane_id)

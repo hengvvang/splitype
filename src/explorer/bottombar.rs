@@ -1,10 +1,7 @@
-//! Bottom bar of an Explorer area: the add-folder button and the worktree
-//! count.
-
 use gpui::*;
 
 use crate::app::shell::Shell;
-
+use crate::app::window_panels::PanelId;
 use crate::infra::theme::Theme;
 use crate::ui::bottombar::bottombar_container;
 use crate::ui::button::{icon_chip_button, toolbar_icon_size};
@@ -16,7 +13,7 @@ impl Shell {
     /// minus the replace semantics).
     pub(crate) fn render_explorer_bottombar(
         &self,
-        panel_id: usize,
+        panel_id: PanelId,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -27,7 +24,7 @@ impl Shell {
         let btn_icon_size = toolbar_icon_size(d.bottombar_height);
 
         bottombar_container(c, d.bottombar_height, d.bottombar_padding_x)
-            .id(("explorer-bottombar", panel_id))
+            .id(("explorer-bottombar", panel_id.0))
             .child(
                 div()
                     .flex()
@@ -35,7 +32,7 @@ impl Shell {
                     .gap(px(6.0))
                     .child(
                         icon_chip_button(c, d)
-                            .id(("explorer-bottombar-add-folder", panel_id))
+                            .id(("explorer-bottombar-add-folder", panel_id.0))
                             .child(
                                 svg()
                                     .path("icons/explorer/bottombar/new_folder.svg")

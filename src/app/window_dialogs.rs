@@ -193,7 +193,7 @@ impl Shell {
                 crate::app::shell::UnsavedDialogScope::EditorPanel(panel_id) => {
                     if let Some(editor) = self.editor_for(panel_id) {
                         editor.update(cx, |ed, cx| {
-                            for tab in &mut ed.session.tab_list.tabs {
+                            for tab in ed.session.tab_list.iter_mut() {
                                 tab.file.dirty = false;
                             }
                             cx.notify();
@@ -203,8 +203,7 @@ impl Shell {
                         self.close_panel(panel_id, cx);
                     } else if let Some(editor) = self.editor_for(panel_id) {
                         editor.update(cx, |ed, cx| {
-                            ed.session.tab_list.tabs.clear();
-                            ed.session.tab_list.active_tab = 0;
+                            ed.session.tab_list.clear();
                             cx.notify();
                         });
                     }
@@ -212,7 +211,7 @@ impl Shell {
                 crate::app::shell::UnsavedDialogScope::Tab { panel_id, index } => {
                     if let Some(editor) = self.editor_for(panel_id) {
                         editor.update(cx, |ed, cx| {
-                            if let Some(tab) = ed.session.tab_list.tabs.get_mut(index) {
+                            if let Some(tab) = ed.session.tab_list.get_mut(index) {
                                 tab.file.dirty = false;
                             }
                             ed.close_tab(index, cx);

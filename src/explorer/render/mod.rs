@@ -10,6 +10,7 @@ use std::ops::Range;
 use gpui::*;
 
 use crate::app::shell::Shell;
+use crate::app::window_panels::PanelId;
 use crate::explorer::state::state::{
     DragExplorerTarget, DraggedExplorerSelection, ExplorerSelection,
 };
@@ -19,7 +20,7 @@ use crate::infra::theme::Theme;
 impl Shell {
     pub(crate) fn render_explorer_files_tree(
         &mut self,
-        panel_id: usize,
+        panel_id: PanelId,
         theme: &Theme,
         strings: &I18nStrings,
         cx: &mut Context<Self>,
@@ -80,7 +81,7 @@ impl Shell {
         let row_theme = theme.clone();
         let row_shell = cx.entity().downgrade();
         let list = uniform_list(
-            ("explorer-tree", panel_id),
+            ("explorer-tree", panel_id.0),
             entries_len,
             cx.processor(move |this: &mut Shell, range: Range<usize>, _window, cx| {
                 this.panels.explorer.rendered_rows = range.len();
@@ -109,7 +110,7 @@ impl Shell {
         .py(px(4.0));
 
         div()
-            .id(("explorer-root", panel_id))
+            .id(("explorer-root", panel_id.0))
             .key_context("ExplorerPanel")
             .w_full()
             .h_full()
@@ -195,7 +196,7 @@ impl Shell {
 
     pub(crate) fn render_explorer_body(
         &mut self,
-        panel_id: usize,
+        panel_id: PanelId,
         theme: &Theme,
         strings: &I18nStrings,
         cx: &mut Context<Self>,

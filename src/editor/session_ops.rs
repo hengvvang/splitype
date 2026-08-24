@@ -7,7 +7,7 @@
 //! copied state machine.
 
 use crate::app::window_panels::EditorPanelMode;
-use crate::editor::controller::Editor;
+use crate::editor::controller::{Editor, PaneId};
 use crate::editor::session::{EditorPaneKind, EditorSession};
 use crate::splitter::NodeId;
 use gpui::Context;
@@ -40,43 +40,45 @@ impl Editor {
 
     /// Splits a pane via the status-bar buttons. The new pane inherits the
     /// target pane's kind so the split keeps the same view style.
-    pub fn split_pane(&mut self, pane_id: NodeId, axis: SplitAxis) {
+    pub fn split_pane(&mut self, pane_id: impl Into<PaneId>, axis: SplitAxis) {
         self.split_pane_with_ratio(pane_id, axis, 0.5);
     }
 
-    pub fn close_pane(&mut self, pane_id: NodeId) {
-        self.session.root.close_leaf(pane_id);
+    pub fn close_pane(&mut self, pane_id: impl Into<PaneId>) {
+        self.session.root.close_leaf(pane_id.into().0);
     }
 
-    pub fn toggle_pane_dropdown(&mut self, pane_id: NodeId, cx: &mut Context<Self>) {
-        self.session.root.toggle_dropdown(pane_id);
+    pub fn toggle_pane_dropdown(&mut self, pane_id: impl Into<PaneId>, cx: &mut Context<Self>) {
+        self.session.root.toggle_dropdown(pane_id.into().0);
         // Opening an inner dropdown closes any outer dropdown.
         if let Some(shell) = self.shell.clone() {
             let _ = shell.update(cx, |shell, _cx| shell.panels.layout.clear_dropdowns());
         }
     }
 
-    pub fn change_pane_kind(&mut self, pane_id: NodeId, kind: EditorPaneKind) {
-        self.session.root.set_kind(pane_id, kind);
-        self.session.root.activate_leaf(pane_id);
+    pub fn change_pane_kind(&mut self, pane_id: impl Into<PaneId>, kind: EditorPaneKind) {
+        let pane_id = pane_id.into();
+        self.session.root.set_kind(pane_id.0, kind);
+        self.session.root.activate_leaf(pane_id.0);
         self.session.root.clear_dropdowns();
         self.focused_pane_id = Some(pane_id);
     }
 
     /// Inner split created via corner drag or divider border menu. The new pane inherits the
     /// dragged/target pane's kind so both sides keep the same view style.
-    pub fn split_pane_with_ratio(&mut self, pane_id: NodeId, axis: SplitAxis, ratio: f32) {
-        if let Some(panel) = self.session.root.tree.find_leaf_mut(pane_id) {
+    pub fn split_pane_with_ratio(&mut self, pane_id: impl Into<PaneId>, axis: SplitAxis, ratio: f32) {
+        let pane_id = pane_id.into();
+        if let Some(panel) = self.session.root.tree.find_leaf_mut(pane_id.0) {
             panel.maximized = false;
         }
         self.session
             .root
-            .split_leaf(pane_id, axis, ratio);
+            .split_leaf(pane_id.0, axis, ratio);
     }
 
     /// Swap pane kinds between two panes.
-    pub fn swap_pane_kinds(&mut self, a: NodeId, b: NodeId) {
-        self.session.root.swap_kinds(a, b);
+    pub fn swap_pane_kinds(&mut self, a: impl Into<PaneId>, b: impl Into<PaneId>) {
+        self.session.root.swap_kinds(a.into().0, b.into().0);
     }
 
     /// Swap the two sides of a pane split node (border-menu action).
@@ -85,7 +87,7 @@ impl Editor {
     }
 
     /// Toggle the maximized state of an inner editor pane.
-    pub fn toggle_pane_maximize(&mut self, pane_id: NodeId) {
-        self.session.root.toggle_maximize(pane_id);
+    pub fn toggle_pane_maximize(&mut self, pane_id: impl Into<PaneId>) {
+        self.session.root.toggle_maximize(pane_id.into().0);
     }
 }
