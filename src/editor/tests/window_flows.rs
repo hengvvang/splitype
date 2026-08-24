@@ -383,7 +383,7 @@ async fn welcome_pane_click_defers_panel_activation(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-async fn editing_pane_click_defers_panel_activation_without_panic(cx: &mut TestAppContext) {
+fn editing_pane_click_defers_panel_activation_without_panic(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
     let window = cx.update(|cx| crate::app::window::open_editor_window(cx, String::new(), None));
@@ -434,7 +434,7 @@ async fn editing_pane_click_defers_panel_activation_without_panic(cx: &mut TestA
 }
 
 #[gpui::test]
-async fn starting_and_ending_scrollbar_drag_updates_editor_state(cx: &mut TestAppContext) {
+fn starting_and_ending_scrollbar_drag_updates_editor_state(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, "alpha".to_string(), None));
 
     editor.update(cx, |editor, cx| {
@@ -479,7 +479,7 @@ async fn starting_and_ending_scrollbar_drag_updates_editor_state(cx: &mut TestAp
 }
 
 #[gpui::test]
-async fn editor_tile_corner_drag_starts_outer_split(cx: &mut TestAppContext) {
+fn editor_tile_corner_drag_starts_outer_split(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
     let window = cx.update(|cx| crate::app::window::open_editor_window(cx, String::new(), None));
@@ -537,7 +537,7 @@ async fn editor_tile_corner_drag_starts_outer_split(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-async fn editor_type_dropdown_switches_panel_kind(cx: &mut TestAppContext) {
+fn editor_type_dropdown_switches_panel_kind(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
     let window = cx.update(|cx| crate::app::window::open_editor_window(cx, String::new(), None));
@@ -616,7 +616,7 @@ async fn editor_type_dropdown_switches_panel_kind(cx: &mut TestAppContext) {
 }
 
 #[gpui::test]
-async fn sole_editor_fallback_and_multi_editor_activation_routing(cx: &mut TestAppContext) {
+fn sole_editor_fallback_and_multi_editor_activation_routing(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
     let window = cx.update(|cx| crate::app::window::open_editor_window(cx, String::new(), None));
@@ -665,7 +665,7 @@ async fn sole_editor_fallback_and_multi_editor_activation_routing(cx: &mut TestA
 }
 
 #[gpui::test]
-async fn window_close_prompts_window_scope_and_discards_all_panels(cx: &mut TestAppContext) {
+fn window_close_prompts_window_scope_and_discards_all_panels(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
     let window = cx.update(|cx| crate::app::window::open_editor_window(cx, "panel1".to_string(), None));
@@ -723,7 +723,7 @@ async fn window_close_prompts_window_scope_and_discards_all_panels(cx: &mut Test
 }
 
 #[gpui::test]
-async fn editor_panel_close_prompts_editor_panel_scope_and_discards_panel_only(
+fn editor_panel_close_prompts_editor_panel_scope_and_discards_panel_only(
     cx: &mut TestAppContext,
 ) {
     init_editor_test_app(cx);
@@ -797,7 +797,7 @@ async fn editor_panel_close_prompts_editor_panel_scope_and_discards_panel_only(
 }
 
 #[gpui::test]
-async fn tab_close_prompts_tab_scope_and_discards_tab_only(cx: &mut TestAppContext) {
+fn tab_close_prompts_tab_scope_and_discards_tab_only(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
     let window = cx.update(|cx| crate::app::window::open_editor_window(cx, "tab0".to_string(), None));
@@ -862,7 +862,7 @@ async fn tab_close_prompts_tab_scope_and_discards_tab_only(cx: &mut TestAppConte
 }
 
 #[gpui::test]
-async fn unsaved_dialog_cancel_leaves_document_dirty(cx: &mut TestAppContext) {
+fn unsaved_dialog_cancel_leaves_document_dirty(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
     let window = cx.update(|cx| crate::app::window::open_editor_window(cx, "content".to_string(), None));

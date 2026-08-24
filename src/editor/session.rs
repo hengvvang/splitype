@@ -43,6 +43,39 @@ impl<T> EditorTabList<T> {
     pub fn active_tab(&self) -> Option<&T> {
         self.tabs.get(self.active_tab)
     }
+
+    /// Safely gets a mutable reference to the active tab.
+    #[inline]
+    pub fn active_tab_mut(&mut self) -> Option<&mut T> {
+        let index = self.active_tab;
+        self.tabs.get_mut(index)
+    }
+
+    /// Safely sets the active tab index with bounds clamping.
+    pub fn set_active_tab(&mut self, index: usize) {
+        if self.tabs.is_empty() {
+            self.active_tab = 0;
+        } else {
+            self.active_tab = index.min(self.tabs.len() - 1);
+        }
+    }
+
+    /// Safely closes the tab at `index`, adjusting `active_tab` automatically.
+    pub fn close_tab(&mut self, index: usize) -> Option<T> {
+        if index >= self.tabs.len() {
+            return None;
+        }
+        let was_active = index == self.active_tab;
+        let removed = self.tabs.remove(index);
+        if self.tabs.is_empty() {
+            self.active_tab = 0;
+        } else if was_active {
+            self.active_tab = index.min(self.tabs.len() - 1);
+        } else if index < self.active_tab {
+            self.active_tab -= 1;
+        }
+        Some(removed)
+    }
 }
 
 /// The complete per-area editor state: the document tabs plus the inner

@@ -728,24 +728,15 @@ impl Editor {
     /// Closes the tab at `index`, activating a neighbor. Closing the last
     /// tab leaves the editor back in the welcome state (no tabs).
     pub(crate) fn close_tab(&mut self, index: usize, cx: &mut Context<Self>) {
-        let list = &mut self.session.tab_list;
-        if index >= list.tabs.len() {
+        if self.session.tab_list.close_tab(index).is_none() {
             return;
         }
-        let was_active = index == list.active_tab;
-        list.tabs.remove(index);
-        if list.tabs.is_empty() {
-            list.active_tab = 0;
+        if self.session.tab_list.is_empty() {
             // Last tab: back to the welcome mode. The pane tree keeps its
             // kinds, so the layout is restored unchanged when editing
             // resumes.
             cx.notify();
             return;
-        }
-        if was_active {
-            list.active_tab = index.min(list.tabs.len() - 1);
-        } else if index < list.active_tab {
-            list.active_tab -= 1;
         }
         let pane = self.active_pane_state();
         if pane.focus.pending.is_none() {
@@ -785,9 +776,7 @@ impl Editor {
     /// The view state of the pane with `pane_id`, creating it lazily.
     pub(crate) fn pane_state(&mut self, pane_id: usize) -> &mut PaneState {
         let list = &mut self.session.tab_list;
-        if list.active_tab >= list.tabs.len() && !list.tabs.is_empty() {
-            list.active_tab = list.tabs.len() - 1;
-        }
+        list.set_active_tab(list.active_tab);
         let tab_index = list.active_tab;
         list.tabs[tab_index]
             .panes

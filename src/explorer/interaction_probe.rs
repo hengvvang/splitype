@@ -87,7 +87,7 @@ fn visible_labels(shell: &Shell) -> Vec<String> {
 /// dialogs) renders as a file row: the scan keeps the file as the root and
 /// the tree builder tags it as a file, not a folder.
 #[gpui::test]
-async fn single_file_worktree_roots_at_the_file(cx: &mut TestAppContext) {
+fn single_file_worktree_roots_at_the_file(cx: &mut TestAppContext) {
     init_explorer_test_app(cx);
     let root = temp_explorer_root("file-root");
     let file = root.join("top.md");
@@ -119,7 +119,7 @@ async fn single_file_worktree_roots_at_the_file(cx: &mut TestAppContext) {
 /// and `toggle_explorer_node` (the row click / arrow handler) must make
 /// those children visible.
 #[gpui::test]
-async fn toggle_on_subfolder_reveals_its_children(cx: &mut TestAppContext) {
+fn toggle_on_subfolder_reveals_its_children(cx: &mut TestAppContext) {
     init_explorer_test_app(cx);
     let root = temp_explorer_root("toggle-subfolder");
 
@@ -204,7 +204,7 @@ async fn toggle_on_subfolder_reveals_its_children(cx: &mut TestAppContext) {
 /// The rescan triggered by a background filesystem change must keep the
 /// expansion set alive (stable ids), so an expanded folder stays expanded.
 #[gpui::test]
-async fn rescan_preserves_expanded_subfolder(cx: &mut TestAppContext) {
+fn rescan_preserves_expanded_subfolder(cx: &mut TestAppContext) {
     init_explorer_test_app(cx);
     let root = temp_explorer_root("rescan-expansion");
 
@@ -249,7 +249,7 @@ async fn rescan_preserves_expanded_subfolder(cx: &mut TestAppContext) {
 /// Closing the explorer folder must clear worktrees, cached tree nodes, and
 /// visible rows even when the editor has an active document from that folder.
 #[gpui::test]
-async fn close_explorer_folder_clears_trees_and_entries_even_with_open_file(cx: &mut TestAppContext) {
+fn close_explorer_folder_clears_trees_and_entries_even_with_open_file(cx: &mut TestAppContext) {
     init_explorer_test_app(cx);
     let root = temp_explorer_root("close-explorer");
     let file = root.join("top.md");

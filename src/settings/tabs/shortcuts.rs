@@ -24,30 +24,7 @@ impl SettingsWindow {
         let sec1_key = "doc_actions";
         let mut sec1_items = Vec::new();
 
-        let doc_shortcuts = [
-            (
-                "Save Document",
-                "Save active file changes to disk",
-                "Ctrl + S",
-            ),
-            (
-                "Save Document As",
-                "Save active document with a new name",
-                "Ctrl + Shift + S",
-            ),
-            (
-                "New Window",
-                "Open a new editor window instance",
-                "Ctrl + N",
-            ),
-            (
-                "Close Window",
-                "Close the currently focused editor window",
-                "Ctrl + W",
-            ),
-        ];
-
-        for (name, desc, sc) in doc_shortcuts.iter() {
+        for item in crate::settings::shortcuts_data::doc_action_shortcuts() {
             let ctrl_sc = div()
                 .px(px(8.0))
                 .py(px(2.0))
@@ -56,10 +33,10 @@ impl SettingsWindow {
                 .text_size(px(11.0))
                 .font_weight(gpui::FontWeight::BOLD)
                 .text_color(c.text_default)
-                .child(*sc)
+                .child(item.shortcut)
                 .into_any_element();
 
-            sec1_items.push(make_row(inner_border_color, c, d, name, desc, ctrl_sc));
+            sec1_items.push(make_row(inner_border_color, c, d, item.name, item.description, ctrl_sc));
         }
 
         sections.push(make_section(
@@ -77,30 +54,7 @@ impl SettingsWindow {
         let sec2_key = "view_controls";
         let mut sec2_items = Vec::new();
 
-        let view_shortcuts = [
-            (
-                "Toggle View Mode",
-                "Switch between Edit, Preview, and Dual view layouts",
-                "Ctrl + M",
-            ),
-            (
-                "Toggle Pane Maximize",
-                "Maximize or restore the currently focused inner pane",
-                "Ctrl + Shift + M",
-            ),
-            (
-                "Toggle ExplorerState Tree",
-                "Show or collapse the left file navigation sidebar",
-                "Ctrl + E",
-            ),
-            (
-                "Quit Application",
-                "Safely exit application and save session",
-                "Ctrl + Q",
-            ),
-        ];
-
-        for (name, desc, sc) in view_shortcuts.iter() {
+        for item in crate::settings::shortcuts_data::interface_view_shortcuts() {
             let ctrl_sc = div()
                 .px(px(8.0))
                 .py(px(2.0))
@@ -109,10 +63,10 @@ impl SettingsWindow {
                 .text_size(px(11.0))
                 .font_weight(gpui::FontWeight::BOLD)
                 .text_color(c.text_default)
-                .child(*sc)
+                .child(item.shortcut)
                 .into_any_element();
 
-            sec2_items.push(make_row(inner_border_color, c, d, name, desc, ctrl_sc));
+            sec2_items.push(make_row(inner_border_color, c, d, item.name, item.description, ctrl_sc));
         }
 
         sections.push(make_section(
