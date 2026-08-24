@@ -226,7 +226,10 @@ async fn typing_in_the_source_block_after_a_tab_switch_still_syncs(cx: &mut Test
 
     // Focus the rebuilt block and type: the edit must flow into tab B's
     // document, exactly as before the tab switch.
-    cx.update(|window, cx| block.read(cx).focus_handle.focus(window));
+    cx.update(|window, cx| {
+        let focus_handle = block.read(cx).focus_handle.clone();
+        focus_handle.focus(window, cx);
+    });
     redraw(cx);
     cx.simulate_input("x");
     redraw(cx);

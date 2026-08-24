@@ -396,9 +396,9 @@ fn open_settings_window_with_state(
         }
     };
 
-    if let Err(err) = handle.update(cx, |settings_win, window, _cx| {
+    if let Err(err) = handle.update(cx, |settings_win, window, cx| {
         window.activate_window();
-        settings_win.focus_handle.focus(window);
+        settings_win.focus_handle.focus(window, cx);
     }) {
         tracing::warn!(error = %err, "failed to activate settings window");
     }

@@ -86,7 +86,7 @@ pub fn run(args: Args) {
     #[cfg(target_os = "macos")]
     let open_file_requested = Arc::new(AtomicBool::new(false));
 
-    let app = Application::new().with_assets(crate::app::assets::SplitypeAssets);
+    let app = gpui_platform::application().with_assets(crate::app::assets::SplitypeAssets);
 
     #[cfg(target_os = "macos")]
     {

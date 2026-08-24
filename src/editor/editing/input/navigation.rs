@@ -58,7 +58,7 @@ impl Editor {
             .active_pane_scroll()
             .handle
             .max_offset()
-            .height
+            .y
             .max(px(0.0));
         self.set_vertical_scroll_offset(self.active_pane_id(), -max_offset_y, cx);
     }
@@ -89,7 +89,7 @@ impl Editor {
     ) {
         let max_offset_y = self
             .pane_state_ref(pane_id)
-            .map(|state| state.scroll.handle.max_offset().height.max(px(0.0)))
+            .map(|state| state.scroll.handle.max_offset().y.max(px(0.0)))
             .unwrap_or_default();
         let mut offset = self
             .pane_state_ref(pane_id)

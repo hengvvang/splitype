@@ -12,7 +12,7 @@ impl Block {
     fn pasted_image_source_from_clipboard(item: &ClipboardItem) -> Option<PastedImageSource> {
         item.entries().iter().find_map(|entry| match entry {
             ClipboardEntry::Image(image) => Some(PastedImageSource::ClipboardImage(image.clone())),
-            ClipboardEntry::String(_) => None,
+            ClipboardEntry::String(_) | ClipboardEntry::ExternalPaths(_) => None,
         })
     }
 

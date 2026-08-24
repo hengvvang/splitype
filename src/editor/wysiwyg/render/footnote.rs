@@ -29,7 +29,7 @@ pub(crate) fn render_footnote_definition(
         .child(
             div()
                 .min_w(px(0.0))
-                .flex_grow()
+                .flex_grow(1.0)
                 .text_color(c.text_default)
                 .child(block.render_text_or_mixed_inline_visuals(
                     theme,

@@ -229,7 +229,7 @@ impl Element for ExplorerFilenameInputElement {
         }
 
         if let Some(line) = prepaint.line.take() {
-            line.paint(bounds.origin, bounds.size.height, window, cx)
+            line.paint(bounds.origin, bounds.size.height, TextAlign::Left, None, window, cx)
                 .ok();
         }
 

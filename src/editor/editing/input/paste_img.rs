@@ -35,6 +35,8 @@ impl Editor {
             ImageFormat::Svg => "svg",
             ImageFormat::Bmp => "bmp",
             ImageFormat::Tiff => "tiff",
+            ImageFormat::Ico => "ico",
+            ImageFormat::Pnm => "pnm",
         }
     }
 

@@ -41,6 +41,7 @@ fn temp_markdown_path(test_name: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .expect("system clock before unix epoch")
         .as_nanos();
+
     std::env::temp_dir().join(format!(
         "splitype-{test_name}-{}-{nanos}.md",
         std::process::id()
@@ -54,7 +55,7 @@ fn temp_export_path(test_name: &str, extension: &str) -> PathBuf {
 }
 
 fn redraw(cx: &mut gpui::VisualTestContext) {
-    cx.update(|window, cx| window.draw(cx).clear());
+    cx.update(|window, cx| window.draw(cx).clear(cx));
     cx.run_until_parked();
 }
 
@@ -92,8 +93,8 @@ fn focus_block(
         editor.focus_block(block.entity_id());
     });
     cx.update(|window, cx| {
-        block.update(cx, |block, _cx| {
-            block.focus_handle.focus(window);
+        block.update(cx, |block, cx| {
+            block.focus_handle.focus(window, cx);
         });
     });
     redraw(cx);

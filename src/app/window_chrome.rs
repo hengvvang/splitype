@@ -913,6 +913,8 @@ mod tests {
             name: name.into(),
             action: Box::new(NoRecentFiles),
             os_action: None,
+            checked: false,
+            disabled: true,
         }
     }
 
@@ -921,6 +923,8 @@ mod tests {
             name: "Add Theme Config".into(),
             action: Box::new(AddThemeConfig),
             os_action: None,
+            checked: false,
+            disabled: false,
         }
     }
 
@@ -929,6 +933,8 @@ mod tests {
             name: "Add Language Config".into(),
             action: Box::new(AddLanguageConfig),
             os_action: None,
+            checked: false,
+            disabled: false,
         }
     }
 

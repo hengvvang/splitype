@@ -199,7 +199,7 @@ impl Element for CodeLanguageInputElement {
         }
 
         let line = prepaint.line.take().expect("line should be shaped");
-        line.paint(bounds.origin, bounds.size.height, window, cx)
+        line.paint(bounds.origin, bounds.size.height, TextAlign::Left, None, window, cx)
             .ok();
 
         if focus_handle.is_focused(window)

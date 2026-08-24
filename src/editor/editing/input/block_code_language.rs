@@ -35,11 +35,11 @@ impl Block {
         if self.code_toolbar.picker.is_open {
             self.code_toolbar.picker.close();
             self.code_toolbar.is_hovered = false;
-            self.focus_handle.focus(window);
+            self.focus_handle.focus(window, cx);
         } else {
             self.code_toolbar.picker.open();
             self.code_toolbar.is_hovered = true;
-            self.code_language_focus_handle.focus(window);
+            self.code_language_focus_handle.focus(window, cx);
         }
         cx.notify();
     }
@@ -74,7 +74,7 @@ impl Block {
                 self.code_toolbar.picker.close();
             }
         }
-        self.focus_handle.focus(window);
+        self.focus_handle.focus(window, cx);
         cx.notify();
     }
 
@@ -89,7 +89,7 @@ impl Block {
         }
         cx.stop_propagation();
         self.code_toolbar.picker.close();
-        self.focus_handle.focus(window);
+        self.focus_handle.focus(window, cx);
         cx.notify();
     }
 
@@ -327,7 +327,7 @@ impl Block {
         }
         cx.stop_propagation();
         self.code_toolbar.picker.close();
-        self.focus_handle.focus(window);
+        self.focus_handle.focus(window, cx);
         cx.notify();
     }
 
@@ -380,7 +380,7 @@ impl Block {
     ) {
         cx.stop_propagation();
         self.code_toolbar.picker.is_selecting = true;
-        self.code_language_focus_handle.focus(window);
+        self.code_language_focus_handle.focus(window, cx);
         let offset = self.code_language_index_for_mouse_position(event.position);
         if event.modifiers.shift {
             self.select_code_language_to(offset, cx);

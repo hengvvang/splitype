@@ -113,7 +113,7 @@ impl Shell {
                 items
             }),
         )
-        .track_scroll(scroll_handle)
+        .track_scroll(&scroll_handle)
         .flex_1()
         .min_h(px(0.0))
         .py(px(4.0));

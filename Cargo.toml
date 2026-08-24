@@ -21,7 +21,8 @@ license = "Apache-2.0"
 rust-version = "1.91"
 
 [workspace.dependencies]
-gpui = { version = "0.2.2" }
+gpui = { git = "https://github.com/zed-industries/zed.git" }
+gpui_platform = { git = "https://github.com/zed-industries/zed.git" }
 uuid = { version = "1.23", features = ["v4"] }
 cssparser = "0.37"
 tree-sitter = "0.26.9"
@@ -91,7 +92,8 @@ code-highlight-config = [
 anyhow = "1"
 base64 = "0.22.1"
 uuid = "1.23"
-gpui = { version = "0.2.2", features = ["runtime_shaders"] }
+gpui = { workspace = true }
+gpui_platform = { workspace = true }
 splitype-model = { path = "crates/splitype-model" }
 splitype-splitter = { path = "crates/splitype-splitter" }
 unicode-segmentation = "1.13"
@@ -146,7 +148,7 @@ tree-sitter-toml = { package = "adot-tree-sitter-toml", version = "0.1", optiona
 windows = { version = "0.61", features = ["Win32_Storage_FileSystem"] }
 
 [dev-dependencies]
-gpui = { version = "0.2.2", features = ["test-support"] }
+gpui = { workspace = true, features = ["test-support"] }
 criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support", "html_reports"] }
 
 # Cargo auto-discovers each *.rs file in benches/ as its own bench binary.
@@ -265,7 +267,7 @@ strip = true
 # block in a long document costs hundreds of µs/frame purely from O0 code.
 [profile.dev.package]
 gpui = { opt-level = 3 }
-gpui-macros = { opt-level = 3 }
+gpui_macros = { opt-level = 3 }
 taffy = { opt-level = 3 }
 async-task = { opt-level = 3 }
 parking_lot = { opt-level = 3 }

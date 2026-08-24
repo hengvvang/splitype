@@ -227,7 +227,7 @@ impl Shell {
             }
         })
         .detach();
-        window.focus(&focus_handle);
+        window.focus(&focus_handle, cx);
         cx.notify();
     }
 

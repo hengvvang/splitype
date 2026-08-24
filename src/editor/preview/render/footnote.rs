@@ -30,7 +30,7 @@ pub(crate) fn render_preview_footnote_definition(
         .child(
             div()
                 .min_w(px(0.0))
-                .flex_grow()
+                .flex_grow(1.0)
                 .flex()
                 .flex_row()
                 .flex_wrap()

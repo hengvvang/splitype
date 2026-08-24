@@ -871,7 +871,8 @@ impl Editor {
                         .pane_state_ref(pane_id)
                         .and_then(|state| state.source_block.clone())
                     {
-                        block.read(cx).focus_handle.focus(window);
+                        let focus_handle = block.read(cx).focus_handle.clone();
+                        focus_handle.focus(window, cx);
                     }
                 }
                 // Resume editing the shared document at the last position
@@ -884,7 +885,8 @@ impl Editor {
                         .or_else(|| self.first_focusable_entity_id(cx));
                     if let Some(id) = target {
                         if let Some(block) = self.focusable_entity_by_id(id) {
-                            block.read(cx).focus_handle.focus(window);
+                            let focus_handle = block.read(cx).focus_handle.clone();
+                            focus_handle.focus(window, cx);
                         }
                     }
                 }

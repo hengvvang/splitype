@@ -81,7 +81,7 @@ impl Editor {
         let editor = cx.entity().downgrade();
         let max_scroll_y = self
             .pane_state_ref(pane_id)
-            .map(|state| f32::from(state.scroll.handle.max_offset().height.max(px(0.0))))
+            .map(|state| f32::from(state.scroll.handle.max_offset().y.max(px(0.0))))
             .unwrap_or(0.0);
         let viewport_height = f32::from(viewport_size.height.max(px(1.0)));
         let viewport_width = f32::from(viewport_size.width.max(px(1.0)));
@@ -241,7 +241,7 @@ impl Editor {
             ))
             .flex()
             .flex_col()
-            .flex_grow()
+            .flex_grow(1.0)
             .h_full()
             .items_center()
             .bg(theme.colors.editor_background)

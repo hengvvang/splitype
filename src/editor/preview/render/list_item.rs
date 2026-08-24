@@ -35,7 +35,7 @@ pub(crate) fn render_preview_bulleted_list_item(
                 .child(render_custom_bullet_marker(depth, c.text_default)),
             div()
                 .min_w(px(0.0))
-                .flex_grow()
+                .flex_grow(1.0)
                 .child(inline::render_preview_inline(
                     &block.data.text,
                     c.text_default,
@@ -97,7 +97,7 @@ pub(crate) fn render_preview_task_list_item(
                 ),
             div()
                 .min_w(px(0.0))
-                .flex_grow()
+                .flex_grow(1.0)
                 .child(inline::render_preview_inline(
                     &block.data.text,
                     text_color,
@@ -137,7 +137,7 @@ pub(crate) fn render_preview_numbered_list_item(
                 ))),
             div()
                 .min_w(px(0.0))
-                .flex_grow()
+                .flex_grow(1.0)
                 .child(inline::render_preview_inline(
                     &block.data.text,
                     c.text_default,

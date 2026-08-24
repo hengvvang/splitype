@@ -31,7 +31,7 @@ pub(crate) fn render_preview_callout(
     } else {
         div()
             .min_w(px(0.0))
-            .flex_grow()
+            .flex_grow(1.0)
             .text_size(px(theme.typography.text_size))
             .font_weight(FontWeight::NORMAL)
             .text_color(accent)

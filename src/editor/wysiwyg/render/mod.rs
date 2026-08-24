@@ -692,12 +692,12 @@ mod tests {
         });
 
         cx.update(|window, cx| {
-            block.update(cx, |block, _cx| {
+            block.update(cx, |block, cx| {
                 block.code_toolbar.is_hovered = true;
                 block.code_toolbar.picker.is_open = true;
-                block.code_language_focus_handle.focus(window);
+                block.code_language_focus_handle.focus(window, cx);
             });
-            window.draw(cx).clear();
+            window.draw(cx).clear(cx);
         });
         cx.run_until_parked();
 

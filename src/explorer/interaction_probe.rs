@@ -52,7 +52,7 @@ fn temp_explorer_root(test_name: &str) -> PathBuf {
 
 /// A minimal window: a Shell with the default explorer+editor layout and
 /// one Editor content entity (mirrors `open_editor_window`'s wiring).
-fn new_test_shell<T: AppContext>(cx: &mut T) -> T::Result<gpui::Entity<Shell>> {
+fn new_test_shell<T: AppContext>(cx: &mut T) -> gpui::Entity<Shell> {
     cx.new(|cx| {
         let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
         Shell {

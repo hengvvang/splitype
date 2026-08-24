@@ -486,7 +486,7 @@ async fn editor_tile_corner_drag_starts_outer_split(cx: &mut TestAppContext) {
     cx.run_until_parked();
     let window_any: gpui::AnyWindowHandle = window.into();
     let mut cx = gpui::VisualTestContext::from_window(window_any, cx);
-    cx.update(|window, cx| window.draw(cx).clear());
+    cx.update(|window, cx| window.draw(cx).clear(cx));
     cx.run_until_parked();
 
     // The default layout is Explorer (left) + Editor (right). The Editor
@@ -544,7 +544,7 @@ async fn editor_type_dropdown_switches_panel_kind(cx: &mut TestAppContext) {
     cx.run_until_parked();
     let window_any: gpui::AnyWindowHandle = window.into();
     let mut cx = gpui::VisualTestContext::from_window(window_any, cx);
-    cx.update(|window, cx| window.draw(cx).clear());
+    cx.update(|window, cx| window.draw(cx).clear(cx));
     cx.run_until_parked();
 
     // Open the Editor tile's type dropdown (the flag lives on the panel).
@@ -554,7 +554,7 @@ async fn editor_type_dropdown_switches_panel_kind(cx: &mut TestAppContext) {
             cx.notify();
         })
         .expect("window update");
-    cx.update(|window, cx| window.draw(cx).clear());
+    cx.update(|window, cx| window.draw(cx).clear(cx));
     cx.run_until_parked();
 
     // Click the "Settings" entry of the floating menu (all() order is

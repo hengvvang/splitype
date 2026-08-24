@@ -72,7 +72,7 @@ pub(super) fn prompt_and_open_files_with_error_window(
 
     cx.spawn(async move |cx| match prompt.await {
         Ok(Ok(Some(paths))) => {
-            let _ = cx.update(move |cx| {
+            cx.update(move |cx| {
                 for path in paths {
                     open_file_in_editor_or_new_window(cx, &path);
                 }
@@ -80,7 +80,7 @@ pub(super) fn prompt_and_open_files_with_error_window(
         }
         Ok(Err(err)) => {
             let detail = err.to_string();
-            let _ = cx.update(move |cx| {
+            cx.update(move |cx| {
                 let title = cx
                     .global::<I18nManager>()
                     .strings()
@@ -141,7 +141,7 @@ pub(super) fn prompt_and_import_language_config_with_error_window(
             let Some(path) = paths.into_iter().next() else {
                 return;
             };
-            let _ = cx.update(move |cx| {
+            cx.update(move |cx| {
                 let result = import_language_config_and_select(cx, &path);
                 match result {
                     Ok(_) => {
@@ -161,7 +161,7 @@ pub(super) fn prompt_and_import_language_config_with_error_window(
         }
         Ok(Err(err)) => {
             let detail = err.to_string();
-            let _ = cx.update(move |cx| {
+            cx.update(move |cx| {
                 let title = cx
                     .global::<I18nManager>()
                     .strings()
@@ -201,7 +201,7 @@ pub(super) fn prompt_and_import_theme_config_with_error_window(
             let Some(path) = paths.into_iter().next() else {
                 return;
             };
-            let _ = cx.update(move |cx| {
+            cx.update(move |cx| {
                 let result = import_theme_config_and_select(cx, &path);
                 match result {
                     Ok(_) => {
@@ -221,7 +221,7 @@ pub(super) fn prompt_and_import_theme_config_with_error_window(
         }
         Ok(Err(err)) => {
             let detail = err.to_string();
-            let _ = cx.update(move |cx| {
+            cx.update(move |cx| {
                 let title = cx
                     .global::<I18nManager>()
                     .strings()

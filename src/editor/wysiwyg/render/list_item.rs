@@ -48,7 +48,7 @@ pub(crate) fn render_bulleted_list_item(
                 let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
                 let max_width = px(effective_list_item_image_width(block, viewport_width, d));
                 if let Some(runtime) = block.image_handle() {
-                    div().flex_grow().child(block.render_image_content(
+                    div().flex_grow(1.0).child(block.render_image_content(
                         runtime,
                         max_width.into(),
                         px(d.image_root_max_height),
@@ -57,7 +57,7 @@ pub(crate) fn render_bulleted_list_item(
                         &strings_from_context(cx),
                     ))
                 } else {
-                    div().min_w(px(0.0)).flex_grow().child(
+                    div().min_w(px(0.0)).flex_grow(1.0).child(
                         block.render_text_or_mixed_inline_visuals(
                             theme,
                             focused,
@@ -74,7 +74,7 @@ pub(crate) fn render_bulleted_list_item(
             } else {
                 div()
                     .min_w(px(0.0))
-                    .flex_grow()
+                    .flex_grow(1.0)
                     .child(block.render_text_or_mixed_inline_visuals(
                         theme,
                         focused,
@@ -160,7 +160,7 @@ pub(crate) fn render_task_list_item(
                 let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
                 let max_width = px(effective_list_item_image_width(block, viewport_width, d));
                 if let Some(runtime) = block.image_handle() {
-                    div().flex_grow().child(block.render_image_content(
+                    div().flex_grow(1.0).child(block.render_image_content(
                         runtime,
                         max_width.into(),
                         px(d.image_root_max_height),
@@ -169,7 +169,7 @@ pub(crate) fn render_task_list_item(
                         &strings_from_context(cx),
                     ))
                 } else {
-                    div().min_w(px(0.0)).flex_grow().child(
+                    div().min_w(px(0.0)).flex_grow(1.0).child(
                         block.render_text_or_mixed_inline_visuals(
                             theme,
                             focused,
@@ -186,7 +186,7 @@ pub(crate) fn render_task_list_item(
             } else {
                 div()
                     .min_w(px(0.0))
-                    .flex_grow()
+                    .flex_grow(1.0)
                     .child(block.render_text_or_mixed_inline_visuals(
                         theme,
                         focused,
@@ -238,7 +238,7 @@ pub(crate) fn render_numbered_list_item(
                 let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
                 let max_width = px(effective_list_item_image_width(block, viewport_width, d));
                 if let Some(runtime) = block.image_handle() {
-                    div().flex_grow().child(block.render_image_content(
+                    div().flex_grow(1.0).child(block.render_image_content(
                         runtime,
                         max_width.into(),
                         px(d.image_root_max_height),
@@ -247,7 +247,7 @@ pub(crate) fn render_numbered_list_item(
                         &strings_from_context(cx),
                     ))
                 } else {
-                    div().min_w(px(0.0)).flex_grow().child(
+                    div().min_w(px(0.0)).flex_grow(1.0).child(
                         block.render_text_or_mixed_inline_visuals(
                             theme,
                             focused,
@@ -264,7 +264,7 @@ pub(crate) fn render_numbered_list_item(
             } else {
                 div()
                     .min_w(px(0.0))
-                    .flex_grow()
+                    .flex_grow(1.0)
                     .child(block.render_text_or_mixed_inline_visuals(
                         theme,
                         focused,

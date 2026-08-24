@@ -124,6 +124,7 @@ pub(super) fn build_menus(
                 MenuItem::separator(),
                 MenuItem::action(strings.menu_quit.clone(), QuitApplication),
             ],
+            disabled: false,
         },
         Menu {
             name: strings.menu_file.into(),
@@ -134,6 +135,7 @@ pub(super) fn build_menus(
                 MenuItem::submenu(Menu {
                     name: strings.menu_open_recent_file.clone().into(),
                     items: recent_items,
+                    disabled: false,
                 }),
                 MenuItem::separator(),
                 MenuItem::action(strings.menu_save.clone(), SaveDocument),
@@ -145,6 +147,7 @@ pub(super) fn build_menus(
                         MenuItem::action(strings.menu_export_html.clone(), ExportHtml),
                         MenuItem::action(strings.menu_export_pdf.clone(), ExportPdf),
                     ],
+                    disabled: false,
                 }),
                 MenuItem::separator(),
                 MenuItem::action(
@@ -152,6 +155,7 @@ pub(super) fn build_menus(
                     CloseExplorerFolder,
                 ),
             ],
+            disabled: false,
         },
         Menu {
             name: strings.menu_view.into(),
@@ -159,17 +163,21 @@ pub(super) fn build_menus(
                 MenuItem::submenu(Menu {
                     name: strings.menu_theme.clone().into(),
                     items: theme_items,
+                    disabled: false,
                 }),
                 MenuItem::separator(),
                 MenuItem::submenu(Menu {
                     name: strings.menu_language.clone().into(),
                     items: language_items,
+                    disabled: false,
                 }),
             ],
+            disabled: false,
         },
         Menu {
             name: strings.menu_help.into(),
             items: help_items,
+            disabled: false,
         },
     ]
 }

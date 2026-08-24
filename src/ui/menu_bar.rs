@@ -231,6 +231,8 @@ mod tests {
             name: name.into(),
             action: Box::new(DummyMenuAction),
             os_action: None,
+            checked: false,
+            disabled: true,
         }
     }
 
@@ -359,7 +361,10 @@ mod tests {
                     name: r"C:\Users\someone\Documents\notes.md".into(),
                     action: Box::new(DummyMenuAction),
                     os_action: None,
+                    checked: false,
+                    disabled: false,
                 }],
+                disabled: false,
             }),
         ];
         let submenu_labels = match &items[1] {
@@ -398,7 +403,10 @@ mod tests {
                 name: r"C:\Users\someone\Documents\Very Long Folder\notes.md".into(),
                 action: Box::new(DummyMenuAction),
                 os_action: None,
+                checked: false,
+                disabled: false,
             }],
+            disabled: false,
         })];
         let submenu_labels = match &items[0] {
             OwnedMenuItem::Submenu(submenu) => owned_menu_item_labels(&submenu.items),

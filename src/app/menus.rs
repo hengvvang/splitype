@@ -444,7 +444,7 @@ fn handle_window_closed(cx: &mut App) {
 /// Installs menu state, action handlers, and the native menu bar.
 pub(crate) fn init(cx: &mut App) {
     cx.set_global(AppMenuState::default());
-    let subscription = cx.on_window_closed(handle_window_closed);
+    let subscription = cx.on_window_closed(|cx, _window_id| handle_window_closed(cx));
     cx.global_mut::<AppMenuState>().window_closed_subscription = Some(subscription);
 
     cx.on_action(|_: &NewWindow, cx| {

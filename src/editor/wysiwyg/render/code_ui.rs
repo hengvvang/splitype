@@ -334,7 +334,7 @@ impl Block {
                             option_block.update(cx, |block, block_cx| {
                                 block_cx.stop_propagation();
                                 block.choose_code_language(value, block_cx);
-                                block.focus_handle.focus(window);
+                                block.focus_handle.focus(window, block_cx);
                             });
                         })
                         .child(

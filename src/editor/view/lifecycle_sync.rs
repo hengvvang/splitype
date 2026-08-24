@@ -19,7 +19,8 @@ impl Editor {
         if let Some(entity_id) = self.pane_state(pane_id).focus.pending.take()
             && let Some(block) = self.focusable_entity_by_id(entity_id)
         {
-            block.read(cx).focus_handle.focus(window);
+            let focus_handle = block.read(cx).focus_handle.clone();
+            focus_handle.focus(window, cx);
         }
     }
 
@@ -58,7 +59,7 @@ impl Editor {
         }
 
         if changed {
-            let max_offset_y = scroll.handle.max_offset().height.max(px(0.0));
+            let max_offset_y = scroll.handle.max_offset().y.max(px(0.0));
             offset.y = offset.y.min(px(0.0)).max(-max_offset_y);
             let scroll = &mut self.pane_state(pane_id).scroll;
             scroll.handle.set_offset(offset);

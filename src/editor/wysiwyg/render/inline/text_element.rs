@@ -427,6 +427,8 @@ impl Element for BlockTextElement {
                         bounds.origin.y + *y_offset,
                     ),
                     line_height,
+                    TextAlign::Left,
+                    None,
                     window,
                     cx,
                 )
@@ -618,7 +620,7 @@ mod tests {
         });
 
         block.update(cx, |block, _cx| {
-            block.push_last_paint(bounds, lines.clone(), px(20.0));
+            block.push_last_paint(bounds, lines, px(20.0));
             block.selected_range = 0..0;
         });
 

@@ -180,31 +180,39 @@ impl Worktree {
     }
 
     fn start_fs_watch(&mut self, cx: &mut Context<Self>) {
-        let root = self.root.clone();
-        let weak = cx.weak_entity();
-        let task = cx.spawn(async move |_this, cx: &mut AsyncApp| {
-            let (tx, mut rx) = futures::channel::mpsc::unbounded::<notify::Event>();
-            let mut watcher =
-                match notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
-                    if let Ok(event) = res {
-                        let _ = tx.unbounded_send(event);
-                    }
-                }) {
-                    Ok(watcher) => watcher,
-                    Err(err) => {
-                        tracing::error!(error = %err, "[explorer] failed to start fs watcher");
-                        return;
-                    }
-                };
-            if let Err(err) = watcher.watch(&root, notify::RecursiveMode::Recursive) {
-                tracing::warn!(root = %root.display(), error = %err, "[explorer] failed to watch directory");
-                return;
-            }
-            while rx.next().await.is_some() {
-                let _ = weak.update(cx, |this, cx| this.on_fs_event(cx));
-            }
-        });
-        self.fs_watch_task = Some(task);
+        #[cfg(test)]
+        {
+            let _ = cx;
+            return;
+        }
+        #[cfg(not(test))]
+        {
+            let root = self.root.clone();
+            let weak = cx.weak_entity();
+            let task = cx.spawn(async move |_this, cx: &mut AsyncApp| {
+                let (tx, mut rx) = futures::channel::mpsc::unbounded::<notify::Event>();
+                let mut watcher =
+                    match notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
+                        if let Ok(event) = res {
+                            let _ = tx.unbounded_send(event);
+                        }
+                    }) {
+                        Ok(watcher) => watcher,
+                        Err(err) => {
+                            tracing::error!(error = %err, "[explorer] failed to start fs watcher");
+                            return;
+                        }
+                    };
+                if let Err(err) = watcher.watch(&root, notify::RecursiveMode::Recursive) {
+                    tracing::warn!(root = %root.display(), error = %err, "[explorer] failed to watch directory");
+                    return;
+                }
+                while rx.next().await.is_some() {
+                    let _ = weak.update(cx, |this, cx| this.on_fs_event(cx));
+                }
+            });
+            self.fs_watch_task = Some(task);
+        }
     }
 
     /// Debounce filesystem events into a single background rescan.
