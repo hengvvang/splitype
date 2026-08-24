@@ -130,6 +130,28 @@ fn render_mermaid_to_svg_cached_with(
     Ok(svg)
 }
 
+const CROSS_PLATFORM_MERMAID_FONT_STACK: &str =
+    r#""Segoe UI", "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "WenQuanYi Micro Hei", sans-serif"#;
+
+fn inject_cjk_font_family(svg: &str) -> String {
+    svg.replace(
+        "\"trebuchet ms\", verdana, arial, sans-serif",
+        CROSS_PLATFORM_MERMAID_FONT_STACK,
+    )
+    .replace(
+        "'trebuchet ms', verdana, arial, sans-serif",
+        CROSS_PLATFORM_MERMAID_FONT_STACK,
+    )
+    .replace(
+        "\"Segoe UI\", sans-serif",
+        CROSS_PLATFORM_MERMAID_FONT_STACK,
+    )
+    .replace(
+        "'Segoe UI', sans-serif",
+        CROSS_PLATFORM_MERMAID_FONT_STACK,
+    )
+}
+
 fn render_mermaid_raw(source: &str) -> anyhow::Result<String> {
     if !looks_like_supported_mermaid_source(source) {
         return Err(anyhow::anyhow!("unsupported Mermaid diagram"));
@@ -146,7 +168,7 @@ fn render_mermaid_raw(source: &str) -> anyhow::Result<String> {
     if svg.contains("class=\"error-text\"") || svg.contains("Syntax error in text") {
         return Err(anyhow::anyhow!("Mermaid syntax error"));
     }
-    Ok(svg)
+    Ok(inject_cjk_font_family(&svg))
 }
 
 /// Stable cache key for Mermaid content.
