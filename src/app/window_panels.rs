@@ -11,7 +11,6 @@
 //!   `crate::settings`, and the editor's own render flow).
 
 use splitype_splitter::container::SplitterContainer;
-use splitype_splitter::policy::DragPolicy;
 use splitype_splitter::root::SplitterRoot;
 use splitype_splitter::tree::NodeId;
 
@@ -74,11 +73,6 @@ impl EditorPanelMode {
         }
     }
 }
-
-/// Window-level panel containers use the engine's default drag policy:
-/// plain drags split with a content seed, Shift drags open the dragged
-/// panel in a new window, Ctrl swaps, Alt does nothing.
-impl DragPolicy<WindowPanelKind> for SplitterContainer<WindowPanelKind> {}
 
 /// The window-level split root: the outer panel layout.
 pub type WindowLayout = SplitterRoot<WindowPanelKind>;

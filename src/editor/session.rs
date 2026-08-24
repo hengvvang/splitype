@@ -5,11 +5,7 @@
 //! the window-level panel layout uses — so both levels share one split
 //! model and one set of interactions (see `splitype-splitter`).
 
-use gpui::{Pixels, Size};
-use splitype_splitter::container::SplitterContainer;
-use splitype_splitter::policy::{ClonedContainer, DragPolicy};
 use splitype_splitter::root::SplitterRoot;
-use splitype_splitter::sessions::CornerDragSession;
 
 /// The document tabs owned by one Editor area.
 ///
@@ -77,20 +73,7 @@ impl EditorSession {
     }
 }
 
-/// Pane containers override the Shift-drag default (which opens
-/// the dragged panel in a new window): dragging a pane.s corner
-/// with Shift is a no-op.
-/// Plain drags, Ctrl swaps, and Alt keep the shared defaults.
-impl DragPolicy<EditorPaneKind> for SplitterContainer<EditorPaneKind> {
-    fn on_shift_drag(
-        _root: &mut SplitterRoot<EditorPaneKind>,
-        _facts: &CornerDragSession,
-        _container_size: Size<Pixels>,
-    ) -> Option<ClonedContainer<EditorPaneKind>> {
-        // Empty override: Shift + drag on a pane does nothing.
-        None
-    }
-}
+
 
 /// The pane kinds an Editor panel can host: the document views
 /// inside its split tree. The tree holds only real views — the welcome

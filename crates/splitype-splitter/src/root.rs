@@ -60,7 +60,7 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     /// Resolves a target node ID (either a Leaf ID or a Split divider ID) to an actionable Leaf ID.
     /// If `target_id` is a Leaf, returns `Some(target_id)`. If it is a Split divider,
     /// returns its second child leaf (or first child leaf).
-    pub fn resolve_leaf_for_node_or_split(&self, target_id: usize) -> Option<usize> {
+    pub fn resolve_leaf(&self, target_id: usize) -> Option<usize> {
         if self.tree.find_leaf_kind(target_id).is_some() {
             Some(target_id)
         } else {
@@ -70,49 +70,32 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
         }
     }
 
-    /// Split `target_id` at `ratio` with a sibling of the SAME kind:
+    /// Split `target_id` (leaf or divider) at `ratio` with a sibling of the SAME kind:
     /// the leaf's container is replaced by a `Split` node holding the
     /// original container and a freshly created one. Returns the new
     /// leaf's id.
     pub fn split_leaf(&mut self, target_id: usize, axis: SplitAxis, ratio: f32) -> Option<usize> {
-        let kind = self.tree.find_leaf_kind(target_id)?;
+        let leaf_id = self.resolve_leaf(target_id)?;
+        let kind = self.tree.find_leaf_kind(leaf_id)?;
         let split_id = self.next_node_id;
         self.next_node_id += 1;
         let new_leaf_id = self.next_node_id;
         self.next_node_id += 1;
         self.tree
-            .split_leaf_with_ratio(target_id, split_id, new_leaf_id, axis, ratio, kind);
+            .split_leaf_with_ratio(leaf_id, split_id, new_leaf_id, axis, ratio, kind);
         self.active_border_menu = None;
         Some(new_leaf_id)
     }
 
-    /// Splits either a leaf or the leaf associated with a divider (Split node).
-    pub fn split_leaf_or_divider(
-        &mut self,
-        target_id: usize,
-        axis: SplitAxis,
-        ratio: f32,
-    ) -> Option<usize> {
-        let leaf_id = self.resolve_leaf_for_node_or_split(target_id)?;
-        self.split_leaf(leaf_id, axis, ratio)
-    }
-
-    /// Close a leaf; the last leaf is never closable.
+    /// Close a leaf or divider; the last leaf is never closable.
     pub fn close_leaf(&mut self, target_id: usize) {
-        if self.tree.count_leaves() > 1 {
-            self.tree.remove_leaf(target_id);
-            self.retire_leaf(target_id);
+        if let Some(leaf_id) = self.resolve_leaf(target_id) {
+            if self.tree.count_leaves() > 1 {
+                self.tree.remove_leaf(leaf_id);
+                self.retire_leaf(leaf_id);
+            }
         }
         self.active_border_menu = None;
-    }
-
-    /// Closes either a leaf or the leaf associated with a divider (Split node).
-    pub fn close_leaf_or_divider(&mut self, target_id: usize) {
-        if let Some(leaf_id) = self.resolve_leaf_for_node_or_split(target_id) {
-            self.close_leaf(leaf_id);
-        } else {
-            self.active_border_menu = None;
-        }
     }
 
     /// Mark `leaf_id` as the active leaf (the last leaf that received
@@ -441,11 +424,22 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
     }
 
     /// Finish the corner-drag gesture on mouse release: returns the final
-    /// raw facts of the dragging panel and clears its session. The host
-    /// decides what to do with them (split / join / shortcut / nothing).
+    /// raw facts of the dragging panel and clears its session.
     pub fn finish_corner_drag(&mut self) -> Option<CornerDragSession> {
         let target_id = self.corner_drag_panel()?;
         self.tree.find_leaf_mut(target_id)?.finish_corner_drag()
+    }
+
+    /// Finish and apply the active corner-drag gesture on mouse release:
+    /// executes the topological operation and returns the structured result.
+    pub fn apply_corner_drag(
+        &mut self,
+        container_size: Size<Pixels>,
+    ) -> crate::policy::CornerDragResult<T> {
+        let Some(facts) = self.finish_corner_drag() else {
+            return crate::policy::CornerDragResult::None;
+        };
+        crate::policy::apply_corner_drag_session(self, &facts, container_size)
     }
 
     /// End the dragging panel's corner-drag session, clearing state.
@@ -754,20 +748,20 @@ mod tests {
             assert!(matches!(&**second, SplitTree::Leaf(c) if c.id == leaf_2));
 
             // Test divider resolution
-            assert_eq!(root.resolve_leaf_for_node_or_split(*id), Some(leaf_2));
-            assert_eq!(root.resolve_leaf_for_node_or_split(1), Some(1));
-            assert_eq!(root.resolve_leaf_for_node_or_split(leaf_2), Some(leaf_2));
+            assert_eq!(root.resolve_leaf(*id), Some(leaf_2));
+            assert_eq!(root.resolve_leaf(1), Some(1));
+            assert_eq!(root.resolve_leaf(leaf_2), Some(leaf_2));
 
             // Split via divider ID
             let split_id = *id;
             let leaf_3 = root
-                .split_leaf_or_divider(split_id, SplitAxis::Vertical, 0.5)
+                .split_leaf(split_id, SplitAxis::Vertical, 0.5)
                 .unwrap();
             assert_eq!(root.tree.count_leaves(), 3);
             assert!(root.tree.find_leaf(leaf_3).is_some());
 
             // Close via divider ID
-            root.close_leaf_or_divider(split_id);
+            root.close_leaf(split_id);
             assert_eq!(root.tree.count_leaves(), 2);
         } else {
             panic!("expected split tree");

@@ -3,10 +3,7 @@
 use gpui::*;
 
 use crate::editor::controller::*;
-use crate::editor::session::EditorPaneKind;
-use crate::splitter::{CornerDragModifier, SplitAxis};
-use splitype_splitter::container::SplitterContainer;
-use splitype_splitter::policy::DragPolicy;
+use crate::splitter::SplitAxis;
 
 impl Editor {
     pub(crate) fn update_inner_drag(&mut self, pos: Point<Pixels>, _window: &Window) -> bool {
@@ -88,53 +85,16 @@ impl Editor {
         false
     }
 
-    /// End the inner-level drag gesture of the area currently dragging on
-    /// mouse release: finish splitter-bar drags, and run the pane
-    /// drag policy for corner drags.
     pub(crate) fn finish_inner_drag(&mut self, window: &Window, cx: &mut Context<Self>) {
-        // Inner splitter bar drag end.
         if self.session.root.active_splitter_drag.is_some() {
             self.session.root.end_splitter_drag();
             cx.notify();
+            return;
         }
-        // Inner corner drag end: finish the gesture through the shared
-        // container, then let the pane policy interpret the facts
-        // (Shift is a no-op override).
-        let facts = if self.session.root.corner_drag_panel().is_some() {
-            self.session.root.finish_corner_drag()
-        } else {
-            None
-        };
-        if let Some(facts) = facts {
+        if self.session.root.corner_drag_panel().is_some() {
             let viewport = window.viewport_size();
             let inner_size = self.panel_rect.map(|rect| rect.size).unwrap_or(viewport);
-            let session = &mut self.session;
-            match facts.modifier {
-                CornerDragModifier::None => {
-                    let _ = <SplitterContainer<EditorPaneKind> as DragPolicy<
-                            EditorPaneKind,
-                        >>::on_plain_drag(
-                            &mut session.root, &facts, inner_size
-                        );
-                }
-                CornerDragModifier::Shift => {
-                    let _ = <SplitterContainer<EditorPaneKind> as DragPolicy<
-                            EditorPaneKind,
-                        >>::on_shift_drag(
-                            &mut session.root, &facts, inner_size
-                        );
-                }
-                CornerDragModifier::Ctrl => <SplitterContainer<EditorPaneKind> as DragPolicy<
-                    EditorPaneKind,
-                >>::on_ctrl_drag(
-                    &mut session.root, &facts, inner_size
-                ),
-                CornerDragModifier::Alt => <SplitterContainer<EditorPaneKind> as DragPolicy<
-                    EditorPaneKind,
-                >>::on_alt_drag(
-                    &mut session.root, &facts, inner_size
-                ),
-            }
+            let _ = self.session.root.apply_corner_drag(inner_size);
             cx.notify();
         }
     }

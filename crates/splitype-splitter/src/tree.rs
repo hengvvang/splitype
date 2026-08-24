@@ -289,7 +289,7 @@ impl<T: Copy + PartialEq> SplitTree<T> {
         ratio: f32,
         next_kind: T,
     ) -> bool {
-        let ratio = ratio.clamp(0.15, 0.85);
+        let ratio = ratio.clamp(0.01, 0.99);
         match self {
             Self::Leaf(container) => {
                 if container.id == target_id {

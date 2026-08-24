@@ -46,7 +46,7 @@ impl Editor {
     }
 
     pub fn close_pane(&mut self, pane_id: NodeId) {
-        self.session.root.close_leaf_or_divider(pane_id);
+        self.session.root.close_leaf(pane_id);
     }
 
     pub fn toggle_pane_dropdown(&mut self, pane_id: NodeId, cx: &mut Context<Self>) {
@@ -69,7 +69,7 @@ impl Editor {
     pub fn split_pane_with_ratio(&mut self, pane_id: NodeId, axis: SplitAxis, ratio: f32) {
         self.session
             .root
-            .split_leaf_or_divider(pane_id, axis, ratio);
+            .split_leaf(pane_id, axis, ratio);
     }
 
     /// Swap pane kinds between two panes.

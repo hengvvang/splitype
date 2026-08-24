@@ -16,12 +16,10 @@ use crate::app::shell::Shell;
 use crate::app::window_panels::WindowPanelKind;
 use crate::editor::corner_drag_preview::render_corner_drag_preview;
 use crate::infra::i18n::I18nStrings;
-use crate::infra::theme::Theme;
-use crate::splitter::{CornerDragModifier, SplitAxis};
-use splitype_splitter::container::SplitterContainer;
-use splitype_splitter::policy::DragPolicy;
-use splitype_splitter::sessions::past_shortcut_threshold;
-use splitype_splitter::tree::SplitTree;
+use crate::infra::theme::{Theme, ThemeManager};
+use splitype_splitter::policy::CornerDragResult;
+use splitype_splitter::sessions::CornerDragModifier;
+use splitype_splitter::tree::{SplitAxis, SplitTree};
 
 /// Icon path for a window-panel top-bar button, per panel kind.
 ///
@@ -204,68 +202,40 @@ impl Shell {
         }
     }
     pub(crate) fn finish_drag_gestures(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if let Some(facts) =
-            splitype_splitter::interaction::finish_splitter_drag(&mut self.panels.layout)
-        {
-            let viewport = window.viewport_size();
-            match facts.modifier {
-                CornerDragModifier::None => {
-                    if let Some(hover) = facts.hover_leaf {
-                        if hover != facts.target_id {
-                            if facts.dock_target == splitype_splitter::sessions::AreaDockTarget::Center {
-                                self.swap_panel_kinds(facts.target_id, hover, cx);
-                            } else if facts.dock_target != splitype_splitter::sessions::AreaDockTarget::None {
-                                self.move_and_dock_panel(
-                                    facts.target_id,
-                                    hover,
-                                    facts.dock_target,
-                                    facts.dock_ratio,
-                                    cx,
-                                );
-                            } else {
-                                self.panels.layout.join_leaves(hover, facts.target_id);
-                            }
-                        } else if let Some(new_id) = <SplitterContainer<WindowPanelKind> as DragPolicy<
-                            WindowPanelKind,
-                        >>::on_plain_drag(
-                            &mut self.panels.layout, &facts, viewport
-                        ) {
-                            self.seed_split_panel(new_id, cx);
-                        }
-                    } else if let Some(new_id) = <SplitterContainer<WindowPanelKind> as DragPolicy<
-                        WindowPanelKind,
-                    >>::on_plain_drag(
-                        &mut self.panels.layout, &facts, viewport
-                    ) {
-                        self.seed_split_panel(new_id, cx);
-                    }
-                }
-                CornerDragModifier::Shift => {
-                    if let Some(cloned) = <SplitterContainer<WindowPanelKind> as DragPolicy<
-                        WindowPanelKind,
-                    >>::on_shift_drag(
-                        &mut self.panels.layout, &facts, viewport
-                    ) {
-                        self.clone_container_into_new_window(cloned, cx);
-                    }
-                }
-                CornerDragModifier::Ctrl => {
-                    if let Some(hover) = facts.hover_leaf {
-                        if hover != facts.target_id && past_shortcut_threshold(&facts) {
-                            self.swap_panel_kinds(facts.target_id, hover, cx);
-                        }
-                    }
-                }
-                CornerDragModifier::Alt => {
-                    <SplitterContainer<WindowPanelKind> as DragPolicy<
-                        WindowPanelKind,
-                    >>::on_alt_drag(
-                        &mut self.panels.layout, &facts, viewport
-                    );
-                }
-            }
+        if self.panels.layout.active_splitter_drag.is_some() {
+            self.panels.layout.end_splitter_drag();
             cx.notify();
+            return;
         }
+
+        let theme = cx.global::<ThemeManager>().current_arc();
+        let titlebar_height = crate::ui::custom_titlebar::custom_titlebar_height_for_target_os(
+            std::env::consts::OS,
+            Decorations::Server,
+            &theme.dimensions,
+        );
+        let body_height = (f32::from(window.viewport_size().height) - titlebar_height).max(0.0);
+        let body_size = size(window.viewport_size().width, px(body_height));
+
+        match self.panels.layout.apply_corner_drag(body_size) {
+            CornerDragResult::Split { new_leaf_id, .. } => {
+                self.seed_split_panel(new_leaf_id, cx);
+            }
+            CornerDragResult::Join { into_id: _, removed_id } => {
+                self.handle_joined_panel(removed_id, cx);
+            }
+            CornerDragResult::MoveAndDock { source_id, target_id, new_leaf_id, dock_target, .. } => {
+                self.handle_moved_and_docked_panel(source_id, target_id, new_leaf_id, dock_target, cx);
+            }
+            CornerDragResult::Swap { a, b } => {
+                self.handle_swapped_panels(a, b, cx);
+            }
+            CornerDragResult::CloneWindow { container, .. } => {
+                self.clone_container_into_new_window(container, cx);
+            }
+            CornerDragResult::None => {}
+        }
+        cx.notify();
         let editors: Vec<Entity<crate::editor::controller::Editor>> = self
             .panel_contents
             .values()
@@ -513,10 +483,15 @@ impl Shell {
         // wrapper below — uniform gap padding, corner drag handles, and
         // the type dropdown.
         let panel_card: AnyElement = if kind == crate::app::window_panels::WindowPanelKind::Editor {
-            let Some(entity) = self.editor_for(leaf_id) else {
-                unreachable!("editor leaf without an entity is rendered by its entity")
+            let entity = match self.editor_for(leaf_id) {
+                Some(entity) => entity.clone(),
+                None => {
+                    let session = crate::editor::session::EditorSession::welcome();
+                    self.add_editor_panel(leaf_id, session, cx);
+                    self.editor_for(leaf_id).cloned().expect("editor entity present after add")
+                }
             };
-            entity.clone().into_any_element()
+            entity.into_any_element()
         } else {
             let topbar = match kind {
                 WindowPanelKind::Editor => {

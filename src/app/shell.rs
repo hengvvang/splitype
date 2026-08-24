@@ -262,10 +262,7 @@ impl Shell {
         copy_content: bool,
         cx: &mut Context<Self>,
     ) -> Option<NodeId> {
-        let target_leaf_id = self
-            .panels
-            .layout
-            .resolve_leaf_for_node_or_split(panel_id)?;
+        let target_leaf_id = self.panels.layout.resolve_leaf(panel_id)?;
         let new_id = self.panels.layout.split_leaf(target_leaf_id, axis, ratio)?;
         if self.panels.layout.tree.find_leaf_kind(target_leaf_id) == Some(WindowPanelKind::Editor) {
             let session = if copy_content {
@@ -298,7 +295,7 @@ impl Shell {
     /// Close an area, clean up its editor session, and drop the content
     /// entity.
     pub(crate) fn close_panel(&mut self, panel_id: NodeId, cx: &mut Context<Self>) {
-        if let Some(target_leaf_id) = self.panels.layout.resolve_leaf_for_node_or_split(panel_id) {
+        if let Some(target_leaf_id) = self.panels.layout.resolve_leaf(panel_id) {
             self.panels.layout.close_leaf(target_leaf_id);
             self.remove_editor_panel(target_leaf_id, cx);
             self.retained_editor_sessions.remove(&target_leaf_id);
@@ -306,11 +303,15 @@ impl Shell {
         }
     }
 
-    /// Swap the area kind of area `a` and area `b`. Editor entities and
-    /// retained sessions move along with the Editor kind so the new Editor
-    /// area inherits the swapped-in tabs and panel layout.
-    pub(crate) fn swap_panel_kinds(&mut self, a: NodeId, b: NodeId, cx: &mut Context<Self>) {
-        self.panels.layout.swap_kinds(a, b);
+    /// Clean up a joined panel's editor session and sync panel states.
+    pub(crate) fn handle_joined_panel(&mut self, removed_id: NodeId, cx: &mut Context<Self>) {
+        self.remove_editor_panel(removed_id, cx);
+        self.retained_editor_sessions.remove(&removed_id);
+        self.sync_panel_states(cx);
+    }
+
+    /// Update panel contents when a swap operation has already swapped tree kinds.
+    pub(crate) fn handle_swapped_panels(&mut self, a: NodeId, b: NodeId, cx: &mut Context<Self>) {
         self.swap_panel_contents(a, b, cx);
         self.sync_panel_states(cx);
     }
@@ -451,18 +452,15 @@ impl Shell {
     }
 
     /// Move a panel and dock it to a target edge, rearranging surrounding panels and updating contents.
-    pub(crate) fn move_and_dock_panel(
+    /// Update panel contents when a move_and_dock operation has rearranged the layout tree.
+    pub(crate) fn handle_moved_and_docked_panel(
         &mut self,
         source_id: NodeId,
         target_id: NodeId,
+        new_leaf_id: NodeId,
         dock_target: splitype_splitter::sessions::AreaDockTarget,
-        ratio: f32,
         cx: &mut Context<Self>,
     ) {
-        if dock_target == splitype_splitter::sessions::AreaDockTarget::Center {
-            self.swap_panel_kinds(source_id, target_id, cx);
-            return;
-        }
         let source_content = self.panel_contents.remove(&source_id);
         let source_retained = self.retained_editor_sessions.remove(&source_id);
         let target_content = self.panel_contents.remove(&target_id);
@@ -474,49 +472,42 @@ impl Shell {
                 | splitype_splitter::sessions::AreaDockTarget::Top
         );
 
-        if let Some(new_id) = self.panels.layout.move_and_dock_leaf(
-            source_id,
-            target_id,
-            dock_target,
-            ratio,
-        ) {
-            if source_first {
-                // target_id gets source content
-                if let Some(PanelContent::Editor(entity)) = source_content {
-                    entity.update(cx, |editor, _cx| editor.panel_id = target_id);
-                    self.panel_contents.insert(target_id, PanelContent::Editor(entity));
-                }
-                if let Some(session) = source_retained {
-                    self.retained_editor_sessions.insert(target_id, session);
-                }
-                // new_id gets target content
-                if let Some(PanelContent::Editor(entity)) = target_content {
-                    entity.update(cx, |editor, _cx| editor.panel_id = new_id);
-                    self.panel_contents.insert(new_id, PanelContent::Editor(entity));
-                }
-                if let Some(session) = target_retained {
-                    self.retained_editor_sessions.insert(new_id, session);
-                }
-            } else {
-                // target_id keeps target content
-                if let Some(PanelContent::Editor(entity)) = target_content {
-                    entity.update(cx, |editor, _cx| editor.panel_id = target_id);
-                    self.panel_contents.insert(target_id, PanelContent::Editor(entity));
-                }
-                if let Some(session) = target_retained {
-                    self.retained_editor_sessions.insert(target_id, session);
-                }
-                // new_id gets source content
-                if let Some(PanelContent::Editor(entity)) = source_content {
-                    entity.update(cx, |editor, _cx| editor.panel_id = new_id);
-                    self.panel_contents.insert(new_id, PanelContent::Editor(entity));
-                }
-                if let Some(session) = source_retained {
-                    self.retained_editor_sessions.insert(new_id, session);
-                }
+        if source_first {
+            // target_id gets source content
+            if let Some(PanelContent::Editor(entity)) = source_content {
+                entity.update(cx, |editor, _cx| editor.panel_id = target_id);
+                self.panel_contents.insert(target_id, PanelContent::Editor(entity));
             }
-            self.sync_panel_states(cx);
+            if let Some(session) = source_retained {
+                self.retained_editor_sessions.insert(target_id, session);
+            }
+            // new_leaf_id gets target content
+            if let Some(PanelContent::Editor(entity)) = target_content {
+                entity.update(cx, |editor, _cx| editor.panel_id = new_leaf_id);
+                self.panel_contents.insert(new_leaf_id, PanelContent::Editor(entity));
+            }
+            if let Some(session) = target_retained {
+                self.retained_editor_sessions.insert(new_leaf_id, session);
+            }
+        } else {
+            // target_id keeps target content
+            if let Some(PanelContent::Editor(entity)) = target_content {
+                entity.update(cx, |editor, _cx| editor.panel_id = target_id);
+                self.panel_contents.insert(target_id, PanelContent::Editor(entity));
+            }
+            if let Some(session) = target_retained {
+                self.retained_editor_sessions.insert(target_id, session);
+            }
+            // new_leaf_id gets source content
+            if let Some(PanelContent::Editor(entity)) = source_content {
+                entity.update(cx, |editor, _cx| editor.panel_id = new_leaf_id);
+                self.panel_contents.insert(new_leaf_id, PanelContent::Editor(entity));
+            }
+            if let Some(session) = source_retained {
+                self.retained_editor_sessions.insert(new_leaf_id, session);
+            }
         }
+        self.sync_panel_states(cx);
     }
 
     /// Aligns the panel_contents map with an area-kind change: entering Editor
