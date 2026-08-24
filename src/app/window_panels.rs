@@ -75,18 +75,39 @@ impl EditorPanelMode {
 }
 
 /// The strongly-typed identifier representing a top-level window panel (Explorer, Settings, Editor).
-pub type PanelId = NodeId;
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct PanelId(pub NodeId);
+
+impl From<NodeId> for PanelId {
+    #[inline]
+    fn from(id: NodeId) -> Self {
+        Self(id)
+    }
+}
+
+impl From<PanelId> for NodeId {
+    #[inline]
+    fn from(id: PanelId) -> Self {
+        id.0
+    }
+}
+
+impl std::fmt::Display for PanelId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 /// The window-level split root: the outer panel layout.
 pub type WindowLayout = SplitterRoot<WindowPanelKind>;
 
 /// The id of the root panel created by the default layout.
-pub const ROOT_PANEL_ID: PanelId = 1;
+pub const ROOT_PANEL_ID: NodeId = 1;
 
 /// The Editor panel id of the default layout: the initial split is
 /// Explorer (left) + Editor (right), and the split node shares the Editor
 /// leaf's id by the tree's split-id convention.
-pub const DEFAULT_EDITOR_PANEL_ID: PanelId = 2;
+pub const DEFAULT_EDITOR_PANEL_ID: NodeId = 2;
 
 /// The default window layout: Explorer (left, 30%) + Editor (right, 70%).
 ///

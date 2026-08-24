@@ -44,6 +44,31 @@ pub(crate) use crate::model::inline::text::BlockText;
 pub(crate) use crate::model::parse::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::splitter::tree::NodeId;
 pub(crate) use splitype_splitter::root::SplitterRoot;
+pub use crate::app::window_panels::PanelId;
+
+/// The strongly-typed identifier representing an inner tiled editor pane (WYSIWYG, SourceCode, Preview, Outline).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct PaneId(pub NodeId);
+
+impl From<NodeId> for PaneId {
+    #[inline]
+    fn from(id: NodeId) -> Self {
+        Self(id)
+    }
+}
+
+impl From<PaneId> for NodeId {
+    #[inline]
+    fn from(id: PaneId) -> Self {
+        id.0
+    }
+}
+
+impl std::fmt::Display for PaneId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 /// Link navigation request deferred until a `Window` is available.
 #[derive(Clone, Debug, PartialEq, Eq)]
