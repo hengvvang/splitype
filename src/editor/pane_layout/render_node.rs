@@ -103,6 +103,7 @@ impl Editor {
                             .id(("pane-card", pane_id))
                             .absolute()
                             .inset(px(panel_gap))
+                            .overflow_hidden()
                             .flex()
                             .flex_col()
                             .rounded(px(d.panel_tile_radius))
@@ -110,7 +111,14 @@ impl Editor {
                             .border(px(d.dialog_border_width))
                             .border_color(c.dialog_border)
                             .shadow_lg()
-                            .child(div().w_full().flex_1().min_h(px(0.0)).child(inner_body))
+                            .child(
+                                div()
+                                    .w_full()
+                                    .flex_1()
+                                    .min_h(px(0.0))
+                                    .overflow_hidden()
+                                    .child(inner_body),
+                            )
                             // Bubble phase is safe here: block mouse-downs emit
                             // RequestFocus, and gpui delivers entity events at
                             // the END of the update — after this handler set

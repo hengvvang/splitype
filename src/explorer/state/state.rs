@@ -315,11 +315,15 @@ pub struct ExplorerState {
     pub scroll_handle: UniformListScrollHandle,
     /// Number of rows rendered in the last frame (used for page scrolling).
     pub rendered_rows: usize,
+    /// Cached recent folders for empty state rendering.
+    pub recent_folders_cache: Vec<PathBuf>,
+    /// Cached recent files for empty state rendering.
+    pub recent_files_cache: Vec<PathBuf>,
 }
 
 impl Default for ExplorerState {
     fn default() -> Self {
-        Self {
+        let mut state = Self {
             is_open: false,
             worktrees: Vec::new(),
             next_entry_id: Arc::new(AtomicU64::new(1)),
@@ -341,11 +345,31 @@ impl Default for ExplorerState {
             edit: None,
             scroll_handle: UniformListScrollHandle::new(),
             rendered_rows: 0,
-        }
+            recent_folders_cache: Vec::new(),
+            recent_files_cache: Vec::new(),
+        };
+        state.refresh_recent_cache();
+        state
     }
 }
 
 impl ExplorerState {
+    /// Refreshes the cached recent folders and files for empty state rendering.
+    pub fn refresh_recent_cache(&mut self) {
+        self.recent_folders_cache = crate::infra::config::recent::read_recent_folders()
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|path| path.is_dir())
+            .take(5)
+            .collect();
+        self.recent_files_cache = crate::infra::config::recent::read_recent_files()
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|path| path.is_file())
+            .take(5)
+            .collect();
+    }
+
     /// Deep-copy the explorer content into a fresh window's state
     /// (Shift-drag on an Explorer area). The worktree models are shared
     /// entity handles and the entry-id allocator stays shared, so both
@@ -376,6 +400,8 @@ impl ExplorerState {
             edit: None,
             scroll_handle: UniformListScrollHandle::new(),
             rendered_rows: 0,
+            recent_folders_cache: self.recent_folders_cache.clone(),
+            recent_files_cache: self.recent_files_cache.clone(),
         }
     }
 }

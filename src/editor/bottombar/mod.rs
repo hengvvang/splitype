@@ -137,8 +137,7 @@ impl Editor {
         }
 
         if self.has_tabs() && prefs.show_word_count {
-            let text = self.serialized_document_text(cx);
-            let total_count = count_words(&text);
+            let total_count = self.active_tab_word_count(cx);
             let selection_count = self.selected_markdown_text(cx).as_deref().map(count_words);
             right_items.push(render_word_count(
                 selection_count,
@@ -268,6 +267,21 @@ impl Editor {
             .into_any_element()
     }
 
+    /// Returns the cached total word count for the active tab, or calculates
+    /// and caches it if stale.
+    pub(crate) fn active_tab_word_count(&mut self, cx: &App) -> usize {
+        let rev = self.tab().document_revision;
+        if let Some((cached_rev, count)) = self.tab().cached_word_count {
+            if cached_rev == rev {
+                return count;
+            }
+        }
+        let text = self.serialized_document_text(cx);
+        let count = count_words(&text);
+        self.tab_mut().cached_word_count = Some((rev, count));
+        count
+    }
+
     pub(crate) fn bottombar_settings(&self, cx: &App) -> StatusBarSettings {
         EditorSettings::status_bar_settings(cx)
     }
@@ -333,3 +347,4 @@ impl Editor {
         (line, col)
     }
 }
+

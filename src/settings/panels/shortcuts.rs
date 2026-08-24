@@ -94,6 +94,11 @@ impl Shell {
                     "Ctrl + M",
                 ),
                 (
+                    "Toggle Pane Maximize",
+                    "Maximize or restore the currently focused inner pane",
+                    "Ctrl + Shift + M",
+                ),
+                (
                     "Toggle ExplorerState Tree",
                     "Show or collapse the left file navigation sidebar",
                     "Ctrl + E",

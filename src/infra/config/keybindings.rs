@@ -63,6 +63,7 @@ pub enum ShortcutCommand {
     ToggleViewMode,
     ToggleExplorer,
     ToggleMaximizeArea,
+    ToggleMaximizePane,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -384,6 +385,12 @@ pub const SHORTCUT_DEFINITIONS: &[ShortcutDefinition] = &[
         command: ShortcutCommand::ToggleMaximizeArea,
         id: "toggle_maximize_area",
         default_keys: &["ctrl-space", "cmd-space"],
+        context: None,
+    },
+    ShortcutDefinition {
+        command: ShortcutCommand::ToggleMaximizePane,
+        id: "toggle_maximize_pane",
+        default_keys: &["ctrl-shift-m", "cmd-shift-m"],
         context: None,
     },
 ];

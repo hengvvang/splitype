@@ -203,6 +203,8 @@ pub(crate) struct DocumentTab {
     /// was.
     pub(crate) panes: HashMap<usize, PaneState>,
     pub(crate) fallback_pane: PaneState,
+    /// Cached (revision, word_count) to avoid full serialization on every status bar frame.
+    pub(crate) cached_word_count: Option<(u64, usize)>,
 }
 
 /// The independent view state of one pane inside an editor area.
@@ -595,6 +597,7 @@ impl Editor {
             tables: TableGrids::default(),
             panes: HashMap::new(),
             fallback_pane: PaneState::default(),
+            cached_word_count: None,
         }
     }
 
@@ -781,8 +784,12 @@ impl Editor {
 
     /// The view state of the pane with `pane_id`, creating it lazily.
     pub(crate) fn pane_state(&mut self, pane_id: usize) -> &mut PaneState {
-        let tab_index = self.session.tab_list.active_tab;
-        self.session.tab_list.tabs[tab_index]
+        let list = &mut self.session.tab_list;
+        if list.active_tab >= list.tabs.len() && !list.tabs.is_empty() {
+            list.active_tab = list.tabs.len() - 1;
+        }
+        let tab_index = list.active_tab;
+        list.tabs[tab_index]
             .panes
             .entry(pane_id)
             .or_default()
@@ -790,7 +797,8 @@ impl Editor {
 
     /// The view state of the pane with `pane_id`, if it exists.
     pub(crate) fn pane_state_ref(&self, pane_id: usize) -> Option<&PaneState> {
-        let tab = &self.session.tab_list.tabs[self.session.tab_list.active_tab];
+        let list = &self.session.tab_list;
+        let tab = list.tabs.get(list.active_tab)?;
         tab.panes.get(&pane_id)
     }
 
@@ -923,13 +931,14 @@ impl Editor {
 
     pub(crate) fn tab(&self) -> &DocumentTab {
         let list = &self.session.tab_list;
-        &list.tabs[list.active_tab]
+        &list.tabs[list.active_tab.min(list.tabs.len().saturating_sub(1))]
     }
 
     /// The active document tab, mutably.
     pub(crate) fn tab_mut(&mut self) -> &mut DocumentTab {
-        let index = self.session.tab_list.active_tab;
-        &mut self.session.tab_list.tabs[index]
+        let list = &mut self.session.tab_list;
+        let index = list.active_tab.min(list.tabs.len().saturating_sub(1));
+        &mut list.tabs[index]
     }
 
     /// The active tab's document.

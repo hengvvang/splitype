@@ -15,5 +15,6 @@ actions!(
         ExportHtml,
         ExportPdf,
         ToggleViewMode,
+        ToggleMaximizePane,
     ]
 );

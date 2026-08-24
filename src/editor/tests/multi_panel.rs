@@ -829,3 +829,67 @@ fn editor_pane_maximize_and_restore_and_unmaximize_on_split(cx: &mut gpui::TestA
     assert_eq!(new_ids.len(), 3);
 }
 
+#[gpui::test]
+fn test_active_tab_word_count_caching(cx: &mut gpui::TestAppContext) {
+    init_editor_test_app(cx);
+
+    let (editor, cx) = cx.add_window_view({
+        move |_window, cx| Editor::from_markdown(cx, "Hello World from Splitype".to_string(), None)
+    });
+
+    // 1. Initial count calculation.
+    let count = editor.update(cx, |ed, cx| ed.active_tab_word_count(cx));
+    assert_eq!(count, 4);
+    assert_eq!(
+        editor.read_with(cx, |ed, _cx| ed.tab().cached_word_count),
+        Some((0, 4))
+    );
+
+    // 2. Second read without document revision bump reuses the cache.
+    let count2 = editor.update(cx, |ed, cx| ed.active_tab_word_count(cx));
+    assert_eq!(count2, 4);
+
+    // 3. Document revision bump triggers recalculation.
+    editor.update(cx, |ed, _cx| {
+        ed.tab_mut().document_revision += 1;
+    });
+    let count3 = editor.update(cx, |ed, cx| ed.active_tab_word_count(cx));
+    assert_eq!(count3, 4);
+    assert_eq!(
+        editor.read_with(cx, |ed, _cx| ed.tab().cached_word_count),
+        Some((1, 4))
+    );
+}
+
+#[gpui::test]
+fn test_toggle_maximize_pane_action(cx: &mut gpui::TestAppContext) {
+    use crate::editor::actions::ToggleMaximizePane;
+
+    init_editor_test_app(cx);
+
+    let (editor, cx) = cx.add_window_view({
+        move |_window, cx| Editor::from_markdown(cx, "Content".to_string(), None)
+    });
+    focus_first_block(&editor, cx);
+    redraw(cx);
+
+    let pane_1 = editor.read_with(cx, |ed, _cx| ed.active_pane_id());
+    editor.update(cx, |ed, _cx| {
+        ed.split_pane_with_ratio(pane_1, crate::splitter::SplitAxis::Horizontal, 0.5);
+    });
+    redraw(cx);
+
+    // Initially neither is maximized.
+    assert!(!editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_1).unwrap().maximized));
+
+    // Dispatch ToggleMaximizePane -> pane 1 maximized.
+    cx.dispatch_action(ToggleMaximizePane);
+    redraw(cx);
+    assert!(editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_1).unwrap().maximized));
+
+    // Dispatch ToggleMaximizePane again -> pane 1 restored.
+    cx.dispatch_action(ToggleMaximizePane);
+    redraw(cx);
+    assert!(!editor.read_with(cx, |ed, _cx| ed.session().root.tree.find_leaf(pane_1).unwrap().maximized));
+}
+

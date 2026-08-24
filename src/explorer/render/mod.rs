@@ -13,7 +13,6 @@ use crate::app::shell::Shell;
 use crate::explorer::state::state::{
     DragExplorerTarget, DraggedExplorerSelection, ExplorerSelection,
 };
-use crate::infra::config::recent::{read_recent_files, read_recent_folders};
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 
@@ -25,22 +24,9 @@ impl Shell {
         strings: &I18nStrings,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        // Recent files and folders give the empty state a quick-open entry
-        // point; stale history entries are filtered out so clicks never fail.
-        let recent_folders = read_recent_folders()
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|path| path.is_dir())
-            .take(5)
-            .collect::<Vec<_>>();
-        let recent_files = read_recent_files()
-            .unwrap_or_default()
-            .into_iter()
-            .filter(|path| path.is_file())
-            .take(5)
-            .collect::<Vec<_>>();
-
         if self.panels.explorer.worktrees.is_empty() {
+            let recent_folders = self.panels.explorer.recent_folders_cache.clone();
+            let recent_files = self.panels.explorer.recent_files_cache.clone();
             return self.render_explorer_empty_state(
                 "Explorer is empty now",
                 "",
@@ -54,6 +40,8 @@ impl Shell {
         }
 
         if let Some(error) = self.panels.explorer.file_error.as_ref() {
+            let recent_folders = self.panels.explorer.recent_folders_cache.clone();
+            let recent_files = self.panels.explorer.recent_files_cache.clone();
             return self.render_explorer_empty_state(
                 "Explorer is empty now",
                 error,
@@ -67,6 +55,8 @@ impl Shell {
         }
 
         if self.panels.explorer.trees_cache.is_empty() {
+            let recent_folders = self.panels.explorer.recent_folders_cache.clone();
+            let recent_files = self.panels.explorer.recent_files_cache.clone();
             return self.render_explorer_empty_state(
                 "Explorer is empty now",
                 "",

@@ -7,7 +7,9 @@
 
 use std::path::Path;
 
-use crate::editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs, ToggleViewMode};
+use crate::editor::actions::{
+    ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs, ToggleMaximizePane, ToggleViewMode,
+};
 use crate::editor::controller::*;
 use crate::editor::editing::input::actions::{Redo, Undo};
 
@@ -19,14 +21,11 @@ impl Editor {
         is_dirty: bool,
         strings: &crate::infra::i18n::I18nStrings,
     ) -> String {
-        let base_title = if let Some(path) = file_path {
-            path.file_name().map_or_else(
-                || path.to_string_lossy().to_string(),
-                |name| name.to_string_lossy().to_string(),
-            )
-        } else {
-            String::new()
-        };
+        let base_title = file_path
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string();
 
         if base_title.is_empty() {
             String::new()
@@ -35,6 +34,17 @@ impl Editor {
         } else {
             base_title
         }
+    }
+
+    pub(crate) fn on_toggle_maximize_pane_action(
+        &mut self,
+        _: &ToggleMaximizePane,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let pane_id = self.active_pane_id();
+        self.toggle_pane_maximize(pane_id);
+        cx.notify();
     }
 
     pub(crate) fn on_toggle_view_mode_action(

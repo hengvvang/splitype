@@ -130,6 +130,7 @@ impl Render for Editor {
             .on_action(cx.listener(Self::on_export_html))
             .on_action(cx.listener(Self::on_export_pdf))
             .on_action(cx.listener(Self::on_toggle_view_mode_action))
+            .on_action(cx.listener(Self::on_toggle_maximize_pane_action))
             .on_action(cx.listener(Self::on_page_up))
             .on_action(cx.listener(Self::on_page_down))
             .on_action(cx.listener(Self::on_jump_to_top))

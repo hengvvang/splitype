@@ -93,6 +93,7 @@ impl Shell {
         explorer.hover_scroll_task = None;
         explorer.hover_scroll_generation += 1;
         explorer.previous_drag_position = None;
+        explorer.refresh_recent_cache();
         self.rebuild_explorer_entries();
         cx.notify();
     }
