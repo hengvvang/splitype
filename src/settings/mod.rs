@@ -2,6 +2,7 @@
 //! panel.
 
 pub(crate) mod bottombar;
+pub(crate) mod common;
 pub(crate) mod panels;
 pub(crate) mod shortcuts_data;
 pub(crate) mod state;
