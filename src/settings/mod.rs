@@ -3,10 +3,10 @@
 
 pub(crate) mod bottombar;
 pub(crate) mod common;
-pub(crate) mod panels;
+pub(crate) mod components;
+pub(crate) mod panel;
 pub(crate) mod shortcuts_data;
 pub(crate) mod state;
-pub(crate) mod tabs;
 pub(crate) mod topbar;
 pub(crate) mod window;
 

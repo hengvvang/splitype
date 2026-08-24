@@ -11,7 +11,8 @@ use crate::infra::config::settings::{
     StatusBarSettings, apply_configured_language, read_app_settings, save_settings_from_window,
 };
 use crate::infra::i18n::manager::I18nManager;
-use crate::infra::theme::{ThemeCatalogEntry, ThemeManager};
+use crate::infra::theme::{Theme, ThemeCatalogEntry, ThemeManager};
+use crate::settings::components::*;
 use crate::settings::state::SettingsTab;
 use crate::ui::custom_titlebar::{
     custom_titlebar_height, render_custom_titlebar, splitype_window_options,
@@ -128,6 +129,360 @@ impl SettingsWindow {
             .find(|entry| entry.id == self.selected_theme_id)
             .map(|entry| entry.name.clone())
             .unwrap_or_else(|| "splitype".into())
+    }
+
+    fn render_interface_tab(&mut self, theme: &Theme, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        let mut sections = Vec::new();
+
+        // 1. Theme & Language Section
+        let sec1_key = "theme";
+        let is_sec1_expanded = self.expanded_sections.contains(sec1_key);
+        let toggle_theme_dd = cx.entity().downgrade();
+        let toggle_lang_dd = cx.entity().downgrade();
+        let select_theme_win = cx.entity().downgrade();
+        let select_lang_win = cx.entity().downgrade();
+
+        let available_themes: Vec<(String, String)> = self
+            .theme_options
+            .iter()
+            .map(|t| (t.id.clone(), t.name.clone()))
+            .collect();
+
+        let current_lang_name = match cx.try_global::<I18nManager>().map(|m| m.current_language_id()) {
+            Some("zh-CN") => "简体中文 (zh-CN)".to_string(),
+            _ => "English (en-US)".to_string(),
+        };
+
+        let theme_lang_props = ThemeLangProps {
+            current_theme_name: self.selected_theme_name(),
+            is_theme_dropdown_open: self.theme_dropdown_open,
+            on_toggle_theme_dropdown: Box::new(move |_event, _window, cx| {
+                let _ = toggle_theme_dd.update(cx, |this, cx| {
+                    this.theme_dropdown_open = !this.theme_dropdown_open;
+                    cx.notify();
+                });
+            }),
+            available_themes,
+            on_select_theme: Box::new(move |theme_id| {
+                let win = select_theme_win.clone();
+                Box::new(move |event, window, cx| {
+                    let tid = theme_id.clone();
+                    let _ = win.update(cx, |this, cx| {
+                        this.selected_theme_id = tid;
+                        this.theme_dropdown_open = false;
+                        this.save(event, window, cx);
+                        cx.notify();
+                    });
+                })
+            }),
+            current_lang_name,
+            is_lang_dropdown_open: self.lang_dropdown_open,
+            on_toggle_lang_dropdown: Box::new(move |_event, _window, cx| {
+                let _ = toggle_lang_dd.update(cx, |this, cx| {
+                    this.lang_dropdown_open = !this.lang_dropdown_open;
+                    cx.notify();
+                });
+            }),
+            lang_options: vec![
+                ("en-US", "English (en-US)"),
+                ("zh-CN", "简体中文 (zh-CN)"),
+            ],
+            on_select_lang: Box::new(move |lang_code| {
+                let win = select_lang_win.clone();
+                Box::new(move |_event, _window, cx| {
+                    let _ = apply_configured_language(cx, lang_code);
+                    let _ = win.update(cx, |this, cx| {
+                        this.lang_dropdown_open = false;
+                        cx.notify();
+                    });
+                })
+            }),
+        };
+
+        sections.push(render_theme_and_language_section(
+            c,
+            d,
+            "win-pref-sec-theme",
+            is_sec1_expanded,
+            self.toggle_section_handler(cx, sec1_key),
+            theme_lang_props,
+        ));
+
+        // 2. Status Bar Section
+        let sec2_key = "status_bar";
+        let is_sec2_expanded = self.expanded_sections.contains(sec2_key);
+        let toggle_sb = cx.entity().downgrade();
+        let toggle_wc = cx.entity().downgrade();
+        let toggle_cp = cx.entity().downgrade();
+
+        let status_bar_props = StatusBarProps {
+            show_status_bar: self.status_bar_enabled,
+            on_toggle_status_bar: Box::new(move |event, window, cx| {
+                let _ = toggle_sb.update(cx, |this, cx| {
+                    this.status_bar_enabled = !this.status_bar_enabled;
+                    this.save(event, window, cx);
+                    cx.notify();
+                });
+            }),
+            show_word_count: self.status_bar_show_word_count,
+            on_toggle_word_count: Box::new(move |event, window, cx| {
+                let _ = toggle_wc.update(cx, |this, cx| {
+                    this.status_bar_show_word_count = !this.status_bar_show_word_count;
+                    this.save(event, window, cx);
+                    cx.notify();
+                });
+            }),
+            show_cursor_pos: self.status_bar_show_cursor_position,
+            on_toggle_cursor_pos: Box::new(move |event, window, cx| {
+                let _ = toggle_cp.update(cx, |this, cx| {
+                    this.status_bar_show_cursor_position = !this.status_bar_show_cursor_position;
+                    this.save(event, window, cx);
+                    cx.notify();
+                });
+            }),
+        };
+
+        sections.push(render_status_bar_section(
+            c,
+            d,
+            "win-pref-sec-sb",
+            is_sec2_expanded,
+            self.toggle_section_handler(cx, sec2_key),
+            status_bar_props,
+        ));
+
+        sections
+    }
+
+    fn render_editing_tab(&mut self, theme: &Theme, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        let mut sections = Vec::new();
+
+        // 1. Typography Section
+        let sec1_key = "typography";
+        let is_sec1_expanded = self.expanded_sections.contains(sec1_key);
+        let font_dec = cx.entity().downgrade();
+        let font_inc = cx.entity().downgrade();
+        let font_ctr = cx.entity().downgrade();
+        let lh_dec = cx.entity().downgrade();
+        let lh_inc = cx.entity().downgrade();
+        let lh_ctr = cx.entity().downgrade();
+
+        let typography_props = TypographyProps {
+            font_size: self.font_size,
+            is_editing_font: self.editing_stepper.as_deref() == Some("font"),
+            on_font_dec: Box::new(move |_event, _window, cx| {
+                let _ = font_dec.update(cx, |this, cx| {
+                    this.editing_stepper = None;
+                    if this.font_size > 8 {
+                        this.font_size -= 1;
+                        cx.notify();
+                    }
+                });
+            }),
+            on_font_inc: Box::new(move |_event, _window, cx| {
+                let _ = font_inc.update(cx, |this, cx| {
+                    this.editing_stepper = None;
+                    if this.font_size < 48 {
+                        this.font_size += 1;
+                        cx.notify();
+                    }
+                });
+            }),
+            on_font_cycle: Box::new(move |_event, _window, cx| {
+                let _ = font_ctr.update(cx, |this, cx| {
+                    this.editing_stepper = Some("font".to_string());
+                    this.font_size = match this.font_size {
+                        12 => 14,
+                        14 => 16,
+                        16 => 18,
+                        18 => 20,
+                        20 => 24,
+                        24 => 12,
+                        _ => 14,
+                    };
+                    cx.notify();
+                });
+            }),
+            line_height: self.line_height,
+            is_editing_lh: self.editing_stepper.as_deref() == Some("line_height"),
+            on_lh_dec: Box::new(move |_event, _window, cx| {
+                let _ = lh_dec.update(cx, |this, cx| {
+                    this.editing_stepper = None;
+                    if this.line_height > 1.05 {
+                        this.line_height -= 0.1;
+                        cx.notify();
+                    }
+                });
+            }),
+            on_lh_inc: Box::new(move |_event, _window, cx| {
+                let _ = lh_inc.update(cx, |this, cx| {
+                    this.editing_stepper = None;
+                    if this.line_height < 2.95 {
+                        this.line_height += 0.1;
+                        cx.notify();
+                    }
+                });
+            }),
+            on_lh_cycle: Box::new(move |_event, _window, cx| {
+                let _ = lh_ctr.update(cx, |this, cx| {
+                    this.editing_stepper = Some("line_height".to_string());
+                    this.line_height = if (this.line_height - 1.6).abs() < 0.05 {
+                        1.8
+                    } else if (this.line_height - 1.8).abs() < 0.05 {
+                        2.0
+                    } else if (this.line_height - 2.0).abs() < 0.05 {
+                        1.4
+                    } else {
+                        1.6
+                    };
+                    cx.notify();
+                });
+            }),
+        };
+
+        sections.push(render_typography_section(
+            c,
+            d,
+            "win-pref-sec-typo",
+            is_sec1_expanded,
+            self.toggle_section_handler(cx, sec1_key),
+            typography_props,
+        ));
+
+        // 2. Markdown Section
+        let sec2_key = "markdown";
+        let is_sec2_expanded = self.expanded_sections.contains(sec2_key);
+        let toggle_paste_dd = cx.entity().downgrade();
+        let select_paste_win = cx.entity().downgrade();
+
+        let paste_action_idx = match self.image_paste_behavior {
+            ImagePasteBehavior::CopyToAssetsFolder => 0,
+            ImagePasteBehavior::CopyToDocumentFolder => 1,
+            ImagePasteBehavior::CopyToNamedAssetsFolder => 2,
+            ImagePasteBehavior::None => 0,
+        };
+
+        let markdown_props = MarkdownProps {
+            show_table_headers: true,
+            on_toggle_table_headers: Box::new(|_event, _window, _cx| {}),
+            image_paste_action: paste_action_idx,
+            is_image_paste_open: self.image_dropdown_open,
+            on_toggle_image_paste: Box::new(move |_event, _window, cx| {
+                let _ = toggle_paste_dd.update(cx, |this, cx| {
+                    this.image_dropdown_open = !this.image_dropdown_open;
+                    cx.notify();
+                });
+            }),
+            on_select_image_paste: Box::new(move |idx| {
+                let win = select_paste_win.clone();
+                Box::new(move |event, window, cx| {
+                    let behavior = match idx {
+                        0 => ImagePasteBehavior::CopyToAssetsFolder,
+                        1 => ImagePasteBehavior::CopyToDocumentFolder,
+                        _ => ImagePasteBehavior::CopyToNamedAssetsFolder,
+                    };
+                    let _ = win.update(cx, |this, cx| {
+                        this.image_paste_behavior = behavior;
+                        this.image_dropdown_open = false;
+                        this.save(event, window, cx);
+                        cx.notify();
+                    });
+                })
+            }),
+        };
+
+        sections.push(render_markdown_section(
+            c,
+            d,
+            "win-pref-sec-md",
+            is_sec2_expanded,
+            self.toggle_section_handler(cx, sec2_key),
+            markdown_props,
+        ));
+
+        // 3. Startup Section
+        let sec3_key = "startup";
+        let is_sec3_expanded = self.expanded_sections.contains(sec3_key);
+        let toggle_startup_dd = cx.entity().downgrade();
+        let select_startup_win = cx.entity().downgrade();
+
+        let startup_opt_idx = match self.startup_open {
+            StartupOpenSetting::NewFile => 0,
+            StartupOpenSetting::LastOpenedFile => 1,
+        };
+
+        let startup_props = StartupProps {
+            startup_option: startup_opt_idx,
+            is_startup_open: self.startup_dropdown_open,
+            on_toggle_startup: Box::new(move |_event, _window, cx| {
+                let _ = toggle_startup_dd.update(cx, |this, cx| {
+                    this.startup_dropdown_open = !this.startup_dropdown_open;
+                    cx.notify();
+                });
+            }),
+            on_select_startup: Box::new(move |idx| {
+                let win = select_startup_win.clone();
+                Box::new(move |event, window, cx| {
+                    let setting = match idx {
+                        0 => StartupOpenSetting::NewFile,
+                        _ => StartupOpenSetting::LastOpenedFile,
+                    };
+                    let _ = win.update(cx, |this, cx| {
+                        this.startup_open = setting;
+                        this.startup_dropdown_open = false;
+                        this.save(event, window, cx);
+                        cx.notify();
+                    });
+                })
+            }),
+        };
+
+        sections.push(render_startup_section(
+            c,
+            d,
+            "win-pref-sec-startup",
+            is_sec3_expanded,
+            self.toggle_section_handler(cx, sec3_key),
+            startup_props,
+        ));
+
+        sections
+    }
+
+    fn render_shortcuts_tab(&mut self, theme: &Theme, cx: &mut Context<Self>) -> Vec<AnyElement> {
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        let mut sections = Vec::new();
+
+        let sec1_key = "doc_actions";
+        let is_sec1_expanded = self.expanded_sections.contains(sec1_key);
+        sections.push(render_shortcuts_section(
+            c,
+            d,
+            "win-pref-sec-doc-actions",
+            "Document Actions",
+            is_sec1_expanded,
+            self.toggle_section_handler(cx, sec1_key),
+            crate::settings::shortcuts_data::doc_action_shortcuts(),
+        ));
+
+        let sec2_key = "view_controls";
+        let is_sec2_expanded = self.expanded_sections.contains(sec2_key);
+        sections.push(render_shortcuts_section(
+            c,
+            d,
+            "win-pref-sec-view-controls",
+            "Interface & View Controls",
+            is_sec2_expanded,
+            self.toggle_section_handler(cx, sec2_key),
+            crate::settings::shortcuts_data::interface_view_shortcuts(),
+        ));
+
+        sections
     }
 
     fn has_unsaved_changes(&self) -> bool {
