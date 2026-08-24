@@ -19,7 +19,7 @@ use crate::editor::tree::block::Block;
 /// Canonical owner of the runtime block tree.
 #[derive(Clone)]
 pub(crate) struct Document {
-    pub roots: Vec<Entity<Block>>,
+    roots: Vec<Entity<Block>>,
     pub(crate) tree: splitype_model::tree::SumTree<splitype_model::parse::BlockData>,
     pub(crate) index: BlockIndex,
     pub(crate) structure_version: u64,

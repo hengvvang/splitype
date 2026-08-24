@@ -31,7 +31,7 @@ impl Editor {
             return;
         }
         let initial_roots = if matches!(kind, UndoCaptureKind::NonCoalescible) {
-            Some(self.doc().roots.iter().map(|r| r.read(cx).data.clone()).collect())
+            Some(self.doc().root_blocks().iter().map(|r| r.read(cx).data.clone()).collect())
         } else {
             None
         };
@@ -59,15 +59,36 @@ impl Editor {
             return;
         };
 
-        // If roots changed structurally, generate ReplaceRoots delta
+        // If roots changed structurally, generate fine-grained SpliceRoots delta
         if let Some(old_roots) = pending.initial_roots {
             let current_roots: Vec<crate::model::parse::BlockData> =
-                self.doc().roots.iter().map(|r| r.read(cx).data.clone()).collect();
+                self.doc().root_blocks().iter().map(|r| r.read(cx).data.clone()).collect();
             if current_roots != old_roots {
+                let prefix_len = old_roots
+                    .iter()
+                    .zip(current_roots.iter())
+                    .take_while(|(a, b)| a == b)
+                    .count();
+                let old_rem = &old_roots[prefix_len..];
+                let cur_rem = &current_roots[prefix_len..];
+                let suffix_len = old_rem
+                    .iter()
+                    .rev()
+                    .zip(cur_rem.iter().rev())
+                    .take_while(|(a, b)| a == b)
+                    .count();
+
+                let del_end = old_roots.len() - suffix_len;
+                let ins_end = current_roots.len() - suffix_len;
+
+                let deleted = old_roots[prefix_len..del_end].to_vec();
+                let inserted = current_roots[prefix_len..ins_end].to_vec();
+
                 pending.snapshot.transaction.ops.push(
-                    crate::editor::editing::history::delta::DocDelta::ReplaceRoots {
-                        old_roots,
-                        new_roots: current_roots,
+                    crate::editor::editing::history::delta::DocDelta::SpliceRoots {
+                        index: prefix_len,
+                        deleted,
+                        inserted,
                     },
                 );
             }

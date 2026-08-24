@@ -19,10 +19,11 @@ pub(crate) enum DocDelta {
         old_text: BlockText,
         new_text: BlockText,
     },
-    /// Replace all root blocks in the document (for complex multi-block structural edits).
-    ReplaceRoots {
-        old_roots: Vec<BlockData>,
-        new_roots: Vec<BlockData>,
+    /// Splicing root blocks at an index: remove `deleted` and insert `inserted`.
+    SpliceRoots {
+        index: usize,
+        deleted: Vec<BlockData>,
+        inserted: Vec<BlockData>,
     },
 }
 
@@ -72,12 +73,14 @@ impl Transaction {
                     old_text: new_text,
                     new_text: old_text,
                 },
-                DocDelta::ReplaceRoots {
-                    old_roots,
-                    new_roots,
-                } => DocDelta::ReplaceRoots {
-                    old_roots: new_roots,
-                    new_roots: old_roots,
+                DocDelta::SpliceRoots {
+                    index,
+                    deleted,
+                    inserted,
+                } => DocDelta::SpliceRoots {
+                    index,
+                    deleted: inserted,
+                    inserted: deleted,
                 },
             });
         }
@@ -102,32 +105,40 @@ mod tests {
         let t2 = BlockText::plain("Hello World");
 
         let tx = Transaction {
-            ops: vec![DocDelta::UpdateBlockText {
-                block_id,
-                old_text: t1.clone(),
-                new_text: t2.clone(),
-            }],
+            ops: vec![
+                DocDelta::UpdateBlockText {
+                    block_id,
+                    old_text: t1.clone(),
+                    new_text: t2.clone(),
+                },
+                DocDelta::SpliceRoots {
+                    index: 2,
+                    deleted: vec![BlockData::paragraph("Old")],
+                    inserted: vec![BlockData::paragraph("New")],
+                },
+            ],
             selection_before: UndoSelectionSnapshot::default(),
             selection_after: UndoSelectionSnapshot::default(),
             kind: UndoCaptureKind::CoalescibleText,
         };
 
         let inverted = tx.clone().invert();
-        assert_eq!(inverted.ops.len(), 1);
+        assert_eq!(inverted.ops.len(), 2);
         match &inverted.ops[0] {
-            DocDelta::UpdateBlockText {
-                block_id: bid,
-                old_text,
-                new_text,
+            DocDelta::SpliceRoots {
+                index,
+                deleted,
+                inserted,
             } => {
-                assert_eq!(*bid, block_id);
-                assert_eq!(*old_text, t2);
-                assert_eq!(*new_text, t1);
+                assert_eq!(*index, 2);
+                assert_eq!(deleted[0].text.plain_text(), "New");
+                assert_eq!(inserted[0].text.plain_text(), "Old");
             }
             _ => panic!("unexpected op"),
         }
 
         let restored = inverted.invert();
+        assert_eq!(restored.ops.len(), 2);
         match &restored.ops[0] {
             DocDelta::UpdateBlockText {
                 block_id: bid,

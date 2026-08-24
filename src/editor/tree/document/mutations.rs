@@ -284,13 +284,21 @@ impl Document {
                     false
                 }
             }
-            DocDelta::ReplaceRoots { new_roots, .. } => {
-                let entities = new_roots
+            DocDelta::SpliceRoots {
+                index,
+                deleted,
+                inserted,
+            } => {
+                let idx = (*index).min(self.roots.len());
+                let del_count = deleted.len().min(self.roots.len().saturating_sub(idx));
+                let new_entities: Vec<Entity<Block>> = inserted
                     .iter()
                     .cloned()
                     .map(|data| Editor::new_block(cx, data))
                     .collect();
-                self.replace_blocks(entities, cx);
+                self.roots.splice(idx..idx + del_count, new_entities);
+                self.rebuild_metadata_and_snapshot(cx);
+                self.structure_version += 1;
                 true
             }
         }
