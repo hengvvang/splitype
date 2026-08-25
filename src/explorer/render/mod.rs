@@ -1,4 +1,4 @@
-//! Explorer rendering: the virtualized file-tree list and dispatcher.
+﻿//! Explorer rendering: the virtualized file-tree list and dispatcher.
 
 pub(crate) mod edit_row;
 pub(crate) mod empty_state;
@@ -10,7 +10,7 @@ use std::ops::Range;
 use gpui::*;
 
 use crate::app::shell::Shell;
-use crate::app::window_panels::PanelId;
+use crate::app::window::panels::PanelId;
 use crate::explorer::state::state::{
     DragExplorerTarget, DraggedExplorerSelection, ExplorerSelection,
 };

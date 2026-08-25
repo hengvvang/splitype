@@ -3,7 +3,7 @@
 //! window-close confirmation.
 //!
 //! The window-level dialogs themselves (unsaved changes, drop-replace,
-//! Help-menu info) render on the Shell (`crate::app::window_dialogs`);
+//! Help-menu info) render on the Shell (`crate::app::window::dialogs`);
 //! this module keeps the per-tab state those dialogs show and the editor
 //! actions their buttons route to.
 

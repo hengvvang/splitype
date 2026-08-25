@@ -1,7 +1,7 @@
-//! Editor-side entry points for menu-bar actions.
+﻿//! Editor-side entry points for menu-bar actions.
 //!
 //! The in-window menu-bar state machine and its rendering moved to the
-//! Shell (`crate::app::window_chrome`); this module keeps only the actions
+//! Shell (`crate::app::window::chrome`); this module keeps only the actions
 //! a menu click performs on the active editor: info dialogs, save
 //! requests, and the open-link prompt.
 

@@ -1,4 +1,4 @@
-//! The window shell — the OS window's root entity.
+﻿//! The window shell — the OS window's root entity.
 //!
 //! Owns the mapping from layout panel_contents to content entities (`PanelContent`),
 //! the window-level chrome state (the in-window menu bar), and renders the
@@ -12,8 +12,8 @@ use std::collections::HashMap;
 use gpui::*;
 
 use crate::app::actions::{InstallCliTool, QuitApplication, UninstallCliTool};
-use crate::app::window_chrome::MenuBarState;
-use crate::app::window_panels::{PanelId, WindowPanelKind, WindowPanels};
+use crate::app::window::chrome::MenuBarState;
+use crate::app::window::panels::{PanelId, WindowPanelKind, WindowPanels};
 use crate::editor::engine::controller::{DocumentTab, Editor, InfoDialogKind};
 use crate::editor::engine::session::EditorSession;
 use crate::infra::i18n::I18nManager;
@@ -372,34 +372,9 @@ impl Shell {
     /// The editor area that a file open should target: the active area
     /// when it is an Editor area, or falls back to the sole foreground
     /// Editor (when only one exists) or the most recently activated Editor.
+    #[inline]
     pub(crate) fn active_editor_panel(&self) -> Option<NodeId> {
-        if let Some(panel) = self.panels.layout.active_leaf {
-            if self.panels.layout.tree.find_leaf_kind(panel) == Some(WindowPanelKind::Editor) {
-                return Some(panel);
-            }
-        }
-
-        let mut editor_leaves = Vec::new();
-        let mut all_leaves = Vec::new();
-        self.panels.layout.tree.leaf_ids(&mut all_leaves);
-        for id in all_leaves {
-            if self.panels.layout.tree.find_leaf_kind(id) == Some(WindowPanelKind::Editor) {
-                editor_leaves.push(id);
-            }
-        }
-
-        if editor_leaves.len() == 1 {
-            return Some(editor_leaves[0]);
-        }
-
-        self.panels
-            .layout
-            .activation_history
-            .iter()
-            .rev()
-            .copied()
-            .find(|id| self.panels.layout.tree.find_leaf_kind(*id) == Some(WindowPanelKind::Editor))
-            .or_else(|| editor_leaves.first().copied())
+        self.panels.layout.active_leaf_of_kind(WindowPanelKind::Editor)
     }
 
     /// Opens `path` in the active editor's tab list, if an active editor
@@ -641,7 +616,7 @@ impl Shell {
     pub(crate) fn clone_container_into_new_window(
         &mut self,
         cloned: crate::splitter::policy::ClonedContainer<
-            crate::app::window_panels::WindowPanelKind,
+            crate::app::window::panels::WindowPanelKind,
         >,
         cx: &mut Context<Self>,
     ) {
@@ -649,18 +624,18 @@ impl Shell {
         let mut cloned_explorer = None;
         for (old_id, new_id) in &cloned.id_map {
             match cloned.tree.find_leaf_kind(*new_id) {
-                Some(crate::app::window_panels::WindowPanelKind::Editor) => {
+                Some(crate::app::window::panels::WindowPanelKind::Editor) => {
                     if let Some(editor) = self.editor_for(*old_id) {
                         let session = editor.update(cx, |editor, cx| editor.clone_session(cx));
                         sessions.insert(PanelId(*new_id), session);
                     }
                 }
-                Some(crate::app::window_panels::WindowPanelKind::Explorer) => {
+                Some(crate::app::window::panels::WindowPanelKind::Explorer) => {
                     // The explorer model is window-global: deep-copy it so
                     // the new window shows the same file tree.
                     cloned_explorer = Some(self.panels.explorer.clone_for_new_window());
                 }
-                Some(crate::app::window_panels::WindowPanelKind::Settings) | None => {}
+                Some(crate::app::window::panels::WindowPanelKind::Settings) | None => {}
             }
         }
         crate::app::window::open_cloned_window(
@@ -942,7 +917,7 @@ impl Shell {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        crate::app::cli_install::install_cli_tool(cx);
+        crate::app::cli::install::install_cli_tool(cx);
     }
 
     pub(crate) fn on_uninstall_cli_tool(
@@ -951,7 +926,7 @@ impl Shell {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        crate::app::cli_install::uninstall_cli_tool(cx);
+        crate::app::cli::install::uninstall_cli_tool(cx);
     }
 
     pub(crate) fn on_toggle_maximize_area_action(

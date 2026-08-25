@@ -1,4 +1,7 @@
-﻿//! Editor window creation and file-open routing.
+pub(crate) mod chrome;
+pub(crate) mod dialogs;
+pub(crate) mod layout;
+pub mod panels;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -8,8 +11,8 @@ use gpui::*;
 
 use crate::app::menus::install_menus;
 use crate::app::shell::{PanelContent, Shell};
-use crate::app::window_chrome::MenuBarState;
-use crate::app::window_panels::{
+use crate::app::window::chrome::MenuBarState;
+use crate::app::window::panels::{
     PanelId, DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowPanelKind, WindowPanels,
 };
 use crate::editor::engine::controller::Editor;

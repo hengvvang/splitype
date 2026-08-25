@@ -1,8 +1,8 @@
-use gpui::*;
+﻿use gpui::*;
 
 use crate::app::shell::Shell;
-use crate::app::window_panels::PanelId;
-use crate::app::window_layout::panel_topbar_icon;
+use crate::app::window::panels::PanelId;
+use crate::app::window::layout::panel_topbar_icon;
 use crate::infra::theme::Theme;
 use crate::splitter::SplitAxis;
 use crate::ui::button::{icon_chip_button, small_pill_button, toolbar_icon_size};
@@ -13,7 +13,7 @@ impl Shell {
     pub(crate) fn render_explorer_topbar(
         &self,
         panel_id: PanelId,
-        kind: crate::app::window_panels::WindowPanelKind,
+        kind: crate::app::window::panels::WindowPanelKind,
         theme: &Theme,
         leaf_count: usize,
         is_maximized: bool,

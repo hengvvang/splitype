@@ -18,8 +18,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use gpui::{AppContext, TestAppContext};
 
 use crate::app::shell::{PanelContent, Shell};
-use crate::app::window_chrome::MenuBarState;
-use crate::app::window_panels::{PanelId, DEFAULT_EDITOR_PANEL_ID, WindowPanels};
+use crate::app::window::chrome::MenuBarState;
+use crate::app::window::panels::{PanelId, DEFAULT_EDITOR_PANEL_ID, WindowPanels};
 use crate::editor::engine::controller::Editor;
 use crate::explorer::state::state::*;
 

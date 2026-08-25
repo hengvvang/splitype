@@ -8,13 +8,13 @@
 
 use gpui::{Size, px};
 
-use splitype::app::window_panels::WindowPanelKind;
-use splitype::app::window_panels::{DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowLayout};
+use splitype::app::window::panels::WindowPanelKind;
+use splitype::app::window::panels::{DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowLayout};
 use splitype_splitter::SplitAxis;
 use splitype_splitter::tree::LeafRect;
 
 fn layout() -> WindowLayout {
-    splitype::app::window_panels::default_layout()
+    splitype::app::window::panels::default_layout()
 }
 
 fn root_rects(state: &WindowLayout) -> Vec<LeafRect> {

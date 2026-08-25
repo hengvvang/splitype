@@ -14,7 +14,7 @@ use super::*;
 async fn rendering_one_editor_panel_keeps_other_panels_source_block(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
-    use crate::app::window_panels::DEFAULT_EDITOR_PANEL_ID;
+    use crate::app::window::panels::DEFAULT_EDITOR_PANEL_ID;
     use crate::editor::engine::session::{EditorPaneKind, EditorSession};
 
     let (editor, cx) = cx.add_window_view({
@@ -50,7 +50,7 @@ async fn rendering_one_editor_panel_keeps_other_panels_source_block(cx: &mut Tes
     fn source_block_id(
         editor: &gpui::Entity<Editor>,
         cx: &mut gpui::VisualTestContext,
-        _panel_id: crate::app::window_panels::PanelId,
+        _panel_id: crate::app::window::panels::PanelId,
     ) -> Option<gpui::EntityId> {
         editor.read_with(cx, |editor, _cx| {
             editor
@@ -63,13 +63,13 @@ async fn rendering_one_editor_panel_keeps_other_panels_source_block(cx: &mut Tes
     // frame must keep it alive (rendering used to drop other panels'
     // source pane states, rebuilding the block entity every frame).
     redraw(cx);
-    let before = source_block_id(&editor, cx, crate::app::window_panels::PanelId(DEFAULT_EDITOR_PANEL_ID));
+    let before = source_block_id(&editor, cx, crate::app::window::panels::PanelId(DEFAULT_EDITOR_PANEL_ID));
     assert!(before.is_some(), "first area source block should exist");
     for _ in 0..3 {
         redraw(cx);
         assert_eq!(
             before,
-            source_block_id(&editor, cx, crate::app::window_panels::PanelId(DEFAULT_EDITOR_PANEL_ID)),
+            source_block_id(&editor, cx, crate::app::window::panels::PanelId(DEFAULT_EDITOR_PANEL_ID)),
             "source block entity must survive other render passes"
         );
     }

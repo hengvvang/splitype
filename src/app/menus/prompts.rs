@@ -236,7 +236,7 @@ pub(super) fn prompt_and_import_theme_config_with_error_window(
 }
 
 /// Re-reads the recent-file list for menu construction; callers pass it to
-/// [`build_menus`](super::menu_build::build_menus).
+/// [`build_menus`](super::build::build_menus).
 pub(super) fn recent_files_for_menu() -> Vec<PathBuf> {
     match read_recent_files() {
         Ok(paths) => paths,

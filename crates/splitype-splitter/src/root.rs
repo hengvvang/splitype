@@ -106,6 +106,28 @@ impl<T: Copy + PartialEq> SplitterRoot<T> {
         self.active_leaf = Some(leaf_id);
     }
 
+    /// Returns the active leaf of the given `kind`, resolving through:
+    /// 1. Currently active leaf (if of kind `kind`)
+    /// 2. MRU activation history fallback
+    /// 3. First available leaf of kind `kind` in tree traversal
+    pub fn active_leaf_of_kind(&self, kind: T) -> Option<NodeId> {
+        if let Some(active) = self.active_leaf {
+            if self.tree.find_leaf_kind(active) == Some(kind) {
+                return Some(active);
+            }
+        }
+        self.activation_history
+            .iter()
+            .rev()
+            .copied()
+            .find(|id| self.tree.find_leaf_kind(*id) == Some(kind))
+            .or_else(|| {
+                let mut leaves = Vec::new();
+                self.tree.leaf_ids(&mut leaves);
+                leaves.into_iter().find(|id| self.tree.find_leaf_kind(*id) == Some(kind))
+            })
+    }
+
     /// Recompute the active leaf after the layout changed: the most
     /// recently activated leaf still present, or `None`.
     fn recompute_active_leaf(&mut self) {
@@ -860,5 +882,41 @@ mod tests {
         let (dock, ratio) = calculate_dock_target(&source, &non_neighbor, Direction::Down, point(px(250.0), px(950.0)), false);
         assert_eq!(dock, AreaDockTarget::Top);
         assert!((ratio - 0.125).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_active_leaf_of_kind_resolution() {
+        #[derive(Copy, Clone, Debug, PartialEq)]
+        enum Kind {
+            Editor,
+            Explorer,
+            Settings,
+        }
+
+        let editor_1 = 0;
+        let mut root = SplitterRoot::single_leaf(editor_1, Kind::Editor);
+        let explorer = root
+            .split_leaf(editor_1, SplitAxis::Horizontal, 0.3)
+            .unwrap();
+        root.set_kind(explorer, Kind::Explorer);
+
+        let editor_2 = root
+            .split_leaf(editor_1, SplitAxis::Vertical, 0.5)
+            .unwrap();
+
+        // 1. Activate editor_2
+        root.activate_leaf(editor_2);
+        assert_eq!(root.active_leaf_of_kind(Kind::Editor), Some(editor_2));
+        assert_eq!(root.active_leaf_of_kind(Kind::Explorer), Some(explorer));
+        assert_eq!(root.active_leaf_of_kind(Kind::Settings), None);
+
+        // 2. Activate explorer -> active_leaf is Explorer, but active_leaf_of_kind(Editor) returns editor_2 (from history)
+        root.activate_leaf(explorer);
+        assert_eq!(root.active_leaf_of_kind(Kind::Explorer), Some(explorer));
+        assert_eq!(root.active_leaf_of_kind(Kind::Editor), Some(editor_2));
+
+        // 3. Activate editor_1 -> now editor_1 is most recent Editor
+        root.activate_leaf(editor_1);
+        assert_eq!(root.active_leaf_of_kind(Kind::Editor), Some(editor_1));
     }
 }

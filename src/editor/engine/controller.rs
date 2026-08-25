@@ -17,8 +17,8 @@ use std::sync::Arc;
 pub(crate) use gpui::*;
 
 pub(crate) use crate::app::shell::Shell;
-pub(crate) use crate::app::window_panels::DEFAULT_EDITOR_PANEL_ID;
-pub(crate) use crate::app::window_panels::WindowPanelKind;
+pub(crate) use crate::app::window::panels::DEFAULT_EDITOR_PANEL_ID;
+pub(crate) use crate::app::window::panels::WindowPanelKind;
 pub(crate) use crate::editor::PreviewState;
 pub(crate) use crate::editor::document::protocol::UndoCaptureKind;
 pub(crate) use crate::editor::panes::outline::state::OutlinePaneState;
@@ -44,7 +44,7 @@ pub(crate) use crate::model::inline::text::BlockText;
 pub(crate) use crate::model::parse::{BlockData, BlockId, BlockKind};
 pub(crate) use crate::splitter::tree::NodeId;
 pub(crate) use splitype_splitter::root::SplitterRoot;
-pub use crate::app::window_panels::PanelId;
+pub use crate::app::window::panels::PanelId;
 
 /// The strongly-typed identifier representing an inner tiled editor pane (WYSIWYG, SourceCode, Preview, Outline).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]

@@ -1,10 +1,10 @@
-use std::path::Path;
+﻿use std::path::Path;
 
 use gpui::*;
 
 use crate::app::shell::Shell;
-use crate::app::window_panels::PanelId;
-use crate::explorer::drag_and_drop::DraggedExplorerEntryView;
+use crate::app::window::panels::PanelId;
+use crate::explorer::ops::drag_and_drop::DraggedExplorerEntryView;
 use crate::explorer::state::state::{
     DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, ExplorerEntryKind, ExplorerSelection,
     FOLDER_ICON, VisibleExplorerEntry, file_type_icon,

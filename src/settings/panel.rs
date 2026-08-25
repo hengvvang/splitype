@@ -1,9 +1,9 @@
-//! In-window tiled settings panel host adapter for Shell.
+﻿//! In-window tiled settings panel host adapter for Shell.
 
 use gpui::*;
 
 use crate::app::shell::Shell;
-use crate::app::window_panels::PanelId;
+use crate::app::window::panels::PanelId;
 use crate::infra::config::settings::apply_configured_language;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::i18n::manager::I18nManager;

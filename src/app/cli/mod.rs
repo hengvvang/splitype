@@ -2,6 +2,8 @@
 
 use std::path::PathBuf;
 
+pub(crate) mod install;
+
 /// Parsed command-line arguments.
 pub struct Args {
     pub detach: bool,

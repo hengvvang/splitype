@@ -1,10 +1,10 @@
-//! Virtualized document viewport planning, row windowing, and container assembly.
+﻿//! Virtualized document viewport planning, row windowing, and container assembly.
 
 use std::time::Instant;
 
 use gpui::*;
 
-use crate::app::window_panels::PanelId;
+use crate::app::window::panels::PanelId;
 use crate::editor::engine::controller::*;
 use crate::editor::document::BlockEntry;
 use crate::editor::panes::wysiwyg::render::layout::{

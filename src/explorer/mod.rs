@@ -32,17 +32,9 @@
 //! live in [`state`].
 
 pub(crate) mod bottombar;
-pub(crate) mod context_menu;
-pub(crate) mod drag_and_drop;
-pub(crate) mod file_ops;
 pub(crate) mod filename_editor;
-pub(crate) mod open;
+pub(crate) mod ops;
 pub(crate) mod panel;
 pub(crate) mod render;
-pub(crate) mod selection;
 pub(crate) mod state;
 pub(crate) mod topbar;
-pub(crate) mod tree;
-
-#[cfg(test)]
-mod interaction_probe;

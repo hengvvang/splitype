@@ -19,9 +19,9 @@ use crate::app::actions::{
     SelectLanguage, SelectTheme, ShowAbout, ToggleExplorer, UninstallCliTool,
 };
 #[cfg(target_os = "macos")]
-use crate::app::cli_install::{install_cli_tool, uninstall_cli_tool};
+use crate::app::cli::install::{install_cli_tool, uninstall_cli_tool};
 #[cfg(not(target_os = "macos"))]
-use crate::app::cli_install::{install_cli_tool, uninstall_cli_tool};
+use crate::app::cli::install::{install_cli_tool, uninstall_cli_tool};
 use crate::app::shell::Shell;
 use crate::app::window::{open_editor_window, record_recent_file_and_refresh};
 use crate::editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
@@ -35,8 +35,8 @@ use crate::infra::i18n::I18nManager;
 use crate::infra::theme::ThemeManager;
 use crate::settings::open_settings_window;
 
-pub(crate) mod menu_build;
-pub(crate) mod menu_prompts;
+pub(crate) mod build;
+pub(crate) mod prompts;
 
 /// Global app-menu state for platform menu lifecycle hooks.
 #[derive(Default)]
@@ -205,16 +205,16 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
     if action.as_any().is::<NewWindow>() {
         open_editor_window(cx, String::new(), None);
     } else if action.as_any().is::<OpenFile>() {
-        menu_prompts::prompt_and_open_files(cx);
+        prompts::prompt_and_open_files(cx);
     } else if action.as_any().is::<OpenSettings>() {
         open_settings_window(cx);
     } else if let Some(action) = action.as_any().downcast_ref::<OpenRecentFile>() {
-        menu_prompts::open_recent_file(cx, PathBuf::from(&action.path));
+        prompts::open_recent_file(cx, PathBuf::from(&action.path));
     } else if action.as_any().is::<NoRecentFiles>() {
     } else if action.as_any().is::<AddLanguageConfig>() {
-        menu_prompts::prompt_and_import_language_config(cx);
+        prompts::prompt_and_import_language_config(cx);
     } else if action.as_any().is::<AddThemeConfig>() {
-        menu_prompts::prompt_and_import_theme_config(cx);
+        prompts::prompt_and_import_theme_config(cx);
     } else if action.as_any().is::<SaveDocument>() {
         let _ = with_primary_editor(cx, |editor, window, cx| editor.save_document(window, cx));
     } else if action.as_any().is::<SaveDocumentAs>() {
@@ -331,20 +331,20 @@ pub(crate) fn dispatch_menu_action_for_editor(
     if action.as_any().is::<NewWindow>() {
         open_editor_window(cx, String::new(), None);
     } else if action.as_any().is::<OpenFile>() {
-        menu_prompts::prompt_and_open_files_with_error_window(cx, current_window);
+        prompts::prompt_and_open_files_with_error_window(cx, current_window);
     } else if action.as_any().is::<OpenSettings>() {
         open_settings_window(cx);
     } else if let Some(action) = action.as_any().downcast_ref::<OpenRecentFile>() {
-        menu_prompts::open_recent_file_with_error_window(
+        prompts::open_recent_file_with_error_window(
             cx,
             PathBuf::from(&action.path),
             current_window,
         );
     } else if action.as_any().is::<NoRecentFiles>() {
     } else if action.as_any().is::<AddLanguageConfig>() {
-        menu_prompts::prompt_and_import_language_config_with_error_window(cx, current_window);
+        prompts::prompt_and_import_language_config_with_error_window(cx, current_window);
     } else if action.as_any().is::<AddThemeConfig>() {
-        menu_prompts::prompt_and_import_theme_config_with_error_window(cx, current_window);
+        prompts::prompt_and_import_theme_config_with_error_window(cx, current_window);
     } else if action.as_any().is::<SaveDocument>() {
         let _ = target.update(cx, |editor, cx| editor.request_save_document(cx));
     } else if action.as_any().is::<SaveDocumentAs>() {
@@ -426,8 +426,8 @@ pub(crate) fn dispatch_menu_action_for_editor(
 }
 
 pub(crate) fn install_menus(cx: &mut App) {
-    let recent_files = menu_prompts::recent_files_for_menu();
-    let menus = menu_build::build_menus(
+    let recent_files = prompts::recent_files_for_menu();
+    let menus = build::build_menus(
         cx.global::<ThemeManager>(),
         cx.global::<I18nManager>(),
         &recent_files,

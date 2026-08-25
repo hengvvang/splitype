@@ -1,9 +1,9 @@
-use std::path::PathBuf;
+﻿use std::path::PathBuf;
 
 use gpui::*;
 
 use crate::app::shell::Shell;
-use crate::app::window_panels::PanelId;
+use crate::app::window::panels::PanelId;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 use crate::ui::empty_state::empty_state_container;

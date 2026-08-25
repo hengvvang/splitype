@@ -6,7 +6,7 @@
 
 use gpui::*;
 
-use crate::app::window_panels::PanelId;
+use crate::app::window::panels::PanelId;
 use crate::editor::engine::controller::Editor;
 use crate::editor::panes::outline::state::{
     OUTLINE_NODE_HEIGHT, OUTLINE_NODE_INDENT, OutlineNode, OutlineNodeKind, outline_node_hash,

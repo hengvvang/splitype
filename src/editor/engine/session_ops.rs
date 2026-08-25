@@ -6,7 +6,7 @@
 //! joins, swaps, and drags go through the shared root API instead of a
 //! copied state machine.
 
-use crate::app::window_panels::EditorPanelMode;
+use crate::app::window::panels::EditorPanelMode;
 use crate::editor::engine::controller::{Editor, PaneId};
 use crate::editor::engine::session::{EditorPaneKind, EditorSession};
 use crate::splitter::NodeId;

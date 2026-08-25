@@ -1,10 +1,10 @@
-//! Window-level tiled area layout — rendering and gestures for the outer
+﻿//! Window-level tiled area layout — rendering and gestures for the outer
 //! `WindowPanelKind` split tree (ExplorerState / Settings / Editor panel_contents).
 //!
 //! The layout engine (tree, sessions, operations) lives in `crate::splitter`;
 //! the editor.s pane layout rendering lives in
 //! `crate::editor::panel_layout`. The window panel state aggregate lives in
-//! `crate::app::window_panels`.
+//! `crate::app::window::panels`.
 
 use crate::ui::menu_item::menu_item;
 use crate::ui::popover::menu_panel;
@@ -13,7 +13,7 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 
-use crate::app::window_panels::WindowPanelKind;
+use crate::app::window::panels::WindowPanelKind;
 use crate::ui::corner_drag_preview::render_corner_drag_preview;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::{Theme, ThemeManager};
@@ -238,7 +238,7 @@ impl Shell {
 
     pub(crate) fn render_window_panel_node(
         &mut self,
-        node: &crate::splitter::SplitTree<crate::app::window_panels::WindowPanelKind>,
+        node: &crate::splitter::SplitTree<crate::app::window::panels::WindowPanelKind>,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -454,7 +454,7 @@ impl Shell {
     pub(crate) fn render_window_panel_tile(
         &mut self,
         leaf_id: NodeId,
-        kind: crate::app::window_panels::WindowPanelKind,
+        kind: crate::app::window::panels::WindowPanelKind,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -472,7 +472,7 @@ impl Shell {
         // are assembled by the Shell. Either way the panel gets the same
         // wrapper below — uniform gap padding, corner drag handles, and
         // the type dropdown.
-        let panel_card: AnyElement = if kind == crate::app::window_panels::WindowPanelKind::Editor {
+        let panel_card: AnyElement = if kind == crate::app::window::panels::WindowPanelKind::Editor {
             let entity = match self.editor_for(leaf_id) {
                 Some(entity) => entity.clone(),
                 None => {
@@ -483,7 +483,7 @@ impl Shell {
             };
             entity.into_any_element()
         } else {
-            let panel_id = crate::app::window_panels::PanelId(leaf_id);
+            let panel_id = crate::app::window::panels::PanelId(leaf_id);
             let topbar = match kind {
                 WindowPanelKind::Editor => {
                     unreachable!("editor leaf without an entity is rendered by its entity")
@@ -563,7 +563,7 @@ impl Shell {
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                 let _ = tile_focus.update(cx, |shell, cx| {
                     shell.panels.layout.focused_leaf = Some(leaf_id);
-                    if kind == crate::app::window_panels::WindowPanelKind::Editor {
+                    if kind == crate::app::window::panels::WindowPanelKind::Editor {
                         shell.panels.layout.activate_leaf(leaf_id);
                     }
                     cx.notify();
@@ -617,7 +617,7 @@ impl Shell {
     pub(crate) fn render_panel_type_dropdown_menu(
         &mut self,
         leaf_id: NodeId,
-        current_kind: crate::app::window_panels::WindowPanelKind,
+        current_kind: crate::app::window::panels::WindowPanelKind,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
