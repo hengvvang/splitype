@@ -1,4 +1,4 @@
-//! Editor integration-style unit tests, grouped by subsystem.
+﻿//! Editor integration-style unit tests, grouped by subsystem.
 //!
 //! Each topic module below covers one area of the editor; run a single
 //! group with `cargo test editor::tests::<module>` (e.g.
@@ -9,7 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use gpui::TestAppContext;
 
-use crate::editor::controller::Editor;
+use crate::editor::engine::controller::Editor;
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::ThemeManager;
 
@@ -72,7 +72,7 @@ fn ensure_wysiwyg_editing_panel(editor: &gpui::Entity<Editor>, cx: &mut gpui::Ap
                 .session_mut()
                 .root
                 .tree
-                .set_leaf_kind(id, crate::editor::session::EditorPaneKind::Wysiwyg);
+                .set_leaf_kind(id, crate::editor::engine::session::EditorPaneKind::Wysiwyg);
         }
     });
 }
@@ -84,7 +84,7 @@ fn ensure_wysiwyg_editing_panel(editor: &gpui::Entity<Editor>, cx: &mut gpui::Ap
 /// register its input handler.
 fn focus_block(
     editor: &gpui::Entity<Editor>,
-    block: &gpui::Entity<crate::editor::tree::block::Block>,
+    block: &gpui::Entity<crate::editor::document::block::Block>,
     cx: &mut gpui::VisualTestContext,
 ) {
     cx.cx

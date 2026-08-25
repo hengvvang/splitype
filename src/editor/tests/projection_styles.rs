@@ -1,8 +1,8 @@
-//! Inline projection keeps delimiter styles while editing.
+﻿//! Inline projection keeps delimiter styles while editing.
 
 use gpui::{AppContext, TestAppContext};
 
-use crate::editor::controller::Editor;
+use crate::editor::engine::controller::Editor;
 use crate::model::inline::style::InlineScript;
 use crate::model::parse::BlockKind;
 

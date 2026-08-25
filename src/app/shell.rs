@@ -14,8 +14,8 @@ use gpui::*;
 use crate::app::actions::{InstallCliTool, QuitApplication, UninstallCliTool};
 use crate::app::window_chrome::MenuBarState;
 use crate::app::window_panels::{PanelId, WindowPanelKind, WindowPanels};
-use crate::editor::controller::{DocumentTab, Editor, InfoDialogKind};
-use crate::editor::session::EditorSession;
+use crate::editor::engine::controller::{DocumentTab, Editor, InfoDialogKind};
+use crate::editor::engine::session::EditorSession;
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::ThemeManager;
 use crate::splitter::NodeId;
@@ -32,21 +32,10 @@ pub enum PanelContent {
     Settings,
 }
 
-#[allow(dead_code)]
 impl PanelContent {
     #[inline]
     pub fn is_editor(&self) -> bool {
         matches!(self, Self::Editor(_))
-    }
-
-    #[inline]
-    pub fn is_explorer(&self) -> bool {
-        matches!(self, Self::Explorer)
-    }
-
-    #[inline]
-    pub fn is_settings(&self) -> bool {
-        matches!(self, Self::Settings)
     }
 
     #[inline]
@@ -57,14 +46,6 @@ impl PanelContent {
         }
     }
 
-    #[inline]
-    pub fn kind(&self) -> WindowPanelKind {
-        match self {
-            Self::Editor(_) => WindowPanelKind::Editor,
-            Self::Explorer => WindowPanelKind::Explorer,
-            Self::Settings => WindowPanelKind::Settings,
-        }
-    }
 }
 
 /// Explorer row right-click menu: a window-level overlay rendered by the

@@ -1,13 +1,13 @@
-//! Keyboard editing: tab/arrow/capture semantics, select-all
+﻿//! Keyboard editing: tab/arrow/capture semantics, select-all
 //! cycling, code-block focus, table-cell navigation.
 
 use gpui::{AppContext, ClickEvent, KeyDownEvent, Keystroke, TestAppContext};
 use std::time::{Duration, Instant};
 
-use crate::editor::controller::{Editor, EditorPaneKind};
-use crate::editor::editing::input::actions::{FocusNext, Newline};
-use crate::editor::view::context_menu::TableInsertTarget;
-use crate::editor::view::dialogs::TableInsertDialogState;
+use crate::editor::engine::controller::{Editor, EditorPaneKind};
+use crate::editor::input::actions::{FocusNext, Newline};
+use crate::editor::panes::document_view::context_menu::TableInsertTarget;
+use crate::editor::panes::document_view::dialogs::TableInsertDialogState;
 use crate::model::parse::BlockKind;
 
 use super::*;
@@ -450,7 +450,7 @@ async fn newline_at_start_of_heading_moves_entire_heading_down(cx: &mut TestAppC
         });
         editor.on_block_event(
             block,
-            &crate::editor::block_protocol::BlockEvent::RequestNewlineAbove,
+            &crate::editor::document::protocol::BlockEvent::RequestNewlineAbove,
             cx,
         );
     });
@@ -986,7 +986,7 @@ async fn callout_header_text_runs_have_purple_delimiters_and_accent_type(cx: &mu
                 strikethrough: None,
             };
 
-            let runs = crate::editor::wysiwyg::render::inline::shaping::build_text_runs(
+            let runs = crate::editor::panes::wysiwyg::render::inline::shaping::build_text_runs(
                 block,
                 &display_text,
                 &base_run,
@@ -1067,7 +1067,7 @@ async fn image_focus_expands_to_source_syntax_with_markers(cx: &mut TestAppConte
             };
 
             let display_text = gpui::SharedString::from(block.display_text().to_string());
-            let runs = crate::editor::wysiwyg::render::inline::shaping::build_text_runs(
+            let runs = crate::editor::panes::wysiwyg::render::inline::shaping::build_text_runs(
                 block,
                 &display_text,
                 &base_run,

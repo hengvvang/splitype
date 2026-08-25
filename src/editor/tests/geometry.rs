@@ -1,7 +1,7 @@
-//! Pure layout geometry: centered-column ratio, scrollbar
+﻿//! Pure layout geometry: centered-column ratio, scrollbar
 //! mapping, and the visible row band.
 
-use crate::editor::controller::Editor;
+use crate::editor::engine::controller::Editor;
 use crate::infra::theme::Theme;
 
 #[test]

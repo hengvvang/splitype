@@ -1,10 +1,10 @@
-//! Multi-panel isolation: per-panel source pane states and tab
+﻿//! Multi-panel isolation: per-panel source pane states and tab
 //! switching renders the active document.
 
 use gpui::{AppContext, TestAppContext, VisualTestContext};
 
-use crate::editor::controller::{Editor, PaneId};
-use crate::editor::session::EditorPaneKind;
+use crate::editor::engine::controller::{Editor, PaneId};
+use crate::editor::engine::session::EditorPaneKind;
 use crate::model::inline::text::BlockText;
 use crate::model::parse::BlockKind;
 
@@ -15,7 +15,7 @@ async fn rendering_one_editor_panel_keeps_other_panels_source_block(cx: &mut Tes
     init_editor_test_app(cx);
 
     use crate::app::window_panels::DEFAULT_EDITOR_PANEL_ID;
-    use crate::editor::session::{EditorPaneKind, EditorSession};
+    use crate::editor::engine::session::{EditorPaneKind, EditorSession};
 
     let (editor, cx) = cx.add_window_view({
         move |_window, cx| Editor::from_markdown(cx, "alpha\nbeta".to_string(), None)

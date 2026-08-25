@@ -1,9 +1,9 @@
-//! Window and application command actions — the GPUI action protocol for
+﻿//! Window and application command actions — the GPUI action protocol for
 //! app-level commands (windows, menus, settings, explorer, CLI, links).
 //!
 //! Document-level actions (save / export / view mode) live in
 //! `crate::editor::actions`; text-editing actions live in
-//! `crate::editor::editing::input::actions`.
+//! `crate::editor::input::actions`.
 
 use gpui::*;
 use schemars::JsonSchema;

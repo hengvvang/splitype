@@ -1,4 +1,4 @@
-//! Editor window creation and file-open routing.
+﻿//! Editor window creation and file-open routing.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -12,8 +12,8 @@ use crate::app::window_chrome::MenuBarState;
 use crate::app::window_panels::{
     PanelId, DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowPanelKind, WindowPanels,
 };
-use crate::editor::controller::Editor;
-use crate::editor::session::EditorSession;
+use crate::editor::engine::controller::Editor;
+use crate::editor::engine::session::EditorSession;
 use crate::explorer::state::state::ExplorerState;
 use crate::infra::config::recent::record_recent_file;
 use crate::splitter::NodeId;

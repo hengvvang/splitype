@@ -1,4 +1,4 @@
-//! Interactive explorer probes (local development only).
+﻿//! Interactive explorer probes (local development only).
 //!
 //! Data-layer regression tests live in the modules they exercise (see
 //! `worktree.rs` / `state.rs`); these probes drive the panel-level state
@@ -20,7 +20,7 @@ use gpui::{AppContext, TestAppContext};
 use crate::app::shell::{PanelContent, Shell};
 use crate::app::window_chrome::MenuBarState;
 use crate::app::window_panels::{PanelId, DEFAULT_EDITOR_PANEL_ID, WindowPanels};
-use crate::editor::controller::Editor;
+use crate::editor::engine::controller::Editor;
 use crate::explorer::state::state::*;
 
 fn init_explorer_test_app(cx: &mut TestAppContext) {

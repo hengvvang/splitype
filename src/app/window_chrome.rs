@@ -1,4 +1,4 @@
-//! Window-level chrome for Shell-rooted windows — the custom system
+﻿//! Window-level chrome for Shell-rooted windows — the custom system
 //! titlebar and the in-window fallback menu bar.
 //!
 //! Owns [`MenuBarState`] (the open/hover/close state machine) and renders
@@ -21,7 +21,7 @@ use crate::app::actions::{
 };
 use crate::app::menus::dispatch_menu_action_for_editor;
 use crate::app::shell::Shell;
-use crate::editor::controller::Editor;
+use crate::editor::engine::controller::Editor;
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::{Theme, ThemeManager};
 use crate::ui::button::menu_bar_button;

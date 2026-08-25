@@ -1,8 +1,8 @@
-//! External file drops: clean replace and dirty-drop decisions.
+﻿//! External file drops: clean replace and dirty-drop decisions.
 
 use std::fs;
 
-use crate::editor::controller::{Editor, EditorPaneKind};
+use crate::editor::engine::controller::{Editor, EditorPaneKind};
 use crate::model::inline::text::BlockText;
 use crate::model::parse::BlockKind;
 
@@ -75,7 +75,7 @@ async fn dropped_paths_pick_first_valid_markdown_file(cx: &mut TestAppContext) {
     });
 
     assert_eq!(
-        crate::editor::editing::input::drop::first_dropped_markdown_path(&[
+        crate::editor::input::drop::first_dropped_markdown_path(&[
             text_path,
             markdown_path.clone()
         ]),

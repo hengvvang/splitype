@@ -1,11 +1,11 @@
-//! Inline filename editor operations: create, rename, validation, and key handlers.
+﻿//! Inline filename editor operations: create, rename, validation, and key handlers.
 
 use std::path::PathBuf;
 
 use gpui::*;
 
 use crate::app::shell::Shell;
-use crate::editor::editing::input::actions::{Copy, Cut, DismissTransientUi, Paste};
+use crate::editor::input::actions::{Copy, Cut, DismissTransientUi, Paste};
 use crate::explorer::state::state::{
     ExplorerEditState, ExplorerFilenameEditor, ExplorerRow, ExplorerValidation,
 };

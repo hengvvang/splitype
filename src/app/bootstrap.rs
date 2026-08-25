@@ -1,4 +1,4 @@
-//! Application bootstrap: install globals, open the startup window, and
+﻿//! Application bootstrap: install globals, open the startup window, and
 //! route macOS file-open URLs.
 
 #[cfg(target_os = "macos")]
@@ -121,8 +121,8 @@ pub fn run(args: Args) {
         std::thread::Builder::new()
             .name("splitype-prewarm".to_string())
             .spawn(|| {
-                crate::editor::render::code_highlight::highlight::prewarm_code_highlight_registry();
-                let _ = crate::editor::wysiwyg::render::layout::editor_text_font();
+                crate::editor::plugins::code_highlight::highlight::prewarm_code_highlight_registry();
+                let _ = crate::editor::panes::wysiwyg::render::layout::editor_text_font();
             })
             .ok();
 

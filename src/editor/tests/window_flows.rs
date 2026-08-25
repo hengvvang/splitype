@@ -1,4 +1,4 @@
-//! Window-level flows: menu actions, close guards, quit,
+﻿//! Window-level flows: menu actions, close guards, quit,
 //! pane-click panel activation.
 
 use std::fs;
@@ -7,7 +7,7 @@ use gpui::{AppContext, MouseButton, TestAppContext};
 
 use crate::app::actions::{CloseWindow, QuitApplication};
 use crate::app::window_panels::{DEFAULT_EDITOR_PANEL_ID, WindowPanelKind};
-use crate::editor::controller::Editor;
+use crate::editor::engine::controller::Editor;
 
 use super::*;
 
@@ -451,7 +451,7 @@ fn starting_and_ending_scrollbar_drag_updates_editor_state(cx: &mut TestAppConte
         editor.start_scrollbar_drag(pane_id, 12.0, 320.0, 64.0, 500.0, cx);
         assert_eq!(
             editor.active_pane_scroll().scrollbar_drag,
-            Some(crate::editor::controller::ScrollbarDragSession {
+            Some(crate::editor::engine::controller::ScrollbarDragSession {
                 pointer_offset_y: 12.0,
                 track_height: 320.0,
                 thumb_height: 64.0,

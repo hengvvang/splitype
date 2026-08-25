@@ -1,8 +1,8 @@
-//! View-mode toggling: preserved image handles and positions.
+﻿//! View-mode toggling: preserved image handles and positions.
 
 use gpui::{AppContext, TestAppContext};
 
-use crate::editor::controller::{Editor, EditorPaneKind};
+use crate::editor::engine::controller::{Editor, EditorPaneKind};
 
 #[gpui::test]
 async fn toggling_source_mode_preserves_root_image_handle(cx: &mut TestAppContext) {

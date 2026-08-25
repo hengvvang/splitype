@@ -1,9 +1,9 @@
-//! Window panel module — the panel-kind vocabulary, the window-level split
+﻿//! Window panel module — the panel-kind vocabulary, the window-level split
 //! root, and the window panel state aggregate.
 //!
 //! - [`WindowPanelKind`] — the top-level panel types of the tiled split
 //!   layout (Explorer / Settings / Editor). The editor's inner panes use
-//!   their own kind (`crate::editor::session::EditorPaneKind`) on the same
+//!   their own kind (`crate::editor::engine::session::EditorPaneKind`) on the same
 //!   split engine.
 //! - [`WindowLayout`] / [`default_layout`] — the window-level split root.
 //! - [`WindowPanels`] — the sidebar and tiled-layout state owned by the

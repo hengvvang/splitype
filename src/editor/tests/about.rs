@@ -1,4 +1,4 @@
-//! About dialog body and repository link opening.
+﻿//! About dialog body and repository link opening.
 
 use gpui::{AppContext, TestAppContext};
 
@@ -12,7 +12,7 @@ fn about_dialog_body_lines_include_repository_and_star_message() {
     assert_eq!(lines[0], format!("Splitype {}", env!("CARGO_PKG_VERSION")));
     assert_eq!(
         lines[2],
-        format!("GitHub: {}", crate::editor::view::SPLITYPE_REPOSITORY_URL)
+        format!("GitHub: {}", crate::editor::panes::document_view::SPLITYPE_REPOSITORY_URL)
     );
     assert_eq!(
         lines[3],
@@ -23,12 +23,12 @@ fn about_dialog_body_lines_include_repository_and_star_message() {
 #[gpui::test]
 async fn about_github_link_uses_gpui_url_opening(cx: &mut TestAppContext) {
     cx.update(|cx| {
-        crate::editor::view::open_splitype_repository(cx);
+        crate::editor::panes::document_view::open_splitype_repository(cx);
     });
 
     assert_eq!(
         cx.opened_url(),
-        Some(crate::editor::view::SPLITYPE_REPOSITORY_URL.to_string())
+        Some(crate::editor::panes::document_view::SPLITYPE_REPOSITORY_URL.to_string())
     );
 }
 
@@ -75,7 +75,7 @@ async fn test_show_about_from_app_menu_for_editor(cx: &mut TestAppContext) {
         .unwrap();
     assert_eq!(
         info_dialog,
-        Some(crate::editor::controller::InfoDialogKind::About)
+        Some(crate::editor::engine::controller::InfoDialogKind::About)
     );
 
     let mut visual_cx = gpui::VisualTestContext::from_window(window.into(), cx);

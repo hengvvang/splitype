@@ -1,4 +1,4 @@
-//! Pure text layout geometry: hard-line splitting, wrapped-line math,
+﻿//! Pure text layout geometry: hard-line splitting, wrapped-line math,
 //! offset-to-position mapping, and link/footnote hit-testing.
 //!
 //! These helpers operate on shaped lines and block state only — no GPUI
@@ -8,7 +8,7 @@ use std::ops::Range;
 
 use gpui::*;
 
-use crate::editor::tree::block::Block;
+use crate::editor::document::block::Block;
 use crate::model::inline::footnote::InlineFootnoteHit;
 use crate::model::inline::link::InlineLinkHit;
 

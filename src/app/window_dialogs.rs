@@ -1,4 +1,4 @@
-//! Window-level overlay dialogs owned by the Shell: the unsaved-changes /
+﻿//! Window-level overlay dialogs owned by the Shell: the unsaved-changes /
 //! drop-replace confirmations and the Help-menu info dialog, plus the
 //! background update check.
 //!
@@ -14,8 +14,8 @@ use futures::FutureExt;
 use futures::channel::oneshot;
 
 use crate::app::shell::Shell;
-use crate::editor::controller::{Editor, InfoDialogKind};
-use crate::editor::view::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
+use crate::editor::engine::controller::{Editor, InfoDialogKind};
+use crate::editor::panes::document_view::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
 use crate::infra::i18n::{I18nManager, I18nStrings};
 use crate::infra::net::update_checker::{
     self as update_check, UpdateCheckResult, UpdateVersionInfo,
@@ -30,7 +30,7 @@ impl Shell {
     pub(crate) fn editor_with_dialog(
         &self,
         cx: &App,
-        show: fn(&crate::editor::controller::FileState) -> bool,
+        show: fn(&crate::editor::engine::controller::FileState) -> bool,
     ) -> Option<Entity<Editor>> {
         self.panel_contents
             .values()

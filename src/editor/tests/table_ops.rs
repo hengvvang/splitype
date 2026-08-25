@@ -1,8 +1,8 @@
-//! Table grid installation and table manipulation actions.
+﻿//! Table grid installation and table manipulation actions.
 
 use gpui::{AppContext, TestAppContext};
 
-use crate::editor::controller::Editor;
+use crate::editor::engine::controller::Editor;
 use crate::model::block::table::{TableAxis, TableColumnAlignment};
 use crate::model::parse::BlockKind;
 
@@ -112,7 +112,7 @@ async fn setting_column_alignment_updates_table_data_and_selection(cx: &mut Test
         );
         assert_eq!(
             editor.tab().tables.axis_selection,
-            Some(crate::editor::controller::TableAxisSelection {
+            Some(crate::editor::engine::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
                 kind: crate::model::block::table::TableAxis::Column,
                 index: 1,
@@ -135,7 +135,7 @@ async fn moving_table_row_updates_focus_and_selection(cx: &mut TestAppContext) {
         assert_eq!(table_data.rows[0][0].serialize_markdown(), "3");
         assert_eq!(
             editor.tab().tables.axis_selection,
-            Some(crate::editor::controller::TableAxisSelection {
+            Some(crate::editor::engine::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
                 kind: crate::model::block::table::TableAxis::Row,
                 index: 1,
@@ -165,7 +165,7 @@ async fn moving_first_body_row_up_swaps_with_header(cx: &mut TestAppContext) {
         assert_eq!(table_data.rows[0][0].serialize_markdown(), "A");
         assert_eq!(
             editor.tab().tables.axis_selection,
-            Some(crate::editor::controller::TableAxisSelection {
+            Some(crate::editor::engine::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
                 kind: crate::model::block::table::TableAxis::Row,
                 index: 0,
@@ -189,7 +189,7 @@ async fn moving_header_row_down_swaps_with_first_body(cx: &mut TestAppContext) {
         assert_eq!(table_data.rows[0][0].serialize_markdown(), "A");
         assert_eq!(
             editor.tab().tables.axis_selection,
-            Some(crate::editor::controller::TableAxisSelection {
+            Some(crate::editor::engine::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
                 kind: crate::model::block::table::TableAxis::Row,
                 index: 1,
@@ -256,7 +256,7 @@ async fn body_row_preview_survives_stale_header_leave(cx: &mut TestAppContext) {
         editor.preview_table_axis(id, TableAxis::Row, 0, false, cx);
         assert_eq!(
             editor.tab().tables.axis_preview,
-            Some(crate::editor::controller::TableAxisSelection {
+            Some(crate::editor::engine::controller::TableAxisSelection {
                 table_block_id: id,
                 kind: TableAxis::Row,
                 index: 1,
@@ -283,7 +283,7 @@ async fn deleting_table_column_moves_selection_to_nearest_survivor(cx: &mut Test
         assert_eq!(table_data.header.len(), 2);
         assert_eq!(
             editor.tab().tables.axis_selection,
-            Some(crate::editor::controller::TableAxisSelection {
+            Some(crate::editor::engine::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
                 kind: crate::model::block::table::TableAxis::Column,
                 index: 1,

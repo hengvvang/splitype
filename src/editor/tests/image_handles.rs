@@ -1,9 +1,9 @@
-//! Image handle installation and reference resolution across
+﻿//! Image handle installation and reference resolution across
 //! lists, quotes, callouts, and table cells.
 
 use gpui::{AppContext, TestAppContext};
 
-use crate::editor::controller::Editor;
+use crate::editor::engine::controller::Editor;
 use crate::model::block::image::{
     ImageReferenceDefinitions, ImageResolvedSource, TableCellInlineImageSegment,
     parse_table_cell_inline_images,

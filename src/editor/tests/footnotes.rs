@@ -1,8 +1,8 @@
-//! Footnote reference binding and real-id display.
+﻿//! Footnote reference binding and real-id display.
 
 use gpui::{AppContext, Point, TestAppContext, px};
 
-use crate::editor::controller::Editor;
+use crate::editor::engine::controller::Editor;
 use crate::model::parse::BlockKind;
 
 #[gpui::test]

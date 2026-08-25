@@ -1,8 +1,8 @@
-//! Footnote parsing edge cases: same-line and adjacent-line syntax.
+﻿//! Footnote parsing edge cases: same-line and adjacent-line syntax.
 
 use gpui::{AppContext, TestAppContext};
 
-use crate::editor::controller::Editor;
+use crate::editor::engine::controller::Editor;
 use crate::model::parse::BlockKind;
 
 #[gpui::test]

@@ -1,9 +1,9 @@
-//! Viewport geometry — scrollbar math, rendered-row windowing, and centered
+﻿//! Viewport geometry — scrollbar math, rendered-row windowing, and centered
 //! column sizing.
 //!
 //! Pure functions over layout inputs; nothing here mutates editor state.
 
-use crate::editor::controller::*;
+use crate::editor::engine::controller::*;
 
 impl Editor {
     pub(crate) fn scrollbar_geometry(

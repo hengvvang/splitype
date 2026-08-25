@@ -1,4 +1,4 @@
-//! Native application menu, app-level actions, and window close routing.
+﻿//! Native application menu, app-level actions, and window close routing.
 //!
 //! This module owns menu construction dispatch and the actions that
 //! operate on the active editor window. The Quit action is routed to the
@@ -25,9 +25,9 @@ use crate::app::cli_install::{install_cli_tool, uninstall_cli_tool};
 use crate::app::shell::Shell;
 use crate::app::window::{open_editor_window, record_recent_file_and_refresh};
 use crate::editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
-use crate::editor::controller::{Editor, InfoDialogKind};
-use crate::editor::render::export::ExportFormat;
-use crate::editor::view::{
+use crate::editor::engine::controller::{Editor, InfoDialogKind};
+use crate::editor::export::ExportFormat;
+use crate::editor::panes::document_view::{
     open_bug_report, open_discussions, open_feature_request, open_splitype_repository,
 };
 use crate::infra::config::settings::{apply_configured_language, apply_configured_theme};

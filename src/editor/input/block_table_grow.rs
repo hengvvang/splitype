@@ -1,0 +1,248 @@
+﻿//! Table row/column append controls: hover state tracking, delayed close
+//! scheduling, and the append actions themselves.
+
+use std::time::Duration;
+
+use gpui::*;
+
+use crate::editor::document::protocol::BlockEvent;
+use crate::editor::document::block::{Block, TableHoverRegion};
+use crate::model::parse::BlockKind;
+
+impl Block {
+    fn schedule_table_append_column_close(&mut self, cx: &mut Context<Self>) {
+        if !self.table_interaction.column_append.is_active {
+            return;
+        }
+
+        self.table_interaction.column_append.dismiss_task = Some(cx.spawn(
+            async |this: WeakEntity<Block>, cx: &mut AsyncApp| {
+                cx.background_executor()
+                    .timer(Duration::from_millis(120))
+                    .await;
+                let _ = this.update(cx, |block, cx| {
+                    block.table_interaction.column_append.dismiss_task = None;
+                    if !block.table_interaction.column_append.is_cursor_inside() {
+                        block.table_interaction.column_append.is_active = false;
+                        cx.notify();
+                    }
+                });
+            },
+        ));
+    }
+
+    fn schedule_table_append_row_close(&mut self, cx: &mut Context<Self>) {
+        if !self.table_interaction.row_append.is_active {
+            return;
+        }
+
+        self.table_interaction.row_append.dismiss_task = Some(cx.spawn(
+            async |this: WeakEntity<Block>, cx: &mut AsyncApp| {
+                cx.background_executor()
+                    .timer(Duration::from_millis(120))
+                    .await;
+                let _ = this.update(cx, |block, cx| {
+                    block.table_interaction.row_append.dismiss_task = None;
+                    if !block.table_interaction.row_append.is_cursor_inside() {
+                        block.table_interaction.row_append.is_active = false;
+                        cx.notify();
+                    }
+                });
+            },
+        ));
+    }
+
+    pub(crate) fn set_table_column_hover_region(
+        &mut self,
+        region: TableHoverRegion,
+        hovered: bool,
+        cx: &mut Context<Self>,
+    ) {
+        let changed = self
+            .table_interaction
+            .column_append
+            .set_region_hovered(region, hovered);
+
+        if !self.table_interaction.column_append.is_cursor_inside()
+            && self.table_interaction.column_append.is_active
+            && self.table_interaction.column_append.dismiss_task.is_none()
+        {
+            self.schedule_table_append_column_close(cx);
+        }
+
+        if changed {
+            cx.notify();
+        }
+    }
+
+    pub(crate) fn set_table_row_hover_region(
+        &mut self,
+        region: TableHoverRegion,
+        hovered: bool,
+        cx: &mut Context<Self>,
+    ) {
+        let changed = self
+            .table_interaction
+            .row_append
+            .set_region_hovered(region, hovered);
+
+        if !self.table_interaction.row_append.is_cursor_inside()
+            && self.table_interaction.row_append.is_active
+            && self.table_interaction.row_append.dismiss_task.is_none()
+        {
+            self.schedule_table_append_row_close(cx);
+        }
+
+        if changed {
+            cx.notify();
+        }
+    }
+
+    pub(crate) fn on_table_append_column_zone_hover(
+        &mut self,
+        hovered: &bool,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_table_column_hover_region(TableHoverRegion::BufferZone, *hovered, cx);
+    }
+
+    pub(crate) fn on_table_append_column_button_hover(
+        &mut self,
+        hovered: &bool,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_table_column_hover_region(TableHoverRegion::AppendButton, *hovered, cx);
+    }
+
+    pub(crate) fn on_table_append_row_zone_hover(
+        &mut self,
+        hovered: &bool,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_table_row_hover_region(TableHoverRegion::BufferZone, *hovered, cx);
+    }
+
+    pub(crate) fn on_table_append_row_button_hover(
+        &mut self,
+        hovered: &bool,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_table_row_hover_region(TableHoverRegion::AppendButton, *hovered, cx);
+    }
+
+    pub(crate) fn on_table_append_column_edge_hover(
+        &mut self,
+        hovered: &bool,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_table_column_hover_region(TableHoverRegion::Edge, *hovered, cx);
+    }
+
+    pub(crate) fn on_table_append_row_edge_hover(
+        &mut self,
+        hovered: &bool,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.set_table_row_hover_region(TableHoverRegion::Edge, *hovered, cx);
+    }
+
+    pub(crate) fn on_append_table_column(
+        &mut self,
+        _: &ClickEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.kind() == BlockKind::Table {
+            cx.emit(BlockEvent::RequestAppendTableColumn);
+        }
+    }
+
+    pub(crate) fn on_append_table_row(
+        &mut self,
+        _: &ClickEvent,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.kind() == BlockKind::Table {
+            cx.emit(BlockEvent::RequestAppendTableRow);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Block;
+    use crate::editor::document::block::TableHoverRegion;
+    use crate::model::parse::BlockData;
+    use gpui::{AppContext, TestAppContext};
+
+    #[gpui::test]
+    async fn append_column_button_stays_visible_while_crossing_hover_gap(cx: &mut TestAppContext) {
+        let block = cx.new(|cx| Block::with_data(cx, BlockData::paragraph(String::new())));
+
+        block.update(cx, |block, cx| {
+            block.set_table_column_hover_region(TableHoverRegion::Edge, true, cx);
+            assert!(block.table_interaction.column_append.is_active);
+
+            block.set_table_column_hover_region(TableHoverRegion::Edge, false, cx);
+            block.set_table_column_hover_region(TableHoverRegion::AppendButton, true, cx);
+            assert!(block.table_interaction.column_append.is_active);
+            assert!(!block.table_interaction.column_append.edge_hovered);
+            assert!(!block.table_interaction.column_append.buffer_zone_hovered);
+            assert!(block.table_interaction.column_append.button_hovered);
+            assert!(block.table_interaction.column_append.dismiss_task.is_none());
+        });
+    }
+
+    #[gpui::test]
+    async fn append_row_button_stays_visible_while_crossing_hover_gap(cx: &mut TestAppContext) {
+        let block = cx.new(|cx| Block::with_data(cx, BlockData::paragraph(String::new())));
+
+        block.update(cx, |block, cx| {
+            block.set_table_row_hover_region(TableHoverRegion::Edge, true, cx);
+            assert!(block.table_interaction.row_append.is_active);
+
+            block.set_table_row_hover_region(TableHoverRegion::Edge, false, cx);
+            block.set_table_row_hover_region(TableHoverRegion::AppendButton, true, cx);
+            assert!(block.table_interaction.row_append.is_active);
+            assert!(!block.table_interaction.row_append.edge_hovered);
+            assert!(!block.table_interaction.row_append.buffer_zone_hovered);
+            assert!(block.table_interaction.row_append.button_hovered);
+            assert!(block.table_interaction.row_append.dismiss_task.is_none());
+        });
+    }
+
+    #[gpui::test]
+    async fn column_edge_hover_reveals_only_column_append_control(cx: &mut TestAppContext) {
+        let block = cx.new(|cx| Block::with_data(cx, BlockData::paragraph(String::new())));
+
+        block.update(cx, |block, cx| {
+            block.set_table_column_hover_region(TableHoverRegion::Edge, true, cx);
+            assert!(block.table_interaction.column_append.edge_hovered);
+            assert!(block.table_interaction.column_append.is_active);
+            assert!(!block.table_interaction.row_append.is_active);
+            assert!(block.table_interaction.column_append.dismiss_task.is_none());
+            assert!(block.table_interaction.row_append.dismiss_task.is_none());
+        });
+    }
+
+    #[gpui::test]
+    async fn row_edge_hover_reveals_only_row_append_control(cx: &mut TestAppContext) {
+        let block = cx.new(|cx| Block::with_data(cx, BlockData::paragraph(String::new())));
+
+        block.update(cx, |block, cx| {
+            block.set_table_row_hover_region(TableHoverRegion::Edge, true, cx);
+            assert!(block.table_interaction.row_append.edge_hovered);
+            assert!(block.table_interaction.row_append.is_active);
+            assert!(!block.table_interaction.column_append.is_active);
+            assert!(block.table_interaction.column_append.dismiss_task.is_none());
+            assert!(block.table_interaction.row_append.dismiss_task.is_none());
+        });
+    }
+}
