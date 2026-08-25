@@ -134,6 +134,42 @@ pub fn is_adjacent_neighbor(a: &LeafRect, b: &LeafRect) -> bool {
     (shares_vertical_border && overlap_y > EPS) || (shares_horizontal_border && overlap_x > EPS)
 }
 
+/// Calculate the exact merged slice geometry for joining two adjacent areas, matching Blender's area join logic.
+///
+/// When source and target have different dimensions along the shared border (e.g. source is height 0.5 and target is height 1.0),
+/// the merged slice uses the overlapping dimension range (e.g. height 0.5 of source) rather than the global bounding envelope.
+/// Returns (x, y, width, height) of the merged slice rectangle in normalized coordinates.
+pub fn calculate_join_slice_rect(source: &LeafRect, target: &LeafRect) -> (f32, f32, f32, f32) {
+    const EPS: f32 = 0.01;
+    let shares_vertical_border =
+        (source.x + source.width - target.x).abs() <= EPS || (target.x + target.width - source.x).abs() <= EPS;
+    let shares_horizontal_border =
+        (source.y + source.height - target.y).abs() <= EPS || (target.y + target.height - source.y).abs() <= EPS;
+
+    if shares_vertical_border {
+        let x = source.x.min(target.x);
+        let w = (source.x + source.width).max(target.x + target.width) - x;
+        // In Y, clamp to the overlapping slice (the height span of the smaller area)
+        let y = source.y.max(target.y);
+        let h = ((source.y + source.height).min(target.y + target.height) - y).max(0.0);
+        (x, y, w, h)
+    } else if shares_horizontal_border {
+        let y = source.y.min(target.y);
+        let h = (source.y + source.height).max(target.y + target.height) - y;
+        // In X, clamp to the overlapping slice (the width span of the smaller area)
+        let x = source.x.max(target.x);
+        let w = ((source.x + source.width).min(target.x + target.width) - x).max(0.0);
+        (x, y, w, h)
+    } else {
+        // Fallback to bounding box if neither edge is detected directly
+        let x = source.x.min(target.x);
+        let y = source.y.min(target.y);
+        let w = (source.x + source.width).max(target.x + target.width) - x;
+        let h = (source.y + source.height).max(target.y + target.height) - y;
+        (x, y, w, h)
+    }
+}
+
 /// Calculates the dock target (None = Join, Center = Swap, Top/Bottom/Left/Right = Dock) and ratio.
 /// Perfectly mirrors Blender's `area_docking_target` (source/blender/editors/screen/screen_ops.cc).
 pub fn calculate_dock_target(
@@ -157,14 +193,15 @@ pub fn calculate_dock_target(
 
     const EPS: f32 = 6.0;
 
-    // 1. Direct Neighbor Join Zone check (0.15 join zone)
+    // 1. Direct Neighbor Join Zone check (0.15 join zone along the shared border).
     // Up or Down immediate neighbor:
     let is_source_above = (source_rect.y + source_rect.height - target_rect.y).abs() <= EPS;
     let is_source_below = (target_rect.y + target_rect.height - source_rect.y).abs() <= EPS;
     if is_source_above || is_source_below {
-        let overlap_x = (source_rect.x + source_rect.width).min(target_rect.x + target_rect.width)
-            - source_rect.x.max(target_rect.x);
-        if overlap_x > EPS && px >= source_rect.x && px <= source_rect.x + source_rect.width {
+        let overlap_min_x = source_rect.x.max(target_rect.x);
+        let overlap_max_x = (source_rect.x + source_rect.width).min(target_rect.x + target_rect.width);
+        let overlap_x = overlap_max_x - overlap_min_x;
+        if overlap_x > EPS && px >= overlap_min_x - EPS && px <= overlap_max_x + EPS {
             let in_join_y = if is_source_above {
                 fac_y <= 0.15
             } else {
@@ -180,9 +217,10 @@ pub fn calculate_dock_target(
     let is_source_left = (source_rect.x + source_rect.width - target_rect.x).abs() <= EPS;
     let is_source_right = (target_rect.x + target_rect.width - source_rect.x).abs() <= EPS;
     if is_source_left || is_source_right {
-        let overlap_y = (source_rect.y + source_rect.height).min(target_rect.y + target_rect.height)
-            - source_rect.y.max(target_rect.y);
-        if overlap_y > EPS && py >= source_rect.y && py <= source_rect.y + source_rect.height {
+        let overlap_min_y = source_rect.y.max(target_rect.y);
+        let overlap_max_y = (source_rect.y + source_rect.height).min(target_rect.y + target_rect.height);
+        let overlap_y = overlap_max_y - overlap_min_y;
+        if overlap_y > EPS && py >= overlap_min_y - EPS && py <= overlap_max_y + EPS {
             let in_join_x = if is_source_left {
                 fac_x <= 0.15
             } else {
@@ -264,4 +302,66 @@ pub fn id_at_point(rects: &[LeafRect], pos: Point<Pixels>) -> Option<NodeId> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_calculate_join_slice_rect_asymmetric_heights() {
+        // 3-pane layout:
+        // A (left full height): [0.0, 0.0, 0.5, 1.0]
+        // B (top-right half height): [0.5, 0.0, 0.5, 0.5]
+        // C (bottom-right half height): [0.5, 0.5, 0.5, 0.5]
+        let rect_a = LeafRect { id: 1, x: 0.0, y: 0.0, width: 0.5, height: 1.0 };
+        let rect_b = LeafRect { id: 2, x: 0.5, y: 0.0, width: 0.5, height: 0.5 };
+        let rect_c = LeafRect { id: 3, x: 0.5, y: 0.5, width: 0.5, height: 0.5 };
+
+        // Joining B and A: should produce merged slice spanning top half [0.0, 0.0, 1.0, 0.5], using B's height
+        let (x, y, w, h) = calculate_join_slice_rect(&rect_b, &rect_a);
+        assert_eq!(x, 0.0);
+        assert_eq!(y, 0.0);
+        assert_eq!(w, 1.0);
+        assert_eq!(h, 0.5);
+
+        // Joining C and A: should produce merged slice spanning bottom half [0.0, 0.5, 1.0, 0.5], using C's height
+        let (x, y, w, h) = calculate_join_slice_rect(&rect_c, &rect_a);
+        assert_eq!(x, 0.0);
+        assert_eq!(y, 0.5);
+        assert_eq!(w, 1.0);
+        assert_eq!(h, 0.5);
+
+        // Joining B and C: should produce merged slice spanning right half [0.5, 0.0, 0.5, 1.0]
+        let (x, y, w, h) = calculate_join_slice_rect(&rect_b, &rect_c);
+        assert_eq!(x, 0.5);
+        assert_eq!(y, 0.0);
+        assert_eq!(w, 0.5);
+        assert_eq!(h, 1.0);
+    }
+
+    #[test]
+    fn test_calculate_join_slice_rect_asymmetric_widths() {
+        // Horizontal top full width + two bottom columns:
+        // A (top full width): [0.0, 0.0, 1.0, 0.5]
+        // B (bottom-left): [0.0, 0.5, 0.5, 0.5]
+        // C (bottom-right): [0.5, 0.5, 0.5, 0.5]
+        let rect_a = LeafRect { id: 1, x: 0.0, y: 0.0, width: 1.0, height: 0.5 };
+        let rect_b = LeafRect { id: 2, x: 0.0, y: 0.5, width: 0.5, height: 0.5 };
+        let rect_c = LeafRect { id: 3, x: 0.5, y: 0.5, width: 0.5, height: 0.5 };
+
+        // Joining B and A: should produce left column slice [0.0, 0.0, 0.5, 1.0], using B's width
+        let (x, y, w, h) = calculate_join_slice_rect(&rect_b, &rect_a);
+        assert_eq!(x, 0.0);
+        assert_eq!(y, 0.0);
+        assert_eq!(w, 0.5);
+        assert_eq!(h, 1.0);
+
+        // Joining C and A: should produce right column slice [0.5, 0.0, 0.5, 1.0], using C's width
+        let (x, y, w, h) = calculate_join_slice_rect(&rect_c, &rect_a);
+        assert_eq!(x, 0.5);
+        assert_eq!(y, 0.0);
+        assert_eq!(w, 0.5);
+        assert_eq!(h, 1.0);
+    }
 }

@@ -7,7 +7,9 @@ use gpui::*;
 
 use splitype_splitter::interaction::{OverlayStyle, overlay_container};
 use splitype_splitter::root::SplitterRoot;
-use splitype_splitter::sessions::{AreaDockTarget, CornerDragModifier, CornerDragSession};
+use splitype_splitter::sessions::{
+    AreaDockTarget, CornerDragModifier, CornerDragSession, calculate_join_slice_rect,
+};
 use splitype_splitter::tree::{LeafRect, SplitAxis};
 
 /// Render the corner-drag indicator, or `None` when there is nothing to
@@ -24,7 +26,12 @@ pub fn render_corner_drag_preview<T: Copy + PartialEq>(
 
     // 0. Shift drag preview: Duplicate Area into New Window
     if drag.modifier == CornerDragModifier::Shift {
-        return Some(new_window_preview_overlay(target_rect, style));
+        return Some(new_window_preview_overlay(
+            target_rect,
+            drag.pointer_pos,
+            container_size,
+            style,
+        ));
     }
 
     match drag.hover_leaf {
@@ -35,7 +42,13 @@ pub fn render_corner_drag_preview<T: Copy + PartialEq>(
             if drag.modifier == CornerDragModifier::Ctrl
                 || drag.dock_target == AreaDockTarget::Center
             {
-                return Some(swap_preview_overlay(target_rect, hover_target, style));
+                return Some(swap_preview_overlay(
+                    target_rect,
+                    hover_target,
+                    drag.pointer_pos,
+                    container_size,
+                    style,
+                ));
             }
 
             // 2. Dock preview (Top, Bottom, Left, Right)
@@ -51,16 +64,31 @@ pub fn render_corner_drag_preview<T: Copy + PartialEq>(
                     hover_target,
                     drag.dock_target,
                     drag.dock_ratio,
+                    drag.pointer_pos,
+                    container_size,
                     style,
                 ));
             }
 
             // 3. Direct Join preview (when dock_target is None)
-            Some(join_preview_overlay(target_rect, hover_target, style))
+            Some(join_preview_overlay(
+                target_rect,
+                hover_target,
+                drag.pointer_pos,
+                container_size,
+                style,
+            ))
         }
         _ => {
             let (axis, ratio) = root.corner_split_facts(drag, container_size)?;
-            Some(split_preview_overlay(target_rect, axis, ratio, style))
+            Some(split_preview_overlay(
+                target_rect,
+                axis,
+                ratio,
+                drag.pointer_pos,
+                container_size,
+                style,
+            ))
         }
     }
 }
@@ -101,12 +129,16 @@ fn split_preview_overlay(
     rect: &LeafRect,
     direction: SplitAxis,
     ratio: f32,
+    pointer_pos: Option<Point<Pixels>>,
+    container_size: Size<Pixels>,
     style: &OverlayStyle,
 ) -> AnyElement {
     let line = match direction {
         SplitAxis::Horizontal => split_line_horizontal(rect, ratio, style.accent),
         SplitAxis::Vertical => split_line_vertical(rect, ratio, style.accent),
     };
+    let ratio_percent = format!("{:.1}%", ratio * 100.0);
+
     overlay_container()
         .child(
             div()
@@ -119,28 +151,85 @@ fn split_preview_overlay(
                 .bg(style.accent.opacity(0.12)),
         )
         .child(line)
+        .child(cursor_action_panel(
+            pointer_pos,
+            container_size,
+            "Split Area",
+            Some(ratio_percent),
+            Some("Ctrl: 1/12 Snap • Esc: Cancel"),
+            style,
+        ))
         .into_any_element()
 }
 
-/// A unified floating indicator badge styled as a clean card matching the theme surface (dark on dark, white on light).
-fn unified_badge(text: &'static str, style: &OverlayStyle) -> Div {
+/// Cursor-following operation tooltip panel matching Blender's area drag status indicator.
+/// Positioned dynamically near the mouse pointer and clamped inside the window bounds.
+fn cursor_action_panel(
+    pointer_pos: Option<Point<Pixels>>,
+    container_size: Size<Pixels>,
+    title: &'static str,
+    detail: Option<String>,
+    shortcut_hint: Option<&'static str>,
+    style: &OverlayStyle,
+) -> AnyElement {
+    let (left_px, top_px) = if let Some(pos) = pointer_pos {
+        let x = f32::from(pos.x) + 16.0;
+        let y = f32::from(pos.y) + 16.0;
+        let max_x = (f32::from(container_size.width) - 210.0).max(8.0);
+        let max_y = (f32::from(container_size.height) - 65.0).max(8.0);
+        (x.clamp(8.0, max_x), y.clamp(8.0, max_y))
+    } else {
+        (16.0, 16.0)
+    };
+
     div()
-        .px(px(16.0))
-        .py(px(8.0))
+        .absolute()
+        .left(px(left_px))
+        .top(px(top_px))
+        .px(px(10.0))
+        .py(px(6.0))
         .rounded(px(crate::infra::theme::dimensions::CONTROL_CORNER_RADIUS))
         .bg(style.surface)
         .border(px(1.0))
         .border_color(style.border)
         .shadow_md()
-        .text_color(style.text)
-        .text_size(px(13.5))
-        .font_weight(FontWeight::SEMIBOLD)
-        .child(text)
+        .flex()
+        .flex_col()
+        .gap(px(2.0))
+        .child(
+            div()
+                .flex()
+                .items_center()
+                .gap(px(6.0))
+                .child(
+                    div()
+                        .text_size(px(12.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(style.text)
+                        .child(title),
+                )
+                .children(detail.map(|d| {
+                    div()
+                        .text_size(px(11.5))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(style.accent)
+                        .child(d)
+                })),
+        )
+        .children(shortcut_hint.map(|hint| {
+            div()
+                .text_size(px(10.0))
+                .text_color(style.text.opacity(0.65))
+                .child(hint)
+        }))
+        .into_any_element()
 }
 
-/// A full-window overlay highlighting the dragged panel with a themed "Duplicate into New Window" card.
+/// A full-window overlay highlighting the dragged panel with a clean accent border.
 fn new_window_preview_overlay(
     target: &LeafRect,
+    pointer_pos: Option<Point<Pixels>>,
+    container_size: Size<Pixels>,
     style: &OverlayStyle,
 ) -> AnyElement {
     overlay_container()
@@ -154,53 +243,93 @@ fn new_window_preview_overlay(
                 .rounded(px(style.tile_radius))
                 .bg(style.accent.opacity(0.18))
                 .border(px(1.5))
+                .border_color(style.accent),
+        )
+        .child(cursor_action_panel(
+            pointer_pos,
+            container_size,
+            "Duplicate Area",
+            None,
+            Some("Release to open in new window"),
+            style,
+        ))
+        .into_any_element()
+}
+
+/// Deduce the cardinal arrow string pointing from the dragging source into the target area.
+fn join_direction_arrow(source: &LeafRect, target: &LeafRect) -> &'static str {
+    const EPS: f32 = 0.01;
+    let shares_vertical_border = (source.x + source.width - target.x).abs() <= EPS
+        || (target.x + target.width - source.x).abs() <= EPS;
+    if shares_vertical_border {
+        if source.x < target.x {
+            "→"
+        } else {
+            "←"
+        }
+    } else if source.y < target.y {
+        "↓"
+    } else {
+        "↑"
+    }
+}
+
+/// A full-window overlay highlighting the exact merged slice matching Blender's `screen_draw_join_highlight`.
+/// When joining adjacent areas across a shared border with asymmetric extents (e.g. source is height 0.5
+/// and target is height 1.0), the preview highlights only the shared slice (using the overlapping dimension)
+/// so unrelated sibling areas are never incorrectly covered.
+fn join_preview_overlay(
+    source: &LeafRect,
+    target: &LeafRect,
+    pointer_pos: Option<Point<Pixels>>,
+    container_size: Size<Pixels>,
+    style: &OverlayStyle,
+) -> AnyElement {
+    let (merged_x, merged_y, merged_w, merged_h) = calculate_join_slice_rect(source, target);
+    let arrow = join_direction_arrow(source, target);
+
+    overlay_container()
+        // Single merged rectangle covering the exact merged slice
+        .child(
+            div()
+                .absolute()
+                .left(relative(merged_x))
+                .top(relative(merged_y))
+                .w(relative(merged_w))
+                .h(relative(merged_h))
+                .rounded(px(style.tile_radius))
+                .bg(style.accent.opacity(0.18))
+                .border(px(1.5))
                 .border_color(style.accent)
                 .flex()
                 .flex_col()
                 .items_center()
                 .justify_center()
-                .child(unified_badge("Duplicate Area into New Window", style)),
+                .child(
+                    div()
+                        .text_size(px(32.0))
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(style.accent)
+                        .child(arrow),
+                ),
         )
+        .child(cursor_action_panel(
+            pointer_pos,
+            container_size,
+            "Join Area",
+            Some(arrow.to_string()),
+            Some("Release to merge • Esc: Cancel"),
+            style,
+        ))
         .into_any_element()
 }
 
-/// A full-window overlay highlighting the COMBINED merged area (the bounding box
-/// of both the source and target areas combined), 1:1 matching Blender's `screen_draw_join_highlight`.
-/// `source` and `target` are normalized (0..1).
-fn join_preview_overlay(
-    source: &LeafRect,
-    target: &LeafRect,
-    style: &OverlayStyle,
-) -> AnyElement {
-    let combined_x = source.x.min(target.x);
-    let combined_y = source.y.min(target.y);
-    let combined_w = (source.x + source.width).max(target.x + target.width) - combined_x;
-    let combined_h = (source.y + source.height).max(target.y + target.height) - combined_y;
-
-    overlay_container()
-        // Single combined merged rectangle covering the whole merged space
-        .child(
-            div()
-                .absolute()
-                .left(relative(combined_x))
-                .top(relative(combined_y))
-                .w(relative(combined_w))
-                .h(relative(combined_h))
-                .rounded(px(style.tile_radius))
-                .bg(style.accent.opacity(0.18))
-                .flex()
-                .flex_col()
-                .items_center()
-                .justify_center()
-                .child(unified_badge("Join Panel", style)),
-        )
-        .into_any_element()
-}
-
-/// A full-window overlay highlighting BOTH the source and target panels with a pure text Swap badge.
+/// A full-window overlay highlighting BOTH the source and target panels with themed tint.
 fn swap_preview_overlay(
     source: &LeafRect,
     target: &LeafRect,
+    pointer_pos: Option<Point<Pixels>>,
+    container_size: Size<Pixels>,
     style: &OverlayStyle,
 ) -> AnyElement {
     overlay_container()
@@ -215,7 +344,7 @@ fn swap_preview_overlay(
                 .rounded(px(style.tile_radius))
                 .bg(style.accent.opacity(0.18)),
         )
-        // Target panel highlight with Swap badge
+        // Target panel highlight
         .child(
             div()
                 .absolute()
@@ -224,13 +353,16 @@ fn swap_preview_overlay(
                 .w(relative(target.width))
                 .h(relative(target.height))
                 .rounded(px(style.tile_radius))
-                .bg(style.accent.opacity(0.18))
-                .flex()
-                .flex_col()
-                .items_center()
-                .justify_center()
-                .child(unified_badge("Swap Areas", style)),
+                .bg(style.accent.opacity(0.18)),
         )
+        .child(cursor_action_panel(
+            pointer_pos,
+            container_size,
+            "Swap Areas",
+            None,
+            Some("Release to swap contents"),
+            style,
+        ))
         .into_any_element()
 }
 
@@ -240,9 +372,11 @@ fn dock_preview_overlay(
     target: &LeafRect,
     dock_target: AreaDockTarget,
     ratio: f32,
+    pointer_pos: Option<Point<Pixels>>,
+    container_size: Size<Pixels>,
     style: &OverlayStyle,
 ) -> AnyElement {
-    let (sub_x, sub_y, sub_w, sub_h, line_div) = match dock_target {
+    let (sub_x, sub_y, sub_w, sub_h, line_div, target_label) = match dock_target {
         AreaDockTarget::Left => (
             target.x,
             target.y,
@@ -255,6 +389,7 @@ fn dock_preview_overlay(
                 .w(px(2.5))
                 .h(relative(target.height))
                 .bg(style.accent),
+            "Dock Left",
         ),
         AreaDockTarget::Right => (
             target.x + target.width * (1.0 - ratio),
@@ -268,6 +403,7 @@ fn dock_preview_overlay(
                 .w(px(2.5))
                 .h(relative(target.height))
                 .bg(style.accent),
+            "Dock Right",
         ),
         AreaDockTarget::Top => (
             target.x,
@@ -281,6 +417,7 @@ fn dock_preview_overlay(
                 .h(px(2.5))
                 .w(relative(target.width))
                 .bg(style.accent),
+            "Dock Top",
         ),
         AreaDockTarget::Bottom => (
             target.x,
@@ -294,6 +431,7 @@ fn dock_preview_overlay(
                 .h(px(2.5))
                 .w(relative(target.width))
                 .bg(style.accent),
+            "Dock Bottom",
         ),
         _ => (
             target.x,
@@ -301,8 +439,11 @@ fn dock_preview_overlay(
             target.width,
             target.height,
             div().absolute(),
+            "Dock Area",
         ),
     };
+
+    let ratio_percent = format!("{:.1}%", ratio * 100.0);
 
     overlay_container()
         // Source panel highlight (being moved)
@@ -328,5 +469,13 @@ fn dock_preview_overlay(
                 .bg(style.accent.opacity(0.20)),
         )
         .child(line_div)
+        .child(cursor_action_panel(
+            pointer_pos,
+            container_size,
+            target_label,
+            Some(ratio_percent),
+            Some("Ctrl: 1/12 Snap • Esc: Cancel"),
+            style,
+        ))
         .into_any_element()
 }

@@ -28,6 +28,6 @@ pub use policy::{ClonedContainer, CornerDragResult, apply_corner_drag_session};
 pub use root::SplitterRoot;
 pub use sessions::{
     AreaDockTarget, BorderMenuState, CornerDragModifier, CornerDragSession, calc_snapped_ratio,
-    calculate_dock_target,
+    calculate_dock_target, calculate_join_slice_rect,
 };
 pub use tree::{Direction, LeafRect, NodeId, SplitAxis, SplitTree};
