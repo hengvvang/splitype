@@ -194,7 +194,7 @@ impl EditorSession {
 
     #[inline]
     pub fn active_tab_index(&self) -> usize {
-        self.tab_list.active_tab
+        self.tab_list.active_index()
     }
 
     #[inline]

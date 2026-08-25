@@ -1,13 +1,15 @@
 //! Language packs: built-in catalog, custom pack import, and locale
 //! detection.
 
-use anyhow::{Context as _, bail};
+use anyhow::bail;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::infra::config::jsonc::{object_without_empty_values, prune_empty_json_values};
+use crate::infra::config::jsonc::{
+    merge_non_empty_json_values, object_without_empty_values, prune_empty_json_values,
+};
 
-use super::strings::{I18N_STRING_KEYS, I18nStrings, I18nStringsDe};
+use super::strings::{I18N_STRING_KEYS, I18nStrings};
 
 pub const BUILTIN_LANGUAGE_EN_US_ID: &str = "en-US";
 pub const BUILTIN_LANGUAGE_ZH_CN_ID: &str = "zh-CN";
@@ -110,8 +112,8 @@ pub fn builtin_language_catalog() -> Vec<LanguageCatalogEntry> {
     ]
 }
 
-/// A JSON language pack with metadata and fallback-completed strings.
-#[derive(Debug, Clone, Serialize)]
+/// A JSON language pack with metadata and canonical strings.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct I18nLanguagePack {
     pub id: String,
     pub name: String,
@@ -128,55 +130,48 @@ pub struct I18nLanguagePack {
     pub strings: I18nStrings,
 }
 
-#[derive(Debug, Deserialize)]
-struct I18nLanguagePackDe {
-    id: String,
-    name: Option<String>,
-    author: Option<String>,
-    description: Option<String>,
-    version: Option<String>,
-    homepage: Option<String>,
-    license: Option<String>,
-    #[serde(default)]
-    strings: I18nStringsDe,
-}
-
 impl I18nLanguagePack {
     /// Parses a language pack from JSON text.
     pub fn from_json(json: &str) -> anyhow::Result<Self> {
         let mut value: Value = serde_json::from_str(json)?;
         prune_empty_json_values(&mut value);
-        Self::from_value(value)
-    }
-
-    fn from_value(value: Value) -> anyhow::Result<Self> {
-        let raw: I18nLanguagePackDe = serde_json::from_value(value)?;
-        Ok(Self::from_partial(raw))
-    }
-
-    fn from_partial(raw: I18nLanguagePackDe) -> Self {
-        let fallback = I18nStrings::for_language_id(&raw.id).unwrap_or_else(I18nStrings::en_us);
-        let name = raw
-            .name
-            .unwrap_or_else(|| language_name_for_id(&raw.id).unwrap_or(&raw.id).to_string());
-        Self {
-            id: raw.id,
-            name,
-            author: raw.author,
-            description: raw.description,
-            version: raw.version,
-            homepage: raw.homepage,
-            license: raw.license,
-            strings: raw.strings.into_strings(fallback),
+        let Value::Object(object) = value else {
+            bail!("language config must be a JSON object");
+        };
+        let object = object_without_empty_values(object);
+        let id = required_string(&object, "id")?;
+        let name = object
+            .get("name")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(ToString::to_string)
+            .unwrap_or_else(|| id.clone());
+        let base_strings = I18nStrings::for_language_id(&id).unwrap_or_else(I18nStrings::en_us);
+        let mut merged_strings = serde_json::to_value(base_strings)?;
+        if let Some(strings) = object.get("strings").and_then(Value::as_object) {
+            let mut normalized_strings = Map::new();
+            for key in I18N_STRING_KEYS {
+                if let Some(val) = strings.get(*key) {
+                    normalized_strings.insert((*key).into(), val.clone());
+                }
+            }
+            merge_non_empty_json_values(
+                &mut merged_strings,
+                &Value::Object(normalized_strings),
+            );
         }
-    }
-}
-
-fn language_name_for_id(language_id: &str) -> Option<&'static str> {
-    match language_id {
-        BUILTIN_LANGUAGE_ZH_CN_ID => Some(BUILTIN_LANGUAGE_ZH_CN_NAME),
-        BUILTIN_LANGUAGE_EN_US_ID => Some(BUILTIN_LANGUAGE_EN_US_NAME),
-        _ => None,
+        let mut pack_object = Map::new();
+        pack_object.insert("id".into(), Value::String(id));
+        pack_object.insert("name".into(), Value::String(name));
+        for key in ["author", "description", "version", "homepage", "license"] {
+            if let Some(val) = object.get(key) {
+                pack_object.insert(key.into(), val.clone());
+            }
+        }
+        pack_object.insert("strings".into(), merged_strings);
+        let pack: Self = serde_json::from_value(Value::Object(pack_object))?;
+        Ok(pack)
     }
 }
 
@@ -236,10 +231,10 @@ pub fn custom_language_pack_from_value(
     mut value: Value,
 ) -> anyhow::Result<(I18nLanguagePack, Value)> {
     prune_empty_json_values(&mut value);
-    let Value::Object(object) = value else {
+    let Value::Object(object) = &value else {
         bail!("language config must be a JSON object");
     };
-    let object = object_without_empty_values(object);
+    let object = object_without_empty_values(object.clone());
     let id = required_string(&object, "id")?;
     if is_builtin_language_id(&id) {
         bail!("custom language id '{id}' would override a built-in language");
@@ -252,24 +247,23 @@ pub fn custom_language_pack_from_value(
     normalized_object.insert("id".into(), Value::String(id.clone()));
     normalized_object.insert("name".into(), Value::String(name));
     for key in ["author", "description", "version", "homepage", "license"] {
-        if let Some(value) = object.get(key) {
-            normalized_object.insert(key.into(), value.clone());
+        if let Some(val) = object.get(key) {
+            normalized_object.insert(key.into(), val.clone());
         }
     }
     if let Some(strings) = object.get("strings").and_then(Value::as_object) {
         let mut normalized_strings = Map::new();
         for key in I18N_STRING_KEYS {
-            if let Some(value) = strings.get(*key) {
-                normalized_strings.insert((*key).into(), value.clone());
+            if let Some(val) = strings.get(*key) {
+                normalized_strings.insert((*key).into(), val.clone());
             }
         }
         if !normalized_strings.is_empty() {
             normalized_object.insert("strings".into(), Value::Object(normalized_strings));
         }
     }
+    let pack = I18nLanguagePack::from_json(&serde_json::to_string(&value)?)?;
     let normalized = Value::Object(normalized_object);
-    let pack = I18nLanguagePack::from_value(normalized.clone())
-        .with_context(|| format!("failed to parse language config '{id}'"))?;
     Ok((pack, normalized))
 }
 

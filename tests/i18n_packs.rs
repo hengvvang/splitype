@@ -47,22 +47,37 @@ fn chinese_pack_is_translated() {
     assert!(strings.unsaved_changes_message.contains("保存"));
 }
 
-/// Partial JSON deserialization fills missing keys from English defaults.
+/// Canonical I18nStrings round-trips with serde_json.
 #[test]
-fn partial_json_pack_falls_back_to_english() {
-    let json = r#"{"dirty_title_marker": "*"}"#;
-    let strings: I18nStrings = serde_json::from_str(json).expect("parse partial pack");
-    assert_eq!(strings.dirty_title_marker, "*");
+fn canonical_json_roundtrips() {
+    let english = I18nStrings::en_us();
+    let json = serde_json::to_string(&english).expect("serialize");
+    let restored: I18nStrings = serde_json::from_str(&json).expect("deserialize");
+    assert_eq!(key_set(&english), key_set(&restored));
+}
+
+/// Partial language pack JSON via I18nLanguagePack fills missing keys from base defaults.
+#[test]
+fn partial_language_pack_falls_back_to_base_defaults() {
+    let json = r#"{
+        "id": "custom-test",
+        "name": "Custom",
+        "strings": {
+            "dirty_title_marker": "*"
+        }
+    }"#;
+    let pack =
+        splitype::infra::i18n::packs::I18nLanguagePack::from_json(json).expect("parse partial pack");
+    assert_eq!(pack.strings.dirty_title_marker, "*");
     assert_eq!(
-        strings.unsaved_changes_title,
+        pack.strings.unsaved_changes_title,
         I18nStrings::en_us().unsaved_changes_title
     );
 }
 
-/// An empty JSON pack is equivalent to English.
+/// Incomplete raw I18nStrings is rejected by canonical deserializer.
 #[test]
-fn empty_json_pack_is_english() {
-    let strings: I18nStrings = serde_json::from_str("{}").expect("parse empty pack");
-    let english = I18nStrings::en_us();
-    assert_eq!(key_set(&strings), key_set(&english));
+fn incomplete_raw_strings_rejected_by_canonical_deserializer() {
+    let result: Result<I18nStrings, _> = serde_json::from_str("{}");
+    assert!(result.is_err());
 }

@@ -708,47 +708,50 @@ mod tests {
     use gpui::rgba;
 
     #[test]
-    fn border_h2_falls_back_when_omitted() {
-        let default_json = Theme::default_theme()
-            .to_json()
-            .expect("default theme should serialize");
-        let parsed: serde_json::Value =
-            serde_json::from_str(&default_json).expect("default theme json should parse");
-        let mut object = parsed
-            .as_object()
-            .expect("theme should serialize to a json object")
-            .clone();
-        object
-            .get_mut("colors")
-            .and_then(|colors| colors.as_object_mut())
-            .expect("theme should include colors")
-            .remove("border_h2");
-        let json = serde_json::to_string(&object).expect("theme json should serialize");
+    fn theme_canonical_json_roundtrip() {
+        let dark = Theme::default_theme();
+        let dark_json = dark.to_json().expect("default theme should serialize");
+        let restored_dark = Theme::from_json(&dark_json).expect("canonical theme should deserialize");
+        assert_eq!(dark.name, restored_dark.name);
+        assert_eq!(dark.colors.editor_background, restored_dark.colors.editor_background);
+        assert_eq!(dark.dimensions.block_gap, restored_dark.dimensions.block_gap);
+        assert_eq!(dark.typography.text_size, restored_dark.typography.text_size);
 
-        let theme = Theme::from_json(&json).expect("theme without border_h2 should deserialize");
-        assert_eq!(theme.colors.border_h2, rgba(0xe0e0e0cc).into());
+        let light = Theme::light_theme();
+        let light_json = light.to_json().expect("light theme should serialize");
+        let restored_light = Theme::from_json(&light_json).expect("canonical theme should deserialize");
+        assert_eq!(light.name, restored_light.name);
+        assert_eq!(light.colors.editor_background, restored_light.colors.editor_background);
     }
 
     #[test]
-    fn comment_background_falls_back_when_omitted() {
-        let default_json = Theme::default_theme()
-            .to_json()
-            .expect("default theme should serialize");
-        let parsed: serde_json::Value =
-            serde_json::from_str(&default_json).expect("default theme json should parse");
-        let mut object = parsed
-            .as_object()
-            .expect("theme should serialize to a json object")
-            .clone();
-        object
-            .get_mut("colors")
-            .and_then(|colors| colors.as_object_mut())
-            .expect("theme should include colors")
-            .remove("comment_bg");
-        let json = serde_json::to_string(&object).expect("theme json should serialize");
+    fn custom_theme_omitted_tokens_inherit_from_base_theme() {
+        let value = serde_json::json!({
+            "name": "Custom Palette",
+            "creator": "Tester",
+            "base_theme_id": "splitype",
+            "theme": {
+                "colors": {
+                    "editor_background": "#123456"
+                },
+                "dimensions": {
+                    "block_gap": 14.0
+                }
+            }
+        });
 
-        let theme = Theme::from_json(&json).expect("theme without comment_bg should deserialize");
-        assert_eq!(theme.colors.comment_bg, rgba(0xfbbf2426).into());
+        let (entry, _) = super::custom_theme_from_value(value).expect("custom theme should construct");
+        assert_eq!(entry.theme.colors.editor_background, rgba(0x123456ff).into());
+        assert_eq!(entry.theme.dimensions.block_gap, 14.0);
+        // Omitted tokens cleanly inherit from the canonical base theme
+        assert_eq!(entry.theme.colors.text_default, Theme::default_theme().colors.text_default);
+        assert_eq!(entry.theme.dimensions.editor_padding, Theme::default_theme().dimensions.editor_padding);
+    }
+
+    #[test]
+    fn raw_incomplete_json_is_rejected_by_canonical_theme_from_json() {
+        let invalid_json = r#"{"name": "Incomplete", "colors": {}}"#;
+        assert!(Theme::from_json(invalid_json).is_err());
     }
 
     #[test]
@@ -774,108 +777,6 @@ mod tests {
             .expect("theme should include dimensions");
         assert!(!dimensions.contains_key(&format!("dialog_{}", "badge_padding_x")));
         assert!(!dimensions.contains_key(&format!("dialog_{}", "badge_padding_y")));
-    }
-
-    #[test]
-    fn callout_dimensions_fall_back_when_omitted() {
-        let default_json = Theme::default_theme()
-            .to_json()
-            .expect("default theme should serialize");
-        let parsed: serde_json::Value =
-            serde_json::from_str(&default_json).expect("default theme json should parse");
-        let mut object = parsed
-            .as_object()
-            .expect("theme should serialize to a json object")
-            .clone();
-        let dimensions = object
-            .get_mut("dimensions")
-            .and_then(|dimensions| dimensions.as_object_mut())
-            .expect("theme should include dimensions");
-        dimensions.remove("callout_padding_x");
-        dimensions.remove("callout_padding_y");
-        dimensions.remove("callout_body_gap");
-        dimensions.remove("callout_radius");
-        dimensions.remove("callout_border_width");
-        dimensions.remove("callout_header_gap");
-        dimensions.remove("callout_header_margin_bottom");
-        let json = serde_json::to_string(&object).expect("theme json should serialize");
-
-        let theme = Theme::from_json(&json).expect("theme without callout dimensions should load");
-        assert_eq!(theme.dimensions.callout_padding_x, 8.0);
-        assert_eq!(theme.dimensions.callout_padding_y, 10.0);
-        assert_eq!(theme.dimensions.callout_body_gap, 8.0);
-        assert_eq!(theme.dimensions.callout_radius, 4.0);
-        assert_eq!(theme.dimensions.callout_border_width, 4.0);
-        assert_eq!(theme.dimensions.callout_header_gap, 6.0);
-        assert_eq!(theme.dimensions.callout_header_margin_bottom, 6.0);
-    }
-
-    #[test]
-    fn footnote_tokens_fall_back_when_omitted() {
-        let default_json = Theme::default_theme()
-            .to_json()
-            .expect("default theme should serialize");
-        let parsed: serde_json::Value =
-            serde_json::from_str(&default_json).expect("default theme json should parse");
-        let mut object = parsed
-            .as_object()
-            .expect("theme should serialize to a json object")
-            .clone();
-
-        let colors = object
-            .get_mut("colors")
-            .and_then(|colors| colors.as_object_mut())
-            .expect("theme should include colors");
-        colors.remove("footnote_border");
-        colors.remove("footnote_backref");
-
-        let json = serde_json::to_string(&object).expect("theme json should serialize");
-        let theme = Theme::from_json(&json).expect("theme without footnote tokens should load");
-
-        assert_eq!(theme.colors.footnote_border, rgba(0x71717a52).into());
-        assert_eq!(theme.colors.footnote_backref, rgba(0x67a4e8ff).into());
-    }
-
-    #[test]
-    fn code_language_palette_tokens_fall_back_when_omitted() {
-        let default_json = Theme::default_theme()
-            .to_json()
-            .expect("default theme should serialize");
-        let parsed: serde_json::Value =
-            serde_json::from_str(&default_json).expect("default theme json should parse");
-        let mut object = parsed
-            .as_object()
-            .expect("theme should serialize to a json object")
-            .clone();
-
-        let colors = object
-            .get_mut("colors")
-            .and_then(|colors| colors.as_object_mut())
-            .expect("theme should include colors");
-        colors.remove("code_bg");
-        colors.remove("code_language_input_bg");
-        colors.remove("code_language_input_border");
-        colors.remove("code_language_input_text");
-        colors.remove("code_language_input_placeholder");
-
-        let json = serde_json::to_string(&object).expect("theme json should serialize");
-        let theme =
-            Theme::from_json(&json).expect("theme without code language palette should load");
-
-        assert_eq!(theme.colors.code_bg, rgba(0x111827ff).into());
-        assert_eq!(theme.colors.code_language_input_bg, rgba(0x343941ff).into());
-        assert_eq!(
-            theme.colors.code_language_input_border,
-            rgba(0x4b5563cc).into()
-        );
-        assert_eq!(
-            theme.colors.code_language_input_text,
-            rgba(0xe5e7ebff).into()
-        );
-        assert_eq!(
-            theme.colors.code_language_input_placeholder,
-            rgba(0x9ca3afcc).into()
-        );
     }
 
     #[test]
@@ -917,35 +818,7 @@ mod tests {
         assert_eq!(light.typography.text_size, dark.typography.text_size);
     }
 
-    #[test]
-    fn menu_dimension_tokens_fall_back_when_omitted() {
-        let default_json = Theme::default_theme()
-            .to_json()
-            .expect("default theme should serialize");
-        let parsed: serde_json::Value =
-            serde_json::from_str(&default_json).expect("default theme json should parse");
-        let mut object = parsed
-            .as_object()
-            .expect("theme should serialize to a json object")
-            .clone();
 
-        let dimensions = object
-            .get_mut("dimensions")
-            .and_then(|dimensions| dimensions.as_object_mut())
-            .expect("theme should include dimensions");
-        dimensions.remove("menu_bar_height");
-        dimensions.remove("menu_item_height");
-        dimensions.remove("context_menu_panel_width");
-        dimensions.remove("table_insert_dialog_width");
-
-        let json = serde_json::to_string(&object).expect("theme json should serialize");
-        let theme = Theme::from_json(&json).expect("theme without menu tokens should load");
-
-        assert_eq!(theme.dimensions.menu_bar_height, 32.0);
-        assert_eq!(theme.dimensions.menu_item_height, 28.0);
-        assert_eq!(theme.dimensions.context_menu_panel_width, 132.0);
-        assert_eq!(theme.dimensions.table_insert_dialog_width, 380.0);
-    }
 
     #[test]
     fn custom_theme_pack_can_inherit_light_base() {
