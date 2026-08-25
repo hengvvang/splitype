@@ -97,10 +97,6 @@ async fn footnote_reference_jump_and_backref_follow_in_place_definition(cx: &mut
         );
         assert_eq!(definition.read(cx).selected_range, 0..0);
 
-        let expected_backref_range = paragraph
-            .read(cx)
-            .display_range_for_footnote_occurrence(0)
-            .expect("resolved footnote occurrence");
         editor.on_block_event(
             definition.clone(),
             &BlockEvent::RequestJumpToFootnoteBackref {
@@ -112,6 +108,10 @@ async fn footnote_reference_jump_and_backref_follow_in_place_definition(cx: &mut
             editor.active_pane_focus().pending,
             Some(paragraph.entity_id())
         );
+        let expected_backref_range = paragraph
+            .read(cx)
+            .display_range_for_footnote_occurrence(0)
+            .expect("resolved footnote occurrence");
         assert_eq!(paragraph.read(cx).selected_range, expected_backref_range);
     });
 }

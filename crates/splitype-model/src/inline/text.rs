@@ -284,7 +284,7 @@ impl BlockText {
     pub fn has_mixed_inline_visuals(&self) -> bool {
         self.fragments
             .iter()
-            .any(|fragment| fragment.math().is_some() || fragment.style.has_script())
+            .any(|fragment| fragment.math().is_some() || fragment.footnote().is_some() || fragment.style.has_script())
     }
 
     pub fn has_footnote_references(&self) -> bool {

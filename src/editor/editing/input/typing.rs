@@ -21,20 +21,63 @@ impl Editor {
     }
 
     pub(crate) fn jump_to_footnote_backref(&mut self, id: &str, cx: &mut Context<Self>) -> bool {
-        let Some(binding) = self.tab().references.footnotes.binding(id) else {
-            return false;
-        };
-        let Some(first_reference) = binding.first_reference.as_ref() else {
+        let Some(first_reference) = self
+            .tab()
+            .references
+            .footnotes
+            .binding(id)
+            .and_then(|binding| binding.first_reference.clone())
+        else {
             return false;
         };
         let Some(block) = self.focusable_entity_by_id(first_reference.entity_id) else {
             return false;
         };
-        let range = block
-            .read(cx)
-            .display_range_for_footnote_occurrence(first_reference.occurrence_index)
-            .unwrap_or(0..0);
-        self.focus_block_range(&block, range, cx);
+        self.focus_block(block.entity_id());
+        block.update(cx, |block, cx| {
+            let plain_selected = block
+                .data
+                .text
+                .fragments
+                .iter()
+                .take_while(|f| {
+                    !f.footnote()
+                        .is_some_and(|fn_ref| fn_ref.occurrence_index == first_reference.occurrence_index)
+                })
+                .map(|f| f.text.len())
+                .sum::<usize>();
+            let footnote_len = block
+                .data
+                .text
+                .fragments
+                .iter()
+                .find(|f| {
+                    f.footnote()
+                        .is_some_and(|fn_ref| fn_ref.occurrence_index == first_reference.occurrence_index)
+                })
+                .map(|f| f.text.len())
+                .unwrap_or(0);
+            let plain_range = plain_selected..plain_selected + footnote_len;
+
+            block.selected_range = plain_range.clone();
+            block.sync_inline_projection_for_focus(true);
+            let range = block
+                .display_range_for_footnote_occurrence(first_reference.occurrence_index)
+                .unwrap_or(0..0);
+            block.selected_range = range;
+            block.selection_reversed = false;
+            block.marked_range = None;
+            block.vertical_motion_x = None;
+            block.cursor_blink_epoch = std::time::Instant::now();
+            let supports_projection = block.edit_mode.supports_inline_projection();
+            let kind_key = match block.kind() {
+                crate::model::parse::BlockKind::Heading { level } => Some(level),
+                crate::model::parse::BlockKind::Callout(variant) => Some(10 + variant as u8),
+                _ => None,
+            };
+            block.projection_cache_key = Some((supports_projection, kind_key, plain_range, None));
+            cx.notify();
+        });
         true
     }
 

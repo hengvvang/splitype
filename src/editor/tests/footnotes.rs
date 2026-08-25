@@ -246,3 +246,79 @@ async fn footnote_tooltip_anchors_to_reference_and_renders_compact_element(cx: &
     });
 }
 
+#[gpui::test]
+async fn footnote_backref_jump_reveals_source_and_selects_only_id(cx: &mut TestAppContext) {
+    super::init_editor_test_app(cx);
+
+    let markdown = "这是一段带有脚注的文本[^note1], 还有第二个脚注[^note2]。\n\n[^note1]: 这是第一个脚注的详细说明内容。".to_string();
+    let (editor, cx) = cx.add_window_view({
+        move |_window, cx| Editor::from_markdown(cx, markdown.clone(), None)
+    });
+
+    editor.update(cx, |editor, cx| {
+        let jumped = editor.jump_to_footnote_backref("note1", cx);
+        assert!(jumped, "should successfully jump to footnote backref");
+
+        let active_id = editor
+            .active_pane_focus()
+            .active_entity
+            .or(editor.active_pane_focus().pending)
+            .expect("focused block id");
+        let active_block = editor
+            .focusable_entity_by_id(active_id)
+            .expect("focused block");
+        active_block.read_with(cx, |block, _cx| {
+            let display_text = block.display_text();
+            assert_eq!(
+                display_text,
+                "这是一段带有脚注的文本[^note1], 还有第二个脚注[^note2]。"
+            );
+            assert_eq!(
+                &display_text[block.selected_range.clone()],
+                "note1",
+                "selection should only select footnote name 'note1', not [^ or ]"
+            );
+        });
+    });
+}
+
+#[gpui::test]
+async fn footnote_backref_jump_first_click_with_render_sync_keeps_exact_id_selection(
+    cx: &mut TestAppContext,
+) {
+    super::init_editor_test_app(cx);
+
+    let markdown = "这是一段带有脚注的文本[^note1], 还有第二个脚注[^note2]。\n\n[^note1]: 这是第一个脚注的详细说明内容。".to_string();
+    let (editor, cx) = cx.add_window_view({
+        move |_window, cx| Editor::from_markdown(cx, markdown.clone(), None)
+    });
+
+    editor.update(cx, |editor, cx| {
+        let jumped = editor.jump_to_footnote_backref("note1", cx);
+        assert!(jumped, "should successfully jump to footnote backref on first click");
+
+        let active_id = editor
+            .active_pane_focus()
+            .active_entity
+            .or(editor.active_pane_focus().pending)
+            .expect("focused block id");
+        let active_block = editor
+            .focusable_entity_by_id(active_id)
+            .expect("focused block");
+
+        active_block.update(cx, |block, _cx| {
+            block.sync_inline_projection_for_focus(true);
+            let display_text = block.display_text();
+            assert_eq!(
+                display_text,
+                "这是一段带有脚注的文本[^note1], 还有第二个脚注[^note2]。"
+            );
+            assert_eq!(
+                &display_text[block.selected_range.clone()],
+                "note1",
+                "first click must select only note1 and NEVER include ]"
+            );
+        });
+    });
+}
+

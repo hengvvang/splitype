@@ -100,10 +100,6 @@ mod tests {
             );
             assert_eq!(definition.read(cx).selected_range, 0..0);
 
-            let expected_backref_range = paragraph
-                .read(cx)
-                .display_range_for_footnote_occurrence(0)
-                .expect("resolved footnote occurrence");
             editor.on_block_event(
                 definition.clone(),
                 &BlockEvent::RequestJumpToFootnoteBackref {
@@ -115,6 +111,10 @@ mod tests {
                 editor.active_pane_focus().pending,
                 Some(paragraph.entity_id())
             );
+            let expected_backref_range = paragraph
+                .read(cx)
+                .display_range_for_footnote_occurrence(0)
+                .expect("resolved footnote occurrence");
             assert_eq!(paragraph.read(cx).selected_range, expected_backref_range);
         });
     }

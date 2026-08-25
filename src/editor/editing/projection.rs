@@ -210,113 +210,92 @@ impl ExpandedInlineProjection {
 
             if let Some(footnote) = fragment.footnote() {
                 let plain_range = plain_cursor..plain_cursor + fragment_len;
-                let expand_footnote = true;
                 let span_display_start = display_cursor;
-                if expand_footnote {
-                    any_expanded = true;
-                    let open_marker = "[^".to_string();
-                    let open_len = open_marker.len();
-                    projected_fragments.push(InlineFragment::new(
-                        open_marker,
-                        InlineAttributes {
-                            style: fragment.style,
-                            ..Default::default()
-                        },
-                    ));
-                    segments.push(ExpandedInlineSegment {
-                        display_range: display_cursor..display_cursor + open_len,
-                        plain_range: plain_range.start..plain_range.start,
-                        fragment_index,
-                        link_group: None,
-                        kind: ExpandedInlineSegmentKind::OpeningDelimiter(ExpandedInlineKind::Link),
-                    });
-                    for _ in 0..open_len {
-                        display_to_plain.push(plain_range.start);
-                    }
-                    display_cursor += open_len;
-
-                    let id_text = footnote.id.clone();
-                    let id_len = id_text.len();
-                    projected_fragments.push(InlineFragment::new(
-                        id_text,
-                        InlineAttributes {
-                            style: fragment.style,
-                            html_style: fragment.html_style(),
-                            footnote: Some(footnote.clone()),
-                            ..Default::default()
-                        },
-                    ));
-                    segments.push(ExpandedInlineSegment {
-                        display_range: display_cursor..display_cursor + id_len,
-                        plain_range: plain_range.clone(),
-                        fragment_index,
-                        link_group: None,
-                        kind: ExpandedInlineSegmentKind::FootnoteIdText,
-                    });
-                    for offset in 0..=fragment_len {
-                        let mapped = if fragment_len == 0 {
-                            0
-                        } else {
-                            (id_len * offset) / fragment_len
-                        };
-                        plain_to_display_cursor[plain_range.start + offset] =
-                            display_cursor + mapped;
-                    }
-                    for offset in 1..=id_len {
-                        let mapped = if id_len == 0 {
-                            0
-                        } else {
-                            (fragment_len * offset) / id_len
-                        };
-                        display_to_plain.push(plain_range.start + mapped);
-                    }
-                    display_cursor += id_len;
-                    let close_marker = "]".to_string();
-                    let close_len = close_marker.len();
-                    projected_fragments.push(InlineFragment::new(
-                        close_marker,
-                        InlineAttributes {
-                            style: fragment.style,
-                            ..Default::default()
-                        },
-                    ));
-                    segments.push(ExpandedInlineSegment {
-                        display_range: display_cursor..display_cursor + close_len,
-                        plain_range: plain_range.end..plain_range.end,
-                        fragment_index,
-                        link_group: None,
-                        kind: ExpandedInlineSegmentKind::ClosingDelimiter(ExpandedInlineKind::Link),
-                    });
-                    for _ in 0..close_len {
-                        display_to_plain.push(plain_range.end);
-                    }
-                    display_cursor += close_len;
-
-                    footnote_spans.push(ExpandedFootnoteSpan {
-                        footnote: footnote.clone(),
-                        plain_range: plain_range.clone(),
-                        display_range: span_display_start..display_cursor,
-                    });
-                } else {
-                    projected_fragments.push(fragment.clone());
-                    segments.push(ExpandedInlineSegment {
-                        display_range: display_cursor..display_cursor + fragment_len,
-                        plain_range: plain_range.clone(),
-                        fragment_index,
-                        link_group: None,
-                        kind: ExpandedInlineSegmentKind::PlainText,
-                    });
-                    for offset in 0..=fragment_len {
-                        plain_to_display_cursor[plain_range.start + offset] =
-                            display_cursor + offset;
-                    }
-                    for offset in 1..=fragment_len {
-                        display_to_plain.push(plain_range.start + offset);
-                    }
-                    display_cursor += fragment_len;
+                any_expanded = true;
+                let open_marker = "[^".to_string();
+                let open_len = open_marker.len();
+                projected_fragments.push(InlineFragment::new(
+                    open_marker,
+                    InlineAttributes {
+                        style: fragment.style,
+                        ..Default::default()
+                    },
+                ));
+                segments.push(ExpandedInlineSegment {
+                    display_range: display_cursor..display_cursor + open_len,
+                    plain_range: plain_range.start..plain_range.start,
+                    fragment_index,
+                    link_group: None,
+                    kind: ExpandedInlineSegmentKind::OpeningDelimiter(ExpandedInlineKind::Link),
+                });
+                for _ in 0..open_len {
+                    display_to_plain.push(plain_range.start);
                 }
+                display_cursor += open_len;
 
-                plain_cursor = plain_range.end;
+                let id_text = footnote.id.clone();
+                let id_len = id_text.len();
+                projected_fragments.push(InlineFragment::new(
+                    id_text,
+                    InlineAttributes {
+                        style: fragment.style,
+                        html_style: fragment.html_style(),
+                        footnote: Some(footnote.clone()),
+                        ..Default::default()
+                    },
+                ));
+                segments.push(ExpandedInlineSegment {
+                    display_range: display_cursor..display_cursor + id_len,
+                    plain_range: plain_range.clone(),
+                    fragment_index,
+                    link_group: None,
+                    kind: ExpandedInlineSegmentKind::FootnoteIdText,
+                });
+                for offset in 0..=fragment_len {
+                    let mapped = if fragment_len == 0 {
+                        0
+                    } else {
+                        (id_len * offset) / fragment_len
+                    };
+                    plain_to_display_cursor[plain_range.start + offset] =
+                        display_cursor + mapped;
+                }
+                for offset in 1..=id_len {
+                    let mapped = if id_len == 0 {
+                        0
+                    } else {
+                        (fragment_len * offset) / id_len
+                    };
+                    display_to_plain.push(plain_range.start + mapped);
+                }
+                display_cursor += id_len;
+                let close_marker = "]".to_string();
+                let close_len = close_marker.len();
+                projected_fragments.push(InlineFragment::new(
+                    close_marker,
+                    InlineAttributes {
+                        style: fragment.style,
+                        ..Default::default()
+                    },
+                ));
+                segments.push(ExpandedInlineSegment {
+                    display_range: display_cursor..display_cursor + close_len,
+                    plain_range: plain_range.end..plain_range.end,
+                    fragment_index,
+                    link_group: None,
+                    kind: ExpandedInlineSegmentKind::ClosingDelimiter(ExpandedInlineKind::Link),
+                });
+                for _ in 0..close_len {
+                    display_to_plain.push(plain_range.end);
+                }
+                display_cursor += close_len;
+
+                footnote_spans.push(ExpandedFootnoteSpan {
+                    footnote: footnote.clone(),
+                    plain_range: plain_range.clone(),
+                    display_range: span_display_start..display_cursor,
+                });
+                plain_cursor += fragment_len;
                 fragment_index += 1;
                 continue;
             }
@@ -665,10 +644,19 @@ impl ExpandedInlineProjection {
         affinity: CollapsedCaretAffinity,
     ) -> Option<usize> {
         match affinity {
-            CollapsedCaretAffinity::Default => self
-                .plain_to_display_cursor
-                .get(plain.min(self.plain_to_display_cursor.len().saturating_sub(1)))
-                .copied(),
+            CollapsedCaretAffinity::Default => {
+                for span in &self.footnote_spans {
+                    if span.plain_range.end == plain {
+                        return Some(span.display_range.end.saturating_sub(1));
+                    }
+                    if span.plain_range.start == plain {
+                        return Some(span.display_range.start + 2);
+                    }
+                }
+                self.plain_to_display_cursor
+                    .get(plain.min(self.plain_to_display_cursor.len().saturating_sub(1)))
+                    .copied()
+            }
             CollapsedCaretAffinity::OuterStart => self
                 .segments
                 .iter()

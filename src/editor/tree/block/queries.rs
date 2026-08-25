@@ -88,6 +88,17 @@ impl Block {
         &self,
         occurrence_index: usize,
     ) -> Option<Range<usize>> {
+        if let Some(projection) = self.projection.as_ref() {
+            for span in &projection.footnote_spans {
+                if span.footnote.occurrence_index == occurrence_index {
+                    let start = span.display_range.start + 2; // skip "[^"
+                    let end = span.display_range.end.saturating_sub(1); // skip "]"
+                    if start <= end {
+                        return Some(start..end);
+                    }
+                }
+            }
+        }
         let mut plain_offset = 0usize;
         for fragment in &self.data.text.fragments {
             let len = fragment.text.len();

@@ -230,7 +230,13 @@ impl Block {
             font_size
         };
         let script_offset = match span.style.script {
-            InlineScript::Normal => 0.0,
+            InlineScript::Normal => {
+                if span.footnote.is_some() {
+                    -font_size * 0.20
+                } else {
+                    0.0
+                }
+            }
             InlineScript::Superscript => -font_size * 0.20,
             InlineScript::Subscript => font_size * 0.16,
         };
@@ -268,6 +274,40 @@ impl Block {
                 .rounded(px(theme.dimensions.code_bg_radius))
                 .px(px(2.0))
                 .bg(html_css_color_to_hsla(background, color));
+        }
+
+        // Footnote references in mixed inline visuals show the definition tooltip
+        // on hover and jump to the definition on click.
+        if let Some(footnote) = span.footnote.clone() {
+            let footnote_id = footnote.id.clone();
+            let element = element
+                .id(("footnote-ref", span.range.start))
+                .cursor(CursorStyle::PointingHand)
+                .on_hover(cx.listener(move |_block, hovered: &bool, window, cx| {
+                    let anchor_pos = window.mouse_position();
+                    cx.emit(crate::editor::block_protocol::BlockEvent::RequestFootnoteTooltip {
+                        id: footnote_id.clone(),
+                        content: None,
+                        position: anchor_pos,
+                        show: *hovered,
+                    });
+                }))
+                .on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(move |_block, _event: &MouseDownEvent, _window, cx| {
+                        cx.stop_propagation();
+                    }),
+                )
+                .on_mouse_up(
+                    MouseButton::Left,
+                    cx.listener(move |_block, _event: &MouseUpEvent, _window, cx| {
+                        cx.stop_propagation();
+                        cx.emit(crate::editor::block_protocol::BlockEvent::RequestJumpToFootnoteDefinition {
+                            id: footnote.id.clone(),
+                        });
+                    }),
+                );
+            return element.into_any_element();
         }
 
         // This run renders as plain (non-interactive) text, so a link inside a

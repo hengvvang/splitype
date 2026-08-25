@@ -10,7 +10,7 @@ use super::serialize::{
     Delimiter, apply_delimiter_style, backtick_run_len, can_close_emphasis, emphasis_requires_body,
     has_closing_delimiter, match_open_delimiter,
 };
-use super::style::InlineStyle;
+use super::style::{InlineScript, InlineStyle};
 use super::text::{BlockText, InlineAttributes, InlineFragment};
 use crate::block::html::{
     HtmlAttr, HtmlNode, HtmlNodeKind, has_dangerous_attrs, is_inline_tag, parse_html_attrs,
@@ -532,12 +532,15 @@ pub(crate) fn parse_footnote_reference(
     let raw_markdown = tokens_to_string(&tokens[index..=end_index]);
     let id = parse_inline_footnote_reference(&raw_markdown)?;
     let fragments = vec![InlineFragment::new(
-        raw_markdown.clone(),
+        id.clone(),
         InlineAttributes {
-            style: extra_style,
+            style: InlineStyle {
+                script: InlineScript::Superscript,
+                ..extra_style
+            },
             html_style: extra_html_style,
             footnote: Some(InlineFootnoteReference {
-                id,
+                id: id.clone(),
                 occurrence_index: 0,
             }),
             ..Default::default()
@@ -545,13 +548,19 @@ pub(crate) fn parse_footnote_reference(
     )];
 
     let normalized_start = builder.normalized_len;
-    let plain_len = raw_markdown.len();
+    let plain_len = id.len();
     let normalized_end = normalized_start + plain_len;
     for token in &tokens[index..=end_index] {
         let token_len = token.source_range.len();
         for delta in 0..=token_len {
-            builder.visible_to_normalized[token.source_range.start + delta] = normalized_start
-                + (token.source_range.start + delta - tokens[index].source_range.start);
+            let offset = token.source_range.start + delta - tokens[index].source_range.start;
+            let mapped = if raw_markdown.is_empty() {
+                0
+            } else {
+                (plain_len * offset) / raw_markdown.len()
+            };
+            builder.visible_to_normalized[token.source_range.start + delta] =
+                normalized_start + mapped.min(plain_len);
         }
     }
 

@@ -839,6 +839,61 @@ mod tests {
     }
 
     #[gpui::test]
+    async fn inline_latex_delimiters_render_in_marker_color(cx: &mut TestAppContext) {
+        let block = cx.new(|cx| {
+            Block::with_data(
+                cx,
+                BlockData::new(
+                    BlockKind::Paragraph,
+                    BlockText::from_markdown("公式 $x^2+y^2$ 和 \\(a+b\\) 结束"),
+                ),
+            )
+        });
+
+        block.read_with(cx, |block, _cx| {
+            let display_text: SharedString = block.display_text().to_string().into();
+            let base_run = TextRun {
+                len: display_text.len(),
+                font: font(".SystemUIFont"),
+                color: Hsla::from(rgba(0xffffffff)),
+                background_color: None,
+                underline: None,
+                strikethrough: None,
+            };
+            let marker_color = Hsla::from(rgba(0xa855f7ff)); // purple
+            let footnote_color = Hsla::from(rgba(0x9aa5ceff));
+            let runs = super::build_text_runs(
+                block,
+                &display_text,
+                &base_run,
+                px(1.0),
+                Hsla::from(rgba(0x0066ccff)),
+                marker_color,
+                footnote_color,
+            );
+
+            let mut offset = 0usize;
+            let mut saw_dollar = 0usize;
+            let mut saw_paren = 0usize;
+            for run in runs {
+                let segment = &display_text[offset..offset + run.len];
+                if segment == "$" {
+                    assert_eq!(run.color, marker_color, "dollar delimiter should be purple");
+                    saw_dollar += 1;
+                } else if segment == "\\(" || segment == "\\)" {
+                    assert_eq!(run.color, marker_color, "paren delimiter should be purple");
+                    saw_paren += 1;
+                } else if segment == "x^2+y^2" || segment == "a+b" {
+                    assert_eq!(run.color, base_run.color, "math body should be base color");
+                }
+                offset += run.len;
+            }
+            assert_eq!(saw_dollar, 2, "both dollar delimiters should be colored");
+            assert_eq!(saw_paren, 2, "both paren delimiters should be colored");
+        });
+    }
+
+    #[gpui::test]
     async fn soft_wrapped_range_segments_stay_within_wrap_width(cx: &mut TestAppContext) {
         let cx = cx.add_empty_window();
         let text = "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz";

@@ -30,6 +30,16 @@ pub fn build_text_runs(
     for span in spans {
         boundaries.push(span.range.start);
         boundaries.push(span.range.end);
+        if let Some(math) = span.math.as_ref() {
+            let delim_len = match math.delimiter {
+                crate::model::inline::latex::InlineLatexDelimiter::Dollar => 1,
+                crate::model::inline::latex::InlineLatexDelimiter::Paren => 2,
+            };
+            if span.range.len() >= delim_len * 2 {
+                boundaries.push(span.range.start + delim_len);
+                boundaries.push(span.range.end - delim_len);
+            }
+        }
     }
     for range in &delimiter_ranges {
         boundaries.push(range.start);
@@ -108,8 +118,20 @@ pub fn build_text_runs(
                     || (start >= close.start && end <= close.end)
             })
             .unwrap_or(false);
+        let is_math_delim = if let Some(math) = active_span.and_then(|s| s.math.as_ref()) {
+            let delim_len = match math.delimiter {
+                crate::model::inline::latex::InlineLatexDelimiter::Dollar => 1,
+                crate::model::inline::latex::InlineLatexDelimiter::Paren => 2,
+            };
+            let span_range = &active_span.unwrap().range;
+            (start >= span_range.start && end <= span_range.start + delim_len)
+                || (start >= span_range.end - delim_len && end <= span_range.end)
+        } else {
+            false
+        };
         let is_focused = input.projection.is_some();
         let is_delimiter = is_callout_delim
+            || is_math_delim
             || delimiter_ranges
                 .iter()
                 .any(|range| range.start <= start && end <= range.end);
