@@ -1,9 +1,13 @@
-﻿//! Classification helpers for rendered-mode external paste.
+//! Classification helpers for rendered-mode external paste.
 //!
 //! File import keeps CommonMark paragraph semantics, but paste should match
 //! the user's visual expectation more closely. Plain physical lines become
 //! separate blocks, while structural Markdown and block/risky HTML are left to
 //! the document block builder.
+
+pub mod drop;
+pub mod image;
+pub mod quote;
 
 use gpui::Context;
 use gpui::Entity;

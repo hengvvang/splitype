@@ -1,9 +1,19 @@
-﻿//! Block event router and dispatcher — coordinates mutations and undo tracking.
+//! Block event router and dispatcher — coordinates mutations and undo tracking.
 
+pub(crate) mod clipboard;
+pub(crate) mod code_language;
+pub(crate) mod inline_style;
 pub(crate) mod interactions;
+pub(crate) mod mouse;
+pub(crate) mod navigation;
 pub(crate) mod structure_ops;
 pub(crate) mod table_events;
+pub(crate) mod table_grow;
+pub(crate) mod text_edit;
 pub(crate) mod text_edits;
+
+#[cfg(test)]
+mod tests;
 
 use gpui::*;
 

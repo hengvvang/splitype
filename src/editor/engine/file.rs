@@ -1,4 +1,4 @@
-//! File dialogs and document save/replace flows.
+﻿//! File dialogs and document save/replace flows.
 //!
 //! The save-as prompt, save-to-path retries, and the drop-file replace
 //! dialogs orchestrate `Editor` document state with OS window prompts.
@@ -248,7 +248,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         let Some(path) =
-            crate::editor::input::drop::first_dropped_markdown_path(paths.paths())
+            crate::editor::input::paste::drop::first_dropped_markdown_path(paths.paths())
         else {
             let strings = cx.global::<I18nManager>().strings().clone();
             self.show_drop_open_failed_prompt(strings.drop_no_markdown_file_message, window, cx);

@@ -3,7 +3,7 @@
 //! This module owns the full [`Editor`] keyboard event handler: tab-key
 //! routing between blocks (indent / outdent) and the focused-block query it
 //! uses. Focus management lives in [`super::focus`], rendered-quote metadata
-//! refresh in [`super::quote_metadata`], and block-event classification in
+//! refresh in [`super::paste::quote`], and block-event classification in
 //! [`super::block_events`]; the editor's keyboard tests live here because
 //! they exercise the whole input pipeline end to end.
 //!
@@ -17,6 +17,12 @@
 //!     ├─ Table-cell routing → Editor::on_table_cell_event
 //!     └─ Main match: handle each variant
 //! ```
+
+pub mod ime;
+pub mod typing;
+
+#[cfg(test)]
+mod tests;
 
 use gpui::*;
 

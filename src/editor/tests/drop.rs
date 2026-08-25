@@ -75,7 +75,7 @@ async fn dropped_paths_pick_first_valid_markdown_file(cx: &mut TestAppContext) {
     });
 
     assert_eq!(
-        crate::editor::input::drop::first_dropped_markdown_path(&[
+        crate::editor::input::paste::drop::first_dropped_markdown_path(&[
             text_path,
             markdown_path.clone()
         ]),
