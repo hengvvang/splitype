@@ -1,4 +1,4 @@
-﻿//! Markdown-to-editor-tree deserialization.
+//! Markdown-to-editor-tree deserialization.
 //!
 //! Raw Markdown is parsed by `model::parse` into `BlockData` records, then
 //! converted into the runtime tree of GPUI `Entity<Block>` values.
@@ -102,3 +102,6 @@ fn blocks_to_entity_tree(data: Vec<BlockData>, cx: &mut Context<Editor>) -> Vec<
         .filter_map(|block| entities.get(&block.id.0).cloned())
         .collect()
 }
+
+#[cfg(test)]
+mod tests;

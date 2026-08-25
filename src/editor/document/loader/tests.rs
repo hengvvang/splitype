@@ -1,11 +1,9 @@
-﻿//! Markdown-import tests for the editor tree loader.
+//! Markdown-import tests for the editor tree loader.
 //!
 //! Split from `loader.rs` so the implementation file stays small; these
 //! tests exercise `Editor::from_markdown` round trips end to end.
 
-#[cfg(test)]
-mod tests {
-    use gpui::{AppContext, TestAppContext};
+use gpui::{AppContext, TestAppContext};
 
     use crate::editor::engine::controller::Editor;
     use crate::model::block::CalloutKind;
@@ -1552,7 +1550,7 @@ mod tests {
     async fn test_md_fixture_keeps_mixed_supported_and_raw_sections_visible(
         cx: &mut TestAppContext,
     ) {
-        let markdown = include_str!("../../../assets/showcase/test.md").to_string();
+        let markdown = include_str!("../../../../assets/showcase/test.md").to_string();
         let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
         editor.update(cx, |editor, cx| {
@@ -1969,4 +1967,3 @@ mod tests {
             assert_eq!(editor.doc().serialize_markdown(cx), "");
         });
     }
-}

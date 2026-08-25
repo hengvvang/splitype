@@ -8,8 +8,6 @@
 pub mod block;
 pub(crate) mod index;
 pub(crate) mod loader;
-#[cfg(test)]
-mod loader_tests;
 pub(crate) mod mutations;
 pub mod protocol;
 pub(crate) mod queries;
