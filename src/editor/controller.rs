@@ -234,7 +234,6 @@ pub(crate) struct DocumentTab {
     /// states travel with the tab, so each tab remembers where every pane
     /// was.
     pub(crate) panes: HashMap<PaneId, PaneState>,
-    pub(crate) fallback_pane: PaneState,
     /// Cached (revision, word_count) to avoid full serialization on every status bar frame.
     pub(crate) cached_word_count: Option<(u64, usize)>,
 }
@@ -616,6 +615,9 @@ impl Editor {
         let mut document = Document::new(roots);
         document.rebuild_metadata_and_snapshot(cx);
 
+        let mut panes = HashMap::new();
+        panes.insert(PaneId(1), PaneState::default());
+
         DocumentTab {
             document,
             document_revision: 0,
@@ -627,8 +629,7 @@ impl Editor {
             undo: UndoHistory::default(),
             references: ReferenceRegistries::default(),
             tables: TableGrids::default(),
-            panes: HashMap::new(),
-            fallback_pane: PaneState::default(),
+            panes,
             cached_word_count: None,
         }
     }
@@ -813,29 +814,29 @@ impl Editor {
     /// The active pane's focus state — the routing target for events
     /// without a pane context.
     pub(crate) fn active_pane_focus(&self) -> &FocusState {
-        self.tab()
-            .panes
-            .get(&self.active_pane_id())
-            .map(|p| &p.focus)
-            .unwrap_or(&self.tab().fallback_pane.focus)
+        &self
+            .pane_state_ref(self.active_pane_id())
+            .or_else(|| self.tab().panes.values().next())
+            .expect("tab always has at least one pane state")
+            .focus
     }
 
     /// The active pane's selection state.
     pub(crate) fn active_pane_selection(&self) -> &SelectionState {
-        self.tab()
-            .panes
-            .get(&self.active_pane_id())
-            .map(|p| &p.selection)
-            .unwrap_or(&self.tab().fallback_pane.selection)
+        &self
+            .pane_state_ref(self.active_pane_id())
+            .or_else(|| self.tab().panes.values().next())
+            .expect("tab always has at least one pane state")
+            .selection
     }
 
     /// The active pane's scroll state.
     pub(crate) fn active_pane_scroll(&self) -> &ScrollState {
-        self.tab()
-            .panes
-            .get(&self.active_pane_id())
-            .map(|p| &p.scroll)
-            .unwrap_or(&self.tab().fallback_pane.scroll)
+        &self
+            .pane_state_ref(self.active_pane_id())
+            .or_else(|| self.tab().panes.values().next())
+            .expect("tab always has at least one pane state")
+            .scroll
     }
 }
 

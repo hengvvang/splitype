@@ -358,15 +358,14 @@ mod tests {
     }
 
     #[test]
-    fn language_pack_json_falls_back_for_missing_strings() {
+    fn custom_language_pack_json_overlays_base_strings() {
         let pack = I18nLanguagePack::from_json(
             r#"{
                 "id": "zh-CN",
                 "name": "简体中文",
                 "strings": {
                     "menu_file": "文件菜单",
-                    "unsaved_changes_hint": "legacy hint",
-                    "drop_replace_hint": "legacy hint",
+                    "custom_extension": "extra_val",
                     "unknown_field": "ignored"
                 }
             }"#,
