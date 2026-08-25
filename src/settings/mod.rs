@@ -2,12 +2,11 @@
 //! panel.
 
 pub(crate) mod bottombar;
-pub(crate) mod common;
 pub(crate) mod components;
 pub(crate) mod panel;
-pub(crate) mod shortcuts_data;
 pub(crate) mod state;
 pub(crate) mod topbar;
+pub(crate) mod ui_helpers;
 pub(crate) mod window;
 
 pub(crate) use window::open_settings_window;

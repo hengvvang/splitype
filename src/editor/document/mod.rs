@@ -13,7 +13,6 @@ mod loader_tests;
 pub(crate) mod mutations;
 pub mod protocol;
 pub(crate) mod queries;
-pub(crate) mod serialization;
 pub(crate) mod serialize;
 
 pub(crate) use index::*;

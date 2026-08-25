@@ -1,10 +1,10 @@
-//! Shortcuts overview section component.
+﻿//! Shortcuts overview section component.
 
 use gpui::*;
 
 use crate::infra::theme::{ThemeColors, ThemeDimensions};
-use crate::settings::common::{SettingsClickHandler, make_row, make_section};
-use crate::settings::shortcuts_data::ShortcutItem;
+use crate::settings::ui_helpers::{SettingsClickHandler, make_row, make_section};
+use crate::settings::components::shortcuts_data::ShortcutItem;
 
 pub(crate) fn render_shortcuts_section(
     c: &ThemeColors,

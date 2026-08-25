@@ -1,9 +1,9 @@
-//! Editing settings components: Typography, Markdown & Assets, Startup.
+﻿//! Editing settings components: Typography, Markdown & Assets, Startup.
 
 use gpui::*;
 
 use crate::infra::theme::{ThemeColors, ThemeDimensions};
-use crate::settings::common::{SettingsClickHandler, make_row, make_section, render_zed_stepper};
+use crate::settings::ui_helpers::{SettingsClickHandler, make_row, make_section, render_zed_stepper};
 use crate::ui::select::{select_option, select_panel, select_trigger};
 use crate::ui::switch::Switch;
 

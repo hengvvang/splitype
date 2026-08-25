@@ -1,4 +1,4 @@
-﻿//! File dialogs and document save/replace flows.
+//! File dialogs and document save/replace flows.
 //!
 //! The save-as prompt, save-to-path retries, and the drop-file replace
 //! dialogs orchestrate `Editor` document state with OS window prompts.
@@ -14,6 +14,14 @@ use crate::editor::engine::controller::Editor;
 use crate::infra::i18n::I18nManager;
 
 impl Editor {
+    pub(crate) fn serialized_document_text(&self, cx: &App) -> String {
+        if self.is_source_code() {
+            self.doc().serialize_source_text(cx)
+        } else {
+            self.doc().serialize_markdown(cx)
+        }
+    }
+
     // ── Save flow ──────────────────────────────────────────────────────────
 
     pub(crate) fn save_dialog_defaults(&self) -> (PathBuf, Option<String>) {

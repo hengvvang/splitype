@@ -119,7 +119,7 @@ impl Shell {
         &self,
         cx: &mut Context<Self>,
         key: &'static str,
-    ) -> crate::settings::common::SettingsClickHandler {
+    ) -> crate::settings::ui_helpers::SettingsClickHandler {
         let handle = cx.entity().downgrade();
         Box::new(move |_event, _window, cx| {
             let _ = handle.update(cx, |this, cx| {
@@ -485,7 +485,7 @@ impl Shell {
             "Document Actions",
             is_sec1_expanded,
             self.toggle_settings_section_handler(cx, sec1_key),
-            crate::settings::shortcuts_data::doc_action_shortcuts(),
+            crate::settings::components::shortcuts_data::doc_action_shortcuts(),
         ));
 
         let sec2_key = "view_controls";
@@ -497,7 +497,7 @@ impl Shell {
             "Interface & View Controls",
             is_sec2_expanded,
             self.toggle_settings_section_handler(cx, sec2_key),
-            crate::settings::shortcuts_data::interface_view_shortcuts(),
+            crate::settings::components::shortcuts_data::interface_view_shortcuts(),
         ));
 
         sections

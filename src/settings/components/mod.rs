@@ -3,6 +3,7 @@
 pub(crate) mod editing;
 pub(crate) mod interface;
 pub(crate) mod shortcuts;
+pub(crate) mod shortcuts_data;
 
 pub(crate) use editing::*;
 pub(crate) use interface::*;
