@@ -481,7 +481,7 @@ fn dock_preview_overlay(
                 .rounded(px(style.tile_radius))
                 .bg(style.accent.opacity(0.12)),
         )
-        // Target sub-area highlight (destination slot)
+        // Target sub-area highlight (destination slot) with central dock icon
         .child(
             div()
                 .absolute()
@@ -490,7 +490,16 @@ fn dock_preview_overlay(
                 .w(relative(sub_w))
                 .h(relative(sub_h))
                 .rounded(px(style.tile_radius))
-                .bg(style.accent.opacity(0.20)),
+                .bg(style.accent.opacity(0.20))
+                .flex()
+                .items_center()
+                .justify_center()
+                .children(dock_icon.map(|icon| {
+                    svg()
+                        .path(icon)
+                        .size(px(48.0))
+                        .text_color(style.accent)
+                })),
         )
         .child(line_div)
         .child(cursor_action_panel(
