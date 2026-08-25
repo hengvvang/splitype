@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use anyhow::Context as _;
 use gpui::*;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::infra::config::dirs::SplitypeConfigDirs;
 use crate::infra::config::keybindings::normalize_shortcut_config;
@@ -18,7 +18,7 @@ pub const DEFAULT_THEME_ID: &str = "splitype";
 const DEFAULT_LANGUAGE_ID: &str = "en-US";
 
 /// Status bar visibility and component toggles.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct StatusBarSettings {
     pub enabled: bool,
     pub show_word_count: bool,
@@ -36,7 +36,8 @@ impl Default for StatusBarSettings {
 }
 
 /// Startup document selection stored in `config.toml`.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum StartupOpenSetting {
     #[default]
     NewFile,
@@ -48,14 +49,6 @@ impl StartupOpenSetting {
         match self {
             Self::NewFile => "new_file",
             Self::LastOpenedFile => "last_opened_file",
-        }
-    }
-
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(value: &str) -> Self {
-        match value {
-            "last_opened_file" => Self::LastOpenedFile,
-            _ => Self::NewFile,
         }
     }
 }
@@ -70,12 +63,16 @@ impl std::str::FromStr for StartupOpenSetting {
     type Err = std::convert::Infallible;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        Ok(Self::from_str(value))
+        match value {
+            "last_opened_file" => Ok(Self::LastOpenedFile),
+            _ => Ok(Self::NewFile),
+        }
     }
 }
 
 /// Explorer tree sorting mode (mirrors Zed's `ProjectPanelSortMode`).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ExplorerSortMode {
     #[default]
     DirectoriesFirst,
@@ -91,15 +88,6 @@ impl ExplorerSortMode {
             Self::Mixed => "mixed",
         }
     }
-
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(value: &str) -> Self {
-        match value {
-            "files_first" => Self::FilesFirst,
-            "mixed" => Self::Mixed,
-            _ => Self::DirectoriesFirst,
-        }
-    }
 }
 
 impl std::fmt::Display for ExplorerSortMode {
@@ -112,12 +100,17 @@ impl std::str::FromStr for ExplorerSortMode {
     type Err = std::convert::Infallible;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        Ok(Self::from_str(value))
+        match value {
+            "files_first" => Ok(Self::FilesFirst),
+            "mixed" => Ok(Self::Mixed),
+            _ => Ok(Self::DirectoriesFirst),
+        }
     }
 }
 
 /// Explorer tree sort order.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ExplorerSortOrder {
     #[default]
     Ascending,
@@ -129,14 +122,6 @@ impl ExplorerSortOrder {
         match self {
             Self::Ascending => "ascending",
             Self::Descending => "descending",
-        }
-    }
-
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(value: &str) -> Self {
-        match value {
-            "descending" => Self::Descending,
-            _ => Self::Ascending,
         }
     }
 }
@@ -151,12 +136,15 @@ impl std::str::FromStr for ExplorerSortOrder {
     type Err = std::convert::Infallible;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        Ok(Self::from_str(value))
+        match value {
+            "descending" => Ok(Self::Descending),
+            _ => Ok(Self::Ascending),
+        }
     }
 }
 
 /// Explorer sidebar settings persisted in `config.toml`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExplorerSettings {
     pub hide_hidden: bool,
     pub sort_mode: ExplorerSortMode,
@@ -211,7 +199,8 @@ impl ExplorerSettingsStore {
 }
 
 /// Where pasted clipboard images should be stored before inserting Markdown.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ImagePasteBehavior {
     #[default]
     None,
@@ -229,16 +218,6 @@ impl ImagePasteBehavior {
             Self::CopyToNamedAssetsFolder => "copy_to_named_assets_folder",
         }
     }
-
-    #[allow(clippy::should_implement_trait)]
-    pub fn from_str(value: &str) -> Self {
-        match value {
-            "copy_to_document_folder" => Self::CopyToDocumentFolder,
-            "copy_to_assets_folder" => Self::CopyToAssetsFolder,
-            "copy_to_named_assets_folder" => Self::CopyToNamedAssetsFolder,
-            _ => Self::None,
-        }
-    }
 }
 
 impl std::fmt::Display for ImagePasteBehavior {
@@ -251,7 +230,12 @@ impl std::str::FromStr for ImagePasteBehavior {
     type Err = std::convert::Infallible;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        Ok(Self::from_str(value))
+        match value {
+            "copy_to_document_folder" => Ok(Self::CopyToDocumentFolder),
+            "copy_to_assets_folder" => Ok(Self::CopyToAssetsFolder),
+            "copy_to_named_assets_folder" => Ok(Self::CopyToNamedAssetsFolder),
+            _ => Ok(Self::None),
+        }
     }
 }
 
@@ -353,58 +337,136 @@ impl EditorSettings {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct SettingsFile {
+    #[serde(default)]
     startup: StartupSettingsFile,
+    #[serde(default)]
     language: LanguageSettingsFile,
+    #[serde(default)]
     theme: ThemeSettingsFile,
+    #[serde(default)]
     editor: EditorSettingsFile,
+    #[serde(default)]
     status_bar: StatusBarSettingsFile,
+    #[serde(default)]
     keybindings: BTreeMap<String, Vec<String>>,
+    #[serde(default)]
     explorer: ExplorerSettingsFile,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct StartupSettingsFile {
-    open: String,
+    #[serde(default)]
+    open: StartupOpenSetting,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct EditorSettingsFile {
+    #[serde(default = "default_true")]
     show_table_headers: bool,
-    image_paste_behavior: String,
+    #[serde(default)]
+    image_paste_behavior: ImagePasteBehavior,
 }
 
-#[derive(Serialize)]
+impl Default for EditorSettingsFile {
+    fn default() -> Self {
+        Self {
+            show_table_headers: true,
+            image_paste_behavior: ImagePasteBehavior::default(),
+        }
+    }
+}
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct LanguageSettingsFile {
+    #[serde(default = "default_language_id_str")]
     default_language_id: String,
 }
 
-#[derive(Serialize)]
+impl Default for LanguageSettingsFile {
+    fn default() -> Self {
+        Self {
+            default_language_id: default_language_id_str(),
+        }
+    }
+}
+
+fn default_language_id_str() -> String {
+    DEFAULT_LANGUAGE_ID.to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct ThemeSettingsFile {
+    #[serde(default = "default_theme_id_str")]
     default_theme_id: String,
 }
 
-#[derive(Serialize)]
+impl Default for ThemeSettingsFile {
+    fn default() -> Self {
+        Self {
+            default_theme_id: default_theme_id_str(),
+        }
+    }
+}
+
+fn default_theme_id_str() -> String {
+    DEFAULT_THEME_ID.to_string()
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct StatusBarSettingsFile {
+    #[serde(default = "default_true")]
     enabled: bool,
+    #[serde(default = "default_true")]
     show_word_count: bool,
+    #[serde(default = "default_true")]
     show_cursor_position: bool,
 }
 
-#[derive(Serialize)]
-struct ExplorerSettingsFile {
-    hide_hidden: bool,
-    sort_mode: String,
-    sort_order: String,
+impl Default for StatusBarSettingsFile {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            show_word_count: true,
+            show_cursor_position: true,
+        }
+    }
 }
 
-impl From<&StatusBarSettings> for StatusBarSettingsFile {
-    fn from(value: &StatusBarSettings) -> Self {
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+struct ExplorerSettingsFile {
+    #[serde(default)]
+    hide_hidden: bool,
+    #[serde(default)]
+    sort_mode: ExplorerSortMode,
+    #[serde(default)]
+    sort_order: ExplorerSortOrder,
+}
+
+impl From<SettingsFile> for AppSettings {
+    fn from(file: SettingsFile) -> Self {
         Self {
-            enabled: value.enabled,
-            show_word_count: value.show_word_count,
-            show_cursor_position: value.show_cursor_position,
+            startup_open: file.startup.open,
+            default_language_id: file.language.default_language_id,
+            default_theme_id: file.theme.default_theme_id,
+            show_table_headers: file.editor.show_table_headers,
+            image_paste_behavior: file.editor.image_paste_behavior,
+            keybindings: normalize_shortcut_config(&file.keybindings),
+            status_bar: StatusBarSettings {
+                enabled: file.status_bar.enabled,
+                show_word_count: file.status_bar.show_word_count,
+                show_cursor_position: file.status_bar.show_cursor_position,
+            },
+            explorer: ExplorerSettings {
+                hide_hidden: file.explorer.hide_hidden,
+                sort_mode: file.explorer.sort_mode,
+                sort_order: file.explorer.sort_order,
+            },
         }
     }
 }
@@ -413,7 +475,7 @@ impl From<&AppSettings> for SettingsFile {
     fn from(value: &AppSettings) -> Self {
         Self {
             startup: StartupSettingsFile {
-                open: value.startup_open.as_str().into(),
+                open: value.startup_open,
             },
             language: LanguageSettingsFile {
                 default_language_id: value.default_language_id.clone(),
@@ -423,14 +485,18 @@ impl From<&AppSettings> for SettingsFile {
             },
             editor: EditorSettingsFile {
                 show_table_headers: value.show_table_headers,
-                image_paste_behavior: value.image_paste_behavior.as_str().into(),
+                image_paste_behavior: value.image_paste_behavior,
             },
-            status_bar: StatusBarSettingsFile::from(&value.status_bar),
+            status_bar: StatusBarSettingsFile {
+                enabled: value.status_bar.enabled,
+                show_word_count: value.status_bar.show_word_count,
+                show_cursor_position: value.status_bar.show_cursor_position,
+            },
             keybindings: normalize_shortcut_config(&value.keybindings),
             explorer: ExplorerSettingsFile {
                 hide_hidden: value.explorer.hide_hidden,
-                sort_mode: value.explorer.sort_mode.as_str().into(),
-                sort_order: value.explorer.sort_order.as_str().into(),
+                sort_mode: value.explorer.sort_mode,
+                sort_order: value.explorer.sort_order,
             },
         }
     }
@@ -451,122 +517,13 @@ pub fn read_app_settings_with_dirs(dirs: &SplitypeConfigDirs) -> anyhow::Result<
             return Err(err).with_context(|| format!("failed to read '{}'", path.display()));
         }
     };
-    let Ok(value) = toml::from_str::<toml::Value>(&text) else {
-        return Ok(AppSettings::default());
-    };
-
-    Ok(app_settings_from_toml_value(&value, DEFAULT_LANGUAGE_ID))
+    let file: SettingsFile = toml::from_str(&text).unwrap_or_default();
+    Ok(AppSettings::from(file))
 }
 
 pub fn load_or_create_app_settings() -> anyhow::Result<AppSettings> {
     let dirs = SplitypeConfigDirs::from_system()?;
     load_or_create_app_settings_with_dirs_and_locales(&dirs, sys_locale::get_locales())
-}
-
-fn app_settings_from_toml_value(value: &toml::Value, fallback_language_id: &str) -> AppSettings {
-    let startup_open = value
-        .get("startup")
-        .and_then(|startup| startup.get("open"))
-        .and_then(|open| open.as_str())
-        .map(StartupOpenSetting::from_str)
-        .unwrap_or(StartupOpenSetting::NewFile);
-    let default_language_id = value
-        .get("language")
-        .and_then(|language| language.get("default_language_id"))
-        .and_then(|id| id.as_str())
-        .map(str::trim)
-        .filter(|id| !id.is_empty())
-        .unwrap_or(fallback_language_id)
-        .to_string();
-    let default_theme_id = value
-        .get("theme")
-        .and_then(|theme| theme.get("default_theme_id"))
-        .and_then(|id| id.as_str())
-        .map(str::trim)
-        .filter(|id| !id.is_empty())
-        .unwrap_or(DEFAULT_THEME_ID)
-        .to_string();
-    let keybindings = value
-        .get("keybindings")
-        .and_then(|keybindings| keybindings.as_table())
-        .map(|table| {
-            table
-                .iter()
-                .filter_map(|(key, value)| {
-                    let keys = value
-                        .as_array()?
-                        .iter()
-                        .filter_map(|value| value.as_str().map(str::to_string))
-                        .collect::<Vec<_>>();
-                    Some((key.clone(), keys))
-                })
-                .collect::<BTreeMap<_, _>>()
-        })
-        .map(|keybindings| normalize_shortcut_config(&keybindings))
-        .unwrap_or_default();
-
-    let show_table_headers = value
-        .get("editor")
-        .and_then(|editor| editor.get("show_table_headers"))
-        .and_then(|value| value.as_bool())
-        .unwrap_or(true);
-    let image_paste_behavior = value
-        .get("editor")
-        .and_then(|editor| editor.get("image_paste_behavior"))
-        .and_then(|value| value.as_str())
-        .map(ImagePasteBehavior::from_str)
-        .unwrap_or(ImagePasteBehavior::None);
-
-    let status_bar = value
-        .get("status_bar")
-        .map(|sb| {
-            let enabled = sb.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true);
-            let show_word_count = sb
-                .get("show_word_count")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(true);
-            let show_cursor_position = sb
-                .get("show_cursor_position")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(true);
-            StatusBarSettings {
-                enabled,
-                show_word_count,
-                show_cursor_position,
-            }
-        })
-        .unwrap_or_default();
-
-    let explorer = value
-        .get("explorer")
-        .map(|explorer| ExplorerSettings {
-            hide_hidden: explorer
-                .get("hide_hidden")
-                .and_then(|v| v.as_bool())
-                .unwrap_or(false),
-            sort_mode: explorer
-                .get("sort_mode")
-                .and_then(|v| v.as_str())
-                .map(ExplorerSortMode::from_str)
-                .unwrap_or(ExplorerSortMode::DirectoriesFirst),
-            sort_order: explorer
-                .get("sort_order")
-                .and_then(|v| v.as_str())
-                .map(ExplorerSortOrder::from_str)
-                .unwrap_or(ExplorerSortOrder::Ascending),
-        })
-        .unwrap_or_default();
-
-    AppSettings {
-        startup_open,
-        default_language_id,
-        default_theme_id,
-        show_table_headers,
-        image_paste_behavior,
-        keybindings,
-        status_bar,
-        explorer,
-    }
 }
 
 fn detected_language_id_from_locales<I, S>(locales: I) -> &'static str
@@ -588,12 +545,13 @@ where
     let detected_language_id = detected_language_id_from_locales(locales);
     let path = dirs.app_config_file();
     let settings = match std::fs::read_to_string(&path) {
-        Ok(text) => toml::from_str::<toml::Value>(&text)
-            .map(|value| app_settings_from_toml_value(&value, detected_language_id))
-            .unwrap_or_else(|_| AppSettings {
+        Ok(text) => match toml::from_str::<SettingsFile>(&text) {
+            Ok(file) => AppSettings::from(file),
+            Err(_) => AppSettings {
                 default_language_id: detected_language_id.into(),
                 ..AppSettings::default()
-            }),
+            },
+        },
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => AppSettings {
             default_language_id: detected_language_id.into(),
             ..AppSettings::default()

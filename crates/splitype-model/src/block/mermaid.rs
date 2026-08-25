@@ -93,15 +93,7 @@ pub fn parse_mermaid_fence_source(raw: &str) -> Option<MermaidSource> {
 /// Serialize a Mermaid block body back to canonical fenced Markdown,
 /// returning the serialized source and the byte range of the diagram body
 /// within it.
-///
-/// A body that already forms a complete fenced source is preserved verbatim
-/// (defensive round-trip for legacy data); otherwise it is wrapped in a
-/// ` ```mermaid ` fence.
 pub fn serialize_mermaid_source(body: &str) -> (String, Range<usize>) {
-    if let Some(source) = parse_mermaid_fence_source(body) {
-        let start = source.source.find(&source.body).unwrap_or(0);
-        return (source.source, start..start + source.body.len());
-    }
     let wrapped = format!("```mermaid\n{body}\n```");
     (
         wrapped,
@@ -155,12 +147,5 @@ mod tests {
         let (source, body_range) = serialize_mermaid_source("graph LR\nA-->B");
         assert_eq!(source, "```mermaid\ngraph LR\nA-->B\n```");
         assert_eq!(body_range, 11..25);
-    }
-
-    #[test]
-    fn serialization_preserves_already_fenced_body() {
-        let (source, body_range) = serialize_mermaid_source("~~~mmd\ngraph LR\n~~~");
-        assert_eq!(source, "~~~mmd\ngraph LR\n~~~");
-        assert_eq!(body_range, 7..15);
     }
 }

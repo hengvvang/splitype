@@ -811,9 +811,8 @@ fn test_unsaved_dialog_tab_discard_and_close(cx: &mut TestAppContext) {
                 let tab = Editor::new_tab_from_markdown(cx, "tab 2".to_string(), None);
                 let tab_idx = editor.session_mut().tab_list.push(tab);
                 editor.session_mut().tab_list.get_mut(tab_idx).unwrap().file.dirty = true;
+                editor.request_close_tab(1, cx);
             });
-            // Request close tab index 1
-            shell.request_close_tab(DEFAULT_EDITOR_PANEL_ID, 1, cx);
         })
         .expect("request close tab");
     cx.run_until_parked();

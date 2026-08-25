@@ -864,27 +864,6 @@ impl Shell {
         }
     }
 
-    /// Request closing a single tab in an editor panel.
-    #[allow(dead_code)]
-    pub(crate) fn request_close_tab(
-        &mut self,
-        panel_id: impl Into<PanelId>,
-        index: usize,
-        cx: &mut Context<Self>,
-    ) {
-        let panel_id = panel_id.into();
-        let is_dirty = self
-            .editor_for(panel_id)
-            .and_then(|e| e.read(cx).session.tab_list.get(index).map(|t| t.file.dirty))
-            .unwrap_or(false);
-        if is_dirty {
-            self.prompt_close_tab(panel_id, index, cx);
-        } else if let Some(editor) = self.editor_for(panel_id) {
-            editor.update(cx, |editor, cx| {
-                editor.close_tab(index, cx);
-            });
-        }
-    }
 
     /// Installs the window-close guard once: the callback aggregates dirty
     /// tabs across every editor area. Called on every render; idempotent.

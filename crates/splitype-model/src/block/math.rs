@@ -40,15 +40,8 @@ pub fn parse_display_math_source(raw: &str) -> Option<DisplayMathSource> {
 /// Serialize a display-math block body back to canonical Markdown, returning
 /// the serialized source and the byte range of the formula body within it.
 ///
-/// A body that already forms a complete `$$...$$` source is preserved
-/// verbatim (defensive round-trip for legacy data); otherwise it is wrapped
-/// in display delimiters — single-line for newline-free formulas, fenced for
-/// empty or multi-line ones.
+/// Single-line for newline-free formulas, fenced for empty or multi-line ones.
 pub fn serialize_display_math_source(body: &str) -> (String, Range<usize>) {
-    if let Some(source) = parse_display_math_source(body) {
-        let start = source.source.find(&source.body).unwrap_or(0);
-        return (source.source, start..start + source.body.len());
-    }
     if body.is_empty() || body.contains('\n') {
         let wrapped = format!("$$\n{body}\n$$");
         (wrapped, "$$\n".len().."$$\n".len() + body.len())
@@ -100,12 +93,5 @@ mod tests {
         let (source, body_range) = serialize_display_math_source("");
         assert_eq!(source, "$$\n\n$$");
         assert_eq!(body_range, 3..3);
-    }
-
-    #[test]
-    fn serialization_preserves_already_fenced_body() {
-        let (source, body_range) = serialize_display_math_source("$$x^2$$");
-        assert_eq!(source, "$$x^2$$");
-        assert_eq!(body_range, 2..5);
     }
 }

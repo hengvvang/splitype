@@ -72,10 +72,10 @@ pub struct Worktree {
     next_entry_id: Arc<AtomicU64>,
     /// Skip dotfiles in scans (persisted explorer setting).
     hide_hidden: bool,
-    #[allow(dead_code)]
+    #[cfg_attr(test, allow(dead_code))]
     fs_watch_task: Option<Task<()>>,
     scan_task: Option<Task<()>>,
-    #[allow(dead_code)]
+    #[cfg_attr(test, allow(dead_code))]
     fs_refresh_task: Option<Task<()>>,
     needs_rescan: bool,
 }
@@ -219,7 +219,7 @@ impl Worktree {
     }
 
     /// Debounce filesystem events into a single background rescan.
-    #[allow(dead_code)]
+    #[cfg_attr(test, allow(dead_code))]
     fn on_fs_event(&mut self, cx: &mut Context<Self>) {
         if self.fs_refresh_task.is_some() {
             return;
