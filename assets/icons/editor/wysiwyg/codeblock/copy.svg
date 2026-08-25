@@ -1,1 +1,46 @@
-<svg id="Icons" enable-background="new 0 0 30 30" height="512" viewBox="0 0 30 30" width="512" xmlns="http://www.w3.org/2000/svg"><g fill="rgb(0,0,0)"><path d="m30 0h-24v24h24zm-2 22h-20v-20h20z"/><path d="m24 25h-2v3h-20v-20h3v-2h-5v24h24z"/><path d="m17 19h2v-6h6v-2h-6v-6h-2v6h-6v2h6z"/></g></svg>
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Generator: Adobe Illustrator 19.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 480 480" style="enable-background:new 0 0 480 480;" xml:space="preserve">
+<g>
+	<g>
+		<g>
+			<path d="M400,0H80C35.888,0,0,35.888,0,80v320c0,44.112,35.888,80,80,80h320c44.112,0,80-35.888,80-80V80
+				C480,35.888,444.112,0,400,0z M448,400c0,26.464-21.536,48-48,48H80c-26.464,0-48-21.536-48-48V80c0-26.464,21.536-48,48-48h320
+				c26.464,0,48,21.536,48,48V400z"/>
+			<path d="M384,224H256V96c0-8.832-7.152-16-16-16c-8.848,0-16,7.168-16,16v128H96c-8.848,0-16,7.168-16,16c0,8.832,7.152,16,16,16
+				h128v128c0,8.832,7.152,16,16,16s16-7.168,16-16V256h128c8.848,0,16-7.168,16-16C400,231.168,392.848,224,384,224z"/>
+		</g>
+	</g>
+</g>
+<g>
+</g>
+<g>
+</g>
+<g>
+</g>
+<g>
+</g>
+<g>
+</g>
+<g>
+</g>
+<g>
+</g>
+<g>
+</g>
+<g>
+</g>
+<g>
+</g>
+<g>
+</g>
+<g>
+</g>
+<g>
+</g>
+<g>
+</g>
+<g>
+</g>
+</svg>

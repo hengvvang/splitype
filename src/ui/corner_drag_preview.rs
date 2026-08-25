@@ -154,6 +154,7 @@ fn split_preview_overlay(
         .child(cursor_action_panel(
             pointer_pos,
             container_size,
+            None,
             "Split Area",
             Some(ratio_percent),
             Some("Ctrl: 1/12 Snap • Esc: Cancel"),
@@ -167,6 +168,7 @@ fn split_preview_overlay(
 fn cursor_action_panel(
     pointer_pos: Option<Point<Pixels>>,
     container_size: Size<Pixels>,
+    icon_path: Option<&'static str>,
     title: &'static str,
     detail: Option<String>,
     shortcut_hint: Option<&'static str>,
@@ -201,6 +203,12 @@ fn cursor_action_panel(
                 .flex()
                 .items_center()
                 .gap(px(6.0))
+                .children(icon_path.map(|p| {
+                    svg()
+                        .path(p)
+                        .size(px(14.0))
+                        .text_color(style.accent)
+                }))
                 .child(
                     div()
                         .text_size(px(12.0))
@@ -248,6 +256,7 @@ fn new_window_preview_overlay(
         .child(cursor_action_panel(
             pointer_pos,
             container_size,
+            None,
             "Duplicate Area",
             None,
             Some("Release to open in new window"),
@@ -256,21 +265,21 @@ fn new_window_preview_overlay(
         .into_any_element()
 }
 
-/// Deduce the cardinal arrow string pointing from the dragging source into the target area.
-fn join_direction_arrow(source: &LeafRect, target: &LeafRect) -> &'static str {
+/// Deduce the SVG icon path corresponding to the merge direction.
+fn join_direction_icon_path(source: &LeafRect, target: &LeafRect) -> &'static str {
     const EPS: f32 = 0.01;
     let shares_vertical_border = (source.x + source.width - target.x).abs() <= EPS
         || (target.x + target.width - source.x).abs() <= EPS;
     if shares_vertical_border {
         if source.x < target.x {
-            "→"
+            "icons/splitter/arrow-right.svg"
         } else {
-            "←"
+            "icons/splitter/arrow-left.svg"
         }
     } else if source.y < target.y {
-        "↓"
+        "icons/splitter/arrow-down.svg"
     } else {
-        "↑"
+        "icons/splitter/arrow-up.svg"
     }
 }
 
@@ -286,7 +295,7 @@ fn join_preview_overlay(
     style: &OverlayStyle,
 ) -> AnyElement {
     let (merged_x, merged_y, merged_w, merged_h) = calculate_join_slice_rect(source, target);
-    let arrow = join_direction_arrow(source, target);
+    let icon_path = join_direction_icon_path(source, target);
 
     overlay_container()
         // Single merged rectangle covering the exact merged slice
@@ -306,25 +315,25 @@ fn join_preview_overlay(
                 .items_center()
                 .justify_center()
                 .child(
-                    div()
-                        .text_size(px(32.0))
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(style.accent)
-                        .child(arrow),
+                    svg()
+                        .path(icon_path)
+                        .size(px(48.0))
+                        .text_color(style.accent),
                 ),
         )
         .child(cursor_action_panel(
             pointer_pos,
             container_size,
+            Some(icon_path),
             "Join Area",
-            Some(arrow.to_string()),
+            None,
             Some("Release to merge • Esc: Cancel"),
             style,
         ))
         .into_any_element()
 }
 
-/// A full-window overlay highlighting BOTH the source and target panels with themed tint.
+/// A full-window overlay highlighting BOTH the source and target panels with themed tint and center swap icon.
 fn swap_preview_overlay(
     source: &LeafRect,
     target: &LeafRect,
@@ -344,7 +353,7 @@ fn swap_preview_overlay(
                 .rounded(px(style.tile_radius))
                 .bg(style.accent.opacity(0.18)),
         )
-        // Target panel highlight
+        // Target panel highlight with center swap icon
         .child(
             div()
                 .absolute()
@@ -353,11 +362,21 @@ fn swap_preview_overlay(
                 .w(relative(target.width))
                 .h(relative(target.height))
                 .rounded(px(style.tile_radius))
-                .bg(style.accent.opacity(0.18)),
+                .bg(style.accent.opacity(0.18))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(
+                    svg()
+                        .path("icons/splitter/swap.svg")
+                        .size(px(48.0))
+                        .text_color(style.accent),
+                ),
         )
         .child(cursor_action_panel(
             pointer_pos,
             container_size,
+            Some("icons/splitter/swap.svg"),
             "Swap Areas",
             None,
             Some("Release to swap contents"),
@@ -376,7 +395,7 @@ fn dock_preview_overlay(
     container_size: Size<Pixels>,
     style: &OverlayStyle,
 ) -> AnyElement {
-    let (sub_x, sub_y, sub_w, sub_h, line_div, target_label) = match dock_target {
+    let (sub_x, sub_y, sub_w, sub_h, line_div, target_label, dock_icon) = match dock_target {
         AreaDockTarget::Left => (
             target.x,
             target.y,
@@ -390,6 +409,7 @@ fn dock_preview_overlay(
                 .h(relative(target.height))
                 .bg(style.accent),
             "Dock Left",
+            Some("icons/splitter/arrow-left.svg"),
         ),
         AreaDockTarget::Right => (
             target.x + target.width * (1.0 - ratio),
@@ -404,6 +424,7 @@ fn dock_preview_overlay(
                 .h(relative(target.height))
                 .bg(style.accent),
             "Dock Right",
+            Some("icons/splitter/arrow-right.svg"),
         ),
         AreaDockTarget::Top => (
             target.x,
@@ -418,6 +439,7 @@ fn dock_preview_overlay(
                 .w(relative(target.width))
                 .bg(style.accent),
             "Dock Top",
+            Some("icons/splitter/arrow-up.svg"),
         ),
         AreaDockTarget::Bottom => (
             target.x,
@@ -432,6 +454,7 @@ fn dock_preview_overlay(
                 .w(relative(target.width))
                 .bg(style.accent),
             "Dock Bottom",
+            Some("icons/splitter/arrow-down.svg"),
         ),
         _ => (
             target.x,
@@ -440,6 +463,7 @@ fn dock_preview_overlay(
             target.height,
             div().absolute(),
             "Dock Area",
+            None,
         ),
     };
 
@@ -472,6 +496,7 @@ fn dock_preview_overlay(
         .child(cursor_action_panel(
             pointer_pos,
             container_size,
+            dock_icon,
             target_label,
             Some(ratio_percent),
             Some("Ctrl: 1/12 Snap • Esc: Cancel"),

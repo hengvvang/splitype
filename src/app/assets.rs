@@ -251,6 +251,23 @@ impl AssetSource for SplitypeAssets {
                 "../../assets/icons/editor/outline/markdown.svg"
             )))),
 
+            // ── Splitter: gesture overlays (Join arrows and Swap) ─────────
+            "icons/splitter/arrow-up.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/splitter/arrow-up.svg"
+            )))),
+            "icons/splitter/arrow-down.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/splitter/arrow-down.svg"
+            )))),
+            "icons/splitter/arrow-left.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/splitter/arrow-left.svg"
+            )))),
+            "icons/splitter/arrow-right.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/splitter/arrow-right.svg"
+            )))),
+            "icons/splitter/swap.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/splitter/swap.svg"
+            )))),
+
             // ── Identity ──────────────────────────────────────────────────
             "identity/logo.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/identity/logo.svg"

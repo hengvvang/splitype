@@ -30,6 +30,7 @@ used by several surfaces exists once per surface (see
 | `editor/wysiwyg/codeblock/` | Code block toolbar | `copy`, `line-numbers`, `select-checkmark`, `select-chevron` |
 | `editor/preview/` | Preview panel | `checkbox`, `checkbox-checked` |
 | `editor/outline/` | Outline panel | `markdown` |
+| `splitter/` | Window & pane split gesture overlays | `arrow-up`, `arrow-down`, `arrow-left`, `arrow-right`, `swap` |
 
 ## Decoupling
 
