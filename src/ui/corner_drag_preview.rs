@@ -140,6 +140,7 @@ fn split_preview_overlay(
     let ratio_percent = format!("{:.1}%", ratio * 100.0);
 
     overlay_container()
+        // Highlighted panel being split with central split-area icon
         .child(
             div()
                 .absolute()
@@ -148,7 +149,16 @@ fn split_preview_overlay(
                 .w(relative(rect.width))
                 .h(relative(rect.height))
                 .rounded(px(style.tile_radius))
-                .bg(style.accent.opacity(0.12)),
+                .bg(style.accent.opacity(0.12))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(
+                    svg()
+                        .path("icons/splitter/split-area.svg")
+                        .size(px(48.0))
+                        .text_color(style.accent),
+                ),
         )
         .child(line)
         .child(cursor_action_panel(
