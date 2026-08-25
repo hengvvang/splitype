@@ -251,7 +251,7 @@ impl AssetSource for SplitypeAssets {
                 "../../assets/icons/editor/outline/markdown.svg"
             )))),
 
-            // ── Splitter: gesture overlays (Join arrows and Swap) ─────────
+            // ── Splitter: gesture overlays (Join arrows, Docking, Split, and Swap) ──
             "icons/splitter/arrow-up.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/splitter/arrow-up.svg"
             )))),
@@ -263,6 +263,21 @@ impl AssetSource for SplitypeAssets {
             )))),
             "icons/splitter/arrow-right.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/splitter/arrow-right.svg"
+            )))),
+            "icons/splitter/dock-up.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/splitter/dock-up.svg"
+            )))),
+            "icons/splitter/dock-down.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/splitter/dock-down.svg"
+            )))),
+            "icons/splitter/dock-left.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/splitter/dock-left.svg"
+            )))),
+            "icons/splitter/dock-right.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/splitter/dock-right.svg"
+            )))),
+            "icons/splitter/split-area.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/splitter/split-area.svg"
             )))),
             "icons/splitter/swap.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/splitter/swap.svg"

@@ -154,7 +154,7 @@ fn split_preview_overlay(
         .child(cursor_action_panel(
             pointer_pos,
             container_size,
-            None,
+            Some("icons/splitter/split-area.svg"),
             "Split Area",
             Some(ratio_percent),
             Some("Ctrl: 1/12 Snap • Esc: Cancel"),
@@ -409,7 +409,7 @@ fn dock_preview_overlay(
                 .h(relative(target.height))
                 .bg(style.accent),
             "Dock Left",
-            Some("icons/splitter/arrow-left.svg"),
+            Some("icons/splitter/dock-left.svg"),
         ),
         AreaDockTarget::Right => (
             target.x + target.width * (1.0 - ratio),
@@ -424,7 +424,7 @@ fn dock_preview_overlay(
                 .h(relative(target.height))
                 .bg(style.accent),
             "Dock Right",
-            Some("icons/splitter/arrow-right.svg"),
+            Some("icons/splitter/dock-right.svg"),
         ),
         AreaDockTarget::Top => (
             target.x,
@@ -439,7 +439,7 @@ fn dock_preview_overlay(
                 .w(relative(target.width))
                 .bg(style.accent),
             "Dock Top",
-            Some("icons/splitter/arrow-up.svg"),
+            Some("icons/splitter/dock-up.svg"),
         ),
         AreaDockTarget::Bottom => (
             target.x,
@@ -454,7 +454,7 @@ fn dock_preview_overlay(
                 .w(relative(target.width))
                 .bg(style.accent),
             "Dock Bottom",
-            Some("icons/splitter/arrow-down.svg"),
+            Some("icons/splitter/dock-down.svg"),
         ),
         _ => (
             target.x,
