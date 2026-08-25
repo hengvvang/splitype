@@ -1,4 +1,4 @@
-﻿//! Editor pane layout — rendering and gesture driving for the
+//! Editor pane layout — rendering and gesture driving for the
 //! `EditorPaneKind` split tree (Wysiwyg / Source Code / Preview /
 //! Outline panes) inside each Editor panel.
 
@@ -142,7 +142,7 @@ impl Editor {
                     || drag.modifier == splitype_splitter::sessions::CornerDragModifier::Shift
                 {
                     if let Some(preview) =
-                        crate::editor::corner_drag_preview::render_corner_drag_preview(
+                        crate::ui::render_corner_drag_preview(
                             &self.session_mut().root,
                             &drag,
                             inner_size,

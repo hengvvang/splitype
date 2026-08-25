@@ -1,4 +1,4 @@
-﻿//! Window-level tiled area layout — rendering and gestures for the outer
+//! Window-level tiled area layout — rendering and gestures for the outer
 //! `WindowPanelKind` split tree (ExplorerState / Settings / Editor panel_contents).
 //!
 //! The layout engine (tree, sessions, operations) lives in `crate::splitter`;
@@ -14,7 +14,7 @@ use gpui::*;
 use crate::app::shell::Shell;
 
 use crate::app::window_panels::WindowPanelKind;
-use crate::editor::corner_drag_preview::render_corner_drag_preview;
+use crate::ui::corner_drag_preview::render_corner_drag_preview;
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::{Theme, ThemeManager};
 use splitype_splitter::policy::CornerDragResult;

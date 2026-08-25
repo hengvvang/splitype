@@ -5,6 +5,7 @@
 
 pub mod bottombar;
 pub mod button;
+pub mod corner_drag_preview;
 pub mod custom_titlebar;
 pub mod dialog;
 pub mod empty_state;
@@ -17,3 +18,5 @@ pub mod stepper;
 pub mod switch;
 pub mod tab;
 pub mod topbar;
+
+pub use corner_drag_preview::render_corner_drag_preview;
