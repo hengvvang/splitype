@@ -457,7 +457,7 @@ impl Shell {
         let editor = cx.new(|cx| Editor::with_session(panel_id, session, cx));
         editor.update(cx, |editor, cx| {
             editor.shell = Some(shell);
-            if !editor.session.tab_list.is_empty() {
+            if editor.session.has_tabs() {
                 editor.rebuild_table_grids(cx);
                 editor.rebuild_reference_registries(cx);
                 let pane_id = editor.active_pane_id();
@@ -637,7 +637,7 @@ impl Shell {
     /// flow on the Shell.
     pub(crate) fn first_dirty_tab(&mut self, cx: &mut Context<Self>) -> Option<(PanelId, usize)> {
         for (panel_id, session) in &self.retained_editor_sessions {
-            for (index, tab) in session.tab_list.iter().enumerate() {
+            for (index, tab) in session.tabs().enumerate() {
                 if tab.file.dirty {
                     return Some((*panel_id, index));
                 }
@@ -701,50 +701,50 @@ impl Shell {
         self.panels.layout.tree.count_leaves()
     }
 
-    /// The count and first document name of dirty tabs in the given panel.
+    /// Number of dirty tabs in the specified panel (if it's an editor).
     pub(crate) fn dirty_tab_info_in_panel(
         &self,
         panel_id: impl Into<PanelId>,
         cx: &App,
-    ) -> (usize, Option<String>) {
+    ) -> (usize, String) {
         let panel_id = panel_id.into();
+        let mut count = 0;
+        let mut first_name = String::new();
+
         if let Some(editor) = self.editor_for(panel_id) {
-            let editor = editor.read(cx);
-            let dirty_tabs: Vec<_> = editor
-                .session
-                .tab_list
-                .iter()
-                .filter(|t| t.file.dirty)
-                .collect();
-            let count = dirty_tabs.len();
-            let name = dirty_tabs.first().map(|t| {
-                t.file
-                    .path
-                    .as_ref()
-                    .and_then(|p| p.file_name())
-                    .map(|n| n.to_string_lossy().to_string())
-                    .unwrap_or_else(|| "Untitled".to_string())
-            });
-            (count, name)
+            let ed = editor.read(cx);
+            for tab in ed.session.tabs() {
+                if tab.file.dirty {
+                    count += 1;
+                    if first_name.is_empty() {
+                        first_name = tab
+                            .file
+                            .path
+                            .as_ref()
+                            .and_then(|p| p.file_name())
+                            .map(|n| n.to_string_lossy().to_string())
+                            .unwrap_or_else(|| "Untitled".to_string());
+                    }
+                }
+            }
         } else if let Some(session) = self.retained_editor_sessions.get(&panel_id) {
-            let dirty_tabs: Vec<_> = session
-                .tab_list
-                .iter()
-                .filter(|t| t.file.dirty)
-                .collect();
-            let count = dirty_tabs.len();
-            let name = dirty_tabs.first().map(|t| {
-                t.file
-                    .path
-                    .as_ref()
-                    .and_then(|p| p.file_name())
-                    .map(|n| n.to_string_lossy().to_string())
-                    .unwrap_or_else(|| "Untitled".to_string())
-            });
-            (count, name)
-        } else {
-            (0, None)
+            for tab in session.tabs() {
+                if tab.file.dirty {
+                    count += 1;
+                    if first_name.is_empty() {
+                        first_name = tab
+                            .file
+                            .path
+                            .as_ref()
+                            .and_then(|p| p.file_name())
+                            .map(|n| n.to_string_lossy().to_string())
+                            .unwrap_or_else(|| "Untitled".to_string());
+                    }
+                }
+            }
         }
+
+        (count, first_name)
     }
 
     /// Prompts window-level unsaved-changes dialog.
@@ -756,7 +756,7 @@ impl Shell {
             .editor_for(panel_id)
             .and_then(|e| {
                 let editor = e.read(cx);
-                editor.session.tab_list.get(index).map(|t| {
+                editor.session.tab(index).map(|t| {
                     t.file
                         .path
                         .as_ref()
@@ -781,7 +781,7 @@ impl Shell {
         cx.notify();
     }
 
-    /// Prompts editor-panel-level unsaved-changes dialog.
+    /// Prompts panel-level unsaved-changes dialog.
     pub(crate) fn prompt_close_editor_for(
         &mut self,
         panel_id: impl Into<PanelId>,
@@ -792,7 +792,7 @@ impl Shell {
         if dirty_count == 0 {
             return;
         }
-        let document_name = first_dirty_name.unwrap_or_else(|| "Untitled".to_string());
+
         let restore_focus = self.editor_for(panel_id).and_then(|e| {
             let ed = e.read(cx);
             ed.pane_state_ref(ed.active_pane_id())
@@ -801,7 +801,7 @@ impl Shell {
 
         self.unsaved_dialog = Some(UnsavedDialogState {
             scope: UnsavedDialogScope::EditorPanel(panel_id),
-            document_name,
+            document_name: first_dirty_name,
             restore_focus,
         });
         cx.notify();
@@ -819,7 +819,7 @@ impl Shell {
             .editor_for(panel_id)
             .and_then(|e| {
                 let editor = e.read(cx);
-                editor.session.tab_list.get(index).map(|t| {
+                editor.session.tab(index).map(|t| {
                     t.file
                         .path
                         .as_ref()
@@ -858,7 +858,7 @@ impl Shell {
             self.close_panel(panel_id, cx);
         } else if let Some(editor) = self.editor_for(panel_id) {
             editor.update(cx, |editor, cx| {
-                editor.session.tab_list.clear();
+                editor.session.clear_tabs();
                 cx.notify();
             });
         }

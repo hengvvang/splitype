@@ -58,16 +58,9 @@ impl Editor {
                 source_base_dir,
             )
             .into_bytes()),
-            ExportFormat::Pdf => document_export::render_pdf(
-                markdown,
-                theme,
-                title,
-                source_base_dir,
-            )
-            .map_err(|err| ExportError::PdfProcessFailed {
-                status: None,
-                details: err.to_string(),
-            }),
+            ExportFormat::Pdf => {
+                document_export::render_pdf(markdown, theme, title, source_base_dir)
+            }
         }
     }
 

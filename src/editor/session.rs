@@ -226,6 +226,26 @@ impl EditorSession {
     pub(crate) fn close_tab(&mut self, index: usize) -> Option<crate::editor::controller::DocumentTab> {
         self.tab_list.close_tab(index)
     }
+
+    #[inline]
+    pub(crate) fn tabs(&self) -> impl Iterator<Item = &crate::editor::controller::DocumentTab> {
+        self.tab_list.iter()
+    }
+
+    #[inline]
+    pub(crate) fn tabs_mut(&mut self) -> impl Iterator<Item = &mut crate::editor::controller::DocumentTab> {
+        self.tab_list.iter_mut()
+    }
+
+    #[inline]
+    pub(crate) fn push_tab(&mut self, tab: crate::editor::controller::DocumentTab) -> usize {
+        self.tab_list.push(tab)
+    }
+
+    #[inline]
+    pub(crate) fn clear_tabs(&mut self) {
+        self.tab_list.clear();
+    }
 }
 
 

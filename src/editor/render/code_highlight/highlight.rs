@@ -620,7 +620,6 @@ pub(crate) fn resolve_code_language_key(language: Option<&str>) -> Option<CodeLa
     descriptor_for_language(normalized).map(|descriptor| descriptor.key)
 }
 
-#[cfg_attr(not(feature = "code-highlight-core"), allow(unused_variables))]
 pub(crate) fn highlight_code_block(
     language: Option<&str>,
     source: &str,

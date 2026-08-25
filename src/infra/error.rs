@@ -162,10 +162,15 @@ impl std::error::Error for ConfigError {
 pub enum ExportError {
     HtmlRenderFailed(String),
     ChromiumNotFound,
+    ChromiumLaunchFailed(String),
+    Timeout,
+    RuntimeInit(String),
     PdfProcessFailed { status: Option<i32>, details: String },
     IoFailed { path: PathBuf, source: std::io::Error },
+    Io(std::io::Error),
     TaskSpawnFailed(String),
     TaskAborted,
+    Render(String),
 }
 
 impl fmt::Display for ExportError {
@@ -175,6 +180,11 @@ impl fmt::Display for ExportError {
             Self::ChromiumNotFound => {
                 write!(f, "PDF export requires Chromium/Chrome, which was not found")
             }
+            Self::ChromiumLaunchFailed(msg) => {
+                write!(f, "Failed to launch Chromium for PDF export: {msg}")
+            }
+            Self::Timeout => write!(f, "PDF export timed out"),
+            Self::RuntimeInit(msg) => write!(f, "Failed to initialize PDF export runtime: {msg}"),
             Self::PdfProcessFailed { status, details } => {
                 write!(
                     f,
@@ -184,8 +194,10 @@ impl fmt::Display for ExportError {
             Self::IoFailed { path, source } => {
                 write!(f, "Export I/O failed for '{}': {source}", path.display())
             }
+            Self::Io(err) => write!(f, "I/O error during export: {err}"),
             Self::TaskSpawnFailed(msg) => write!(f, "Failed to start export task: {msg}"),
             Self::TaskAborted => write!(f, "Export task stopped before reporting a result"),
+            Self::Render(msg) => write!(f, "PDF export rendering error: {msg}"),
         }
     }
 }
@@ -194,8 +206,15 @@ impl std::error::Error for ExportError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::IoFailed { source, .. } => Some(source),
+            Self::Io(err) => Some(err),
             _ => None,
         }
+    }
+}
+
+impl From<std::io::Error> for ExportError {
+    fn from(err: std::io::Error) -> Self {
+        Self::Io(err)
     }
 }
 

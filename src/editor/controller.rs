@@ -585,7 +585,7 @@ impl Editor {
             welcome_last_click: None,
             focused_pane_id: None,
         };
-        editor.session.tab_list.push(tab);
+        editor.session.push_tab(tab);
         editor.rebuild_table_grids(cx);
         editor.rebuild_reference_registries(cx);
         let pane_id = editor.active_pane_id();
@@ -697,7 +697,7 @@ impl Editor {
             }
         };
         let markdown = String::from_utf8_lossy(&bytes).to_string();
-        let last = self.session.tab_list.push(Self::new_tab_from_markdown(
+        let last = self.session.push_tab(Self::new_tab_from_markdown(
             cx,
             markdown,
             Some(path.to_path_buf()),
@@ -1002,7 +1002,7 @@ impl Editor {
         root.next_node_id = next_id;
 
         let mut list = EditorTabList::new();
-        for tab in self.session.tab_list.iter() {
+        for tab in self.session.tabs() {
             let text = if tab.mode == EditorPaneKind::SourceCode {
                 tab.document.serialize_source_text(cx)
             } else {
@@ -1023,7 +1023,7 @@ impl Editor {
     /// First dirty tab in this editor, if any. Window-wide aggregation
     /// (across every editor area) lives on the Shell.
     pub(crate) fn first_dirty_tab(&self) -> Option<(PanelId, usize)> {
-        for (index, tab) in self.session.tab_list.iter().enumerate() {
+        for (index, tab) in self.session.tabs().enumerate() {
             if tab.file.dirty {
                 return Some((self.panel_id, index));
             }
