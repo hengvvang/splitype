@@ -27,7 +27,7 @@ use crate::app::window::{open_editor_window, record_recent_file_and_refresh};
 use crate::editor::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
 use crate::editor::engine::controller::{Editor, InfoDialogKind};
 use crate::editor::export::ExportFormat;
-use crate::editor::panes::document_view::{
+use crate::editor::panes::document_pane::{
     open_bug_report, open_discussions, open_feature_request, open_splitype_repository,
 };
 use crate::infra::config::settings::{apply_configured_language, apply_configured_theme};

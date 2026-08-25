@@ -60,7 +60,7 @@ pub enum ShortcutCommand {
     QuitApplication,
     CloseWindow,
     DismissTransientUi,
-    ToggleViewMode,
+    TogglePaneKind,
     ToggleExplorer,
     ToggleMaximizeArea,
     ToggleMaximizePane,
@@ -370,8 +370,8 @@ pub const SHORTCUT_DEFINITIONS: &[ShortcutDefinition] = &[
         context: None,
     },
     ShortcutDefinition {
-        command: ShortcutCommand::ToggleViewMode,
-        id: "toggle_view_mode",
+        command: ShortcutCommand::TogglePaneKind,
+        id: "toggle_pane_kind",
         default_keys: &["ctrl-tab", "cmd-tab"],
         context: None,
     },
@@ -547,9 +547,9 @@ mod tests {
     }
 
     #[test]
-    fn toggle_view_mode_has_default_shortcuts() {
+    fn toggle_pane_kind_has_default_shortcuts() {
         assert_eq!(
-            resolved_shortcut_keys(&BTreeMap::new(), ShortcutCommand::ToggleViewMode),
+            resolved_shortcut_keys(&BTreeMap::new(), ShortcutCommand::TogglePaneKind),
             vec!["ctrl-tab".to_string(), "cmd-tab".to_string()]
         );
     }

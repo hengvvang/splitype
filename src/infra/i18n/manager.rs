@@ -206,7 +206,7 @@ mod tests {
         assert_eq!(strings.menu_language, "语言");
         assert_eq!(strings.save_failed_title, "保存失败");
         assert_eq!(strings.export_failed_title, "导出失败");
-        assert_eq!(strings.view_mode_switch_to_source, "切换到源码");
+        assert_eq!(strings.pane_mode_switch_to_source, "切换到源码");
         assert_eq!(strings.context_menu_insert, "插入");
         assert_eq!(strings.table_insert_title, "插入表格");
         assert_eq!(strings.image_loading_without_alt, "正在加载图片...");

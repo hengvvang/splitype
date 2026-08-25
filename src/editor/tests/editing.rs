@@ -1,4 +1,4 @@
-﻿//! Keyboard editing: tab/arrow/capture semantics, select-all
+//! Keyboard editing: tab/arrow/capture semantics, select-all
 //! cycling, code-block focus, table-cell navigation.
 
 use gpui::{AppContext, ClickEvent, KeyDownEvent, Keystroke, TestAppContext};
@@ -6,14 +6,14 @@ use std::time::{Duration, Instant};
 
 use crate::editor::engine::controller::{Editor, EditorPaneKind};
 use crate::editor::input::actions::{FocusNext, Newline};
-use crate::editor::panes::document_view::context_menu::TableInsertTarget;
-use crate::editor::panes::document_view::dialogs::TableInsertDialogState;
+use crate::editor::panes::document_pane::context_menu::TableInsertTarget;
+use crate::editor::panes::document_pane::dialogs::TableInsertDialogState;
 use crate::model::parse::BlockKind;
 
 use super::*;
 
 #[gpui::test]
-async fn toggle_view_mode_preserves_paragraph_caret_position(cx: &mut TestAppContext) {
+async fn toggle_pane_kind_preserves_paragraph_caret_position(cx: &mut TestAppContext) {
     let editor = cx.new(|cx| Editor::from_markdown(cx, "alpha\n\nbeta".to_string(), None));
 
     editor.update(cx, |editor, cx| {
@@ -23,13 +23,13 @@ async fn toggle_view_mode_preserves_paragraph_caret_position(cx: &mut TestAppCon
         });
         editor.active_pane_state().focus.active_entity = Some(target.entity_id());
 
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
         let source = editor.doc().first_root().expect("source root").clone();
         assert_eq!(source.read(cx).selected_range, 9..9);
         assert!(source.read(cx).show_source_line_numbers());
 
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
         let entries = editor.doc().blocks();
         assert_eq!(entries.len(), 3);
@@ -48,7 +48,7 @@ async fn toggle_view_mode_preserves_paragraph_caret_position(cx: &mut TestAppCon
 }
 
 #[gpui::test]
-async fn toggle_view_mode_ends_stale_code_block_pointer_selection(cx: &mut TestAppContext) {
+async fn toggle_pane_kind_ends_stale_code_block_pointer_selection(cx: &mut TestAppContext) {
     let editor =
         cx.new(|cx| Editor::from_markdown(cx, "```rust\nfn main() {}\n```".to_string(), None));
 
@@ -61,7 +61,7 @@ async fn toggle_view_mode_ends_stale_code_block_pointer_selection(cx: &mut TestA
         });
         editor.active_pane_state().focus.active_entity = Some(target.entity_id());
 
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
 
         assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
         target.read_with(cx, |block, _cx| {
@@ -73,7 +73,7 @@ async fn toggle_view_mode_ends_stale_code_block_pointer_selection(cx: &mut TestA
 }
 
 #[gpui::test]
-async fn ctrl_tab_toggles_view_mode(cx: &mut TestAppContext) {
+async fn ctrl_tab_toggles_pane_kind(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
     let (editor, cx) =
         cx.add_window_view(|_window, cx| Editor::from_markdown(cx, "alpha".to_string(), None));
@@ -102,7 +102,7 @@ async fn ctrl_a_selects_entire_source_document_in_source_mode(cx: &mut TestAppCo
     });
 
     let source = editor.update(cx, |editor, cx| {
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
         let source = editor.doc().blocks()[0].entity.clone();
         source.update(cx, |block, _cx| {
@@ -769,7 +769,7 @@ async fn ending_editor_pointer_selection_sessions_keeps_normal_selection(cx: &mu
 }
 
 #[gpui::test]
-async fn toggle_view_mode_preserves_table_cell_position(cx: &mut TestAppContext) {
+async fn toggle_pane_kind_preserves_table_cell_position(cx: &mut TestAppContext) {
     let markdown = ["| Name | Value |", "| --- | --- |", "| alpha | beta |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -781,10 +781,10 @@ async fn toggle_view_mode_preserves_table_cell_position(cx: &mut TestAppContext)
         });
         editor.active_pane_state().focus.active_entity = Some(cell.entity_id());
 
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
 
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
         let restored_table = editor.doc().first_root().expect("restored table").clone();
         let restored_cell = restored_table
@@ -804,7 +804,7 @@ async fn toggle_view_mode_preserves_table_cell_position(cx: &mut TestAppContext)
 }
 
 #[gpui::test]
-async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestAppContext) {
+async fn toggle_pane_kind_preserves_callout_table_cell_position(cx: &mut TestAppContext) {
     let markdown = [
         "> [!NOTE]",
         "> | Name | Value |",
@@ -829,10 +829,10 @@ async fn toggle_view_mode_preserves_callout_table_cell_position(cx: &mut TestApp
         });
         editor.active_pane_state().focus.active_entity = Some(cell.entity_id());
 
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
 
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
         let restored_callout = editor.doc().first_root().expect("restored callout").clone();
         let restored_table = restored_callout

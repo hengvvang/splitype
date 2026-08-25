@@ -101,8 +101,8 @@ mod tests {
             assert_eq!(entries[0].entity.read(cx).display_text(), "alpha  \nbeta");
             assert_eq!(editor.doc().serialize_markdown(cx), "alpha  \nbeta");
 
-            editor.toggle_view_mode(cx);
-            editor.toggle_view_mode(cx);
+            editor.toggle_pane_kind(cx);
+            editor.toggle_pane_kind(cx);
 
             let entries = editor.doc().blocks();
             assert_eq!(entries[0].entity.read(cx).display_text(), "alpha  \nbeta");
@@ -123,8 +123,8 @@ mod tests {
             assert!(entries[0].entity.read(cx).display_text().ends_with(' '));
             assert_eq!(editor.doc().serialize_markdown(cx), tibetan);
 
-            editor.toggle_view_mode(cx);
-            editor.toggle_view_mode(cx);
+            editor.toggle_pane_kind(cx);
+            editor.toggle_pane_kind(cx);
 
             let entries = editor.doc().blocks();
             assert_eq!(entries[0].entity.read(cx).display_text(), tibetan);
@@ -223,8 +223,8 @@ mod tests {
                 "- item with code block\n  ```\n  let x = 1;\n  let y = 2;\n  ```"
             );
 
-            editor.toggle_view_mode(cx);
-            editor.toggle_view_mode(cx);
+            editor.toggle_pane_kind(cx);
+            editor.toggle_pane_kind(cx);
 
             let entries = editor.doc().blocks();
             assert_eq!(entries.len(), 2);
@@ -295,8 +295,8 @@ mod tests {
                 "1. item with nested quote\n  > quoted text\n  > \n  > quoted paragraph two"
             );
 
-            editor.toggle_view_mode(cx);
-            editor.toggle_view_mode(cx);
+            editor.toggle_pane_kind(cx);
+            editor.toggle_pane_kind(cx);
 
             let entries = editor.doc().blocks();
             assert_eq!(entries.len(), 2);
@@ -1699,12 +1699,12 @@ mod tests {
         let editor = cx.new(|cx| Editor::from_markdown(cx, "- item\n\ntext".to_string(), None));
 
         editor.update(cx, |editor, cx| {
-            editor.toggle_view_mode(cx);
+            editor.toggle_pane_kind(cx);
             assert!(matches!(
                 editor.tab().mode,
                 crate::editor::engine::controller::EditorPaneKind::SourceCode
             ));
-            editor.toggle_view_mode(cx);
+            editor.toggle_pane_kind(cx);
             assert!(matches!(
                 editor.tab().mode,
                 crate::editor::engine::controller::EditorPaneKind::Wysiwyg
@@ -1861,12 +1861,12 @@ mod tests {
         });
 
         editor.update(cx, |editor, cx| {
-            editor.toggle_view_mode(cx);
+            editor.toggle_pane_kind(cx);
             assert!(matches!(
                 editor.tab().mode,
                 crate::editor::engine::controller::EditorPaneKind::SourceCode
             ));
-            editor.toggle_view_mode(cx);
+            editor.toggle_pane_kind(cx);
             assert!(matches!(
                 editor.tab().mode,
                 crate::editor::engine::controller::EditorPaneKind::Wysiwyg

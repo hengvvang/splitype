@@ -1,4 +1,4 @@
-﻿//! Editor commands — save/export, view-mode switching, undo/redo, and
+//! Editor commands — save/export, view-mode switching, undo/redo, and
 //! dirty tracking.
 //!
 //! Action handlers wired in the editor's render flow
@@ -8,7 +8,7 @@
 use std::path::Path;
 
 use crate::editor::actions::{
-    ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs, ToggleMaximizePane, ToggleViewMode,
+    ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs, ToggleMaximizePane, TogglePaneKind,
 };
 use crate::editor::engine::controller::*;
 use crate::editor::input::actions::{Redo, Undo};
@@ -47,23 +47,23 @@ impl Editor {
         cx.notify();
     }
 
-    pub(crate) fn on_toggle_view_mode_action(
+    pub(crate) fn on_toggle_pane_kind_action(
         &mut self,
-        _: &ToggleViewMode,
+        _: &TogglePaneKind,
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if !self.has_active_tab() {
             return;
         }
-        self.toggle_view_mode_from_ui(cx);
+        self.toggle_pane_kind_from_ui(cx);
     }
 
-    pub(crate) fn toggle_view_mode_from_ui(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn toggle_pane_kind_from_ui(&mut self, cx: &mut Context<Self>) {
         self.end_block_pointer_selection_sessions(cx);
         self.tab_mut().undo.last_selection_snapshot =
             self.capture_source_selection_snapshot_global(cx);
-        self.toggle_view_mode(cx);
+        self.toggle_pane_kind(cx);
     }
 
     pub(crate) fn on_undo(&mut self, _: &Undo, _window: &mut Window, cx: &mut Context<Self>) {
@@ -136,7 +136,7 @@ impl Editor {
         );
     }
 
-    pub(crate) fn toggle_view_mode(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn toggle_pane_kind(&mut self, cx: &mut Context<Self>) {
         self.end_block_pointer_selection_sessions(cx);
         let selection_snapshot = self.capture_source_selection_snapshot_global(cx);
         self.clear_cross_block_selection(cx);

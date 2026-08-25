@@ -1,4 +1,4 @@
-﻿//! Keybinding installation — turns the shortcut configuration into gpui
+//! Keybinding installation — turns the shortcut configuration into gpui
 //! key bindings for the block editor and window commands.
 //!
 //! The shortcut schema (definition table, defaults, normalization) lives in
@@ -12,7 +12,7 @@ use gpui::*;
 use crate::app::actions::{
     CloseWindow, NewWindow, OpenFile, QuitApplication, ToggleExplorer, ToggleMaximizeArea,
 };
-use crate::editor::actions::{SaveDocument, SaveDocumentAs, ToggleMaximizePane, ToggleViewMode};
+use crate::editor::actions::{SaveDocument, SaveDocumentAs, ToggleMaximizePane, TogglePaneKind};
 use crate::editor::input::actions::{
     BlockDown, BlockUp, BoldSelection, CodeSelection, Copy, Cut, Delete, DeleteBackward,
     DismissTransientUi, End, ExitCodeBlock, FocusNext, FocusPrevious, Home, IndentBlock,
@@ -79,7 +79,7 @@ fn key_binding_for(
         ShortcutCommand::QuitApplication => KeyBinding::new(key, QuitApplication, context),
         ShortcutCommand::CloseWindow => KeyBinding::new(key, CloseWindow, context),
         ShortcutCommand::DismissTransientUi => KeyBinding::new(key, DismissTransientUi, context),
-        ShortcutCommand::ToggleViewMode => KeyBinding::new(key, ToggleViewMode, context),
+        ShortcutCommand::TogglePaneKind => KeyBinding::new(key, TogglePaneKind, context),
         ShortcutCommand::ToggleExplorer => KeyBinding::new(key, ToggleExplorer, context),
         ShortcutCommand::ToggleMaximizeArea => KeyBinding::new(key, ToggleMaximizeArea, context),
         ShortcutCommand::ToggleMaximizePane => KeyBinding::new(key, ToggleMaximizePane, context),

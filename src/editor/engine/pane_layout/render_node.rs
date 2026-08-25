@@ -1,4 +1,4 @@
-﻿//! Recursive rendering for split layout tree nodes, split containers, and pane viewports.
+//! Recursive rendering for split layout tree nodes, split containers, and pane viewports.
 
 use gpui::*;
 
@@ -41,8 +41,8 @@ impl Editor {
                 // of its view, so the split layout stays visible.
                 let inner_body: AnyElement = if self.panel_mode().is_editing() {
                     match kind {
-                        // WYSIWYG — this editor's own block editor view.
-                        EditorPaneKind::Wysiwyg => self.render_document_view(pane_id, window, cx),
+                        // WYSIWYG — this editor's own block editor pane.
+                        EditorPaneKind::Wysiwyg => self.render_wysiwyg_pane(pane_id, window, cx),
                         // Source — interactive source code editor. Uses a
                         // cached block in source-document mode; edits sync
                         // to the shared document via the block's Changed

@@ -5,7 +5,7 @@
 use gpui::*;
 
 use crate::editor::engine::controller::{Editor, TableAxisSelection};
-use crate::editor::panes::document_view::context_menu::ContextMenuState;
+use crate::editor::panes::document_pane::context_menu::ContextMenuState;
 use crate::model::block::table::{TableAxis, TableColumnAlignment};
 impl Editor {
     pub(crate) fn active_axis_menu_selection(&self) -> Option<TableAxisSelection> {

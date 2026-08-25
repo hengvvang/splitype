@@ -16,7 +16,7 @@ use crate::ui::button::{primary_button, secondary_button};
 use gpui::*;
 
 use crate::editor::engine::controller::Editor;
-use crate::editor::panes::document_view::context_menu::TableInsertTarget;
+use crate::editor::panes::document_pane::context_menu::TableInsertTarget;
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::Theme;
 

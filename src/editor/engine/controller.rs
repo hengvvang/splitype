@@ -28,8 +28,8 @@ pub(crate) use crate::editor::document::Document;
 pub(crate) use crate::editor::document::block::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
-pub(crate) use crate::editor::panes::document_view::context_menu::{ContextMenuState, FootnoteTooltipState};
-pub(crate) use crate::editor::panes::document_view::dialogs::TableInsertDialogState;
+pub(crate) use crate::editor::panes::document_pane::context_menu::{ContextMenuState, FootnoteTooltipState};
+pub(crate) use crate::editor::panes::document_pane::dialogs::TableInsertDialogState;
 pub(crate) use crate::model::block::image::{
     ImageReferenceDefinitions, parse_image_reference_definitions,
 };

@@ -27,7 +27,7 @@ async fn dropped_markdown_replaces_clean_editor_in_current_window(cx: &mut TestA
         cx.add_window_view(|_window, cx| Editor::from_markdown(cx, "old".to_string(), None));
 
     editor.update(cx, |editor, cx| {
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(editor.tab().mode == EditorPaneKind::SourceCode);
     });
 

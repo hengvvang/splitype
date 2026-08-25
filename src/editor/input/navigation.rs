@@ -1,6 +1,6 @@
 ﻿//! Navigation: page keys, viewport scrolling, and table-cell focus
 //! movement. Mouse/scrollbar interactions live in `mouse`; menu input
-//! lives in `crate::editor::panes::document_view::menu`.
+//! lives in `crate::editor::panes::document_pane::menu`.
 
 use gpui::*;
 

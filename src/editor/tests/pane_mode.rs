@@ -10,9 +10,9 @@ async fn toggling_source_mode_preserves_root_image_handle(cx: &mut TestAppContex
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
     });
 
@@ -28,9 +28,9 @@ async fn toggling_source_mode_preserves_reference_style_root_image_handle(cx: &m
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
     });
 
@@ -47,9 +47,9 @@ async fn toggling_source_mode_preserves_quote_child_image_handle(cx: &mut TestAp
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
     });
 
@@ -71,9 +71,9 @@ async fn toggling_source_mode_preserves_list_item_image_handle(cx: &mut TestAppC
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
     });
 
@@ -89,9 +89,9 @@ async fn toggling_source_mode_preserves_list_child_image_handle(cx: &mut TestApp
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
     editor.update(cx, |editor, cx| {
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
     });
 

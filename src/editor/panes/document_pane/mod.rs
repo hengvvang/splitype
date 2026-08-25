@@ -1,4 +1,4 @@
-﻿//! Editor window rendering — `Editor::render` and panel views.
+//! Editor window rendering — `Editor::render` and panel views.
 //!
 //! # Render phases
 //! 1. **Pre-frame bookkeeping** — pending focus, scroll-into-view,
@@ -15,9 +15,9 @@ pub(crate) mod context_menu;
 pub(crate) mod context_menu_actions;
 pub(crate) mod context_menu_render;
 pub(crate) mod dialogs;
-pub(crate) mod document_viewport;
 pub(crate) mod export;
 pub(crate) mod lifecycle_sync;
+pub(crate) mod viewport;
 
 use gpui::*;
 
@@ -129,7 +129,7 @@ impl Render for Editor {
             .on_action(cx.listener(Self::on_save_document_as))
             .on_action(cx.listener(Self::on_export_html))
             .on_action(cx.listener(Self::on_export_pdf))
-            .on_action(cx.listener(Self::on_toggle_view_mode_action))
+            .on_action(cx.listener(Self::on_toggle_pane_kind_action))
             .on_action(cx.listener(Self::on_toggle_maximize_pane_action))
             .on_action(cx.listener(Self::on_page_up))
             .on_action(cx.listener(Self::on_page_down))

@@ -134,7 +134,7 @@ async fn export_html_uses_source_mode_raw_text(cx: &mut TestAppContext) {
         cx.add_window_view(|_window, cx| Editor::from_markdown(cx, "rendered".to_string(), None));
 
     editor.update(cx, |editor, cx| {
-        editor.toggle_view_mode(cx);
+        editor.toggle_pane_kind(cx);
         let source_block = editor
             .doc()
             .first_root()

@@ -1,4 +1,4 @@
-﻿//! Virtualized document viewport planning, row windowing, and container assembly.
+//! Virtualized document viewport planning, row windowing, and container assembly.
 
 use std::time::Instant;
 
@@ -35,10 +35,10 @@ struct PlannedRow {
 }
 
 impl Editor {
-    /// Builds this editor area's WYSIWYG document view: the scrollable block
+    /// Builds this editor area's WYSIWYG document pane: the scrollable block
     /// editor. One Editor entity serves one area, so every document-state
     /// access hits this editor's own tab set.
-    pub(crate) fn render_document_view(
+    pub(crate) fn render_wysiwyg_pane(
         &mut self,
         pane_id: PaneId,
         window: &mut Window,

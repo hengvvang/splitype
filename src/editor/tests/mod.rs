@@ -1,8 +1,8 @@
-﻿//! Editor integration-style unit tests, grouped by subsystem.
+//! Editor integration-style unit tests, grouped by subsystem.
 //!
 //! Each topic module below covers one area of the editor; run a single
-//! group with `cargo test editor::tests::<module>` (e.g.
-//! `cargo test editor::tests::table_ops`). Shared helpers live here.
+//! group with cargo test editor::tests::<module> (e.g.
+//! cargo test editor::tests::table_ops). Shared helpers live here.
 
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -21,11 +21,11 @@ mod footnotes;
 mod geometry;
 mod image_handles;
 mod multi_panel;
+mod pane_mode;
 mod projection_styles;
 mod save_export;
 mod table_ops;
 mod undo;
-mod view_mode;
 mod window_flows;
 
 fn init_editor_test_app(cx: &mut TestAppContext) {
@@ -77,8 +77,8 @@ fn ensure_wysiwyg_editing_panel(editor: &gpui::Entity<Editor>, cx: &mut gpui::Ap
     });
 }
 
-/// Focus a specific block so keyboard simulation (`simulate_input` /
-/// `simulate_keystrokes`) lands in the editor. The editor no longer
+/// Focus a specific block so keyboard simulation (simulate_input /
+/// simulate_keystrokes) lands in the editor. The editor no longer
 /// auto-focuses on window creation, key events dispatch along the
 /// focused path, and the WYSIWYG panel must be mounted for the block to
 /// register its input handler.
@@ -100,7 +100,7 @@ fn focus_block(
     redraw(cx);
 }
 
-/// Focus the first block of the document via [`focus_block`].
+/// Focus the first block of the document via [ocus_block].
 fn focus_first_block(editor: &gpui::Entity<Editor>, cx: &mut gpui::VisualTestContext) {
     let first = editor
         .update(cx, |editor, _cx| {

@@ -14,7 +14,7 @@ actions!(
         SaveDocumentAs,
         ExportHtml,
         ExportPdf,
-        ToggleViewMode,
+        TogglePaneKind,
         ToggleMaximizePane,
     ]
 );
