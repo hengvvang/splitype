@@ -327,66 +327,63 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let target = match self.context_menu.take() {
-            Some(ContextMenuState::Edit { target, .. }) => target,
-            _ => TableInsertTarget::Append,
+        let (target, position) = match self.context_menu.take() {
+            Some(ContextMenuState::Edit { target, position, .. }) => (target, Some(position)),
+            _ => (TableInsertTarget::Append, None),
         };
         self.context_menu_submenu_close_task = None;
-        self.table_insert_dialog = Some(TableInsertDialogState {
-            target,
-            body_rows: 2,
-            columns: 2,
-        });
+        self.table_insert_dialog = Some(TableInsertDialogState::new(target, 4, 3, position));
         cx.notify();
     }
 
-    pub(crate) fn on_table_rows_decrement(
+    pub(crate) fn set_table_insert_hover(
         &mut self,
-        _event: &ClickEvent,
-        _window: &mut Window,
+        rows: Option<usize>,
+        cols: Option<usize>,
         cx: &mut Context<Self>,
     ) {
         if let Some(dialog) = self.table_insert_dialog.as_mut() {
-            dialog.body_rows = dialog.body_rows.saturating_sub(1).max(1);
+            dialog.hovered_rows = rows;
+            dialog.hovered_cols = cols;
+            if let (Some(r), Some(c)) = (rows, cols) {
+                dialog.rows = r.clamp(1, 8);
+                dialog.columns = c.clamp(1, 8);
+            }
             cx.notify();
         }
     }
 
-    pub(crate) fn on_table_rows_increment(
+    pub(crate) fn set_table_insert_size(
         &mut self,
-        _event: &ClickEvent,
-        _window: &mut Window,
+        rows: usize,
+        cols: usize,
         cx: &mut Context<Self>,
     ) {
         if let Some(dialog) = self.table_insert_dialog.as_mut() {
-            dialog.body_rows += 1;
+            dialog.rows = rows.clamp(1, 8);
+            dialog.columns = cols.clamp(1, 8);
             cx.notify();
         }
     }
 
-    pub(crate) fn on_table_columns_decrement(
+    pub(crate) fn handle_table_insert_key_down(
         &mut self,
-        _event: &ClickEvent,
-        _window: &mut Window,
+        event: &KeyDownEvent,
         cx: &mut Context<Self>,
     ) {
-        if let Some(dialog) = self.table_insert_dialog.as_mut() {
-            dialog.columns = dialog.columns.saturating_sub(1).max(1);
-            cx.notify();
+        let key = event.keystroke.key.as_str();
+        match key {
+            "escape" => {
+                self.close_table_insert_dialog(cx);
+            }
+            "enter" => {
+                // Confirm insert on Enter key
+                self.confirm_table_insert_action(cx);
+            }
+            _ => {}
         }
     }
 
-    pub(crate) fn on_table_columns_increment(
-        &mut self,
-        _event: &ClickEvent,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        if let Some(dialog) = self.table_insert_dialog.as_mut() {
-            dialog.columns += 1;
-            cx.notify();
-        }
-    }
 
     pub(crate) fn on_cancel_table_insert_dialog(
         &mut self,
@@ -403,11 +400,17 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        self.confirm_table_insert_action(cx);
+    }
+
+    pub(crate) fn confirm_table_insert_action(&mut self, cx: &mut Context<Self>) {
         let Some(dialog) = self.table_insert_dialog.take() else {
             return;
         };
 
-        let table = TableData::new_empty(dialog.body_rows, dialog.columns);
+        let body_rows = dialog.rows.saturating_sub(1).max(1);
+        let columns = dialog.columns.max(1);
+        let table = TableData::new_empty(body_rows, columns);
 
         if self.is_source_code() {
             let pane_id = self.active_pane_id();
@@ -1694,11 +1697,12 @@ mod tests {
             source_block.update(cx, |b, cx| b.move_to(6, cx));
 
             // Set table insert dialog state and confirm
-            editor.table_insert_dialog = Some(crate::editor::panes::document_pane::dialogs::TableInsertDialogState {
-                target: TableInsertTarget::Append,
-                body_rows: 2,
-                columns: 2,
-            });
+            editor.table_insert_dialog = Some(crate::editor::panes::document_pane::dialogs::TableInsertDialogState::new(
+                TableInsertTarget::Append,
+                3,
+                2,
+                None,
+            ));
         });
 
         cx.update(|window, cx| {

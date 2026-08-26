@@ -1,4 +1,4 @@
-﻿//! Editor-side dialog state and actions: the table-insert dialog (opened
+//! Editor-side dialog state and actions: the table-insert dialog (opened
 //! from the editor's context menu) and the document-facing half of the
 //! window-close confirmation.
 //!
@@ -8,9 +8,6 @@
 //! actions their buttons route to.
 
 use crate::ui::popover::overlay;
-
-use crate::ui::dialog::dialog_card;
-
 use crate::ui::button::{primary_button, secondary_button};
 
 use gpui::*;
@@ -23,8 +20,29 @@ use crate::infra::theme::Theme;
 /// State for the table insertion dialog opened from the context menu.
 pub(crate) struct TableInsertDialogState {
     pub target: TableInsertTarget,
-    pub body_rows: usize,
+    pub position: Option<Point<Pixels>>,
+    pub rows: usize,
     pub columns: usize,
+    pub hovered_rows: Option<usize>,
+    pub hovered_cols: Option<usize>,
+}
+
+impl TableInsertDialogState {
+    pub(crate) fn new(
+        target: TableInsertTarget,
+        rows: usize,
+        columns: usize,
+        position: Option<Point<Pixels>>,
+    ) -> Self {
+        Self {
+            target,
+            position,
+            rows: rows.clamp(1, 8),
+            columns: columns.clamp(1, 8),
+            hovered_rows: None,
+            hovered_cols: None,
+        }
+    }
 }
 
 impl Editor {
@@ -75,7 +93,6 @@ impl Editor {
         }
         cx.notify();
     }
-
     /// Cancel the pending-close-after-save flag (called when save fails or is
     /// cancelled, or when the save completes but close is no longer desired).
     pub(crate) fn abort_pending_close_after_save(&mut self, cx: &mut Context<Self>) {
@@ -84,199 +101,282 @@ impl Editor {
         cx.notify();
     }
 
-    /// The table-insert dialog opened from the context menu: a stepper for
-    /// rows and columns, plus confirm / cancel buttons. Centered within
-    /// this editor's tile — it targets this editor's document.
+    /// The interactive Table Insert Matrix Picker popup with Row/Column dimension badges,
+    /// dynamic hover preview grid, and Insert / Cancel action buttons.
     pub(crate) fn render_table_insert_dialog_overlay(
         &self,
         theme: &Theme,
+        window: &Window,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
         let dialog = self.table_insert_dialog.as_ref()?;
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let t = &theme.typography;
         let s = cx.global::<I18nManager>().strings().clone();
 
-        let stepper =
-            |id_prefix: &'static str,
-             label: String,
-             value: usize,
-             on_dec: fn(&mut Editor, &ClickEvent, &mut Window, &mut Context<Editor>),
-             on_inc: fn(&mut Editor, &ClickEvent, &mut Window, &mut Context<Editor>)| {
+        let panel_width = 236.0_f32;
+        let panel_height = 296.0_f32;
+
+        let viewport = window.viewport_size();
+        let max_x = f32::from(viewport.width) - panel_width - 16.0;
+        let max_y = f32::from(viewport.height) - panel_height - 16.0;
+
+        let (panel_x, panel_y) = if let Some(pos) = dialog.position {
+            let origin = self.panel_rect.map(|rect| rect.origin).unwrap_or_default();
+            let rel_x = pos.x - origin.x;
+            let rel_y = pos.y - origin.y;
+            (
+                px(f32::from(rel_x).clamp(8.0, max_x.max(8.0))),
+                px(f32::from(rel_y + px(10.0)).clamp(8.0, max_y.max(8.0))),
+            )
+        } else {
+            (
+                px(((f32::from(viewport.width) - panel_width) / 2.0).max(8.0)),
+                px(((f32::from(viewport.height) - panel_height) / 2.0).max(8.0)),
+            )
+        };
+
+        let max_matrix_rows = 8usize;
+        let max_matrix_cols = 8usize;
+
+        let current_rows = dialog.rows;
+        let current_cols = dialog.columns;
+
+        let display_rows = dialog
+            .hovered_rows
+            .unwrap_or(dialog.rows)
+            .clamp(1, max_matrix_rows);
+        let display_cols = dialog
+            .hovered_cols
+            .unwrap_or(dialog.columns)
+            .clamp(1, max_matrix_cols);
+
+        let is_dark = c.dialog_surface.l < 0.5;
+        let (inactive_bg, hover_bg, overlap_bg) = if is_dark {
+            (
+                Hsla::from(rgba(0x27272aff)), // Inactive block base (dark zinc)
+                Hsla::from(rgba(0x52525bff)), // Hovered
+                Hsla::from(rgba(0x71717aff)), // Selected / Active
+            )
+        } else {
+            (
+                Hsla::from(rgba(0xf3f4f6ff)), // Inactive block base (light gray)
+                Hsla::from(rgba(0xd1d5dbff)), // Hovered
+                Hsla::from(rgba(0x9ca3afff)), // Selected / Active
+            )
+        };
+
+        // Top Row & Column Dimension Indicator Header: [ Row count ] Row   x   [ Col count ] Column
+        let top_indicator = div()
+            .w_full()
+            .flex()
+            .items_center()
+            .justify_center()
+            .gap(px(8.0))
+            .pb(px(8.0))
+            .border_b(px(1.0))
+            .border_color(c.dialog_border)
+            .child(
                 div()
                     .flex()
-                    .flex_col()
-                    .gap(px(d.table_insert_stepper_gap))
+                    .items_center()
+                    .gap(px(4.0))
                     .child(
                         div()
-                            .text_size(px(t.dialog_body_size))
-                            .font_weight(t.dialog_button_weight.to_font_weight())
-                            .text_color(c.dialog_body)
-                            .child(label),
-                    )
-                    .child(
-                        div()
+                            .id("table-insert-rows-badge")
+                            .px(px(10.0))
+                            .py(px(2.0))
+                            .min_w(px(32.0))
                             .flex()
                             .items_center()
-                            .gap(px(d.table_insert_stepper_gap))
-                            .child(
-                                div()
-                                    .id((id_prefix, 0usize))
-                                    .size(px(d.table_insert_stepper_button_size))
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .rounded(px(d.stepper_radius))
-                                    .border(px(d.dialog_border_width))
-                                    .border_color(c.dialog_border)
-                                    .bg(c.dialog_secondary_button_bg)
-                                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                                    .cursor_pointer()
-                                    .text_color(c.dialog_secondary_button_text)
-                                    .on_click(cx.listener(on_dec))
-                                    .child(
-                                        svg()
-                                            .path("icons/editor/context_menu/minus.svg")
-                                            .size(px(12.0))
-                                            .text_color(c.dialog_secondary_button_text),
-                                    ),
-                            )
-                            .child(
-                                div()
-                                    .min_w(px(d.table_insert_stepper_value_min_width))
-                                    .h(px(d.table_insert_stepper_button_size))
-                                    .px(px(d.table_insert_stepper_value_padding_x))
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .rounded(px(d.stepper_radius))
-                                    .border(px(d.dialog_border_width))
-                                    .border_color(c.dialog_border)
-                                    .bg(c.dialog_surface)
-                                    .text_size(px(t.dialog_body_size))
-                                    .text_color(c.dialog_title)
-                                    .child(value.to_string()),
-                            )
-                            .child(
-                                div()
-                                    .id((id_prefix, 1usize))
-                                    .size(px(d.table_insert_stepper_button_size))
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .rounded(px(d.stepper_radius))
-                                    .border(px(d.dialog_border_width))
-                                    .border_color(c.dialog_border)
-                                    .bg(c.dialog_secondary_button_bg)
-                                    .hover(|this| this.bg(c.dialog_secondary_button_hover))
-                                    .cursor_pointer()
-                                    .text_color(c.dialog_secondary_button_text)
-                                    .on_click(cx.listener(on_inc))
-                                    .child(
-                                        svg()
-                                            .path("icons/editor/context_menu/plus.svg")
-                                            .size(px(12.0))
-                                            .text_color(c.dialog_secondary_button_text),
-                                    ),
-                            ),
+                            .justify_center()
+                            .border(px(1.0))
+                            .border_color(c.dialog_border)
+                            .rounded(px(4.0))
+                            .bg(c.dialog_surface)
+                            .text_size(px(12.0))
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(c.text_default)
+                            .child(format!("{}", display_rows)),
                     )
-            };
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .text_color(c.dialog_muted)
+                            .child("Row"),
+                    ),
+            )
+            .child(
+                div()
+                    .text_size(px(12.0))
+                    .text_color(c.dialog_muted)
+                    .child("x"),
+            )
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(4.0))
+                    .child(
+                        div()
+                            .id("table-insert-cols-badge")
+                            .px(px(10.0))
+                            .py(px(2.0))
+                            .min_w(px(32.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .border(px(1.0))
+                            .border_color(c.dialog_border)
+                            .rounded(px(4.0))
+                            .bg(c.dialog_surface)
+                            .text_size(px(12.0))
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(c.text_default)
+                            .child(format!("{}", display_cols)),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .text_color(c.dialog_muted)
+                            .child("Column"),
+                    ),
+            );
+
+        // Matrix Grid: 8x8 square matrix grid
+        let mut grid_rows = Vec::with_capacity(max_matrix_rows);
+        for r in 0..max_matrix_rows {
+            let row_num = r + 1;
+            let mut row_cells = Vec::with_capacity(max_matrix_cols);
+            for col in 0..max_matrix_cols {
+                let col_num = col + 1;
+                let is_in_active = r < current_rows && col < current_cols;
+                let is_in_hovered = if let (Some(h_r), Some(h_c)) = (dialog.hovered_rows, dialog.hovered_cols) {
+                    r < h_r && col < h_c
+                } else {
+                    false
+                };
+
+                let cell_bg = match (is_in_active, is_in_hovered) {
+                    (true, true) => overlap_bg,
+                    (false, true) => hover_bg,
+                    (true, false) => overlap_bg,
+                    (false, false) => inactive_bg,
+                };
+
+                let cell = div()
+                    .id(ElementId::Name(format!("table-insert-cell-{}-{}", r, col).into()))
+                    .size(px(22.0))
+                    .rounded(px(3.5))
+                    .bg(cell_bg)
+                    .cursor_pointer()
+                    .on_hover(cx.listener(move |editor, hovered: &bool, _window, cx| {
+                        if *hovered {
+                            editor.set_table_insert_hover(Some(row_num), Some(col_num), cx);
+                        }
+                    }))
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(move |editor, _event, _window, cx| {
+                            editor.set_table_insert_size(row_num, col_num, cx);
+                        }),
+                    );
+                row_cells.push(cell);
+            }
+            grid_rows.push(
+                div()
+                    .flex()
+                    .gap(px(4.0))
+                    .children(row_cells),
+            );
+        }
+
+        let matrix_grid = div()
+            .id("table-insert-matrix-grid")
+            .flex()
+            .flex_col()
+            .items_center()
+            .justify_center()
+            .gap(px(4.0))
+            .py(px(6.0))
+            .on_hover(cx.listener(|editor, hovered: &bool, _window, cx| {
+                if !*hovered {
+                    editor.set_table_insert_hover(None, None, cx);
+                }
+            }))
+            .children(grid_rows);
+
+        // Bottom Action buttons: Flatter Cancel and Insert
+        let action_buttons = div()
+            .w_full()
+            .flex()
+            .items_center()
+            .justify_end()
+            .gap(px(8.0))
+            .pt(px(8.0))
+            .border_t(px(1.0))
+            .border_color(c.dialog_border)
+            .child(
+                secondary_button("cancel-table-insert-dialog", c, d)
+                    .px(px(12.0))
+                    .py(px(0.0))
+                    .h(px(24.0))
+                    .rounded(px(4.0))
+                    .text_size(px(11.5))
+                    .text_color(c.dialog_secondary_button_text)
+                    .on_click(cx.listener(Self::on_cancel_table_insert_dialog))
+                    .child(s.table_insert_cancel.clone()),
+            )
+            .child(
+                primary_button("confirm-table-insert-dialog", c, d)
+                    .px(px(14.0))
+                    .py(px(0.0))
+                    .h(px(24.0))
+                    .rounded(px(4.0))
+                    .text_size(px(11.5))
+                    .text_color(c.dialog_primary_button_text)
+                    .on_click(cx.listener(Self::on_confirm_table_insert_dialog))
+                    .child(s.table_insert_confirm.clone()),
+            );
 
         Some(
-            overlay()
-                .id("table-insert-dialog-overlay")
-                .occlude()
-                .flex()
-                .items_center()
-                .justify_center()
-                .bg(c.dialog_backdrop)
-                .on_mouse_down(
-                    MouseButton::Left,
-                    cx.listener(Self::on_dismiss_context_menu_overlay),
-                )
-                .child(
-                    div()
-                        .w_full()
-                        .px(px(d.editor_padding))
-                        .flex()
-                        .justify_center()
-                        .child(
-                            dialog_card(c, d)
-                                .id("table-insert-dialog")
-                                .w(px(d.dialog_width.min(d.table_insert_dialog_width)))
-                                .border(px(d.dialog_border_width))
-                                .border_color(c.dialog_border)
-                                .rounded(px(d.dialog_radius))
-                                .shadow_lg()
-                                .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
-                                    cx.stop_propagation()
-                                })
-                                .child(
-                                    div()
-                                        .text_size(px(t.dialog_title_size))
-                                        .font_weight(t.dialog_title_weight.to_font_weight())
-                                        .text_color(c.dialog_title)
-                                        .child(s.table_insert_title.clone()),
-                                )
-                                .child(
-                                    div()
-                                        .text_size(px(t.dialog_body_size))
-                                        .font_weight(t.dialog_body_weight.to_font_weight())
-                                        .text_color(c.dialog_body)
-                                        .child(s.table_insert_description.clone()),
-                                )
-                                .child(stepper(
-                                    "table-body-rows",
-                                    s.table_insert_body_rows.clone(),
-                                    dialog.body_rows,
-                                    Self::on_table_rows_decrement,
-                                    Self::on_table_rows_increment,
-                                ))
-                                .child(stepper(
-                                    "table-columns",
-                                    s.table_insert_columns.clone(),
-                                    dialog.columns,
-                                    Self::on_table_columns_decrement,
-                                    Self::on_table_columns_increment,
-                                ))
-                                .child(
-                                    div()
-                                        .flex()
-                                        .justify_end()
-                                        .gap(px(d.dialog_button_gap))
-                                        .child(
-                                            secondary_button("cancel-table-insert-dialog", c, d)
-                                                .text_size(px(t.dialog_button_size))
-                                                .font_weight(
-                                                    t.dialog_button_weight.to_font_weight(),
-                                                )
-                                                .text_color(c.dialog_secondary_button_text)
-                                                .on_click(
-                                                    cx.listener(
-                                                        Self::on_cancel_table_insert_dialog,
-                                                    ),
-                                                )
-                                                .child(s.table_insert_cancel.clone()),
-                                        )
-                                        .child(
-                                            primary_button("confirm-table-insert-dialog", c, d)
-                                                .text_size(px(t.dialog_button_size))
-                                                .font_weight(
-                                                    t.dialog_button_weight.to_font_weight(),
-                                                )
-                                                .text_color(c.dialog_primary_button_text)
-                                                .on_click(
-                                                    cx.listener(
-                                                        Self::on_confirm_table_insert_dialog,
-                                                    ),
-                                                )
-                                                .child(s.table_insert_confirm.clone()),
-                                        ),
-                                ),
-                        ),
-                )
-                .into_any_element(),
+            deferred(
+                overlay()
+                    .id("table-insert-dialog-overlay")
+                    .occlude()
+                    .on_mouse_down(
+                        MouseButton::Left,
+                        cx.listener(|editor, _event, _window, cx| {
+                            editor.close_table_insert_dialog(cx);
+                        }),
+                    )
+                    .child(
+                        div()
+                            .id("table-insert-dialog-panel")
+                            .absolute()
+                            .left(panel_x)
+                            .top(panel_y)
+                            .p(px(12.0))
+                            .flex()
+                            .flex_col()
+                            .gap(px(2.0))
+                            .bg(c.dialog_surface)
+                            .border(px(d.dialog_border_width))
+                            .border_color(c.dialog_border)
+                            .rounded(px(d.menu_panel_radius))
+                            .shadow_lg()
+                            .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
+                                cx.stop_propagation();
+                            })
+                            .on_key_down(cx.listener(|editor, event, _window, cx| {
+                                editor.handle_table_insert_key_down(event, cx);
+                            }))
+                            .child(top_indicator)
+                            .child(matrix_grid)
+                            .child(action_buttons),
+                    ),
+            )
+            .into_any_element(),
         )
     }
 }

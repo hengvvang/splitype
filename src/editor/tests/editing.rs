@@ -654,11 +654,12 @@ async fn inserting_table_at_document_end_adds_trailing_paragraph(cx: &mut TestAp
 
     cx.update(|window, cx| {
         editor.update(cx, |editor, cx| {
-            editor.table_insert_dialog = Some(TableInsertDialogState {
-                target: TableInsertTarget::Append,
-                body_rows: 2,
-                columns: 2,
-            });
+            editor.table_insert_dialog = Some(TableInsertDialogState::new(
+                TableInsertTarget::Append,
+                3,
+                2,
+                None,
+            ));
             editor.on_confirm_table_insert_dialog(&ClickEvent::default(), window, cx);
         });
     });
@@ -1130,6 +1131,68 @@ async fn editing_image_syntax_updates_markdown_and_handle(cx: &mut TestAppContex
         );
         let handle = block.read(cx).image_handle().expect("image handle");
         assert_eq!(handle.alt, "new_diagram");
+    });
+}
+
+#[gpui::test]
+async fn table_insert_dialog_matrix_hover_and_confirmation(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, "".to_string(), None));
+
+    editor.update(cx, |editor, cx| {
+        // Open table insert dialog with initial 4 rows, 3 columns
+        editor.table_insert_dialog = Some(TableInsertDialogState::new(
+            TableInsertTarget::Append,
+            4,
+            3,
+            None,
+        ));
+        let dialog = editor.table_insert_dialog.as_ref().unwrap();
+        assert_eq!(dialog.rows, 4);
+        assert_eq!(dialog.columns, 3);
+
+        // 1. Hover over 6 rows, 5 cols
+        editor.set_table_insert_hover(Some(6), Some(5), cx);
+        assert_eq!(editor.table_insert_dialog.as_ref().unwrap().hovered_rows, Some(6));
+        assert_eq!(editor.table_insert_dialog.as_ref().unwrap().hovered_cols, Some(5));
+        assert_eq!(editor.table_insert_dialog.as_ref().unwrap().rows, 6);
+        assert_eq!(editor.table_insert_dialog.as_ref().unwrap().columns, 5);
+
+        // 2. Select size directly
+        editor.set_table_insert_size(5, 4, cx);
+        assert_eq!(editor.table_insert_dialog.as_ref().unwrap().rows, 5);
+        assert_eq!(editor.table_insert_dialog.as_ref().unwrap().columns, 4);
+
+        // 3. Press Enter to confirm insert
+        let key_enter = KeyDownEvent {
+            keystroke: Keystroke::parse("enter").expect("valid keystroke enter"),
+            is_held: false,
+            prefer_character_input: false,
+        };
+        editor.handle_table_insert_key_down(&key_enter, cx);
+        assert!(editor.table_insert_dialog.is_none());
+        assert_eq!(editor.doc().blocks().len(), 3);
+        assert_eq!(editor.doc().blocks()[1].entity.read(cx).kind(), BlockKind::Table);
+    });
+}
+
+#[gpui::test]
+async fn table_insert_dialog_escape_cancels(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, "".to_string(), None));
+
+    editor.update(cx, |editor, cx| {
+        editor.table_insert_dialog = Some(TableInsertDialogState::new(
+            TableInsertTarget::Append,
+            4,
+            3,
+            None,
+        ));
+        let key_escape = KeyDownEvent {
+            keystroke: Keystroke::parse("escape").expect("valid keystroke escape"),
+            is_held: false,
+            prefer_character_input: false,
+        };
+        editor.handle_table_insert_key_down(&key_escape, cx);
+        assert!(editor.table_insert_dialog.is_none());
     });
 }
 

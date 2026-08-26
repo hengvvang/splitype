@@ -163,7 +163,7 @@ impl Render for Editor {
         } else {
             base
         };
-        let base = if let Some(table_dialog) = self.render_table_insert_dialog_overlay(&theme, cx) {
+        let base = if let Some(table_dialog) = self.render_table_insert_dialog_overlay(&theme, window, cx) {
             base.child(table_dialog)
         } else {
             base

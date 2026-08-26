@@ -723,7 +723,7 @@ impl Editor {
         let pos_x = picker.position.x - origin.x;
         let pos_y = picker.position.y - origin.y;
 
-        let panel_width = 162.0_f32;
+        let panel_width = 176.0_f32;
         let panel_height = 240.0_f32;
 
         let viewport = window.viewport_size();
@@ -770,21 +770,37 @@ impl Editor {
             .flex()
             .items_center()
             .justify_center()
-            .gap(px(6.0))
+            .gap(px(8.0))
             .pb(px(8.0))
             .border_b(px(1.0))
             .border_color(c.dialog_border)
             .child(
                 div()
-                    .px(px(10.0))
-                    .py(px(2.0))
-                    .border(px(1.0))
-                    .border_color(c.dialog_border)
-                    .rounded(px(3.0))
-                    .text_size(px(12.0))
-                    .font_weight(FontWeight::MEDIUM)
-                    .text_color(c.text_default)
-                    .child(format!("{}", display_rows)),
+                    .flex()
+                    .items_center()
+                    .gap(px(4.0))
+                    .child(
+                        div()
+                            .px(px(8.0))
+                            .py(px(2.0))
+                            .min_w(px(28.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .border(px(1.0))
+                            .border_color(c.dialog_border)
+                            .rounded(px(3.0))
+                            .text_size(px(12.0))
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(c.text_default)
+                            .child(format!("{}", display_rows)),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .text_color(c.dialog_muted)
+                            .child("Row"),
+                    ),
             )
             .child(
                 div()
@@ -794,15 +810,31 @@ impl Editor {
             )
             .child(
                 div()
-                    .px(px(10.0))
-                    .py(px(2.0))
-                    .border(px(1.0))
-                    .border_color(c.dialog_border)
-                    .rounded(px(3.0))
-                    .text_size(px(12.0))
-                    .font_weight(FontWeight::MEDIUM)
-                    .text_color(c.text_default)
-                    .child(format!("{}", display_cols)),
+                    .flex()
+                    .items_center()
+                    .gap(px(4.0))
+                    .child(
+                        div()
+                            .px(px(8.0))
+                            .py(px(2.0))
+                            .min_w(px(28.0))
+                            .flex()
+                            .items_center()
+                            .justify_center()
+                            .border(px(1.0))
+                            .border_color(c.dialog_border)
+                            .rounded(px(3.0))
+                            .text_size(px(12.0))
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(c.text_default)
+                            .child(format!("{}", display_cols)),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(12.0))
+                            .text_color(c.dialog_muted)
+                            .child("Column"),
+                    ),
             );
 
         let mut grid_rows = Vec::with_capacity(max_matrix_rows);
@@ -856,6 +888,8 @@ impl Editor {
             .id("table-size-matrix-grid")
             .flex()
             .flex_col()
+            .items_center()
+            .justify_center()
             .gap(px(3.0))
             .pt(px(6.0))
             .on_hover(cx.listener(|editor, hovered: &bool, _window, cx| {

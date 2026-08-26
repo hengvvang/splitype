@@ -1,4 +1,4 @@
-﻿//! Keyboard event handling for the Editor.
+//! Keyboard event handling for the Editor.
 //!
 //! This module owns the full [`Editor`] keyboard event handler: tab-key
 //! routing between blocks (indent / outdent) and the focused-block query it
@@ -60,6 +60,12 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        if self.table_insert_dialog.is_some() {
+            self.handle_table_insert_key_down(event, cx);
+            cx.stop_propagation();
+            return;
+        }
+
         if event.keystroke.key != "tab" {
             return;
         }
