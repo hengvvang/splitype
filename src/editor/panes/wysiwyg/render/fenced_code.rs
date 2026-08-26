@@ -1,4 +1,4 @@
-﻿//! Fenced code block rendering.
+//! Fenced code block rendering.
 
 use gpui::*;
 
@@ -28,8 +28,12 @@ pub(crate) fn render_fenced_code(
     focused_base
         .relative()
         .on_hover(cx.listener(Block::on_code_block_hover))
-        .bg(c.code_bg)
-        .rounded(px(d.code_block_radius))
-        .child(editor_section)
+        .child(
+            div()
+                .w_full()
+                .bg(c.code_bg)
+                .rounded(px(d.code_block_radius))
+                .child(editor_section),
+        )
         .into_any_element()
 }

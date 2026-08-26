@@ -1,4 +1,4 @@
-﻿//! Image and media placeholders, loading states, and container width budgets.
+//! Image and media placeholders, loading states, and container width budgets.
 
 use gpui::*;
 
@@ -118,7 +118,11 @@ pub(crate) fn effective_table_width(
         0.0
     };
 
-    (centered_width - quote_inset - callout_inset)
+    (centered_width
+        - d.block_padding_x * 2.0
+        - d.table_append_button_extent
+        - quote_inset
+        - callout_inset)
         .max((d.table_cell_padding_x * 2.0 + 80.0).max(120.0))
 }
 

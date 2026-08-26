@@ -1,4 +1,4 @@
-﻿//! Rendering for [`Block`] via GPUI's high-level [`Render`] trait.
+//! Rendering for [`Block`] via GPUI's high-level [`Render`] trait.
 //!
 //! Each block kind produces a distinct visual style: H1 has a bottom border,
 //! list items render a marker column (bullet / ordinal), and raw Markdown
@@ -80,7 +80,7 @@ fn wrap_with_quote_guides(content: AnyElement, quote_depth: usize, theme: &Theme
                 .absolute()
                 .top_0()
                 .bottom_0()
-                .left(px(guide_offset * level as f32))
+                .left(px(d.block_padding_x + guide_offset * level as f32))
                 .w(px(d.quote_border_width))
                 .bg(c.border_quote)
         }))
@@ -369,16 +369,8 @@ impl Render for Block {
             } else {
                 CursorStyle::IBeam
             },
-            if matches!(self.kind(), BlockKind::CodeBlock { .. } | BlockKind::MathBlock | BlockKind::MermaidBlock) {
-                0.0
-            } else {
-                depth_padding
-            },
-            if matches!(self.kind(), BlockKind::CodeBlock { .. } | BlockKind::MathBlock | BlockKind::MermaidBlock) {
-                0.0
-            } else {
-                d.block_padding_x
-            },
+            depth_padding,
+            d.block_padding_x,
             d,
             cx,
         );

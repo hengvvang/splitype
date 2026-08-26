@@ -1,4 +1,4 @@
-﻿//! Preview panel — read-only rendered snapshot of the document.
+//! Preview panel — read-only rendered snapshot of the document.
 //!
 //! The preview renders its own snapshot block tree with dedicated read-only
 //! block renderers (one module per block kind), deliberately separate from
@@ -203,7 +203,7 @@ pub(crate) fn render_preview_block(
                     .absolute()
                     .top_0()
                     .bottom_0()
-                    .left_0()
+                    .left(px(d.block_padding_x))
                     .w(px(d.callout_border_width))
                     .bg(accent),
             )
@@ -277,7 +277,7 @@ fn wrap_with_preview_quote_guides(
                 .absolute()
                 .top_0()
                 .bottom_0()
-                .left(px(guide_offset * level as f32))
+                .left(px(d.block_padding_x + guide_offset * level as f32))
                 .w(px(d.quote_border_width))
                 .bg(c.border_quote)
         }))

@@ -1,4 +1,4 @@
-﻿use gpui::*;
+use gpui::*;
 
 use crate::editor::document::protocol::BlockEvent;
 use crate::editor::input::table_grid::TableGrid;
@@ -1042,8 +1042,8 @@ pub(crate) fn render_table(
             .flex()
             .flex_col()
             .pt(px(20.0))
-            .pl(px(20.0))
-            .pr(px(18.0))
+            .pl(px(d.block_padding_x))
+            .pr(px(d.block_padding_x + d.table_append_button_extent))
             .pb(px(18.0))
             .gap(px(0.0))
             .child(table_grid)

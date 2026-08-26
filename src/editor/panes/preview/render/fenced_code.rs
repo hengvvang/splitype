@@ -1,4 +1,4 @@
-﻿//! Preview fenced code rendering — highlighted code with line numbers,
+//! Preview fenced code rendering — highlighted code with line numbers,
 //! mirroring the WYSIWYG code block styles.
 
 use gpui::*;
@@ -51,33 +51,37 @@ pub(crate) fn render_preview_fenced_code(block: &Block, base: Div, theme: &Theme
             .into_any_element()
     };
 
-    base.bg(c.code_bg)
-        .rounded(px(d.code_block_radius))
-        .w_full()
-        .px(px(d.code_block_padding_x))
-        .py(px(d.code_block_padding_y))
-        .text_size(px(t.code_size))
-        .text_color(c.code_text)
-        .line_height(rems(t.text_line_height))
+    base.w_full()
         .child(
             div()
                 .w_full()
-                .flex()
-                .flex_row()
+                .bg(c.code_bg)
+                .rounded(px(d.code_block_radius))
+                .px(px(d.code_block_padding_x))
+                .py(px(d.code_block_padding_y))
+                .text_size(px(t.code_size))
+                .text_color(c.code_text)
+                .line_height(rems(t.text_line_height))
                 .child(
                     div()
-                        .flex_none()
-                        .pr(px(10.0))
-                        .mr(px(8.0))
-                        .border_r_1()
-                        .border_color(c.table_border)
-                        .text_align(TextAlign::Right)
-                        .text_size(px(t.code_size))
-                        .line_height(rems(t.text_line_height))
-                        .text_color(c.dialog_muted)
-                        .child(SharedString::from(line_numbers_text)),
-                )
-                .child(div().min_w(px(0.0)).flex_1().child(code_body)),
+                        .w_full()
+                        .flex()
+                        .flex_row()
+                        .child(
+                            div()
+                                .flex_none()
+                                .pr(px(10.0))
+                                .mr(px(8.0))
+                                .border_r_1()
+                                .border_color(c.table_border)
+                                .text_align(TextAlign::Right)
+                                .text_size(px(t.code_size))
+                                .line_height(rems(t.text_line_height))
+                                .text_color(c.dialog_muted)
+                                .child(SharedString::from(line_numbers_text)),
+                        )
+                        .child(div().min_w(px(0.0)).flex_1().child(code_body)),
+                ),
         )
         .into_any_element()
 }

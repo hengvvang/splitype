@@ -596,7 +596,7 @@ impl Editor {
                             .absolute()
                             .top_0()
                             .bottom_0()
-                            .left_0()
+                            .left(px(d.block_padding_x))
                             .w(px(d.callout_border_width))
                             .bg(accent),
                     )
