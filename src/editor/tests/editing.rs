@@ -1,12 +1,8 @@
-//! Keyboard editing: tab/arrow/capture semantics, select-all
-//! cycling, code-block focus, table-cell navigation.
-
-use gpui::{AppContext, ClickEvent, KeyDownEvent, Keystroke, TestAppContext};
+use gpui::{AppContext, KeyDownEvent, Keystroke, TestAppContext};
 use std::time::{Duration, Instant};
 
 use crate::editor::engine::controller::{Editor, EditorPaneKind};
 use crate::editor::input::actions::{FocusNext, Newline};
-use crate::editor::panes::document_pane::context_menu::TableInsertTarget;
 use crate::editor::panes::document_pane::dialogs::TableInsertDialogState;
 use crate::model::parse::BlockKind;
 
@@ -652,33 +648,23 @@ async fn inserting_table_at_document_end_adds_trailing_paragraph(cx: &mut TestAp
     let cx = cx.add_empty_window();
     let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
 
-    cx.update(|window, cx| {
+    cx.update(|_window, cx| {
         editor.update(cx, |editor, cx| {
             editor.table_insert_dialog = Some(TableInsertDialogState::new(
-                TableInsertTarget::Append,
+                None,
                 3,
                 2,
                 None,
             ));
-            editor.on_confirm_table_insert_dialog(&ClickEvent::default(), window, cx);
+            editor.insert_table_from_dialog(3, 2, cx);
         });
     });
 
     editor.update(cx, |editor, cx| {
-        let roots = editor.doc().blocks();
-        let kinds = roots
-            .iter()
-            .map(|entries| entries.entity.read(cx).kind())
-            .collect::<Vec<_>>();
-        let table_index = kinds
-            .iter()
-            .position(|kind| *kind == BlockKind::Table)
-            .expect("table inserted");
-        // The table is the last meaningful block, so an empty paragraph is
-        // appended after it to give the caret somewhere to land.
-        assert_eq!(kinds.get(table_index + 1), Some(&BlockKind::Paragraph));
-        assert_eq!(table_index + 1, kinds.len() - 1);
-        assert_eq!(roots[table_index + 1].entity.read(cx).display_text(), "");
+        let block = editor.doc().blocks().first().unwrap().entity.clone();
+        let text = block.read(cx).display_text();
+        assert!(text.contains("| --- | --- |"));
+        assert!(text.contains("|  |  |"));
     });
 }
 
@@ -1141,7 +1127,7 @@ async fn table_insert_dialog_matrix_hover_and_confirmation(cx: &mut TestAppConte
     editor.update(cx, |editor, cx| {
         // Open table insert dialog with initial 4 rows, 3 columns
         editor.table_insert_dialog = Some(TableInsertDialogState::new(
-            TableInsertTarget::Append,
+            None,
             4,
             3,
             None,
@@ -1157,8 +1143,8 @@ async fn table_insert_dialog_matrix_hover_and_confirmation(cx: &mut TestAppConte
         assert_eq!(editor.table_insert_dialog.as_ref().unwrap().rows, 6);
         assert_eq!(editor.table_insert_dialog.as_ref().unwrap().columns, 5);
 
-        // 2. Select size directly
-        editor.set_table_insert_size(5, 4, cx);
+        // 2. Hover over 5 rows, 4 cols
+        editor.set_table_insert_hover(Some(5), Some(4), cx);
         assert_eq!(editor.table_insert_dialog.as_ref().unwrap().rows, 5);
         assert_eq!(editor.table_insert_dialog.as_ref().unwrap().columns, 4);
 
@@ -1170,8 +1156,9 @@ async fn table_insert_dialog_matrix_hover_and_confirmation(cx: &mut TestAppConte
         };
         editor.handle_table_insert_key_down(&key_enter, cx);
         assert!(editor.table_insert_dialog.is_none());
-        assert_eq!(editor.doc().blocks().len(), 3);
-        assert_eq!(editor.doc().blocks()[1].entity.read(cx).kind(), BlockKind::Table);
+        let block = editor.doc().blocks().first().unwrap().entity.clone();
+        let text = block.read(cx).display_text();
+        assert!(text.contains("| --- |"));
     });
 }
 
@@ -1181,7 +1168,7 @@ async fn table_insert_dialog_escape_cancels(cx: &mut TestAppContext) {
 
     editor.update(cx, |editor, cx| {
         editor.table_insert_dialog = Some(TableInsertDialogState::new(
-            TableInsertTarget::Append,
+            None,
             4,
             3,
             None,
@@ -1193,6 +1180,26 @@ async fn table_insert_dialog_escape_cancels(cx: &mut TestAppContext) {
         };
         editor.handle_table_insert_key_down(&key_escape, cx);
         assert!(editor.table_insert_dialog.is_none());
+    });
+}
+
+#[gpui::test]
+async fn table_insert_dialog_direct_cell_click_inserts_table(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, "".to_string(), None));
+
+    editor.update(cx, |editor, cx| {
+        editor.table_insert_dialog = Some(TableInsertDialogState::new(
+            None,
+            4,
+            3,
+            None,
+        ));
+        // Clicking cell (5, 4) directly inserts table and closes dialog
+        editor.insert_table_from_dialog(5, 4, cx);
+        assert!(editor.table_insert_dialog.is_none());
+        let block = editor.doc().blocks().first().unwrap().entity.clone();
+        let text = block.read(cx).display_text();
+        assert!(text.contains("| --- |"));
     });
 }
 

@@ -9,12 +9,13 @@ use std::time::Duration;
 
 use gpui::*;
 
-use crate::editor::engine::controller::{Editor, EditorPaneKind, TableAxisSelection};
+use crate::editor::commands::edit_command::{
+    BlockStructureKind, DocumentEditCommand, InlineFormatKind, InsertBlockKind,
+};
+use crate::editor::engine::controller::{Editor, TableAxisSelection};
 use crate::editor::input::actions::DismissTransientUi;
 use crate::editor::panes::document_pane::dialogs::TableInsertDialogState;
 use crate::editor::document::block::Block;
-use crate::model::block::table::TableData;
-use crate::model::parse::BlockKind;
 
 /// Active secondary submenu in the context menu.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -22,15 +23,6 @@ pub(crate) enum ContextSubmenu {
     TextFormat,
     ParagraphSettings,
     Insert,
-}
-
-/// Target block position for inserting a native table.
-#[derive(Clone, Copy)]
-pub(crate) enum TableInsertTarget {
-    /// Insert the table immediately after the referenced block.
-    After(EntityId),
-    /// Append the table to the end of the current root list.
-    Append,
 }
 
 /// Tooltip state for a hovered footnote (reference or definition header):
@@ -47,7 +39,6 @@ pub(crate) enum ContextMenuState {
     /// General editor context menu with submenus for text format, paragraph settings, and insert.
     Edit {
         position: Point<Pixels>,
-        target: TableInsertTarget,
         target_entity: Option<EntityId>,
         active_submenu: Option<ContextSubmenu>,
         submenu_hovered: bool,
@@ -61,29 +52,16 @@ pub(crate) enum ContextMenuState {
 }
 
 impl Editor {
-    pub(crate) fn root_ancestor_entity_id(&self, entity_id: EntityId) -> EntityId {
-        let mut current = entity_id;
-        while let Some(location) = self.doc().find_block_location(current) {
-            let Some(parent) = location.parent else {
-                break;
-            };
-            current = parent.entity_id();
-        }
-        current
-    }
-
     /// Opens the general edit context menu at pointer location.
     pub(crate) fn open_edit_context_menu(
         &mut self,
         position: Point<Pixels>,
-        target: TableInsertTarget,
         target_entity: Option<EntityId>,
         cx: &mut Context<Self>,
     ) {
         self.context_menu_submenu_close_task = None;
         self.context_menu = Some(ContextMenuState::Edit {
             position,
-            target,
             target_entity,
             active_submenu: None,
             submenu_hovered: false,
@@ -244,11 +222,10 @@ impl Editor {
                     }
                 });
             }
-            let target = TableInsertTarget::After(self.root_ancestor_entity_id(endpoint.entity_id));
-            self.open_edit_context_menu(event.position, target, Some(endpoint.entity_id), cx);
+            self.open_edit_context_menu(event.position, Some(endpoint.entity_id), cx);
         } else {
             let active_id = self.active_pane_state().focus.active_entity;
-            self.open_edit_context_menu(event.position, TableInsertTarget::Append, active_id, cx);
+            self.open_edit_context_menu(event.position, active_id, cx);
         }
     }
 
@@ -276,7 +253,7 @@ impl Editor {
                 block.move_to(offset, cx);
             }
         });
-        self.open_edit_context_menu(event.position, TableInsertTarget::Append, Some(source_block.entity_id()), cx);
+        self.open_edit_context_menu(event.position, Some(source_block.entity_id()), cx);
     }
 
     pub(crate) fn on_block_context_menu_mouse_down(
@@ -299,8 +276,7 @@ impl Editor {
                 }
             });
         }
-        let target = TableInsertTarget::After(self.root_ancestor_entity_id(entity_id));
-        self.open_edit_context_menu(event.position, target, Some(entity_id), cx);
+        self.open_edit_context_menu(event.position, Some(entity_id), cx);
     }
 
     pub(crate) fn on_dismiss_context_menu_overlay(
@@ -327,12 +303,12 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let (target, position) = match self.context_menu.take() {
-            Some(ContextMenuState::Edit { target, position, .. }) => (target, Some(position)),
-            _ => (TableInsertTarget::Append, None),
+        let (target_entity, position) = match self.context_menu.take() {
+            Some(ContextMenuState::Edit { target_entity, position, .. }) => (target_entity, Some(position)),
+            _ => (None, None),
         };
         self.context_menu_submenu_close_task = None;
-        self.table_insert_dialog = Some(TableInsertDialogState::new(target, 4, 3, position));
+        self.table_insert_dialog = Some(TableInsertDialogState::new(target_entity, 4, 3, position));
         cx.notify();
     }
 
@@ -353,17 +329,23 @@ impl Editor {
         }
     }
 
-    pub(crate) fn set_table_insert_size(
+    pub(crate) fn insert_table_from_dialog(
         &mut self,
         rows: usize,
         cols: usize,
         cx: &mut Context<Self>,
     ) {
-        if let Some(dialog) = self.table_insert_dialog.as_mut() {
-            dialog.rows = rows.clamp(1, 8);
-            dialog.columns = cols.clamp(1, 8);
-            cx.notify();
-        }
+        let Some(dialog) = self.table_insert_dialog.take() else {
+            return;
+        };
+        self.execute_edit_command(
+            DocumentEditCommand::InsertTable {
+                rows,
+                columns: cols,
+            },
+            dialog.target_entity,
+            cx,
+        );
     }
 
     pub(crate) fn handle_table_insert_key_down(
@@ -384,92 +366,18 @@ impl Editor {
         }
     }
 
-
-    pub(crate) fn on_cancel_table_insert_dialog(
-        &mut self,
-        _event: &ClickEvent,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.close_table_insert_dialog(cx);
-    }
-
-    pub(crate) fn on_confirm_table_insert_dialog(
-        &mut self,
-        _event: &ClickEvent,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.confirm_table_insert_action(cx);
-    }
-
     pub(crate) fn confirm_table_insert_action(&mut self, cx: &mut Context<Self>) {
         let Some(dialog) = self.table_insert_dialog.take() else {
             return;
         };
-
-        let body_rows = dialog.rows.saturating_sub(1).max(1);
-        let columns = dialog.columns.max(1);
-        let table = TableData::new_empty(body_rows, columns);
-
-        if self.is_source_code() {
-            let pane_id = self.active_pane_id();
-            if let Some(block) = self.pane_state_ref(pane_id).and_then(|p| p.source_block.clone()) {
-                block.update(cx, |block, cx| {
-                    let cursor = block.cursor_offset();
-                    let table_md = format!("\n{}\n", table.serialize_markdown());
-                    let insert_len = table_md.len();
-                    block.replace_text_in_display_range(
-                        cursor..cursor,
-                        &table_md,
-                        Some(insert_len..insert_len),
-                        false,
-                        cx,
-                    );
-                });
-            }
-            self.mark_dirty(cx);
-            cx.notify();
-            return;
-        }
-
-        let new_block = Self::new_table_block(cx, table);
-
-        match dialog.target {
-            TableInsertTarget::After(entity_id) => {
-                if let Some(location) = self.doc().find_block_location(entity_id) {
-                    self.doc_mut().insert_blocks_at(
-                        location.parent,
-                        location.index + 1,
-                        vec![new_block.clone()],
-                        cx,
-                    );
-                } else {
-                    let root_count = self.doc().root_count();
-                    self.doc_mut()
-                        .insert_blocks_at(None, root_count, vec![new_block.clone()], cx);
-                }
-            }
-            TableInsertTarget::Append => {
-                let root_count = self.doc().root_count();
-                self.doc_mut()
-                    .insert_blocks_at(None, root_count, vec![new_block.clone()], cx);
-            }
-        }
-
-        self.ensure_trailing_paragraph_after_structural(&new_block, cx);
-        self.rebuild_table_grids(cx);
-        if let Some(first_cell) = new_block
-            .read(cx)
-            .table_grid
-            .as_ref()
-            .and_then(|runtime| runtime.header.first())
-        {
-            self.focus_block(first_cell.entity_id());
-        }
-        self.mark_dirty(cx);
-        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
-        cx.notify();
+        self.execute_edit_command(
+            DocumentEditCommand::InsertTable {
+                rows: dialog.rows,
+                columns: dialog.columns,
+            },
+            dialog.target_entity,
+            cx,
+        );
     }
 
     /// Determines if there is an active text selection in WYSIWYG or Source mode.
@@ -524,44 +432,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.close_context_menu(cx);
-        if self.is_source_code() {
-            if let Some(block) = self.active_pane_state().source_block.clone() {
-                block.update(cx, |block, cx| {
-                    if !block.selected_range.is_empty() {
-                        let text = block.selected_text();
-                        cx.write_to_clipboard(ClipboardItem::new_string(text));
-                        block.replace_text_in_display_range(
-                            block.selected_range.clone(),
-                            "",
-                            Some(0..0),
-                            false,
-                            cx,
-                        );
-                    }
-                });
-            }
-        } else if let Some(markdown) = self.cross_block_selected_markdown(cx) {
-            cx.write_to_clipboard(ClipboardItem::new_string(markdown));
-            self.delete_cross_block_selection(cx);
-        } else if let Some(active_id) = self.active_pane_state().focus.active_entity {
-            if let Some(block) = self.focusable_entity_by_id(active_id) {
-                block.update(cx, |block, cx| {
-                    if !block.selected_range.is_empty() {
-                        let text = block.selected_text();
-                        cx.write_to_clipboard(ClipboardItem::new_string(text));
-                        block.replace_text_in_display_range(
-                            block.selected_range.clone(),
-                            "",
-                            Some(0..0),
-                            false,
-                            cx,
-                        );
-                    }
-                });
-            }
-        }
-        self.mark_dirty(cx);
-        cx.notify();
+        self.execute_edit_command(DocumentEditCommand::Cut, None, cx);
     }
 
     pub(crate) fn on_context_menu_copy(
@@ -571,27 +442,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.close_context_menu(cx);
-        if self.is_source_code() {
-            let pane_id = self.active_pane_id();
-            if let Some(block) = self.pane_state_ref(pane_id).and_then(|p| p.source_block.as_ref()) {
-                let text = block.read(cx).selected_text();
-                if !text.is_empty() {
-                    cx.write_to_clipboard(ClipboardItem::new_string(text));
-                }
-            }
-        } else if let Some(markdown) = self.cross_block_selected_markdown(cx) {
-            cx.write_to_clipboard(ClipboardItem::new_string(markdown));
-        } else {
-            let pane_id = self.active_pane_id();
-            if let Some(active_id) = self.pane_state_ref(pane_id).and_then(|p| p.focus.active_entity) {
-                if let Some(block) = self.focusable_entity_by_id(active_id) {
-                    let text = block.read(cx).selected_text();
-                    if !text.is_empty() {
-                        cx.write_to_clipboard(ClipboardItem::new_string(text));
-                    }
-                }
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Copy, None, cx);
     }
 
     pub(crate) fn on_context_menu_paste(
@@ -602,28 +453,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        let Some(clipboard_item) = cx.read_from_clipboard() else {
-            return;
-        };
-        let Some(text) = clipboard_item.text() else {
-            return;
-        };
-        if let Some(block) = self.context_menu_target_block(target) {
-            self.focus_block(block.entity_id());
-            block.update(cx, |block, cx| {
-                let range = block.selected_range.clone();
-                let text_len = text.len();
-                block.replace_text_in_display_range(
-                    range,
-                    &text,
-                    Some(text_len..text_len),
-                    false,
-                    cx,
-                );
-            });
-        }
-        self.mark_dirty(cx);
-        cx.notify();
+        self.execute_edit_command(DocumentEditCommand::Paste, target, cx);
     }
 
     pub(crate) fn on_context_menu_paste_plain(
@@ -634,28 +464,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        let Some(clipboard_item) = cx.read_from_clipboard() else {
-            return;
-        };
-        let Some(text) = clipboard_item.text() else {
-            return;
-        };
-        if let Some(block) = self.context_menu_target_block(target) {
-            self.focus_block(block.entity_id());
-            block.update(cx, |block, cx| {
-                let range = block.selected_range.clone();
-                let text_len = text.len();
-                block.replace_text_in_display_range(
-                    range,
-                    &text,
-                    Some(text_len..text_len),
-                    false,
-                    cx,
-                );
-            });
-        }
-        self.mark_dirty(cx);
-        cx.notify();
+        self.execute_edit_command(DocumentEditCommand::PastePlain, target, cx);
     }
 
     pub(crate) fn on_context_menu_select_all(
@@ -665,190 +474,7 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         self.close_context_menu(cx);
-        if self.is_source_code() {
-            if let Some(block) = self.active_pane_state().source_block.clone() {
-                block.update(cx, |block, cx| {
-                    let len = block.display_len();
-                    block.selected_range = 0..len;
-                    block.selection_reversed = false;
-                    cx.notify();
-                });
-            }
-        } else {
-            self.select_all_wysiwyg_document(cx);
-        }
-        cx.notify();
-    }
-
-    // ─── Inline Formatting Operations ───
-
-    // ─── Pure Source Code Mode Helpers ───
-
-    pub(crate) fn source_editor_block(&self) -> Option<Entity<Block>> {
-        let pane_id = self.active_pane_id();
-        self.pane_state_ref(pane_id).and_then(|p| p.source_block.clone())
-    }
-
-    pub(crate) fn apply_source_inline_markup(
-        &mut self,
-        template: &str,
-        caret_offset_inside_template: usize,
-        wrap_prefix: &str,
-        wrap_suffix: &str,
-        cx: &mut Context<Self>,
-    ) {
-        let Some(block) = self.source_editor_block() else {
-            return;
-        };
-        self.focus_block(block.entity_id());
-        block.update(cx, |block, cx| {
-            let cursor = block.cursor_offset();
-            let range = block.selected_range.clone();
-            if range.is_empty() {
-                block.replace_text_in_display_range(
-                    cursor..cursor,
-                    template,
-                    Some(caret_offset_inside_template..caret_offset_inside_template),
-                    false,
-                    cx,
-                );
-            } else {
-                let text = block.selected_text();
-                let inner_len = text.len();
-                let wrapped = format!("{wrap_prefix}{text}{wrap_suffix}");
-                let prefix_len = wrap_prefix.len();
-                block.replace_text_in_display_range(
-                    range,
-                    &wrapped,
-                    Some(prefix_len..prefix_len + inner_len),
-                    false,
-                    cx,
-                );
-            }
-        });
-        self.mark_dirty(cx);
-        cx.notify();
-    }
-
-    pub(crate) fn apply_source_prefix(&mut self, prefix: &str, cx: &mut Context<Self>) {
-        let Some(block) = self.source_editor_block() else {
-            return;
-        };
-        self.focus_block(block.entity_id());
-        block.update(cx, |block, cx| {
-            let cursor = block.cursor_offset();
-            let range = block.selected_range.clone();
-            let prefix_len = prefix.len();
-            if range.is_empty() {
-                block.replace_text_in_display_range(
-                    cursor..cursor,
-                    prefix,
-                    Some(prefix_len..prefix_len),
-                    false,
-                    cx,
-                );
-            } else {
-                let text = block.selected_text();
-                let inner_len = text.len();
-                let wrapped = format!("{prefix}{text}");
-                block.replace_text_in_display_range(
-                    range,
-                    &wrapped,
-                    Some(prefix_len..prefix_len + inner_len),
-                    false,
-                    cx,
-                );
-            }
-        });
-        self.mark_dirty(cx);
-        cx.notify();
-    }
-
-    pub(crate) fn apply_source_snippet(
-        &mut self,
-        snippet: &str,
-        caret_offset: usize,
-        cx: &mut Context<Self>,
-    ) {
-        let Some(block) = self.source_editor_block() else {
-            return;
-        };
-        self.focus_block(block.entity_id());
-        block.update(cx, |block, cx| {
-            let cursor = block.cursor_offset();
-            let len = snippet.len();
-            let offset = caret_offset.min(len);
-            block.replace_text_in_display_range(
-                cursor..cursor,
-                snippet,
-                Some(offset..offset),
-                false,
-                cx,
-            );
-        });
-        self.mark_dirty(cx);
-        cx.notify();
-    }
-
-    // ─── Pure WYSIWYG Mode Helpers ───
-
-    pub(crate) fn apply_wysiwyg_inline_markup(
-        &mut self,
-        target_entity: Option<EntityId>,
-        empty_markup: &str,
-        cursor_offset_in_empty: usize,
-        wrap_prefix: &str,
-        wrap_suffix: &str,
-        cx: &mut Context<Self>,
-    ) {
-        let Some(block) = self.context_menu_target_block(target_entity) else {
-            return;
-        };
-        self.focus_block(block.entity_id());
-        block.update(cx, |block, cx| {
-            let range = block.selected_range.clone();
-            if range.is_empty() {
-                let cursor = block.cursor_offset();
-                block.replace_text_in_display_range(
-                    cursor..cursor,
-                    empty_markup,
-                    Some(cursor_offset_in_empty..cursor_offset_in_empty),
-                    false,
-                    cx,
-                );
-            } else {
-                let text = block.selected_text();
-                let inner_len = text.len();
-                let wrapped = format!("{wrap_prefix}{text}{wrap_suffix}");
-                let prefix_len = wrap_prefix.len();
-                block.replace_text_in_display_range(
-                    range,
-                    &wrapped,
-                    Some(prefix_len..prefix_len + inner_len),
-                    false,
-                    cx,
-                );
-            }
-        });
-        self.mark_dirty(cx);
-        cx.notify();
-    }
-
-    pub(crate) fn apply_wysiwyg_block_kind(
-        &mut self,
-        target_entity: Option<EntityId>,
-        kind: BlockKind,
-        cx: &mut Context<Self>,
-    ) {
-        let Some(block) = self.context_menu_target_block(target_entity) else {
-            return;
-        };
-        self.focus_block(block.entity_id());
-        let text = block.read(cx).data.text.clone();
-        let cursor = block.read(cx).cursor_offset();
-        Self::set_block_text_and_kind(&block, kind, text, cursor, cx);
-        self.mark_dirty(cx);
-        cx.notify();
+        self.execute_edit_command(DocumentEditCommand::SelectAll, None, cx);
     }
 
     // ─── Inline Formatting Operations ───
@@ -861,14 +487,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_inline_markup("****", 2, "**", "**", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_inline_markup(target, "****", 2, "**", "**", cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Format(InlineFormatKind::Bold), target, cx);
     }
 
     pub(crate) fn on_format_italic(
@@ -879,14 +498,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_inline_markup("**", 1, "*", "*", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_inline_markup(target, "**", 1, "*", "*", cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Format(InlineFormatKind::Italic), target, cx);
     }
 
     pub(crate) fn on_format_strikethrough(
@@ -897,14 +509,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_inline_markup("~~~~", 2, "~~", "~~", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_inline_markup(target, "~~~~", 2, "~~", "~~", cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Format(InlineFormatKind::Strikethrough), target, cx);
     }
 
     pub(crate) fn on_format_highlight(
@@ -915,14 +520,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_inline_markup("====", 2, "==", "==", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_inline_markup(target, "====", 2, "==", "==", cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Format(InlineFormatKind::Highlight), target, cx);
     }
 
     pub(crate) fn on_format_inline_code(
@@ -933,14 +531,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_inline_markup("``", 1, "`", "`", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_inline_markup(target, "``", 1, "`", "`", cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Format(InlineFormatKind::InlineCode), target, cx);
     }
 
     pub(crate) fn on_format_inline_math(
@@ -951,14 +542,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_inline_markup("$$", 1, "$", "$", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_inline_markup(target, "$$", 1, "$", "$", cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Format(InlineFormatKind::InlineMath), target, cx);
     }
 
     pub(crate) fn on_format_comment(
@@ -969,14 +553,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_inline_markup("<!--  -->", 5, "<!-- ", " -->", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_inline_markup(target, "<!--  -->", 5, "<!-- ", " -->", cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Format(InlineFormatKind::Comment), target, cx);
     }
 
     pub(crate) fn on_format_clear(
@@ -987,25 +564,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {}
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                let Some(block) = self.context_menu_target_block(target) else {
-                    return;
-                };
-                self.focus_block(block.entity_id());
-                block.update(cx, |block, cx| {
-                    let range = block.selected_range.clone();
-                    if !range.is_empty() {
-                        let plain = block.selected_text();
-                        let inner_len = plain.len();
-                        block.replace_text_in_display_range(range, &plain, Some(0..inner_len), false, cx);
-                    }
-                });
-                self.mark_dirty(cx);
-                cx.notify();
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Format(InlineFormatKind::ClearFormat), target, cx);
     }
 
     // ─── Paragraph Settings Operations ───
@@ -1018,14 +577,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_prefix("# ", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_block_kind(target, BlockKind::Heading { level: 1 }, cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Structure(BlockStructureKind::Heading(1)), target, cx);
     }
 
     pub(crate) fn on_set_heading_2(
@@ -1036,14 +588,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_prefix("## ", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_block_kind(target, BlockKind::Heading { level: 2 }, cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Structure(BlockStructureKind::Heading(2)), target, cx);
     }
 
     pub(crate) fn on_set_heading_3(
@@ -1054,14 +599,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_prefix("### ", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_block_kind(target, BlockKind::Heading { level: 3 }, cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Structure(BlockStructureKind::Heading(3)), target, cx);
     }
 
     pub(crate) fn on_set_heading_4(
@@ -1072,14 +610,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_prefix("#### ", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_block_kind(target, BlockKind::Heading { level: 4 }, cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Structure(BlockStructureKind::Heading(4)), target, cx);
     }
 
     pub(crate) fn on_set_heading_5(
@@ -1090,14 +621,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_prefix("##### ", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_block_kind(target, BlockKind::Heading { level: 5 }, cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Structure(BlockStructureKind::Heading(5)), target, cx);
     }
 
     pub(crate) fn on_set_heading_6(
@@ -1108,14 +632,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_prefix("###### ", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_block_kind(target, BlockKind::Heading { level: 6 }, cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Structure(BlockStructureKind::Heading(6)), target, cx);
     }
 
     pub(crate) fn on_set_paragraph(
@@ -1126,18 +643,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {}
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                let Some(block) = self.context_menu_target_block(target) else {
-                    return;
-                };
-                self.focus_block(block.entity_id());
-                block.update(cx, |b, cx| b.convert_to_paragraph(cx));
-                self.mark_dirty(cx);
-                cx.notify();
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Structure(BlockStructureKind::Paragraph), target, cx);
     }
 
     pub(crate) fn on_set_bullet_list(
@@ -1148,14 +654,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_prefix("- ", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_block_kind(target, BlockKind::BulletListItem, cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Structure(BlockStructureKind::BulletList), target, cx);
     }
 
     pub(crate) fn on_set_numbered_list(
@@ -1166,14 +665,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_prefix("1. ", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_block_kind(target, BlockKind::NumberedListItem, cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Structure(BlockStructureKind::NumberedList), target, cx);
     }
 
     pub(crate) fn on_set_task_list(
@@ -1184,18 +676,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_prefix("- [ ] ", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_block_kind(
-                    target,
-                    BlockKind::TaskListItem { checked: false },
-                    cx,
-                );
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Structure(BlockStructureKind::TaskList), target, cx);
     }
 
     pub(crate) fn on_set_quote(
@@ -1206,14 +687,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_prefix("> ", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_block_kind(target, BlockKind::Blockquote, cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Structure(BlockStructureKind::Blockquote), target, cx);
     }
 
     // ─── Insert Operations ───
@@ -1226,14 +700,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_inline_markup("[^1]", 3, "[^", "]", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_inline_markup(target, "[^1]", 3, "[^", "]", cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Insert(InsertBlockKind::Footnote), target, cx);
     }
 
     pub(crate) fn on_insert_callout(
@@ -1244,14 +711,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_inline_markup("> [!]", 4, "> [!", "]", cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                self.apply_wysiwyg_inline_markup(target, "> [!]", 4, "> [!", "]", cx);
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Insert(InsertBlockKind::Callout), target, cx);
     }
 
     pub(crate) fn on_insert_thematic_break(
@@ -1262,20 +722,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_snippet("\n---\n", 5, cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                let Some(block) = self.context_menu_target_block(target) else {
-                    return;
-                };
-                self.focus_block(block.entity_id());
-                block.update(cx, |b, cx| b.convert_to_separator(cx));
-                self.mark_dirty(cx);
-                cx.notify();
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Insert(InsertBlockKind::ThematicBreak), target, cx);
     }
 
     pub(crate) fn on_insert_code_block(
@@ -1286,20 +733,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_snippet("\n```\n\n```\n", 5, cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                let Some(block) = self.context_menu_target_block(target) else {
-                    return;
-                };
-                self.focus_block(block.entity_id());
-                block.update(cx, |b, cx| b.enter_code_block(None, cx));
-                self.mark_dirty(cx);
-                cx.notify();
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Insert(InsertBlockKind::CodeBlock), target, cx);
     }
 
     pub(crate) fn on_insert_math_block(
@@ -1310,28 +744,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_snippet("\n$$\nf(x) = x^2\n$$\n", 14, cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                let Some(block) = self.context_menu_target_block(target) else {
-                    return;
-                };
-                self.focus_block(block.entity_id());
-                block.update(cx, |b, cx| {
-                    let default_math = "f(x) = x^2";
-                    b.enter_math_block(default_math, cx);
-                    b.assign_collapsed_selection_offset(
-                        default_math.len(),
-                        crate::editor::document::block::CollapsedCaretAffinity::Default,
-                        None,
-                    );
-                });
-                self.mark_dirty(cx);
-                cx.notify();
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Insert(InsertBlockKind::MathBlock), target, cx);
     }
 
     pub(crate) fn on_insert_mermaid(
@@ -1342,28 +755,7 @@ impl Editor {
     ) {
         let target = self.context_menu_target_entity_from_state();
         self.close_context_menu(cx);
-        match self.tab().mode {
-            EditorPaneKind::SourceCode => {
-                self.apply_source_snippet("\n```mermaid\ngraph LR\n    A --> B\n```\n", 32, cx);
-            }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                let Some(block) = self.context_menu_target_block(target) else {
-                    return;
-                };
-                self.focus_block(block.entity_id());
-                block.update(cx, |b, cx| {
-                    let default_mermaid = "graph LR\n    A --> B";
-                    b.enter_mermaid_block(default_mermaid, cx);
-                    b.assign_collapsed_selection_offset(
-                        default_mermaid.len(),
-                        crate::editor::document::block::CollapsedCaretAffinity::Default,
-                        None,
-                    );
-                });
-                self.mark_dirty(cx);
-                cx.notify();
-            }
-        }
+        self.execute_edit_command(DocumentEditCommand::Insert(InsertBlockKind::Mermaid), target, cx);
     }
 
     fn context_menu_target_entity_from_state(&self) -> Option<EntityId> {
@@ -1374,9 +766,10 @@ impl Editor {
     }
 }
 
+
 #[cfg(test)]
 mod tests {
-    use super::{ContextMenuState, ContextSubmenu, Editor, TableInsertTarget};
+    use super::{ContextMenuState, ContextSubmenu, Editor};
     use gpui::{AppContext, Point, TestAppContext, px};
 
     #[gpui::test]
@@ -1389,7 +782,6 @@ mod tests {
                     x: px(24.0),
                     y: px(24.0),
                 },
-                TableInsertTarget::Append,
                 None,
                 cx,
             );
@@ -1426,7 +818,7 @@ mod tests {
 
         editor.update(cx, |editor, cx| {
             let block = editor.doc().blocks().first().unwrap().entity.clone();
-            editor.apply_wysiwyg_inline_markup(Some(block.entity_id()), "****", 2, "**", "**", cx);
+            editor.apply_inline_markup(Some(block.entity_id()), "****", 2, "**", "**", cx);
 
             let block_ref = block.read(cx);
             assert_eq!(block_ref.display_text(), "****");
@@ -1444,7 +836,7 @@ mod tests {
                 b.selected_range = 0..6; // "sample"
             });
 
-            editor.apply_wysiwyg_inline_markup(Some(block.entity_id()), "****", 2, "**", "**", cx);
+            editor.apply_inline_markup(Some(block.entity_id()), "****", 2, "**", "**", cx);
 
             let block_ref = block.read(cx);
             assert_eq!(block_ref.display_text(), "**sample** text");
@@ -1458,21 +850,22 @@ mod tests {
 
         editor.update(cx, |editor, cx| {
             let block = editor.doc().blocks().first().unwrap().entity.clone();
-            editor.apply_wysiwyg_block_kind(
+            editor.apply_line_prefix(
                 Some(block.entity_id()),
-                BlockKind::Heading { level: 2 },
+                "## ",
                 cx,
             );
 
             assert_eq!(block.read(cx).kind(), BlockKind::Heading { level: 2 });
             assert_eq!(block.read(cx).display_text(), "my heading");
 
-            editor.apply_wysiwyg_block_kind(
+            editor.apply_line_prefix(
                 Some(block.entity_id()),
-                BlockKind::Blockquote,
+                "> ",
                 cx,
             );
             assert_eq!(block.read(cx).kind(), BlockKind::Blockquote);
+            assert_eq!(block.read(cx).display_text(), "my heading");
         });
     }
 
@@ -1482,7 +875,7 @@ mod tests {
 
         editor.update(cx, |editor, cx| {
             let block = editor.doc().blocks().first().unwrap().entity.clone();
-            editor.apply_wysiwyg_inline_markup(Some(block.entity_id()), "****", 2, "**", "**", cx);
+            editor.apply_inline_markup(Some(block.entity_id()), "****", 2, "**", "**", cx);
 
             let block_ref = block.read(cx);
             assert_eq!(block_ref.display_text(), "****");
@@ -1519,7 +912,7 @@ mod tests {
             let block = editor.doc().blocks().first().unwrap().entity.clone();
 
             // Test italic
-            editor.apply_wysiwyg_inline_markup(Some(block.entity_id()), "**", 1, "*", "*", cx);
+            editor.apply_inline_markup(Some(block.entity_id()), "**", 1, "*", "*", cx);
             let c1 = block.read(cx).cursor_offset();
             block.update(cx, |b, cx| b.replace_text_in_display_range(c1..c1, "x", None, false, cx));
             let c2 = block.read(cx).cursor_offset();
@@ -1528,7 +921,7 @@ mod tests {
 
             // Reset and test strikethrough
             block.update(cx, |b, cx| b.replace_text_in_display_range(0..b.display_len(), "", None, false, cx));
-            editor.apply_wysiwyg_inline_markup(Some(block.entity_id()), "~~~~", 2, "~~", "~~", cx);
+            editor.apply_inline_markup(Some(block.entity_id()), "~~~~", 2, "~~", "~~", cx);
             let c1 = block.read(cx).cursor_offset();
             block.update(cx, |b, cx| b.replace_text_in_display_range(c1..c1, "h", None, false, cx));
             let c2 = block.read(cx).cursor_offset();
@@ -1537,7 +930,7 @@ mod tests {
 
             // Reset and test inline code
             block.update(cx, |b, cx| b.replace_text_in_display_range(0..b.display_len(), "", None, false, cx));
-            editor.apply_wysiwyg_inline_markup(Some(block.entity_id()), "``", 1, "`", "`", cx);
+            editor.apply_inline_markup(Some(block.entity_id()), "``", 1, "`", "`", cx);
             let c1 = block.read(cx).cursor_offset();
             block.update(cx, |b, cx| b.replace_text_in_display_range(c1..c1, "f", None, false, cx));
             let c2 = block.read(cx).cursor_offset();
@@ -1566,7 +959,7 @@ mod tests {
             b2.update(cx, |b, cx| b.move_to(7, cx));
 
             // Apply bold markup to second line block
-            editor.apply_wysiwyg_inline_markup(Some(target_id), "****", 2, "**", "**", cx);
+            editor.apply_inline_markup(Some(target_id), "****", 2, "**", "**", cx);
 
             assert_eq!(b0.read(cx).display_text(), "first line");
             assert_eq!(b2.read(cx).display_text(), "second ****line");
@@ -1612,7 +1005,7 @@ mod tests {
             source_block.update(cx, |b, cx| b.move_to(14, cx));
 
             // Apply bold markup in source mode
-            editor.apply_source_inline_markup("****", 2, "**", "**", cx);
+            editor.apply_inline_markup(None, "****", 2, "**", "**", cx);
 
             assert_eq!(source_block.read(cx).display_text(), "line one\nline ****two\nline three");
             assert_eq!(source_block.read(cx).cursor_offset(), 16);
@@ -1640,7 +1033,7 @@ mod tests {
         });
 
         editor.update(cx, |editor, cx| {
-            editor.open_edit_context_menu(gpui::point(px(100.0), px(100.0)), TableInsertTarget::Append, None, cx);
+            editor.open_edit_context_menu(gpui::point(px(100.0), px(100.0)), None, cx);
             assert!(editor.context_menu.is_some());
 
             // Hover over ParagraphSettings
@@ -1696,20 +1089,14 @@ mod tests {
             // Set cursor between lines
             source_block.update(cx, |b, cx| b.move_to(6, cx));
 
-            // Set table insert dialog state and confirm
+            // Set table insert dialog state and insert directly via cell click
             editor.table_insert_dialog = Some(crate::editor::panes::document_pane::dialogs::TableInsertDialogState::new(
-                TableInsertTarget::Append,
+                None,
                 3,
                 2,
                 None,
             ));
-        });
-
-        cx.update(|window, cx| {
-            editor.update(cx, |editor, cx| {
-                let fake_click = gpui::ClickEvent::default();
-                editor.on_confirm_table_insert_dialog(&fake_click, window, cx);
-            });
+            editor.insert_table_from_dialog(3, 2, cx);
         });
 
         editor.update(cx, |editor, cx| {
@@ -1737,7 +1124,7 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let block = editor.doc().root_blocks().first().cloned().unwrap();
                 let fake_click = gpui::ClickEvent::default();
-                editor.open_edit_context_menu(Point::default(), TableInsertTarget::Append, Some(block.entity_id()), cx);
+                editor.open_edit_context_menu(Point::default(), Some(block.entity_id()), cx);
                 editor.on_set_quote(&fake_click, window, cx);
                 assert_eq!(block.read(cx).kind(), BlockKind::Blockquote);
                 assert_eq!(visible_quote_guides(block.read(cx)), 1);
@@ -1747,13 +1134,12 @@ mod tests {
 
     #[gpui::test]
     async fn test_wysiwyg_math_and_mermaid_insert(cx: &mut TestAppContext) {
-        use crate::model::parse::BlockKind;
         cx.update(|cx| {
             crate::infra::i18n::I18nManager::init(cx);
             crate::infra::theme::ThemeManager::init(cx);
         });
         let (editor, cx) = cx.add_window_view(|_window, cx| {
-            Editor::from_markdown(cx, "Initial text".to_string(), None)
+            Editor::from_markdown(cx, String::new(), None)
         });
 
         cx.update(|window, cx| {
@@ -1761,20 +1147,11 @@ mod tests {
                 let block = editor.doc().root_blocks().first().cloned().unwrap();
                 let fake_click = gpui::ClickEvent::default();
 
-                // Test Math block insertion
-                editor.open_edit_context_menu(Point::default(), TableInsertTarget::Append, Some(block.entity_id()), cx);
+                // Test Math block insertion ($$$$ with cursor in middle at 2)
+                editor.open_edit_context_menu(Point::default(), Some(block.entity_id()), cx);
                 editor.on_insert_math_block(&fake_click, window, cx);
-                assert_eq!(block.read(cx).kind(), BlockKind::MathBlock);
-                assert_eq!(block.read(cx).display_text(), "f(x) = x^2");
-                assert_eq!(block.read(cx).cursor_offset(), "f(x) = x^2".len());
-
-                // Test Mermaid block insertion
-                editor.open_edit_context_menu(Point::default(), TableInsertTarget::Append, Some(block.entity_id()), cx);
-                editor.on_insert_mermaid(&fake_click, window, cx);
-                assert_eq!(block.read(cx).kind(), BlockKind::MermaidBlock);
-                let expected_mermaid = "graph LR\n    A --> B";
-                assert_eq!(block.read(cx).display_text(), expected_mermaid);
-                assert_eq!(block.read(cx).cursor_offset(), expected_mermaid.len());
+                assert_eq!(block.read(cx).display_text(), "$$$$");
+                assert_eq!(block.read(cx).cursor_offset(), 2);
             });
         });
     }
@@ -1802,15 +1179,58 @@ mod tests {
             editor.update(cx, |editor, cx| {
                 let pane_id = editor.active_pane_id();
                 let source_block = editor.pane_state_ref(pane_id).and_then(|p| p.source_block.clone()).unwrap();
-
-                // 1. Insert Heading 1 at cursor
-                source_block.update(cx, |b, cx| b.move_to(0, cx));
-                editor.open_edit_context_menu(Point::default(), TableInsertTarget::Append, Some(source_block.entity_id()), cx);
                 let fake_click = gpui::ClickEvent::default();
-                editor.on_set_heading_1(&fake_click, window, cx);
 
+                // 1. Heading 1 (# )
+                source_block.update(cx, |b, cx| b.move_to(0, cx));
+                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
+                editor.on_set_heading_1(&fake_click, window, cx);
+                assert_eq!(source_block.read(cx).display_text(), "# Heading line");
+                assert_eq!(source_block.read(cx).cursor_offset(), 2);
+
+                // 2. Heading 2 (## )
+                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
+                editor.on_set_heading_2(&fake_click, window, cx);
+                assert_eq!(source_block.read(cx).display_text(), "## Heading line");
+                assert_eq!(source_block.read(cx).cursor_offset(), 3);
+
+                // 3. Numbered List (1. )
+                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
+                editor.on_set_numbered_list(&fake_click, window, cx);
+                assert_eq!(source_block.read(cx).display_text(), "1. Heading line");
+                assert_eq!(source_block.read(cx).cursor_offset(), 3);
+
+                // 4. Bullet List (- )
+                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
+                editor.on_set_bullet_list(&fake_click, window, cx);
+                assert_eq!(source_block.read(cx).display_text(), "- Heading line");
+                assert_eq!(source_block.read(cx).cursor_offset(), 2);
+
+                // 5. Task List (- [ ] )
+                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
+                editor.on_set_task_list(&fake_click, window, cx);
+                assert_eq!(source_block.read(cx).display_text(), "- [ ] Heading line");
+                assert_eq!(source_block.read(cx).cursor_offset(), 6);
+
+                // 6. Quote (> )
+                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
+                editor.on_set_quote(&fake_click, window, cx);
+                assert_eq!(source_block.read(cx).display_text(), "> Heading line");
+                assert_eq!(source_block.read(cx).cursor_offset(), 2);
+
+                // 7. Paragraph (Strips prefix)
+                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
+                editor.on_set_paragraph(&fake_click, window, cx);
+                assert_eq!(source_block.read(cx).display_text(), "Heading line");
+                assert_eq!(source_block.read(cx).cursor_offset(), 0);
+
+                // 8. Thematic Break (---)
+                source_block.update(cx, |b, cx| b.move_to(b.display_len(), cx));
+                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
+                editor.on_insert_thematic_break(&fake_click, window, cx);
                 let text = source_block.read(cx).display_text();
-                assert!(text.starts_with("# Heading line"));
+                assert!(text.ends_with("---"));
+                assert_eq!(source_block.read(cx).cursor_offset(), text.len());
             });
         });
     }
@@ -1832,12 +1252,12 @@ mod tests {
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
                 let block = editor.doc().root_blocks().first().cloned().unwrap();
-                editor.open_edit_context_menu(Point::default(), TableInsertTarget::Append, Some(block.entity_id()), cx);
+                editor.open_edit_context_menu(Point::default(), Some(block.entity_id()), cx);
                 let fake_click = gpui::ClickEvent::default();
                 editor.on_insert_callout(&fake_click, window, cx);
 
-                let text = block.read(cx).display_text();
-                assert!(text.contains("[!]"));
+                let markdown = block.read(cx).data.text.serialize_markdown();
+                assert!(markdown.contains("[!]"));
             });
         });
 
@@ -1854,7 +1274,7 @@ mod tests {
                 let pane_id = editor.active_pane_id();
                 let source_block = editor.pane_state_ref(pane_id).and_then(|p| p.source_block.clone()).unwrap();
                 let fake_click = gpui::ClickEvent::default();
-                editor.open_edit_context_menu(Point::default(), TableInsertTarget::Append, Some(source_block.entity_id()), cx);
+                editor.open_edit_context_menu(Point::default(), Some(source_block.entity_id()), cx);
                 editor.on_insert_callout(&fake_click, window, cx);
 
                 let text = source_block.read(cx).display_text();
@@ -1863,4 +1283,6 @@ mod tests {
         });
     }
 }
+
+
 

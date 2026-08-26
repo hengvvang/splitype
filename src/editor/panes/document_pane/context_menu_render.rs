@@ -260,14 +260,38 @@ impl Editor {
                     })
                     .map(|b| b.read(cx).kind().clone());
 
-                let is_source_mode = self.is_source_code();
-                let is_h1 = !is_source_mode && matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 1 }));
-                let is_h2 = !is_source_mode && matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 2 }));
-                let is_h3 = !is_source_mode && matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 3 }));
-                let is_h4 = !is_source_mode && matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 4 }));
-                let is_h5 = !is_source_mode && matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 5 }));
-                let is_h6 = !is_source_mode && matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 6 }));
-                let is_p = !is_source_mode && (matches!(active_kind, Some(crate::model::parse::BlockKind::Paragraph)) || active_kind.is_none());
+                let (is_h1, is_h2, is_h3, is_h4, is_h5, is_h6, is_p) = if self.is_source_code() {
+                    let source_line = self
+                        .pane_state_ref(pane_id)
+                        .and_then(|p| p.source_block.as_ref())
+                        .map(|b| {
+                            let block = b.read(cx);
+                            let cursor = block.cursor_offset();
+                            let text = block.display_text();
+                            let line_start = text[..cursor.min(text.len())].rfind('\n').map(|i| i + 1).unwrap_or(0);
+                            let line_end = text[cursor.min(text.len())..].find('\n').map(|i| cursor + i).unwrap_or(text.len());
+                            text[line_start..line_end].trim_start().to_string()
+                        })
+                        .unwrap_or_default();
+
+                    let h1 = source_line.starts_with("# ");
+                    let h2 = source_line.starts_with("## ");
+                    let h3 = source_line.starts_with("### ");
+                    let h4 = source_line.starts_with("#### ");
+                    let h5 = source_line.starts_with("##### ");
+                    let h6 = source_line.starts_with("###### ");
+                    let p = !h1 && !h2 && !h3 && !h4 && !h5 && !h6;
+                    (h1, h2, h3, h4, h5, h6, p)
+                } else {
+                    let h1 = matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 1 }));
+                    let h2 = matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 2 }));
+                    let h3 = matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 3 }));
+                    let h4 = matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 4 }));
+                    let h5 = matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 5 }));
+                    let h6 = matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 6 }));
+                    let p = matches!(active_kind, Some(crate::model::parse::BlockKind::Paragraph)) || active_kind.is_none();
+                    (h1, h2, h3, h4, h5, h6, p)
+                };
 
                 let submenu = active_submenu.map(|sub| {
                     use crate::editor::panes::document_pane::context_menu::ContextSubmenu;
@@ -748,94 +772,9 @@ impl Editor {
             .unwrap_or(picker.current_cols)
             .clamp(1, max_matrix_cols);
 
-        let is_dark = c.dialog_surface.l < 0.5;
-        let (inactive_bg, current_only_bg, hover_only_bg, overlap_bg) = if is_dark {
-            (
-                Hsla::from(rgba(0x27272aff)), // Inactive block base (dark zinc)
-                Hsla::from(rgba(0x3f3f46ff)), // Current layout only: 浅灰
-                Hsla::from(rgba(0x71717aff)), // Hovered selection only: 中度灰色
-                Hsla::from(rgba(0xa1a1aaff)), // Both current & hovered: 深灰
-            )
-        } else {
-            (
-                Hsla::from(rgba(0xf3f4f6ff)), // Inactive block base (very light gray)
-                Hsla::from(rgba(0xd1d5dbff)), // Current layout only: 浅灰
-                Hsla::from(rgba(0x9ca3afff)), // Hovered selection only: 中度灰色
-                Hsla::from(rgba(0x4b5563ff)), // Both current & hovered: 深灰
-            )
-        };
-
-        let top_indicator = div()
-            .w_full()
-            .flex()
-            .items_center()
-            .justify_center()
-            .gap(px(8.0))
-            .pb(px(8.0))
-            .border_b(px(1.0))
-            .border_color(c.dialog_border)
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(4.0))
-                    .child(
-                        div()
-                            .px(px(8.0))
-                            .py(px(2.0))
-                            .min_w(px(28.0))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .border(px(1.0))
-                            .border_color(c.dialog_border)
-                            .rounded(px(3.0))
-                            .text_size(px(12.0))
-                            .font_weight(FontWeight::MEDIUM)
-                            .text_color(c.text_default)
-                            .child(format!("{}", display_rows)),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(12.0))
-                            .text_color(c.dialog_muted)
-                            .child("Row"),
-                    ),
-            )
-            .child(
-                div()
-                    .text_size(px(12.0))
-                    .text_color(c.dialog_muted)
-                    .child("x"),
-            )
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(4.0))
-                    .child(
-                        div()
-                            .px(px(8.0))
-                            .py(px(2.0))
-                            .min_w(px(28.0))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .border(px(1.0))
-                            .border_color(c.dialog_border)
-                            .rounded(px(3.0))
-                            .text_size(px(12.0))
-                            .font_weight(FontWeight::MEDIUM)
-                            .text_color(c.text_default)
-                            .child(format!("{}", display_cols)),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(12.0))
-                            .text_color(c.dialog_muted)
-                            .child("Column"),
-                    ),
-            );
+        use crate::ui::table_matrix_picker::{render_matrix_dimension_indicator, MatrixCellColors};
+        let colors = MatrixCellColors::from_theme(theme);
+        let top_indicator = render_matrix_dimension_indicator(display_rows, display_cols, "Row", "Column", theme);
 
         let mut grid_rows = Vec::with_capacity(max_matrix_rows);
         for r in 0..max_matrix_rows {
@@ -851,10 +790,10 @@ impl Editor {
                 };
 
                 let cell_bg = match (is_in_current, is_in_hovered) {
-                    (true, true) => overlap_bg,
-                    (false, true) => hover_only_bg,
-                    (true, false) => current_only_bg,
-                    (false, false) => inactive_bg,
+                    (true, true) => colors.overlap,
+                    (false, true) => colors.hover_only,
+                    (true, false) => colors.current_only,
+                    (false, false) => colors.inactive,
                 };
 
                 let cell = div()

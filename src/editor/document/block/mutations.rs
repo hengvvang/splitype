@@ -141,7 +141,6 @@ impl Block {
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
         self.assign_collapsed_selection_offset(source_len, CollapsedCaretAffinity::Default, None);
-        self.marked_range = None;
         self.cursor_blink_epoch = Instant::now();
         self.clear_vertical_motion();
     }
@@ -163,9 +162,6 @@ impl Block {
         cx.notify();
     }
 
-    /// Convert the current paragraph into a display-math block. `body` is
-    /// stored as the formula source (the `$$` delimiters are rebuilt on
-    /// serialization), and the caret lands at the start of the body.
     pub(crate) fn enter_math_block(&mut self, body: &str, cx: &mut Context<Self>) {
         self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
         self.clear_inline_projection();
@@ -182,27 +178,6 @@ impl Block {
         cx.notify();
     }
 
-    /// Convert the current paragraph into a Mermaid diagram block. `body` is
-    /// stored as diagram source and the caret lands at the end of the body.
-    pub(crate) fn enter_mermaid_block(&mut self, body: &str, cx: &mut Context<Self>) {
-        self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
-        self.clear_inline_projection();
-        self.data.kind = BlockKind::MermaidBlock;
-        self.data.raw_source = None;
-        self.data.set_text(BlockText::plain(body.to_string()));
-        self.quote_reparse_requested = false;
-        self.sync_edit_mode_from_kind();
-        self.sync_render_cache();
-        let len = body.len();
-        self.assign_collapsed_selection_offset(len, CollapsedCaretAffinity::Default, None);
-        self.marked_range = None;
-        self.cursor_blink_epoch = Instant::now();
-        self.clear_vertical_motion();
-        cx.emit(BlockEvent::Changed);
-        cx.notify();
-    }
-
-    /// Toggle a style flag directly on the fragment tree without ever
     /// manipulating raw marker characters.  The selection range determines
     /// which fragments have their [`InlineStyle`] flag flipped.
     ///

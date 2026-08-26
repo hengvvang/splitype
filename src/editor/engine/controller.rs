@@ -934,12 +934,18 @@ impl Editor {
     /// The active document tab.
     #[inline]
     pub fn is_wysiwyg(&self) -> bool {
-        self.tab().is_wysiwyg()
+        self.session
+            .active_tab()
+            .map(|t| t.is_wysiwyg())
+            .unwrap_or(true)
     }
 
     #[inline]
     pub fn is_source_code(&self) -> bool {
-        self.tab().is_source_code()
+        self.session
+            .active_tab()
+            .map(|t| t.is_source_code())
+            .unwrap_or(false)
     }
 
     #[inline]

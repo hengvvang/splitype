@@ -8,18 +8,15 @@
 //! actions their buttons route to.
 
 use crate::ui::popover::overlay;
-use crate::ui::button::{primary_button, secondary_button};
 
 use gpui::*;
 
 use crate::editor::engine::controller::Editor;
-use crate::editor::panes::document_pane::context_menu::TableInsertTarget;
-use crate::infra::i18n::I18nManager;
 use crate::infra::theme::Theme;
 
 /// State for the table insertion dialog opened from the context menu.
 pub(crate) struct TableInsertDialogState {
-    pub target: TableInsertTarget,
+    pub target_entity: Option<EntityId>,
     pub position: Option<Point<Pixels>>,
     pub rows: usize,
     pub columns: usize,
@@ -29,13 +26,13 @@ pub(crate) struct TableInsertDialogState {
 
 impl TableInsertDialogState {
     pub(crate) fn new(
-        target: TableInsertTarget,
+        target_entity: Option<EntityId>,
         rows: usize,
         columns: usize,
         position: Option<Point<Pixels>>,
     ) -> Self {
         Self {
-            target,
+            target_entity,
             position,
             rows: rows.clamp(1, 8),
             columns: columns.clamp(1, 8),
@@ -112,7 +109,6 @@ impl Editor {
         let dialog = self.table_insert_dialog.as_ref()?;
         let c = &theme.colors;
         let d = &theme.dimensions;
-        let s = cx.global::<I18nManager>().strings().clone();
 
         let panel_width = 236.0_f32;
         let panel_height = 296.0_f32;
@@ -139,9 +135,6 @@ impl Editor {
         let max_matrix_rows = 8usize;
         let max_matrix_cols = 8usize;
 
-        let current_rows = dialog.rows;
-        let current_cols = dialog.columns;
-
         let display_rows = dialog
             .hovered_rows
             .unwrap_or(dialog.rows)
@@ -151,117 +144,25 @@ impl Editor {
             .unwrap_or(dialog.columns)
             .clamp(1, max_matrix_cols);
 
-        let is_dark = c.dialog_surface.l < 0.5;
-        let (inactive_bg, hover_bg, overlap_bg) = if is_dark {
-            (
-                Hsla::from(rgba(0x27272aff)), // Inactive block base (dark zinc)
-                Hsla::from(rgba(0x52525bff)), // Hovered
-                Hsla::from(rgba(0x71717aff)), // Selected / Active
-            )
-        } else {
-            (
-                Hsla::from(rgba(0xf3f4f6ff)), // Inactive block base (light gray)
-                Hsla::from(rgba(0xd1d5dbff)), // Hovered
-                Hsla::from(rgba(0x9ca3afff)), // Selected / Active
-            )
-        };
+        use crate::ui::table_matrix_picker::{render_matrix_dimension_indicator, MatrixCellColors};
+        let colors = MatrixCellColors::from_theme(theme);
+        let top_indicator = render_matrix_dimension_indicator(display_rows, display_cols, "Row", "Column", theme);
 
-        // Top Row & Column Dimension Indicator Header: [ Row count ] Row   x   [ Col count ] Column
-        let top_indicator = div()
-            .w_full()
-            .flex()
-            .items_center()
-            .justify_center()
-            .gap(px(8.0))
-            .pb(px(8.0))
-            .border_b(px(1.0))
-            .border_color(c.dialog_border)
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(4.0))
-                    .child(
-                        div()
-                            .id("table-insert-rows-badge")
-                            .px(px(10.0))
-                            .py(px(2.0))
-                            .min_w(px(32.0))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .border(px(1.0))
-                            .border_color(c.dialog_border)
-                            .rounded(px(4.0))
-                            .bg(c.dialog_surface)
-                            .text_size(px(12.0))
-                            .font_weight(FontWeight::MEDIUM)
-                            .text_color(c.text_default)
-                            .child(format!("{}", display_rows)),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(12.0))
-                            .text_color(c.dialog_muted)
-                            .child("Row"),
-                    ),
-            )
-            .child(
-                div()
-                    .text_size(px(12.0))
-                    .text_color(c.dialog_muted)
-                    .child("x"),
-            )
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(4.0))
-                    .child(
-                        div()
-                            .id("table-insert-cols-badge")
-                            .px(px(10.0))
-                            .py(px(2.0))
-                            .min_w(px(32.0))
-                            .flex()
-                            .items_center()
-                            .justify_center()
-                            .border(px(1.0))
-                            .border_color(c.dialog_border)
-                            .rounded(px(4.0))
-                            .bg(c.dialog_surface)
-                            .text_size(px(12.0))
-                            .font_weight(FontWeight::MEDIUM)
-                            .text_color(c.text_default)
-                            .child(format!("{}", display_cols)),
-                    )
-                    .child(
-                        div()
-                            .text_size(px(12.0))
-                            .text_color(c.dialog_muted)
-                            .child("Column"),
-                    ),
-            );
-
-        // Matrix Grid: 8x8 square matrix grid
+        // Matrix Grid: 8x8 square matrix grid matching original dimensions
         let mut grid_rows = Vec::with_capacity(max_matrix_rows);
         for r in 0..max_matrix_rows {
             let row_num = r + 1;
             let mut row_cells = Vec::with_capacity(max_matrix_cols);
             for col in 0..max_matrix_cols {
                 let col_num = col + 1;
-                let is_in_active = r < current_rows && col < current_cols;
-                let is_in_hovered = if let (Some(h_r), Some(h_c)) = (dialog.hovered_rows, dialog.hovered_cols) {
-                    r < h_r && col < h_c
+                let cell_bg = if let (Some(h_r), Some(h_c)) = (dialog.hovered_rows, dialog.hovered_cols) {
+                    if r < h_r && col < h_c {
+                        colors.hover_only
+                    } else {
+                        colors.inactive
+                    }
                 } else {
-                    false
-                };
-
-                let cell_bg = match (is_in_active, is_in_hovered) {
-                    (true, true) => overlap_bg,
-                    (false, true) => hover_bg,
-                    (true, false) => overlap_bg,
-                    (false, false) => inactive_bg,
+                    colors.inactive
                 };
 
                 let cell = div()
@@ -278,7 +179,7 @@ impl Editor {
                     .on_mouse_down(
                         MouseButton::Left,
                         cx.listener(move |editor, _event, _window, cx| {
-                            editor.set_table_insert_size(row_num, col_num, cx);
+                            editor.insert_table_from_dialog(row_num, col_num, cx);
                         }),
                     );
                 row_cells.push(cell);
@@ -305,39 +206,6 @@ impl Editor {
                 }
             }))
             .children(grid_rows);
-
-        // Bottom Action buttons: Flatter Cancel and Insert
-        let action_buttons = div()
-            .w_full()
-            .flex()
-            .items_center()
-            .justify_end()
-            .gap(px(8.0))
-            .pt(px(8.0))
-            .border_t(px(1.0))
-            .border_color(c.dialog_border)
-            .child(
-                secondary_button("cancel-table-insert-dialog", c, d)
-                    .px(px(12.0))
-                    .py(px(0.0))
-                    .h(px(24.0))
-                    .rounded(px(4.0))
-                    .text_size(px(11.5))
-                    .text_color(c.dialog_secondary_button_text)
-                    .on_click(cx.listener(Self::on_cancel_table_insert_dialog))
-                    .child(s.table_insert_cancel.clone()),
-            )
-            .child(
-                primary_button("confirm-table-insert-dialog", c, d)
-                    .px(px(14.0))
-                    .py(px(0.0))
-                    .h(px(24.0))
-                    .rounded(px(4.0))
-                    .text_size(px(11.5))
-                    .text_color(c.dialog_primary_button_text)
-                    .on_click(cx.listener(Self::on_confirm_table_insert_dialog))
-                    .child(s.table_insert_confirm.clone()),
-            );
 
         Some(
             deferred(
@@ -372,8 +240,7 @@ impl Editor {
                                 editor.handle_table_insert_key_down(event, cx);
                             }))
                             .child(top_indicator)
-                            .child(matrix_grid)
-                            .child(action_buttons),
+                            .child(matrix_grid),
                     ),
             )
             .into_any_element(),

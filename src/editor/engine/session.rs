@@ -1,4 +1,4 @@
-﻿//! Editor session types — the per-panel tab list, the pane split root,
+//! Editor session types — the per-panel tab list, the pane split root,
 //! and the pane-kind vocabulary of an Editor area.
 //!
 //! The pane layout is a [`SplitterRoot`] — the same generic split root

@@ -17,6 +17,7 @@ pub mod select;
 pub mod stepper;
 pub mod switch;
 pub mod tab;
+pub mod table_matrix_picker;
 pub mod topbar;
 
 pub use corner_drag_preview::render_corner_drag_preview;
