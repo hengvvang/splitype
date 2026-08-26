@@ -1,4 +1,4 @@
-﻿//! Keyboard shortcuts, clipboard commands, and select-all state machine.
+//! Keyboard shortcuts, clipboard commands, and select-all state machine.
 
 use gpui::*;
 
@@ -120,7 +120,7 @@ impl Editor {
         cx.notify();
     }
 
-    fn select_all_wysiwyg_document(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn select_all_wysiwyg_document(&mut self, cx: &mut Context<Self>) {
         if self.is_wysiwyg_document_fully_selected(cx) {
             return;
         }

@@ -1,4 +1,4 @@
-﻿//! Block AST kind conversions, formatting, and text edit mutations.
+//! Block AST kind conversions, formatting, and text edit mutations.
 
 use std::ops::Range;
 use std::time::Instant;
@@ -70,8 +70,19 @@ impl Block {
         // absorbs that markup into a span, so the plain text grows by less than
         // the inserted text. Flag it so the caret is placed just past the new
         // closing delimiter instead of landing inside the span.
+        let is_closing_delim = new_text.chars().last().is_some_and(|ch| {
+            matches!(
+                ch,
+                '*' | '_' | '~' | '=' | '^' | '`' | '$' | ')' | ']' | '>'
+            )
+        });
+        let inserted_before_existing_delim = markdown[start + new_text.len()..]
+            .starts_with(['*', '_', '~', '=', '^', '`', '$', ')', ']', '>']);
+
         let caret_may_have_closed_span = !new_text.is_empty()
             && !mark_inserted_text
+            && is_closing_delim
+            && !inserted_before_existing_delim
             && next_text.plain_text().len() < old_plain_len + new_text.len();
 
         self.apply_text_edit(
@@ -164,6 +175,26 @@ impl Block {
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
         self.assign_collapsed_selection_offset(0, CollapsedCaretAffinity::Default, None);
+        self.marked_range = None;
+        self.cursor_blink_epoch = Instant::now();
+        self.clear_vertical_motion();
+        cx.emit(BlockEvent::Changed);
+        cx.notify();
+    }
+
+    /// Convert the current paragraph into a Mermaid diagram block. `body` is
+    /// stored as diagram source and the caret lands at the end of the body.
+    pub(crate) fn enter_mermaid_block(&mut self, body: &str, cx: &mut Context<Self>) {
+        self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
+        self.clear_inline_projection();
+        self.data.kind = BlockKind::MermaidBlock;
+        self.data.raw_source = None;
+        self.data.set_text(BlockText::plain(body.to_string()));
+        self.quote_reparse_requested = false;
+        self.sync_edit_mode_from_kind();
+        self.sync_render_cache();
+        let len = body.len();
+        self.assign_collapsed_selection_offset(len, CollapsedCaretAffinity::Default, None);
         self.marked_range = None;
         self.cursor_blink_epoch = Instant::now();
         self.clear_vertical_motion();

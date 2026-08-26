@@ -1,4 +1,4 @@
-﻿//! Block text, inline style, footnote, and structural relationship queries.
+//! Block text, inline style, footnote, and structural relationship queries.
 
 use std::ops::Range;
 
@@ -18,6 +18,17 @@ use std::sync::Arc;
 impl Block {
     pub fn display_text(&self) -> &str {
         self.display_cache().text()
+    }
+
+    /// Returns the currently selected slice of display text.
+    pub fn selected_text(&self) -> String {
+        let text = self.display_text();
+        if self.selected_range.is_empty() {
+            return String::new();
+        }
+        let start = crate::model::inline::serialize::clamp_to_char_boundary(text, self.selected_range.start);
+        let end = crate::model::inline::serialize::clamp_to_char_boundary(text, self.selected_range.end.max(start));
+        text[start..end].to_string()
     }
 
     /// Cheap clone of the current display text as a `SharedString` (Arc bump)

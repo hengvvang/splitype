@@ -1,4 +1,4 @@
-﻿//! Projected inline edits: headings, links, text replacement, and undo.
+//! Projected inline edits: headings, links, text replacement, and undo.
 
 use std::ops::Range;
 
@@ -367,10 +367,14 @@ impl Block {
         self.numbered_list_restart_requested = should_restart_numbered_list;
         self.sync_edit_mode_from_kind();
         self.sync_render_cache();
-        // Rebuild when a projection already existed, or when this edit may have
-        // closed a delimiter, creating a span whose markers now need projecting.
+        let has_styled_spans = self
+            .data
+            .text
+            .fragments
+            .iter()
+            .any(|f| f.style != crate::model::inline::style::InlineStyle::default() || f.extra.is_some());
         if self.edit_mode.supports_inline_projection()
-            && (keep_projection || caret_may_have_closed_span)
+            && (keep_projection || caret_may_have_closed_span || has_styled_spans)
         {
             self.rebuild_inline_projection(next_selected_plain.clone(), next_marked_plain.clone());
         }

@@ -1,4 +1,4 @@
-﻿//! Top-level editor controller.
+//! Top-level editor controller.
 //!
 //! [`Editor`] aggregates the editor's own state: the runtime block tree
 //! (`Document`), view mode, scroll state, focus deferral, undo, and the
@@ -314,6 +314,7 @@ pub struct Editor {
     /// Rendered-mode context menu currently open in the editor.
     pub(crate) context_menu: Option<ContextMenuState>,
     pub(crate) context_menu_submenu_close_task: Option<Task<()>>,
+    pub(crate) context_menu_submenu_close_token: usize,
     /// Footnote content tooltip shown while the pointer hovers a footnote
     /// reference or definition header.
     pub(crate) footnote_tooltip: Option<FootnoteTooltipState>,
@@ -548,6 +549,7 @@ impl Editor {
             outline: OutlinePaneState::default(),
             context_menu: None,
             context_menu_submenu_close_task: None,
+            context_menu_submenu_close_token: 0,
             footnote_tooltip: None,
             table_insert_dialog: None,
             table_size_picker: None,
@@ -578,6 +580,7 @@ impl Editor {
             outline: OutlinePaneState::default(),
             context_menu: None,
             context_menu_submenu_close_task: None,
+            context_menu_submenu_close_token: 0,
             footnote_tooltip: None,
             table_insert_dialog: None,
             table_size_picker: None,

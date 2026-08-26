@@ -306,10 +306,74 @@ pub struct I18nStrings {
     pub pane_mode_rendered: String,
     /// Hover label shown when source mode can switch to rendered mode.
     pub pane_mode_switch_to_rendered: String,
+    /// Root context-menu cut label.
+    pub context_menu_cut: String,
+    /// Root context-menu copy label.
+    pub context_menu_copy: String,
+    /// Root context-menu paste label.
+    pub context_menu_paste: String,
+    /// Root context-menu paste as plain text label.
+    pub context_menu_paste_plain: String,
+    /// Root context-menu select all label.
+    pub context_menu_select_all: String,
+    /// Root context-menu text format submenu label.
+    pub context_menu_text_format: String,
+    /// Root context-menu paragraph settings submenu label.
+    pub context_menu_paragraph_settings: String,
     /// Root context-menu insert label.
     pub context_menu_insert: String,
     /// Insert submenu item for tables.
     pub context_menu_table: String,
+    /// Format submenu item for bold text.
+    pub context_menu_bold: String,
+    /// Format submenu item for italic text.
+    pub context_menu_italic: String,
+    /// Format submenu item for strikethrough text.
+    pub context_menu_strikethrough: String,
+    /// Format submenu item for highlighted text.
+    pub context_menu_highlight: String,
+    /// Format submenu item for inline code.
+    pub context_menu_inline_code: String,
+    /// Format submenu item for inline math.
+    pub context_menu_inline_math: String,
+    /// Format submenu item for comments.
+    pub context_menu_comment: String,
+    /// Format submenu item for clearing formatting.
+    pub context_menu_clear_format: String,
+    /// Paragraph submenu item for bullet list.
+    pub context_menu_bullet_list: String,
+    /// Paragraph submenu item for numbered list.
+    pub context_menu_numbered_list: String,
+    /// Paragraph submenu item for task list.
+    pub context_menu_task_list: String,
+    /// Paragraph submenu item for heading 1.
+    pub context_menu_heading_1: String,
+    /// Paragraph submenu item for heading 2.
+    pub context_menu_heading_2: String,
+    /// Paragraph submenu item for heading 3.
+    pub context_menu_heading_3: String,
+    /// Paragraph submenu item for heading 4.
+    pub context_menu_heading_4: String,
+    /// Paragraph submenu item for heading 5.
+    pub context_menu_heading_5: String,
+    /// Paragraph submenu item for heading 6.
+    pub context_menu_heading_6: String,
+    /// Paragraph submenu item for standard paragraph.
+    pub context_menu_paragraph: String,
+    /// Paragraph submenu item for blockquote.
+    pub context_menu_quote: String,
+    /// Insert submenu item for footnotes.
+    pub context_menu_footnote: String,
+    /// Insert submenu item for callouts.
+    pub context_menu_callout: String,
+    /// Insert submenu item for thematic break divider.
+    pub context_menu_thematic_break: String,
+    /// Insert submenu item for code blocks.
+    pub context_menu_code_block: String,
+    /// Insert submenu item for math blocks.
+    pub context_menu_math_block: String,
+    /// Insert submenu item for mermaid diagrams.
+    pub context_menu_mermaid: String,
     /// Table-axis menu item for inserting a column to the left.
     pub table_axis_insert_column_left: String,
     /// Table-axis menu item for inserting a column to the right.
@@ -558,8 +622,40 @@ pub const I18N_STRING_KEYS: &[&str] = &[
     "pane_mode_switch_to_source",
     "pane_mode_rendered",
     "pane_mode_switch_to_rendered",
+    "context_menu_cut",
+    "context_menu_copy",
+    "context_menu_paste",
+    "context_menu_paste_plain",
+    "context_menu_select_all",
+    "context_menu_text_format",
+    "context_menu_paragraph_settings",
     "context_menu_insert",
     "context_menu_table",
+    "context_menu_bold",
+    "context_menu_italic",
+    "context_menu_strikethrough",
+    "context_menu_highlight",
+    "context_menu_inline_code",
+    "context_menu_inline_math",
+    "context_menu_comment",
+    "context_menu_clear_format",
+    "context_menu_bullet_list",
+    "context_menu_numbered_list",
+    "context_menu_task_list",
+    "context_menu_heading_1",
+    "context_menu_heading_2",
+    "context_menu_heading_3",
+    "context_menu_heading_4",
+    "context_menu_heading_5",
+    "context_menu_heading_6",
+    "context_menu_paragraph",
+    "context_menu_quote",
+    "context_menu_footnote",
+    "context_menu_callout",
+    "context_menu_thematic_break",
+    "context_menu_code_block",
+    "context_menu_math_block",
+    "context_menu_mermaid",
     "table_axis_insert_column_left",
     "table_axis_insert_column_right",
     "table_axis_duplicate_column",
@@ -776,8 +872,40 @@ impl I18nStrings {
             pane_mode_switch_to_source: "切换到源码".into(),
             pane_mode_rendered: "渲染".into(),
             pane_mode_switch_to_rendered: "切换到渲染".into(),
+            context_menu_cut: "剪切".into(),
+            context_menu_copy: "复制".into(),
+            context_menu_paste: "粘贴".into(),
+            context_menu_paste_plain: "以纯文本形式粘贴".into(),
+            context_menu_select_all: "全选".into(),
+            context_menu_text_format: "文本格式".into(),
+            context_menu_paragraph_settings: "段落设置".into(),
             context_menu_insert: "插入".into(),
             context_menu_table: "表格".into(),
+            context_menu_bold: "加粗".into(),
+            context_menu_italic: "倾斜".into(),
+            context_menu_strikethrough: "删除线".into(),
+            context_menu_highlight: "高亮".into(),
+            context_menu_inline_code: "代码".into(),
+            context_menu_inline_math: "数学".into(),
+            context_menu_comment: "注释".into(),
+            context_menu_clear_format: "清除格式".into(),
+            context_menu_bullet_list: "无序列表".into(),
+            context_menu_numbered_list: "有序列表".into(),
+            context_menu_task_list: "任务列表".into(),
+            context_menu_heading_1: "1级标题".into(),
+            context_menu_heading_2: "2级标题".into(),
+            context_menu_heading_3: "3级标题".into(),
+            context_menu_heading_4: "4级标题".into(),
+            context_menu_heading_5: "5级标题".into(),
+            context_menu_heading_6: "6级标题".into(),
+            context_menu_paragraph: "正文".into(),
+            context_menu_quote: "引用".into(),
+            context_menu_footnote: "脚注".into(),
+            context_menu_callout: "标注".into(),
+            context_menu_thematic_break: "分隔线".into(),
+            context_menu_code_block: "代码块".into(),
+            context_menu_math_block: "数学块".into(),
+            context_menu_mermaid: "Mermaid 图表".into(),
             table_axis_insert_column_left: "在左侧插入列".into(),
             table_axis_insert_column_right: "在右侧插入列".into(),
             table_axis_duplicate_column: "复制列".into(),
@@ -1024,8 +1152,40 @@ impl I18nStrings {
             pane_mode_switch_to_source: "Switch to Source".into(),
             pane_mode_rendered: "Rendered".into(),
             pane_mode_switch_to_rendered: "Switch to Rendered".into(),
+            context_menu_cut: "Cut".into(),
+            context_menu_copy: "Copy".into(),
+            context_menu_paste: "Paste".into(),
+            context_menu_paste_plain: "Paste as Plain Text".into(),
+            context_menu_select_all: "Select All".into(),
+            context_menu_text_format: "Text Format".into(),
+            context_menu_paragraph_settings: "Paragraph Settings".into(),
             context_menu_insert: "Insert".into(),
             context_menu_table: "Table".into(),
+            context_menu_bold: "Bold".into(),
+            context_menu_italic: "Italic".into(),
+            context_menu_strikethrough: "Strikethrough".into(),
+            context_menu_highlight: "Highlight".into(),
+            context_menu_inline_code: "Inline Code".into(),
+            context_menu_inline_math: "Inline Math".into(),
+            context_menu_comment: "Comment".into(),
+            context_menu_clear_format: "Clear Formatting".into(),
+            context_menu_bullet_list: "Bullet List".into(),
+            context_menu_numbered_list: "Numbered List".into(),
+            context_menu_task_list: "Task List".into(),
+            context_menu_heading_1: "Heading 1".into(),
+            context_menu_heading_2: "Heading 2".into(),
+            context_menu_heading_3: "Heading 3".into(),
+            context_menu_heading_4: "Heading 4".into(),
+            context_menu_heading_5: "Heading 5".into(),
+            context_menu_heading_6: "Heading 6".into(),
+            context_menu_paragraph: "Paragraph".into(),
+            context_menu_quote: "Quote".into(),
+            context_menu_footnote: "Footnote".into(),
+            context_menu_callout: "Callout".into(),
+            context_menu_thematic_break: "Divider".into(),
+            context_menu_code_block: "Code Block".into(),
+            context_menu_math_block: "Math Block".into(),
+            context_menu_mermaid: "Mermaid Diagram".into(),
             table_axis_insert_column_left: "Insert Column Left".into(),
             table_axis_insert_column_right: "Insert Column Right".into(),
             table_axis_duplicate_column: "Duplicate Column".into(),

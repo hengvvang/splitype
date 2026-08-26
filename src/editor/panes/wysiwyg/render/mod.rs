@@ -88,7 +88,11 @@ fn wrap_with_quote_guides(content: AnyElement, quote_depth: usize, theme: &Theme
 }
 
 pub(crate) fn visible_quote_guides(block: &Block) -> usize {
-    block.visible_quote_depth
+    if block.kind() == BlockKind::Blockquote && block.children.is_empty() {
+        block.visible_quote_depth.max(1)
+    } else {
+        block.visible_quote_depth
+    }
 }
 
 impl Block {

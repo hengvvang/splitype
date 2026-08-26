@@ -1,4 +1,4 @@
-﻿//! Source code panel — raw Markdown buffer editing view.
+//! Source code panel — raw Markdown buffer editing view.
 
 use gpui::*;
 
@@ -10,7 +10,7 @@ impl Editor {
         &mut self,
         pane_id: PaneId,
         theme: &Theme,
-        _cx: &mut Context<Self>,
+        cx: &mut Context<Self>,
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
@@ -47,6 +47,15 @@ impl Editor {
                     .flex_col()
                     .overflow_y_scroll()
                     .p(px(d.editor_padding))
+                    .on_mouse_down(
+                        MouseButton::Right,
+                        cx.listener(move |this, event, window, cx| {
+                            this.defer_shell_action(cx, move |shell, cx| {
+                                shell.activate_panel(pane_id.0, cx)
+                            });
+                            this.on_source_context_menu_mouse_down(event, window, cx);
+                        }),
+                    )
                     .child(content),
             )
             .into_any_element()

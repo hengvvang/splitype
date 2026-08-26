@@ -1,4 +1,4 @@
-﻿//! Editor runtime helpers: block creation, focus queries, and reference
+//! Editor runtime helpers: block creation, focus queries, and reference
 //! registry rebuilds.
 
 use std::collections::{HashMap, HashSet};
@@ -360,6 +360,15 @@ impl Editor {
     }
 
     pub(crate) fn focusable_entity_by_id(&self, entity_id: EntityId) -> Option<Entity<Block>> {
+        let pane_id = self.active_pane_id();
+        if let Some(source_block) = self
+            .pane_state_ref(pane_id)
+            .and_then(|p| p.source_block.clone())
+        {
+            if source_block.entity_id() == entity_id {
+                return Some(source_block);
+            }
+        }
         self.doc().block_entity_by_id(entity_id).or_else(|| {
             self.tab()
                 .tables

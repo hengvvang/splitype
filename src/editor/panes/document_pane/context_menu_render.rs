@@ -1,4 +1,4 @@
-﻿//! Rendering of the editor's context menus: the axis menu items and the
+//! Rendering of the editor's context menus: the axis menu items and the
 //! overlay panel. The table-insert dialog moved to `dialogs.rs`.
 
 use crate::ui::menu_item::menu_item;
@@ -105,6 +105,127 @@ impl Editor {
         )
     }
 
+
+    pub(crate) fn render_menu_item_row(
+        theme: &Theme,
+        id: &'static str,
+        label: String,
+        enabled: bool,
+        on_click: fn(&mut Editor, &ClickEvent, &mut Window, &mut Context<Editor>),
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        let t = &theme.typography;
+        if enabled {
+            menu_item(id, c, d)
+                .text_size(px(d.menu_text_size))
+                .font_weight(t.dialog_body_weight.to_font_weight())
+                .text_color(c.dialog_secondary_button_text)
+                .child(label)
+                .on_click(cx.listener(on_click))
+                .on_hover(cx.listener(|this, hovered, _window, cx| {
+                    if *hovered {
+                        this.set_context_menu_submenu_hover(None, false, cx);
+                    }
+                }))
+                .into_any_element()
+        } else {
+            div()
+                .id(id)
+                .h(px(d.menu_item_height))
+                .px(px(d.menu_item_padding_x))
+                .flex()
+                .items_center()
+                .rounded(px(d.menu_item_radius))
+                .bg(c.dialog_surface)
+                .text_size(px(d.menu_text_size))
+                .font_weight(t.dialog_body_weight.to_font_weight())
+                .text_color(c.dialog_muted)
+                .child(label)
+                .into_any_element()
+        }
+    }
+
+    pub(crate) fn render_menu_check_row(
+        theme: &Theme,
+        id: &'static str,
+        label: String,
+        is_checked: bool,
+        on_click: fn(&mut Editor, &ClickEvent, &mut Window, &mut Context<Editor>),
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        let t = &theme.typography;
+        menu_item(id, c, d)
+            .justify_between()
+            .text_size(px(d.menu_text_size))
+            .font_weight(t.dialog_body_weight.to_font_weight())
+            .text_color(c.dialog_secondary_button_text)
+            .child(label)
+            .children(is_checked.then(|| {
+                svg()
+                    .path("icons/titlebar/app_menu/checkmark.svg")
+                    .size(px(14.0))
+                    .text_color(c.dialog_primary_button_bg)
+            }))
+            .on_click(cx.listener(on_click))
+            .into_any_element()
+    }
+
+    pub(crate) fn render_menu_separator(theme: &Theme) -> AnyElement {
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        div()
+            .mx(px(d.menu_separator_margin_x))
+            .my(px(d.menu_separator_margin_y))
+            .h(px(d.menu_separator_height))
+            .bg(c.dialog_border)
+            .into_any_element()
+    }
+
+    pub(crate) fn render_submenu_trigger(
+        theme: &Theme,
+        id: &'static str,
+        label: String,
+        is_active: bool,
+        submenu_kind: crate::editor::panes::document_pane::context_menu::ContextSubmenu,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        let t = &theme.typography;
+        menu_item(id, c, d)
+            .justify_between()
+            .bg(if is_active {
+                c.panel_row_selected
+            } else {
+                c.dialog_surface
+            })
+            .text_size(px(d.menu_text_size))
+            .font_weight(t.dialog_body_weight.to_font_weight())
+            .text_color(c.dialog_secondary_button_text)
+            .child(label)
+            .child(
+                svg()
+                    .path("icons/editor/context_menu/chevron-right.svg")
+                    .size(px(14.0))
+                    .text_color(c.dialog_muted),
+            )
+            .on_click(cx.listener(move |this, _event, _window, cx| {
+                this.set_context_menu_submenu_hover(Some(submenu_kind), false, cx);
+            }))
+            .on_hover(cx.listener(move |this, hovered, _window, cx| {
+                if *hovered {
+                    this.set_context_menu_submenu_hover(Some(submenu_kind), false, cx);
+                } else {
+                    this.set_context_menu_submenu_hover(None, false, cx);
+                }
+            }))
+            .into_any_element()
+    }
+
     pub(crate) fn render_context_menu_overlay(
         &self,
         theme: &Theme,
@@ -115,45 +236,125 @@ impl Editor {
         let d = &theme.dimensions;
         let t = &theme.typography;
         let s = cx.global::<I18nManager>().strings().clone();
-        // Mouse positions arrive in window coordinates, but this editor's
-        // overlays position inside its own tile (which starts at
-        // `panel_rect.origin`); translate once, and paint the menu in a
-        // deferred layer so panels at tile edges escape the split
-        // containers' overflow clipping.
         let origin = self.panel_rect.map(|rect| rect.origin).unwrap_or_default();
 
         match menu {
-            ContextMenuState::Insert {
+            ContextMenuState::Edit {
                 position,
-                submenu_open,
+                target_entity,
+                active_submenu,
                 ..
             } => {
                 let panel_x = position.x - origin.x;
                 let panel_y = position.y - origin.y;
-                let panel_width = px(d.context_menu_panel_width);
+                let panel_width = px(d.context_menu_panel_width.max(180.0));
+                let has_selection = self.context_menu_has_selection(cx);
 
-                let submenu = submenu_open.then(|| {
-                    menu_panel(c, d)
+                let pane_id = self.active_pane_id();
+                let active_kind = target_entity
+                    .and_then(|id| self.focusable_entity_by_id(id))
+                    .or_else(|| {
+                        self.pane_state_ref(pane_id)
+                            .and_then(|p| p.focus.active_entity)
+                            .and_then(|id| self.focusable_entity_by_id(id))
+                    })
+                    .map(|b| b.read(cx).kind().clone());
+
+                let is_source_mode = self.is_source_code();
+                let is_h1 = !is_source_mode && matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 1 }));
+                let is_h2 = !is_source_mode && matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 2 }));
+                let is_h3 = !is_source_mode && matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 3 }));
+                let is_h4 = !is_source_mode && matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 4 }));
+                let is_h5 = !is_source_mode && matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 5 }));
+                let is_h6 = !is_source_mode && matches!(active_kind, Some(crate::model::parse::BlockKind::Heading { level: 6 }));
+                let is_p = !is_source_mode && (matches!(active_kind, Some(crate::model::parse::BlockKind::Paragraph)) || active_kind.is_none());
+
+                let submenu = active_submenu.map(|sub| {
+                    use crate::editor::panes::document_pane::context_menu::ContextSubmenu;
+                    let (submenu_items, y_offset) = match sub {
+                        ContextSubmenu::TextFormat => (
+                            vec![
+                                Self::render_menu_item_row(theme, "menu-fmt-bold", s.context_menu_bold.clone(), true, Self::on_format_bold, cx),
+                                Self::render_menu_item_row(theme, "menu-fmt-italic", s.context_menu_italic.clone(), true, Self::on_format_italic, cx),
+                                Self::render_menu_item_row(theme, "menu-fmt-strikethrough", s.context_menu_strikethrough.clone(), true, Self::on_format_strikethrough, cx),
+                                Self::render_menu_item_row(theme, "menu-fmt-highlight", s.context_menu_highlight.clone(), true, Self::on_format_highlight, cx),
+                                Self::render_menu_separator(theme),
+                                Self::render_menu_item_row(theme, "menu-fmt-inline-code", s.context_menu_inline_code.clone(), true, Self::on_format_inline_code, cx),
+                                Self::render_menu_item_row(theme, "menu-fmt-inline-math", s.context_menu_inline_math.clone(), true, Self::on_format_inline_math, cx),
+                                Self::render_menu_item_row(theme, "menu-fmt-comment", s.context_menu_comment.clone(), true, Self::on_format_comment, cx),
+                                Self::render_menu_separator(theme),
+                                Self::render_menu_item_row(theme, "menu-fmt-clear", s.context_menu_clear_format.clone(), has_selection, Self::on_format_clear, cx),
+                            ],
+                            px(140.0),
+                        ),
+                        ContextSubmenu::ParagraphSettings => (
+                            vec![
+                                Self::render_menu_item_row(theme, "menu-para-bullet", s.context_menu_bullet_list.clone(), true, Self::on_set_bullet_list, cx),
+                                Self::render_menu_item_row(theme, "menu-para-numbered", s.context_menu_numbered_list.clone(), true, Self::on_set_numbered_list, cx),
+                                Self::render_menu_item_row(theme, "menu-para-task", s.context_menu_task_list.clone(), true, Self::on_set_task_list, cx),
+                                Self::render_menu_separator(theme),
+                                Self::render_menu_check_row(theme, "menu-para-h1", s.context_menu_heading_1.clone(), is_h1, Self::on_set_heading_1, cx),
+                                Self::render_menu_check_row(theme, "menu-para-h2", s.context_menu_heading_2.clone(), is_h2, Self::on_set_heading_2, cx),
+                                Self::render_menu_check_row(theme, "menu-para-h3", s.context_menu_heading_3.clone(), is_h3, Self::on_set_heading_3, cx),
+                                Self::render_menu_check_row(theme, "menu-para-h4", s.context_menu_heading_4.clone(), is_h4, Self::on_set_heading_4, cx),
+                                Self::render_menu_check_row(theme, "menu-para-h5", s.context_menu_heading_5.clone(), is_h5, Self::on_set_heading_5, cx),
+                                Self::render_menu_check_row(theme, "menu-para-h6", s.context_menu_heading_6.clone(), is_h6, Self::on_set_heading_6, cx),
+                                Self::render_menu_check_row(theme, "menu-para-p", s.context_menu_paragraph.clone(), is_p, Self::on_set_paragraph, cx),
+                                Self::render_menu_separator(theme),
+                                Self::render_menu_item_row(theme, "menu-para-quote", s.context_menu_quote.clone(), true, Self::on_set_quote, cx),
+                            ],
+                            px(168.0),
+                        ),
+                        ContextSubmenu::Insert => (
+                            vec![
+                                Self::render_menu_item_row(theme, "menu-ins-footnote", s.context_menu_footnote.clone(), true, Self::on_insert_footnote, cx),
+                                Self::render_menu_item_row(theme, "menu-ins-table", s.context_menu_table.clone(), true, Self::on_open_table_insert_dialog, cx),
+                                Self::render_menu_item_row(theme, "menu-ins-callout", s.context_menu_callout.clone(), true, Self::on_insert_callout, cx),
+                                Self::render_menu_item_row(theme, "menu-ins-break", s.context_menu_thematic_break.clone(), true, Self::on_insert_thematic_break, cx),
+                                Self::render_menu_separator(theme),
+                                Self::render_menu_item_row(theme, "menu-ins-code", s.context_menu_code_block.clone(), true, Self::on_insert_code_block, cx),
+                                Self::render_menu_item_row(theme, "menu-ins-math", s.context_menu_math_block.clone(), true, Self::on_insert_math_block, cx),
+                                Self::render_menu_item_row(theme, "menu-ins-mermaid", s.context_menu_mermaid.clone(), true, Self::on_insert_mermaid, cx),
+                            ],
+                            px(196.0),
+                        ),
+                    };
+
+                    let submenu_panel_el = menu_panel(c, d)
                         .id("editor-context-menu-submenu")
                         .absolute()
                         .left(panel_x + panel_width + px(d.context_menu_submenu_gap))
-                        .top(panel_y)
-                        .w(px(d.context_menu_submenu_width))
+                        .top(panel_y + y_offset)
+                        .w(px(d.context_menu_submenu_width.max(160.0)))
                         .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
                             cx.stop_propagation()
                         })
-                        .on_hover(cx.listener(Self::on_context_menu_submenu_hover))
-                        .child(
-                            menu_item("editor-context-menu-insert-table", c, d)
-                                .text_size(px(d.menu_text_size))
-                                .font_weight(t.dialog_body_weight.to_font_weight())
-                                .text_color(c.dialog_secondary_button_text)
-                                .child(s.context_menu_table.clone())
-                                .on_click(cx.listener(Self::on_open_table_insert_dialog)),
-                        )
+                        .on_hover(cx.listener(move |this, hovered, _window, cx| {
+                            if *hovered {
+                                this.set_context_menu_submenu_hover(Some(sub), true, cx);
+                            } else {
+                                this.set_context_menu_submenu_hover(None, true, cx);
+                            }
+                        }))
+                        .children(submenu_items);
+
+                    let bridge_el = div()
+                        .id("editor-context-menu-submenu-bridge")
+                        .absolute()
+                        .left(panel_x + panel_width - px(4.0))
+                        .top(panel_y)
+                        .w(px(d.context_menu_submenu_gap + 8.0))
+                        .h(px(320.0))
+                        .on_hover(cx.listener(move |this, hovered, _window, cx| {
+                            if *hovered {
+                                this.set_context_menu_submenu_hover(Some(sub), true, cx);
+                            }
+                        }));
+
+                    (submenu_panel_el, bridge_el)
                 });
 
-                let overlay = overlay()
+                let mut overlay = overlay()
                     .id("editor-context-menu-overlay")
                     .occlude()
                     .on_mouse_down(
@@ -170,36 +371,78 @@ impl Editor {
                             .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
                                 cx.stop_propagation()
                             })
-                            .child(
-                                menu_item("editor-context-menu-insert", c, d)
-                                    .justify_between()
-                                    .bg(if *submenu_open {
-                                        c.panel_row_selected
-                                    } else {
-                                        c.dialog_surface
-                                    })
-                                    .text_size(px(d.menu_text_size))
-                                    .font_weight(t.dialog_body_weight.to_font_weight())
-                                    .text_color(c.dialog_secondary_button_text)
-                                    .child(s.context_menu_insert.clone())
-                                    .child(
-                                        svg()
-                                            .path("icons/editor/context_menu/chevron-right.svg")
-                                            .size(px(14.0))
-                                            .text_color(c.dialog_secondary_button_text),
-                                    )
-                                    .on_hover(cx.listener(Self::on_context_menu_insert_hover)),
-                            ),
+                            .child(Self::render_menu_item_row(
+                                theme,
+                                "editor-context-menu-cut",
+                                s.context_menu_cut.clone(),
+                                has_selection,
+                                Self::on_context_menu_cut,
+                                cx,
+                            ))
+                            .child(Self::render_menu_item_row(
+                                theme,
+                                "editor-context-menu-copy",
+                                s.context_menu_copy.clone(),
+                                has_selection,
+                                Self::on_context_menu_copy,
+                                cx,
+                            ))
+                            .child(Self::render_menu_item_row(
+                                theme,
+                                "editor-context-menu-paste",
+                                s.context_menu_paste.clone(),
+                                true,
+                                Self::on_context_menu_paste,
+                                cx,
+                            ))
+                            .child(Self::render_menu_item_row(
+                                theme,
+                                "editor-context-menu-paste-plain",
+                                s.context_menu_paste_plain.clone(),
+                                true,
+                                Self::on_context_menu_paste_plain,
+                                cx,
+                            ))
+                            .child(Self::render_menu_item_row(
+                                theme,
+                                "editor-context-menu-select-all",
+                                s.context_menu_select_all.clone(),
+                                true,
+                                Self::on_context_menu_select_all,
+                                cx,
+                            ))
+                            .child(Self::render_menu_separator(theme))
+                            .child(Self::render_submenu_trigger(
+                                theme,
+                                "editor-context-menu-text-format",
+                                s.context_menu_text_format.clone(),
+                                *active_submenu == Some(crate::editor::panes::document_pane::context_menu::ContextSubmenu::TextFormat),
+                                crate::editor::panes::document_pane::context_menu::ContextSubmenu::TextFormat,
+                                cx,
+                            ))
+                            .child(Self::render_submenu_trigger(
+                                theme,
+                                "editor-context-menu-paragraph-settings",
+                                s.context_menu_paragraph_settings.clone(),
+                                *active_submenu == Some(crate::editor::panes::document_pane::context_menu::ContextSubmenu::ParagraphSettings),
+                                crate::editor::panes::document_pane::context_menu::ContextSubmenu::ParagraphSettings,
+                                cx,
+                            ))
+                            .child(Self::render_submenu_trigger(
+                                theme,
+                                "editor-context-menu-insert",
+                                s.context_menu_insert.clone(),
+                                *active_submenu == Some(crate::editor::panes::document_pane::context_menu::ContextSubmenu::Insert),
+                                crate::editor::panes::document_pane::context_menu::ContextSubmenu::Insert,
+                                cx,
+                            )),
                     );
 
-                Some(
-                    deferred(if let Some(submenu) = submenu {
-                        overlay.child(submenu).into_any_element()
-                    } else {
-                        overlay.into_any_element()
-                    })
-                    .into_any_element(),
-                )
+                if let Some((submenu_panel_el, bridge_el)) = submenu {
+                    overlay = overlay.child(bridge_el).child(submenu_panel_el);
+                }
+
+                Some(deferred(overlay.into_any_element()).into_any_element())
             }
             ContextMenuState::TableAxis {
                 position,
@@ -366,7 +609,12 @@ impl Editor {
                                     .font_weight(t.dialog_body_weight.to_font_weight())
                                     .text_color(c.dialog_secondary_button_text)
                                     .child(s.table_header_row.clone())
-                                    .child(if headers_shown { "✓" } else { "" })
+                                    .children(headers_shown.then(|| {
+                                        svg()
+                                            .path("icons/titlebar/app_menu/checkmark.svg")
+                                            .size(px(14.0))
+                                            .text_color(c.dialog_primary_button_bg)
+                                    }))
                                     .on_click(cx.listener(Self::on_toggle_table_headers))
                                     .into_any_element(),
                             );
