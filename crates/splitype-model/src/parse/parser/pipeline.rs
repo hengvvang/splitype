@@ -52,16 +52,11 @@ pub(crate) fn build_blocks_from_lines_internal(
         }
 
         if parse_opening_fence(line).is_some() {
-            let Some((block, next_index)) = collect_fenced_code_block(lines, index) else {
-                let paragraph = collect_paragraph_block(lines, index);
-                roots.push(paragraph.0);
-                index = paragraph.1;
+            if let Some((block, next_index)) = collect_fenced_code_block(lines, index) {
+                roots.push(block);
+                index = next_index;
                 continue;
-            };
-
-            roots.push(block);
-            index = next_index;
-            continue;
+            }
         }
 
         if let Some((block, end)) = collect_comment_block(lines, index) {
@@ -97,15 +92,6 @@ pub(crate) fn build_blocks_from_lines_internal(
             let end = collect_reference_definition_region(lines, index);
             roots.push(raw_block(lines[index..end].join("\n")));
             index = end;
-            continue;
-        }
-
-        if let Some(level) = lines
-            .get(index + 1)
-            .and_then(|next| BlockKind::parse_setext_underline(next))
-        {
-            roots.push(native_block(BlockKind::Heading { level }, line.trim_end()));
-            index += 2;
             continue;
         }
 
@@ -178,6 +164,15 @@ pub(crate) fn build_blocks_from_lines_internal(
             let end = collect_display_math_region(lines, index);
             roots.push(math_or_raw_block(lines[index..end].join("\n")));
             index = end;
+            continue;
+        }
+
+        if let Some(next) = lines.get(index + 1)
+            && parse_list_marker(next).is_none()
+            && let Some(level) = BlockKind::parse_setext_underline(next)
+        {
+            roots.push(native_block(BlockKind::Heading { level }, line.trim_end()));
+            index += 2;
             continue;
         }
 

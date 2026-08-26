@@ -225,14 +225,18 @@ pub(crate) fn parse_until(
                     tokens[index].ch == '`' && backtick_run_len(tokens, index) == *run_len
                 }
                 Delimiter::SuperscriptMarkdown => {
-                    tokens[index].ch == '^' && can_close_emphasis(tokens, index)
+                    tokens[index].ch == '^' && can_close_emphasis(tokens, index, 1, '^')
                 }
                 Delimiter::SubscriptMarkdown => {
-                    is_single_tilde_delimiter(tokens, index) && can_close_emphasis(tokens, index)
+                    is_single_tilde_delimiter(tokens, index)
+                        && can_close_emphasis(tokens, index, 1, '~')
                 }
                 _ => {
-                    matches_sequence(tokens, index, &end_delim.close())
-                        && can_close_emphasis(tokens, index)
+                    let close_str = end_delim.close();
+                    let close_len = close_str.chars().count();
+                    let marker = close_str.chars().next().unwrap_or('*');
+                    matches_sequence(tokens, index, &close_str)
+                        && can_close_emphasis(tokens, index, close_len, marker)
                 }
             };
 
@@ -1290,17 +1294,60 @@ pub(crate) fn escaped_sequence_token_len(tokens: &[CharToken], index: usize) -> 
         Some(4)
     } else if matches_sequence(tokens, next_index, "<u>") {
         Some(3)
-    } else if matches_sequence(tokens, next_index, "\\")
-        || matches_sequence(tokens, next_index, "*")
-        || matches_sequence(tokens, next_index, "_")
-        || matches_sequence(tokens, next_index, "~")
-        || matches_sequence(tokens, next_index, "[")
-        || matches_sequence(tokens, next_index, "]")
-        || matches_sequence(tokens, next_index, "`")
-        || matches_sequence(tokens, next_index, "^")
-    {
+    } else if tokens[next_index].ch.is_ascii_punctuation() {
         Some(1)
     } else {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_intraword_underscores_as_literal_text() {
+        let text = BlockText::from_markdown("foo_bar_baz");
+        assert_eq!(text.plain_text(), "foo_bar_baz");
+        assert!(!text.fragments[0].style.italic);
+    }
+
+    #[test]
+    fn parses_standalone_underscore_as_italic() {
+        let text = BlockText::from_markdown("_hello world_");
+        assert_eq!(text.plain_text(), "hello world");
+        assert!(text.fragments[0].style.italic);
+    }
+
+    #[test]
+    fn parses_asterisk_emphasis_and_strong() {
+        let text = BlockText::from_markdown("**bold** and *italic*");
+        assert_eq!(text.plain_text(), "bold and italic");
+        assert!(text.fragments[0].style.bold);
+        assert!(!text.fragments[1].style.bold);
+        assert!(text.fragments[2].style.italic);
+    }
+
+    #[test]
+    fn parses_intraword_asterisk_as_emphasis() {
+        // CommonMark §6.2 Example 365: foo*bar*baz -> foo<em>bar</em>baz
+        let text = BlockText::from_markdown("foo*bar*baz");
+        assert_eq!(text.plain_text(), "foobarbaz");
+        assert_eq!(text.fragments[0].text, "foo");
+        assert!(!text.fragments[0].style.italic);
+        assert_eq!(text.fragments[1].text, "bar");
+        assert!(text.fragments[1].style.italic);
+        assert_eq!(text.fragments[2].text, "baz");
+        assert!(!text.fragments[2].style.italic);
+    }
+
+    #[test]
+    fn parses_all_ascii_punctuation_escapes() {
+        let text = BlockText::from_markdown(r"\# \! \. \- \> \( \) \[ \] \~ \* \_ \\");
+        assert_eq!(text.plain_text(), "# ! . - > ( ) [ ] ~ * _ \\");
+        for fragment in &text.fragments {
+            assert!(!fragment.style.bold);
+            assert!(!fragment.style.italic);
+        }
     }
 }

@@ -11,13 +11,22 @@ pub(crate) fn collect_fenced_code_block(
     start: usize,
 ) -> Option<(BlockData, usize)> {
     let fence = parse_opening_fence(&lines[start])?;
-    let closing_index = find_matching_closing_fence(lines, start, &fence)?;
+    let (closing_index, is_closed) = match find_matching_closing_fence(lines, start, &fence) {
+        Some(idx) => (idx, true),
+        None => (lines.len().saturating_sub(1), false),
+    };
     if is_mermaid_info_string(fence.language.as_ref().map(|language| language.as_ref())) {
         let raw = lines[start..=closing_index].join("\n");
         return Some((BlockData::mermaid_block(raw), closing_index + 1));
     }
 
-    let code_lines = lines[start + 1..closing_index].to_vec();
+    let code_lines = if is_closed {
+        lines[start + 1..closing_index].to_vec()
+    } else if start + 1 <= lines.len() {
+        lines[start + 1..].to_vec()
+    } else {
+        Vec::new()
+    };
     Some((
         build_code_block(fence.language.clone(), code_lines.join("\n")),
         closing_index + 1,

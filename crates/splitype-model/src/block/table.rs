@@ -509,14 +509,14 @@ fn split_table_cells(line: &str) -> Option<Vec<String>> {
 
 fn parse_alignment_cell(cell: &str) -> Option<TableColumnAlignment> {
     let trimmed = cell.trim();
-    if trimmed.len() < 3 {
+    if trimmed.is_empty() {
         return None;
     }
 
     let left = trimmed.starts_with(':');
     let right = trimmed.ends_with(':');
     let core = trimmed.trim_start_matches(':').trim_end_matches(':');
-    if core.len() < 3 || !core.chars().all(|ch| ch == '-') {
+    if core.is_empty() || !core.chars().all(|ch| ch == '-') {
         return None;
     }
 
@@ -755,6 +755,25 @@ mod tests {
     fn rejects_alignment_row_with_wrong_column_count() {
         let lines = vec!["| A | B | C |".to_string(), "| --- | --- |".to_string()];
         assert!(parse_table_region(&lines).is_none());
+    }
+
+    #[test]
+    fn parses_compact_delimiter_rows() {
+        let lines = vec![
+            "| Left | Center | Right | Default |".to_string(),
+            "| :- | :-: | -: | - |".to_string(),
+            "| a | b | c | d |".to_string(),
+        ];
+        let table = parse_table_region(&lines).expect("compact delimiter table should parse");
+        assert_eq!(
+            table.alignments,
+            vec![
+                TableColumnAlignment::Left,
+                TableColumnAlignment::Center,
+                TableColumnAlignment::Right,
+                TableColumnAlignment::Default,
+            ]
+        );
     }
 
     #[test]

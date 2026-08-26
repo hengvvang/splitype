@@ -251,13 +251,13 @@ pub(crate) fn match_open_delimiter(tokens: &[CharToken], index: usize) -> Option
         Some(Delimiter::SuperscriptMarkdown)
     } else if is_single_tilde_delimiter(tokens, index) && can_open_script(tokens, index, '~') {
         Some(Delimiter::SubscriptMarkdown)
-    } else if matches_sequence(tokens, index, "**") && can_open_emphasis(tokens, index, 2) {
+    } else if matches_sequence(tokens, index, "**") && can_open_emphasis(tokens, index, 2, '*') {
         Some(Delimiter::BoldMarkdown { marker: '*' })
-    } else if matches_sequence(tokens, index, "__") && can_open_emphasis(tokens, index, 2) {
+    } else if matches_sequence(tokens, index, "__") && can_open_emphasis(tokens, index, 2, '_') {
         Some(Delimiter::BoldMarkdown { marker: '_' })
-    } else if matches_sequence(tokens, index, "*") && can_open_emphasis(tokens, index, 1) {
+    } else if matches_sequence(tokens, index, "*") && can_open_emphasis(tokens, index, 1, '*') {
         Some(Delimiter::ItalicMarkdown { marker: '*' })
-    } else if matches_sequence(tokens, index, "_") && can_open_emphasis(tokens, index, 1) {
+    } else if matches_sequence(tokens, index, "_") && can_open_emphasis(tokens, index, 1, '_') {
         Some(Delimiter::ItalicMarkdown { marker: '_' })
     } else if tokens[index].ch == '`' {
         // Count the run of consecutive backticks.
@@ -348,7 +348,11 @@ pub(crate) fn has_closing_delimiter(
                 cursor += 1;
                 continue;
             }
-            return true;
+            let close_len = close_str.chars().count();
+            let marker = close_str.chars().next().unwrap_or('*');
+            if can_close_emphasis(tokens, cursor, close_len, marker) {
+                return true;
+            }
         }
 
         cursor += 1;
@@ -781,11 +785,86 @@ pub fn clamp_to_char_boundary(text: &str, offset: usize) -> usize {
     boundary
 }
 
-pub(crate) fn can_open_emphasis(tokens: &[CharToken], index: usize, len: usize) -> bool {
-    tokens
-        .get(index + len)
-        .map(|token| !token.ch.is_whitespace())
-        .unwrap_or(false)
+/// Returns true if `ch` is a Unicode punctuation character (CommonMark §2.1).
+pub(crate) fn is_unicode_punctuation(ch: char) -> bool {
+    ch.is_ascii_punctuation()
+        || matches!(
+            ch,
+            '\u{00A1}'..='\u{00BF}'
+                | '\u{2000}'..='\u{206F}'
+                | '\u{2E00}'..='\u{2E7F}'
+                | '\u{3000}'..='\u{303F}'
+                | '\u{FF00}'..='\u{FFEF}'
+        )
+}
+
+/// A delimiter run is left-flanking (CommonMark §6.2) iff it is not followed by
+/// Unicode whitespace, and either:
+/// 1. not followed by a Unicode punctuation character, OR
+/// 2. followed by a Unicode punctuation character and preceded by Unicode whitespace or punctuation.
+pub(crate) fn is_left_flanking(prev_char: Option<char>, next_char: Option<char>) -> bool {
+    let Some(next) = next_char else {
+        return false;
+    };
+    if next.is_whitespace() {
+        return false;
+    }
+    if !is_unicode_punctuation(next) {
+        return true;
+    }
+    match prev_char {
+        None => true,
+        Some(prev) => prev.is_whitespace() || is_unicode_punctuation(prev),
+    }
+}
+
+/// A delimiter run is right-flanking (CommonMark §6.2) iff it is not preceded by
+/// Unicode whitespace, and either:
+/// 1. not preceded by a Unicode punctuation character, OR
+/// 2. preceded by a Unicode punctuation character and followed by Unicode whitespace or punctuation.
+pub(crate) fn is_right_flanking(prev_char: Option<char>, next_char: Option<char>) -> bool {
+    let Some(prev) = prev_char else {
+        return false;
+    };
+    if prev.is_whitespace() {
+        return false;
+    }
+    if !is_unicode_punctuation(prev) {
+        return true;
+    }
+    match next_char {
+        None => true,
+        Some(next) => next.is_whitespace() || is_unicode_punctuation(next),
+    }
+}
+
+/// Determines whether a delimiter run starting at `index` of length `len` with `marker`
+/// can open emphasis according to CommonMark §6.2.
+pub(crate) fn can_open_emphasis(
+    tokens: &[CharToken],
+    index: usize,
+    len: usize,
+    marker: char,
+) -> bool {
+    let prev_char = if index > 0 {
+        tokens.get(index - 1).map(|t| t.ch)
+    } else {
+        None
+    };
+    let next_char = tokens.get(index + len).map(|t| t.ch);
+
+    let left = is_left_flanking(prev_char, next_char);
+    let right = is_right_flanking(prev_char, next_char);
+
+    if marker == '*' {
+        left
+    } else if marker == '_' {
+        // A _ delimiter run can open emphasis iff it is left-flanking and:
+        // not right-flanking, OR (right-flanking and preceded by a Unicode punctuation character).
+        left && (!right || prev_char.is_some_and(is_unicode_punctuation))
+    } else {
+        left
+    }
 }
 
 pub(crate) fn can_open_script(tokens: &[CharToken], index: usize, marker: char) -> bool {
@@ -804,8 +883,33 @@ pub(crate) fn can_open_script(tokens: &[CharToken], index: usize, marker: char) 
             .is_some_and(|token| token.ch.is_ascii_alphanumeric())
 }
 
-pub(crate) fn can_close_emphasis(tokens: &[CharToken], index: usize) -> bool {
-    index > 0 && !tokens[index - 1].ch.is_whitespace()
+/// Determines whether a delimiter run at `index` with length `len` and `marker`
+/// can close emphasis according to CommonMark §6.2.
+pub(crate) fn can_close_emphasis(
+    tokens: &[CharToken],
+    index: usize,
+    len: usize,
+    marker: char,
+) -> bool {
+    let prev_char = if index > 0 {
+        tokens.get(index - 1).map(|t| t.ch)
+    } else {
+        None
+    };
+    let next_char = tokens.get(index + len).map(|t| t.ch);
+
+    let left = is_left_flanking(prev_char, next_char);
+    let right = is_right_flanking(prev_char, next_char);
+
+    if marker == '*' {
+        right
+    } else if marker == '_' {
+        // A _ delimiter run can close emphasis iff it is right-flanking and:
+        // not left-flanking, OR (left-flanking and followed by a Unicode punctuation character).
+        right && (!left || next_char.is_some_and(is_unicode_punctuation))
+    } else {
+        right
+    }
 }
 
 pub(crate) fn apply_delimiter_style(style: InlineStyle, delimiter: Delimiter) -> InlineStyle {

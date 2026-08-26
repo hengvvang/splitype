@@ -232,8 +232,12 @@ impl BlockKind {
         let after_hashes = &rest[level..];
         let content = if after_hashes.is_empty() {
             ""
+        } else if let Some(stripped) = after_hashes.strip_prefix(' ') {
+            stripped
+        } else if let Some(stripped) = after_hashes.strip_prefix('\t') {
+            stripped
         } else {
-            after_hashes.strip_prefix(' ')?
+            return None;
         };
         let mut content = content.trim_end().to_string();
         if let Some(closing_hash_start) = content.rfind(' ')
@@ -249,7 +253,7 @@ impl BlockKind {
         Some((level as u8, content))
     }
 
-    /// Parse a Setext underline (`===` or `---`) into the heading level.
+    /// Parse a Setext underline (`=` or `-` sequence) into the heading level.
     pub fn parse_setext_underline(line: &str) -> Option<u8> {
         let trimmed_end = line.trim_end();
         let leading_spaces = trimmed_end.bytes().take_while(|b| *b == b' ').count();
@@ -257,7 +261,7 @@ impl BlockKind {
             return None;
         }
         let rest = &trimmed_end[leading_spaces..];
-        if rest.len() < 3 {
+        if rest.is_empty() {
             return None;
         }
         if rest.bytes().all(|b| b == b'=') {
@@ -540,8 +544,13 @@ mod tests {
         let empty_with_closing = BlockKind::parse_atx_heading_line("### ###");
         assert_eq!(empty_with_closing, Some((3, String::new())));
 
+        let tab_h1 = BlockKind::parse_atx_heading_line("#\ttitle with tab");
+        assert_eq!(tab_h1, Some((1, "title with tab".to_string())));
+
         assert_eq!(BlockKind::parse_setext_underline("==="), Some(1));
+        assert_eq!(BlockKind::parse_setext_underline("="), Some(1));
         assert_eq!(BlockKind::parse_setext_underline("---"), Some(2));
+        assert_eq!(BlockKind::parse_setext_underline("-"), Some(2));
         assert_eq!(BlockKind::parse_setext_underline("- - -"), None);
     }
 
