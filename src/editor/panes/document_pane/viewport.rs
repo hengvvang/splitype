@@ -248,10 +248,27 @@ impl Editor {
             index += 1;
         }
 
-        let block_rows: Vec<AnyElement> = rows
-            .iter()
-            .map(|plan| {
-                self.build_planned_row_element(
+        let use_windowing = blocks.len() > 64 && viewport_height > 100.0;
+        let (visible_start_block, visible_end_block) = if use_windowing {
+            let overscan = (viewport_height * 1.5).max(600.0);
+            let min_y = (current_scroll_y - overscan).max(0.0);
+            let max_y = current_scroll_y + viewport_height + overscan;
+            self.doc().tree.find_range_by_pixel_y(min_y, max_y)
+        } else {
+            (0, blocks.len())
+        };
+
+        let mut top_spacer_height: f32 = 0.0;
+        let mut bottom_spacer_height: f32 = 0.0;
+        let mut block_rows: Vec<AnyElement> = Vec::with_capacity(rows.len().min(128));
+
+        for plan in &rows {
+            if use_windowing && plan.end <= visible_start_block {
+                top_spacer_height += 24.0 * (plan.end - plan.start) as f32 + plan.outer_gap;
+            } else if use_windowing && plan.start >= visible_end_block {
+                bottom_spacer_height += 24.0 * (plan.end - plan.start) as f32 + plan.outer_gap;
+            } else {
+                block_rows.push(self.build_planned_row_element(
                     plan,
                     blocks,
                     editor.clone(),
@@ -259,9 +276,27 @@ impl Editor {
                     centered_width,
                     &theme,
                     d,
-                )
-            })
-            .collect();
+                ));
+            }
+        }
+
+        if top_spacer_height > 0.0 {
+            block_rows.insert(
+                0,
+                div()
+                    .w_full()
+                    .h(px(top_spacer_height))
+                    .into_any_element(),
+            );
+        }
+        if bottom_spacer_height > 0.0 {
+            block_rows.push(
+                div()
+                    .w_full()
+                    .h(px(bottom_spacer_height))
+                    .into_any_element(),
+            );
+        }
 
         let scroll_handle = self
             .pane_state_ref(pane_id)

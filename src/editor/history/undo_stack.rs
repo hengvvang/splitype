@@ -1,4 +1,4 @@
-﻿//! Undo and redo stack operations, transaction dispatch, and document restore flow.
+//! Undo and redo stack operations, transaction dispatch, and document restore flow.
 
 use std::time::Instant;
 
@@ -123,15 +123,32 @@ impl Editor {
                     && now.saturating_duration_since(entry.timestamp) <= Self::HISTORY_COALESCE_WINDOW
             });
 
+        let mut contains_boundary = false;
         if should_coalesce {
             if let Some(last) = self.tab_mut().undo.undo_entries.last_mut() {
                 for new_op in pending.snapshot.transaction.ops {
                     match new_op {
                         crate::editor::history::delta::DocDelta::UpdateBlockText {
                             block_id,
+                            old_text,
                             new_text,
-                            ..
                         } => {
+                            let old_plain = old_text.plain_text();
+                            let new_plain = new_text.plain_text();
+                            if new_plain.len() > old_plain.len() {
+                                let added = &new_plain[old_plain.len()..];
+                                if added.chars().any(|ch| {
+                                    ch.is_whitespace()
+                                        || matches!(
+                                            ch,
+                                            ',' | '.' | '!' | '?' | ';' | ':' | '，' | '。'
+                                                | '！' | '？' | '；' | '：'
+                                        )
+                                }) {
+                                    contains_boundary = true;
+                                }
+                            }
+
                             if let Some(existing) =
                                 last.transaction.ops.iter_mut().find_map(|op| match op {
                                     crate::editor::history::delta::DocDelta::UpdateBlockText {
@@ -147,7 +164,7 @@ impl Editor {
                                 last.transaction.ops.push(
                                     crate::editor::history::delta::DocDelta::UpdateBlockText {
                                         block_id,
-                                        old_text: crate::model::inline::text::BlockText::plain(""),
+                                        old_text,
                                         new_text,
                                     },
                                 );
@@ -157,7 +174,13 @@ impl Editor {
                     }
                 }
                 last.selection_after = pending.snapshot.selection_after;
-                last.timestamp = now;
+                if contains_boundary {
+                    last.timestamp = now
+                        .checked_sub(Self::HISTORY_COALESCE_WINDOW * 2)
+                        .unwrap_or(now);
+                } else {
+                    last.timestamp = now;
+                }
                 return;
             }
         }
