@@ -1,4 +1,4 @@
-﻿//! Keyboard pipeline tests — full end-to-end input exercises.
+//! Keyboard pipeline tests — full end-to-end input exercises.
 //!
 //! Split from `keyboard.rs` so the implementation file stays small;
 //! these tests drive the whole block-editing pipeline.
@@ -11,7 +11,7 @@ use crate::editor::document::block::Block;
 use crate::model::block::CalloutKind;
 use crate::model::inline::text::BlockText;
 use crate::model::parse::{BlockData, BlockKind};
-use gpui::{App, AppContext, Entity, TestAppContext};
+use gpui::{App, AppContext, Entity, EntityInputHandler, TestAppContext};
 
 #[gpui::test]
 async fn request_quote_break_creates_new_root_leaf_quote_group(cx: &mut TestAppContext) {
@@ -2443,5 +2443,33 @@ async fn typing_four_underscores_and_three_asterisks_does_not_duplicate(cx: &mut
             block.replace_text_in_display_range(len - 1..len, "", None, false, cx);
         });
         assert_eq!(editor.doc().serialize_markdown(cx), "____ *** hell");
+    });
+}
+
+#[gpui::test]
+async fn test_selection_auto_wrap_pairs(cx: &mut TestAppContext) {
+    let window_cx = cx.add_empty_window();
+    let editor = window_cx.new(|cx| Editor::from_markdown(cx, "hello world".to_string(), None));
+
+    window_cx.update(|window, cx| {
+        editor.update(cx, |editor, cx| {
+            let paragraph = editor.doc().first_root().expect("root paragraph").clone();
+
+            // Select "world" (range 6..11) and type '*'
+            paragraph.update(cx, |block, cx| {
+                block.selected_range = 6..11;
+                block.replace_text_in_range(None, "*", window, cx);
+            });
+
+            assert_eq!(editor.doc().serialize_markdown(cx), "hello *world*");
+
+            // Select "hello" (range 0..5) and type '`'
+            paragraph.update(cx, |block, cx| {
+                block.selected_range = 0..5;
+                block.replace_text_in_range(None, "`", window, cx);
+            });
+
+            assert_eq!(editor.doc().serialize_markdown(cx), "`hello` *world*");
+        });
     });
 }

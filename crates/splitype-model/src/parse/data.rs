@@ -301,10 +301,25 @@ impl crate::tree::sum_tree::Item for BlockData {
         let plain = self.text.plain_text();
         let line_count = plain.lines().count().max(1);
         let char_count = plain.len();
+        let byte_count = self.raw_source.as_ref().map(|s| s.len()).unwrap_or(char_count);
+        let base_height = match self.kind {
+            crate::parse::kind::BlockKind::Heading { level } => match level {
+                1 => 44.0,
+                2 => 36.0,
+                3 => 30.0,
+                _ => 26.0,
+            },
+            crate::parse::kind::BlockKind::CodeBlock { .. } => 24.0 * line_count as f32 + 32.0,
+            crate::parse::kind::BlockKind::MathBlock | crate::parse::kind::BlockKind::MermaidBlock => 80.0,
+            crate::parse::kind::BlockKind::Table => 28.0 * line_count as f32 + 32.0,
+            _ => 24.0 * line_count as f32,
+        };
         crate::tree::sum_tree::BlockSummary {
             total_blocks: 1,
             total_lines: line_count,
             total_characters: char_count,
+            total_bytes: byte_count,
+            estimated_height: base_height,
         }
     }
 }

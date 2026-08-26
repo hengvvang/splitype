@@ -1,4 +1,4 @@
-﻿//! GPUI [`EntityInputHandler`] implementation for Block.
+//! GPUI [`EntityInputHandler`] implementation for Block.
 //!
 //! Bridges between GPUI's UTF-16-based IME subsystem and the block's
 //! internal UTF-8 representation.  All range arguments from GPUI arrive
@@ -123,6 +123,20 @@ impl EntityInputHandler for Block {
             .map(|range| self.range_from_utf16(range))
             .or(self.marked_range.clone())
             .unwrap_or(self.selected_range.clone());
+
+        let display_text = self.display_text();
+        let is_plain_selection = self.marked_range.is_none()
+            && display_range.start < display_range.end
+            && display_range.end <= display_text.len();
+        if is_plain_selection {
+            let selected_slice = &display_text[display_range.clone()];
+            if let Some((wrapped, inner_start, inner_end)) = wrap_selection_pair(selected_slice, new_text) {
+                let relative_sel = Some(inner_start..inner_end);
+                self.replace_text_in_display_range(display_range, &wrapped, relative_sel, false, cx);
+                return;
+            }
+        }
+
         self.replace_text_in_display_range(display_range, new_text, None, false, cx);
     }
 
@@ -262,5 +276,21 @@ impl EntityInputHandler for Block {
             self.display_text(),
             utf8_index,
         ))
+    }
+}
+
+pub(crate) fn wrap_selection_pair(selected: &str, input: &str) -> Option<(String, usize, usize)> {
+    match input {
+        "*" => Some((format!("*{selected}*"), 1, 1 + selected.len())),
+        "_" => Some((format!("_{selected}_"), 1, 1 + selected.len())),
+        "`" => Some((format!("`{selected}`"), 1, 1 + selected.len())),
+        "~" => Some((format!("~{selected}~"), 1, 1 + selected.len())),
+        "$" => Some((format!("${selected}$"), 1, 1 + selected.len())),
+        "(" => Some((format!("({selected})"), 1, 1 + selected.len())),
+        "[" => Some((format!("[{selected}]()"), 1, 1 + selected.len())),
+        "{" => Some((format!("{{{selected}}}"), 1, 1 + selected.len())),
+        "\"" => Some((format!("\"{selected}\""), 1, 1 + selected.len())),
+        "'" => Some((format!("'{selected}'"), 1, 1 + selected.len())),
+        _ => None,
     }
 }

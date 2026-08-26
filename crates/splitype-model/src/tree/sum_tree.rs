@@ -11,7 +11,7 @@ pub const TREE_ORDER: usize = 16;
 pub const MIN_CHILDREN: usize = TREE_ORDER / 2;
 
 /// A monoidal summary aggregated over a subtree.
-pub trait Summary: Clone + Default + Debug + PartialEq + Eq {
+pub trait Summary: Clone + Default + Debug + PartialEq {
     type Context;
     fn add_summary(&mut self, other: &Self, cx: &Self::Context);
 }
@@ -22,12 +22,14 @@ pub trait Item: Clone + Debug {
     fn summary(&self, cx: &<Self::Summary as Summary>::Context) -> Self::Summary;
 }
 
-/// Summary metrics for Markdown block structures.
-#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+/// Summary metrics for Markdown block structures including spatial dimensions.
+#[derive(Clone, Copy, Default, Debug, PartialEq)]
 pub struct BlockSummary {
     pub total_blocks: usize,
     pub total_lines: usize,
     pub total_characters: usize,
+    pub total_bytes: usize,
+    pub estimated_height: f32,
 }
 
 impl Summary for BlockSummary {
@@ -36,6 +38,8 @@ impl Summary for BlockSummary {
         self.total_blocks += other.total_blocks;
         self.total_lines += other.total_lines;
         self.total_characters += other.total_characters;
+        self.total_bytes += other.total_bytes;
+        self.estimated_height += other.estimated_height;
     }
 }
 
@@ -340,6 +344,74 @@ impl<T: Item<Summary = BlockSummary>> SumTree<T> {
             }
         }
     }
+
+    /// Finds the block containing the vertical pixel position Y in O(log N).
+    /// Returns (block_index, local_y_offset).
+    pub fn find_by_pixel_y(&self, mut target_y: f32) -> Option<(usize, f32)> {
+        if target_y < 0.0 {
+            return Some((0, 0.0));
+        }
+        let total_h = self.summary().estimated_height;
+        if target_y >= total_h && total_h > 0.0 {
+            let total_b = self.summary().total_blocks;
+            return total_b.checked_sub(1).map(|idx| (idx, 0.0));
+        }
+
+        let mut block_idx = 0;
+        let mut current = &self.root;
+
+        loop {
+            match current.as_ref() {
+                Node::Leaf { items, .. } => {
+                    for item in items {
+                        let item_h = item.summary(&()).estimated_height;
+                        if target_y < item_h || (target_y == item_h && target_y == 0.0) {
+                            return Some((block_idx, target_y));
+                        }
+                        target_y = (target_y - item_h).max(0.0);
+                        block_idx += 1;
+                    }
+                    return block_idx.checked_sub(1).map(|idx| (idx, 0.0));
+                }
+                Node::Internal { children, .. } => {
+                    let mut found = false;
+                    for child in children {
+                        let child_h = child.summary().estimated_height;
+                        let child_blocks = child.summary().total_blocks;
+                        if target_y < child_h || (target_y == child_h && target_y == 0.0) {
+                            current = child;
+                            found = true;
+                            break;
+                        }
+                        target_y -= child_h;
+                        block_idx += child_blocks;
+                    }
+                    if !found {
+                        return block_idx.checked_sub(1).map(|idx| (idx, 0.0));
+                    }
+                }
+            }
+        }
+    }
+
+    /// Finds the visible block index range [start_idx, end_idx] for a given viewport vertical range [min_y, max_y].
+    pub fn find_range_by_pixel_y(&self, min_y: f32, max_y: f32) -> (usize, usize) {
+        let total_blocks = self.summary().total_blocks;
+        if total_blocks == 0 {
+            return (0, 0);
+        }
+
+        let start_idx = self
+            .find_by_pixel_y(min_y.max(0.0))
+            .map(|(idx, _)| idx)
+            .unwrap_or(0);
+        let end_idx = self
+            .find_by_pixel_y(max_y.max(0.0))
+            .map(|(idx, _)| idx + 1)
+            .unwrap_or(total_blocks)
+            .min(total_blocks);
+        (start_idx, end_idx.max(start_idx + 1).min(total_blocks))
+    }
 }
 
 fn child_item_count<T: Item>(node: &Node<T>) -> usize {
@@ -353,10 +425,11 @@ fn child_item_count<T: Item>(node: &Node<T>) -> usize {
 mod tests {
     use super::*;
 
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Clone, Debug, PartialEq)]
     struct MockBlock {
         text: String,
         line_count: usize,
+        height: f32,
     }
 
     impl Item for MockBlock {
@@ -366,6 +439,8 @@ mod tests {
                 total_blocks: 1,
                 total_lines: self.line_count,
                 total_characters: self.text.len(),
+                total_bytes: self.text.len(),
+                estimated_height: self.height,
             }
         }
     }
@@ -378,6 +453,7 @@ mod tests {
                 MockBlock {
                     text: format!("Line {}", i),
                     line_count: 1,
+                    height: 24.0,
                 },
                 &(),
             );
@@ -386,6 +462,7 @@ mod tests {
         let summary = tree.summary();
         assert_eq!(summary.total_blocks, 100);
         assert_eq!(summary.total_lines, 100);
+        assert_eq!(summary.estimated_height, 2400.0);
 
         assert_eq!(tree.get(0).unwrap().text, "Line 0");
         assert_eq!(tree.get(50).unwrap().text, "Line 50");
@@ -396,30 +473,33 @@ mod tests {
     #[test]
     fn test_sum_tree_insert_and_remove() {
         let mut tree = SumTree::new();
-        tree.push(MockBlock { text: "A".into(), line_count: 1 }, &());
-        tree.push(MockBlock { text: "C".into(), line_count: 1 }, &());
-        tree.insert(1, MockBlock { text: "B".into(), line_count: 1 }, &());
+        tree.push(MockBlock { text: "A".into(), line_count: 1, height: 20.0 }, &());
+        tree.push(MockBlock { text: "C".into(), line_count: 1, height: 20.0 }, &());
+        tree.insert(1, MockBlock { text: "B".into(), line_count: 1, height: 30.0 }, &());
 
         assert_eq!(tree.get(0).unwrap().text, "A");
         assert_eq!(tree.get(1).unwrap().text, "B");
         assert_eq!(tree.get(2).unwrap().text, "C");
         assert_eq!(tree.summary().total_blocks, 3);
+        assert_eq!(tree.summary().estimated_height, 70.0);
 
         let removed = tree.remove(1, &()).unwrap();
         assert_eq!(removed.text, "B");
         assert_eq!(tree.get(1).unwrap().text, "C");
         assert_eq!(tree.summary().total_blocks, 2);
+        assert_eq!(tree.summary().estimated_height, 40.0);
     }
 
     #[test]
     fn test_sum_tree_find_by_char_and_line_offset() {
         let mut tree = SumTree::new();
-        tree.push(MockBlock { text: "Hello".into(), line_count: 1 }, &()); // len: 5, lines: 1
-        tree.push(MockBlock { text: "World\nRust".into(), line_count: 2 }, &()); // len: 10, lines: 2
-        tree.push(MockBlock { text: "!".into(), line_count: 1 }, &()); // len: 1, lines: 1
+        tree.push(MockBlock { text: "Hello".into(), line_count: 1, height: 24.0 }, &()); // len: 5, lines: 1, h: 24
+        tree.push(MockBlock { text: "World\nRust".into(), line_count: 2, height: 48.0 }, &()); // len: 10, lines: 2, h: 48
+        tree.push(MockBlock { text: "!".into(), line_count: 1, height: 24.0 }, &()); // len: 1, lines: 1, h: 24
 
         assert_eq!(tree.summary().total_characters, 16);
         assert_eq!(tree.summary().total_lines, 4);
+        assert_eq!(tree.summary().estimated_height, 96.0);
 
         // Char offset tests
         assert_eq!(tree.find_by_char_offset(0), Some((0, 0)));
@@ -433,5 +513,17 @@ mod tests {
         assert_eq!(tree.find_by_line_offset(1), Some((1, 0)));
         assert_eq!(tree.find_by_line_offset(2), Some((1, 1)));
         assert_eq!(tree.find_by_line_offset(3), Some((2, 0)));
+
+        // Spatial pixel Y tests
+        assert_eq!(tree.find_by_pixel_y(0.0), Some((0, 0.0)));
+        assert_eq!(tree.find_by_pixel_y(23.9), Some((0, 23.9)));
+        assert_eq!(tree.find_by_pixel_y(24.0), Some((1, 0.0)));
+        assert_eq!(tree.find_by_pixel_y(71.9), Some((1, 47.9)));
+        assert_eq!(tree.find_by_pixel_y(72.0), Some((2, 0.0)));
+
+        // Slicing visible range
+        assert_eq!(tree.find_range_by_pixel_y(0.0, 50.0), (0, 2));
+        assert_eq!(tree.find_range_by_pixel_y(30.0, 60.0), (1, 2));
+        assert_eq!(tree.find_range_by_pixel_y(70.0, 95.0), (1, 3));
     }
 }
