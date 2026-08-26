@@ -1,4 +1,4 @@
-﻿//! Virtualized document viewport planning, row windowing, and container assembly.
+//! Virtualized document viewport planning, row windowing, and container assembly.
 
 use std::time::Instant;
 
@@ -45,21 +45,55 @@ impl Editor {
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let panel_id = self.panel_id;
+        let theme = cx.global::<ThemeManager>().current_arc();
+        let d = &theme.dimensions;
+
         // A tab that has never been rendered has an unbound scroll handle
-        // (0×0 bounds). Window the first frame against the window viewport
-        // instead of a 1px sliver, so the switch shows a full screen of rows
-        // immediately; `track_scroll` binds the real bounds during layout
-        // and later frames use them.
+        // (0×0 bounds). Window the first frame against the editor panel's known
+        // layout bounds (or window viewport as outermost fallback), so the switch
+        // shows a full screen of rows immediately; `track_scroll` binds the real
+        // bounds during layout and later frames use them.
         let viewport_bounds = self
             .pane_state_ref(pane_id)
             .map(|state| state.scroll.handle.bounds())
             .unwrap_or_default();
-        let viewport_size =
-            if viewport_bounds.size.width == px(0.0) || viewport_bounds.size.height == px(0.0) {
-                window.viewport_size()
+        let is_initial_unbound =
+            viewport_bounds.size.width == px(0.0) || viewport_bounds.size.height == px(0.0);
+        let viewport_size = if !is_initial_unbound {
+            viewport_bounds.size
+        } else if let Some(rect) = self.panel_rect {
+            let body_height = (f32::from(rect.size.height)
+                - d.topbar_height
+                - d.bottombar_height)
+                .max(0.0);
+            let inner_rects = self
+                .session
+                .root
+                .leaf_rects(size(rect.size.width, px(body_height)));
+            if let Some(leaf) = inner_rects.iter().find(|l| l.id == pane_id.0) {
+                size(px(leaf.width), px(leaf.height))
             } else {
-                viewport_bounds.size
-            };
+                rect.size
+            }
+        } else {
+            window.viewport_size()
+        };
+
+        // When the scroll handle was unbound in the first frame, schedule a
+        // lightweight post-layout notification to ensure exact convergence on the
+        // real measured bounds once layout executes.
+        if is_initial_unbound {
+            cx.spawn(async move |this: WeakEntity<Self>, cx: &mut AsyncApp| {
+                cx.background_executor()
+                    .timer(std::time::Duration::from_millis(16))
+                    .await;
+                let _ = this.update(cx, |_editor, cx| {
+                    cx.notify();
+                });
+            })
+            .detach();
+        }
+
         // The window keyboard focus sits in exactly one pane, so pending
         // focus and scroll-into-view only apply to the active pane; other
         // panes keep theirs queued until they become active.
@@ -75,9 +109,6 @@ impl Editor {
         }) {
             self.rebuild_table_grids(cx);
         }
-
-        let theme = cx.global::<ThemeManager>().current_arc();
-        let d = &theme.dimensions;
         let blocks = self.doc().blocks();
         let editor = cx.entity().downgrade();
         let max_scroll_y = self
@@ -240,10 +271,10 @@ impl Editor {
             .id(ElementId::Name(
                 format!("editor-scroll-inner-{panel_id}-{pane_id}").into(),
             ))
+            .w_full()
+            .h_full()
             .flex()
             .flex_col()
-            .flex_grow(1.0)
-            .h_full()
             .items_center()
             .bg(theme.colors.editor_background)
             .overflow_y_scroll()
@@ -316,8 +347,11 @@ impl Editor {
             ))
             .w_full()
             .h_full()
+            .flex()
+            .flex_col()
             .flex_1()
             .min_w(px(0.0))
+            .min_h(px(0.0))
             .bg(theme.colors.editor_background)
             .relative()
             .child(scroll_content);
