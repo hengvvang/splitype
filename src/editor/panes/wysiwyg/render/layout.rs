@@ -107,7 +107,7 @@ pub fn callout_colors(variant: crate::model::block::CalloutKind, theme: &Theme) 
 
 // ── Font helpers ────────────────────────────────────────────────────────
 
-/// The editor's text font (Acherus Grotesque) with CJK and Tibetan fallbacks.
+/// The editor's text font (Encode Sans Semi Expanded) with CJK and Tibetan fallbacks.
 pub fn editor_text_font() -> Font {
     static FALLBACKS: std::sync::OnceLock<FontFallbacks> = std::sync::OnceLock::new();
     let fallbacks = FALLBACKS
@@ -115,7 +115,7 @@ pub fn editor_text_font() -> Font {
             FontFallbacks::from_fonts(font_fallbacks_for_target_os(std::env::consts::OS))
         })
         .clone();
-    let mut font = font("Acherus Grotesque");
+    let mut font = font("Encode Sans Semi Expanded");
     font.fallbacks = Some(fallbacks);
     font
 }
@@ -184,8 +184,8 @@ mod tests {
     }
 
     #[test]
-    fn editor_text_font_keeps_acherus_grotesque_as_primary_family() {
-        assert_eq!(editor_text_font().family.to_string(), "Acherus Grotesque");
+    fn editor_text_font_keeps_encode_sans_semi_expanded_as_primary_family() {
+        assert_eq!(editor_text_font().family.to_string(), "Encode Sans Semi Expanded");
     }
 
     #[test]

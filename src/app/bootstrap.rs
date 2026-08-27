@@ -104,7 +104,7 @@ pub fn run(args: Args) {
 
     app.run(move |cx: &mut App| {
         if let Err(err) = crate::app::assets::SplitypeAssets::load_fonts(cx) {
-            tracing::warn!(error = %err, "failed to load embedded Acherus Grotesque fonts");
+            tracing::warn!(error = %err, "failed to load embedded Encode Sans Semi Expanded fonts");
         }
 
         let settings = load_or_create_app_settings().unwrap_or_else(|err| {

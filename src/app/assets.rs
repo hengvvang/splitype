@@ -356,7 +356,7 @@ impl AssetSource for SplitypeAssets {
             // ── GPUI SVG renderer bundled font requests ──────────────────
             "fonts/ibm-plex-sans/IBMPlexSans-Regular.ttf" | "fonts/lilex/Lilex-Regular.ttf" => {
                 Ok(Some(Cow::Borrowed(include_bytes!(
-                    "../../assets/fonts/Acherus Grotesque Regular.otf"
+                    "../../assets/fonts/EncodeSansSemiExpanded-Regular.ttf"
                 ))))
             }
 
@@ -370,56 +370,35 @@ impl AssetSource for SplitypeAssets {
 }
 
 impl SplitypeAssets {
-    /// Populate the [`TextSystem`] with all 16 embedded Acherus Grotesque font styles.
+    /// Populate the [`TextSystem`] with all 9 embedded Encode Sans Semi Expanded font variants.
     pub fn load_fonts(cx: &App) -> gpui::Result<()> {
         let fonts: Vec<Cow<'static, [u8]>> = vec![
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/Acherus Grotesque Black Italic.otf"
+                "../../assets/fonts/EncodeSansSemiExpanded-Thin.ttf"
             )),
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/Acherus Grotesque Black.otf"
+                "../../assets/fonts/EncodeSansSemiExpanded-ExtraLight.ttf"
             )),
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/Acherus Grotesque Bold Italic.otf"
+                "../../assets/fonts/EncodeSansSemiExpanded-Light.ttf"
             )),
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/Acherus Grotesque Bold.otf"
+                "../../assets/fonts/EncodeSansSemiExpanded-Regular.ttf"
             )),
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/Acherus Grotesque Extra Bold Italic.otf"
+                "../../assets/fonts/EncodeSansSemiExpanded-Medium.ttf"
             )),
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/Acherus Grotesque Extra Bold.otf"
+                "../../assets/fonts/EncodeSansSemiExpanded-SemiBold.ttf"
             )),
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/Acherus Grotesque Light Italic.otf"
+                "../../assets/fonts/EncodeSansSemiExpanded-Bold.ttf"
             )),
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/Acherus Grotesque Light.otf"
+                "../../assets/fonts/EncodeSansSemiExpanded-ExtraBold.ttf"
             )),
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/Acherus Grotesque Medium Italic.otf"
-            )),
-            Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/Acherus Grotesque Medium.otf"
-            )),
-            Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/Acherus Grotesque Regular Italic.otf"
-            )),
-            Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/Acherus Grotesque Regular.otf"
-            )),
-            Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/Acherus Grotesque Thin Italic.otf"
-            )),
-            Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/Acherus Grotesque Thin.otf"
-            )),
-            Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/Acherus Grotesque Ultra Light Italic.otf"
-            )),
-            Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/Acherus Grotesque Ultra Light.otf"
+                "../../assets/fonts/EncodeSansSemiExpanded-Black.ttf"
             )),
         ];
         cx.text_system().add_fonts(fonts)
