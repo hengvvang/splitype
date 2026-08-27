@@ -36,5 +36,5 @@ pub(crate) mod filename_editor;
 pub(crate) mod ops;
 pub(crate) mod panel;
 pub(crate) mod render;
-pub(crate) mod state;
+pub mod state;
 pub(crate) mod topbar;

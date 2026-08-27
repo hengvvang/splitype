@@ -233,7 +233,9 @@ impl Shell {
                 }
                 shell.panels.explorer.marked.clear();
                 shell.rescan_explorer_worktrees(cx);
-                for change in &result {
+                if result.len() > 1 {
+                    shell.record_explorer_change(ExplorerChange::Batch(result.clone()));
+                } else if let Some(change) = result.first() {
                     shell.record_explorer_change(change.clone());
                 }
                 if let Some(path) = result

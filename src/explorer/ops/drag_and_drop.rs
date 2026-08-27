@@ -663,7 +663,9 @@ impl Shell {
                 .await;
             let _ = weak_shell.update(cx, |shell, cx| {
                 shell.clear_explorer_drag(cx);
-                for change in &changes {
+                if changes.len() > 1 {
+                    shell.record_explorer_change(ExplorerChange::Batch(changes.clone()));
+                } else if let Some(change) = changes.first() {
                     shell.record_explorer_change(change.clone());
                 }
                 shell.rescan_explorer_worktrees(cx);

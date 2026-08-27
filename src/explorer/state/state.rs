@@ -557,8 +557,9 @@ pub fn build_explorer_rows(
                     }
                 }
                 if !inserted {
-                    // Fallback: never in front of the root row (index 0).
-                    segment.insert(1, ExplorerRow::Edit { root: *root_index });
+                    // Fallback: after root row (index 1), or at index 0 if segment is empty.
+                    let insert_pos = 1.min(segment.len());
+                    segment.insert(insert_pos, ExplorerRow::Edit { root: *root_index });
                 }
             }
             Some(edit_state) if edit_state.root == *root_index => {
@@ -745,5 +746,24 @@ mod tests {
         assert!(cloned.pending_rename.is_none());
         assert!(cloned.edit.is_none());
         assert_eq!(cloned.rendered_rows, 0);
+    }
+
+    #[test]
+    fn test_build_explorer_rows_handles_empty_worktree_safely() {
+        let edit = ExplorerEditState {
+            root: 0,
+            parent_id: Some(ExplorerEntryId(999)),
+            target_id: None,
+            is_dir: false,
+            depth: 1,
+            path: PathBuf::from("/empty"),
+            validation: None,
+            filename: ExplorerFilenameEditor::default(),
+            previously_selected: None,
+            processing: false,
+        };
+        // Empty trees list
+        let rows = build_explorer_rows(&[], &HashMap::new(), Some(&edit));
+        assert!(rows.is_empty());
     }
 }

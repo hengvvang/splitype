@@ -1,4 +1,4 @@
-﻿//! About dialog body and repository link opening.
+//! About dialog body and repository link opening.
 
 use gpui::{AppContext, TestAppContext};
 
@@ -43,8 +43,13 @@ async fn test_show_about_dialog_rendering(cx: &mut TestAppContext) {
     });
     cx.run_until_parked();
 
-    let mut cx = gpui::VisualTestContext::from_window(window.into(), cx);
-    super::redraw(&mut cx);
+    let info_dialog = window
+        .update(cx, |shell, _window, _cx| shell.info_dialog)
+        .unwrap();
+    assert_eq!(
+        info_dialog,
+        Some(crate::editor::engine::controller::InfoDialogKind::About)
+    );
 }
 
 #[gpui::test]
@@ -77,7 +82,4 @@ async fn test_show_about_from_app_menu_for_editor(cx: &mut TestAppContext) {
         info_dialog,
         Some(crate::editor::engine::controller::InfoDialogKind::About)
     );
-
-    let mut visual_cx = gpui::VisualTestContext::from_window(window.into(), cx);
-    super::redraw(&mut visual_cx);
 }

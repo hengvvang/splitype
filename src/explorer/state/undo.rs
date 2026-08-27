@@ -17,6 +17,7 @@ pub enum ExplorerChange {
     Renamed { from: PathBuf, to: PathBuf },
     Moved { from: PathBuf, to: PathBuf },
     Copied { source: PathBuf, dest: PathBuf },
+    Batch(Vec<ExplorerChange>),
 }
 
 /// Undo/redo stacks for explorer file operations.
@@ -28,6 +29,11 @@ pub struct ExplorerUndoHistory {
 
 impl ExplorerUndoHistory {
     pub fn record(&mut self, change: ExplorerChange) {
+        if let ExplorerChange::Batch(ref changes) = change {
+            if changes.is_empty() {
+                return;
+            }
+        }
         self.undo_stack.push(change);
         // A fresh edit invalidates any forward history.
         self.redo_stack.clear();
@@ -51,6 +57,7 @@ pub fn explorer_change_destination(change: &ExplorerChange) -> Option<&Path> {
         ExplorerChange::Created { path, .. } => Some(path),
         ExplorerChange::Renamed { to, .. } | ExplorerChange::Moved { to, .. } => Some(to),
         ExplorerChange::Copied { dest, .. } => Some(dest),
+        ExplorerChange::Batch(changes) => changes.last().and_then(explorer_change_destination),
     }
 }
 
@@ -97,11 +104,25 @@ pub fn execute_explorer_change(change: &ExplorerChange) -> Result<(), ExplorerEr
             Ok(())
         }
         ExplorerChange::Renamed { from, to } | ExplorerChange::Moved { from, to } => {
-            std::fs::rename(from, to).map_err(|source| ExplorerError::RenameFailed {
-                from: from.clone(),
-                to: to.clone(),
-                source,
-            })
+            if std::fs::rename(from, to).is_err() {
+                // Fallback for cross-device moves: copy then delete source
+                if from.is_dir() {
+                    copy_dir_all(from, to).map_err(|source| ExplorerError::RenameFailed {
+                        from: from.clone(),
+                        to: to.clone(),
+                        source,
+                    })?;
+                    let _ = remove_path_symlink_safe(from);
+                } else {
+                    std::fs::copy(from, to).map_err(|source| ExplorerError::RenameFailed {
+                        from: from.clone(),
+                        to: to.clone(),
+                        source,
+                    })?;
+                    let _ = std::fs::remove_file(from);
+                }
+            }
+            Ok(())
         }
         ExplorerChange::Copied { source, dest } => {
             if source.is_dir() {
@@ -118,6 +139,12 @@ pub fn execute_explorer_change(change: &ExplorerChange) -> Result<(), ExplorerEr
                     })
             }
         }
+        ExplorerChange::Batch(changes) => {
+            for change in changes {
+                execute_explorer_change(change)?;
+            }
+            Ok(())
+        }
     }
 }
 
@@ -125,17 +152,35 @@ pub fn execute_explorer_change(change: &ExplorerChange) -> Result<(), ExplorerEr
 pub fn execute_explorer_change_inverse(change: &ExplorerChange) -> Result<(), ExplorerError> {
     match change {
         ExplorerChange::Created { path, .. } => {
-            remove_path_symlink_safe(path).map_err(|source| ExplorerError::DeleteFailed {
-                path: path.clone(),
-                source,
-            })
+            // First try trash (recoverable), fallback to delete
+            if let Err(_) = trash::delete(path) {
+                remove_path_symlink_safe(path).map_err(|source| ExplorerError::DeleteFailed {
+                    path: path.clone(),
+                    source,
+                })?;
+            }
+            Ok(())
         }
         ExplorerChange::Renamed { from, to } | ExplorerChange::Moved { from, to } => {
-            std::fs::rename(to, from).map_err(|source| ExplorerError::RenameFailed {
-                from: to.clone(),
-                to: from.clone(),
-                source,
-            })
+            if std::fs::rename(to, from).is_err() {
+                // Fallback for cross-device moves: copy then delete source
+                if to.is_dir() {
+                    copy_dir_all(to, from).map_err(|source| ExplorerError::RenameFailed {
+                        from: to.clone(),
+                        to: from.clone(),
+                        source,
+                    })?;
+                    let _ = remove_path_symlink_safe(to);
+                } else {
+                    std::fs::copy(to, from).map_err(|source| ExplorerError::RenameFailed {
+                        from: to.clone(),
+                        to: from.clone(),
+                        source,
+                    })?;
+                    let _ = std::fs::remove_file(to);
+                }
+            }
+            Ok(())
         }
         ExplorerChange::Copied { dest, .. } => {
             remove_path_symlink_safe(dest).map_err(|source| ExplorerError::DeleteFailed {
@@ -143,5 +188,38 @@ pub fn execute_explorer_change_inverse(change: &ExplorerChange) -> Result<(), Ex
                 source,
             })
         }
+        ExplorerChange::Batch(changes) => {
+            for change in changes.iter().rev() {
+                execute_explorer_change_inverse(change)?;
+            }
+            Ok(())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_batch_undo_record_and_destination() {
+        let mut history = ExplorerUndoHistory::default();
+        let change1 = ExplorerChange::Created {
+            path: PathBuf::from("/p/1.md"),
+            is_dir: false,
+        };
+        let change2 = ExplorerChange::Created {
+            path: PathBuf::from("/p/2.md"),
+            is_dir: false,
+        };
+        let batch = ExplorerChange::Batch(vec![change1, change2]);
+        assert_eq!(
+            explorer_change_destination(&batch),
+            Some(Path::new("/p/2.md"))
+        );
+
+        history.record(batch);
+        assert!(history.can_undo());
+        assert!(!history.can_redo());
     }
 }

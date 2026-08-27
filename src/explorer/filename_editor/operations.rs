@@ -1,4 +1,4 @@
-﻿//! Inline filename editor operations: create, rename, validation, and key handlers.
+//! Inline filename editor operations: create, rename, validation, and key handlers.
 
 use std::path::PathBuf;
 
@@ -16,26 +16,40 @@ impl Shell {
     /// `populate_validation_error`): whitespace warns, illegal characters and
     /// name collisions error.
     pub(crate) fn populate_explorer_validation(&mut self, cx: &mut Context<Self>) {
-        let Some(filename) = self
-            .panels
-            .explorer
-            .edit
-            .as_ref()
-            .map(|edit| edit.filename.text.clone())
-        else {
+        let Some(edit) = self.panels.explorer.edit.as_ref() else {
             return;
         };
+        let filename = edit.filename.text.clone();
+        let is_rename = edit.target_id.is_some();
+
         let validation = if filename.trim() != filename {
             Some(ExplorerValidation::Warning(
                 "File name has leading or trailing whitespace.".into(),
             ))
-        } else if filename.contains(['/', '\\', '\0']) {
+        } else if filename.contains('\0') {
             Some(ExplorerValidation::Error(
-                "File name cannot contain '/' or '\\'.".into(),
+                "File name cannot contain null characters.".into(),
+            ))
+        } else if is_rename && filename.contains(['/', '\\']) {
+            Some(ExplorerValidation::Error(
+                "Rename target cannot contain '/' or '\\'.".into(),
+            ))
+        } else if filename.contains([':', '*', '?', '"', '<', '>', '|']) {
+            Some(ExplorerValidation::Error(
+                "File name contains illegal characters (: * ? \" < > |).".into(),
+            ))
+        } else if !is_rename
+            && filename
+                .split(['/', '\\'])
+                .any(|segment| segment == "." || segment == "..")
+        {
+            Some(ExplorerValidation::Error(
+                "Path components cannot be '.' or '..'.".into(),
             ))
         } else {
             self.explorer_duplicate_name_error(&filename, cx)
         };
+
         if let Some(edit) = self.panels.explorer.edit.as_mut() {
             edit.validation = validation;
         }
@@ -50,12 +64,21 @@ impl Shell {
         let Some(tree) = self.panels.explorer.trees_cache.get(edit.root) else {
             return None;
         };
+        let trimmed = filename.trim();
+        if trimmed.is_empty() {
+            return None;
+        }
         // New entry: check the target path. Rename: check except itself.
         let new_path = if edit.target_id.is_none() {
-            edit.path.join(filename)
+            let relative_parts = trimmed.split(['/', '\\']).filter(|s| !s.is_empty());
+            let mut path = edit.path.clone();
+            for part in relative_parts {
+                path.push(part);
+            }
+            path
         } else {
             let parent = edit.path.parent()?;
-            parent.join(filename)
+            parent.join(trimmed)
         };
         let existing = crate::explorer::state::state::find_explorer_node(tree, &new_path);
         let is_self = edit
@@ -63,7 +86,7 @@ impl Shell {
             .is_some_and(|id| existing.is_some_and(|node| node.id == id));
         if existing.is_some() && !is_self {
             Some(ExplorerValidation::Error(format!(
-                "File or directory '{filename}' already exists at this location."
+                "File or directory '{trimmed}' already exists at this location."
             )))
         } else {
             None
@@ -173,11 +196,14 @@ impl Shell {
         let selection_end =
             if node.kind == crate::explorer::state::state::ExplorerEntryKind::Directory {
                 file_name.len()
+            } else if let Some(last_dot) = file_name.rfind('.') {
+                if last_dot > 0 {
+                    last_dot
+                } else {
+                    file_name.len()
+                }
             } else {
-                target_path
-                    .file_stem()
-                    .map(|stem| stem.len())
-                    .unwrap_or(file_name.len())
+                file_name.len()
             };
 
         let mut filename = ExplorerFilenameEditor::default();
@@ -215,7 +241,7 @@ impl Shell {
         self.autoscroll_explorer_edit(window, cx);
 
         // Blur auto-commits when possible and discards otherwise, mirroring
-        // Zed: `EditorEvent::Blurred` → confirm; an empty, duplicate, or
+        // Zed: `EditorEvent::Blurred` -> confirm; an empty, duplicate, or
         // unchanged name drops the edit. Window deactivation never commits
         // nor cancels.
         cx.on_blur(&focus_handle, window, |shell, window, cx| {
@@ -293,7 +319,12 @@ impl Shell {
         let root = edit.root;
         let old_path = edit.path.clone();
         let new_path = if is_create {
-            edit.path.join(&filename)
+            let relative_parts = filename.split(['/', '\\']).filter(|s| !s.is_empty());
+            let mut path = edit.path.clone();
+            for part in relative_parts {
+                path.push(part);
+            }
+            path
         } else {
             edit.path
                 .parent()
@@ -323,6 +354,9 @@ impl Shell {
                                     .map(|_| ())
                             }
                         } else {
+                            if let Some(parent) = new_path.parent() {
+                                std::fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+                            }
                             std::fs::OpenOptions::new()
                                 .write(true)
                                 .create_new(true)
@@ -360,6 +394,7 @@ impl Shell {
                         shell.record_explorer_change(change);
                         shell.panels.explorer.pending_select =
                             Some((root, new_path_for_update.clone()));
+                        shell.expand_to_path(&new_path_for_update);
                         shell.rescan_explorer_worktrees(cx);
                         shell.sync_explorer_models(cx);
                         if is_create && !is_dir {

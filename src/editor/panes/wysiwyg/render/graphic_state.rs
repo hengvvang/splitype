@@ -104,7 +104,7 @@ pub(crate) fn render_graphic_error_card(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::{GraphicKind, clean_error_message};
 
     #[test]
     fn test_graphic_kind_titles_and_headers() {

@@ -5,7 +5,7 @@
 //! depends on this state one-way. The outline panel has its own state in
 //! `crate::editor::outline`, so the editor never imports this module.
 
-pub(crate) mod state;
-pub(crate) mod undo;
-pub(crate) mod utils;
-pub(crate) mod worktree;
+pub mod state;
+pub mod undo;
+pub mod utils;
+pub mod worktree;

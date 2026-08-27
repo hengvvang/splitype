@@ -1,4 +1,4 @@
-#![recursion_limit = "1024"]
+#![recursion_limit = "2048"]
 //! splitype — a block-based Markdown editor built with GPUI.
 //!
 //! Reads file paths from command-line arguments and opens one GPUI window per

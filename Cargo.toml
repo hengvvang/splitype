@@ -282,3 +282,22 @@ etagere = { opt-level = 3 }
 image = { opt-level = 3 }
 serde = { opt-level = 3 }
 serde_json = { opt-level = 3 }
+
+[profile.test.package]
+gpui = { opt-level = 3 }
+gpui_macros = { opt-level = 3 }
+taffy = { opt-level = 3 }
+async-task = { opt-level = 3 }
+parking_lot = { opt-level = 3 }
+parking_lot_core = { opt-level = 3 }
+hashbrown = { opt-level = 3 }
+smallvec = { opt-level = 3 }
+lyon = { opt-level = 3 }
+lyon_geom = { opt-level = 3 }
+lyon_path = { opt-level = 3 }
+lyon_tessellation = { opt-level = 3 }
+etagere = { opt-level = 3 }
+image = { opt-level = 3 }
+serde = { opt-level = 3 }
+serde_json = { opt-level = 3 }
+

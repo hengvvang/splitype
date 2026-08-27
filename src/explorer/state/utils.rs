@@ -94,6 +94,20 @@ pub fn execute_entry_ops(
                     from: source.clone(),
                     to: destination,
                 });
+            } else {
+                // Cross-device move fallback: copy and remove source
+                let copy_res = if source.is_dir() {
+                    copy_dir_all(source, &destination)
+                } else {
+                    std::fs::copy(source, &destination).map(|_| ())
+                };
+                if copy_res.is_ok() {
+                    let _ = super::undo::remove_path_symlink_safe(source);
+                    changes.push(ExplorerChange::Moved {
+                        from: source.clone(),
+                        to: destination,
+                    });
+                }
             }
         } else {
             let destination = if disambiguate {
