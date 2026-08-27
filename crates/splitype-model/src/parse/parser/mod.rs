@@ -13,7 +13,6 @@ pub(crate) mod pipeline;
 pub(crate) mod quotes;
 
 pub use pipeline::{
-    ParseMode, build_blocks_from_lines, build_preview_blocks_from_lines,
-    build_wysiwyg_blocks_from_lines, parse_document, parse_document_with_mode,
-    parse_preview_document, parse_wysiwyg_document,
+    ParseMode, build_preview_blocks_from_lines, build_wysiwyg_blocks_from_lines,
+    parse_document_with_mode, parse_preview_document, parse_wysiwyg_document,
 };

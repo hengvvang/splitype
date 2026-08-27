@@ -8,10 +8,10 @@ use splitype_model::block::table::TableData;
 use splitype_model::inline::text::BlockText;
 use splitype_model::parse::data::BlockData;
 use splitype_model::parse::kind::BlockKind;
-use splitype_model::parse::parser::parse_document;
+use splitype_model::parse::parser::parse_wysiwyg_document;
 
 fn roots(markdown: &str) -> Vec<BlockData> {
-    parse_document(markdown)
+    parse_wysiwyg_document(markdown)
 }
 
 /// Heading, paragraph, and thematic break parse into distinct root blocks.

@@ -30,13 +30,8 @@ impl Editor {
         blocks_to_entity_tree(blocks, cx)
     }
 
-    /// Parse a Markdown string into a tree of block entities (defaults to WYSIWYG mode).
-    pub(crate) fn parse_document(cx: &mut Context<Self>, markdown: &str) -> Vec<Entity<Block>> {
-        Self::parse_wysiwyg_document(cx, markdown)
-    }
-
     /// Build runtime blocks from pre-split Markdown lines (WYSIWYG mode).
-    pub(crate) fn build_blocks_from_lines(
+    pub(crate) fn build_wysiwyg_blocks_from_lines(
         cx: &mut Context<Self>,
         lines: &[String],
     ) -> Vec<Entity<Block>> {

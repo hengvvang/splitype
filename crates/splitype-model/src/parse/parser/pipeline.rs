@@ -27,10 +27,6 @@ pub enum ParseMode {
     Preview,
 }
 
-pub fn parse_document(markdown: &str) -> Vec<BlockData> {
-    parse_document_with_mode(markdown, ParseMode::Wysiwyg)
-}
-
 pub fn parse_wysiwyg_document(markdown: &str) -> Vec<BlockData> {
     parse_document_with_mode(markdown, ParseMode::Wysiwyg)
 }
@@ -48,13 +44,6 @@ pub fn parse_document_with_mode(markdown: &str, mode: ParseMode) -> Vec<BlockDat
         .map(ToOwned::to_owned)
         .collect::<Vec<_>>();
     build_blocks_from_lines_internal(&lines, mode, true)
-}
-
-/// Build blocks from pre-split Markdown lines.
-///
-/// Equivalent to the editor's `build_blocks_from_lines`.
-pub fn build_blocks_from_lines(lines: &[String]) -> Vec<BlockData> {
-    build_wysiwyg_blocks_from_lines(lines)
 }
 
 pub fn build_wysiwyg_blocks_from_lines(lines: &[String]) -> Vec<BlockData> {
@@ -77,7 +66,9 @@ pub(crate) fn build_blocks_from_lines_internal(
     while index < lines.len() {
         let line = &lines[index];
         if line.trim().is_empty() {
-            roots.push(native_block(BlockKind::Paragraph, ""));
+            if mode == ParseMode::Wysiwyg {
+                roots.push(native_block(BlockKind::Paragraph, ""));
+            }
             index += 1;
             continue;
         }
@@ -243,9 +234,8 @@ mod tests {
     fn test_preview_merges_consecutive_lines_per_commonmark() {
         let markdown = "Line 1\nLine 2\n\nLine 3";
         let blocks = parse_preview_document(markdown);
-        assert_eq!(blocks.len(), 3);
+        assert_eq!(blocks.len(), 2);
         assert_eq!(blocks[0].text.plain_text(), "Line 1\nLine 2");
-        assert_eq!(blocks[1].text.plain_text(), "");
-        assert_eq!(blocks[2].text.plain_text(), "Line 3");
+        assert_eq!(blocks[1].text.plain_text(), "Line 3");
     }
 }

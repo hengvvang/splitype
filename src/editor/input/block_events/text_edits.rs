@@ -1,4 +1,4 @@
-﻿//! Text editing events handler: newlines, tabs, inline formatting, and edit modes.
+//! Text editing events handler: newlines, tabs, inline formatting, and edit modes.
 
 use gpui::*;
 
@@ -212,7 +212,7 @@ impl Editor {
                 let mut inserted_roots = if *split_physical_lines {
                     Self::build_plain_paste_blocks_from_lines(cx, &tail_lines)
                 } else {
-                    Self::build_blocks_from_lines(cx, &tail_lines)
+                    Self::build_wysiwyg_blocks_from_lines(cx, &tail_lines)
                 };
                 if structural && trailing.plain_len() > 0 {
                     inserted_roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));

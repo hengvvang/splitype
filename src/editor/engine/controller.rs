@@ -610,7 +610,7 @@ impl Editor {
         file_path: Option<PathBuf>,
     ) -> DocumentTab {
         let normalized = markdown.replace("\r\n", "\n").replace('\r', "\n");
-        let mut roots = Self::parse_document(cx, &normalized);
+        let mut roots = Self::parse_wysiwyg_document(cx, &normalized);
         if roots.is_empty() {
             roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
         }
