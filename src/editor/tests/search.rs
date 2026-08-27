@@ -161,3 +161,94 @@ fn test_search_worktree_files(cx: &mut TestAppContext) {
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
+
+#[gpui::test]
+fn test_search_in_empty_editor_never_panics(cx: &mut TestAppContext) {
+    let editor = cx.new(Editor::empty);
+
+    editor.update(cx, |editor, cx| {
+        assert!(!editor.has_active_tab());
+
+        editor.search.search_input.set_text("test query".to_string());
+        editor.execute_search(cx);
+        assert_eq!(editor.search.matches.len(), 0);
+
+        editor.search.scope = SearchScope::Worktree;
+        editor.execute_search(cx);
+    });
+}
+
+#[gpui::test]
+fn test_search_multibyte_chinese_characters_and_symbols(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| {
+        Editor::from_markdown(
+            cx,
+            "开始重构，重构过程中：我要求代码库里只能有一套设计，严禁向后做任何兼容。".to_string(),
+            None,
+        )
+    });
+
+    editor.update(cx, |editor, cx| {
+        // Search multi-byte Chinese word "开"
+        editor.search.search_input.set_text("开".to_string());
+        editor.execute_search(cx);
+        assert_eq!(editor.search.matches.len(), 1);
+        assert_eq!(editor.search.matches[0].preview_match, "开");
+
+        // Search "重构"
+        editor.search.search_input.set_text("重构".to_string());
+        editor.execute_search(cx);
+        assert_eq!(editor.search.matches.len(), 2);
+
+        // Search special symbols without regex mode
+        editor.search.search_input.set_text("：".to_string());
+        editor.search.use_regex = false;
+        editor.execute_search(cx);
+        assert_eq!(editor.search.matches.len(), 1);
+
+        // Test replace on Chinese characters
+        editor.search.search_input.set_text("严禁".to_string());
+        editor.search.replace_input.set_text("绝不".to_string());
+        editor.execute_search(cx);
+        assert_eq!(editor.search.matches.len(), 1);
+
+        editor.replace_all_search_matches(cx);
+        let doc_text = editor.doc().serialize_markdown(cx);
+        assert!(doc_text.contains("绝不向后做任何兼容"));
+    });
+}
+
+#[gpui::test]
+fn test_search_results_drawer_expansion_and_item_toggle(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| {
+        Editor::from_markdown(
+            cx,
+            "First matching item\nSecond matching item\nThird matching item".to_string(),
+            None,
+        )
+    });
+
+    editor.update(cx, |editor, cx| {
+        editor.search.search_input.set_text("matching".to_string());
+        editor.execute_search(cx);
+
+        assert_eq!(editor.search.matches.len(), 3);
+        assert!(editor.search.results_expanded);
+
+        assert!(!editor.search.is_match_expanded(0));
+        editor.search.toggle_match_expanded(0);
+        assert!(editor.search.is_match_expanded(0));
+        editor.search.toggle_match_expanded(0);
+        assert!(!editor.search.is_match_expanded(0));
+
+        // Sync highlights to document check
+        editor.search.visible = true;
+        editor.sync_search_highlights_to_document(cx);
+        let first_block = editor.doc().blocks()[0].entity.read(cx);
+        assert_eq!(first_block.search_matches.len(), 1);
+        assert_eq!(first_block.search_matches[0].1, true); // Active match is at index 0
+    });
+}
+
+
+

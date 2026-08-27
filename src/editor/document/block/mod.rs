@@ -123,6 +123,7 @@ pub struct Block {
     /// fingerprint and the display parameters that produced it. Rendering
     /// and the surrounding SVG file reads are skipped while the key holds.
     pub(crate) mermaid_render_cache: Option<(u64, u32, u32, MermaidSvgRender)>,
+    pub(crate) search_matches: Vec<(Range<usize>, bool)>,
 }
 
 impl Block {
@@ -188,6 +189,7 @@ impl Block {
             quote_reparse_requested: false,
             tree_metadata_flags: 0,
             mermaid_render_cache: None,
+            search_matches: Vec::new(),
         };
         block.sync_code_highlight();
         block.refresh_cached_display_text();

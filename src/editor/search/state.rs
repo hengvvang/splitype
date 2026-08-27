@@ -1,9 +1,36 @@
-//! Search and replace state models.
+//! Search and replace state models and text input buffers.
 
+use std::ops::Range;
 use std::path::PathBuf;
-use gpui::{EntityId, FocusHandle};
+use gpui::{Bounds, EntityId, FocusHandle, Pixels};
 
 use crate::model::parse::BlockId;
+
+#[inline]
+pub fn floor_char_boundary(s: &str, index: usize) -> usize {
+    if index >= s.len() {
+        s.len()
+    } else {
+        let mut i = index;
+        while i > 0 && !s.is_char_boundary(i) {
+            i -= 1;
+        }
+        i
+    }
+}
+
+#[inline]
+pub fn ceil_char_boundary(s: &str, index: usize) -> usize {
+    if index >= s.len() {
+        s.len()
+    } else {
+        let mut i = index;
+        while i < s.len() && !s.is_char_boundary(i) {
+            i += 1;
+        }
+        i
+    }
+}
 
 /// Active input field inside search panel.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -21,12 +48,14 @@ pub enum SearchScope {
     Worktree,
 }
 
-/// Single line text input model with cursor, selection, and editing operations.
+/// Single line text input buffer with cursor, selection, IME marked range, and editing operations.
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct SearchTextInput {
     pub text: String,
-    pub cursor: usize,
-    pub selected_range: std::ops::Range<usize>,
+    pub selection: Range<usize>,
+    pub reversed: bool,
+    pub marked_range: Option<Range<usize>>,
+    pub last_bounds: Option<Bounds<Pixels>>,
 }
 
 impl SearchTextInput {
@@ -35,115 +64,189 @@ impl SearchTextInput {
         let len = text.len();
         Self {
             text,
-            cursor: len,
-            selected_range: len..len,
+            selection: len..len,
+            reversed: false,
+            marked_range: None,
+            last_bounds: None,
         }
     }
 
     pub fn set_text(&mut self, text: String) {
         self.text = text;
-        self.cursor = self.text.len();
-        self.selected_range = self.cursor..self.cursor;
+        let end = self.text.len();
+        self.selection = end..end;
+        self.reversed = false;
+        self.marked_range = None;
+    }
+
+    pub fn selection_range(&self) -> Range<usize> {
+        let (start, end) = if self.reversed {
+            (self.selection.end, self.selection.start)
+        } else {
+            (self.selection.start, self.selection.end)
+        };
+        let s = floor_char_boundary(&self.text, start);
+        let e = ceil_char_boundary(&self.text, end.max(s));
+        s..e
+    }
+
+    pub fn cursor(&self) -> usize {
+        let raw = if self.reversed {
+            self.selection.start
+        } else {
+            self.selection.end
+        };
+        floor_char_boundary(&self.text, raw)
+    }
+
+    pub fn replace_range(&mut self, range: Range<usize>, new_text: &str) {
+        let start = floor_char_boundary(&self.text, range.start);
+        let end = ceil_char_boundary(&self.text, range.end.max(start));
+        self.text.replace_range(start..end, new_text);
+        let cursor = start + new_text.len();
+        self.selection = cursor..cursor;
+        self.reversed = false;
+        self.marked_range = None;
     }
 
     pub fn insert_str(&mut self, s: &str) {
-        let range = if !self.selected_range.is_empty() {
-            self.selected_range.clone()
-        } else {
-            self.cursor..self.cursor
-        };
-        let start = range.start.min(self.text.len());
-        let end = range.end.min(self.text.len());
-        let mut new_text = String::with_capacity(self.text.len() + s.len());
-        new_text.push_str(&self.text[..start]);
-        new_text.push_str(s);
-        new_text.push_str(&self.text[end..]);
-        self.text = new_text;
-        self.cursor = start + s.len();
-        self.selected_range = self.cursor..self.cursor;
+        let range = self.selection_range();
+        self.replace_range(range, s);
     }
 
     pub fn delete_backward(&mut self) {
-        if !self.selected_range.is_empty() {
-            self.insert_str("");
+        let range = self.selection_range();
+        if !range.is_empty() {
+            self.replace_range(range, "");
             return;
         }
-        if self.cursor > 0 && !self.text.is_empty() {
-            let prev = self.text[..self.cursor]
+        let cursor = self.cursor();
+        if cursor > 0 && !self.text.is_empty() {
+            let prev = self.text[..cursor]
                 .char_indices()
                 .last()
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
-            self.selected_range = prev..self.cursor;
-            self.insert_str("");
+            self.replace_range(prev..cursor, "");
         }
     }
 
     pub fn delete_forward(&mut self) {
-        if !self.selected_range.is_empty() {
-            self.insert_str("");
+        let range = self.selection_range();
+        if !range.is_empty() {
+            self.replace_range(range, "");
             return;
         }
-        if self.cursor < self.text.len() {
-            let next = self.text[self.cursor..]
+        let cursor = self.cursor();
+        if cursor < self.text.len() {
+            let next = self.text[cursor..]
                 .char_indices()
                 .nth(1)
-                .map(|(idx, _)| self.cursor + idx)
+                .map(|(idx, _)| cursor + idx)
                 .unwrap_or(self.text.len());
-            self.selected_range = self.cursor..next;
-            self.insert_str("");
+            self.replace_range(cursor..next, "");
         }
     }
 
     pub fn move_left(&mut self, select: bool) {
-        if self.cursor > 0 {
-            let prev = self.text[..self.cursor]
+        let cursor = self.cursor();
+        if cursor > 0 {
+            let prev = self.text[..cursor]
                 .char_indices()
                 .last()
                 .map(|(idx, _)| idx)
                 .unwrap_or(0);
             if select {
-                let anchor = if self.selected_range.start == self.cursor {
-                    self.selected_range.end
-                } else {
-                    self.selected_range.start
-                };
-                self.selected_range = prev.min(anchor)..prev.max(anchor);
+                let anchor = floor_char_boundary(
+                    &self.text,
+                    if self.reversed {
+                        self.selection.end
+                    } else {
+                        self.selection.start
+                    },
+                );
+                self.selection = prev..anchor;
+                self.reversed = prev < anchor;
             } else {
-                self.selected_range = prev..prev;
+                self.selection = prev..prev;
+                self.reversed = false;
             }
-            self.cursor = prev;
         } else if !select {
-            self.selected_range = 0..0;
+            self.selection = 0..0;
+            self.reversed = false;
         }
     }
 
     pub fn move_right(&mut self, select: bool) {
-        if self.cursor < self.text.len() {
-            let next = self.text[self.cursor..]
+        let cursor = self.cursor();
+        if cursor < self.text.len() {
+            let next = self.text[cursor..]
                 .char_indices()
                 .nth(1)
-                .map(|(idx, _)| self.cursor + idx)
+                .map(|(idx, _)| cursor + idx)
                 .unwrap_or(self.text.len());
             if select {
-                let anchor = if self.selected_range.end == self.cursor {
-                    self.selected_range.start
-                } else {
-                    self.selected_range.end
-                };
-                self.selected_range = next.min(anchor)..next.max(anchor);
+                let anchor = floor_char_boundary(
+                    &self.text,
+                    if self.reversed {
+                        self.selection.end
+                    } else {
+                        self.selection.start
+                    },
+                );
+                self.selection = anchor..next;
+                self.reversed = false;
             } else {
-                self.selected_range = next..next;
+                self.selection = next..next;
+                self.reversed = false;
             }
-            self.cursor = next;
         } else if !select {
-            self.selected_range = self.text.len()..self.text.len();
+            let end = self.text.len();
+            self.selection = end..end;
+            self.reversed = false;
+        }
+    }
+
+    pub fn move_home(&mut self, select: bool) {
+        if select {
+            let anchor = floor_char_boundary(
+                &self.text,
+                if self.reversed {
+                    self.selection.end
+                } else {
+                    self.selection.start
+                },
+            );
+            self.selection = 0..anchor;
+            self.reversed = true;
+        } else {
+            self.selection = 0..0;
+            self.reversed = false;
+        }
+    }
+
+    pub fn move_end(&mut self, select: bool) {
+        let end = self.text.len();
+        if select {
+            let anchor = floor_char_boundary(
+                &self.text,
+                if self.reversed {
+                    self.selection.end
+                } else {
+                    self.selection.start
+                },
+            );
+            self.selection = anchor..end;
+            self.reversed = false;
+        } else {
+            self.selection = end..end;
+            self.reversed = false;
         }
     }
 
     pub fn select_all(&mut self) {
-        self.cursor = self.text.len();
-        self.selected_range = 0..self.text.len();
+        self.selection = 0..self.text.len();
+        self.reversed = false;
     }
 }
 
@@ -160,8 +263,10 @@ pub struct SearchMatch {
     pub entity_id: Option<EntityId>,
     /// Line number (1-indexed).
     pub line_number: usize,
+    /// Column number (1-indexed, in Unicode characters).
+    pub column_number: usize,
     /// Character / byte range of the matched text within the line or block.
-    pub byte_range: std::ops::Range<usize>,
+    pub byte_range: Range<usize>,
     /// Text before the match for context.
     pub preview_prefix: String,
     /// Exact matched substring.
@@ -176,18 +281,20 @@ pub struct SearchPanelState {
     pub visible: bool,
     /// Whether the replace input row is expanded.
     pub show_replace: bool,
-    /// Search query input state.
+    /// Search query input buffer.
     pub search_input: SearchTextInput,
-    /// Replacement string input state.
+    /// Replacement string input buffer.
     pub replace_input: SearchTextInput,
     /// Active input field.
     pub active_field: SearchActiveField,
-    /// Case-sensitive matching flag.
+    /// Case-sensitive matching flag (Aa).
     pub match_case: bool,
-    /// Whole-word matching flag.
+    /// Whole-word matching flag (ab).
     pub whole_word: bool,
-    /// Regular expression matching flag.
+    /// Regular expression matching flag (.*).
     pub use_regex: bool,
+    /// Preserve case flag in replace (AB).
+    pub preserve_case: bool,
     /// Search scope: current tab file or whole worktree.
     pub scope: SearchScope,
     /// List of matched entries.
@@ -196,6 +303,8 @@ pub struct SearchPanelState {
     pub active_match_index: Option<usize>,
     /// Whether the search results drawer list is expanded below the inputs.
     pub results_expanded: bool,
+    /// Indices of match items that are expanded to show full details.
+    pub expanded_match_indices: std::collections::HashSet<usize>,
     /// Focus handle for the search query text input.
     pub search_focus_handle: FocusHandle,
     /// Focus handle for the replace text input.
@@ -214,13 +323,29 @@ impl SearchPanelState {
             match_case: false,
             whole_word: false,
             use_regex: false,
+            preserve_case: false,
             scope: SearchScope::CurrentTab,
             matches: Vec::new(),
             active_match_index: None,
             results_expanded: false,
+            expanded_match_indices: std::collections::HashSet::new(),
             search_focus_handle: cx.focus_handle(),
             replace_focus_handle: cx.focus_handle(),
         }
+    }
+
+    /// Toggles expanded details state for a specific search match item.
+    pub fn toggle_match_expanded(&mut self, idx: usize) {
+        if self.expanded_match_indices.contains(&idx) {
+            self.expanded_match_indices.remove(&idx);
+        } else {
+            self.expanded_match_indices.insert(idx);
+        }
+    }
+
+    /// Whether a specific search match item is expanded to show details.
+    pub fn is_match_expanded(&self, idx: usize) -> bool {
+        self.expanded_match_indices.contains(&idx)
     }
 
     pub fn query(&self) -> &str {
@@ -231,7 +356,7 @@ impl SearchPanelState {
         &self.replace_input.text
     }
 
-    /// Returns the current match count formatted as "current / total" or empty if none.
+    /// Returns the current match count formatted as "current of total" or empty if none.
     pub fn match_status_label(&self) -> String {
         if self.matches.is_empty() {
             if self.query().is_empty() {
@@ -241,7 +366,7 @@ impl SearchPanelState {
             }
         } else {
             let active = self.active_match_index.map(|i| i + 1).unwrap_or(1);
-            format!("{} of {}", active, self.matches.len())
+            format!("{}/{}", active, self.matches.len())
         }
     }
 

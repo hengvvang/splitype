@@ -348,6 +348,40 @@ impl Element for BlockTextElement {
                     }
                 }
             }
+
+            // Search match background highlights with rounded corners and active borders
+            for (match_range, is_active) in &input.search_matches {
+                if match_range.is_empty() {
+                    continue;
+                }
+                let bg_color = if *is_active {
+                    theme.colors.app_menu_active.opacity(0.65)
+                } else {
+                    theme.colors.app_menu_active.opacity(0.25)
+                };
+                for segment in range_segment_bounds(
+                    &lines,
+                    text_bounds,
+                    line_height,
+                    text,
+                    match_range.clone(),
+                    text_align,
+                ) {
+                    let quad_bounds = Bounds::from_corners(
+                        point(segment.left() - px(1.0), segment.top() - pad_y),
+                        point(segment.right() + px(1.0), segment.bottom() + pad_y),
+                    );
+                    code_quads.push({
+                        let mut q = fill(quad_bounds, bg_color);
+                        q.corner_radii = Corners::all(radius);
+                        if *is_active {
+                            q.border_color = theme.colors.app_menu_active;
+                            q.border_widths = Edges::all(px(1.5));
+                        }
+                        q
+                    });
+                }
+            }
         }
 
         PrepaintState {

@@ -973,11 +973,18 @@ impl Editor {
     }
 
     #[inline]
+    pub(crate) fn tab_opt(&self) -> Option<&DocumentTab> {
+        self.session.active_tab().or_else(|| self.session.tab(0))
+    }
+
+    #[inline]
+    pub(crate) fn doc_opt(&self) -> Option<&Document> {
+        self.tab_opt().map(|t| &t.document)
+    }
+
+    #[inline]
     pub(crate) fn tab(&self) -> &DocumentTab {
-        self.session
-            .active_tab()
-            .or_else(|| self.session.tab(0))
-            .expect("active tab requested on empty editor")
+        self.tab_opt().expect("active tab requested on empty editor")
     }
 
     /// The active document tab, mutably.

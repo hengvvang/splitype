@@ -107,11 +107,16 @@ impl crate::editor::engine::controller::Editor {
                     .size(px(btn_icon_size))
                     .text_color(if is_search_active { c.app_menu_active } else { c.dialog_muted }),
             )
-            .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+            .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
                 let _ = search_editor.update(cx, |editor, cx| {
                     editor.search.visible = !editor.search.visible;
                     if editor.search.visible {
+                        editor.search.active_field = crate::editor::search::state::SearchActiveField::Query;
+                        window.focus(&editor.search.search_focus_handle, cx);
+                        editor.search.search_input.select_all();
                         editor.execute_search(cx);
+                    } else {
+                        editor.clear_search_highlights_from_document(cx);
                     }
                     cx.notify();
                 });
