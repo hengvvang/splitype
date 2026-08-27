@@ -145,7 +145,7 @@ impl Element for SearchInputElement {
             vec![base_run]
         };
 
-        let font_size = window.text_style().font_size.to_pixels(window.rem_size());
+        let font_size = px(12.0);
         let line = window
             .text_system()
             .shape_line(display_text, font_size, &runs, None);

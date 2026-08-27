@@ -170,8 +170,8 @@ impl Editor {
             .key_context("SearchQueryInput")
             .track_focus(&search_focus)
             .flex_1()
-            .h(px(26.0))
-            .px(px(6.0))
+            .h(px(32.0))
+            .px(px(8.0))
             .flex()
             .items_center()
             .gap(px(4.0))
@@ -235,9 +235,12 @@ impl Editor {
             .rounded(px(3.0))
             .hover(|this| this.bg(c.dialog_secondary_button_hover))
             .cursor_pointer()
-            .text_color(c.dialog_muted)
-            .text_size(px(10.0))
-            .child("▲")
+            .child(
+                svg()
+                    .path("icons/editor/topbar/prev.svg")
+                    .size(px(11.0))
+                    .text_color(c.dialog_muted),
+            )
             .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
                 let _ = prev_editor.update(cx, |ed, cx| {
                     ed.search.prev_match();
@@ -255,14 +258,53 @@ impl Editor {
             .rounded(px(3.0))
             .hover(|this| this.bg(c.dialog_secondary_button_hover))
             .cursor_pointer()
-            .text_color(c.dialog_muted)
-            .text_size(px(10.0))
-            .child("▼")
+            .child(
+                svg()
+                    .path("icons/editor/topbar/next.svg")
+                    .size(px(11.0))
+                    .text_color(c.dialog_muted),
+            )
             .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
                 let _ = next_editor.update(cx, |ed, cx| {
                     ed.search.next_match();
                     ed.jump_to_active_search_match(window, cx);
                     cx.notify();
+                });
+            });
+
+        let explorer_editor = editor.clone();
+        let explorer_search_btn = div()
+            .id("search-scope-explorer-toggle")
+            .size(px(20.0))
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded(px(3.0))
+            .bg(if scope == SearchScope::Worktree {
+                c.panel_row_selected
+            } else {
+                hsla(0.0, 0.0, 0.0, 0.0)
+            })
+            .hover(|this| this.bg(c.dialog_secondary_button_hover))
+            .cursor_pointer()
+            .child(
+                svg()
+                    .path("icons/editor/topbar/search-explorer.svg")
+                    .size(px(12.0))
+                    .text_color(if scope == SearchScope::Worktree {
+                        c.app_menu_active
+                    } else {
+                        c.dialog_muted
+                    }),
+            )
+            .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                let _ = explorer_editor.update(cx, |ed, cx| {
+                    ed.search.scope = if ed.search.scope == SearchScope::Worktree {
+                        SearchScope::CurrentTab
+                    } else {
+                        SearchScope::Worktree
+                    };
+                    ed.execute_search(cx);
                 });
             });
 
@@ -292,13 +334,20 @@ impl Editor {
         let search_top_row = div()
             .flex()
             .items_center()
-            .gap(px(6.0))
+            .gap(px(4.0))
             .child(chevron_btn)
             .child(search_input_box)
             .child(count_badge)
-            .child(prev_btn)
-            .child(next_btn)
-            .child(close_btn);
+            .child(
+                div()
+                    .flex()
+                    .items_center()
+                    .gap(px(2.0))
+                    .child(prev_btn)
+                    .child(next_btn)
+                    .child(explorer_search_btn)
+                    .child(close_btn),
+            );
 
         // ── Replace Row (When Expanded) ──────────────────────────────────
         let replace_row = if show_replace {
@@ -337,8 +386,8 @@ impl Editor {
                 .key_context("SearchReplaceInput")
                 .track_focus(&replace_focus)
                 .flex_1()
-                .h(px(26.0))
-                .px(px(6.0))
+                .h(px(32.0))
+                .px(px(8.0))
                 .flex()
                 .items_center()
                 .gap(px(4.0))
@@ -424,86 +473,26 @@ impl Editor {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(6.0))
+                    .gap(px(4.0))
                     .child(
                         // Align with top row chevron width (20px)
                         div().w(px(20.0)).flex_shrink_0(),
                     )
                     .child(replace_input_box)
-                    .child(replace_single_btn)
-                    .child(replace_all_btn)
-                    // Space for count/close alignment
-                    .child(div().w(px(20.0)).flex_shrink_0()),
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .gap(px(2.0))
+                            .child(replace_single_btn)
+                            .child(replace_all_btn)
+                            // Align with search explorer + close width
+                            .child(div().w(px(42.0)).flex_shrink_0()),
+                    ),
             )
         } else {
             None
         };
-
-        // ── Scope & More Options Row ────────────────────────────────────
-        let scope_curr_editor = editor.clone();
-        let scope_worktree_editor = editor.clone();
-
-        let scope_row = div()
-            .flex()
-            .items_center()
-            .justify_between()
-            .pl(px(26.0))
-            .pr(px(2.0))
-            .text_size(px(10.0))
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap(px(4.0))
-                    .child(
-                        div()
-                            .px(px(6.0))
-                            .py(px(2.0))
-                            .rounded(px(3.0))
-                            .bg(if scope == SearchScope::CurrentTab {
-                                c.panel_row_selected
-                            } else {
-                                hsla(0.0, 0.0, 0.0, 0.0)
-                            })
-                            .text_color(if scope == SearchScope::CurrentTab {
-                                c.app_menu_active
-                            } else {
-                                c.dialog_muted
-                            })
-                            .cursor_pointer()
-                            .child("Current File")
-                            .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                                let _ = scope_curr_editor.update(cx, |ed, cx| {
-                                    ed.search.scope = SearchScope::CurrentTab;
-                                    ed.execute_search(cx);
-                                });
-                            }),
-                    )
-                    .child(
-                        div()
-                            .px(px(6.0))
-                            .py(px(2.0))
-                            .rounded(px(3.0))
-                            .bg(if scope == SearchScope::Worktree {
-                                c.panel_row_selected
-                            } else {
-                                hsla(0.0, 0.0, 0.0, 0.0)
-                            })
-                            .text_color(if scope == SearchScope::Worktree {
-                                c.app_menu_active
-                            } else {
-                                c.dialog_muted
-                            })
-                            .cursor_pointer()
-                            .child("Workspace")
-                            .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                                let _ = scope_worktree_editor.update(cx, |ed, cx| {
-                                    ed.search.scope = SearchScope::Worktree;
-                                    ed.execute_search(cx);
-                                });
-                            }),
-                    ),
-            );
 
         // ── Top Search Controls Card ─────────────────────────────────────
         let mut top_card = div()
@@ -526,8 +515,6 @@ impl Editor {
         if let Some(replace) = replace_row {
             top_card = top_card.child(replace);
         }
-
-        top_card = top_card.child(scope_row);
 
         // ── Separated Match Results Floating Card (with gap) ─────────────
         let results_card = if results_expanded && !self.search.matches.is_empty() {

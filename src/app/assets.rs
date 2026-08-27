@@ -183,6 +183,15 @@ impl AssetSource for SplitypeAssets {
             "icons/editor/topbar/replace.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/topbar/replace.svg"
             )))),
+            "icons/editor/topbar/prev.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/topbar/prev.svg"
+            )))),
+            "icons/editor/topbar/next.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/topbar/next.svg"
+            )))),
+            "icons/editor/topbar/search-explorer.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/topbar/search-explorer.svg"
+            )))),
             "icons/editor/topbar/maximize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/topbar/maximize.svg"
             )))),
