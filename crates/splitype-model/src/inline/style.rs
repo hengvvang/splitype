@@ -35,6 +35,7 @@ pub struct InlineStyle {
     pub italic: bool,
     pub underline: bool,
     pub strikethrough: bool,
+    pub highlight: bool,
     pub code: bool,
     pub script: InlineScript,
     pub bold_marker: EmphasisMarker,
@@ -94,6 +95,13 @@ impl InlineStyle {
     pub fn with_strikethrough(self) -> Self {
         Self {
             strikethrough: true,
+            ..self
+        }
+    }
+
+    pub fn with_highlight(self) -> Self {
+        Self {
+            highlight: true,
             ..self
         }
     }

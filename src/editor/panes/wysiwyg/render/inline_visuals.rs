@@ -1,4 +1,4 @@
-﻿//! Inline visuals — text runs, math, images inside a block.
+//! Inline visuals — text runs, math, images inside a block.
 
 use gpui::*;
 
@@ -179,9 +179,10 @@ impl Block {
         font_weight: FontWeight,
         cx: &mut Context<Self>,
     ) -> Vec<AnyElement> {
-        let has_background = span
-            .html_style
-            .is_some_and(|style| style.background_color.is_some());
+        let has_background = span.style.highlight
+            || span
+                .html_style
+                .is_some_and(|style| style.background_color.is_some());
         let mut segments = Vec::new();
         for word in inline_word_chunks(text, span.style.code, has_background) {
             segments.push(self.render_inline_text_segment(
@@ -266,6 +267,12 @@ impl Block {
                 .px(px(theme.dimensions.code_bg_pad_x))
                 .py(px(theme.dimensions.code_bg_pad_y))
                 .bg(theme.colors.code_bg);
+        }
+        if span.style.highlight {
+            element = element
+                .rounded(px(theme.dimensions.code_bg_radius))
+                .px(px(2.0))
+                .bg(theme.colors.text_highlight_bg);
         }
         if let Some(style) = span.html_style
             && let Some(background) = style.background_color

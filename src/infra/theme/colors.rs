@@ -77,6 +77,8 @@ pub struct ThemeColors {
     pub separator: Hsla,
     /// Background of inline code and code-block quads.
     pub code_bg: Hsla,
+    /// Background highlight colour for ==highlight== text.
+    pub text_highlight_bg: Hsla,
     /// Text colour inside code blocks.
     pub code_text: Hsla,
     /// Background of the focused code-block language input.

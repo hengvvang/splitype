@@ -1,4 +1,4 @@
-﻿//! Inline projection engine for editable Markdown delimiters.
+//! Inline projection engine for editable Markdown delimiters.
 
 use std::ops::Range;
 
@@ -32,6 +32,8 @@ pub(crate) enum ExpandedInlineKind {
     ItalicMarkdown { marker: char },
     /// Strikethrough delimiters.
     Strikethrough,
+    /// Highlight delimiters `==`.
+    Highlight,
     /// Code span backtick delimiters.
     Code,
     /// Superscript Markdown delimiters.
@@ -51,6 +53,7 @@ impl ExpandedInlineKind {
             Self::BoldMarkdown { .. } => style.bold,
             Self::ItalicMarkdown { .. } => style.italic,
             Self::Strikethrough => style.strikethrough,
+            Self::Highlight => style.highlight,
             Self::Code => style.code,
             Self::SuperscriptMarkdown | Self::SuperscriptHtml => {
                 style.script == InlineScript::Superscript
@@ -69,6 +72,7 @@ impl ExpandedInlineKind {
             Self::ItalicMarkdown { marker: '*' } => "*",
             Self::ItalicMarkdown { marker: '_' } => "_",
             Self::Strikethrough => "~~",
+            Self::Highlight => "==",
             Self::Code => "`",
             Self::SuperscriptMarkdown => "^",
             Self::SuperscriptHtml => "<sup>",
@@ -558,6 +562,7 @@ impl ExpandedInlineProjection {
                     | ExpandedInlineSegmentKind::OpeningDelimiter(
                         ExpandedInlineKind::ItalicMarkdown { .. },
                     )
+                    | ExpandedInlineSegmentKind::OpeningDelimiter(ExpandedInlineKind::Highlight)
                     | ExpandedInlineSegmentKind::OpeningDelimiter(ExpandedInlineKind::Code)
                     | ExpandedInlineSegmentKind::OpeningDelimiter(
                         ExpandedInlineKind::Strikethrough,
@@ -577,6 +582,7 @@ impl ExpandedInlineProjection {
                     | ExpandedInlineSegmentKind::ClosingDelimiter(
                         ExpandedInlineKind::ItalicMarkdown { .. },
                     )
+                    | ExpandedInlineSegmentKind::ClosingDelimiter(ExpandedInlineKind::Highlight)
                     | ExpandedInlineSegmentKind::ClosingDelimiter(ExpandedInlineKind::Code)
                     | ExpandedInlineSegmentKind::ClosingDelimiter(
                         ExpandedInlineKind::Strikethrough,
@@ -755,6 +761,7 @@ impl ExpandedInlineProjection {
         let italic_kind = style.italic.then_some(ExpandedInlineKind::ItalicMarkdown {
             marker: style.italic_marker.char(),
         });
+        let highlight_kind = style.highlight.then_some(ExpandedInlineKind::Highlight);
         let (first_emphasis, second_emphasis) = if style.italic_outer {
             (italic_kind, bold_kind)
         } else {
@@ -763,6 +770,7 @@ impl ExpandedInlineProjection {
         for kind in [
             first_emphasis,
             Some(ExpandedInlineKind::Strikethrough),
+            highlight_kind,
             script_kind,
             second_emphasis,
             Some(ExpandedInlineKind::Code),
@@ -916,11 +924,15 @@ fn marker_style_for_projection(style: InlineStyle, kind: ExpandedInlineKind) -> 
     // Delimiters keep the fragment's own style so editing a script still
     // shows its `^…^` / `~…~` markers at the superscript/subscript size and
     // vertical offset instead of popping back to normal text.
-    // However, code delimiters (`...`) do not carry code style so the
-    // background pill highlight remains restricted to the inner content.
+    // However, code and highlight delimiters (`...`, `==...==`) do not carry
+    // code/highlight style so the background pill highlight remains restricted
+    // to the inner content.
     let mut style = style;
     if matches!(kind, ExpandedInlineKind::Code) {
         style.code = false;
+    }
+    if matches!(kind, ExpandedInlineKind::Highlight) {
+        style.highlight = false;
     }
     style
 }

@@ -1,4 +1,4 @@
-﻿//! Read-only inline rendering for the preview panel.
+//! Read-only inline rendering for the preview panel.
 //!
 //! Walks a [`BlockText`] render cache and produces plain styled text runs —
 //! bold, italic, underline, strikethrough, script, inline code, links,
@@ -117,6 +117,12 @@ pub(crate) fn render_preview_span(
             .px(px(theme.dimensions.code_bg_pad_x))
             .py(px(theme.dimensions.code_bg_pad_y))
             .bg(theme.colors.code_bg);
+    }
+    if span.style.highlight {
+        element = element
+            .rounded(px(theme.dimensions.code_bg_radius))
+            .px(px(2.0))
+            .bg(theme.colors.text_highlight_bg);
     }
     if let Some(style) = span.html_style
         && let Some(bg_color) = style.background_color

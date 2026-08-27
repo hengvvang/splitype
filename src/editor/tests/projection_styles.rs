@@ -1,4 +1,4 @@
-﻿//! Inline projection keeps delimiter styles while editing.
+//! Inline projection keeps delimiter styles while editing.
 
 use gpui::{AppContext, TestAppContext};
 
@@ -330,6 +330,44 @@ async fn footnote_definition_displays_clean_when_unfocused_and_projects_when_foc
                 .collect();
             assert!(marker_strings.contains(&"[^"), "missing [^ delimiter in markers");
             assert!(marker_strings.contains(&"]"), "missing ] delimiter in markers");
+        });
+    });
+}
+
+#[gpui::test]
+async fn highlight_projects_equal_delimiters_while_editing(cx: &mut TestAppContext) {
+    let editor = cx.new(|cx| Editor::from_markdown(cx, "这是 ==高亮内容== 结束".to_string(), None));
+
+    editor.update(cx, |editor, cx| {
+        let block = editor.doc().first_root().expect("root paragraph").clone();
+        block.update(cx, |block, _cx| {
+            // Unfocused: delimiters hidden, clean display text
+            block.sync_inline_projection_for_focus(false);
+            assert_eq!(block.display_text(), "这是 高亮内容 结束");
+
+            // Focused with caret inside highlight span: projects `==` delimiters
+            // "这是 高亮内容 结束" -> "高亮内容" starts at plain offset 7 (byte length of "这是 ")
+            let highlight_offset = "这是 ".len();
+            block.selected_range = highlight_offset..highlight_offset;
+            block.sync_inline_projection_for_focus(true);
+
+            let focused_text = block.display_text();
+            assert_eq!(
+                focused_text,
+                "这是 ==高亮内容== 结束",
+                "focused highlight must reveal `==` delimiters"
+            );
+
+            let delimiter_ranges = block.projected_delimiter_ranges();
+            let marker_strings: Vec<&str> = delimiter_ranges
+                .iter()
+                .map(|r| &focused_text[r.clone()])
+                .collect();
+            assert_eq!(
+                marker_strings,
+                vec!["==", "=="],
+                "revealed delimiters must be `==`"
+            );
         });
     });
 }

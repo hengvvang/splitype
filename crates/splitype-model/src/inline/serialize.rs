@@ -156,12 +156,16 @@ pub(crate) enum Delimiter {
     ItalicMarkdown { marker: char },
     /// Markdown strikethrough marker `~~`.
     StrikethroughMarkdown,
+    /// Markdown highlight marker `==`.
+    HighlightMarkdown,
     /// Markdown superscript marker `^`.
     SuperscriptMarkdown,
     /// Markdown subscript marker `~`.
     SubscriptMarkdown,
     /// HTML underline marker `<u>`.
     Underline,
+    /// HTML highlight marker `<mark>`.
+    HighlightHtml,
     /// HTML superscript marker `<sup>`.
     SuperscriptHtml,
     /// HTML subscript marker `<sub>`.
@@ -182,9 +186,11 @@ impl Delimiter {
             Self::BoldMarkdown { marker } => marker.to_string().repeat(2),
             Self::ItalicMarkdown { marker } => marker.to_string(),
             Self::StrikethroughMarkdown => "~~".into(),
+            Self::HighlightMarkdown => "==".into(),
             Self::SuperscriptMarkdown => "^".into(),
             Self::SubscriptMarkdown => "~".into(),
             Self::Underline => "<u>".into(),
+            Self::HighlightHtml => "<mark>".into(),
             Self::SuperscriptHtml => "<sup>".into(),
             Self::SubscriptHtml => "<sub>".into(),
             Self::BoldHtml => "<strong>".into(),
@@ -198,9 +204,11 @@ impl Delimiter {
             Self::BoldMarkdown { marker } => marker.to_string().repeat(2),
             Self::ItalicMarkdown { marker } => marker.to_string(),
             Self::StrikethroughMarkdown => "~~".into(),
+            Self::HighlightMarkdown => "==".into(),
             Self::SuperscriptMarkdown => "^".into(),
             Self::SubscriptMarkdown => "~".into(),
             Self::Underline => "</u>".into(),
+            Self::HighlightHtml => "</mark>".into(),
             Self::SuperscriptHtml => "</sup>".into(),
             Self::SubscriptHtml => "</sub>".into(),
             Self::BoldHtml => "</strong>".into(),
@@ -221,19 +229,25 @@ impl Delimiter {
             Self::BoldMarkdown { .. } => 0,
             Self::Underline => 1,
             Self::StrikethroughMarkdown => 2,
-            Self::SuperscriptMarkdown | Self::SubscriptMarkdown => 3,
-            Self::ItalicMarkdown { .. } => 4,
-            Self::SuperscriptHtml | Self::SubscriptHtml => 5,
-            Self::BoldHtml => 6,
-            Self::ItalicHtml => 7,
-            Self::CodeMarkdown { .. } => 8,
+            Self::HighlightMarkdown => 3,
+            Self::SuperscriptMarkdown | Self::SubscriptMarkdown => 4,
+            Self::ItalicMarkdown { .. } => 5,
+            Self::HighlightHtml => 6,
+            Self::SuperscriptHtml | Self::SubscriptHtml => 7,
+            Self::BoldHtml => 8,
+            Self::ItalicHtml => 9,
+            Self::CodeMarkdown { .. } => 10,
         }
     }
 
     pub(crate) fn is_html(self) -> bool {
         matches!(
             self,
-            Self::BoldHtml | Self::ItalicHtml | Self::SuperscriptHtml | Self::SubscriptHtml
+            Self::BoldHtml
+                | Self::ItalicHtml
+                | Self::HighlightHtml
+                | Self::SuperscriptHtml
+                | Self::SubscriptHtml
         )
     }
 }
@@ -245,8 +259,12 @@ pub(crate) fn match_open_delimiter(tokens: &[CharToken], index: usize) -> Option
         Some(Delimiter::ItalicHtml)
     } else if matches_sequence(tokens, index, "<u>") {
         Some(Delimiter::Underline)
+    } else if matches_sequence(tokens, index, "<mark>") {
+        Some(Delimiter::HighlightHtml)
     } else if matches_sequence(tokens, index, "~~") {
         Some(Delimiter::StrikethroughMarkdown)
+    } else if matches_sequence(tokens, index, "==") && can_open_emphasis(tokens, index, 2, '=') {
+        Some(Delimiter::HighlightMarkdown)
     } else if matches_sequence(tokens, index, "^") && can_open_script(tokens, index, '^') {
         Some(Delimiter::SuperscriptMarkdown)
     } else if is_single_tilde_delimiter(tokens, index) && can_open_script(tokens, index, '~') {
@@ -530,6 +548,9 @@ fn stack_variants(
         if style.strikethrough {
             markdown_stack.push(Delimiter::StrikethroughMarkdown);
         }
+        if style.highlight {
+            markdown_stack.push(Delimiter::HighlightMarkdown);
+        }
         match style.script {
             InlineScript::Normal => {}
             InlineScript::Superscript
@@ -558,6 +579,9 @@ fn stack_variants(
         }
         if style.strikethrough {
             markdown_stack.push(Delimiter::StrikethroughMarkdown);
+        }
+        if style.highlight {
+            markdown_stack.push(Delimiter::HighlightMarkdown);
         }
         match style.script {
             InlineScript::Normal => {}
@@ -600,6 +624,9 @@ fn stack_variants(
         if style.strikethrough {
             html_stack.push(Delimiter::StrikethroughMarkdown);
         }
+        if style.highlight {
+            html_stack.push(Delimiter::HighlightHtml);
+        }
         match style.script {
             InlineScript::Normal => {}
             InlineScript::Superscript => html_stack.push(Delimiter::SuperscriptHtml),
@@ -617,6 +644,9 @@ fn stack_variants(
         }
         if style.strikethrough {
             html_stack.push(Delimiter::StrikethroughMarkdown);
+        }
+        if style.highlight {
+            html_stack.push(Delimiter::HighlightHtml);
         }
         match style.script {
             InlineScript::Normal => {}
@@ -669,6 +699,7 @@ fn styles_match_ignoring_script(left: InlineStyle, right: InlineStyle) -> bool {
         && left.italic_outer == right.italic_outer
         && left.underline == right.underline
         && left.strikethrough == right.strikethrough
+        && left.highlight == right.highlight
         && left.code == right.code
 }
 
@@ -932,6 +963,7 @@ pub(crate) fn apply_delimiter_style(style: InlineStyle, delimiter: Delimiter) ->
         Delimiter::ItalicHtml => style.with_italic(),
         Delimiter::Underline => style.with_underline(),
         Delimiter::StrikethroughMarkdown => style.with_strikethrough(),
+        Delimiter::HighlightMarkdown | Delimiter::HighlightHtml => style.with_highlight(),
         Delimiter::CodeMarkdown { .. } => style.with_code(),
         Delimiter::SuperscriptMarkdown | Delimiter::SuperscriptHtml => style.with_superscript(),
         Delimiter::SubscriptMarkdown | Delimiter::SubscriptHtml => style.with_subscript(),

@@ -110,6 +110,7 @@ impl Element for BlockTextElement {
                     theme.colors.text_link,
                     theme.colors.markdown_marker,
                     theme.colors.footnote_backref,
+                    theme.colors.text_highlight_bg,
                 )
             }
         } else {
@@ -294,35 +295,57 @@ impl Element for BlockTextElement {
                 (vec![], None)
             };
 
-        // Compute code-span background quads with rounded corners and padding.
+        // Compute code-span and highlight background quads with rounded corners and padding.
         let mut code_quads = Vec::new();
-        if show_inline_code_backgrounds && !self.is_placeholder {
+        if !self.is_placeholder {
             let text = input.display_text();
             let code_color = theme.colors.code_bg;
+            let highlight_color = theme.colors.text_highlight_bg;
             let pad_x = px(theme.dimensions.code_bg_pad_x);
             let pad_y = px(theme.dimensions.code_bg_pad_y);
             let radius = px(theme.dimensions.code_bg_radius);
             for span in input.inline_spans() {
-                if !span.style.code || span.range.is_empty() {
+                if span.range.is_empty() {
                     continue;
                 }
-                for segment in range_segment_bounds(
-                    &lines,
-                    text_bounds,
-                    line_height,
-                    text,
-                    span.range.clone(),
-                    text_align,
-                ) {
-                    let quad_bounds = Bounds::from_corners(
-                        point(segment.left() - pad_x, segment.top() - pad_y),
-                        point(segment.right() + pad_x, segment.bottom() + pad_y),
-                    );
-                    code_quads.push({
-                        let mut q = fill(quad_bounds, code_color);
-                        q.corner_radii = Corners::all(radius);
-                        q
-                    });
+                if show_inline_code_backgrounds && span.style.code {
+                    for segment in range_segment_bounds(
+                        &lines,
+                        text_bounds,
+                        line_height,
+                        text,
+                        span.range.clone(),
+                        text_align,
+                    ) {
+                        let quad_bounds = Bounds::from_corners(
+                            point(segment.left() - pad_x, segment.top() - pad_y),
+                            point(segment.right() + pad_x, segment.bottom() + pad_y),
+                        );
+                        code_quads.push({
+                            let mut q = fill(quad_bounds, code_color);
+                            q.corner_radii = Corners::all(radius);
+                            q
+                        });
+                    }
+                } else if span.style.highlight {
+                    for segment in range_segment_bounds(
+                        &lines,
+                        text_bounds,
+                        line_height,
+                        text,
+                        span.range.clone(),
+                        text_align,
+                    ) {
+                        let quad_bounds = Bounds::from_corners(
+                            point(segment.left() - px(2.0), segment.top() - pad_y),
+                            point(segment.right() + px(2.0), segment.bottom() + pad_y),
+                        );
+                        code_quads.push({
+                            let mut q = fill(quad_bounds, highlight_color);
+                            q.corner_radii = Corners::all(radius);
+                            q
+                        });
+                    }
                 }
             }
         }
@@ -813,6 +836,7 @@ mod tests {
             };
             let marker_color = Hsla::from(rgba(0x00ff88ff));
             let footnote_color = Hsla::from(rgba(0x9aa5ceff));
+            let highlight_color = Hsla::from(rgba(0xffd1664d));
             let runs = super::build_text_runs(
                 block,
                 &display_text,
@@ -821,6 +845,7 @@ mod tests {
                 Hsla::from(rgba(0x0066ccff)),
                 marker_color,
                 footnote_color,
+                highlight_color,
             );
 
             let mut offset = 0usize;
@@ -866,6 +891,7 @@ mod tests {
             };
             let marker_color = Hsla::from(rgba(0xa855f7ff)); // purple
             let footnote_color = Hsla::from(rgba(0x9aa5ceff));
+            let highlight_color = Hsla::from(rgba(0xffd1664d));
             let runs = super::build_text_runs(
                 block,
                 &display_text,
@@ -874,6 +900,7 @@ mod tests {
                 Hsla::from(rgba(0x0066ccff)),
                 marker_color,
                 footnote_color,
+                highlight_color,
             );
 
             let mut offset = 0usize;

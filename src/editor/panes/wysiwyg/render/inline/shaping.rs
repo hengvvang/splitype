@@ -1,4 +1,4 @@
-﻿//! Inline text shaping and TextRun builder logic for wysiwyg rendering.
+//! Inline text shaping and TextRun builder logic for wysiwyg rendering.
 
 use gpui::*;
 
@@ -23,6 +23,7 @@ pub fn build_text_runs(
     link_color: Hsla,
     marker_color: Hsla,
     footnote_color: Hsla,
+    highlight_bg: Hsla,
 ) -> Vec<TextRun> {
     let spans = input.inline_spans();
     let delimiter_ranges = input.projected_delimiter_ranges();
@@ -179,6 +180,9 @@ pub fn build_text_runs(
         });
 
         let mut background_color = base_run.background_color;
+        if inline_style.highlight {
+            background_color = Some(highlight_bg);
+        }
         if let Some(style) = html_style
             && let Some(color) = style.background_color
         {

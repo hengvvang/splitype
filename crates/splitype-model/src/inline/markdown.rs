@@ -110,6 +110,9 @@ impl NormalizeBuilder {
         if extra_style.strikethrough {
             style.strikethrough = true;
         }
+        if extra_style.highlight {
+            style.highlight = true;
+        }
         if extra_style.code {
             style.code = true;
         }
@@ -1349,5 +1352,21 @@ mod tests {
             assert!(!fragment.style.bold);
             assert!(!fragment.style.italic);
         }
+    }
+
+    #[test]
+    fn parses_highlight_markdown_and_mark_html() {
+        let text = BlockText::from_markdown("这是 ==高亮文本== 结束");
+        assert_eq!(text.plain_text(), "这是 高亮文本 结束");
+        assert!(!text.fragments[0].style.highlight);
+        assert!(text.fragments[1].style.highlight);
+        assert_eq!(text.fragments[1].text, "高亮文本");
+        assert!(!text.fragments[2].style.highlight);
+        assert_eq!(text.serialize_markdown(), "这是 ==高亮文本== 结束");
+
+        let mark_text = BlockText::from_markdown("这是 <mark>标记文本</mark> 结束");
+        assert_eq!(mark_text.plain_text(), "这是 标记文本 结束");
+        assert!(mark_text.fragments[1].style.highlight);
+        assert_eq!(mark_text.fragments[1].text, "标记文本");
     }
 }
