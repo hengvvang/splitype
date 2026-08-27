@@ -1,4 +1,4 @@
-﻿//! Dynamic embedded previews for LaTeX math expressions and Mermaid diagrams.
+//! Dynamic embedded previews for LaTeX math expressions and Mermaid diagrams.
 
 use gpui::*;
 
@@ -13,7 +13,7 @@ use crate::model::block::math::parse_display_math_source;
 use crate::model::block::mermaid::parse_mermaid_fence_source;
 
 impl Block {
-    pub(crate) fn render_math_content(&self, theme: &Theme) -> AnyElement {
+    pub(crate) fn render_math_content(&self, theme: &Theme) -> (AnyElement, bool) {
         let c = &theme.colors;
         let d = &theme.dimensions;
         let t = &theme.typography;
@@ -39,56 +39,50 @@ impl Block {
         });
 
         if source.body.is_empty() {
-            return div()
-                .w_full()
-                .text_size(px(t.text_size))
-                .line_height(rems(t.text_line_height))
-                .text_color(c.text_default)
-                .child(SharedString::from(raw.to_string()))
-                .into_any_element();
+            return (
+                crate::editor::panes::wysiwyg::render::graphic_state::render_empty_graphic_placeholder(
+                    crate::editor::panes::wysiwyg::render::graphic_state::GraphicKind::LatexMath,
+                    theme,
+                ),
+                false,
+            );
         }
 
         match render_display_math_svg(&source, c.text_default, display_math_font_size(t.text_size))
         {
-            Ok(rendered) => div()
-                .w_full()
-                .flex()
-                .justify_center()
-                .py(px(d.block_padding_y.max(6.0)))
-                .child(
-                    img(rendered.path.clone())
-                        .max_w(Length::Definite(relative(1.0)))
-                        .max_h(px(d.image_root_max_height))
-                        .object_fit(ObjectFit::Contain),
-                )
-                .into_any_element(),
-            Err(err) => div()
-                .w_full()
-                .flex()
-                .flex_col()
-                .gap(px(4.0))
-                .rounded(px(d.code_block_radius))
-                .bg(c.source_mode_block_bg)
-                .px(px(d.block_padding_x))
-                .py(px(d.block_padding_y))
-                .text_size(px(t.text_size))
-                .line_height(rems(t.text_line_height))
-                .text_color(c.text_default)
-                .child(SharedString::from(raw.to_string()))
-                .child(
-                    div()
-                        .text_size(px(t.code_size))
-                        .text_color(c.dialog_muted)
-                        .child(SharedString::from(format!("LaTeX render error: {err}"))),
-                )
-                .into_any_element(),
+            Ok(rendered) => (
+                div()
+                    .w_full()
+                    .flex()
+                    .justify_center()
+                    .py(px(d.block_padding_y.max(6.0)))
+                    .child(
+                        img(rendered.path.clone())
+                            .max_w(Length::Definite(relative(1.0)))
+                            .max_h(px(d.image_root_max_height))
+                            .object_fit(ObjectFit::Contain),
+                    )
+                    .into_any_element(),
+                true,
+            ),
+            Err(err) => (
+                crate::editor::panes::wysiwyg::render::graphic_state::render_graphic_error_card(
+                    crate::editor::panes::wysiwyg::render::graphic_state::GraphicKind::LatexMath,
+                    &err.to_string(),
+                    raw,
+                    theme,
+                ),
+                false,
+            ),
         }
     }
 
-    pub(crate) fn render_mermaid_content(&mut self, theme: &Theme, window: &Window) -> AnyElement {
-        let c = &theme.colors;
+    pub(crate) fn render_mermaid_content(
+        &mut self,
+        theme: &Theme,
+        window: &Window,
+    ) -> (AnyElement, bool) {
         let d = &theme.dimensions;
-        let t = &theme.typography;
         let raw = self
             .data
             .raw_source
@@ -113,21 +107,18 @@ impl Block {
         });
 
         if source.body.is_empty() {
-            return div()
-                .w_full()
-                .text_size(px(t.text_size))
-                .line_height(rems(t.text_line_height))
-                .text_color(c.text_default)
-                .child(SharedString::from(raw.to_string()))
-                .into_any_element();
+            return (
+                crate::editor::panes::wysiwyg::render::graphic_state::render_empty_graphic_placeholder(
+                    crate::editor::panes::wysiwyg::render::graphic_state::GraphicKind::Mermaid,
+                    theme,
+                ),
+                false,
+            );
         }
 
         let viewport_width = f32::from(window.viewport_size().width.max(px(1.0)));
         let available_width = effective_image_width(self, viewport_width, d);
 
-        // The display render is content-addressed, so the per-block cache
-        // stays valid until the diagram source or the layout parameters
-        // change; cursor-blink repaints then skip the SVG file reads.
         let fingerprint = mermaid_content_fingerprint(&source.body);
         let width_key = available_width.to_bits();
         let viewport_key = viewport_width.to_bits();
@@ -142,34 +133,29 @@ impl Block {
             .map(|(_, _, _, rendered)| rendered.clone());
 
         match cached {
-            Some(rendered) => Self::render_mermaid_svg_element(rendered, available_width, self, d),
+            Some(rendered) => (
+                Self::render_mermaid_svg_element(rendered, available_width, self, d),
+                true,
+            ),
             None => {
                 match render_mermaid_svg_for_display(&source, available_width, viewport_width) {
                     Ok(rendered) => {
                         self.mermaid_render_cache =
                             Some((fingerprint, width_key, viewport_key, rendered.clone()));
-                        Self::render_mermaid_svg_element(rendered, available_width, self, d)
-                    }
-                    Err(err) => div()
-                        .w_full()
-                        .flex()
-                        .flex_col()
-                        .gap(px(4.0))
-                        .rounded(px(d.code_block_radius))
-                        .bg(c.source_mode_block_bg)
-                        .px(px(d.block_padding_x))
-                        .py(px(d.block_padding_y))
-                        .text_size(px(t.text_size))
-                        .line_height(rems(t.text_line_height))
-                        .text_color(c.text_default)
-                        .child(SharedString::from(raw.to_string()))
-                        .child(
-                            div()
-                                .text_size(px(t.code_size))
-                                .text_color(c.dialog_muted)
-                                .child(SharedString::from(format!("Mermaid render error: {err}"))),
+                        (
+                            Self::render_mermaid_svg_element(rendered, available_width, self, d),
+                            true,
                         )
-                        .into_any_element(),
+                    }
+                    Err(err) => (
+                        crate::editor::panes::wysiwyg::render::graphic_state::render_graphic_error_card(
+                            crate::editor::panes::wysiwyg::render::graphic_state::GraphicKind::Mermaid,
+                            &err.to_string(),
+                            raw,
+                            theme,
+                        ),
+                        false,
+                    ),
                 }
             }
         }

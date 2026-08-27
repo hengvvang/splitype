@@ -1,4 +1,4 @@
-﻿//! Block code-language input and highlight state.
+//! Block code-language input and highlight state.
 
 use std::ops::Range;
 use std::time::Instant;
@@ -112,7 +112,7 @@ impl Block {
         mark_inserted_text: bool,
         cx: &mut Context<Self>,
     ) {
-        if !self.kind().is_code_block() {
+        if !self.kind().uses_code_highlighting() {
             return;
         }
 
@@ -196,13 +196,16 @@ impl Block {
             None
         };
 
-        let old_language = match &self.data.kind {
-            BlockKind::CodeBlock { language } => language.clone(),
-            _ => None,
-        };
-        self.data.kind = BlockKind::CodeBlock {
-            language: (!normalized.is_empty()).then_some(normalized),
-        };
+        let old_language = self.code_language_text().to_string();
+        if normalized.eq_ignore_ascii_case("mermaid") || normalized.eq_ignore_ascii_case("mmd") {
+            self.data.kind = BlockKind::MermaidBlock;
+        } else if normalized.eq_ignore_ascii_case("math") || normalized.eq_ignore_ascii_case("latex") {
+            self.data.kind = BlockKind::MathBlock;
+        } else {
+            self.data.kind = BlockKind::CodeBlock {
+                language: (!normalized.is_empty()).then_some(normalized),
+            };
+        }
         self.code_toolbar.picker.selected_range = next_selection;
         self.code_toolbar.picker.selection_reversed = selected_range_relative
             .as_ref()
@@ -211,10 +214,7 @@ impl Block {
         self.cursor_blink_epoch = Instant::now();
         self.sync_code_highlight();
 
-        let next_language = match &self.data.kind {
-            BlockKind::CodeBlock { language } => language.clone(),
-            _ => None,
-        };
+        let next_language = self.code_language_text().to_string();
         if old_language != next_language {
             cx.emit(BlockEvent::Changed);
         }

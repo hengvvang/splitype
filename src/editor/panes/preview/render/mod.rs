@@ -146,7 +146,17 @@ pub(crate) fn render_preview_block(
         BlockKind::FootnoteDefinition => {
             footnote::render_preview_footnote_definition(block, depth, base, theme)
         }
-        BlockKind::CodeBlock { .. } => fenced_code::render_preview_fenced_code(block, base, theme),
+        BlockKind::CodeBlock { ref language } => {
+            if crate::model::block::mermaid::is_mermaid_info_string(language.as_deref()) {
+                mermaid_diagram::render_preview_mermaid_diagram(block, base, theme, window)
+            } else if language.as_deref().map_or(false, |l| {
+                l.eq_ignore_ascii_case("math") || l.eq_ignore_ascii_case("latex")
+            }) {
+                latex_math::render_preview_latex_math(block, base, theme)
+            } else {
+                fenced_code::render_preview_fenced_code(block, base, theme)
+            }
+        }
         BlockKind::Table => table_block::render_preview_table(block, base, theme, window),
         BlockKind::HtmlBlock => html_block::render_preview_html_block(block, base, theme),
         BlockKind::MathBlock => latex_math::render_preview_latex_math(block, base, theme),

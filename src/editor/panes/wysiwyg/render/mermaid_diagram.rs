@@ -1,4 +1,4 @@
-﻿//! Mermaid diagram block rendering.
+//! Mermaid diagram block rendering.
 
 use gpui::*;
 
@@ -22,20 +22,23 @@ pub(crate) fn render_mermaid_diagram(
     let c = &theme.colors;
     let d = &theme.dimensions;
 
-    let mermaid_preview = block.render_mermaid_content(theme, window);
+    let (mermaid_preview, is_rendered_graphic) = block.render_mermaid_content(theme, window);
     let is_editing = focused || code_language_focused || block.code_toolbar.picker.is_open;
 
     if !is_editing {
         block.last_paints.clear();
 
-        // Unfocused: outer rect (no border, transparent) with inner fitted diagram
-        let outer = div()
-            .w_full()
-            .p(relative(0.005))
-            .flex()
-            .items_center()
-            .justify_center()
-            .child(mermaid_preview);
+        let outer = if is_rendered_graphic {
+            div()
+                .w_full()
+                .p(relative(0.005))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(mermaid_preview)
+        } else {
+            render_graphic_preview_box(mermaid_preview, theme)
+        };
 
         focused_base.w_full().child(outer).into_any_element()
     } else {

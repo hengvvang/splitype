@@ -12,6 +12,7 @@ pub(crate) mod code_ui;
 pub(crate) mod embedded_preview;
 pub(crate) mod fenced_code;
 pub(crate) mod footnote;
+pub(crate) mod graphic_state;
 pub(crate) mod heading;
 pub(crate) mod html_block;
 pub(crate) mod html_document;
@@ -508,15 +509,44 @@ impl Render for Block {
             BlockKind::FootnoteDefinition => {
                 render_footnote_definition(self, focused, is_placeholder, focused_base, &theme, cx)
             }
-            BlockKind::CodeBlock { .. } => render_fenced_code(
-                self,
-                is_placeholder,
-                code_language_focused,
-                focused_base,
-                &theme,
-                &strings,
-                cx,
-            ),
+            BlockKind::CodeBlock { ref language } => {
+                if crate::model::block::mermaid::is_mermaid_info_string(language.as_deref()) {
+                    render_mermaid_diagram(
+                        self,
+                        focused,
+                        is_placeholder,
+                        code_language_focused,
+                        focused_base,
+                        &theme,
+                        &strings,
+                        window,
+                        cx,
+                    )
+                } else if language.as_deref().map_or(false, |l| {
+                    l.eq_ignore_ascii_case("math") || l.eq_ignore_ascii_case("latex")
+                }) {
+                    render_latex_math(
+                        self,
+                        focused,
+                        is_placeholder,
+                        code_language_focused,
+                        focused_base,
+                        &theme,
+                        &strings,
+                        cx,
+                    )
+                } else {
+                    render_fenced_code(
+                        self,
+                        is_placeholder,
+                        code_language_focused,
+                        focused_base,
+                        &theme,
+                        &strings,
+                        cx,
+                    )
+                }
+            }
             BlockKind::Table => render_table(
                 self,
                 focused,

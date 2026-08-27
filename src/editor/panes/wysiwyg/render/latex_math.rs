@@ -1,4 +1,4 @@
-﻿//! LaTeX math block rendering.
+//! LaTeX math block rendering.
 
 use gpui::*;
 
@@ -21,20 +21,23 @@ pub(crate) fn render_latex_math(
     let c = &theme.colors;
     let d = &theme.dimensions;
 
-    let math_preview = block.render_math_content(theme);
+    let (math_preview, is_rendered_graphic) = block.render_math_content(theme);
     let is_editing = focused || code_language_focused || block.code_toolbar.picker.is_open;
 
     if !is_editing {
         block.last_paints.clear();
 
-        // Unfocused: outer rect (no border, transparent) with inner fitted image
-        let outer = div()
-            .w_full()
-            .p(relative(0.005))
-            .flex()
-            .items_center()
-            .justify_center()
-            .child(math_preview);
+        let outer = if is_rendered_graphic {
+            div()
+                .w_full()
+                .p(relative(0.005))
+                .flex()
+                .items_center()
+                .justify_center()
+                .child(math_preview)
+        } else {
+            render_graphic_preview_box(math_preview, theme)
+        };
 
         focused_base.w_full().child(outer).into_any_element()
     } else {

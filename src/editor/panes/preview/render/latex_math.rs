@@ -1,4 +1,4 @@
-﻿//! Preview LaTeX math block rendering — centered SVG with fallback to the
+//! Preview LaTeX math block rendering — centered SVG with fallback to the
 //! raw source, mirroring the WYSIWYG math styles.
 
 use gpui::*;
@@ -37,10 +37,13 @@ pub(crate) fn render_preview_latex_math(block: &Block, base: Div, theme: &Theme)
     if source.body.is_empty() {
         return base
             .w_full()
-            .text_size(px(t.text_size))
-            .line_height(rems(t.text_line_height))
-            .text_color(c.text_default)
-            .child(SharedString::from(raw.to_string()))
+            .child(crate::editor::panes::wysiwyg::render::embedded_preview::render_graphic_preview_box(
+                crate::editor::panes::wysiwyg::render::graphic_state::render_empty_graphic_placeholder(
+                    crate::editor::panes::wysiwyg::render::graphic_state::GraphicKind::LatexMath,
+                    theme,
+                ),
+                theme,
+            ))
             .into_any_element();
     }
 
@@ -59,23 +62,15 @@ pub(crate) fn render_preview_latex_math(block: &Block, base: Div, theme: &Theme)
             .into_any_element(),
         Err(err) => base
             .w_full()
-            .flex()
-            .flex_col()
-            .gap(px(4.0))
-            .rounded(px(d.code_block_radius))
-            .bg(c.source_mode_block_bg)
-            .px(px(d.block_padding_x))
-            .py(px(d.block_padding_y))
-            .text_size(px(t.text_size))
-            .line_height(rems(t.text_line_height))
-            .text_color(c.text_default)
-            .child(SharedString::from(raw.to_string()))
-            .child(
-                div()
-                    .text_size(px(t.code_size))
-                    .text_color(c.dialog_muted)
-                    .child(SharedString::from(format!("LaTeX render error: {err}"))),
-            )
+            .child(crate::editor::panes::wysiwyg::render::embedded_preview::render_graphic_preview_box(
+                crate::editor::panes::wysiwyg::render::graphic_state::render_graphic_error_card(
+                    crate::editor::panes::wysiwyg::render::graphic_state::GraphicKind::LatexMath,
+                    &err.to_string(),
+                    raw,
+                    theme,
+                ),
+                theme,
+            ))
             .into_any_element(),
     }
 }
