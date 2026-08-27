@@ -737,7 +737,7 @@ impl Shell {
                             .p(dialog_padding)
                             .occlude()
                             .on_click(|_event, _window, _cx| {})
-                            // Background randomized emoji grid for About dialog: soft clean watermark (0.06)
+                            // Background randomized emoji grid for About dialog: distinct clear watermark (0.22)
                             .children(if is_about {
                                 Some(
                                     div()
@@ -746,7 +746,7 @@ impl Shell {
                                         .overflow_hidden()
                                         .flex()
                                         .flex_col()
-                                        .opacity(0.06)
+                                        .opacity(0.22)
                                         .children((0..5).map(|row| {
                                             div()
                                                 .flex()
