@@ -82,6 +82,7 @@ pub(crate) fn open_editor_window(
                     unsaved_dialog: None,
                     update_check_in_progress: false,
                     close_guard_installed: false,
+                    about_bg_emojis: Vec::new(),
                 });
                 // Wire the editor entity to its Shell.
                 let shell_weak = shell.downgrade();
@@ -156,6 +157,7 @@ pub(crate) fn open_cloned_window(
                     unsaved_dialog: None,
                     update_check_in_progress: false,
                     close_guard_installed: false,
+                    about_bg_emojis: Vec::new(),
                 });
                 // Wire every editor entity to its Shell.
                 let shell_weak = shell.downgrade();

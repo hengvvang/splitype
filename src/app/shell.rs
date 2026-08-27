@@ -1,4 +1,4 @@
-﻿//! The window shell — the OS window's root entity.
+//! The window shell — the OS window's root entity.
 //!
 //! Owns the mapping from layout panel_contents to content entities (`PanelContent`),
 //! the window-level chrome state (the in-window menu bar), and renders the
@@ -117,6 +117,8 @@ pub struct Shell {
     pub(crate) update_check_in_progress: bool,
     /// Whether the window-close guard callback is installed on the window.
     pub(crate) close_guard_installed: bool,
+    /// Randomized emoji indices for the About dialog background grid.
+    pub(crate) about_bg_emojis: Vec<usize>,
 }
 
 impl Shell {
@@ -250,6 +252,25 @@ impl Shell {
     pub(crate) fn show_info_dialog(&mut self, kind: InfoDialogKind, cx: &mut Context<Self>) {
         if self.is_unsaved_dialog_open(cx) {
             return;
+        }
+        if kind == InfoDialogKind::About {
+            use std::time::SystemTime;
+            let seed = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(42);
+            let mut rng_state = seed as u64;
+            if rng_state == 0 {
+                rng_state = 0xdeadbeef;
+            }
+            self.about_bg_emojis = (0..80)
+                .map(|_| {
+                    rng_state ^= rng_state << 13;
+                    rng_state ^= rng_state >> 7;
+                    rng_state ^= rng_state << 17;
+                    (rng_state as usize) % 18
+                })
+                .collect();
         }
         self.info_dialog = Some(kind);
         cx.notify();

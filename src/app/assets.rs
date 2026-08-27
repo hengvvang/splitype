@@ -290,6 +290,62 @@ impl AssetSource for SplitypeAssets {
             "identity/logo.png" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/identity/logo.png"
             )))),
+
+            // ── About dialog emoji icons ──────────────────────────────────
+            "icons/emoji/1.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/1.svg"
+            )))),
+            "icons/emoji/2.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/2.svg"
+            )))),
+            "icons/emoji/3.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/3.svg"
+            )))),
+            "icons/emoji/4.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/4.svg"
+            )))),
+            "icons/emoji/5.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/5.svg"
+            )))),
+            "icons/emoji/6.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/6.svg"
+            )))),
+            "icons/emoji/7.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/7.svg"
+            )))),
+            "icons/emoji/8.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/8.svg"
+            )))),
+            "icons/emoji/9.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/9.svg"
+            )))),
+            "icons/emoji/10.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/10.svg"
+            )))),
+            "icons/emoji/11.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/11.svg"
+            )))),
+            "icons/emoji/12.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/12.svg"
+            )))),
+            "icons/emoji/13.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/13.svg"
+            )))),
+            "icons/emoji/14.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/14.svg"
+            )))),
+            "icons/emoji/15.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/15.svg"
+            )))),
+            "icons/emoji/16.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/16.svg"
+            )))),
+            "icons/emoji/17.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/17.svg"
+            )))),
+            "icons/emoji/18.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/emoji/18.svg"
+            )))),
             _ => Ok(None),
         }
     }
