@@ -161,12 +161,13 @@ impl Shell {
             return true;
         }
         match payload.active() {
-            Some(ExplorerSelection::Entry { entry, .. }) => !self
+            Some(sel) => !self
                 .panels
                 .explorer
-                .trees_cache
+                .snapshots
                 .last()
-                .is_some_and(|tree| tree.id == *entry),
+                .and_then(|snap| snap.root_entry())
+                .is_some_and(|e| e.id == sel.entry_id),
             _ => true,
         }
     }
@@ -308,7 +309,7 @@ impl Shell {
             if drag.selections.len() == 1 {
                 self.panels.explorer.marked.clear();
                 if let Some(active) = drag.active() {
-                    self.panels.explorer.marked.push(active.clone());
+                    self.panels.explorer.marked.insert(*active);
                 }
             }
         } else {
@@ -377,31 +378,21 @@ impl Shell {
         entry_id: ExplorerEntryId,
         drag: Option<&DraggedExplorerSelection>,
     ) -> Option<(ExplorerEntryId, bool, bool)> {
-        let (node_path, is_dir) = if let Some(node) = self.explorer_node_by_id(entry_id) {
-            (node.path.clone(), node.kind == ExplorerEntryKind::Directory)
-        } else if let Some(entry) = self.explorer_entry_by_id(entry_id) {
-            (entry.path.clone(), entry.kind == ExplorerEntryKind::Directory)
-        } else {
-            return None;
-        };
+        let node_path = self.explorer_path_for_id(entry_id)?;
+        let is_dir = node_path.is_dir();
 
         // Self and child drag check: do not highlight when dragged onto itself or into its own subtree
         if let Some(drag) = drag {
             for selection in &drag.selections {
-                let ExplorerSelection::Entry { entry: id, .. } = selection;
-                if let Some(source_path) = self.explorer_path_for_id(*id) {
+                if let Some(source_path) = self.explorer_path_for_id(selection.entry_id) {
                     if node_path.starts_with(&source_path) {
                         return None; // Cannot drag into itself or its descendant
                     }
                 }
             }
             if drag.selections.len() == 1
-                && let Some(ExplorerSelection::Entry {
-                    entry: active_id, ..
-                }) = drag.active()
-                && let Some(active_path) = self.explorer_path_for_id(*active_id).or_else(|| {
-                    self.explorer_entry_by_id(*active_id).map(|e| e.path.clone())
-                })
+                && let Some(active) = drag.active()
+                && let Some(active_path) = self.explorer_path_for_id(active.entry_id)
                 && let Some(active_parent) = active_path.parent()
             {
                 if is_dir && active_parent == node_path.as_path() {
@@ -416,7 +407,7 @@ impl Shell {
             entry_id
         } else {
             let parent_path = node_path.parent()?;
-            self.explorer_id_for_path(parent_path)?.1
+            self.explorer_id_for_path(parent_path)?.entry_id
         };
         let is_expanded = self
             .panels
@@ -430,23 +421,13 @@ impl Shell {
     // ── Drop handling ────────────────────────────────────────────────────
 
     /// Resolve the drop target directory for an entry: the entry itself for
-    /// directories, its parent for files. Resolves directly against `trees_cache`
-    /// so collapsed and off-screen nodes are always resolved reliably.
+    /// directories, its parent for files.
     fn explorer_drop_target_dir(&self, entry_id: ExplorerEntryId) -> Option<PathBuf> {
-        if let Some(node) = self.explorer_node_by_id(entry_id) {
-            if node.kind == ExplorerEntryKind::Directory {
-                Some(node.path.clone())
-            } else {
-                node.path.parent().map(Path::to_path_buf)
-            }
-        } else if let Some(entry) = self.explorer_entry_by_id(entry_id) {
-            if entry.kind == ExplorerEntryKind::Directory {
-                Some(entry.path.clone())
-            } else {
-                entry.path.parent().map(Path::to_path_buf)
-            }
+        let path = self.explorer_path_for_id(entry_id)?;
+        if path.is_dir() {
+            Some(path)
         } else {
-            None
+            path.parent().map(Path::to_path_buf)
         }
     }
 
@@ -461,20 +442,22 @@ impl Shell {
         cx: &mut Context<Self>,
     ) {
         self.clear_explorer_drag(cx);
-        // Root rows reorder worktrees (Zed's `move_worktree_root`); resolve
-        // each root's current index by id because earlier moves shift the
-        // list (and re-resolve the destination for the same reason).
+        // Root rows reorder worktrees (Zed's `move_worktree_root`)
         for selection in &payload.selections {
-            if let ExplorerSelection::Entry { entry, .. } = selection
-                && self.is_explorer_root_entry(*entry)
-            {
-                let to = self.root_for_explorer_entry(entry_id).unwrap_or(0);
+            if self.is_explorer_root_entry(selection.entry_id) {
+                let to = self
+                    .panels
+                    .explorer
+                    .snapshots
+                    .iter()
+                    .position(|snap| snap.path_for_id.contains_key(&entry_id))
+                    .unwrap_or(0);
                 if let Some(from) = self
                     .panels
                     .explorer
-                    .trees_cache
+                    .snapshots
                     .iter()
-                    .position(|tree| tree.id == *entry)
+                    .position(|snap| snap.root_entry().is_some_and(|e| e.id == selection.entry_id))
                 {
                     self.move_explorer_worktree(from, to, cx);
                 }
@@ -487,21 +470,12 @@ impl Shell {
         let paths: Vec<PathBuf> = payload
             .selections
             .iter()
-            .filter(|selection| {
-                !matches!(selection, ExplorerSelection::Entry { entry, .. }
-                    if self.is_explorer_root_entry(*entry))
-            })
-            .filter_map(|selection| match selection {
-                ExplorerSelection::Entry { entry, .. } => self
-                    .explorer_path_for_id(*entry)
-                    .or_else(|| self.explorer_entry_for_selection(selection).map(|e| e.path.clone())),
-            })
+            .filter(|selection| !self.is_explorer_root_entry(selection.entry_id))
+            .filter_map(|selection| self.explorer_path_for_id(selection.entry_id))
             .collect();
         if paths.is_empty() {
             return;
         }
-        // Reduce nested selections to their outermost directories so a
-        // dragged directory and its children are not processed twice.
         let paths = self.disjoint_explorer_paths(&paths);
         let is_copy = explorer_is_copy_modifier(&window.modifiers());
         self.perform_entry_ops(paths, target_dir, !is_copy, window, cx);
@@ -519,18 +493,15 @@ impl Shell {
         let Some(root) = self.last_explorer_root_path() else {
             return;
         };
-        // Root rows dragged onto the background move to the end of the list.
         let last_index = self.panels.explorer.worktrees.len().saturating_sub(1);
         for selection in &payload.selections {
-            if let ExplorerSelection::Entry { entry, .. } = selection
-                && self.is_explorer_root_entry(*entry)
-            {
+            if self.is_explorer_root_entry(selection.entry_id) {
                 if let Some(from) = self
                     .panels
                     .explorer
-                    .trees_cache
+                    .snapshots
                     .iter()
-                    .position(|tree| tree.id == *entry)
+                    .position(|snap| snap.root_entry().is_some_and(|e| e.id == selection.entry_id))
                 {
                     self.move_explorer_worktree(from, last_index, cx);
                 }
@@ -539,15 +510,8 @@ impl Shell {
         let paths: Vec<PathBuf> = payload
             .selections
             .iter()
-            .filter(|selection| {
-                !matches!(selection, ExplorerSelection::Entry { entry, .. }
-                    if self.is_explorer_root_entry(*entry))
-            })
-            .filter_map(|selection| match selection {
-                ExplorerSelection::Entry { entry, .. } => self
-                    .explorer_path_for_id(*entry)
-                    .or_else(|| self.explorer_entry_for_selection(selection).map(|e| e.path.clone())),
-            })
+            .filter(|selection| !self.is_explorer_root_entry(selection.entry_id))
+            .filter_map(|selection| self.explorer_path_for_id(selection.entry_id))
             .collect();
         if paths.is_empty() {
             return;
@@ -713,8 +677,9 @@ impl Shell {
                 }
                 shell.rescan_explorer_worktrees(cx);
                 if let Some(last) = changes.last().and_then(explorer_change_destination) {
-                    let root = shell.root_for_explorer_path(last).unwrap_or(0);
-                    shell.panels.explorer.pending_select = Some((root, last.to_path_buf()));
+                    if let Some(sel) = shell.explorer_id_for_path(last) {
+                        shell.panels.explorer.pending_select = Some((sel.worktree_id, last.to_path_buf()));
+                    }
                 }
                 // A disambiguated copy ("name copy.ext") opens the inline
                 // rename editor with the suffix pre-selected (mirrors Zed) —

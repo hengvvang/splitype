@@ -7,7 +7,7 @@ use crate::app::window::panels::PanelId;
 use crate::explorer::ops::drag_and_drop::DraggedExplorerEntryView;
 use crate::explorer::state::state::{
     DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerEntryKind,
-    ExplorerRow, ExplorerSelection, FOLDER_ICON, MARKDOWN_ICON, VisibleExplorerEntry,
+    ExplorerRow, FOLDER_ICON, MARKDOWN_ICON, VisibleExplorerEntry,
     file_type_icon,
 };
 use crate::infra::theme::Theme;
@@ -59,41 +59,30 @@ impl Shell {
     ) -> AnyElement {
         let c = &theme.colors;
         let t = &theme.typography;
-        let selected = matches!(
-            &self.panels.explorer.selected,
-            Some(ExplorerSelection::Entry { root, entry: entry_id })
-                if *root == entry.root && *entry_id == entry.id
-        );
-        let is_marked = self
-            .panels
-            .explorer
-            .marked
-            .contains(&ExplorerSelection::Entry {
-                root: entry.root,
-                entry: entry.id,
-            });
+        let mark_selection = crate::explorer::state::state::SelectedEntry {
+            worktree_id: entry.worktree_id,
+            entry_id: entry.id,
+        };
+        let selected = self.panels.explorer.selected == Some(mark_selection);
+        let is_marked = self.panels.explorer.marked.contains(&mark_selection);
         let is_drag_target = drag_highlight
             .is_some_and(|highlight| entry.path == *highlight || entry.path.starts_with(highlight));
         let node_id = entry.id;
         let click_shell = shell.clone();
         let click_kind = entry.kind;
         let click_path = entry.path.clone();
-        let click_root = entry.root;
+        let click_worktree_id = entry.worktree_id;
         let right_click_shell = shell.clone();
         let right_click_path = entry.path.clone();
         let right_click_is_dir = entry.kind == ExplorerEntryKind::Directory;
         let arrow_node_id = entry.id;
         let arrow_shell = shell.clone();
-        let mark_selection = ExplorerSelection::Entry {
-            root: entry.root,
-            entry: entry.id,
-        };
         // Drag payload: the row where the drag started first, then the
         // marked entries it carries along (mirrors Zed's DraggedSelection).
-        let mut drag_selections = vec![mark_selection.clone()];
+        let mut drag_selections = vec![mark_selection];
         for selection in &self.panels.explorer.marked {
             if !drag_selections.contains(selection) {
-                drag_selections.push(selection.clone());
+                drag_selections.push(*selection);
             }
         }
         let drag_payload = DraggedExplorerSelection {
@@ -245,9 +234,9 @@ impl Shell {
                             // Select the directory so a click always gives
                             // feedback, even when it is empty and there is
                             // nothing to expand.
-                            shell.panels.explorer.selected = Some(ExplorerSelection::Entry {
-                                root: click_root,
-                                entry: id,
+                            shell.panels.explorer.selected = Some(crate::explorer::state::state::SelectedEntry {
+                                worktree_id: click_worktree_id,
+                                entry_id: id,
                             });
                             if alt {
                                 shell.toggle_explorer_subtree(id, cx);

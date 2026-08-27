@@ -2,12 +2,12 @@
 //! and the undo / redo flow (mirrors Zed's `remove`/`cut`/`copy`/`paste`/
 //! `duplicate`/`undo`/`redo`).
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use gpui::*;
 
 use crate::app::shell::Shell;
-
 use crate::explorer::state::state::*;
 use crate::explorer::state::undo::{
     ExplorerChange, execute_explorer_change, execute_explorer_change_inverse,
@@ -57,11 +57,7 @@ impl Shell {
                 .update(cx, |shell, _cx| {
                     selections
                         .iter()
-                        .filter_map(|sel| match sel {
-                            ExplorerSelection::Entry { entry, .. } => {
-                                shell.explorer_path_for_id(*entry)
-                            }
-                        })
+                        .filter_map(|sel| shell.explorer_path_for_id(sel.entry_id))
                         .collect()
                 })
                 .unwrap_or_default();
@@ -102,9 +98,7 @@ impl Shell {
         }
         let paths: Vec<PathBuf> = selections
             .iter()
-            .filter_map(|sel| match sel {
-                ExplorerSelection::Entry { entry, .. } => self.explorer_path_for_id(*entry),
-            })
+            .filter_map(|sel| self.explorer_path_for_id(sel.entry_id))
             .collect();
         let weak_shell = cx.entity().downgrade();
         let _ = cx.spawn(async move |_this, cx| {
@@ -139,14 +133,15 @@ impl Shell {
         }
         let paths: Vec<String> = selections
             .iter()
-            .filter_map(|sel| match sel {
-                ExplorerSelection::Entry { entry, .. } => self
-                    .explorer_path_for_id(*entry)
-                    .map(|entry| entry.to_string_lossy().into_owned()),
+            .filter_map(|sel| {
+                self.explorer_path_for_id(sel.entry_id)
+                    .map(|entry| entry.to_string_lossy().into_owned())
             })
             .collect();
         cx.write_to_clipboard(ClipboardItem::new_string(paths.join("\n")));
-        self.panels.explorer.clipboard = Some(ExplorerClipboard::Copied(selections));
+        let mut set = BTreeSet::new();
+        set.extend(selections);
+        self.panels.explorer.clipboard = Some(ExplorerClipboard::Copied(set));
         cx.notify();
     }
 
@@ -158,14 +153,15 @@ impl Shell {
         }
         let paths: Vec<String> = selections
             .iter()
-            .filter_map(|sel| match sel {
-                ExplorerSelection::Entry { entry, .. } => self
-                    .explorer_path_for_id(*entry)
-                    .map(|entry| entry.to_string_lossy().into_owned()),
+            .filter_map(|sel| {
+                self.explorer_path_for_id(sel.entry_id)
+                    .map(|entry| entry.to_string_lossy().into_owned())
             })
             .collect();
         cx.write_to_clipboard(ClipboardItem::new_string(paths.join("\n")));
-        self.panels.explorer.clipboard = Some(ExplorerClipboard::Cut(selections));
+        let mut set = BTreeSet::new();
+        set.extend(selections);
+        self.panels.explorer.clipboard = Some(ExplorerClipboard::Cut(set));
         cx.notify();
     }
 
@@ -178,13 +174,13 @@ impl Shell {
     /// Target directory for a paste: the selected directory, the parent of a
     /// selected file, or the last worktree root.
     fn explorer_paste_target_dir(&self) -> Option<PathBuf> {
-        match &self.panels.explorer.selected {
-            Some(ExplorerSelection::Entry { entry, .. }) => {
-                let node = self.explorer_node_by_id(*entry)?;
-                if node.kind == ExplorerEntryKind::Directory {
-                    Some(node.path.clone())
+        match self.panels.explorer.selected {
+            Some(sel) => {
+                let path = self.explorer_path_for_id(sel.entry_id)?;
+                if path.is_dir() {
+                    Some(path)
                 } else {
-                    node.path.parent().map(Path::to_path_buf)
+                    path.parent().map(Path::to_path_buf)
                 }
             }
             _ => self.last_explorer_root_path(),
@@ -206,9 +202,7 @@ impl Shell {
         let items: Vec<PathBuf> = clipboard
             .items()
             .iter()
-            .filter_map(|selection| match selection {
-                ExplorerSelection::Entry { entry, .. } => self.explorer_path_for_id(*entry),
-            })
+            .filter_map(|selection| self.explorer_path_for_id(selection.entry_id))
             .collect();
         if items.is_empty() {
             return;
@@ -223,7 +217,6 @@ impl Shell {
                 .await;
             let _ = weak_shell.update(cx, |shell, cx| {
                 if is_cut {
-                    // After the first paste a cut becomes a copy (Zed).
                     shell.panels.explorer.clipboard = shell
                         .panels
                         .explorer
@@ -243,8 +236,9 @@ impl Shell {
                     .and_then(explorer_change_destination)
                     .map(Path::to_path_buf)
                 {
-                    let root = shell.root_for_explorer_path(&path).unwrap_or(0);
-                    shell.panels.explorer.pending_select = Some((root, path.clone()));
+                    if let Some(sel) = shell.explorer_id_for_path(&path) {
+                        shell.panels.explorer.pending_select = Some((sel.worktree_id, path.clone()));
+                    }
                     let weak_shell_for_open = weak_shell.clone();
                     let _ = cx.update_window(window_handle, move |_, _window, cx| {
                         let _ = weak_shell_for_open.update(cx, |shell, _cx| {
@@ -253,10 +247,6 @@ impl Shell {
                             shell.autoscroll_explorer_selection();
                         });
                     });
-                    // A disambiguated copy (name collision) opens the inline
-                    // rename editor with the " copy" suffix pre-selected
-                    // (mirrors Zed's paste flow) — once the rescan makes the
-                    // new entry visible.
                     if !is_cut
                         && result.len() == 1
                         && let Some(change) = result.first()

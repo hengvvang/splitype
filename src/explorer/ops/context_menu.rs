@@ -49,9 +49,9 @@ impl Shell {
         let is_root = self
             .panels
             .explorer
-            .trees_cache
+            .worktrees
             .iter()
-            .any(|tree| tree.path == path);
+            .any(|wt| wt.read(cx).root() == path.as_path());
         let can_undo = self.panels.explorer.undo_history.can_undo();
         let can_redo = self.panels.explorer.undo_history.can_redo();
         let has_pasteable = self.panels.explorer.clipboard.is_some();
@@ -397,8 +397,8 @@ impl Shell {
                 Box::new(move |shell, _window, cx| {
                     shell.close_explorer_file_menu(cx);
                     match entry_id {
-                        Some((_, id)) if !is_root => {
-                            shell.expand_all_explorer_for_entry(id, cx);
+                        Some(sel) if !is_root => {
+                            shell.expand_all_explorer_for_entry(sel.entry_id, cx);
                         }
                         _ => shell.expand_all_explorer_nodes(cx),
                     }
@@ -413,8 +413,8 @@ impl Shell {
                 Box::new(move |shell, _window, cx| {
                     shell.close_explorer_file_menu(cx);
                     match entry_id {
-                        Some((_, id)) if !is_root => {
-                            shell.collapse_all_explorer_for_entry(id, cx);
+                        Some(sel) if !is_root => {
+                            shell.collapse_all_explorer_for_entry(sel.entry_id, cx);
                         }
                         _ => shell.collapse_all_explorer_nodes(cx),
                     }

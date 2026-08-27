@@ -7,8 +7,6 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 
-use crate::explorer::state::state::*;
-
 impl Shell {
     pub(crate) fn open_explorer_file(
         &mut self,
@@ -16,12 +14,8 @@ impl Shell {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        // Key the selection by the entry's stable id when the tree knows it;
-        // fall back to the path-derived id (harmless: no row will highlight).
-        let (root, id) = self
-            .explorer_id_for_path(&path)
-            .unwrap_or_else(|| (0, ExplorerEntryId::for_path(&path)));
-        self.panels.explorer.selected = Some(ExplorerSelection::Entry { root, entry: id });
+        let sel = self.explorer_id_for_path(&path);
+        self.panels.explorer.selected = sel;
         // Reveal: expand ancestor directories and center the row.
         self.expand_to_path(&path);
         self.rebuild_explorer_entries();

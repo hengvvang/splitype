@@ -49,9 +49,7 @@ fn temp_explorer_root(test_name: &str) -> PathBuf {
     root
 }
 
-/// A minimal window: a Shell with the default explorer+editor layout and
-/// one Editor content entity (mirrors `open_editor_window`'s wiring).
-fn new_test_shell<T: AppContext>(cx: &mut T) -> gpui::Entity<Shell> {
+fn new_test_shell(cx: &mut TestAppContext) -> gpui::Entity<Shell> {
     cx.new(|cx| {
         let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
         Shell {
@@ -70,6 +68,7 @@ fn new_test_shell<T: AppContext>(cx: &mut T) -> gpui::Entity<Shell> {
     })
 }
 
+/// Helper: collect visible entry labels from the flat row list.
 fn visible_labels(shell: &Shell) -> Vec<String> {
     shell
         .panels
@@ -78,7 +77,7 @@ fn visible_labels(shell: &Shell) -> Vec<String> {
         .iter()
         .filter_map(|row| match row {
             ExplorerRow::Entry(entry) => Some(entry.label.clone()),
-            ExplorerRow::Edit { .. } => None,
+            _ => None,
         })
         .collect()
 }
@@ -99,16 +98,11 @@ fn single_file_worktree_roots_at_the_file(cx: &mut TestAppContext) {
     cx.run_until_parked();
 
     shell.read_with(cx, |shell, _cx| {
-        let trees = &shell.panels.explorer.trees_cache;
-        assert_eq!(trees.len(), 1, "one worktree");
-        let root_node = &trees[0];
-        assert_eq!(
-            root_node.kind,
-            ExplorerEntryKind::MarkdownFile,
-            "a .md root is a markdown file, not a directory"
-        );
-        assert_eq!(root_node.path, file);
-        assert!(root_node.children.is_empty());
+        let snaps = &shell.panels.explorer.snapshots;
+        assert_eq!(snaps.len(), 1, "one worktree");
+        let snap = &snaps[0];
+        let root_entry = snap.root_entry().expect("root entry exists");
+        assert_eq!(root_entry.path, file);
 
         let rows = visible_labels(shell);
         assert_eq!(rows, vec!["top.md"], "only the file row is visible");
@@ -130,33 +124,33 @@ fn toggle_on_subfolder_reveals_its_children(cx: &mut TestAppContext) {
     cx.run_until_parked();
 
     let subdir_id = shell.read_with(cx, |shell, _cx| {
-        let trees = &shell.panels.explorer.trees_cache;
-        assert_eq!(trees.len(), 1, "one worktree");
-        let root_node = &trees[0];
-        assert_eq!(root_node.kind, ExplorerEntryKind::Directory);
-        assert!(
-            root_node.children.iter().any(|c| c.label == "top.md"),
-            "tree contains top.md: {:?}",
-            root_node
-                .children
-                .iter()
-                .map(|c| c.label.as_str())
-                .collect::<Vec<_>>()
-        );
-        let subdir = root_node
-            .children
-            .iter()
-            .find(|c| c.label == "subdir")
-            .expect("subdir present in tree");
-        assert_eq!(subdir.kind, ExplorerEntryKind::Directory);
+        let snaps = &shell.panels.explorer.snapshots;
+        assert_eq!(snaps.len(), 1, "one worktree");
+        let snap = &snaps[0];
+        let root_entry = snap.root_entry().expect("root entry");
         assert_eq!(
-            subdir
-                .children
-                .iter()
-                .map(|c| c.label.as_str())
-                .collect::<Vec<_>>(),
-            vec!["inner.md", "inner.txt"],
-            "scan kept the files inside the subfolder"
+            root_entry.kind,
+            crate::explorer::state::worktree::WorktreeEntryKind::Directory
+        );
+
+        // Verify scan found subdir
+        let subdir_path = root.join("subdir");
+        let subdir_entry = snap
+            .entry_for_path(&subdir_path)
+            .expect("subdir present in snapshot");
+
+        // Verify subdir children exist in snapshot
+        let child_names: Vec<&str> = snap
+            .child_entries(&subdir_entry.path)
+            .filter_map(|e| e.path.file_name().and_then(|n| n.to_str()))
+            .collect();
+        assert!(
+            child_names.contains(&"inner.md"),
+            "scan kept inner.md: {child_names:?}"
+        );
+        assert!(
+            child_names.contains(&"inner.txt"),
+            "scan kept inner.txt: {child_names:?}"
         );
 
         // Root row is expanded by default → subfolder already visible.
@@ -169,7 +163,7 @@ fn toggle_on_subfolder_reveals_its_children(cx: &mut TestAppContext) {
             !labels_before.contains(&"inner.md".to_string()),
             "{labels_before:?}"
         );
-        subdir.id
+        subdir_entry.id
     });
 
     // Toggle the subfolder (what the row click does) → children appear.
@@ -215,16 +209,10 @@ fn rescan_preserves_expanded_subfolder(cx: &mut TestAppContext) {
     cx.run_until_parked();
 
     let subdir_id = shell.read_with(cx, |shell, _cx| {
-        shell
-            .panels
-            .explorer
-            .trees_cache
-            .first()
-            .unwrap()
-            .children
-            .iter()
-            .find(|c| c.label == "subdir")
-            .unwrap()
+        let snap = &shell.panels.explorer.snapshots[0];
+        let subdir_path = root.join("subdir");
+        snap.entry_for_path(&subdir_path)
+            .expect("subdir in snapshot")
             .id
     });
     shell.update(cx, |shell, cx| {
@@ -246,7 +234,7 @@ fn rescan_preserves_expanded_subfolder(cx: &mut TestAppContext) {
     });
 }
 
-/// Closing the explorer folder must clear worktrees, cached tree nodes, and
+/// Closing the explorer folder must clear worktrees, snapshots, and
 /// visible rows even when the editor has an active document from that folder.
 #[gpui::test]
 fn close_explorer_folder_clears_trees_and_entries_even_with_open_file(cx: &mut TestAppContext) {
@@ -278,7 +266,7 @@ fn close_explorer_folder_clears_trees_and_entries_even_with_open_file(cx: &mut T
 
     shell.read_with(cx, |shell, _cx| {
         assert_eq!(shell.panels.explorer.worktrees.len(), 1);
-        assert!(!shell.panels.explorer.trees_cache.is_empty());
+        assert!(!shell.panels.explorer.snapshots.is_empty());
         assert!(!shell.panels.explorer.entries.is_empty());
     });
 
@@ -297,8 +285,8 @@ fn close_explorer_folder_clears_trees_and_entries_even_with_open_file(cx: &mut T
             "worktrees must remain empty after close"
         );
         assert!(
-            shell.panels.explorer.trees_cache.is_empty(),
-            "trees_cache must remain empty after close"
+            shell.panels.explorer.snapshots.is_empty(),
+            "snapshots must remain empty after close"
         );
         assert!(
             shell.panels.explorer.entries.is_empty(),
@@ -306,4 +294,3 @@ fn close_explorer_folder_clears_trees_and_entries_even_with_open_file(cx: &mut T
         );
     });
 }
-

@@ -1,17 +1,31 @@
-//! Explorer tree state: expansion sets, reveal-in-tree, and the derivation
-//! of the flat visible row list from each worktree's cached tree.
+//! Explorer tree state: expansion sets, reveal-in-tree, and direct derivation
+//! of visible entries from WorktreeSnapshot.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use gpui::*;
 
 use crate::app::shell::Shell;
-
 use crate::explorer::state::state::*;
+use crate::explorer::state::worktree::{WorktreeEntryKind, WorktreeId, WorktreeSnapshot};
 
 impl Shell {
     // ── Expand / collapse ────────────────────────────────────────────────
+
+    /// Find the worktree entity and snapshot that contains the entry id.
+    pub(crate) fn worktree_for_explorer_entry(
+        &self,
+        id: ExplorerEntryId,
+    ) -> Option<(WorktreeId, Arc<WorktreeSnapshot>)> {
+        for snap in &self.panels.explorer.snapshots {
+            if snap.path_for_id.contains_key(&id) {
+                return Some((snap.id(), snap.clone()));
+            }
+        }
+        None
+    }
 
     /// Expand a directory and all of its descendants.
     pub(crate) fn expand_all_explorer_for_entry(
@@ -19,20 +33,23 @@ impl Shell {
         id: ExplorerEntryId,
         cx: &mut Context<Self>,
     ) {
-        let Some(root) = self.root_for_explorer_entry(id) else {
+        let Some((worktree_id, snapshot)) = self.worktree_for_explorer_entry(id) else {
+            return;
+        };
+        let Some(entry_path) = snapshot.path_for_id.get(&id) else {
             return;
         };
         let mut ids = BTreeSet::new();
-        if let Some(tree) = self.panels.explorer.trees_cache.get(root)
-            && let Some(node) = find_explorer_node_by_id(tree, id)
-        {
-            collect_descendant_dir_ids(node, &mut ids);
+        for (path, entry) in &snapshot.entries_by_path {
+            if path.starts_with(entry_path) && entry.kind == WorktreeEntryKind::Directory {
+                ids.insert(entry.id);
+            }
         }
         if !ids.is_empty() {
             self.panels
                 .explorer
                 .expanded
-                .entry(root)
+                .entry(worktree_id)
                 .or_default()
                 .extend(ids);
             self.rebuild_explorer_entries();
@@ -46,20 +63,23 @@ impl Shell {
         id: ExplorerEntryId,
         cx: &mut Context<Self>,
     ) {
-        let Some(root) = self.root_for_explorer_entry(id) else {
+        let Some((worktree_id, snapshot)) = self.worktree_for_explorer_entry(id) else {
+            return;
+        };
+        let Some(entry_path) = snapshot.path_for_id.get(&id) else {
             return;
         };
         let mut ids = BTreeSet::new();
-        if let Some(tree) = self.panels.explorer.trees_cache.get(root)
-            && let Some(node) = find_explorer_node_by_id(tree, id)
-        {
-            collect_descendant_dir_ids(node, &mut ids);
+        for (path, entry) in &snapshot.entries_by_path {
+            if path.starts_with(entry_path) && entry.kind == WorktreeEntryKind::Directory {
+                ids.insert(entry.id);
+            }
         }
         if !ids.is_empty() {
             self.panels
                 .explorer
                 .expanded
-                .entry(root)
+                .entry(worktree_id)
                 .or_default()
                 .retain(|expanded_id| !ids.contains(expanded_id));
             self.rebuild_explorer_entries();
@@ -69,17 +89,17 @@ impl Shell {
 
     /// Expand every directory in every worktree.
     pub(crate) fn expand_all_explorer_nodes(&mut self, cx: &mut Context<Self>) {
-        let mut worktree_ids = Vec::new();
-        for (root, tree) in self.panels.explorer.trees_cache.iter().enumerate() {
+        for snap in &self.panels.explorer.snapshots {
             let mut ids = BTreeSet::new();
-            collect_descendant_dir_ids(tree, &mut ids);
-            worktree_ids.push((root, ids));
-        }
-        for (root, ids) in worktree_ids {
+            for entry in snap.entries_by_path.values() {
+                if entry.kind == WorktreeEntryKind::Directory {
+                    ids.insert(entry.id);
+                }
+            }
             self.panels
                 .explorer
                 .expanded
-                .entry(root)
+                .entry(snap.id())
                 .or_default()
                 .extend(ids);
         }
@@ -87,11 +107,18 @@ impl Shell {
         cx.notify();
     }
 
+    /// Collapse all directories in all worktrees.
+    pub(crate) fn collapse_all_explorer_nodes(&mut self, cx: &mut Context<Self>) {
+        self.panels.explorer.expanded.clear();
+        self.rebuild_explorer_entries();
+        cx.notify();
+    }
+
     pub(crate) fn toggle_explorer_node(&mut self, id: ExplorerEntryId, cx: &mut Context<Self>) {
-        let Some(root) = self.root_for_explorer_entry(id) else {
+        let Some((worktree_id, _)) = self.worktree_for_explorer_entry(id) else {
             return;
         };
-        let set = self.panels.explorer.expanded.entry(root).or_default();
+        let set = self.panels.explorer.expanded.entry(worktree_id).or_default();
         let will_expand = !set.remove(&id);
         if will_expand {
             set.insert(id);
@@ -103,42 +130,44 @@ impl Shell {
     /// Alt+click on a directory: recursively expand or collapse the whole
     /// subtree (mirrors Zed's `toggle_expand_all`).
     pub(crate) fn toggle_explorer_subtree(&mut self, id: ExplorerEntryId, cx: &mut Context<Self>) {
-        let Some(root) = self.root_for_explorer_entry(id) else {
+        let Some((worktree_id, snapshot)) = self.worktree_for_explorer_entry(id) else {
+            return;
+        };
+        let Some(entry_path) = snapshot.path_for_id.get(&id) else {
             return;
         };
         let mut dir_ids = BTreeSet::new();
-        if let Some(tree) = self.panels.explorer.trees_cache.get(root)
-            && let Some(node) = find_explorer_node_by_id(tree, id)
-        {
-            if node.kind != ExplorerEntryKind::Directory {
-                return;
+        for (path, entry) in &snapshot.entries_by_path {
+            if path.starts_with(entry_path) && entry.kind == WorktreeEntryKind::Directory {
+                dir_ids.insert(entry.id);
             }
-            collect_descendant_dir_ids(node, &mut dir_ids);
         }
         if dir_ids.is_empty() {
             return;
         }
-        let set = self.panels.explorer.expanded.entry(root).or_default();
+        let set = self.panels.explorer.expanded.entry(worktree_id).or_default();
         if set.contains(&id) {
-            // Collapse: remove the entry and every descendant directory.
             for dir_id in dir_ids {
                 set.remove(&dir_id);
             }
         } else {
-            // Expand: insert the entry and every descendant directory.
             set.extend(dir_ids);
         }
         self.rebuild_explorer_entries();
         cx.notify();
     }
 
-    // ── Tree cache and flat list ─────────────────────────────────────────
+    // ── Flat list derivation ─────────────────────────────────────────────
 
-    /// Synchronize the explorer with the worktrees. Worktrees scan
-    /// themselves in the background (see `worktree::Worktree`) and emit
-    /// `UpdatedEntries`; this function only fills the gap when no worktree
-    /// exists yet (e.g. deriving one from the active document).
+    /// Synchronize the explorer with the worktrees.
     pub(crate) fn sync_explorer_file_tree(&mut self, cx: &mut Context<Self>) {
+        self.panels.explorer.snapshots = self
+            .panels
+            .explorer
+            .worktrees
+            .iter()
+            .map(|wt| wt.read(cx).snapshot())
+            .collect();
         if self.panels.explorer.worktrees.is_empty() {
             self.panels.explorer.selected = None;
             self.panels.explorer.entries.clear();
@@ -148,64 +177,18 @@ impl Shell {
         self.rebuild_explorer_entries();
     }
 
-    /// Re-derive the flat visible row list: concatenate each worktree's
-    /// cached tree segment, and splice in the inline edit row when an edit
-    /// is active.
+    /// Re-derive the flat visible row list directly from each worktree's snapshot.
     pub(crate) fn rebuild_explorer_entries(&mut self) {
-        let explorer = &mut self.panels.explorer;
-        let trees: Vec<(usize, &ExplorerFileNode)> =
-            explorer.trees_cache.iter().enumerate().collect();
-        let expanded = explorer.expanded.clone();
-        let edit = explorer.edit.as_ref();
-        explorer.entries = build_explorer_rows(&trees, &expanded, edit);
-    }
-
-    /// Rebuild the per-worktree tree cache from each worktree's snapshot.
-    /// Call whenever a worktree scan completes or a worktree is added.
-    ///
-    /// The cache stays indexed identically to `worktrees`: a worktree whose
-    /// initial scan is still in flight yields a placeholder root row, so
-    /// expansion sets and selections keyed by index never drift.
-    pub(crate) fn refresh_explorer_trees(&mut self, cx: &mut Context<Self>) {
-        let explorer = &mut self.panels.explorer;
-        explorer.trees_cache = explorer
-            .worktrees
-            .iter()
-            .map(|worktree| {
-                let snapshot = worktree.read(cx).snapshot();
-                build_tree_from_snapshot(&snapshot).unwrap_or_else(|| {
-                    let root = worktree.read(cx).root();
-                    ExplorerFileNode {
-                        id: ExplorerEntryId(worktree.read(cx).root_id()),
-                        path: root.to_path_buf(),
-                        label: root
-                            .file_name()
-                            .map(|name| name.to_string_lossy().into_owned())
-                            .unwrap_or_else(|| root.to_string_lossy().into_owned()),
-                        kind: if root.is_dir() {
-                            ExplorerEntryKind::Directory
-                        } else {
-                            ExplorerEntryKind::File
-                        },
-                        children: Vec::new(),
-                    }
-                })
-            })
-            .collect();
+        let expanded = self.panels.explorer.expanded.clone();
+        let edit = self.panels.explorer.edit.as_ref();
+        self.panels.explorer.entries =
+            build_explorer_rows(&self.panels.explorer.snapshots, &expanded, edit);
     }
 
     /// Follow the active document (or a pending inline-create target) in the
     /// tree. With `reveal`, ancestor directories are expanded so the entry
     /// becomes visible.
-    ///
-    /// An existing file selection is preserved when it is still in the tree
-    /// (filesystem-driven rescans must not steal the user's selection); only
-    /// a pending target or a missing selection falls back to the active
-    /// document.
     pub(crate) fn select_active_file_in_tree(&mut self, reveal: bool, cx: &App) {
-        // When the active editor's outline panel has a selection, the
-        // selection belongs to the outline; do not steal it with a
-        // file-tree reveal.
         if self
             .active_editor()
             .is_some_and(|editor| editor.read(cx).outline.selected.is_some())
@@ -213,30 +196,22 @@ impl Shell {
             self.panels.explorer.pending_select = None;
             return;
         }
-        let trees = self.panels.explorer.trees_cache.clone();
-        if trees.is_empty() {
+        if self.panels.explorer.worktrees.is_empty() {
             return;
         }
         let pending = self.panels.explorer.pending_select.take();
-        if let Some((root, path)) = pending {
-            if let Some(tree) = trees.get(root)
-                && let Some(node) = find_explorer_node(tree, &path)
-            {
-                self.panels.explorer.selected = Some(ExplorerSelection::Entry {
-                    root,
-                    entry: node.id,
-                });
+        if let Some((_worktree_id, path)) = pending {
+            if let Some(sel) = self.explorer_id_for_path(&path) {
+                self.panels.explorer.selected = Some(sel);
                 if reveal {
                     self.expand_to_path(&path);
                 }
             }
             return;
         }
-        // Keep an existing file selection when the entry is still visible.
-        if let Some(ExplorerSelection::Entry { entry, .. }) = self.panels.explorer.selected
-            && trees
-                .iter()
-                .any(|tree| explorer_tree_contains_id(tree, entry))
+        // Keep an existing file selection when the entry is still in any worktree snapshot.
+        if let Some(sel) = self.panels.explorer.selected
+            && self.explorer_path_for_id(sel.entry_id).is_some()
         {
             return;
         }
@@ -246,51 +221,38 @@ impl Shell {
         else {
             return;
         };
-        if let Some((root, id)) = self.explorer_id_for_path(&path) {
-            self.panels.explorer.selected = Some(ExplorerSelection::Entry { root, entry: id });
+        if let Some(sel) = self.explorer_id_for_path(&path) {
+            self.panels.explorer.selected = Some(sel);
         }
     }
 
-    /// Expand every ancestor directory of `path` that exists in the tree
-    /// (mirrors Zed's `expand_to_selection`). The root row itself is always
-    /// expanded so the target can become visible.
+    /// Expand every ancestor directory of `path` that exists in the tree.
     pub(crate) fn expand_to_path(&mut self, path: &Path) {
-        let Some((root, _)) = self.explorer_id_for_path(path) else {
-            return; // not in any worktree — nothing to reveal
-        };
-        let Some(tree) = self.panels.explorer.trees_cache.get(root).cloned() else {
+        let Some(sel) = self.explorer_id_for_path(path) else {
             return;
         };
-        // The root row must be expanded for anything below it to show.
-        let set = self.panels.explorer.expanded.entry(root).or_default();
-        set.insert(tree.id);
-        let mut ancestors = Vec::new();
-        for ancestor in path.ancestors() {
-            if ancestor == tree.path.as_path() {
-                break;
-            }
-            ancestors.push(ancestor.to_path_buf());
+        let Some((worktree_id, snapshot)) = self.worktree_for_explorer_entry(sel.entry_id) else {
+            return;
+        };
+        let set = self.panels.explorer.expanded.entry(worktree_id).or_default();
+        if let Some(root_entry) = snapshot.root_entry() {
+            set.insert(root_entry.id);
         }
-        ancestors.reverse(); // root → leaf
-        for ancestor in ancestors {
-            if let Some(node) = find_explorer_node(&tree, &ancestor)
-                && node.kind == ExplorerEntryKind::Directory
-            {
-                set.insert(node.id);
+        for ancestor in path.ancestors() {
+            if let Some(id) = snapshot.id_for_path.get(ancestor) {
+                set.insert(*id);
             }
         }
     }
 
     /// Center the selected file row in the virtualized list.
     pub(crate) fn autoscroll_explorer_selection(&self) {
-        let Some(ExplorerSelection::Entry { entry, .. }) = self.panels.explorer.selected else {
+        let Some(sel) = self.panels.explorer.selected else {
             return;
         };
-        let Some(index) =
-            self.panels.explorer.entries.iter().position(
-                |row| matches!(row, ExplorerRow::Entry(entry_row) if entry_row.id == entry),
-            )
-        else {
+        let Some(index) = self.panels.explorer.entries.iter().position(
+            |row| matches!(row, ExplorerRow::Entry(entry_row) if entry_row.id == sel.entry_id),
+        ) else {
             return;
         };
         self.panels
@@ -299,33 +261,21 @@ impl Shell {
             .scroll_to_item(index, ScrollStrategy::Center);
     }
 
-    // ── Path resolution against the cached trees ─────────────────────────
+    // ── Path resolution against worktrees ─────────────────────────────────
 
-    /// Worktree index whose root contains `path` (for pending selections and
-    /// expansion targeting).
-    pub(crate) fn root_for_explorer_path(&self, path: &Path) -> Option<usize> {
-        self.panels
-            .explorer
-            .trees_cache
-            .iter()
-            .position(|tree| path.starts_with(&tree.path))
-    }
-
-    /// Path of the last worktree root (the default target for background
-    /// drops and pastes without a selection).
+    /// Path of the last worktree root.
     pub(crate) fn last_explorer_root_path(&self) -> Option<PathBuf> {
         self.panels
             .explorer
-            .trees_cache
+            .snapshots
             .last()
-            .map(|tree| tree.path.clone())
+            .and_then(|snap| snap.root_entry().map(|e| e.path.clone()))
     }
 
-    /// Last worktree root as `(index, path, root entry id)` — for background
-    /// right-click / double-click targeting the root row.
-    pub(crate) fn last_explorer_root(&self) -> Option<(usize, PathBuf, ExplorerEntryId)> {
-        let index = self.panels.explorer.trees_cache.len().checked_sub(1)?;
-        let tree = self.panels.explorer.trees_cache.get(index)?;
-        Some((index, tree.path.clone(), tree.id))
+    /// Last worktree root as `(worktree_id, path, root_entry_id)`.
+    pub(crate) fn last_explorer_root(&self) -> Option<(WorktreeId, PathBuf, ExplorerEntryId)> {
+        let snap = self.panels.explorer.snapshots.last()?;
+        let root_entry = snap.root_entry()?;
+        Some((snap.id(), root_entry.path.clone(), root_entry.id))
     }
 }

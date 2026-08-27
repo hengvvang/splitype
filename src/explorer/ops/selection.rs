@@ -2,17 +2,15 @@
 //! to, multi-select marks, range selection, and keyboard navigation /
 //! scrolling (mirrors Zed's `select_*`/`scroll_*` methods).
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use gpui::*;
 
 use crate::app::shell::Shell;
-
 use crate::explorer::state::state::*;
 
-// Explorer navigation actions. They intentionally carry no default key
-// bindings (keybinding design is out of scope); handlers are wired on the
-// explorer root in `render_explorer_files_tree`.
+// Explorer navigation actions.
 actions!(
     explorer,
     [
@@ -44,73 +42,53 @@ actions!(
 impl Shell {
     // ── Selection resolution ─────────────────────────────────────────────
 
-    /// Worktree index whose cached tree contains `id`. Ids are globally
-    /// unique across worktrees, so this is unambiguous.
-    pub(crate) fn root_for_explorer_entry(&self, id: ExplorerEntryId) -> Option<usize> {
-        self.panels
-            .explorer
-            .trees_cache
-            .iter()
-            .position(|tree| explorer_tree_contains_id(tree, id))
+    /// Locate `path` across all worktrees; returns the strongly-typed `SelectedEntry`.
+    pub(crate) fn explorer_id_for_path(&self, path: &Path) -> Option<SelectedEntry> {
+        for snap in &self.panels.explorer.snapshots {
+            if let Some(id) = snap.id_for_path.get(path) {
+                return Some(SelectedEntry {
+                    worktree_id: snap.id(),
+                    entry_id: *id,
+                });
+            }
+        }
+        None
     }
 
-    /// Locate `path` in the cached trees; returns the worktree index and the
-    /// entry's stable id.
-    pub(crate) fn explorer_id_for_path(&self, path: &Path) -> Option<(usize, ExplorerEntryId)> {
-        self.panels
-            .explorer
-            .trees_cache
-            .iter()
-            .enumerate()
-            .find_map(|(root, tree)| find_explorer_node(tree, path).map(|node| (root, node.id)))
-    }
-
-    /// Look up the absolute path for an entry by its stable ID across all trees in the cache.
+    /// Look up the absolute path for an entry by its stable ID across all worktrees.
     pub(crate) fn explorer_path_for_id(&self, id: ExplorerEntryId) -> Option<PathBuf> {
-        self.panels
-            .explorer
-            .trees_cache
-            .iter()
-            .find_map(|tree| find_explorer_node_by_id(tree, id).map(|node| node.path.clone()))
+        for snap in &self.panels.explorer.snapshots {
+            if let Some(path) = snap.path_for_id.get(&id) {
+                return Some(path.clone());
+            }
+        }
+        None
     }
 
-    /// Look up a file-tree node by its stable ID across all trees in the cache.
-    pub(crate) fn explorer_node_by_id(&self, id: ExplorerEntryId) -> Option<&ExplorerFileNode> {
-        self.panels
-            .explorer
-            .trees_cache
-            .iter()
-            .find_map(|tree| find_explorer_node_by_id(tree, id))
-    }
-
-    /// Look up the visible row for a file selection (root + entry id).
+    /// Look up the visible row for a file selection.
     pub(crate) fn explorer_entry_for_selection(
         &self,
-        sel: &ExplorerSelection,
+        sel: &SelectedEntry,
     ) -> Option<&VisibleExplorerEntry> {
-        match sel {
-            ExplorerSelection::Entry { entry, .. } => self.explorer_entry_by_id(*entry),
-        }
+        self.explorer_entry_by_id(sel.entry_id)
     }
 
     /// Resolve the entries an operation applies to (Zed's `effective_entries`):
     /// the selection when nothing is marked, otherwise the marked set. The
     /// worktree roots are excluded so destructive operations (delete / cut /
     /// move / copy) can never target a root row.
-    pub(crate) fn effective_explorer_entries(&self) -> Vec<ExplorerSelection> {
-        let root_ids: std::collections::HashSet<ExplorerEntryId> = self
+    pub(crate) fn effective_explorer_entries(&self) -> Vec<SelectedEntry> {
+        let root_ids: HashSet<ExplorerEntryId> = self
             .panels
             .explorer
-            .trees_cache
+            .snapshots
             .iter()
-            .map(|tree| tree.id)
+            .filter_map(|snap| snap.root_entry().map(|e| e.id))
             .collect();
-        let filter = |sel: &ExplorerSelection| match sel {
-            ExplorerSelection::Entry { entry, .. } => !root_ids.contains(entry),
-        };
+        let filter = |sel: &SelectedEntry| !root_ids.contains(&sel.entry_id);
         if self.panels.explorer.marked.is_empty() {
-            return match &self.panels.explorer.selected {
-                Some(sel) if filter(sel) => vec![sel.clone()],
+            return match self.panels.explorer.selected {
+                Some(sel) if filter(&sel) => vec![sel],
                 _ => Vec::new(),
             };
         }
@@ -119,7 +97,7 @@ impl Shell {
             .marked
             .iter()
             .filter(|sel| filter(sel))
-            .cloned()
+            .copied()
             .collect()
     }
 
@@ -141,14 +119,11 @@ impl Shell {
     /// Toggle an entry in the multi-select mark set (Alt+click).
     pub(crate) fn toggle_explorer_mark(
         &mut self,
-        selection: ExplorerSelection,
+        selection: SelectedEntry,
         cx: &mut Context<Self>,
     ) {
-        let marked = &mut self.panels.explorer.marked;
-        if let Some(index) = marked.iter().position(|item| item == &selection) {
-            marked.remove(index);
-        } else {
-            marked.push(selection.clone());
+        if !self.panels.explorer.marked.remove(&selection) {
+            self.panels.explorer.marked.insert(selection);
         }
         self.panels.explorer.selected = Some(selection);
         cx.notify();
@@ -160,8 +135,8 @@ impl Shell {
         target_id: ExplorerEntryId,
         cx: &mut Context<Self>,
     ) {
-        let anchor = match &self.panels.explorer.selected {
-            Some(ExplorerSelection::Entry { entry, .. }) => *entry,
+        let anchor = match self.panels.explorer.selected {
+            Some(sel) => sel.entry_id,
             _ => target_id,
         };
         let rows = &self.panels.explorer.entries;
@@ -175,23 +150,25 @@ impl Shell {
             return;
         };
         self.panels.explorer.marked.clear();
-        let mut target_root = None;
+        let mut target_worktree_id = None;
         for row in &rows[anchor_index.min(target_index)..=anchor_index.max(target_index)] {
             if let ExplorerRow::Entry(entry) = row {
-                let selection = ExplorerSelection::Entry {
-                    root: entry.root,
-                    entry: entry.id,
+                let selection = SelectedEntry {
+                    worktree_id: entry.worktree_id,
+                    entry_id: entry.id,
                 };
                 if entry.id == target_id {
-                    target_root = Some(entry.root);
+                    target_worktree_id = Some(entry.worktree_id);
                 }
-                self.panels.explorer.marked.push(selection);
+                self.panels.explorer.marked.insert(selection);
             }
         }
-        self.panels.explorer.selected = Some(ExplorerSelection::Entry {
-            root: target_root.unwrap_or(0),
-            entry: target_id,
-        });
+        if let Some(worktree_id) = target_worktree_id {
+            self.panels.explorer.selected = Some(SelectedEntry {
+                worktree_id,
+                entry_id: target_id,
+            });
+        }
         self.autoscroll_explorer_selection();
         cx.notify();
     }
@@ -201,13 +178,11 @@ impl Shell {
     /// the previous one, else the parent directory.
     pub(crate) fn next_explorer_selection_after_deletion(
         &self,
-        deleted_selections: &[ExplorerSelection],
-    ) -> Option<ExplorerSelection> {
-        let deleted: std::collections::HashSet<ExplorerEntryId> = deleted_selections
+        deleted_selections: &[SelectedEntry],
+    ) -> Option<SelectedEntry> {
+        let deleted: HashSet<ExplorerEntryId> = deleted_selections
             .iter()
-            .map(|sel| match sel {
-                ExplorerSelection::Entry { entry, .. } => *entry,
-            })
+            .map(|sel| sel.entry_id)
             .collect();
         let rows = &self.panels.explorer.entries;
         let last_deleted = rows.iter().rposition(
@@ -217,9 +192,9 @@ impl Shell {
             if let ExplorerRow::Entry(entry) = row
                 && !deleted.contains(&entry.id)
             {
-                return Some(ExplorerSelection::Entry {
-                    root: entry.root,
-                    entry: entry.id,
+                return Some(SelectedEntry {
+                    worktree_id: entry.worktree_id,
+                    entry_id: entry.id,
                 });
             }
         }
@@ -227,44 +202,40 @@ impl Shell {
             if let ExplorerRow::Entry(entry) = row
                 && !deleted.contains(&entry.id)
             {
-                return Some(ExplorerSelection::Entry {
-                    root: entry.root,
-                    entry: entry.id,
+                return Some(SelectedEntry {
+                    worktree_id: entry.worktree_id,
+                    entry_id: entry.id,
                 });
             }
         }
         if let ExplorerRow::Entry(last) = &rows[last_deleted]
-            && let Some(tree) = self.panels.explorer.trees_cache.get(last.root)
-            && let Some(parent) = last.path.parent()
-            && let Some(parent_node) = find_explorer_node(tree, parent)
+            && let Some(parent_id) = last.parent_id
         {
-            return Some(ExplorerSelection::Entry {
-                root: last.root,
-                entry: parent_node.id,
+            return Some(SelectedEntry {
+                worktree_id: last.worktree_id,
+                entry_id: parent_id,
             });
         }
         None
     }
 
-    /// Whether `selections` contains a worktree root (root rows are dragged
-    /// to reorder worktrees, not to move files — mirrors Zed's
-    /// `entry_is_worktree_root` check in `drag_onto`).
+    /// Whether `id` is a worktree root.
     pub(crate) fn is_explorer_root_entry(&self, id: ExplorerEntryId) -> bool {
         self.panels
             .explorer
-            .trees_cache
+            .snapshots
             .iter()
-            .any(|tree| tree.id == id)
+            .any(|snap| snap.root_entry().map(|e| e.id) == Some(id))
     }
 
     // ── Selection navigation and scrolling (mirrors Zed) ────────────────
 
     /// Row index of the currently selected file entry, if visible.
     fn explorer_selected_row_index(&self) -> Option<usize> {
-        match &self.panels.explorer.selected {
-            Some(ExplorerSelection::Entry { entry, .. }) => {
+        match self.panels.explorer.selected {
+            Some(sel) => {
                 self.panels.explorer.entries.iter().position(
-                    |row| matches!(row, ExplorerRow::Entry(row_entry) if row_entry.id == *entry),
+                    |row| matches!(row, ExplorerRow::Entry(row_entry) if row_entry.id == sel.entry_id),
                 )
             }
             _ => None,
@@ -282,12 +253,12 @@ impl Shell {
         let Some(ExplorerRow::Entry(entry)) = self.panels.explorer.entries.get(index) else {
             return;
         };
-        let selection = ExplorerSelection::Entry {
-            root: entry.root,
-            entry: entry.id,
+        let selection = SelectedEntry {
+            worktree_id: entry.worktree_id,
+            entry_id: entry.id,
         };
-        if extend && !self.panels.explorer.marked.contains(&selection) {
-            self.panels.explorer.marked.push(selection.clone());
+        if extend {
+            self.panels.explorer.marked.insert(selection);
         }
         self.panels.explorer.selected = Some(selection);
         self.panels
@@ -300,7 +271,7 @@ impl Shell {
     /// Move the selection by `delta` rows (signed), clamping to the list.
     fn explorer_move_selection(&mut self, delta: i32, extend: bool, cx: &mut Context<Self>) {
         if self.panels.explorer.edit.is_some() {
-            return; // the inline editor owns the keyboard while editing
+            return;
         }
         let len = self.panels.explorer.entries.len();
         if len == 0 {
@@ -485,7 +456,6 @@ impl Shell {
             if !is_expanded && has_children {
                 self.toggle_explorer_node(entry_id, cx);
             } else if is_expanded && has_children {
-                // Already expanded: move selection to the first child (next row)
                 self.explorer_move_selection(1, false, cx);
             }
         }
@@ -514,7 +484,6 @@ impl Shell {
         if kind == ExplorerEntryKind::Directory && is_expanded {
             self.toggle_explorer_node(entry_id, cx);
         } else if let Some(parent_id) = parent_id {
-            // Select parent directory
             if let Some(parent_index) = self
                 .panels
                 .explorer
@@ -536,8 +505,8 @@ impl Shell {
         if self.panels.explorer.edit.is_some() {
             return;
         }
-        if let Some(ExplorerSelection::Entry { entry, .. }) = self.panels.explorer.selected {
-            self.expand_all_explorer_for_entry(entry, cx);
+        if let Some(sel) = self.panels.explorer.selected {
+            self.expand_all_explorer_for_entry(sel.entry_id, cx);
         }
     }
 
@@ -550,8 +519,8 @@ impl Shell {
         if self.panels.explorer.edit.is_some() {
             return;
         }
-        if let Some(ExplorerSelection::Entry { entry, .. }) = self.panels.explorer.selected {
-            self.collapse_all_explorer_for_entry(entry, cx);
+        if let Some(sel) = self.panels.explorer.selected {
+            self.collapse_all_explorer_for_entry(sel.entry_id, cx);
         }
     }
 
@@ -647,9 +616,9 @@ impl Shell {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let parent = match &self.panels.explorer.selected {
-            Some(ExplorerSelection::Entry { entry, .. }) => {
-                if let Some(node) = self.explorer_entry_by_id(*entry) {
+        let parent = match self.panels.explorer.selected {
+            Some(sel) => {
+                if let Some(node) = self.explorer_entry_by_id(sel.entry_id) {
                     if node.kind == ExplorerEntryKind::Directory {
                         node.path.clone()
                     } else {
@@ -672,9 +641,9 @@ impl Shell {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let parent = match &self.panels.explorer.selected {
-            Some(ExplorerSelection::Entry { entry, .. }) => {
-                if let Some(node) = self.explorer_entry_by_id(*entry) {
+        let parent = match self.panels.explorer.selected {
+            Some(sel) => {
+                if let Some(node) = self.explorer_entry_by_id(sel.entry_id) {
                     if node.kind == ExplorerEntryKind::Directory {
                         node.path.clone()
                     } else {

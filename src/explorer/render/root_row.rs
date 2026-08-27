@@ -6,7 +6,7 @@ use crate::app::shell::Shell;
 use crate::app::window::panels::PanelId;
 use crate::explorer::ops::drag_and_drop::DraggedExplorerEntryView;
 use crate::explorer::state::state::{
-    DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, ExplorerEntryKind, ExplorerSelection,
+    DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, ExplorerEntryKind,
     FOLDER_ICON, VisibleExplorerEntry, file_type_icon,
 };
 use crate::infra::theme::Theme;
@@ -29,11 +29,11 @@ impl Shell {
     ) -> AnyElement {
         let c = &theme.colors;
         let t = &theme.typography;
-        let selected = matches!(
-            &self.panels.explorer.selected,
-            Some(ExplorerSelection::Entry { root, entry: entry_id })
-                if *root == entry.root && *entry_id == entry.id
-        );
+        let mark_selection = crate::explorer::state::state::SelectedEntry {
+            worktree_id: entry.worktree_id,
+            entry_id: entry.id,
+        };
+        let selected = self.panels.explorer.selected == Some(mark_selection);
         let is_drag_target = drag_highlight
             .is_some_and(|highlight| entry.path == *highlight || entry.path.starts_with(highlight));
         let is_expanded = entry.is_expanded;
@@ -44,14 +44,10 @@ impl Shell {
         let right_click_path = entry.path.clone();
         let arrow_node_id = entry.id;
         let arrow_shell = shell.clone();
-        let mark_selection = ExplorerSelection::Entry {
-            root: entry.root,
-            entry: entry.id,
-        };
         let drag_entry_id = entry.id;
         let drag_label = entry.label.clone();
         let drag_payload = DraggedExplorerSelection {
-            selections: vec![mark_selection.clone()],
+            selections: vec![mark_selection],
         };
         // A worktree rooted at a single file renders as a file row: its own
         // icon (markdown for .md) and a click that opens the file instead of
@@ -107,7 +103,7 @@ impl Shell {
         let shell_refresh = shell.clone();
         let shell_collapse = shell.clone();
         let shell_hidden = shell.clone();
-        let root_index = entry.root;
+        let worktree_id = entry.worktree_id;
         let hide_hidden =
             crate::infra::config::settings::ExplorerSettingsStore::settings(cx).hide_hidden;
 
@@ -130,7 +126,15 @@ impl Shell {
                         )
                         .on_click(move |_event, window, cx| {
                             let _ = shell_open.update(cx, |shell, cx| {
-                                shell.replace_explorer_worktree(root_index, window, cx);
+                                if let Some(idx) = shell
+                                    .panels
+                                    .explorer
+                                    .worktrees
+                                    .iter()
+                                    .position(|wt| wt.read(cx).id() == worktree_id)
+                                {
+                                    shell.replace_explorer_worktree(idx, window, cx);
+                                }
                             });
                             cx.stop_propagation();
                         }),
@@ -198,7 +202,7 @@ impl Shell {
 
         div()
             .id(ElementId::Name(
-                format!("explorer-root-row-{panel_id}-{}", entry.root).into(),
+                format!("explorer-root-row-{panel_id}-{}", entry.worktree_id.0).into(),
             ))
             .h(px(EXPLORER_NODE_HEIGHT))
             .w_full()

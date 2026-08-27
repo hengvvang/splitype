@@ -12,7 +12,7 @@ use splitype::explorer::state::undo::{
 #[test]
 fn test_build_explorer_rows_handles_empty_worktree_safely() {
     let edit = ExplorerEditState {
-        root: 0,
+        worktree_id: splitype::explorer::state::worktree::WorktreeId(0),
         parent_id: Some(ExplorerEntryId(999)),
         target_id: None,
         is_dir: false,

@@ -61,9 +61,12 @@ impl Shell {
         _cx: &App,
     ) -> Option<ExplorerValidation> {
         let edit = self.panels.explorer.edit.as_ref()?;
-        let Some(tree) = self.panels.explorer.trees_cache.get(edit.root) else {
-            return None;
-        };
+        let snapshot = self
+            .panels
+            .explorer
+            .snapshots
+            .iter()
+            .find(|snap| snap.id() == edit.worktree_id)?;
         let trimmed = filename.trim();
         if trimmed.is_empty() {
             return None;
@@ -80,10 +83,10 @@ impl Shell {
             let parent = edit.path.parent()?;
             parent.join(trimmed)
         };
-        let existing = crate::explorer::state::state::find_explorer_node(tree, &new_path);
+        let existing = snapshot.entry_for_path(&new_path);
         let is_self = edit
             .target_id
-            .is_some_and(|id| existing.is_some_and(|node| node.id == id));
+            .is_some_and(|id| existing.is_some_and(|entry| entry.id == id));
         if existing.is_some() && !is_self {
             Some(ExplorerValidation::Error(format!(
                 "File or directory '{trimmed}' already exists at this location."
@@ -109,15 +112,19 @@ impl Shell {
         self.expand_to_path(&parent);
         self.rebuild_explorer_entries();
 
-        // Locate the parent in its worktree; when the path is not part of
-        // any cached tree yet, fall back to the last worktree (root-level
-        // create — the edit row is inserted after that root row).
-        let (root, parent_id) = self
+        let (worktree_id, parent_id) = self
             .explorer_id_for_path(&parent)
-            .map(|(root, id)| (root, Some(id)))
-            .unwrap_or_else(|| (self.panels.explorer.worktrees.len().saturating_sub(1), None));
-        // Row depth of the edit row: one below its parent row (a root-level
-        // create is a sibling of the root's children, depth 1).
+            .map(|sel| (sel.worktree_id, Some(sel.entry_id)))
+            .unwrap_or_else(|| {
+                let last_id = self
+                    .panels
+                    .explorer
+                    .snapshots
+                    .last()
+                    .map(|snap| snap.id())
+                    .unwrap_or(crate::explorer::state::worktree::WorktreeId(0));
+                (last_id, None)
+            });
         let depth = match parent_id {
             Some(parent_id) => self
                 .panels
@@ -135,7 +142,7 @@ impl Shell {
 
         self.begin_explorer_edit_inner(
             ExplorerEditState {
-                root,
+                worktree_id,
                 parent_id,
                 target_id: None,
                 is_dir,
@@ -143,7 +150,7 @@ impl Shell {
                 path: parent,
                 validation: None,
                 filename: ExplorerFilenameEditor::default(),
-                previously_selected: self.panels.explorer.selected.clone(),
+                previously_selected: self.panels.explorer.selected,
                 processing: false,
             },
             window,
@@ -162,20 +169,25 @@ impl Shell {
         if self
             .panels
             .explorer
-            .trees_cache
+            .snapshots
             .iter()
-            .any(|tree| tree.path == target_path)
+            .any(|snap| snap.root_entry().is_some_and(|e| e.path == target_path))
         {
-            return; // worktree roots cannot be renamed (mirrors Zed)
+            return;
         }
-        let Some((root, node_id)) = self.explorer_id_for_path(&target_path) else {
+        let Some(sel) = self.explorer_id_for_path(&target_path) else {
             return;
         };
-        let Some(tree) = self.panels.explorer.trees_cache.get(root).cloned() else {
-            return;
-        };
-        let Some(node) = crate::explorer::state::state::find_explorer_node(&tree, &target_path)
+        let Some(snapshot) = self
+            .panels
+            .explorer
+            .snapshots
+            .iter()
+            .find(|snap| snap.id() == sel.worktree_id)
         else {
+            return;
+        };
+        let Some(entry) = snapshot.entry_for_id(sel.entry_id) else {
             return;
         };
         let depth = self
@@ -183,18 +195,21 @@ impl Shell {
             .explorer
             .entries
             .iter()
-            .find(|row| matches!(row, ExplorerRow::Entry(entry) if entry.id == node_id))
+            .find(|row| matches!(row, ExplorerRow::Entry(e) if e.id == sel.entry_id))
             .map(|row| match row {
-                ExplorerRow::Entry(entry) => entry.depth,
+                ExplorerRow::Entry(e) => e.depth,
                 ExplorerRow::Edit { .. } => 0,
             })
             .unwrap_or(0);
 
-        // Preselect the file stem for files (extensions stay untouched), the
-        // whole name for directories — mirrors Zed's rename UX.
-        let file_name = node.label.clone();
+        let file_name = entry
+            .path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string();
         let selection_end =
-            if node.kind == crate::explorer::state::state::ExplorerEntryKind::Directory {
+            if entry.kind == crate::explorer::state::worktree::WorktreeEntryKind::Directory {
                 file_name.len()
             } else if let Some(last_dot) = file_name.rfind('.') {
                 if last_dot > 0 {
@@ -211,15 +226,15 @@ impl Shell {
 
         self.begin_explorer_edit_inner(
             ExplorerEditState {
-                root,
+                worktree_id: sel.worktree_id,
                 parent_id: None,
-                target_id: Some(node.id),
-                is_dir: node.kind == crate::explorer::state::state::ExplorerEntryKind::Directory,
+                target_id: Some(sel.entry_id),
+                is_dir: entry.kind == crate::explorer::state::worktree::WorktreeEntryKind::Directory,
                 depth,
                 path: target_path,
                 validation: None,
                 filename,
-                previously_selected: self.panels.explorer.selected.clone(),
+                previously_selected: self.panels.explorer.selected,
                 processing: false,
             },
             window,
@@ -316,7 +331,7 @@ impl Shell {
 
         let is_create = edit.target_id.is_none();
         let is_dir = edit.is_dir;
-        let root = edit.root;
+        let worktree_id = edit.worktree_id;
         let old_path = edit.path.clone();
         let new_path = if is_create {
             let relative_parts = filename.split(['/', '\\']).filter(|s| !s.is_empty());
@@ -332,9 +347,14 @@ impl Shell {
                 .unwrap_or_else(|| edit.path.clone())
         };
         let missing_dirs = if is_create {
-            if let Some(worktree) = self.panels.explorer.worktrees.get(root) {
-                let snapshot = worktree.read(cx).snapshot();
-                crate::explorer::state::worktree::missing_parent_dirs(&snapshot, &new_path)
+            if let Some(snapshot) = self
+                .panels
+                .explorer
+                .snapshots
+                .iter()
+                .find(|snap| snap.id() == worktree_id)
+            {
+                crate::explorer::state::worktree::missing_parent_dirs(snapshot, &new_path)
             } else {
                 Vec::new()
             }
@@ -347,9 +367,6 @@ impl Shell {
         let window_handle = window.window_handle();
         let new_path_for_update = new_path.clone();
         let old_path_for_record = old_path.clone();
-        // Deliberately detached: the confirm task must not occupy the
-        // `scan_task` slot (that slot gates background scans, and an
-        // occupied-but-finished slot would starve future scans).
         cx.spawn(async move |_this, cx: &mut AsyncApp| {
             let result = cx
                 .background_executor()
@@ -415,13 +432,11 @@ impl Shell {
                         };
                         shell.record_explorer_change(change);
                         shell.panels.explorer.pending_select =
-                            Some((root, new_path_for_update.clone()));
+                            Some((worktree_id, new_path_for_update.clone()));
                         shell.expand_to_path(&new_path_for_update);
                         shell.rescan_explorer_worktrees(cx);
                         shell.sync_explorer_models(cx);
                         if is_create && !is_dir {
-                            // Opening the freshly created file mirrors the
-                            // "auto open on create" behavior.
                             let weak_shell_for_open = weak_shell.clone();
                             let path_for_open = new_path_for_update.clone();
                             let _ = cx.update_window(window_handle, move |_, window, cx| {
@@ -432,8 +447,6 @@ impl Shell {
                         }
                     }
                     Err(err) => {
-                        // Keep the edit open with the error surfaced so the
-                        // user can fix the name; the typed text survives.
                         if let Some(edit) = shell.panels.explorer.edit.as_mut() {
                             edit.processing = false;
                             edit.validation = Some(ExplorerValidation::Error(err));

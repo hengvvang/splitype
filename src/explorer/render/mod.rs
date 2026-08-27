@@ -12,7 +12,7 @@ use gpui::*;
 use crate::app::shell::Shell;
 use crate::app::window::panels::PanelId;
 use crate::explorer::state::state::{
-    DragExplorerTarget, DraggedExplorerSelection, ExplorerSelection,
+    DragExplorerTarget, DraggedExplorerSelection,
 };
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
@@ -55,7 +55,7 @@ impl Shell {
             );
         }
 
-        if self.panels.explorer.trees_cache.is_empty() {
+        if self.panels.explorer.snapshots.is_empty() {
             let recent_folders = self.panels.explorer.recent_folders_cache.clone();
             let recent_files = self.panels.explorer.recent_files_cache.clone();
             return self.render_explorer_empty_state(
@@ -178,10 +178,10 @@ impl Shell {
                     // Right-clicking below the last entry targets the last
                     // worktree root (mirrors Zed: background right-click is
                     // equivalent to right-clicking the root directory).
-                    if let Some((root, path, root_id)) = shell.last_explorer_root() {
-                        shell.panels.explorer.selected = Some(ExplorerSelection::Entry {
-                            root,
-                            entry: root_id,
+                    if let Some((worktree_id, path, root_id)) = shell.last_explorer_root() {
+                        shell.panels.explorer.selected = Some(crate::explorer::state::state::SelectedEntry {
+                            worktree_id,
+                            entry_id: root_id,
                         });
                         shell.open_explorer_file_context_menu(event.position, path, true, cx);
                         cx.notify();

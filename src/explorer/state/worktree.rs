@@ -18,6 +18,14 @@ use gpui::*;
 #[cfg(not(test))]
 use notify::Watcher as _;
 
+// ── Identifiers ─────────────────────────────────────────────────────────
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct WorktreeId(pub usize);
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ExplorerEntryId(pub u64);
+
 // ── Entry model ─────────────────────────────────────────────────────────
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -28,8 +36,8 @@ pub enum WorktreeEntryKind {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WorktreeEntry {
-    /// Stable id (allocated from the shared counter; survives renames).
-    pub id: u64,
+    /// Stable id (survives renames/moves).
+    pub id: ExplorerEntryId,
     /// Absolute path.
     pub path: PathBuf,
     pub kind: WorktreeEntryKind,
@@ -41,14 +49,52 @@ pub struct WorktreeEntry {
 /// rescan (mirrors Zed's `Snapshot`); cheap to clone (Arc'd by the panel).
 #[derive(Clone, Debug, Default)]
 pub struct WorktreeSnapshot {
+    pub worktree_id: WorktreeId,
     /// Entries ordered by absolute path — the traversal index.
     pub entries_by_path: BTreeMap<PathBuf, WorktreeEntry>,
     /// Path → id.
-    pub id_for_path: HashMap<PathBuf, u64>,
+    pub id_for_path: HashMap<PathBuf, ExplorerEntryId>,
     /// Id → path.
-    pub path_for_id: HashMap<u64, PathBuf>,
+    pub path_for_id: HashMap<ExplorerEntryId, PathBuf>,
     /// File id → entry id (rename/move detection between rescans).
-    inode_to_id: HashMap<u64, u64>,
+    inode_to_id: HashMap<u64, ExplorerEntryId>,
+}
+
+impl WorktreeSnapshot {
+    #[inline]
+    pub fn id(&self) -> WorktreeId {
+        self.worktree_id
+    }
+
+    #[inline]
+    pub fn entry_for_id(&self, id: ExplorerEntryId) -> Option<&WorktreeEntry> {
+        let path = self.path_for_id.get(&id)?;
+        self.entries_by_path.get(path)
+    }
+
+    #[inline]
+    pub fn entry_for_path(&self, path: &Path) -> Option<&WorktreeEntry> {
+        self.entries_by_path.get(path)
+    }
+
+    #[inline]
+    pub fn root_entry(&self) -> Option<&WorktreeEntry> {
+        self.entries_by_path.values().next()
+    }
+
+    pub fn child_entries<'a>(&'a self, path: &'a Path) -> impl Iterator<Item = &'a WorktreeEntry> {
+        self.entries_by_path
+            .range(path.to_path_buf()..)
+            .skip(1)
+            .take_while(move |(p, _)| p.starts_with(path))
+            .filter_map(move |(p, entry)| {
+                if p.parent() == Some(path) {
+                    Some(entry)
+                } else {
+                    None
+                }
+            })
+    }
 }
 
 /// Returns the parent directories of `path` that do not yet exist in the given
@@ -80,8 +126,9 @@ pub enum WorktreeEvent {
 // ── Entity ──────────────────────────────────────────────────────────────
 
 pub struct Worktree {
+    id: WorktreeId,
     root: PathBuf,
-    root_id: u64,
+    root_id: ExplorerEntryId,
     snapshot: Arc<WorktreeSnapshot>,
     /// Shared across all worktrees in one panel (mirrors Zed's
     /// `WorktreeStore::next_entry_id`).
@@ -100,17 +147,21 @@ impl EventEmitter<WorktreeEvent> for Worktree {}
 
 impl Worktree {
     pub fn new(
+        id: WorktreeId,
         root: PathBuf,
         next_entry_id: Arc<AtomicU64>,
         hide_hidden: bool,
         cx: &mut App,
     ) -> Entity<Self> {
-        let root_id = next_entry_id.fetch_add(1, Ordering::SeqCst);
+        let root_id = ExplorerEntryId(next_entry_id.fetch_add(1, Ordering::SeqCst));
         cx.new(|cx| {
+            let mut snapshot = WorktreeSnapshot::default();
+            snapshot.worktree_id = id;
             let mut this = Self {
+                id,
                 root,
                 root_id,
-                snapshot: Arc::new(WorktreeSnapshot::default()),
+                snapshot: Arc::new(snapshot),
                 next_entry_id,
                 hide_hidden,
                 fs_watch_task: None,
@@ -124,14 +175,22 @@ impl Worktree {
         })
     }
 
+    #[inline]
+    pub fn id(&self) -> WorktreeId {
+        self.id
+    }
+
+    #[inline]
     pub fn root(&self) -> &Path {
         &self.root
     }
 
-    pub fn root_id(&self) -> u64 {
+    #[inline]
+    pub fn root_id(&self) -> ExplorerEntryId {
         self.root_id
     }
 
+    #[inline]
     pub fn snapshot(&self) -> Arc<WorktreeSnapshot> {
         self.snapshot.clone()
     }
@@ -272,7 +331,7 @@ fn scan_worktree_dir(
     entries.insert(
         root.to_path_buf(),
         WorktreeEntry {
-            id: 0,
+            id: ExplorerEntryId(0),
             path: root.to_path_buf(),
             kind: if meta.is_dir() {
                 WorktreeEntryKind::Directory
@@ -308,35 +367,56 @@ fn walk_dir(
             Ok(entry) => entry,
             Err(_) => continue,
         };
-        let path = entry.path();
-        let name = entry.file_name();
-        if is_ignored_entry(&name) || (hide_hidden && name.to_string_lossy().starts_with('.')) {
+        let file_name = entry.file_name();
+        if is_ignored_entry(&file_name) {
             continue;
         }
-        let meta = match std::fs::symlink_metadata(&path) {
-            Ok(meta) => meta,
-            Err(_) => continue, // vanished mid-traversal
+        if hide_hidden && file_name.to_string_lossy().starts_with('.') {
+            continue;
+        }
+        let path = entry.path();
+        let meta = match entry.metadata() {
+            Ok(m) => m,
+            Err(_) => continue,
         };
-        let is_dir = meta.is_dir();
-        let kind = if is_dir {
-            WorktreeEntryKind::Directory
-        } else {
-            WorktreeEntryKind::File
-        };
-        out.insert(
-            path.clone(),
-            WorktreeEntry {
-                id: 0,
-                path: path.clone(),
-                kind,
-                inode: file_id(&path, &meta),
-            },
-        );
-        if is_dir {
-            let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
-            if visited_dirs.insert(canonical) {
-                let _ = walk_dir(&path, hide_hidden, depth + 1, visited_dirs, out);
+        let is_symlink = meta.is_symlink();
+        let target_meta = if is_symlink {
+            match std::fs::metadata(&path) {
+                Ok(m) => m,
+                Err(_) => continue, // Broken symlink: ignore
             }
+        } else {
+            meta.clone()
+        };
+
+        if target_meta.is_dir() {
+            let canonical = match path.canonicalize() {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+            if !visited_dirs.insert(canonical) {
+                continue; // Cycle detected: skip
+            }
+            out.insert(
+                path.clone(),
+                WorktreeEntry {
+                    id: ExplorerEntryId(0),
+                    path: path.clone(),
+                    kind: WorktreeEntryKind::Directory,
+                    inode: file_id(&path, &target_meta),
+                },
+            );
+            walk_dir(&path, hide_hidden, depth + 1, visited_dirs, out)?;
+        } else {
+            out.insert(
+                path.clone(),
+                WorktreeEntry {
+                    id: ExplorerEntryId(0),
+                    path: path.clone(),
+                    kind: WorktreeEntryKind::File,
+                    inode: file_id(&path, &target_meta),
+                },
+            );
         }
     }
     Ok(())
@@ -405,9 +485,10 @@ fn assign_stable_ids(
     new_entries: &mut BTreeMap<PathBuf, WorktreeEntry>,
     next_entry_id: &AtomicU64,
     root: &Path,
-    root_id: u64,
+    root_id: ExplorerEntryId,
     out: &mut WorktreeSnapshot,
 ) {
+    out.worktree_id = old.worktree_id;
     for (path, entry) in new_entries.iter_mut() {
         let id = if path == root {
             root_id
@@ -417,7 +498,7 @@ fn assign_stable_ids(
                     .inode
                     .and_then(|inode| old.inode_to_id.get(&inode).copied())
             });
-            reused.unwrap_or_else(|| next_entry_id.fetch_add(1, Ordering::SeqCst))
+            reused.unwrap_or_else(|| ExplorerEntryId(next_entry_id.fetch_add(1, Ordering::SeqCst)))
         };
         entry.id = id;
         out.id_for_path.insert(path.clone(), id);
