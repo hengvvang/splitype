@@ -1,4 +1,4 @@
-﻿//! BlockTextElement — GPUI Element for styled inline text.
+//! BlockTextElement — GPUI Element for styled inline text.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -155,13 +155,17 @@ impl Element for BlockTextElement {
                             total_size.height += ls.height.max(line_height);
                             total_size.width = total_size.width.max(ls.width);
                         }
+                        total_size.height = total_size.height.max(line_height);
                         total_size.width += source_line_number_gutter_width;
                         if wrap_width.is_some() {
                             *shared_lines_clone.borrow_mut() = Some(lines.into_vec());
                         }
                         total_size
                     }
-                    Err(_) => Size::default(),
+                    Err(_) => Size {
+                        width: px(0.0),
+                        height: line_height,
+                    },
                 }
             },
         );

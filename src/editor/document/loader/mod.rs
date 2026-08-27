@@ -12,38 +12,60 @@ use crate::editor::document::block::Block;
 use crate::model::parse::BlockData;
 
 impl Editor {
-    /// Parse a Markdown string into a tree of block entities.
-    ///
-    /// Delegates to the pure parser in `model::parse` and converts the
-    /// resulting `BlockData` values into GPUI `Entity<Block>` entities.
-    pub(crate) fn parse_document(cx: &mut Context<Self>, markdown: &str) -> Vec<Entity<Block>> {
-        let blocks = crate::model::parse::parser::parse_document(markdown);
+    /// Parse a Markdown string into a tree of block entities using WYSIWYG (1:1 line) mode.
+    pub(crate) fn parse_wysiwyg_document(
+        cx: &mut Context<Self>,
+        markdown: &str,
+    ) -> Vec<Entity<Block>> {
+        let blocks = crate::model::parse::parser::parse_wysiwyg_document(markdown);
         blocks_to_entity_tree(blocks, cx)
     }
 
-    /// Build runtime blocks from pre-split Markdown lines.
-    ///
-    /// Delegates to `model::parse::parser::build_blocks_from_lines`.
+    /// Parse a Markdown string into a tree of block entities using Preview (CommonMark merged) mode.
+    pub(crate) fn parse_preview_document(
+        cx: &mut Context<Self>,
+        markdown: &str,
+    ) -> Vec<Entity<Block>> {
+        let blocks = crate::model::parse::parser::parse_preview_document(markdown);
+        blocks_to_entity_tree(blocks, cx)
+    }
+
+    /// Parse a Markdown string into a tree of block entities (defaults to WYSIWYG mode).
+    pub(crate) fn parse_document(cx: &mut Context<Self>, markdown: &str) -> Vec<Entity<Block>> {
+        Self::parse_wysiwyg_document(cx, markdown)
+    }
+
+    /// Build runtime blocks from pre-split Markdown lines (WYSIWYG mode).
     pub(crate) fn build_blocks_from_lines(
         cx: &mut Context<Self>,
         lines: &[String],
     ) -> Vec<Entity<Block>> {
-        let blocks = crate::model::parse::parser::build_blocks_from_lines(lines);
+        let blocks = crate::model::parse::parser::build_wysiwyg_blocks_from_lines(lines);
         blocks_to_entity_tree(blocks, cx)
     }
+
     /// Replace the whole document with a fresh parse of `markdown`,
     /// rebuilding table/image handles and bumping the document revision.
     ///
-    /// Mode-dependent: Wysiwyg parses blocks; SourceCode rebuilds a single
-    /// raw block (the tab's mode must be set by the caller beforehand).
+    /// Mode-dependent: Wysiwyg parses 1:1 line blocks; Preview parses CommonMark AST;
+    /// SourceCode rebuilds a single raw block.
     pub(crate) fn rebuild_document_from_markdown(
         &mut self,
         markdown: &str,
         cx: &mut Context<Self>,
     ) {
         match self.tab().mode {
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                let mut roots = Self::parse_document(cx, markdown);
+            EditorPaneKind::Wysiwyg => {
+                let mut roots = Self::parse_wysiwyg_document(cx, markdown);
+                if roots.is_empty() {
+                    roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
+                }
+                self.doc_mut().replace_blocks(roots, cx);
+                self.rebuild_table_grids(cx);
+                self.rebuild_reference_registries(cx);
+            }
+            EditorPaneKind::Preview | EditorPaneKind::Outline => {
+                let mut roots = Self::parse_preview_document(cx, markdown);
                 if roots.is_empty() {
                     roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
                 }

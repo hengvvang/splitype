@@ -1,4 +1,4 @@
-﻿//! Preview panel — read-only rendered snapshot of the document.
+//! Preview panel — read-only rendered snapshot of the document.
 
 pub(crate) mod render;
 
@@ -51,7 +51,7 @@ impl Editor {
             state.preview.source_hash != hash || state.preview.blocks.is_empty()
         });
         if needs_rebuild {
-            let mut roots = Self::parse_document(cx, &source);
+            let mut roots = Self::parse_preview_document(cx, &source);
             if roots.is_empty() {
                 roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
             }

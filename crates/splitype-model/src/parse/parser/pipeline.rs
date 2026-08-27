@@ -17,7 +17,29 @@ use crate::parse::data::BlockData;
 use crate::parse::indent::{is_quote_start, strip_indented_code_prefix};
 use crate::parse::kind::BlockKind;
 
+/// Parsing mode for Markdown documents.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum ParseMode {
+    /// WYSIWYG mode (editing-first): 1 source line maps 1:1 to 1 block, empty lines are independent empty blocks.
+    #[default]
+    Wysiwyg,
+    /// Preview mode (standard-first): merges consecutive lines into single <p> paragraphs adhering 100% to CommonMark.
+    Preview,
+}
+
 pub fn parse_document(markdown: &str) -> Vec<BlockData> {
+    parse_document_with_mode(markdown, ParseMode::Wysiwyg)
+}
+
+pub fn parse_wysiwyg_document(markdown: &str) -> Vec<BlockData> {
+    parse_document_with_mode(markdown, ParseMode::Wysiwyg)
+}
+
+pub fn parse_preview_document(markdown: &str) -> Vec<BlockData> {
+    parse_document_with_mode(markdown, ParseMode::Preview)
+}
+
+pub fn parse_document_with_mode(markdown: &str, mode: ParseMode) -> Vec<BlockData> {
     if markdown.is_empty() {
         return Vec::new();
     }
@@ -25,19 +47,28 @@ pub fn parse_document(markdown: &str) -> Vec<BlockData> {
         .lines()
         .map(ToOwned::to_owned)
         .collect::<Vec<_>>();
-    build_blocks_from_lines_internal(&lines, true)
+    build_blocks_from_lines_internal(&lines, mode, true)
 }
 
 /// Build blocks from pre-split Markdown lines.
 ///
 /// Equivalent to the editor's `build_blocks_from_lines`.
 pub fn build_blocks_from_lines(lines: &[String]) -> Vec<BlockData> {
-    build_blocks_from_lines_internal(lines, true)
+    build_wysiwyg_blocks_from_lines(lines)
+}
+
+pub fn build_wysiwyg_blocks_from_lines(lines: &[String]) -> Vec<BlockData> {
+    build_blocks_from_lines_internal(lines, ParseMode::Wysiwyg, true)
+}
+
+pub fn build_preview_blocks_from_lines(lines: &[String]) -> Vec<BlockData> {
+    build_blocks_from_lines_internal(lines, ParseMode::Preview, true)
 }
 
 /// Internal dispatch: walk every line and emit native blocks or raw fallbacks.
 pub(crate) fn build_blocks_from_lines_internal(
     lines: &[String],
+    mode: ParseMode,
     allow_root_footnote_definitions: bool,
 ) -> Vec<BlockData> {
     let mut roots = Vec::new();
@@ -75,7 +106,8 @@ pub(crate) fn build_blocks_from_lines_internal(
         if is_footnote_definition_start(line) {
             let end = collect_footnote_definition_region(lines, index);
             if allow_root_footnote_definitions {
-                if let Some(mut blocks) = build_native_footnote_definition_block(&lines[index..end])
+                if let Some(mut blocks) =
+                    build_native_footnote_definition_block(&lines[index..end], mode)
                 {
                     roots.append(&mut blocks);
                 } else {
@@ -176,10 +208,44 @@ pub(crate) fn build_blocks_from_lines_internal(
             continue;
         }
 
-        let paragraph = collect_paragraph_block(lines, index);
-        roots.push(paragraph.0);
-        index = paragraph.1;
+        match mode {
+            ParseMode::Wysiwyg => {
+                roots.push(native_block(BlockKind::Paragraph, line));
+                index += 1;
+            }
+            ParseMode::Preview => {
+                let paragraph = collect_paragraph_block(lines, index);
+                roots.push(paragraph.0);
+                index = paragraph.1;
+            }
+        }
     }
 
     roots
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_wysiwyg_does_not_merge_consecutive_lines_and_keeps_empty_blocks() {
+        let markdown = "Line 1\nLine 2\n\nLine 3";
+        let blocks = parse_wysiwyg_document(markdown);
+        assert_eq!(blocks.len(), 4);
+        assert_eq!(blocks[0].text.plain_text(), "Line 1");
+        assert_eq!(blocks[1].text.plain_text(), "Line 2");
+        assert_eq!(blocks[2].text.plain_text(), "");
+        assert_eq!(blocks[3].text.plain_text(), "Line 3");
+    }
+
+    #[test]
+    fn test_preview_merges_consecutive_lines_per_commonmark() {
+        let markdown = "Line 1\nLine 2\n\nLine 3";
+        let blocks = parse_preview_document(markdown);
+        assert_eq!(blocks.len(), 3);
+        assert_eq!(blocks[0].text.plain_text(), "Line 1\nLine 2");
+        assert_eq!(blocks[1].text.plain_text(), "");
+        assert_eq!(blocks[2].text.plain_text(), "Line 3");
+    }
 }

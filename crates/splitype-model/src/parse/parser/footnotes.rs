@@ -8,7 +8,10 @@ use crate::parse::data::BlockData;
 use crate::parse::indent::strip_leading_columns;
 use crate::parse::kind::BlockKind;
 
-pub(crate) fn build_native_footnote_definition_block(lines: &[String]) -> Option<Vec<BlockData>> {
+pub(crate) fn build_native_footnote_definition_block(
+    lines: &[String],
+    mode: crate::parse::parser::ParseMode,
+) -> Option<Vec<BlockData>> {
     let (id, first_line) = parse_footnote_definition_head(lines.first()?)?;
     // A definition line can carry several `[^id]:` heads on one line
     // (e.g. `[^a]: x [^b]: y`); split them into separate definitions. The
@@ -33,7 +36,7 @@ pub(crate) fn build_native_footnote_definition_block(lines: &[String]) -> Option
         }
     }
 
-    let mut children = build_blocks_from_lines_internal(&body_lines, false);
+    let mut children = build_blocks_from_lines_internal(&body_lines, mode, false);
     let head_count = heads.len();
     let mut result = Vec::new();
     for (index, (head_id, head_content)) in heads.into_iter().enumerate() {

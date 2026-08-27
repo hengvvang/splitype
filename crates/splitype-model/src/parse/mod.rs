@@ -17,3 +17,4 @@ pub use data::BlockData;
 pub use fence::{safe_code_fence, safe_code_fence_with_info};
 pub use id::BlockId;
 pub use kind::BlockKind;
+pub use parser::ParseMode;
