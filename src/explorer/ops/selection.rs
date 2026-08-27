@@ -2,7 +2,7 @@
 //! to, multi-select marks, range selection, and keyboard navigation /
 //! scrolling (mirrors Zed's `select_*`/`scroll_*` methods).
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use gpui::*;
 
@@ -51,6 +51,24 @@ impl Shell {
             .iter()
             .enumerate()
             .find_map(|(root, tree)| find_explorer_node(tree, path).map(|node| (root, node.id)))
+    }
+
+    /// Look up the absolute path for an entry by its stable ID across all trees in the cache.
+    pub(crate) fn explorer_path_for_id(&self, id: ExplorerEntryId) -> Option<PathBuf> {
+        self.panels
+            .explorer
+            .trees_cache
+            .iter()
+            .find_map(|tree| find_explorer_node_by_id(tree, id).map(|node| node.path.clone()))
+    }
+
+    /// Look up a file-tree node by its stable ID across all trees in the cache.
+    pub(crate) fn explorer_node_by_id(&self, id: ExplorerEntryId) -> Option<&ExplorerFileNode> {
+        self.panels
+            .explorer
+            .trees_cache
+            .iter()
+            .find_map(|tree| find_explorer_node_by_id(tree, id))
     }
 
     /// Look up the visible row for a file selection (root + entry id).

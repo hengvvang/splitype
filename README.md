@@ -71,5 +71,9 @@ The compiled binary is located at `./target/release/splitype`.
 - Special thanks to [dreamstale](https://www.flaticon.com/authors/dreamstale) for designing the icons; splitype is licensed to use them from [flaticon](https://www.flaticon.com/). Any individual or organization is strictly prohibited from downloading or using them without a proper license!
 
 ## License
+ 
+Splitype is licensed under any of the following (at your option):
 
-splitype is licensed under the [Apache License 2.0](LICENSE-APACHE).
+- [GNU General Public License v3.0 or later](LICENSE-GPL) ([GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0.html))
+- [MIT License](LICENSE-MIT) ([MIT](https://opensource.org/licenses/MIT))
+- [Apache License, Version 2.0](LICENSE-APACHE) ([Apache-2.0](http://www.apache.org/licenses/LICENSE-2.0))

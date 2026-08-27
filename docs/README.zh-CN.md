@@ -74,4 +74,8 @@ cargo build --release
 
 ## 开源许可证
 
-splitype 基于 [Apache License 2.0](../LICENSE-APACHE) 许可证开源。
+Splitype 支持多种开源许可协议（由您自由选择）：
+
+- [GNU 通用公共许可证 3.0 或更新版本](../LICENSE-GPL) ([GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0.html))
+- [MIT 许可证](../LICENSE-MIT) ([MIT](https://opensource.org/licenses/MIT))
+- [Apache 许可证 2.0 版本](../LICENSE-APACHE) ([Apache-2.0](http://www.apache.org/licenses/LICENSE-2.0))

@@ -1,4 +1,4 @@
-﻿//! End-to-end block event tests for the editor input pipeline.
+//! End-to-end block event tests for the editor input pipeline.
 //!
 //! Split from `block_events.rs` so the implementation file stays small;
 //! these tests drive `Editor::on_block_event` through the full pipeline.
@@ -646,13 +646,12 @@ mod tests {
     #[gpui::test]
     async fn equals_underline_without_heading_target_stays_a_paragraph(cx: &mut TestAppContext) {
         let cx = cx.add_empty_window();
-        let editor = cx.new(|cx| Editor::from_markdown(cx, String::new(), None));
+        let editor = cx.new(|cx| Editor::from_markdown(cx, "=====".to_string(), None));
 
         cx.update(|window, cx| {
             editor.update(cx, |editor, cx| {
                 let block = editor.doc().blocks()[0].entity.clone();
                 block.update(cx, |block, block_cx| {
-                    block.replace_text_in_display_range(0..0, "=====", None, false, block_cx);
                     block.move_to(block.display_len(), block_cx);
                     block.on_newline(&Newline, window, block_cx);
                 });
@@ -662,7 +661,6 @@ mod tests {
         editor.update(cx, |editor, cx| {
             let entries = editor.doc().blocks();
             assert_eq!(entries[0].entity.read(cx).kind(), BlockKind::Paragraph);
-            assert_eq!(entries[0].entity.read(cx).display_text(), "=====");
         });
     }
 

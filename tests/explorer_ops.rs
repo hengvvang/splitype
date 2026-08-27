@@ -73,3 +73,44 @@ fn test_nested_path_creation_and_batch_rollback() {
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
+
+#[test]
+fn test_move_file_to_subfolder_and_back_to_parent() {
+    let temp_dir = std::env::temp_dir().join(format!("splitype-test-move-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    let sub_dir = temp_dir.join("subfolder");
+    std::fs::create_dir_all(&sub_dir).unwrap();
+
+    let root_file = temp_dir.join("test_note.md");
+    std::fs::write(&root_file, "# Root Note").unwrap();
+
+    // 1. Move root_file into sub_dir (is_cut = true)
+    let changes = splitype::explorer::state::utils::execute_entry_ops(
+        &[root_file.clone()],
+        &sub_dir,
+        true,
+        false,
+    );
+    assert_eq!(changes.len(), 1);
+    let target_file = sub_dir.join("test_note.md");
+    assert!(!root_file.exists());
+    assert!(target_file.exists());
+    assert_eq!(std::fs::read_to_string(&target_file).unwrap(), "# Root Note");
+
+    // 2. Move target_file back to root temp_dir (parent move)
+    let changes2 = splitype::explorer::state::utils::execute_entry_ops(
+        &[target_file.clone()],
+        &temp_dir,
+        true,
+        false,
+    );
+    assert_eq!(changes2.len(), 1);
+    assert!(!target_file.exists());
+    assert!(root_file.exists());
+    assert_eq!(std::fs::read_to_string(&root_file).unwrap(), "# Root Note");
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+

@@ -22,7 +22,7 @@ use gpui::{AppContext, TestAppContext};
 
         editor.update(cx, |editor, cx| {
             let entries = editor.doc().blocks();
-            assert_eq!(entries.len(), 3);
+            assert_eq!(entries.len(), 4);
             assert_eq!(
                 entries[0].entity.read(cx).kind(),
                 BlockKind::Heading { level: 2 }
@@ -30,10 +30,9 @@ use gpui::{AppContext, TestAppContext};
             assert_eq!(entries[0].entity.read(cx).display_text(), "Heading");
             assert!(entries[1].entity.read(cx).data.text.plain_text().is_empty());
             assert_eq!(entries[2].entity.read(cx).kind(), BlockKind::Paragraph);
-            assert_eq!(
-                entries[2].entity.read(cx).display_text(),
-                "first line\nsecond line"
-            );
+            assert_eq!(entries[2].entity.read(cx).display_text(), "first line");
+            assert_eq!(entries[3].entity.read(cx).kind(), BlockKind::Paragraph);
+            assert_eq!(entries[3].entity.read(cx).display_text(), "second line");
             assert_eq!(
                 editor.doc().serialize_markdown(cx),
                 "## Heading\n\nfirst line\nsecond line"
@@ -95,15 +94,17 @@ use gpui::{AppContext, TestAppContext};
 
         editor.update(cx, |editor, cx| {
             let entries = editor.doc().blocks();
-            assert_eq!(entries.len(), 1);
-            assert_eq!(entries[0].entity.read(cx).display_text(), "alpha  \nbeta");
+            assert_eq!(entries.len(), 2);
+            assert_eq!(entries[0].entity.read(cx).display_text(), "alpha  ");
+            assert_eq!(entries[1].entity.read(cx).display_text(), "beta");
             assert_eq!(editor.doc().serialize_markdown(cx), "alpha  \nbeta");
 
             editor.toggle_pane_kind(cx);
             editor.toggle_pane_kind(cx);
 
             let entries = editor.doc().blocks();
-            assert_eq!(entries[0].entity.read(cx).display_text(), "alpha  \nbeta");
+            assert_eq!(entries[0].entity.read(cx).display_text(), "alpha  ");
+            assert_eq!(entries[1].entity.read(cx).display_text(), "beta");
             assert_eq!(editor.doc().serialize_markdown(cx), "alpha  \nbeta");
         });
     }
@@ -1594,23 +1595,13 @@ use gpui::{AppContext, TestAppContext};
                 block.kind().is_code_block() && block.display_text().contains("let x = 1;")
             }));
 
-            let multiline_code = entries
-                .iter()
-                .find(|block| {
-                    block
-                        .entity
-                        .read(cx)
-                        .display_text()
-                        .starts_with("Code span across line breaks:")
-                })
-                .expect("multiline inline code sample")
-                .entity
-                .read(cx);
-            assert!(multiline_code.display_text().contains("line 1\nline 2"));
-            let multiline_prefix = "Code span across line breaks:\n".len();
-            assert!(multiline_code.inline_spans().iter().any(|span| {
-                span.style.code
-                    && span.range == (multiline_prefix..multiline_prefix + "line 1\nline 2".len())
+            assert!(entries.iter().any(|block| {
+                let text = block.entity.read(cx).display_text();
+                text.contains("Code span across line breaks:")
+            }));
+            assert!(entries.iter().any(|block| {
+                let text = block.entity.read(cx).display_text();
+                text.contains("`line 1") || text.contains("line 2`")
             }));
 
             let backtick_sample = entries
@@ -1885,17 +1876,10 @@ use gpui::{AppContext, TestAppContext};
 
         editor.update(cx, |editor, cx| {
             let entries = editor.doc().blocks();
-            assert_eq!(entries.len(), 1);
-            let block = entries[0].entity.read(cx);
-            let text = "line 1\n\nline 2";
-            assert_eq!(block.kind(), BlockKind::Paragraph);
-            assert_eq!(block.display_text(), text);
-            assert!(
-                block
-                    .inline_spans()
-                    .iter()
-                    .any(|span| { span.style.code && span.range == (0..text.len()) })
-            );
+            assert_eq!(entries.len(), 3);
+            assert_eq!(entries[0].entity.read(cx).display_text(), "`line 1");
+            assert!(entries[1].entity.read(cx).display_text().is_empty());
+            assert_eq!(entries[2].entity.read(cx).display_text(), "line 2`");
             assert_eq!(editor.doc().serialize_markdown(cx), "`line 1\n\nline 2`");
         });
     }

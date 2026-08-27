@@ -377,43 +377,68 @@ impl Shell {
         entry_id: ExplorerEntryId,
         drag: Option<&DraggedExplorerSelection>,
     ) -> Option<(ExplorerEntryId, bool, bool)> {
-        let entry = self.explorer_entry_by_id(entry_id)?;
-        let is_dir = entry.kind == ExplorerEntryKind::Directory;
-        // Single-item drag: do not highlight the dragged entry's parent
-        // directory or its sibling files.
+        let (node_path, is_dir) = if let Some(node) = self.explorer_node_by_id(entry_id) {
+            (node.path.clone(), node.kind == ExplorerEntryKind::Directory)
+        } else if let Some(entry) = self.explorer_entry_by_id(entry_id) {
+            (entry.path.clone(), entry.kind == ExplorerEntryKind::Directory)
+        } else {
+            return None;
+        };
+
+        // Single-item drag: do not highlight when dragged onto its own immediate containing directory
+        // or onto a sibling file in the same folder.
         if let Some(drag) = drag
             && drag.selections.len() == 1
             && let Some(ExplorerSelection::Entry {
                 entry: active_id, ..
             }) = drag.active()
-            && let Some(active) = self.explorer_entry_by_id(*active_id)
-            && let Some(active_parent) = active.path.parent()
+            && let Some(active_path) = self.explorer_path_for_id(*active_id).or_else(|| {
+                self.explorer_entry_by_id(*active_id).map(|e| e.path.clone())
+            })
+            && let Some(active_parent) = active_path.parent()
         {
-            if active_parent == entry.path.as_path() {
-                return None; // dragged onto its own parent — no highlight
+            if is_dir && active_parent == node_path.as_path() {
+                return None; // dragged onto its own containing directory
             }
-            if Some(active_parent) == entry.path.parent() && !is_dir {
-                return None; // dragged onto a sibling file — no highlight
+            if !is_dir && Some(active_parent) == node_path.parent() {
+                return None; // dragged onto a sibling file
             }
         }
         let highlight_entry_id = if is_dir {
             entry_id
         } else {
-            self.explorer_id_for_path(entry.path.parent()?)?.1
+            let parent_path = node_path.parent()?;
+            self.explorer_id_for_path(parent_path)?.1
         };
-        Some((highlight_entry_id, is_dir, entry.is_expanded))
+        let is_expanded = self
+            .panels
+            .explorer
+            .expanded
+            .values()
+            .any(|set| set.contains(&highlight_entry_id));
+        Some((highlight_entry_id, is_dir, is_expanded))
     }
 
     // ── Drop handling ────────────────────────────────────────────────────
 
     /// Resolve the drop target directory for an entry: the entry itself for
-    /// directories, its parent for files.
+    /// directories, its parent for files. Resolves directly against `trees_cache`
+    /// so collapsed and off-screen nodes are always resolved reliably.
     fn explorer_drop_target_dir(&self, entry_id: ExplorerEntryId) -> Option<PathBuf> {
-        let entry = self.explorer_entry_by_id(entry_id)?;
-        if entry.kind == ExplorerEntryKind::Directory {
-            Some(entry.path.clone())
+        if let Some(node) = self.explorer_node_by_id(entry_id) {
+            if node.kind == ExplorerEntryKind::Directory {
+                Some(node.path.clone())
+            } else {
+                node.path.parent().map(Path::to_path_buf)
+            }
+        } else if let Some(entry) = self.explorer_entry_by_id(entry_id) {
+            if entry.kind == ExplorerEntryKind::Directory {
+                Some(entry.path.clone())
+            } else {
+                entry.path.parent().map(Path::to_path_buf)
+            }
         } else {
-            entry.path.parent().map(Path::to_path_buf)
+            None
         }
     }
 
@@ -458,9 +483,10 @@ impl Shell {
                 !matches!(selection, ExplorerSelection::Entry { entry, .. }
                     if self.is_explorer_root_entry(*entry))
             })
-            .filter_map(|selection| {
-                self.explorer_entry_for_selection(selection)
-                    .map(|entry| entry.path.clone())
+            .filter_map(|selection| match selection {
+                ExplorerSelection::Entry { entry, .. } => self
+                    .explorer_path_for_id(*entry)
+                    .or_else(|| self.explorer_entry_for_selection(selection).map(|e| e.path.clone())),
             })
             .collect();
         if paths.is_empty() {
@@ -664,9 +690,17 @@ impl Shell {
             let _ = weak_shell.update(cx, |shell, cx| {
                 shell.clear_explorer_drag(cx);
                 if changes.len() > 1 {
-                    shell.record_explorer_change(ExplorerChange::Batch(changes.clone()));
+                    let batch = ExplorerChange::Batch(changes.clone());
+                    shell.record_explorer_change(batch.clone());
+                    shell.sync_open_tabs_after_fs_change(&batch, cx);
                 } else if let Some(change) = changes.first() {
                     shell.record_explorer_change(change.clone());
+                    shell.sync_open_tabs_after_fs_change(change, cx);
+                }
+                for change in &changes {
+                    if let Some(dest) = explorer_change_destination(change) {
+                        shell.expand_to_path(dest);
+                    }
                 }
                 shell.rescan_explorer_worktrees(cx);
                 if let Some(last) = changes.last().and_then(explorer_change_destination) {

@@ -1,4 +1,4 @@
-﻿//! File dialogs and document save/replace flows.
+//! File dialogs and document save/replace flows.
 //!
 //! The save-as prompt, save-to-path retries, and the drop-file replace
 //! dialogs orchestrate `Editor` document state with OS window prompts.
@@ -56,6 +56,23 @@ impl Editor {
             });
         }
         cx.notify();
+    }
+
+    pub(crate) fn update_tab_path(&mut self, from: &Path, to: &Path) {
+        for tab in self.session.tabs_mut() {
+            if let Some(path) = &tab.file.path {
+                if path == from {
+                    tab.file.path = Some(to.to_path_buf());
+                    tab.file.pending_window_title_refresh = true;
+                } else if path.starts_with(from) {
+                    if let Ok(rel) = path.strip_prefix(from) {
+                        let new_path = to.join(rel);
+                        tab.file.path = Some(new_path);
+                        tab.file.pending_window_title_refresh = true;
+                    }
+                }
+            }
+        }
     }
 
     pub(crate) fn save_to_existing_path(

@@ -741,6 +741,7 @@ mod tests {
                 Hsla::from(rgba(0x0066ccff)),
                 Hsla::from(rgba(0x00ff88ff)),
                 Hsla::from(rgba(0x9aa5ceff)),
+                Hsla::from(rgba(0xffff00ff)),
             );
             let marked_run = runs.last().expect("styled text should create a final run");
 
@@ -790,6 +791,7 @@ mod tests {
                 Hsla::from(rgba(0x0066ccff)),
                 marker_color,
                 Hsla::from(rgba(0x9aa5ceff)),
+                Hsla::from(rgba(0xffff00ff)),
             );
 
             let mut offset = 0usize;

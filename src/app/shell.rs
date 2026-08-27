@@ -447,6 +447,32 @@ impl Shell {
         editor
     }
 
+    /// Sync open document tabs across all panels when a file/directory is moved or renamed.
+    pub(crate) fn sync_open_tabs_after_fs_change(
+        &self,
+        change: &crate::explorer::state::undo::ExplorerChange,
+        cx: &mut App,
+    ) {
+        use crate::explorer::state::undo::ExplorerChange;
+        match change {
+            ExplorerChange::Moved { from, to } | ExplorerChange::Renamed { from, to } => {
+                for content in self.panel_contents.values() {
+                    if let Some(editor) = content.as_editor() {
+                        editor.update(cx, |ed, _cx| {
+                            ed.update_tab_path(from, to);
+                        });
+                    }
+                }
+            }
+            ExplorerChange::Batch(changes) => {
+                for c in changes {
+                    self.sync_open_tabs_after_fs_change(c, cx);
+                }
+            }
+            _ => {}
+        }
+    }
+
     /// Removes the content entity of `panel_id` (if any) and returns its
     /// session so the caller can retain or discard it.
     pub(crate) fn remove_editor_panel(

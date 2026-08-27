@@ -981,6 +981,7 @@ async fn callout_header_text_runs_have_purple_delimiters_and_accent_type(cx: &mu
                 accent,
                 purple,
                 purple,
+                purple,
             );
 
             // Runs:
@@ -1059,6 +1060,7 @@ async fn image_focus_expands_to_source_syntax_with_markers(cx: &mut TestAppConte
                 &display_text,
                 &base_run,
                 gpui::px(1.0),
+                purple,
                 purple,
                 purple,
                 purple,

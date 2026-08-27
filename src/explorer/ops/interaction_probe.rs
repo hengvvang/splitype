@@ -1,4 +1,4 @@
-﻿//! Interactive explorer probes (local development only).
+//! Interactive explorer probes (local development only).
 //!
 //! Data-layer regression tests live in the modules they exercise (see
 //! `worktree.rs` / `state.rs`); these probes drive the panel-level state
@@ -65,6 +65,7 @@ fn new_test_shell<T: AppContext>(cx: &mut T) -> gpui::Entity<Shell> {
             unsaved_dialog: None,
             update_check_in_progress: false,
             close_guard_installed: false,
+            about_bg_emojis: Vec::new(),
         }
     })
 }
@@ -266,6 +267,7 @@ fn close_explorer_folder_clears_trees_and_entries_even_with_open_file(cx: &mut T
             unsaved_dialog: None,
             update_check_in_progress: false,
             close_guard_installed: false,
+            about_bg_emojis: Vec::new(),
         }
     });
 
