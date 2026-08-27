@@ -1,4 +1,4 @@
-﻿//! WYSIWYG panel — the rendered block view.
+//! WYSIWYG panel — the rendered block view.
 //!
 //! Row layout and spacing helpers used by the main render pass; the render
 //! orchestration itself lives in `crate::editor::view`.
@@ -107,30 +107,45 @@ pub fn callout_colors(variant: crate::model::block::CalloutKind, theme: &Theme) 
 
 // ── Font helpers ────────────────────────────────────────────────────────
 
-/// The editor's text font with Tibetan fallbacks for the target OS.
+/// The editor's text font (Acherus Grotesque) with CJK and Tibetan fallbacks.
 pub fn editor_text_font() -> Font {
     static FALLBACKS: std::sync::OnceLock<FontFallbacks> = std::sync::OnceLock::new();
     let fallbacks = FALLBACKS
         .get_or_init(|| {
-            FontFallbacks::from_fonts(tibetan_font_fallbacks_for_target_os(std::env::consts::OS))
+            FontFallbacks::from_fonts(font_fallbacks_for_target_os(std::env::consts::OS))
         })
         .clone();
-    let mut font = font(".SystemUIFont");
+    let mut font = font("Acherus Grotesque");
     font.fallbacks = Some(fallbacks);
     font
 }
 
-/// Return Tibetan-script font families for the given OS.
-pub fn tibetan_font_fallbacks_for_target_os(target_os: &str) -> Vec<String> {
+/// Return font fallback families (CJK, Tibetan, system sans-serif) for the given OS.
+pub fn font_fallbacks_for_target_os(target_os: &str) -> Vec<String> {
     let families: &[&str] = match target_os {
         "windows" => &[
+            "PingFang SC",
+            "Microsoft YaHei",
+            "Noto Sans SC",
+            "Segoe UI",
             "Microsoft Himalaya",
             "Noto Serif Tibetan",
             "Noto Sans Tibetan",
             "BabelStone Tibetan",
         ],
-        "macos" => &["Kailasa", "Noto Serif Tibetan", "Noto Sans Tibetan"],
+        "macos" => &[
+            "PingFang SC",
+            "Hiragino Sans GB",
+            ".SystemUIFont",
+            "Helvetica Neue",
+            "Kailasa",
+            "Noto Serif Tibetan",
+            "Noto Sans Tibetan",
+        ],
         _ => &[
+            "Noto Sans CJK SC",
+            "WenQuanYi Micro Hei",
+            "DejaVu Sans",
             "Noto Serif Tibetan",
             "Noto Sans Tibetan",
             "Microsoft Himalaya",
@@ -144,8 +159,8 @@ pub fn tibetan_font_fallbacks_for_target_os(target_os: &str) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        RowSpacingInfo, callout_row_top_gap, editor_text_font, row_top_gap,
-        tibetan_font_fallbacks_for_target_os,
+        RowSpacingInfo, callout_row_top_gap, editor_text_font, font_fallbacks_for_target_os,
+        row_top_gap,
     };
     use crate::infra::theme::Theme;
     use crate::model::parse::BlockId;
@@ -169,35 +184,35 @@ mod tests {
     }
 
     #[test]
-    fn editor_text_font_keeps_system_ui_as_primary_family() {
-        assert_eq!(editor_text_font().family.to_string(), ".SystemUIFont");
+    fn editor_text_font_keeps_acherus_grotesque_as_primary_family() {
+        assert_eq!(editor_text_font().family.to_string(), "Acherus Grotesque");
     }
 
     #[test]
-    fn tibetan_font_fallbacks_prioritize_platform_defaults() {
+    fn font_fallbacks_prioritize_platform_defaults() {
         assert_eq!(
-            tibetan_font_fallbacks_for_target_os("windows")
+            font_fallbacks_for_target_os("windows")
                 .first()
                 .map(String::as_str),
-            Some("Microsoft Himalaya")
+            Some("PingFang SC")
         );
         assert_eq!(
-            tibetan_font_fallbacks_for_target_os("macos")
+            font_fallbacks_for_target_os("macos")
                 .first()
                 .map(String::as_str),
-            Some("Kailasa")
+            Some("PingFang SC")
         );
         assert_eq!(
-            tibetan_font_fallbacks_for_target_os("linux")
+            font_fallbacks_for_target_os("linux")
                 .first()
                 .map(String::as_str),
-            Some("Noto Serif Tibetan")
+            Some("Noto Sans CJK SC")
         );
         assert_eq!(
-            tibetan_font_fallbacks_for_target_os("unknown")
+            font_fallbacks_for_target_os("unknown")
                 .first()
                 .map(String::as_str),
-            Some("Noto Serif Tibetan")
+            Some("Noto Sans CJK SC")
         );
     }
 

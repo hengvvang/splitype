@@ -354,3 +354,60 @@ impl AssetSource for SplitypeAssets {
         Ok(Vec::new())
     }
 }
+
+impl SplitypeAssets {
+    /// Populate the [`TextSystem`] with all 16 embedded Acherus Grotesque font styles.
+    pub fn load_fonts(cx: &App) -> gpui::Result<()> {
+        let fonts: Vec<Cow<'static, [u8]>> = vec![
+            Cow::Borrowed(include_bytes!(
+                "../../assets/fonts/Acherus Grotesque Black Italic.otf"
+            )),
+            Cow::Borrowed(include_bytes!(
+                "../../assets/fonts/Acherus Grotesque Black.otf"
+            )),
+            Cow::Borrowed(include_bytes!(
+                "../../assets/fonts/Acherus Grotesque Bold Italic.otf"
+            )),
+            Cow::Borrowed(include_bytes!(
+                "../../assets/fonts/Acherus Grotesque Bold.otf"
+            )),
+            Cow::Borrowed(include_bytes!(
+                "../../assets/fonts/Acherus Grotesque Extra Bold Italic.otf"
+            )),
+            Cow::Borrowed(include_bytes!(
+                "../../assets/fonts/Acherus Grotesque Extra Bold.otf"
+            )),
+            Cow::Borrowed(include_bytes!(
+                "../../assets/fonts/Acherus Grotesque Light Italic.otf"
+            )),
+            Cow::Borrowed(include_bytes!(
+                "../../assets/fonts/Acherus Grotesque Light.otf"
+            )),
+            Cow::Borrowed(include_bytes!(
+                "../../assets/fonts/Acherus Grotesque Medium Italic.otf"
+            )),
+            Cow::Borrowed(include_bytes!(
+                "../../assets/fonts/Acherus Grotesque Medium.otf"
+            )),
+            Cow::Borrowed(include_bytes!(
+                "../../assets/fonts/Acherus Grotesque Regular Italic.otf"
+            )),
+            Cow::Borrowed(include_bytes!(
+                "../../assets/fonts/Acherus Grotesque Regular.otf"
+            )),
+            Cow::Borrowed(include_bytes!(
+                "../../assets/fonts/Acherus Grotesque Thin Italic.otf"
+            )),
+            Cow::Borrowed(include_bytes!(
+                "../../assets/fonts/Acherus Grotesque Thin.otf"
+            )),
+            Cow::Borrowed(include_bytes!(
+                "../../assets/fonts/Acherus Grotesque Ultra Light Italic.otf"
+            )),
+            Cow::Borrowed(include_bytes!(
+                "../../assets/fonts/Acherus Grotesque Ultra Light.otf"
+            )),
+        ];
+        cx.text_system().add_fonts(fonts)
+    }
+}

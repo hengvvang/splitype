@@ -480,7 +480,7 @@ mod tests {
     use crate::model::parse::{BlockData, BlockKind};
     use gpui::{
         AppContext, Bounds, Hsla, Modifiers, MouseButton, MouseDownEvent, SharedString,
-        TestAppContext, TextAlign, TextRun, VisualTestContext, font, point, px, rgba, size,
+        TestAppContext, TextAlign, TextRun, VisualTestContext, point, px, rgba, size,
     };
 
     fn shaped_lines(
@@ -496,7 +496,7 @@ mod tests {
                     px(16.0),
                     &[TextRun {
                         len: text.len(),
-                        font: font(".SystemUIFont"),
+                        font: crate::editor::panes::wysiwyg::render::layout::editor_text_font(),
                         color: Hsla::from(rgba(0xffffffff)),
                         background_color: None,
                         underline: None,
@@ -727,7 +727,7 @@ mod tests {
             let display_text: SharedString = block.display_text().to_string().into();
             let base_run = TextRun {
                 len: display_text.len(),
-                font: font(".SystemUIFont"),
+                font: crate::editor::panes::wysiwyg::render::layout::editor_text_font(),
                 color: Hsla::from(rgba(0xffffffff)),
                 background_color: None,
                 underline: None,
@@ -776,7 +776,7 @@ mod tests {
             let display_text: SharedString = block.display_text().to_string().into();
             let base_run = TextRun {
                 len: display_text.len(),
-                font: font(".SystemUIFont"),
+                font: crate::editor::panes::wysiwyg::render::layout::editor_text_font(),
                 color: Hsla::from(rgba(0xffffffff)),
                 background_color: None,
                 underline: None,
@@ -830,7 +830,7 @@ mod tests {
             assert_eq!(display_text.as_ref(), "引用[^note]");
             let base_run = TextRun {
                 len: display_text.len(),
-                font: font(".SystemUIFont"),
+                font: crate::editor::panes::wysiwyg::render::layout::editor_text_font(),
                 color: Hsla::from(rgba(0xffffffff)),
                 background_color: None,
                 underline: None,
@@ -885,7 +885,7 @@ mod tests {
             let display_text: SharedString = block.display_text().to_string().into();
             let base_run = TextRun {
                 len: display_text.len(),
-                font: font(".SystemUIFont"),
+                font: crate::editor::panes::wysiwyg::render::layout::editor_text_font(),
                 color: Hsla::from(rgba(0xffffffff)),
                 background_color: None,
                 underline: None,
