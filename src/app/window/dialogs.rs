@@ -611,18 +611,16 @@ impl Shell {
                     // Section ①: Centered App Logo
                     .child(
                         div()
-                            .w(px(84.0))
-                            .h(px(84.0))
-                            .rounded(px(d.dialog_radius))
+                            .w(px(96.0))
+                            .h(px(96.0))
                             .bg(c.dialog_surface)
-                            .shadow_md()
                             .flex()
                             .items_center()
                             .justify_center()
                             .child(
                                 svg()
                                     .path("identity/logo.svg")
-                                    .size(px(56.0))
+                                    .size(px(72.0))
                                     .text_color(c.dialog_title),
                             ),
                     )
@@ -647,10 +645,10 @@ impl Shell {
                                     .child(format!("v{}", env!("CARGO_PKG_VERSION"))),
                             ),
                     )
-                    // Section ③: Slogan / Tagline (shifted downward, larger font)
+                    // Section ③: Slogan / Tagline (shifted downward)
                     .child(
                         div()
-                            .mt(px(8.0))
+                            .mt(px(14.0))
                             .text_size(px(17.5))
                             .line_height(rems(1.5))
                             .font_weight(FontWeight::MEDIUM)
@@ -658,10 +656,10 @@ impl Shell {
                             .text_align(TextAlign::Center)
                             .child(strings.about_tagline.clone()),
                     )
-                    // Section ④: Link row (shifted downward, larger font)
+                    // Section ④: Link row (shifted downward)
                     .child(
                         div()
-                            .mt(px(4.0))
+                            .mt(px(14.0))
                             .flex()
                             .items_center()
                             .justify_center()
@@ -737,7 +735,7 @@ impl Shell {
                             .p(dialog_padding)
                             .occlude()
                             .on_click(|_event, _window, _cx| {})
-                            // Background randomized emoji grid for About dialog: distinct clear watermark (0.22)
+                            // Background randomized emoji grid for About dialog: subtle soft watermark (0.08)
                             .children(if is_about {
                                 Some(
                                     div()
@@ -746,7 +744,7 @@ impl Shell {
                                         .overflow_hidden()
                                         .flex()
                                         .flex_col()
-                                        .opacity(0.22)
+                                        .opacity(0.08)
                                         .children((0..5).map(|row| {
                                             div()
                                                 .flex()
