@@ -385,23 +385,31 @@ impl Shell {
             return None;
         };
 
-        // Single-item drag: do not highlight when dragged onto its own immediate containing directory
-        // or onto a sibling file in the same folder.
-        if let Some(drag) = drag
-            && drag.selections.len() == 1
-            && let Some(ExplorerSelection::Entry {
-                entry: active_id, ..
-            }) = drag.active()
-            && let Some(active_path) = self.explorer_path_for_id(*active_id).or_else(|| {
-                self.explorer_entry_by_id(*active_id).map(|e| e.path.clone())
-            })
-            && let Some(active_parent) = active_path.parent()
-        {
-            if is_dir && active_parent == node_path.as_path() {
-                return None; // dragged onto its own containing directory
+        // Self and child drag check: do not highlight when dragged onto itself or into its own subtree
+        if let Some(drag) = drag {
+            for selection in &drag.selections {
+                let ExplorerSelection::Entry { entry: id, .. } = selection;
+                if let Some(source_path) = self.explorer_path_for_id(*id) {
+                    if node_path.starts_with(&source_path) {
+                        return None; // Cannot drag into itself or its descendant
+                    }
+                }
             }
-            if !is_dir && Some(active_parent) == node_path.parent() {
-                return None; // dragged onto a sibling file
+            if drag.selections.len() == 1
+                && let Some(ExplorerSelection::Entry {
+                    entry: active_id, ..
+                }) = drag.active()
+                && let Some(active_path) = self.explorer_path_for_id(*active_id).or_else(|| {
+                    self.explorer_entry_by_id(*active_id).map(|e| e.path.clone())
+                })
+                && let Some(active_parent) = active_path.parent()
+            {
+                if is_dir && active_parent == node_path.as_path() {
+                    return None; // dragged onto its own containing directory
+                }
+                if !is_dir && Some(active_parent) == node_path.parent() {
+                    return None; // dragged onto a sibling file
+                }
             }
         }
         let highlight_entry_id = if is_dir {
@@ -535,9 +543,10 @@ impl Shell {
                 !matches!(selection, ExplorerSelection::Entry { entry, .. }
                     if self.is_explorer_root_entry(*entry))
             })
-            .filter_map(|selection| {
-                self.explorer_entry_for_selection(selection)
-                    .map(|entry| entry.path.clone())
+            .filter_map(|selection| match selection {
+                ExplorerSelection::Entry { entry, .. } => self
+                    .explorer_path_for_id(*entry)
+                    .or_else(|| self.explorer_entry_for_selection(selection).map(|e| e.path.clone())),
             })
             .collect();
         if paths.is_empty() {
@@ -738,7 +747,6 @@ impl Render for DraggedExplorerEntryView {
         let c = &theme.colors;
         let d = &theme.dimensions;
         div()
-            .absolute()
             .pl(self.click_offset.x + px(12.0))
             .pt(self.click_offset.y + px(12.0))
             .child(

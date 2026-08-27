@@ -331,6 +331,16 @@ impl Shell {
                 .map(|parent| parent.join(&filename))
                 .unwrap_or_else(|| edit.path.clone())
         };
+        let missing_dirs = if is_create {
+            if let Some(worktree) = self.panels.explorer.worktrees.get(root) {
+                let snapshot = worktree.read(cx).snapshot();
+                crate::explorer::state::worktree::missing_parent_dirs(&snapshot, &new_path)
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
         self.panels.explorer.edit.as_mut().unwrap().processing = true;
 
         let weak_shell = cx.entity().downgrade();
@@ -381,9 +391,21 @@ impl Shell {
                         shell.panels.explorer.edit = None;
                         // Record the operation for panel undo/redo.
                         let change = if is_create {
-                            ExplorerChange::Created {
-                                path: new_path_for_update.clone(),
-                                is_dir,
+                            if !missing_dirs.is_empty() {
+                                let mut batch = Vec::new();
+                                for dir in missing_dirs.into_iter().rev() {
+                                    batch.push(ExplorerChange::DirCreated(dir));
+                                }
+                                batch.push(ExplorerChange::Created {
+                                    path: new_path_for_update.clone(),
+                                    is_dir,
+                                });
+                                ExplorerChange::Batch(batch)
+                            } else {
+                                ExplorerChange::Created {
+                                    path: new_path_for_update.clone(),
+                                    is_dir,
+                                }
                             }
                         } else {
                             ExplorerChange::Renamed {

@@ -1,4 +1,4 @@
-﻿use std::path::{Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use gpui::*;
 
@@ -61,7 +61,8 @@ impl Shell {
         let t = &theme.typography;
         let selected = matches!(
             &self.panels.explorer.selected,
-            Some(ExplorerSelection::Entry { entry: entry_id, .. }) if *entry_id == entry.id
+            Some(ExplorerSelection::Entry { root, entry: entry_id })
+                if *root == entry.root && *entry_id == entry.id
         );
         let is_marked = self
             .panels

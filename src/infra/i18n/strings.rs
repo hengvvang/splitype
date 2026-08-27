@@ -292,6 +292,10 @@ pub struct I18nStrings {
     pub explorer_add_folder: String,
     /// Explorer context menu (worktree root): remove this folder from the explorer.
     pub explorer_remove_folder: String,
+    /// Explorer context menu: open in terminal.
+    pub explorer_open_in_terminal: String,
+    /// Explorer context menu: open in split pane.
+    pub explorer_open_in_split: String,
     /// Title of the link-opening confirmation prompt.
     pub open_link_title: String,
     /// Confirm button for the link-opening prompt.
@@ -615,6 +619,8 @@ pub const I18N_STRING_KEYS: &[&str] = &[
     "explorer_collapse_all",
     "explorer_add_folder",
     "explorer_remove_folder",
+    "explorer_open_in_terminal",
+    "explorer_open_in_split",
     "open_link_title",
     "open_link_open",
     "open_link_cancel",
@@ -865,6 +871,8 @@ impl I18nStrings {
             explorer_collapse_all: "全部折叠".into(),
             explorer_add_folder: "添加文件夹到资源管理器".into(),
             explorer_remove_folder: "从资源管理器移除".into(),
+            explorer_open_in_terminal: "在终端中打开".into(),
+            explorer_open_in_split: "在侧边分屏打开".into(),
             open_link_title: "打开链接？".into(),
             open_link_open: "打开".into(),
             open_link_cancel: "取消".into(),
@@ -1145,6 +1153,8 @@ impl I18nStrings {
             explorer_collapse_all: "Collapse All".into(),
             explorer_add_folder: "Add Folder to Explorer…".into(),
             explorer_remove_folder: "Remove from Explorer".into(),
+            explorer_open_in_terminal: "Open in Terminal".into(),
+            explorer_open_in_split: "Open in Split".into(),
             open_link_title: "Open link?".into(),
             open_link_open: "Open".into(),
             open_link_cancel: "Cancel".into(),

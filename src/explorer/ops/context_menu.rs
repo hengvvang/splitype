@@ -113,9 +113,14 @@ impl Shell {
 
         let mut items = Vec::new();
 
-        // New File / New Folder (directories only).
-        if is_dir {
-            let p = path.clone();
+        // New File / New Folder (directories create inside; files create in parent directory).
+        {
+            let target_parent = if is_dir {
+                path.clone()
+            } else {
+                path.parent().map(std::path::Path::to_path_buf).unwrap_or_else(|| path.clone())
+            };
+            let p = target_parent.clone();
             items.push(make_item(
                 "explorer-ctx-new-file",
                 s.explorer_new_file.clone(),
@@ -128,7 +133,7 @@ impl Shell {
                     shell.begin_inline_create_file(p, window, cx);
                 }),
             ));
-            let p = path.clone();
+            let p = target_parent;
             items.push(make_item(
                 "explorer-ctx-new-folder",
                 s.explorer_new_folder.clone(),
@@ -142,6 +147,23 @@ impl Shell {
                 }),
             ));
             items.push(separator());
+        }
+
+        // Open in Split (files only).
+        if !is_dir {
+            let p = path.clone();
+            items.push(make_item(
+                "explorer-ctx-open-split",
+                s.explorer_open_in_split.clone(),
+                c.text_default,
+                true,
+                shell.clone(),
+                Box::new(move |shell, window, cx| {
+                    let p = p.clone();
+                    shell.close_explorer_file_menu(cx);
+                    shell.split_explorer_file(p, window, cx);
+                }),
+            ));
         }
 
         // Reveal / Open with system / Open in terminal.
@@ -169,6 +191,19 @@ impl Shell {
                 let p = p.clone();
                 shell.close_explorer_file_menu(cx);
                 shell.open_explorer_with_system(&p);
+            }),
+        ));
+        let p = path.clone();
+        items.push(make_item(
+            "explorer-ctx-open-terminal",
+            s.explorer_open_in_terminal.clone(),
+            c.text_default,
+            true,
+            shell.clone(),
+            Box::new(move |shell, _window, cx| {
+                let p = p.clone();
+                shell.close_explorer_file_menu(cx);
+                shell.open_in_terminal(&p);
             }),
         ));
         items.push(separator());

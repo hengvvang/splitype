@@ -57,10 +57,10 @@ impl Shell {
                 .update(cx, |shell, _cx| {
                     selections
                         .iter()
-                        .filter_map(|sel| {
-                            shell
-                                .explorer_entry_for_selection(sel)
-                                .map(|entry| entry.path.clone())
+                        .filter_map(|sel| match sel {
+                            ExplorerSelection::Entry { entry, .. } => {
+                                shell.explorer_path_for_id(*entry)
+                            }
                         })
                         .collect()
                 })
@@ -102,9 +102,8 @@ impl Shell {
         }
         let paths: Vec<PathBuf> = selections
             .iter()
-            .filter_map(|sel| {
-                self.explorer_entry_for_selection(sel)
-                    .map(|entry| entry.path.clone())
+            .filter_map(|sel| match sel {
+                ExplorerSelection::Entry { entry, .. } => self.explorer_path_for_id(*entry),
             })
             .collect();
         let weak_shell = cx.entity().downgrade();
@@ -140,9 +139,10 @@ impl Shell {
         }
         let paths: Vec<String> = selections
             .iter()
-            .filter_map(|sel| {
-                self.explorer_entry_for_selection(sel)
-                    .map(|entry| entry.path.to_string_lossy().into_owned())
+            .filter_map(|sel| match sel {
+                ExplorerSelection::Entry { entry, .. } => self
+                    .explorer_path_for_id(*entry)
+                    .map(|entry| entry.to_string_lossy().into_owned()),
             })
             .collect();
         cx.write_to_clipboard(ClipboardItem::new_string(paths.join("\n")));
@@ -158,9 +158,10 @@ impl Shell {
         }
         let paths: Vec<String> = selections
             .iter()
-            .filter_map(|sel| {
-                self.explorer_entry_for_selection(sel)
-                    .map(|entry| entry.path.to_string_lossy().into_owned())
+            .filter_map(|sel| match sel {
+                ExplorerSelection::Entry { entry, .. } => self
+                    .explorer_path_for_id(*entry)
+                    .map(|entry| entry.to_string_lossy().into_owned()),
             })
             .collect();
         cx.write_to_clipboard(ClipboardItem::new_string(paths.join("\n")));
@@ -179,11 +180,11 @@ impl Shell {
     fn explorer_paste_target_dir(&self) -> Option<PathBuf> {
         match &self.panels.explorer.selected {
             Some(ExplorerSelection::Entry { entry, .. }) => {
-                let entry = self.explorer_entry_by_id(*entry)?;
-                if entry.kind == ExplorerEntryKind::Directory {
-                    Some(entry.path.clone())
+                let node = self.explorer_node_by_id(*entry)?;
+                if node.kind == ExplorerEntryKind::Directory {
+                    Some(node.path.clone())
                 } else {
-                    entry.path.parent().map(Path::to_path_buf)
+                    node.path.parent().map(Path::to_path_buf)
                 }
             }
             _ => self.last_explorer_root_path(),
@@ -205,9 +206,8 @@ impl Shell {
         let items: Vec<PathBuf> = clipboard
             .items()
             .iter()
-            .filter_map(|selection| {
-                self.explorer_entry_for_selection(selection)
-                    .map(|entry| entry.path.clone())
+            .filter_map(|selection| match selection {
+                ExplorerSelection::Entry { entry, .. } => self.explorer_path_for_id(*entry),
             })
             .collect();
         if items.is_empty() {

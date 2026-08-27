@@ -1,4 +1,4 @@
-﻿//! Explorer rendering: the virtualized file-tree list and dispatcher.
+//! Explorer rendering: the virtualized file-tree list and dispatcher.
 
 pub(crate) mod edit_row;
 pub(crate) mod empty_state;
@@ -131,6 +131,18 @@ impl Shell {
             .on_action(cx.listener(Self::on_explorer_select_parent))
             .on_action(cx.listener(Self::on_explorer_select_first))
             .on_action(cx.listener(Self::on_explorer_select_last))
+            .on_action(cx.listener(Self::on_explorer_expand_selected))
+            .on_action(cx.listener(Self::on_explorer_collapse_selected))
+            .on_action(cx.listener(Self::on_explorer_expand_selected_and_children))
+            .on_action(cx.listener(Self::on_explorer_collapse_selected_and_children))
+            .on_action(cx.listener(Self::on_explorer_expand_all_entries))
+            .on_action(cx.listener(Self::on_explorer_collapse_all_entries))
+            .on_action(cx.listener(Self::on_explorer_open_selected))
+            .on_action(cx.listener(Self::on_explorer_rename_selected))
+            .on_action(cx.listener(Self::on_explorer_delete_selected))
+            .on_action(cx.listener(Self::on_explorer_trash_selected))
+            .on_action(cx.listener(Self::on_explorer_new_file))
+            .on_action(cx.listener(Self::on_explorer_new_directory))
             .on_action(cx.listener(Self::on_explorer_scroll_up))
             .on_action(cx.listener(Self::on_explorer_scroll_down))
             .on_action(cx.listener(Self::on_explorer_scroll_cursor_center))

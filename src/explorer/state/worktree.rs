@@ -51,6 +51,22 @@ pub struct WorktreeSnapshot {
     inode_to_id: HashMap<u64, u64>,
 }
 
+/// Returns the parent directories of `path` that do not yet exist in the given
+/// worktree and would therefore be created when an entry is placed at `path`,
+/// ordered from the deepest to the shallowest (mirrors Zed's `missing_parent_dirs`).
+pub fn missing_parent_dirs(snapshot: &WorktreeSnapshot, path: &Path) -> Vec<PathBuf> {
+    let mut dirs = Vec::new();
+    let mut current = path.parent();
+    while let Some(parent) = current {
+        if parent.as_os_str().is_empty() || snapshot.id_for_path.contains_key(parent) {
+            break;
+        }
+        dirs.push(parent.to_path_buf());
+        current = parent.parent();
+    }
+    dirs
+}
+
 // ── Events ──────────────────────────────────────────────────────────────
 
 #[derive(Clone, Debug)]

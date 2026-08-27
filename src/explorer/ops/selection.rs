@@ -21,6 +21,18 @@ actions!(
         SelectParent,
         SelectFirst,
         SelectLast,
+        ExpandSelectedEntry,
+        CollapseSelectedEntry,
+        ExpandSelectedEntryAndChildren,
+        CollapseSelectedEntryAndChildren,
+        ExpandAllEntries,
+        CollapseAllEntries,
+        OpenSelectedEntry,
+        RenameSelectedEntry,
+        DeleteSelectedEntry,
+        TrashSelectedEntry,
+        NewFile,
+        NewDirectory,
         ScrollCursorCenter,
         ScrollCursorTop,
         ScrollCursorBottom,
@@ -447,5 +459,235 @@ impl Shell {
             .scroll_handle
             .scroll_to_item_strict(index, ScrollStrategy::Bottom);
         cx.notify();
+    }
+
+    /// Expand the selected entry (if collapsed directory, expands it; if already expanded, selects first child).
+    pub(crate) fn on_explorer_expand_selected(
+        &mut self,
+        _: &ExpandSelectedEntry,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.panels.explorer.edit.is_some() {
+            return;
+        }
+        let Some(index) = self.explorer_selected_row_index() else {
+            return;
+        };
+        let Some(ExplorerRow::Entry(entry)) = self.panels.explorer.entries.get(index) else {
+            return;
+        };
+        let entry_id = entry.id;
+        let kind = entry.kind;
+        let is_expanded = entry.is_expanded;
+        let has_children = entry.has_children;
+        if kind == ExplorerEntryKind::Directory {
+            if !is_expanded && has_children {
+                self.toggle_explorer_node(entry_id, cx);
+            } else if is_expanded && has_children {
+                // Already expanded: move selection to the first child (next row)
+                self.explorer_move_selection(1, false, cx);
+            }
+        }
+    }
+
+    /// Collapse the selected entry (if expanded directory, collapses it; if collapsed or file, selects parent).
+    pub(crate) fn on_explorer_collapse_selected(
+        &mut self,
+        _: &CollapseSelectedEntry,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.panels.explorer.edit.is_some() {
+            return;
+        }
+        let Some(index) = self.explorer_selected_row_index() else {
+            return;
+        };
+        let Some(ExplorerRow::Entry(entry)) = self.panels.explorer.entries.get(index) else {
+            return;
+        };
+        let entry_id = entry.id;
+        let kind = entry.kind;
+        let is_expanded = entry.is_expanded;
+        let parent_id = entry.parent_id;
+        if kind == ExplorerEntryKind::Directory && is_expanded {
+            self.toggle_explorer_node(entry_id, cx);
+        } else if let Some(parent_id) = parent_id {
+            // Select parent directory
+            if let Some(parent_index) = self
+                .panels
+                .explorer
+                .entries
+                .iter()
+                .position(|row| matches!(row, ExplorerRow::Entry(e) if e.id == parent_id))
+            {
+                self.set_explorer_selection_at_index(parent_index, false, cx);
+            }
+        }
+    }
+
+    pub(crate) fn on_explorer_expand_selected_and_children(
+        &mut self,
+        _: &ExpandSelectedEntryAndChildren,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.panels.explorer.edit.is_some() {
+            return;
+        }
+        if let Some(ExplorerSelection::Entry { entry, .. }) = self.panels.explorer.selected {
+            self.expand_all_explorer_for_entry(entry, cx);
+        }
+    }
+
+    pub(crate) fn on_explorer_collapse_selected_and_children(
+        &mut self,
+        _: &CollapseSelectedEntryAndChildren,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.panels.explorer.edit.is_some() {
+            return;
+        }
+        if let Some(ExplorerSelection::Entry { entry, .. }) = self.panels.explorer.selected {
+            self.collapse_all_explorer_for_entry(entry, cx);
+        }
+    }
+
+    pub(crate) fn on_explorer_expand_all_entries(
+        &mut self,
+        _: &ExpandAllEntries,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.expand_all_explorer_nodes(cx);
+    }
+
+    pub(crate) fn on_explorer_collapse_all_entries(
+        &mut self,
+        _: &CollapseAllEntries,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.collapse_all_explorer_nodes(cx);
+    }
+
+    pub(crate) fn on_explorer_open_selected(
+        &mut self,
+        _: &OpenSelectedEntry,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.panels.explorer.edit.is_some() {
+            return;
+        }
+        let Some(index) = self.explorer_selected_row_index() else {
+            return;
+        };
+        let Some(ExplorerRow::Entry(entry)) = self.panels.explorer.entries.get(index) else {
+            return;
+        };
+        let entry_id = entry.id;
+        let path = entry.path.clone();
+        let kind = entry.kind;
+        if kind == ExplorerEntryKind::Directory {
+            self.toggle_explorer_node(entry_id, cx);
+        } else {
+            self.open_explorer_file(path, window, cx);
+        }
+    }
+
+    pub(crate) fn on_explorer_rename_selected(
+        &mut self,
+        _: &RenameSelectedEntry,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.panels.explorer.edit.is_some() {
+            return;
+        }
+        let Some(index) = self.explorer_selected_row_index() else {
+            return;
+        };
+        let Some(ExplorerRow::Entry(entry)) = self.panels.explorer.entries.get(index) else {
+            return;
+        };
+        let path = entry.path.clone();
+        self.begin_inline_rename(path, window, cx);
+    }
+
+    pub(crate) fn on_explorer_delete_selected(
+        &mut self,
+        _: &DeleteSelectedEntry,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.panels.explorer.edit.is_some() {
+            return;
+        }
+        self.delete_explorer_selections(window, cx);
+    }
+
+    pub(crate) fn on_explorer_trash_selected(
+        &mut self,
+        _: &TrashSelectedEntry,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        if self.panels.explorer.edit.is_some() {
+            return;
+        }
+        self.trash_explorer_selections(window, cx);
+    }
+
+    pub(crate) fn on_explorer_new_file(
+        &mut self,
+        _: &NewFile,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let parent = match &self.panels.explorer.selected {
+            Some(ExplorerSelection::Entry { entry, .. }) => {
+                if let Some(node) = self.explorer_entry_by_id(*entry) {
+                    if node.kind == ExplorerEntryKind::Directory {
+                        node.path.clone()
+                    } else {
+                        node.path.parent().map(Path::to_path_buf).unwrap_or_else(|| node.path.clone())
+                    }
+                } else {
+                    self.last_explorer_root_path().unwrap_or_default()
+                }
+            }
+            _ => self.last_explorer_root_path().unwrap_or_default(),
+        };
+        if !parent.as_os_str().is_empty() {
+            self.begin_inline_create_file(parent, window, cx);
+        }
+    }
+
+    pub(crate) fn on_explorer_new_directory(
+        &mut self,
+        _: &NewDirectory,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let parent = match &self.panels.explorer.selected {
+            Some(ExplorerSelection::Entry { entry, .. }) => {
+                if let Some(node) = self.explorer_entry_by_id(*entry) {
+                    if node.kind == ExplorerEntryKind::Directory {
+                        node.path.clone()
+                    } else {
+                        node.path.parent().map(Path::to_path_buf).unwrap_or_else(|| node.path.clone())
+                    }
+                } else {
+                    self.last_explorer_root_path().unwrap_or_default()
+                }
+            }
+            _ => self.last_explorer_root_path().unwrap_or_default(),
+        };
+        if !parent.as_os_str().is_empty() {
+            self.begin_inline_create_folder(parent, window, cx);
+        }
     }
 }

@@ -99,6 +99,45 @@ pub struct ExplorerFileNode {
     pub children: Vec<ExplorerFileNode>,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct FoldedAncestors {
+    pub current_ancestor_depth: usize,
+    pub ancestors: Vec<ExplorerEntryId>,
+}
+
+impl FoldedAncestors {
+    pub fn max_ancestor_depth(&self) -> usize {
+        self.ancestors.len()
+    }
+
+    /// Note: This returns None for last item in ancestors list
+    pub fn active_ancestor(&self) -> Option<ExplorerEntryId> {
+        if self.current_ancestor_depth == 0 {
+            return None;
+        }
+        self.ancestors.get(self.current_ancestor_depth).copied()
+    }
+
+    pub fn active_index(&self) -> usize {
+        self.max_ancestor_depth()
+            .saturating_sub(1)
+            .saturating_sub(self.current_ancestor_depth)
+    }
+
+    pub fn set_active_index(&mut self, index: usize) -> bool {
+        let new_depth = self
+            .max_ancestor_depth()
+            .saturating_sub(1)
+            .saturating_sub(index);
+        if self.current_ancestor_depth != new_depth {
+            self.current_ancestor_depth = new_depth;
+            true
+        } else {
+            false
+        }
+    }
+}
+
 /// One visible row in the file-tree list. The flat list is derived from the
 /// scanned tree plus the expansion set (mirrors Zed's `visible_entries`).
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -113,6 +152,7 @@ pub struct VisibleExplorerEntry {
     pub kind: ExplorerEntryKind,
     pub is_expanded: bool,
     pub has_children: bool,
+    pub ancestors: Option<FoldedAncestors>,
 }
 
 // ── Selection ───────────────────────────────────────────────────────────
@@ -275,6 +315,10 @@ pub struct ExplorerState {
     pub next_entry_id: Arc<AtomicU64>,
     /// Expanded directory ids per worktree index (Zed's `expanded_dir_ids`).
     pub expanded: HashMap<usize, BTreeSet<ExplorerEntryId>>,
+    /// Unfolded directory ids (explicitly unfolded compact directories, mirrors Zed).
+    pub unfolded_dir_ids: std::collections::HashSet<ExplorerEntryId>,
+    /// Maps from leaf entry id to its compact folded ancestors (Zed's `ancestors`).
+    pub ancestors: HashMap<ExplorerEntryId, FoldedAncestors>,
     /// Rebuilt tree per worktree, refreshed whenever a worktree scan
     /// completes (the panel's working copy of each snapshot).
     pub trees_cache: Vec<ExplorerFileNode>,
@@ -328,6 +372,8 @@ impl Default for ExplorerState {
             worktrees: Vec::new(),
             next_entry_id: Arc::new(AtomicU64::new(1)),
             expanded: HashMap::new(),
+            unfolded_dir_ids: std::collections::HashSet::new(),
+            ancestors: HashMap::new(),
             trees_cache: Vec::new(),
             file_error: None,
             entries: Vec::new(),
@@ -383,6 +429,8 @@ impl ExplorerState {
             worktrees: self.worktrees.clone(),
             next_entry_id: self.next_entry_id.clone(),
             expanded: self.expanded.clone(),
+            unfolded_dir_ids: self.unfolded_dir_ids.clone(),
+            ancestors: self.ancestors.clone(),
             trees_cache: self.trees_cache.clone(),
             file_error: self.file_error.clone(),
             entries: self.entries.clone(),
@@ -508,6 +556,7 @@ pub fn flatten_file_tree(
         kind: root.kind,
         is_expanded: expanded.contains(&root.id),
         has_children: !root.children.is_empty(),
+        ancestors: None,
     });
     if out[0].is_expanded && root.kind == ExplorerEntryKind::Directory {
         flatten_children(
@@ -599,6 +648,7 @@ fn flatten_children(
             kind: node.kind,
             is_expanded,
             has_children: !node.children.is_empty(),
+            ancestors: None,
         });
         if is_expanded && !node.children.is_empty() {
             flatten_children(
@@ -693,6 +743,7 @@ mod tests {
             kind: ExplorerEntryKind::Directory,
             is_expanded: true,
             has_children: true,
+            ancestors: None,
         }));
         state.selected = Some(ExplorerSelection::Entry {
             root: 0,

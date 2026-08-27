@@ -1,4 +1,4 @@
-﻿use std::path::Path;
+use std::path::Path;
 
 use gpui::*;
 
@@ -31,7 +31,8 @@ impl Shell {
         let t = &theme.typography;
         let selected = matches!(
             &self.panels.explorer.selected,
-            Some(ExplorerSelection::Entry { entry: entry_id, .. }) if *entry_id == entry.id
+            Some(ExplorerSelection::Entry { root, entry: entry_id })
+                if *root == entry.root && *entry_id == entry.id
         );
         let is_drag_target = drag_highlight
             .is_some_and(|highlight| entry.path == *highlight || entry.path.starts_with(highlight));

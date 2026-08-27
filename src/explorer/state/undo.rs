@@ -17,6 +17,8 @@ pub enum ExplorerChange {
     Renamed { from: PathBuf, to: PathBuf },
     Moved { from: PathBuf, to: PathBuf },
     Copied { source: PathBuf, dest: PathBuf },
+    DirCreated(PathBuf),
+    DirRemoved(PathBuf),
     Batch(Vec<ExplorerChange>),
 }
 
@@ -57,6 +59,8 @@ pub fn explorer_change_destination(change: &ExplorerChange) -> Option<&Path> {
         ExplorerChange::Created { path, .. } => Some(path),
         ExplorerChange::Renamed { to, .. } | ExplorerChange::Moved { to, .. } => Some(to),
         ExplorerChange::Copied { dest, .. } => Some(dest),
+        ExplorerChange::DirCreated(path) => Some(path),
+        ExplorerChange::DirRemoved(_) => None,
         ExplorerChange::Batch(changes) => changes.last().and_then(explorer_change_destination),
     }
 }
@@ -82,6 +86,13 @@ pub fn remove_path_symlink_safe(path: &Path) -> std::io::Result<()> {
     }
 }
 
+pub fn remove_empty_dir_only(path: &Path) -> std::io::Result<()> {
+    if path.is_dir() && std::fs::read_dir(path)?.next().is_none() {
+        std::fs::remove_dir(path)?;
+    }
+    Ok(())
+}
+
 /// Execute a recorded file operation (redo).
 pub fn execute_explorer_change(change: &ExplorerChange) -> Result<(), ExplorerError> {
     match change {
@@ -101,6 +112,17 @@ pub fn execute_explorer_change(change: &ExplorerChange) -> Result<(), ExplorerEr
                     source,
                 })?;
             }
+            Ok(())
+        }
+        ExplorerChange::DirCreated(path) => {
+            std::fs::create_dir_all(path).map_err(|source| ExplorerError::CreateDirFailed {
+                path: path.clone(),
+                source,
+            })?;
+            Ok(())
+        }
+        ExplorerChange::DirRemoved(path) => {
+            let _ = remove_empty_dir_only(path);
             Ok(())
         }
         ExplorerChange::Renamed { from, to } | ExplorerChange::Moved { from, to } => {
@@ -159,6 +181,17 @@ pub fn execute_explorer_change_inverse(change: &ExplorerChange) -> Result<(), Ex
                     source,
                 })?;
             }
+            Ok(())
+        }
+        ExplorerChange::DirCreated(path) => {
+            let _ = remove_empty_dir_only(path);
+            Ok(())
+        }
+        ExplorerChange::DirRemoved(path) => {
+            std::fs::create_dir_all(path).map_err(|source| ExplorerError::CreateDirFailed {
+                path: path.clone(),
+                source,
+            })?;
             Ok(())
         }
         ExplorerChange::Renamed { from, to } | ExplorerChange::Moved { from, to } => {

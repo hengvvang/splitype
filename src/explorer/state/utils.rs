@@ -11,6 +11,12 @@ use super::undo::ExplorerChange;
 
 /// Recursively copy a directory tree (`fs::copy` is file-only).
 pub fn copy_dir_all(source: &Path, destination: &Path) -> std::io::Result<()> {
+    if destination.starts_with(source) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "cannot copy directory into itself or its subtree",
+        ));
+    }
     std::fs::create_dir_all(destination)?;
     for entry in std::fs::read_dir(source)? {
         let entry = entry?;
@@ -80,11 +86,11 @@ pub fn execute_entry_ops(
 ) -> Vec<ExplorerChange> {
     let mut changes = Vec::new();
     for source in items {
+        // Moving or copying a directory into its own subtree is an invalid circular operation.
+        if source.is_dir() && target_dir.starts_with(source) {
+            continue;
+        }
         if is_cut {
-            // Moving into the entry's own subtree is an invalid circular move.
-            if target_dir.starts_with(source) {
-                continue;
-            }
             let destination = target_dir.join(source.file_name().unwrap_or_default());
             if source == &destination {
                 continue;

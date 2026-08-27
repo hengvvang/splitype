@@ -394,24 +394,67 @@ impl Shell {
     }
 
     pub(crate) fn reveal_in_file_explorer(&self, path: &Path) {
-        let path = path.to_path_buf();
         #[cfg(target_os = "windows")]
         {
+            let path_str = path.to_string_lossy().replace('/', "\\");
             let _ = std::process::Command::new("explorer.exe")
-                .arg(format!("/select,{}", path.display()))
+                .arg(format!("/select,{}", path_str))
                 .spawn();
         }
         #[cfg(target_os = "macos")]
         {
             let _ = std::process::Command::new("open")
                 .arg("-R")
-                .arg(&path)
+                .arg(path)
                 .spawn();
         }
         #[cfg(target_os = "linux")]
         {
-            let parent = path.parent().unwrap_or(&path);
+            let parent = path.parent().unwrap_or(path);
             let _ = std::process::Command::new("xdg-open").arg(parent).spawn();
+        }
+    }
+
+    pub(crate) fn open_in_terminal(&self, path: &Path) {
+        let dir = if path.is_dir() {
+            path.to_path_buf()
+        } else {
+            path.parent().map(Path::to_path_buf).unwrap_or_else(|| path.to_path_buf())
+        };
+        #[cfg(target_os = "windows")]
+        {
+            let dir_str = dir.to_string_lossy().replace('/', "\\");
+            let _ = std::process::Command::new("wt.exe")
+                .arg("-d")
+                .arg(&dir_str)
+                .spawn()
+                .or_else(|_| {
+                    std::process::Command::new("powershell.exe")
+                        .current_dir(&dir)
+                        .spawn()
+                })
+                .or_else(|_| {
+                    std::process::Command::new("cmd.exe")
+                        .arg("/c")
+                        .arg("start")
+                        .arg("cmd.exe")
+                        .current_dir(&dir)
+                        .spawn()
+                });
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let _ = std::process::Command::new("open")
+                .arg("-a")
+                .arg("Terminal")
+                .arg(&dir)
+                .spawn();
+        }
+        #[cfg(target_os = "linux")]
+        {
+            let _ = std::process::Command::new("x-terminal-emulator")
+                .current_dir(&dir)
+                .spawn();
         }
     }
 
@@ -465,11 +508,12 @@ impl Shell {
     pub(crate) fn open_explorer_with_system(&self, path: &Path) {
         #[cfg(target_os = "windows")]
         {
+            let path_str = path.to_string_lossy().replace('/', "\\");
             let _ = std::process::Command::new("cmd")
                 .arg("/c")
                 .arg("start")
                 .arg("")
-                .arg(path)
+                .arg(path_str)
                 .spawn();
         }
         #[cfg(target_os = "macos")]
