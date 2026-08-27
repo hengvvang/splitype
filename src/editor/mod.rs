@@ -11,6 +11,7 @@ pub mod input;
 pub mod panes;
 pub mod plugins;
 pub mod projection;
+pub mod search;
 
 pub use commands::actions;
 pub use commands::keybindings;

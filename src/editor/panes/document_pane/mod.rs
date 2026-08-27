@@ -173,6 +173,11 @@ impl Render for Editor {
         } else {
             base
         };
+        let base = if let Some(search_overlay) = self.render_search_panel_overlay(&theme, window, cx) {
+            base.child(search_overlay)
+        } else {
+            base
+        };
         // Window-level dialogs (unsaved changes, drop-replace, Help-menu
         // info) render on the Shell at the window root.
         base.into_any_element()

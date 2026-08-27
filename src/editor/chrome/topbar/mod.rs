@@ -1,4 +1,4 @@
-﻿//! Top bar of an Editor area: the area type selector, split/close controls
+//! Top bar of an Editor area: the area type selector, split/close controls
 //! and the Editor-specific tab bar.
 
 use gpui::prelude::FluentBuilder;
@@ -96,10 +96,32 @@ impl crate::editor::engine::controller::Editor {
                 });
             });
 
+        let search_editor = editor.clone();
+        let is_search_active = self.search.visible;
+        let search_button = icon_chip_button(c, d)
+            .id(("panel-topbar-search", panel_id.0))
+            .bg(if is_search_active { c.panel_row_selected } else { hsla(0.0, 0.0, 0.0, 0.0) })
+            .child(
+                svg()
+                    .path("icons/editor/topbar/search.svg")
+                    .size(px(btn_icon_size))
+                    .text_color(if is_search_active { c.app_menu_active } else { c.dialog_muted }),
+            )
+            .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+                let _ = search_editor.update(cx, |editor, cx| {
+                    editor.search.visible = !editor.search.visible;
+                    if editor.search.visible {
+                        editor.execute_search(cx);
+                    }
+                    cx.notify();
+                });
+            });
+
         let mut actions = div()
             .flex()
             .items_center()
             .gap(px(4.0))
+            .child(search_button)
             .child(split_v_button)
             .child(split_h_button);
 

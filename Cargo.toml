@@ -100,6 +100,7 @@ unicode-segmentation = "1.13"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 schemars = "1"
+regex = "1.10"
 futures = "0.3"
 toml = "1"
 chromiumoxide = { version = "0.9.1", default-features = false, features = ["bytes"] }

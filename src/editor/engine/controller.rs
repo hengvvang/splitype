@@ -352,6 +352,8 @@ pub struct Editor {
     /// keyboard commands). One Editor entity serves one area, so the area
     /// (panel) id alone identifies it.
     pub(crate) focused_pane_id: Option<PaneId>,
+    /// In-buffer and workspace search and replace state.
+    pub(crate) search: crate::editor::search::SearchPanelState,
 }
 
 /// Binding between a table block and one cell editor.
@@ -556,7 +558,7 @@ impl Editor {
     pub(crate) fn with_session(
         panel_id: impl Into<PanelId>,
         session: EditorSession,
-        _cx: &mut Context<Self>,
+        cx: &mut Context<Self>,
     ) -> Self {
         Self {
             panel_id: panel_id.into(),
@@ -575,6 +577,7 @@ impl Editor {
             table_size_picker: None,
             welcome_last_click: None,
             focused_pane_id: None,
+            search: crate::editor::search::SearchPanelState::new(cx),
         }
     }
 
@@ -606,6 +609,7 @@ impl Editor {
             table_size_picker: None,
             welcome_last_click: None,
             focused_pane_id: None,
+            search: crate::editor::search::SearchPanelState::new(cx),
         };
         editor.session.push_tab(tab);
         editor.rebuild_table_grids(cx);

@@ -177,6 +177,12 @@ impl AssetSource for SplitypeAssets {
             "icons/editor/topbar/close.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/topbar/close.svg"
             )))),
+            "icons/editor/topbar/search.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/topbar/search.svg"
+            )))),
+            "icons/editor/topbar/replace.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
+                "../../assets/icons/editor/topbar/replace.svg"
+            )))),
             "icons/editor/topbar/maximize.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/editor/topbar/maximize.svg"
             )))),

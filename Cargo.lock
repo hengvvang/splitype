@@ -6112,6 +6112,7 @@ dependencies = [
  "ratex-layout",
  "ratex-parser",
  "ratex-svg",
+ "regex",
  "reqwest",
  "schemars",
  "semver",
