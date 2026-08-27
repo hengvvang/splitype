@@ -346,6 +346,14 @@ impl AssetSource for SplitypeAssets {
             "icons/emoji/18.svg" => Ok(Some(Cow::Borrowed(include_bytes!(
                 "../../assets/icons/emoji/18.svg"
             )))),
+
+            // ── GPUI SVG renderer bundled font requests ──────────────────
+            "fonts/ibm-plex-sans/IBMPlexSans-Regular.ttf" | "fonts/lilex/Lilex-Regular.ttf" => {
+                Ok(Some(Cow::Borrowed(include_bytes!(
+                    "../../assets/fonts/Acherus Grotesque Regular.otf"
+                ))))
+            }
+
             _ => Ok(None),
         }
     }

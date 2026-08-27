@@ -1,4 +1,4 @@
-﻿//! Viewport geometry — scrollbar math, rendered-row windowing, and centered
+//! Viewport geometry — scrollbar math, rendered-row windowing, and centered
 //! column sizing.
 //!
 //! Pure functions over layout inputs; nothing here mutates editor state.
@@ -79,17 +79,28 @@ impl Editor {
             .min(available_content_width)
     }
 
-    pub(crate) fn request_active_block_scroll_into_view(
+    /// Request an autoscroll targeting the active block / caret with the given strategy.
+    pub(crate) fn request_autoscroll(
         &mut self,
         pane_id: PaneId,
+        strategy: crate::editor::engine::controller::AutoscrollStrategy,
         cx: &mut Context<Self>,
     ) {
         let state = self.pane_state(pane_id);
-        state.focus.pending_scroll_recheck_after_layout = true;
-        if !state.focus.pending_scroll_active_block_into_view {
-            state.focus.pending_scroll_active_block_into_view = true;
+        if state.scroll.pending_autoscroll != Some(strategy) {
+            state.scroll.pending_autoscroll = Some(strategy);
             cx.notify();
         }
+    }
+
+    /// Request an autoscroll on the currently active pane.
+    pub(crate) fn request_autoscroll_active_pane(
+        &mut self,
+        strategy: crate::editor::engine::controller::AutoscrollStrategy,
+        cx: &mut Context<Self>,
+    ) {
+        let pane_id = self.active_pane_id();
+        self.request_autoscroll(pane_id, strategy, cx);
     }
 
     pub(crate) fn viewport_size_changed(previous: Size<Pixels>, current: Size<Pixels>) -> bool {

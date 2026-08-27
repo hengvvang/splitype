@@ -63,7 +63,7 @@ impl Render for Editor {
             // again inside its document view once layout is measurable).
             let active_pane = self.active_pane_id();
             self.apply_pending_focus(active_pane, window, cx);
-            self.apply_pending_scroll_into_view(active_pane, window, cx);
+            self.apply_pending_autoscroll(active_pane, window, cx);
             self.tab_mut().undo.last_selection_snapshot =
                 self.capture_source_selection_snapshot(cx);
             self.sync_pending_save(window, cx);

@@ -318,7 +318,9 @@ impl Editor {
         if let Some(focus_id) = restore_focus {
             let pane = self.active_pane_state();
             pane.focus.pending = Some(focus_id);
-            pane.focus.pending_scroll_active_block_into_view = true;
+            pane.scroll.pending_autoscroll = Some(crate::editor::engine::controller::AutoscrollStrategy::Fit {
+                margin: px(20.0),
+            });
         }
         cx.notify();
     }
@@ -508,7 +510,9 @@ impl Editor {
         if let Some(focus_id) = restore_focus {
             let pane = self.active_pane_state();
             pane.focus.pending = Some(focus_id);
-            pane.focus.pending_scroll_active_block_into_view = true;
+            pane.scroll.pending_autoscroll = Some(crate::editor::engine::controller::AutoscrollStrategy::Fit {
+                margin: px(20.0),
+            });
         }
         cx.notify();
     }

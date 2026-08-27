@@ -1,4 +1,4 @@
-﻿//! Table row operations: insert, append, duplicate, move, delete, expand.
+//! Table row operations: insert, append, duplicate, move, delete, expand.
 
 use gpui::*;
 
@@ -22,7 +22,10 @@ impl Editor {
         {
             self.focus_block(cell.entity_id());
         }
-        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+        self.request_autoscroll_active_pane(
+            crate::editor::engine::controller::AutoscrollStrategy::Fit { margin: px(20.0) },
+            cx,
+        );
     }
 
     pub(crate) fn move_table_row(
@@ -62,7 +65,10 @@ impl Editor {
                 },
                 cx,
             );
-            self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+            self.request_autoscroll_active_pane(
+                crate::editor::engine::controller::AutoscrollStrategy::Fit { margin: px(20.0) },
+                cx,
+            );
         }
     }
 
@@ -104,7 +110,10 @@ impl Editor {
             },
             cx,
         );
-        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+        self.request_autoscroll_active_pane(
+            crate::editor::engine::controller::AutoscrollStrategy::Fit { margin: px(20.0) },
+            cx,
+        );
     }
 
     pub(crate) fn delete_table_header_row(
@@ -121,7 +130,10 @@ impl Editor {
         if deleted {
             self.clear_table_axis_selection(cx);
             self.focus_table_cell_position(table_block, TableCellPosition { row: 0, column: 0 }, cx);
-            self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+            self.request_autoscroll_active_pane(
+                crate::editor::engine::controller::AutoscrollStrategy::Fit { margin: px(20.0) },
+                cx,
+            );
         }
     }
 
@@ -156,7 +168,10 @@ impl Editor {
         self.clear_table_axis_selection(cx);
         self.focus_block(paragraph.entity_id());
         self.mark_dirty(cx);
-        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+        self.request_autoscroll_active_pane(
+            crate::editor::engine::controller::AutoscrollStrategy::Fit { margin: px(20.0) },
+            cx,
+        );
         if started_local_capture {
             self.finalize_pending_undo_capture(cx);
         }

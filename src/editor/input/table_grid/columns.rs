@@ -1,4 +1,4 @@
-﻿//! Table column operations: insert, append, duplicate, move, align, delete.
+//! Table column operations: insert, append, duplicate, move, align, delete.
 
 use gpui::*;
 
@@ -28,7 +28,10 @@ impl Editor {
         {
             self.focus_block(cell.entity_id());
         }
-        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+        self.request_autoscroll_active_pane(
+            crate::editor::engine::controller::AutoscrollStrategy::Fit { margin: px(20.0) },
+            cx,
+        );
     }
 
     pub(crate) fn set_table_column_alignment(
@@ -48,7 +51,10 @@ impl Editor {
         };
         self.set_table_axis_selection(Some(selection), cx);
         self.focus_table_cell_position(table_block, TableCellPosition { row: 0, column }, cx);
-        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+        self.request_autoscroll_active_pane(
+            crate::editor::engine::controller::AutoscrollStrategy::Fit { margin: px(20.0) },
+            cx,
+        );
     }
 
     pub(crate) fn move_table_column(
@@ -87,7 +93,10 @@ impl Editor {
                 },
                 cx,
             );
-            self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+            self.request_autoscroll_active_pane(
+                crate::editor::engine::controller::AutoscrollStrategy::Fit { margin: px(20.0) },
+                cx,
+            );
         }
     }
 
@@ -119,7 +128,10 @@ impl Editor {
                 },
                 cx,
             );
-            self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+            self.request_autoscroll_active_pane(
+                crate::editor::engine::controller::AutoscrollStrategy::Fit { margin: px(20.0) },
+                cx,
+            );
         }
     }
 

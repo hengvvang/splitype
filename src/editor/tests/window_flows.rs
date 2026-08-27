@@ -1,9 +1,9 @@
-﻿//! Window-level flows: menu actions, close guards, quit,
+//! Window-level flows: menu actions, close guards, quit,
 //! pane-click panel activation.
 
 use std::fs;
 
-use gpui::{AppContext, MouseButton, TestAppContext};
+use gpui::{px, AppContext, MouseButton, TestAppContext};
 
 use crate::app::actions::{CloseWindow, QuitApplication};
 use crate::app::window::panels::{DEFAULT_EDITOR_PANEL_ID, WindowPanelKind};
@@ -440,12 +440,10 @@ fn starting_and_ending_scrollbar_drag_updates_editor_state(cx: &mut TestAppConte
     editor.update(cx, |editor, cx| {
         editor
             .active_pane_state()
-            .focus
-            .pending_scroll_active_block_into_view = true;
-        editor
-            .active_pane_state()
-            .focus
-            .pending_scroll_recheck_after_layout = true;
+            .scroll
+            .pending_autoscroll = Some(crate::editor::engine::controller::AutoscrollStrategy::Fit {
+                margin: px(20.0),
+            });
 
         let pane_id = editor.active_pane_id();
         editor.start_scrollbar_drag(pane_id, 12.0, 320.0, 64.0, 500.0, cx);
@@ -458,16 +456,7 @@ fn starting_and_ending_scrollbar_drag_updates_editor_state(cx: &mut TestAppConte
                 max_scroll_y: 500.0,
             })
         );
-        assert!(
-            !editor
-                .active_pane_focus()
-                .pending_scroll_active_block_into_view
-        );
-        assert!(
-            !editor
-                .active_pane_focus()
-                .pending_scroll_recheck_after_layout
-        );
+        assert!(editor.active_pane_scroll().pending_autoscroll.is_none());
 
         editor.update_scrollbar_drag(pane_id, 172.0, cx);
         let offset_y = -f32::from(editor.active_pane_scroll().handle.offset().y);

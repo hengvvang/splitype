@@ -1,4 +1,4 @@
-﻿//! Navigation: page keys, viewport scrolling, and table-cell focus
+//! Navigation: page keys, viewport scrolling, and table-cell focus
 //! movement. Mouse/scrollbar interactions live in `mouse`; menu input
 //! lives in `crate::editor::panes::document_pane::menu`.
 
@@ -99,10 +99,7 @@ impl Editor {
         {
             let state = self.pane_state(pane_id);
             state.scroll.handle.set_offset(offset);
-            // A direct viewport scroll should stick, so cancel any queued pass that
-            // would otherwise re-center the active block on the next frame.
-            state.focus.pending_scroll_active_block_into_view = false;
-            state.focus.pending_scroll_recheck_after_layout = false;
+            state.scroll.pending_autoscroll = None;
         }
         self.bump_scrollbar_visibility(pane_id, cx);
         cx.notify();
@@ -306,7 +303,10 @@ impl Editor {
                 self.sync_table_data_from_grid(&binding.table_block, cx);
                 self.sync_references_after_block_change(&binding.cell, cx);
                 self.mark_dirty(cx);
-                self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+                self.request_autoscroll_active_pane(
+                    crate::editor::engine::controller::AutoscrollStrategy::Fit { margin: px(20.0) },
+                    cx,
+                );
                 self.finalize_pending_undo_capture(cx);
             }
             BlockEvent::RequestOpenLink {
@@ -361,7 +361,10 @@ impl Editor {
                 self.rebuild_reference_registries(cx);
                 self.focus_block(new_block.entity_id());
                 self.mark_dirty(cx);
-                self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+                self.request_autoscroll_active_pane(
+                    crate::editor::engine::controller::AutoscrollStrategy::Fit { margin: px(20.0) },
+                    cx,
+                );
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }

@@ -1,4 +1,4 @@
-﻿//! Table axis selection, hover preview, context menus, and visual synchronization.
+//! Table axis selection, hover preview, context menus, and visual synchronization.
 
 use gpui::*;
 
@@ -108,7 +108,10 @@ impl Editor {
         self.tab_mut().tables.axis_preview = None;
         self.set_table_axis_selection(Some(selection), cx);
         self.mark_dirty(cx);
-        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+        self.request_autoscroll_active_pane(
+            crate::editor::engine::controller::AutoscrollStrategy::Fit { margin: px(20.0) },
+            cx,
+        );
         if started_local_capture {
             self.finalize_pending_undo_capture(cx);
         }

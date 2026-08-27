@@ -1,4 +1,4 @@
-﻿//! Outline panel — heading tree navigation.
+//! Outline panel — heading tree navigation.
 //!
 //! The outline is an Editor pane: its state lives on each Editor
 //! entity (derived from that editor's own active document), so every area's
@@ -46,7 +46,12 @@ impl Editor {
                 if let Some(block) = self.doc().block_entity_by_id(*entity_id) {
                     self.focus_block(*entity_id);
                     Self::reset_block_cursor(&block, 0, cx);
-                    self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+                    self.request_autoscroll_active_pane(
+                        crate::editor::engine::controller::AutoscrollStrategy::Top {
+                            margin: px(40.0),
+                        },
+                        cx,
+                    );
                 }
             }
             OutlineNodeKind::Heading { line, .. } => {
@@ -59,7 +64,12 @@ impl Editor {
                     let entity_id = entity.entity_id();
                     self.focus_block(entity_id);
                     Self::reset_block_cursor(&entity, 0, cx);
-                    self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+                    self.request_autoscroll_active_pane(
+                        crate::editor::engine::controller::AutoscrollStrategy::Top {
+                            margin: px(40.0),
+                        },
+                        cx,
+                    );
                 }
             }
         }

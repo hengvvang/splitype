@@ -158,8 +158,9 @@ impl Editor {
         {
             let pane_id = self.active_pane_id();
             let state = self.pane_state(pane_id);
-            state.focus.pending_scroll_active_block_into_view = true;
-            state.focus.pending_scroll_recheck_after_layout = true;
+            state.scroll.pending_autoscroll = Some(crate::editor::engine::controller::AutoscrollStrategy::Fit {
+                margin: px(20.0),
+            });
             state.scroll.last_viewport_size = None;
         }
         self.tab_mut().file.pending_window_title_refresh = true;

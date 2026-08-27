@@ -218,8 +218,9 @@ impl Editor {
         self.apply_selection_snapshot_in_current_mode(selection, cx);
         {
             let pane = self.active_pane_state();
-            pane.focus.pending_scroll_active_block_into_view = true;
-            pane.focus.pending_scroll_recheck_after_layout = true;
+            pane.scroll.pending_autoscroll = Some(crate::editor::engine::controller::AutoscrollStrategy::Fit {
+                margin: px(20.0),
+            });
             pane.scroll.last_viewport_size = None;
         }
     }

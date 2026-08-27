@@ -1,4 +1,4 @@
-﻿//! Pre-frame bookkeeping and lifecycle state synchronization for the editor.
+//! Pre-frame bookkeeping and lifecycle state synchronization for the editor.
 
 use gpui::*;
 
@@ -24,12 +24,39 @@ impl Editor {
         }
     }
 
-    pub(crate) fn ensure_focused_caret_visible(
+    pub(crate) fn apply_pending_autoscroll(
         &mut self,
         pane_id: PaneId,
         window: &Window,
         cx: &App,
+    ) {
+        if self
+            .pane_state_ref(pane_id)
+            .is_none_or(|state| state.scroll.scrollbar_drag.is_some())
+        {
+            return;
+        }
+
+        let strategy = self
+            .pane_state(pane_id)
+            .scroll
+            .pending_autoscroll
+            .take();
+
+        if let Some(strategy) = strategy {
+            self.execute_autoscroll(pane_id, strategy, window, cx);
+        }
+    }
+
+    pub(crate) fn execute_autoscroll(
+        &mut self,
+        pane_id: PaneId,
+        strategy: crate::editor::engine::controller::AutoscrollStrategy,
+        window: &Window,
+        cx: &App,
     ) -> bool {
+        use crate::editor::engine::controller::AutoscrollStrategy;
+
         let Some(focused_block) = self.focused_edit_target(window, cx) else {
             return false;
         };
@@ -44,18 +71,37 @@ impl Editor {
             .expect("pane state exists")
             .scroll;
         let viewport = scroll.handle.bounds();
-        let padding = px(20.0);
-        let top_limit = viewport.top() + padding;
-        let bottom_limit = viewport.bottom() - padding;
         let mut offset = scroll.handle.offset();
         let mut changed = false;
 
-        if active_bounds.top() < top_limit {
-            offset.y += top_limit - active_bounds.top();
-            changed = true;
-        } else if active_bounds.bottom() > bottom_limit {
-            offset.y -= active_bounds.bottom() - bottom_limit;
-            changed = true;
+        match strategy {
+            AutoscrollStrategy::Fit { margin } => {
+                let top_limit = viewport.top() + margin;
+                let bottom_limit = viewport.bottom() - margin;
+                if active_bounds.top() < top_limit {
+                    offset.y += top_limit - active_bounds.top();
+                    changed = true;
+                } else if active_bounds.bottom() > bottom_limit {
+                    offset.y -= active_bounds.bottom() - bottom_limit;
+                    changed = true;
+                }
+            }
+            AutoscrollStrategy::Center => {
+                let target_center = (active_bounds.top() + active_bounds.bottom()) / 2.0;
+                let viewport_center = (viewport.top() + viewport.bottom()) / 2.0;
+                offset.y += viewport_center - target_center;
+                changed = true;
+            }
+            AutoscrollStrategy::Top { margin } => {
+                let top_limit = viewport.top() + margin;
+                offset.y += top_limit - active_bounds.top();
+                changed = true;
+            }
+            AutoscrollStrategy::Bottom { margin } => {
+                let bottom_limit = viewport.bottom() - margin;
+                offset.y -= active_bounds.bottom() - bottom_limit;
+                changed = true;
+            }
         }
 
         if changed {
@@ -66,34 +112,6 @@ impl Editor {
         }
 
         true
-    }
-
-    pub(crate) fn apply_pending_scroll_into_view(
-        &mut self,
-        pane_id: PaneId,
-        window: &Window,
-        cx: &mut Context<Self>,
-    ) {
-        if self
-            .pane_state_ref(pane_id)
-            .is_none_or(|state| state.scroll.scrollbar_drag.is_some())
-        {
-            return;
-        }
-
-        let is_pending = self
-            .pane_state_ref(pane_id)
-            .is_some_and(|state| state.focus.pending_scroll_active_block_into_view);
-        if !is_pending {
-            return;
-        }
-
-        let state = self.pane_state(pane_id);
-        state.focus.pending_scroll_active_block_into_view = false;
-        state.focus.pending_scroll_recheck_after_layout = false;
-        state.scroll.scroll_recheck_task = None;
-
-        self.ensure_focused_caret_visible(pane_id, window, cx);
     }
 
 
@@ -153,7 +171,7 @@ impl Editor {
         &mut self,
         pane_id: PaneId,
         viewport_size: Size<Pixels>,
-        cx: &mut Context<Self>,
+        _cx: &mut Context<Self>,
     ) {
         let previous = self
             .pane_state_ref(pane_id)
@@ -162,7 +180,6 @@ impl Editor {
             Some(previous) if Self::viewport_size_changed(previous, viewport_size) => {
                 let state = self.pane_state(pane_id);
                 state.scroll.last_viewport_size = Some(viewport_size);
-                self.request_active_block_scroll_into_view(pane_id, cx);
             }
             Some(_) => {}
             None => {

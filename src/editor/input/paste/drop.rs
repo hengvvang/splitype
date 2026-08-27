@@ -1,4 +1,4 @@
-﻿//! Markdown file drop detection and document loading.
+//! Markdown file drop detection and document loading.
 //!
 //! Pure path detection plus the document replace flow that loads a dropped
 //! file into the editor. The dirty-document dialogs that gate a replace
@@ -76,8 +76,9 @@ impl Editor {
         let pane_ids: Vec<PaneId> = self.tab().panes.keys().copied().collect();
         for pane_id in pane_ids {
             let pane = self.pane_state(pane_id);
-            pane.focus.pending_scroll_active_block_into_view = true;
-            pane.focus.pending_scroll_recheck_after_layout = true;
+            pane.scroll.pending_autoscroll = Some(crate::editor::engine::controller::AutoscrollStrategy::Top {
+                margin: px(0.0),
+            });
             pane.scroll.last_viewport_size = None;
             pane.scroll.handle.set_offset(point(px(0.0), px(0.0)));
             pane.focus.pending = pending_focus;

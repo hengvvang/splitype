@@ -1,4 +1,4 @@
-﻿//! Block focus management — pending focus, cursor reset, and range focus.
+//! Block focus management — pending focus, cursor reset, and range focus.
 //!
 //! Focus state lives on the active pane (`PaneState::focus`); these helpers
 //! route focus requests from block input handlers and structural edits to
@@ -16,7 +16,9 @@ impl Editor {
         let pane = self.active_pane_state();
         pane.focus.pending = Some(entity_id);
         pane.focus.active_entity = Some(entity_id);
-        pane.focus.pending_scroll_active_block_into_view = true;
+        pane.scroll.pending_autoscroll = Some(crate::editor::engine::controller::AutoscrollStrategy::Fit {
+            margin: px(20.0),
+        });
     }
 
     pub(crate) fn reset_block_cursor(block: &Entity<Block>, cursor: usize, cx: &mut Context<Self>) {

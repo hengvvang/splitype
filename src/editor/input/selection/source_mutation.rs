@@ -1,4 +1,4 @@
-﻿//! Cross-block markdown serialization, text replacement, and source coordinate mapping.
+//! Cross-block markdown serialization, text replacement, and source coordinate mapping.
 
 use std::collections::HashMap;
 use std::ops::Range;
@@ -281,7 +281,10 @@ impl Editor {
         self.sync_table_axis_visuals(cx);
         self.dismiss_contextual_overlays(cx);
         self.sync_cross_block_selection_visuals(cx);
-        self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+        self.request_autoscroll_active_pane(
+            crate::editor::engine::controller::AutoscrollStrategy::Fit { margin: px(20.0) },
+            cx,
+        );
         cx.notify();
         true
     }

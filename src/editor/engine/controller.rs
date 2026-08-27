@@ -105,13 +105,33 @@ pub(crate) struct FileState {
     pub(crate) drop_replace_restore_focus: Option<EntityId>,
 }
 
+/// Algebraic autoscroll intent (mirrors Zed's AutoscrollStrategy).
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum AutoscrollStrategy {
+    /// Scroll the minimal amount necessary to bring the active block / caret into view (with safe margin).
+    Fit { margin: Pixels },
+    /// Vertically center the active block / caret in the viewport.
+    Center,
+    /// Align the target block near the top of the viewport.
+    Top { margin: Pixels },
+    /// Align the target block near the bottom of the viewport.
+    Bottom { margin: Pixels },
+}
+
+/// Layout-stable anchor for scroll offset preservation (Zero Layout Shift).
+#[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct ScrollAnchor {
+    pub(crate) block_id: Option<crate::model::parse::BlockId>,
+    pub(crate) offset_in_block: Pixels,
+}
+
 /// Focus routing and deferred focus targets.
 #[derive(Default)]
 pub(crate) struct FocusState {
     pub(crate) pending: Option<EntityId>,
     pub(crate) active_entity: Option<EntityId>,
-    pub(crate) pending_scroll_active_block_into_view: bool,
-    pub(crate) pending_scroll_recheck_after_layout: bool,
 }
 
 /// Editor-level selection spanning rendered blocks.
@@ -184,17 +204,16 @@ pub(crate) struct TableGrids {
     pub(crate) axis_selection: Option<TableAxisSelection>,
 }
 
-/// Scroll handle and scrollbar interaction state.
+/// Scroll handle, layout anchoring, and autoscroll interaction state.
 pub(crate) struct ScrollState {
     pub(crate) handle: ScrollHandle,
+    #[allow(dead_code)]
+    pub(crate) anchor: Option<ScrollAnchor>,
+    pub(crate) pending_autoscroll: Option<AutoscrollStrategy>,
     pub(crate) last_viewport_size: Option<Size<Pixels>>,
     pub(crate) scrollbar_hovered: bool,
     pub(crate) scrollbar_visible_until: Instant,
     pub(crate) scrollbar_fade_task: Option<Task<()>>,
-    /// Forces a repaint shortly after a pending scroll-into-view that could
-    /// not be satisfied yet (the target block has no measured bounds), so the
-    /// scroll lands on the next frame instead of waiting for the cursor blink.
-    pub(crate) scroll_recheck_task: Option<Task<()>>,
     pub(crate) scrollbar_drag: Option<ScrollbarDragSession>,
 }
 
@@ -202,11 +221,12 @@ impl Default for ScrollState {
     fn default() -> Self {
         Self {
             handle: ScrollHandle::new(),
+            anchor: None,
+            pending_autoscroll: None,
             last_viewport_size: None,
             scrollbar_hovered: false,
             scrollbar_visible_until: Instant::now(),
             scrollbar_fade_task: None,
-            scroll_recheck_task: None,
             scrollbar_drag: None,
         }
     }

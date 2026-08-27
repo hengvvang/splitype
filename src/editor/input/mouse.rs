@@ -1,4 +1,4 @@
-﻿//! Editor canvas mouse handling — hover, wheel, and scrollbar drag.
+//! Editor canvas mouse handling — hover, wheel, and scrollbar drag.
 //!
 //! These are thin wrappers that toggle UI state (scrollbar visibility,
 //! menu dismissal, table-axis preview clearing) and drive the scrollbar
@@ -77,12 +77,8 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        {
-            let state = self.pane_state(pane_id);
-            state.focus.pending_scroll_active_block_into_view = false;
-            state.focus.pending_scroll_recheck_after_layout = false;
-            state.scroll.scroll_recheck_task = None;
-        }
+        // User scroll input has absolute priority: cancel any pending autoscroll.
+        self.pane_state(pane_id).scroll.pending_autoscroll = None;
         self.bump_scrollbar_visibility(pane_id, cx);
     }
 
@@ -97,14 +93,13 @@ impl Editor {
     ) {
         {
             let state = self.pane_state(pane_id);
+            state.scroll.pending_autoscroll = None;
             state.scroll.scrollbar_drag = Some(crate::editor::engine::controller::ScrollbarDragSession {
                 pointer_offset_y: pointer_offset_y.clamp(0.0, thumb_height.max(0.0)),
                 track_height,
                 thumb_height,
                 max_scroll_y,
             });
-            state.focus.pending_scroll_active_block_into_view = false;
-            state.focus.pending_scroll_recheck_after_layout = false;
         }
         self.bump_scrollbar_visibility(pane_id, cx);
         cx.notify();

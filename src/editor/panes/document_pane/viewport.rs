@@ -99,7 +99,7 @@ impl Editor {
         // panes keep theirs queued until they become active.
         if pane_id == self.active_pane_id() {
             self.apply_pending_focus(pane_id, window, cx);
-            self.apply_pending_scroll_into_view(pane_id, window, cx);
+            self.apply_pending_autoscroll(pane_id, window, cx);
         }
         self.sync_scroll_viewport(pane_id, viewport_size, cx);
 
@@ -248,27 +248,11 @@ impl Editor {
             index += 1;
         }
 
-        let use_windowing = blocks.len() > 64 && viewport_height > 100.0;
-        let (visible_start_block, visible_end_block) = if use_windowing {
-            let overscan = (viewport_height * 1.5).max(600.0);
-            let min_y = (current_scroll_y - overscan).max(0.0);
-            let max_y = current_scroll_y + viewport_height + overscan;
-            self.doc().tree.find_range_by_pixel_y(min_y, max_y)
-        } else {
-            (0, blocks.len())
-        };
-
-        let mut top_spacer_height: f32 = 0.0;
-        let mut bottom_spacer_height: f32 = 0.0;
-        let mut block_rows: Vec<AnyElement> = Vec::with_capacity(rows.len().min(128));
-
-        for plan in &rows {
-            if use_windowing && plan.end <= visible_start_block {
-                top_spacer_height += 24.0 * (plan.end - plan.start) as f32 + plan.outer_gap;
-            } else if use_windowing && plan.start >= visible_end_block {
-                bottom_spacer_height += 24.0 * (plan.end - plan.start) as f32 + plan.outer_gap;
-            } else {
-                block_rows.push(self.build_planned_row_element(
+        let overscroll_bottom = (viewport_height * 0.45).clamp(120.0, 400.0);
+        let block_rows: Vec<AnyElement> = rows
+            .iter()
+            .map(|plan| {
+                self.build_planned_row_element(
                     plan,
                     blocks,
                     editor.clone(),
@@ -276,27 +260,9 @@ impl Editor {
                     centered_width,
                     &theme,
                     d,
-                ));
-            }
-        }
-
-        if top_spacer_height > 0.0 {
-            block_rows.insert(
-                0,
-                div()
-                    .w_full()
-                    .h(px(top_spacer_height))
-                    .into_any_element(),
-            );
-        }
-        if bottom_spacer_height > 0.0 {
-            block_rows.push(
-                div()
-                    .w_full()
-                    .h(px(bottom_spacer_height))
-                    .into_any_element(),
-            );
-        }
+                )
+            })
+            .collect();
 
         let scroll_handle = self
             .pane_state_ref(pane_id)
@@ -360,7 +326,7 @@ impl Editor {
                 this.on_editor_scroll_wheel(pane_id, event, window, cx);
             }))
             .p(px(d.editor_padding))
-            .pb(px(d.editor_padding + 64.0))
+            .pb(px(d.editor_padding + overscroll_bottom))
             .children(block_rows);
         let scroll_content = if self.is_wysiwyg() {
             scroll_content.on_mouse_down(

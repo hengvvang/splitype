@@ -1,4 +1,4 @@
-﻿//! Structural mutation events handler: block split, merge, backspace demotion, and indent.
+//! Structural mutation events handler: block split, merge, backspace demotion, and indent.
 
 use gpui::*;
 
@@ -238,7 +238,10 @@ impl Editor {
                     cx.notify();
                 });
                 self.mark_dirty(cx);
-                self.request_active_block_scroll_into_view(self.active_pane_id(), cx);
+                self.request_autoscroll_active_pane(
+                    crate::editor::engine::controller::AutoscrollStrategy::Fit { margin: px(20.0) },
+                    cx,
+                );
                 self.finalize_pending_undo_capture(cx);
                 cx.notify();
             }
