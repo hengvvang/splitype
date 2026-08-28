@@ -319,15 +319,23 @@ impl SettingsWindow {
         let ui_font_name = self
             .ui_font_family
             .clone()
-            .unwrap_or_else(|| "Default (Lexend)".to_string());
+            .unwrap_or_else(|| "Lexend (default)".to_string());
         let prose_font_name = self
             .prose_font_family
             .clone()
-            .unwrap_or_else(|| "Default (Lexend)".to_string());
+            .unwrap_or_else(|| "Lexend (default)".to_string());
         let code_font_name = self
             .code_font_family
             .clone()
-            .unwrap_or_else(|| "Default (Consolas / Menlo)".to_string());
+            .unwrap_or_else(|| {
+                if cfg!(target_os = "windows") {
+                    "Consolas (default)".to_string()
+                } else if cfg!(target_os = "macos") {
+                    "Menlo (default)".to_string()
+                } else {
+                    "monospace (default)".to_string()
+                }
+            });
 
         let available_fonts = crate::infra::theme::FontFamilyCache::list_font_families(cx);
 

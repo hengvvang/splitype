@@ -301,15 +301,23 @@ impl Shell {
         let ui_font_name = current_typo
             .ui_font_family
             .clone()
-            .unwrap_or_else(|| "Default (Lexend)".to_string());
+            .unwrap_or_else(|| "Lexend (default)".to_string());
         let prose_font_name = current_typo
             .prose_font_family
             .clone()
-            .unwrap_or_else(|| "Default (Lexend)".to_string());
+            .unwrap_or_else(|| "Lexend (default)".to_string());
         let code_font_name = current_typo
             .code_font_family
             .clone()
-            .unwrap_or_else(|| "Default (Consolas / Menlo)".to_string());
+            .unwrap_or_else(|| {
+                if cfg!(target_os = "windows") {
+                    "Consolas (default)".to_string()
+                } else if cfg!(target_os = "macos") {
+                    "Menlo (default)".to_string()
+                } else {
+                    "monospace (default)".to_string()
+                }
+            });
 
         let is_ui_font_open = self.panels.settings.open_dropdown.as_deref() == Some("ui_font");
         let is_prose_font_open = self.panels.settings.open_dropdown.as_deref() == Some("prose_font");

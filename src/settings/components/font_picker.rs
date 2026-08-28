@@ -12,6 +12,7 @@ use crate::ui::select::{select_option, select_panel, select_trigger};
 pub(crate) struct SearchableFontPickerProps {
     pub id_prefix: &'static str,
     pub current_font_name: String,
+    pub default_label: String,
     pub is_open: bool,
     pub search_query: String,
     pub on_toggle: SettingsClickHandler,
@@ -53,9 +54,12 @@ pub(crate) fn render_searchable_font_picker(
         let query_lower = props.search_query.trim().to_lowercase();
         let mut menu_items = Vec::new();
 
-        // 1. "Default" option (always at top)
-        let is_default_selected = props.current_font_name.starts_with("Default");
-        let default_matches = query_lower.is_empty() || "default".contains(&query_lower);
+        // 1. Default option (always at top)
+        let is_default_selected = props.current_font_name == props.default_label
+            || props.current_font_name.starts_with("Default");
+        let default_matches = query_lower.is_empty()
+            || props.default_label.to_lowercase().contains(&query_lower)
+            || "default".contains(&query_lower);
         if default_matches {
             menu_items.push(
                 select_option(
@@ -75,7 +79,7 @@ pub(crate) fn render_searchable_font_picker(
                         .flex_1()
                         .min_w(px(0.0))
                         .truncate()
-                        .child("Default"),
+                        .child(props.default_label.clone()),
                 )
                 .child(if is_default_selected {
                     svg()

@@ -80,6 +80,7 @@ pub(crate) fn render_typography_section(
             SearchableFontPickerProps {
                 id_prefix: "pref-ui-font",
                 current_font_name: props.ui_font_name,
+                default_label: "Lexend (default)".to_string(),
                 is_open: props.is_ui_font_open,
                 search_query: props.search_query_ui_font,
                 on_toggle: props.on_toggle_ui_font,
@@ -105,6 +106,7 @@ pub(crate) fn render_typography_section(
             SearchableFontPickerProps {
                 id_prefix: "pref-prose-font",
                 current_font_name: props.prose_font_name,
+                default_label: "Lexend (default)".to_string(),
                 is_open: props.is_prose_font_open,
                 search_query: props.search_query_prose_font,
                 on_toggle: props.on_toggle_prose_font,
@@ -124,12 +126,20 @@ pub(crate) fn render_typography_section(
         ));
 
         // 3. Code Block Font Row
+        let default_code_label = if cfg!(target_os = "windows") {
+            "Consolas (default)".to_string()
+        } else if cfg!(target_os = "macos") {
+            "Menlo (default)".to_string()
+        } else {
+            "monospace (default)".to_string()
+        };
         let code_picker = render_searchable_font_picker(
             c,
             d,
             SearchableFontPickerProps {
                 id_prefix: "pref-code-font",
                 current_font_name: props.code_font_name,
+                default_label: default_code_label,
                 is_open: props.is_code_font_open,
                 search_query: props.search_query_code_font,
                 on_toggle: props.on_toggle_code_font,
