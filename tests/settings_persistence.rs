@@ -127,3 +127,49 @@ fn jsonc_parser_strips_trailing_commas() {
     assert_eq!(value["theme"], serde_json::json!("dark"));
     assert_eq!(value["recent"][1], serde_json::json!("b.md"));
 }
+
+/// Typography settings round-trip through app settings.
+#[test]
+fn app_settings_typography_persistence() {
+    use splitype::infra::config::settings::{
+        read_app_settings_with_dirs, save_settings_from_window_with_dirs, ImagePasteBehavior,
+        StartupOpenSetting, StatusBarSettings, TypographySettings,
+    };
+
+    let root = TempRoot::new("typography");
+    let dirs = root.dirs();
+
+    let initial = read_app_settings_with_dirs(&dirs).expect("read initial");
+    assert_eq!(initial.typography.ui_font_family, None);
+    assert_eq!(initial.typography.prose_font_family, None);
+    assert_eq!(initial.typography.code_font_family, None);
+    assert_eq!(initial.typography.font_size, 16);
+
+    let typo = TypographySettings {
+        ui_font_family: Some("Segoe UI".to_string()),
+        prose_font_family: Some("Georgia".to_string()),
+        code_font_family: Some("Consolas".to_string()),
+        font_size: 18,
+        line_height: 1.8,
+    };
+
+    let saved = save_settings_from_window_with_dirs(
+        StartupOpenSetting::NewFile,
+        "splitype",
+        ImagePasteBehavior::None,
+        std::collections::BTreeMap::new(),
+        &StatusBarSettings::default(),
+        &typo,
+        &dirs,
+    )
+    .expect("save settings");
+
+    assert_eq!(saved.typography.ui_font_family.as_deref(), Some("Segoe UI"));
+    assert_eq!(saved.typography.prose_font_family.as_deref(), Some("Georgia"));
+    assert_eq!(saved.typography.code_font_family.as_deref(), Some("Consolas"));
+    assert_eq!(saved.typography.font_size, 18);
+    assert!((saved.typography.line_height - 1.8).abs() < 0.001);
+
+    let reloaded = read_app_settings_with_dirs(&dirs).expect("reload settings");
+    assert_eq!(reloaded.typography, typo);
+}

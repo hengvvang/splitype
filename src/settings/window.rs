@@ -1,4 +1,4 @@
-﻿//! Standalone settings window view and window opening lifecycle.
+//! Standalone settings window view and window opening lifecycle.
 
 use std::collections::BTreeMap;
 
@@ -38,6 +38,20 @@ pub(crate) struct SettingsWindow {
     pub(crate) image_dropdown_open: bool,
     pub(crate) font_size: u32,
     pub(crate) line_height: f32,
+    pub(crate) saved_font_size: u32,
+    pub(crate) saved_line_height: f32,
+    pub(crate) ui_font_family: Option<String>,
+    pub(crate) prose_font_family: Option<String>,
+    pub(crate) code_font_family: Option<String>,
+    pub(crate) saved_ui_font_family: Option<String>,
+    pub(crate) saved_prose_font_family: Option<String>,
+    pub(crate) saved_code_font_family: Option<String>,
+    pub(crate) ui_font_dropdown_open: bool,
+    pub(crate) prose_font_dropdown_open: bool,
+    pub(crate) code_font_dropdown_open: bool,
+    pub(crate) search_query_ui_font: String,
+    pub(crate) search_query_prose_font: String,
+    pub(crate) search_query_code_font: String,
     pub(crate) editing_stepper: Option<String>,
     pub(crate) status_bar_enabled: bool,
     pub(crate) status_bar_show_word_count: bool,
@@ -66,6 +80,12 @@ impl SettingsWindow {
         let image_paste_behavior = settings.image_paste_behavior;
         let keybindings = settings.keybindings;
 
+        let ui_font_family = settings.typography.ui_font_family.clone();
+        let prose_font_family = settings.typography.prose_font_family.clone();
+        let code_font_family = settings.typography.code_font_family.clone();
+        let font_size = settings.typography.font_size;
+        let line_height = settings.typography.line_height;
+
         let mut expanded_sections = std::collections::HashSet::new();
         expanded_sections.insert("theme".to_string());
         expanded_sections.insert("status_bar".to_string());
@@ -92,8 +112,22 @@ impl SettingsWindow {
             theme_dropdown_open: false,
             lang_dropdown_open: false,
             image_dropdown_open: false,
-            font_size: 14,
-            line_height: 1.6,
+            ui_font_dropdown_open: false,
+            prose_font_dropdown_open: false,
+            code_font_dropdown_open: false,
+            search_query_ui_font: String::new(),
+            search_query_prose_font: String::new(),
+            search_query_code_font: String::new(),
+            ui_font_family: ui_font_family.clone(),
+            prose_font_family: prose_font_family.clone(),
+            code_font_family: code_font_family.clone(),
+            saved_ui_font_family: ui_font_family,
+            saved_prose_font_family: prose_font_family,
+            saved_code_font_family: code_font_family,
+            font_size,
+            line_height,
+            saved_font_size: font_size,
+            saved_line_height: line_height,
             editing_stepper: None,
             status_bar_enabled: settings.status_bar.enabled,
             status_bar_show_word_count: settings.status_bar.show_word_count,
@@ -271,25 +305,188 @@ impl SettingsWindow {
         let lh_inc = cx.entity().downgrade();
         let lh_ctr = cx.entity().downgrade();
 
+        let toggle_ui_font = cx.entity().downgrade();
+        let toggle_prose_font = cx.entity().downgrade();
+        let toggle_code_font = cx.entity().downgrade();
+        let select_ui_font = cx.entity().downgrade();
+        let select_prose_font = cx.entity().downgrade();
+        let select_code_font = cx.entity().downgrade();
+
+        let ui_font_name = self
+            .ui_font_family
+            .clone()
+            .unwrap_or_else(|| "Default (Encode Sans)".to_string());
+        let prose_font_name = self
+            .prose_font_family
+            .clone()
+            .unwrap_or_else(|| "Default (Encode Sans)".to_string());
+        let code_font_name = self
+            .code_font_family
+            .clone()
+            .unwrap_or_else(|| "Default (Consolas / Menlo)".to_string());
+
+        let available_fonts = crate::infra::theme::FontFamilyCache::list_font_families(cx);
+
+        let search_ui_win = cx.entity().downgrade();
+        let search_prose_win = cx.entity().downgrade();
+        let search_code_win = cx.entity().downgrade();
+
+        let reset_ui_win = cx.entity().downgrade();
+        let reset_prose_win = cx.entity().downgrade();
+        let reset_code_win = cx.entity().downgrade();
+        let reset_fs_win = cx.entity().downgrade();
+        let reset_lh_win = cx.entity().downgrade();
+
+        let has_custom_ui = self.ui_font_family.is_some();
+        let has_custom_prose = self.prose_font_family.is_some();
+        let has_custom_code = self.code_font_family.is_some();
+        let has_custom_fs = self.font_size != 16;
+        let has_custom_lh = (self.line_height - 1.6).abs() > 0.01;
+
         let typography_props = TypographyProps {
-            font_size: self.font_size,
-            is_editing_font: self.editing_stepper.as_deref() == Some("font"),
-            on_font_dec: Box::new(move |_event, _window, cx| {
-                let _ = font_dec.update(cx, |this, cx| {
-                    this.editing_stepper = None;
-                    if this.font_size > 8 {
-                        this.font_size -= 1;
-                        cx.notify();
-                    }
+            ui_font_name,
+            is_ui_font_open: self.ui_font_dropdown_open,
+            search_query_ui_font: self.search_query_ui_font.clone(),
+            on_toggle_ui_font: Box::new(move |_event, _window, cx| {
+                let _ = toggle_ui_font.update(cx, |this, cx| {
+                    this.ui_font_dropdown_open = !this.ui_font_dropdown_open;
+                    this.prose_font_dropdown_open = false;
+                    this.code_font_dropdown_open = false;
+                    this.search_query_ui_font.clear();
+                    cx.notify();
                 });
             }),
-            on_font_inc: Box::new(move |_event, _window, cx| {
+            on_search_ui_font: Box::new(move |query, _window, cx| {
+                let _ = search_ui_win.update(cx, |this, cx| {
+                    this.search_query_ui_font = query;
+                    cx.notify();
+                });
+            }),
+            on_select_ui_font: Box::new(move |font_name| {
+                let handle = select_ui_font.clone();
+                Box::new(move |_event, _window, cx| {
+                    let _ = handle.update(cx, |this, cx| {
+                        this.ui_font_family = if font_name == "default" { None } else { Some(font_name.clone()) };
+                        this.ui_font_dropdown_open = false;
+                        cx.notify();
+                    });
+                })
+            }),
+            on_reset_ui_font: if has_custom_ui {
+                Some(Box::new(move |_event, _window, cx| {
+                    let _ = reset_ui_win.update(cx, |this, cx| {
+                        this.ui_font_family = None;
+                        cx.notify();
+                    });
+                }))
+            } else {
+                None
+            },
+
+            prose_font_name,
+            is_prose_font_open: self.prose_font_dropdown_open,
+            search_query_prose_font: self.search_query_prose_font.clone(),
+            on_toggle_prose_font: Box::new(move |_event, _window, cx| {
+                let _ = toggle_prose_font.update(cx, |this, cx| {
+                    this.prose_font_dropdown_open = !this.prose_font_dropdown_open;
+                    this.ui_font_dropdown_open = false;
+                    this.code_font_dropdown_open = false;
+                    this.search_query_prose_font.clear();
+                    cx.notify();
+                });
+            }),
+            on_search_prose_font: Box::new(move |query, _window, cx| {
+                let _ = search_prose_win.update(cx, |this, cx| {
+                    this.search_query_prose_font = query;
+                    cx.notify();
+                });
+            }),
+            on_select_prose_font: Box::new(move |font_name| {
+                let handle = select_prose_font.clone();
+                Box::new(move |_event, _window, cx| {
+                    let _ = handle.update(cx, |this, cx| {
+                        this.prose_font_family = if font_name == "default" { None } else { Some(font_name.clone()) };
+                        this.prose_font_dropdown_open = false;
+                        cx.notify();
+                    });
+                })
+            }),
+            on_reset_prose_font: if has_custom_prose {
+                Some(Box::new(move |_event, _window, cx| {
+                    let _ = reset_prose_win.update(cx, |this, cx| {
+                        this.prose_font_family = None;
+                        cx.notify();
+                    });
+                }))
+            } else {
+                None
+            },
+
+            code_font_name,
+            is_code_font_open: self.code_font_dropdown_open,
+            search_query_code_font: self.search_query_code_font.clone(),
+            on_toggle_code_font: Box::new(move |_event, _window, cx| {
+                let _ = toggle_code_font.update(cx, |this, cx| {
+                    this.code_font_dropdown_open = !this.code_font_dropdown_open;
+                    this.ui_font_dropdown_open = false;
+                    this.prose_font_dropdown_open = false;
+                    this.search_query_code_font.clear();
+                    cx.notify();
+                });
+            }),
+            on_search_code_font: Box::new(move |query, _window, cx| {
+                let _ = search_code_win.update(cx, |this, cx| {
+                    this.search_query_code_font = query;
+                    cx.notify();
+                });
+            }),
+            on_select_code_font: Box::new(move |font_name| {
+                let handle = select_code_font.clone();
+                Box::new(move |_event, _window, cx| {
+                    let _ = handle.update(cx, |this, cx| {
+                        this.code_font_family = if font_name == "default" { None } else { Some(font_name.clone()) };
+                        this.code_font_dropdown_open = false;
+                        cx.notify();
+                    });
+                })
+            }),
+            on_reset_code_font: if has_custom_code {
+                Some(Box::new(move |_event, _window, cx| {
+                    let _ = reset_code_win.update(cx, |this, cx| {
+                        this.code_font_family = None;
+                        cx.notify();
+                    });
+                }))
+            } else {
+                None
+            },
+
+            available_fonts,
+
+            font_size: self.font_size,
+            is_editing_font: self.editing_stepper.as_deref() == Some("font"),
+            on_font_dec: Box::new(move |event, _window, cx| {
+                let step = if event.modifiers().shift { 4 } else { 1 };
+                let _ = font_dec.update(cx, |this, cx| {
+                    this.editing_stepper = None;
+                    if this.font_size > (8 + step) {
+                        this.font_size -= step;
+                    } else {
+                        this.font_size = 8;
+                    }
+                    cx.notify();
+                });
+            }),
+            on_font_inc: Box::new(move |event, _window, cx| {
+                let step = if event.modifiers().shift { 4 } else { 1 };
                 let _ = font_inc.update(cx, |this, cx| {
                     this.editing_stepper = None;
-                    if this.font_size < 48 {
-                        this.font_size += 1;
-                        cx.notify();
+                    if this.font_size + step <= 72 {
+                        this.font_size += step;
+                    } else {
+                        this.font_size = 72;
                     }
+                    cx.notify();
                 });
             }),
             on_font_cycle: Box::new(move |_event, _window, cx| {
@@ -302,29 +499,46 @@ impl SettingsWindow {
                         18 => 20,
                         20 => 24,
                         24 => 12,
-                        _ => 14,
+                        _ => 16,
                     };
                     cx.notify();
                 });
             }),
+            on_reset_font_size: if has_custom_fs {
+                Some(Box::new(move |_event, _window, cx| {
+                    let _ = reset_fs_win.update(cx, |this, cx| {
+                        this.font_size = 16;
+                        cx.notify();
+                    });
+                }))
+            } else {
+                None
+            },
+
             line_height: self.line_height,
             is_editing_lh: self.editing_stepper.as_deref() == Some("line_height"),
-            on_lh_dec: Box::new(move |_event, _window, cx| {
+            on_lh_dec: Box::new(move |event, _window, cx| {
+                let step = if event.modifiers().shift { 0.5 } else if event.modifiers().alt { 0.05 } else { 0.1 };
                 let _ = lh_dec.update(cx, |this, cx| {
                     this.editing_stepper = None;
-                    if this.line_height > 1.05 {
-                        this.line_height -= 0.1;
-                        cx.notify();
+                    if this.line_height > (1.0 + step) {
+                        this.line_height -= step;
+                    } else {
+                        this.line_height = 1.0;
                     }
+                    cx.notify();
                 });
             }),
-            on_lh_inc: Box::new(move |_event, _window, cx| {
+            on_lh_inc: Box::new(move |event, _window, cx| {
+                let step = if event.modifiers().shift { 0.5 } else if event.modifiers().alt { 0.05 } else { 0.1 };
                 let _ = lh_inc.update(cx, |this, cx| {
                     this.editing_stepper = None;
-                    if this.line_height < 2.95 {
-                        this.line_height += 0.1;
-                        cx.notify();
+                    if this.line_height + step <= 3.0 {
+                        this.line_height += step;
+                    } else {
+                        this.line_height = 3.0;
                     }
+                    cx.notify();
                 });
             }),
             on_lh_cycle: Box::new(move |_event, _window, cx| {
@@ -342,6 +556,16 @@ impl SettingsWindow {
                     cx.notify();
                 });
             }),
+            on_reset_line_height: if has_custom_lh {
+                Some(Box::new(move |_event, _window, cx| {
+                    let _ = reset_lh_win.update(cx, |this, cx| {
+                        this.line_height = 1.6;
+                        cx.notify();
+                    });
+                }))
+            } else {
+                None
+            },
         };
 
         sections.push(render_typography_section(
@@ -494,6 +718,11 @@ impl SettingsWindow {
             || self.status_bar_enabled != self.saved_status_bar_enabled
             || self.status_bar_show_word_count != self.saved_status_bar_show_word_count
             || self.status_bar_show_cursor_position != self.saved_status_bar_show_cursor_position
+            || self.ui_font_family != self.saved_ui_font_family
+            || self.prose_font_family != self.saved_prose_font_family
+            || self.code_font_family != self.saved_code_font_family
+            || self.font_size != self.saved_font_size
+            || (self.line_height - self.saved_line_height).abs() > 0.001
     }
 
     fn on_titlebar_close(
@@ -521,6 +750,13 @@ impl SettingsWindow {
                 enabled: self.status_bar_enabled,
                 show_word_count: self.status_bar_show_word_count,
                 show_cursor_position: self.status_bar_show_cursor_position,
+            },
+            &crate::infra::config::settings::TypographySettings {
+                ui_font_family: self.ui_font_family.clone(),
+                prose_font_family: self.prose_font_family.clone(),
+                code_font_family: self.code_font_family.clone(),
+                font_size: self.font_size,
+                line_height: self.line_height,
             },
         ) {
             Ok(settings) => settings,
@@ -559,6 +795,7 @@ impl SettingsWindow {
         cx.clear_key_bindings();
         install_keybindings(cx, &settings.keybindings);
         crate::app::menus::install_menus(cx);
+        crate::infra::theme::TypographyStore::update(cx, settings.typography.clone());
         cx.update_global::<EditorSettings, _>(|ed_settings, _cx| {
             ed_settings.status_bar_settings.enabled = settings.status_bar.enabled;
             ed_settings.status_bar_settings.show_word_count = settings.status_bar.show_word_count;
@@ -576,6 +813,11 @@ impl SettingsWindow {
         self.saved_status_bar_enabled = settings.status_bar.enabled;
         self.saved_status_bar_show_word_count = settings.status_bar.show_word_count;
         self.saved_status_bar_show_cursor_position = settings.status_bar.show_cursor_position;
+        self.saved_ui_font_family = settings.typography.ui_font_family.clone();
+        self.saved_prose_font_family = settings.typography.prose_font_family.clone();
+        self.saved_code_font_family = settings.typography.code_font_family.clone();
+        self.saved_font_size = settings.typography.font_size;
+        self.saved_line_height = settings.typography.line_height;
 
         self.selected_theme_id = settings.default_theme_id;
         self.startup_open = settings.startup_open;

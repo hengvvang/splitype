@@ -55,6 +55,9 @@ pub(crate) fn render_preview_fenced_code(block: &Block, base: Div, theme: &Theme
         .child(
             div()
                 .w_full()
+                .font(crate::infra::theme::TypographyStore::default_font(
+                    crate::infra::theme::TypographyScope::Code,
+                ))
                 .bg(c.code_bg)
                 .rounded(px(d.code_block_radius))
                 .px(px(d.code_block_padding_x))

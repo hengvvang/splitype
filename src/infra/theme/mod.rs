@@ -17,4 +17,4 @@ pub use colors::ThemeColors;
 pub use dimensions::ThemeDimensions;
 pub use manager::ThemeManager;
 pub use theme::{Theme, ThemeCatalogEntry};
-pub use typography::FontWeightDef;
+pub use typography::{FontFamilyCache, FontWeightDef, TypographyScope, TypographyStore};

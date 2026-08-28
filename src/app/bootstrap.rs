@@ -113,6 +113,7 @@ pub fn run(args: Args) {
         });
         I18nManager::init_with_language_id(cx, &settings.default_language_id);
         ThemeManager::init_with_theme_id(cx, &settings.default_theme_id);
+        crate::infra::theme::TypographyStore::init(cx, settings.typography.clone());
         EditorSettings::init(cx, settings.show_table_headers);
         ExplorerSettingsStore::init(cx);
         install_http_client(cx);

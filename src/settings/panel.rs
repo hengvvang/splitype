@@ -1,4 +1,4 @@
-﻿//! In-window tiled settings panel host adapter for Shell.
+//! In-window tiled settings panel host adapter for Shell.
 
 use gpui::*;
 
@@ -292,25 +292,243 @@ impl Shell {
         let lh_inc = cx.entity().downgrade();
         let lh_ctr = cx.entity().downgrade();
 
+        let current_typo = crate::infra::theme::TypographyStore::settings(cx);
+        let toggle_ui_font_shell = cx.entity().downgrade();
+        let toggle_prose_font_shell = cx.entity().downgrade();
+        let toggle_code_font_shell = cx.entity().downgrade();
+        let select_ui_font_shell = cx.entity().downgrade();
+        let select_prose_font_shell = cx.entity().downgrade();
+        let select_code_font_shell = cx.entity().downgrade();
+
+        let ui_font_name = current_typo
+            .ui_font_family
+            .clone()
+            .unwrap_or_else(|| "Default (Encode Sans)".to_string());
+        let prose_font_name = current_typo
+            .prose_font_family
+            .clone()
+            .unwrap_or_else(|| "Default (Encode Sans)".to_string());
+        let code_font_name = current_typo
+            .code_font_family
+            .clone()
+            .unwrap_or_else(|| "Default (Consolas / Menlo)".to_string());
+
+        let is_ui_font_open = self.panels.settings.open_dropdown.as_deref() == Some("ui_font");
+        let is_prose_font_open = self.panels.settings.open_dropdown.as_deref() == Some("prose_font");
+        let is_code_font_open = self.panels.settings.open_dropdown.as_deref() == Some("code_font");
+
+        let available_fonts = crate::infra::theme::FontFamilyCache::list_font_families(cx);
+
+        let search_ui_shell = cx.entity().downgrade();
+        let search_prose_shell = cx.entity().downgrade();
+        let search_code_shell = cx.entity().downgrade();
+
+        let reset_ui_shell = cx.entity().downgrade();
+        let reset_prose_shell = cx.entity().downgrade();
+        let reset_code_shell = cx.entity().downgrade();
+        let reset_fs_shell = cx.entity().downgrade();
+        let reset_lh_shell = cx.entity().downgrade();
+
+        let has_custom_ui = current_typo.ui_font_family.is_some();
+        let has_custom_prose = current_typo.prose_font_family.is_some();
+        let has_custom_code = current_typo.code_font_family.is_some();
+        let has_custom_fs = self.panels.settings.pref_font_size != 16;
+        let has_custom_lh = (self.panels.settings.pref_line_height - 1.6).abs() > 0.01;
+
         let typography_props = TypographyProps {
-            font_size: self.panels.settings.pref_font_size,
-            is_editing_font: self.panels.settings.editing_stepper.as_deref() == Some("font"),
-            on_font_dec: Box::new(move |_event, _window, cx| {
-                let _ = font_dec.update(cx, |shell, cx| {
-                    shell.panels.settings.editing_stepper = None;
-                    if shell.panels.settings.pref_font_size > 8 {
-                        shell.panels.settings.pref_font_size -= 1;
-                        cx.notify();
+            ui_font_name,
+            is_ui_font_open,
+            search_query_ui_font: self.panels.settings.search_query_ui_font.clone(),
+            on_toggle_ui_font: Box::new(move |_event, _window, cx| {
+                let _ = toggle_ui_font_shell.update(cx, |shell, cx| {
+                    if shell.panels.settings.open_dropdown.as_deref() == Some("ui_font") {
+                        shell.panels.settings.open_dropdown = None;
+                    } else {
+                        shell.panels.settings.open_dropdown = Some("ui_font".to_string());
+                        shell.panels.settings.search_query_ui_font.clear();
                     }
+                    cx.notify();
                 });
             }),
-            on_font_inc: Box::new(move |_event, _window, cx| {
+            on_search_ui_font: Box::new(move |query, _window, cx| {
+                let _ = search_ui_shell.update(cx, |shell, cx| {
+                    shell.panels.settings.search_query_ui_font = query;
+                    cx.notify();
+                });
+            }),
+            on_select_ui_font: Box::new(move |font_name| {
+                let shell = select_ui_font_shell.clone();
+                Box::new(move |_event, _window, cx| {
+                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
+                    typo.ui_font_family = if font_name == "default" { None } else { Some(font_name.clone()) };
+                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
+                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
+                        s.typography = typo;
+                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    });
+                    let _ = shell.update(cx, |shell, cx| {
+                        shell.panels.settings.open_dropdown = None;
+                        cx.notify();
+                    });
+                })
+            }),
+            on_reset_ui_font: if has_custom_ui {
+                Some(Box::new(move |_event, _window, cx| {
+                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
+                    typo.ui_font_family = None;
+                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
+                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
+                        s.typography = typo;
+                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    });
+                    let _ = reset_ui_shell.update(cx, |_shell, cx| cx.notify());
+                }))
+            } else {
+                None
+            },
+
+            prose_font_name,
+            is_prose_font_open,
+            search_query_prose_font: self.panels.settings.search_query_prose_font.clone(),
+            on_toggle_prose_font: Box::new(move |_event, _window, cx| {
+                let _ = toggle_prose_font_shell.update(cx, |shell, cx| {
+                    if shell.panels.settings.open_dropdown.as_deref() == Some("prose_font") {
+                        shell.panels.settings.open_dropdown = None;
+                    } else {
+                        shell.panels.settings.open_dropdown = Some("prose_font".to_string());
+                        shell.panels.settings.search_query_prose_font.clear();
+                    }
+                    cx.notify();
+                });
+            }),
+            on_search_prose_font: Box::new(move |query, _window, cx| {
+                let _ = search_prose_shell.update(cx, |shell, cx| {
+                    shell.panels.settings.search_query_prose_font = query;
+                    cx.notify();
+                });
+            }),
+            on_select_prose_font: Box::new(move |font_name| {
+                let shell = select_prose_font_shell.clone();
+                Box::new(move |_event, _window, cx| {
+                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
+                    typo.prose_font_family = if font_name == "default" { None } else { Some(font_name.clone()) };
+                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
+                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
+                        s.typography = typo;
+                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    });
+                    let _ = shell.update(cx, |shell, cx| {
+                        shell.panels.settings.open_dropdown = None;
+                        cx.notify();
+                    });
+                })
+            }),
+            on_reset_prose_font: if has_custom_prose {
+                Some(Box::new(move |_event, _window, cx| {
+                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
+                    typo.prose_font_family = None;
+                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
+                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
+                        s.typography = typo;
+                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    });
+                    let _ = reset_prose_shell.update(cx, |_shell, cx| cx.notify());
+                }))
+            } else {
+                None
+            },
+
+            code_font_name,
+            is_code_font_open,
+            search_query_code_font: self.panels.settings.search_query_code_font.clone(),
+            on_toggle_code_font: Box::new(move |_event, _window, cx| {
+                let _ = toggle_code_font_shell.update(cx, |shell, cx| {
+                    if shell.panels.settings.open_dropdown.as_deref() == Some("code_font") {
+                        shell.panels.settings.open_dropdown = None;
+                    } else {
+                        shell.panels.settings.open_dropdown = Some("code_font".to_string());
+                        shell.panels.settings.search_query_code_font.clear();
+                    }
+                    cx.notify();
+                });
+            }),
+            on_search_code_font: Box::new(move |query, _window, cx| {
+                let _ = search_code_shell.update(cx, |shell, cx| {
+                    shell.panels.settings.search_query_code_font = query;
+                    cx.notify();
+                });
+            }),
+            on_select_code_font: Box::new(move |font_name| {
+                let shell = select_code_font_shell.clone();
+                Box::new(move |_event, _window, cx| {
+                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
+                    typo.code_font_family = if font_name == "default" { None } else { Some(font_name.clone()) };
+                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
+                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
+                        s.typography = typo;
+                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    });
+                    let _ = shell.update(cx, |shell, cx| {
+                        shell.panels.settings.open_dropdown = None;
+                        cx.notify();
+                    });
+                })
+            }),
+            on_reset_code_font: if has_custom_code {
+                Some(Box::new(move |_event, _window, cx| {
+                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
+                    typo.code_font_family = None;
+                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
+                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
+                        s.typography = typo;
+                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    });
+                    let _ = reset_code_shell.update(cx, |_shell, cx| cx.notify());
+                }))
+            } else {
+                None
+            },
+
+            available_fonts,
+
+            font_size: self.panels.settings.pref_font_size,
+            is_editing_font: self.panels.settings.editing_stepper.as_deref() == Some("font"),
+            on_font_dec: Box::new(move |event, _window, cx| {
+                let step = if event.modifiers().shift { 4 } else { 1 };
+                let _ = font_dec.update(cx, |shell, cx| {
+                    shell.panels.settings.editing_stepper = None;
+                    if shell.panels.settings.pref_font_size > (8 + step) {
+                        shell.panels.settings.pref_font_size -= step;
+                    } else {
+                        shell.panels.settings.pref_font_size = 8;
+                    }
+                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
+                    typo.font_size = shell.panels.settings.pref_font_size;
+                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
+                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
+                        s.typography = typo;
+                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    });
+                    cx.notify();
+                });
+            }),
+            on_font_inc: Box::new(move |event, _window, cx| {
+                let step = if event.modifiers().shift { 4 } else { 1 };
                 let _ = font_inc.update(cx, |shell, cx| {
                     shell.panels.settings.editing_stepper = None;
-                    if shell.panels.settings.pref_font_size < 48 {
-                        shell.panels.settings.pref_font_size += 1;
-                        cx.notify();
+                    if shell.panels.settings.pref_font_size + step <= 72 {
+                        shell.panels.settings.pref_font_size += step;
+                    } else {
+                        shell.panels.settings.pref_font_size = 72;
                     }
+                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
+                    typo.font_size = shell.panels.settings.pref_font_size;
+                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
+                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
+                        s.typography = typo;
+                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    });
+                    cx.notify();
                 });
             }),
             on_font_cycle: Box::new(move |_event, _window, cx| {
@@ -323,29 +541,74 @@ impl Shell {
                         18 => 20,
                         20 => 24,
                         24 => 12,
-                        _ => 14,
+                        _ => 16,
                     };
+                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
+                    typo.font_size = shell.panels.settings.pref_font_size;
+                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
+                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
+                        s.typography = typo;
+                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    });
                     cx.notify();
                 });
             }),
+            on_reset_font_size: if has_custom_fs {
+                Some(Box::new(move |_event, _window, cx| {
+                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
+                    typo.font_size = 16;
+                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
+                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
+                        s.typography = typo;
+                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    });
+                    let _ = reset_fs_shell.update(cx, |shell, cx| {
+                        shell.panels.settings.pref_font_size = 16;
+                        cx.notify();
+                    });
+                }))
+            } else {
+                None
+            },
+
             line_height: self.panels.settings.pref_line_height,
             is_editing_lh: self.panels.settings.editing_stepper.as_deref() == Some("line_height"),
-            on_lh_dec: Box::new(move |_event, _window, cx| {
+            on_lh_dec: Box::new(move |event, _window, cx| {
+                let step = if event.modifiers().shift { 0.5 } else if event.modifiers().alt { 0.05 } else { 0.1 };
                 let _ = lh_dec.update(cx, |shell, cx| {
                     shell.panels.settings.editing_stepper = None;
-                    if shell.panels.settings.pref_line_height > 1.05 {
-                        shell.panels.settings.pref_line_height -= 0.1;
-                        cx.notify();
+                    if shell.panels.settings.pref_line_height > (1.0 + step) {
+                        shell.panels.settings.pref_line_height -= step;
+                    } else {
+                        shell.panels.settings.pref_line_height = 1.0;
                     }
+                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
+                    typo.line_height = shell.panels.settings.pref_line_height;
+                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
+                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
+                        s.typography = typo;
+                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    });
+                    cx.notify();
                 });
             }),
-            on_lh_inc: Box::new(move |_event, _window, cx| {
+            on_lh_inc: Box::new(move |event, _window, cx| {
+                let step = if event.modifiers().shift { 0.5 } else if event.modifiers().alt { 0.05 } else { 0.1 };
                 let _ = lh_inc.update(cx, |shell, cx| {
                     shell.panels.settings.editing_stepper = None;
-                    if shell.panels.settings.pref_line_height < 2.95 {
-                        shell.panels.settings.pref_line_height += 0.1;
-                        cx.notify();
+                    if shell.panels.settings.pref_line_height + step <= 3.0 {
+                        shell.panels.settings.pref_line_height += step;
+                    } else {
+                        shell.panels.settings.pref_line_height = 3.0;
                     }
+                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
+                    typo.line_height = shell.panels.settings.pref_line_height;
+                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
+                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
+                        s.typography = typo;
+                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    });
+                    cx.notify();
                 });
             }),
             on_lh_cycle: Box::new(move |_event, _window, cx| {
@@ -361,9 +624,33 @@ impl Shell {
                         } else {
                             1.6
                         };
+                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
+                    typo.line_height = shell.panels.settings.pref_line_height;
+                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
+                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
+                        s.typography = typo;
+                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    });
                     cx.notify();
                 });
             }),
+            on_reset_line_height: if has_custom_lh {
+                Some(Box::new(move |_event, _window, cx| {
+                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
+                    typo.line_height = 1.6;
+                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
+                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
+                        s.typography = typo;
+                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    });
+                    let _ = reset_lh_shell.update(cx, |shell, cx| {
+                        shell.panels.settings.pref_line_height = 1.6;
+                        cx.notify();
+                    });
+                }))
+            } else {
+                None
+            },
         };
 
         sections.push(render_typography_section(

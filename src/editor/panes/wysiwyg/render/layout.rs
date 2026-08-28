@@ -107,59 +107,23 @@ pub fn callout_colors(variant: crate::model::block::CalloutKind, theme: &Theme) 
 
 // ── Font helpers ────────────────────────────────────────────────────────
 
-/// The editor's text font (Encode Sans Semi Expanded) with CJK and Tibetan fallbacks.
-pub fn editor_text_font() -> Font {
-    static FALLBACKS: std::sync::OnceLock<FontFallbacks> = std::sync::OnceLock::new();
-    let fallbacks = FALLBACKS
-        .get_or_init(|| {
-            FontFallbacks::from_fonts(font_fallbacks_for_target_os(std::env::consts::OS))
-        })
-        .clone();
-    let mut font = font("Encode Sans Semi Expanded");
-    font.fallbacks = Some(fallbacks);
-    font
+/// The document prose text font (defaults to Encode Sans Semi Expanded unless configured).
+#[inline]
+#[allow(dead_code)]
+pub fn document_prose_font(cx: &App) -> Font {
+    crate::infra::theme::TypographyStore::prose_font(cx)
 }
 
-/// Return font fallback families (CJK, Tibetan, system sans-serif) for the given OS.
-pub fn font_fallbacks_for_target_os(target_os: &str) -> Vec<String> {
-    let families: &[&str] = match target_os {
-        "windows" => &[
-            "PingFang SC",
-            "Microsoft YaHei",
-            "Noto Sans SC",
-            "Segoe UI",
-            "Microsoft Himalaya",
-            "Noto Serif Tibetan",
-            "Noto Sans Tibetan",
-            "BabelStone Tibetan",
-        ],
-        "macos" => &[
-            "PingFang SC",
-            "Hiragino Sans GB",
-            ".SystemUIFont",
-            "Helvetica Neue",
-            "Kailasa",
-            "Noto Serif Tibetan",
-            "Noto Sans Tibetan",
-        ],
-        _ => &[
-            "Noto Sans CJK SC",
-            "WenQuanYi Micro Hei",
-            "DejaVu Sans",
-            "Noto Serif Tibetan",
-            "Noto Sans Tibetan",
-            "Microsoft Himalaya",
-            "Kailasa",
-            "BabelStone Tibetan",
-        ],
-    };
-    families.iter().map(|f| (*f).to_string()).collect()
+/// Backward-compatible helper returning the default prose font without requiring a Context.
+#[inline]
+pub fn editor_text_font() -> Font {
+    crate::infra::theme::TypographyStore::default_font(crate::infra::theme::TypographyScope::Prose)
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        RowSpacingInfo, callout_row_top_gap, editor_text_font, font_fallbacks_for_target_os,
+        RowSpacingInfo, callout_row_top_gap, editor_text_font,
         row_top_gap,
     };
     use crate::infra::theme::Theme;
@@ -185,35 +149,9 @@ mod tests {
 
     #[test]
     fn editor_text_font_keeps_encode_sans_semi_expanded_as_primary_family() {
-        assert_eq!(editor_text_font().family.to_string(), "Encode Sans Semi Expanded");
-    }
-
-    #[test]
-    fn font_fallbacks_prioritize_platform_defaults() {
-        assert_eq!(
-            font_fallbacks_for_target_os("windows")
-                .first()
-                .map(String::as_str),
-            Some("PingFang SC")
-        );
-        assert_eq!(
-            font_fallbacks_for_target_os("macos")
-                .first()
-                .map(String::as_str),
-            Some("PingFang SC")
-        );
-        assert_eq!(
-            font_fallbacks_for_target_os("linux")
-                .first()
-                .map(String::as_str),
-            Some("Noto Sans CJK SC")
-        );
-        assert_eq!(
-            font_fallbacks_for_target_os("unknown")
-                .first()
-                .map(String::as_str),
-            Some("Noto Sans CJK SC")
-        );
+        let f = editor_text_font();
+        assert_eq!(f.family.to_string(), "Encode Sans Semi Expanded");
+        assert!(f.fallbacks.is_none(), "fallbacks should be None to rely on native OS glyph cascading");
     }
 
     #[test]

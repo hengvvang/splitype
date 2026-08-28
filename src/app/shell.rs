@@ -1008,7 +1008,7 @@ impl Render for Shell {
             .flex_col()
             .relative()
             .bg(theme.colors.editor_background)
-            .font(crate::editor::panes::wysiwyg::render::layout::editor_text_font())
+            .font(crate::infra::theme::TypographyStore::ui_font(cx))
             .on_action(cx.listener(Self::on_close_window))
             .on_action(cx.listener(Self::on_toggle_explorer_action))
             .on_action(cx.listener(Self::on_toggle_maximize_area_action))

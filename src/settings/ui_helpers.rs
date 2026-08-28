@@ -16,19 +16,53 @@ pub(crate) fn make_row(
     desc: &'static str,
     control: AnyElement,
 ) -> AnyElement {
+    make_row_with_reset(inner_border_color, c, d, title, desc, None, control)
+}
+
+pub(crate) fn make_row_with_reset(
+    inner_border_color: Hsla,
+    c: &ThemeColors,
+    d: &ThemeDimensions,
+    title: &'static str,
+    desc: &'static str,
+    on_reset: Option<SettingsClickHandler>,
+    control: AnyElement,
+) -> AnyElement {
+    let mut title_row = div().flex().items_center().gap(px(6.0)).child(
+        div()
+            .text_size(px(12.5))
+            .font_weight(gpui::FontWeight::MEDIUM)
+            .text_color(c.text_default)
+            .child(title),
+    );
+
+    if let Some(reset_fn) = on_reset {
+        let reset_id = ElementId::Name(format!("reset-{}", title).into());
+        title_row = title_row.child(
+            div()
+                .id(reset_id)
+                .cursor_pointer()
+                .p(px(2.0))
+                .rounded(px(3.0))
+                .hover(|s| s.bg(c.dialog_secondary_button_hover))
+                .child(
+                    svg()
+                        .path("icons/settings/undo.svg")
+                        .size(px(12.0))
+                        .text_color(c.dialog_muted)
+                        .hover(|s| s.text_color(c.text_default)),
+                )
+                .on_click(reset_fn),
+        );
+    }
+
     settings_row(inner_border_color, c, d)
         .child(
             div()
                 .flex()
                 .flex_col()
                 .gap(px(2.0))
-                .child(
-                    div()
-                        .text_size(px(12.5))
-                        .font_weight(gpui::FontWeight::MEDIUM)
-                        .text_color(c.text_default)
-                        .child(title),
-                )
+                .child(title_row)
                 .child(
                     div()
                         .text_size(px(11.0))

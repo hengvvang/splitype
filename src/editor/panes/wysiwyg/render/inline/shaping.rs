@@ -140,7 +140,11 @@ pub fn build_text_runs(
             .map(|range| start < range.end && range.start < end)
             .unwrap_or(false);
 
-        let mut font = base_run.font.clone();
+        let mut font = if inline_style.code {
+            crate::infra::theme::TypographyStore::default_font(crate::infra::theme::TypographyScope::Code)
+        } else {
+            base_run.font.clone()
+        };
         if inline_style.bold && font.weight < FontWeight::BOLD {
             font.weight = FontWeight::BOLD;
         }
@@ -251,9 +255,12 @@ pub fn build_code_text_runs(
             .map(|span| code_highlight_color(colors, span.class))
             .unwrap_or(base_run.color);
 
+        let code_font = crate::infra::theme::TypographyStore::default_font(
+            crate::infra::theme::TypographyScope::Code,
+        );
         runs.push(TextRun {
             len: end - start,
-            font: base_run.font.clone(),
+            font: code_font,
             color: run_color,
             background_color: base_run.background_color,
             underline: is_marked.then_some(UnderlineStyle {

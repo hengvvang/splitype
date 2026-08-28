@@ -239,8 +239,43 @@ impl std::str::FromStr for ImagePasteBehavior {
     }
 }
 
+/// Typography preferences (UI, Prose, and Code fonts, sizes, and line heights).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct TypographySettings {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ui_font_family: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prose_font_family: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub code_font_family: Option<String>,
+    #[serde(default = "default_font_size")]
+    pub font_size: u32,
+    #[serde(default = "default_line_height")]
+    pub line_height: f32,
+}
+
+fn default_font_size() -> u32 {
+    16
+}
+
+fn default_line_height() -> f32 {
+    1.6
+}
+
+impl Default for TypographySettings {
+    fn default() -> Self {
+        Self {
+            ui_font_family: None,
+            prose_font_family: None,
+            code_font_family: None,
+            font_size: default_font_size(),
+            line_height: default_line_height(),
+        }
+    }
+}
+
 /// User settings persisted under the app config directory.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct AppSettings {
     pub startup_open: StartupOpenSetting,
     pub default_language_id: String,
@@ -250,6 +285,7 @@ pub struct AppSettings {
     pub keybindings: BTreeMap<String, Vec<String>>,
     pub status_bar: StatusBarSettings,
     pub explorer: ExplorerSettings,
+    pub typography: TypographySettings,
 }
 
 impl Default for AppSettings {
@@ -263,6 +299,7 @@ impl Default for AppSettings {
             keybindings: BTreeMap::new(),
             status_bar: StatusBarSettings::default(),
             explorer: ExplorerSettings::default(),
+            typography: TypographySettings::default(),
         }
     }
 }
@@ -353,6 +390,8 @@ struct SettingsFile {
     keybindings: BTreeMap<String, Vec<String>>,
     #[serde(default)]
     explorer: ExplorerSettingsFile,
+    #[serde(default)]
+    typography: TypographySettings,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -467,6 +506,7 @@ impl From<SettingsFile> for AppSettings {
                 sort_mode: file.explorer.sort_mode,
                 sort_order: file.explorer.sort_order,
             },
+            typography: file.typography,
         }
     }
 }
@@ -498,6 +538,7 @@ impl From<&AppSettings> for SettingsFile {
                 sort_mode: value.explorer.sort_mode,
                 sort_order: value.explorer.sort_order,
             },
+            typography: value.typography.clone(),
         }
     }
 }
@@ -650,6 +691,7 @@ pub fn save_settings_from_window(
     image_paste_behavior: ImagePasteBehavior,
     keybindings: BTreeMap<String, Vec<String>>,
     status_bar: &StatusBarSettings,
+    typography: &TypographySettings,
 ) -> anyhow::Result<AppSettings> {
     let dirs = SplitypeConfigDirs::from_system()?;
     save_settings_from_window_with_dirs(
@@ -658,16 +700,18 @@ pub fn save_settings_from_window(
         image_paste_behavior,
         keybindings,
         status_bar,
+        typography,
         &dirs,
     )
 }
 
-fn save_settings_from_window_with_dirs(
+pub fn save_settings_from_window_with_dirs(
     startup_open: StartupOpenSetting,
     default_theme_id: &str,
     image_paste_behavior: ImagePasteBehavior,
     keybindings: BTreeMap<String, Vec<String>>,
     status_bar: &StatusBarSettings,
+    typography: &TypographySettings,
     dirs: &SplitypeConfigDirs,
 ) -> anyhow::Result<AppSettings> {
     let mut settings =
@@ -677,6 +721,7 @@ fn save_settings_from_window_with_dirs(
     settings.image_paste_behavior = image_paste_behavior;
     settings.keybindings = normalize_shortcut_config(&keybindings);
     settings.status_bar = status_bar.clone();
+    settings.typography = typography.clone();
     save_app_settings_with_dirs(&settings, dirs)?;
     Ok(settings)
 }

@@ -44,6 +44,9 @@ pub struct SettingsUiState {
     pub pref_startup_option: usize,
     pub open_dropdown: Option<String>,
     pub editing_stepper: Option<String>,
+    pub search_query_ui_font: String,
+    pub search_query_prose_font: String,
+    pub search_query_code_font: String,
 }
 
 impl Default for SettingsUiState {
@@ -77,6 +80,9 @@ impl SettingsUiState {
             pref_startup_option: 0,
             open_dropdown: None,
             editing_stepper: None,
+            search_query_ui_font: String::new(),
+            search_query_prose_font: String::new(),
+            search_query_code_font: String::new(),
         }
     }
 }

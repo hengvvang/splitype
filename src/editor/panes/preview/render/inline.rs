@@ -113,6 +113,9 @@ pub(crate) fn render_preview_span(
     }
     if span.style.code {
         element = element
+            .font(crate::infra::theme::TypographyStore::default_font(
+                crate::infra::theme::TypographyScope::Code,
+            ))
             .rounded(px(theme.dimensions.code_bg_radius))
             .px(px(theme.dimensions.code_bg_pad_x))
             .py(px(theme.dimensions.code_bg_pad_y))

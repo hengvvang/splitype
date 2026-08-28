@@ -102,3 +102,174 @@ pub struct ThemeTypography {
     /// Dialog button font weight.
     pub dialog_button_weight: FontWeightDef,
 }
+
+/// Three-tier typography scopes (Application Chrome UI, Document Prose, and Syntax Code).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TypographyScope {
+    /// 1. Application Chrome / Interface controls (Shell, Titlebar, Menus, Explorer, Settings, Statusbar)
+    Ui,
+    /// 2. Document Prose (Markdown text, Headings H1~H6, Blockquotes, Lists, Tables across Editor and Preview)
+    Prose,
+    /// 3. Syntax / Monospace (Fenced Code Blocks, Inline Code, YAML Frontmatter)
+    Code,
+}
+
+impl TypographyScope {
+    pub const ALL: [Self; 3] = [Self::Ui, Self::Prose, Self::Code];
+
+    pub fn display_label(&self) -> &'static str {
+        match self {
+            Self::Ui => "Interface Font",
+            Self::Prose => "Prose Text Font",
+            Self::Code => "Code Block Font",
+        }
+    }
+
+    pub fn display_description(&self) -> &'static str {
+        match self {
+            Self::Ui => "Font used for menus, explorer sidebar, and application chrome",
+            Self::Prose => "Font used for Markdown prose, headings, and tables (both Editor and Preview)",
+            Self::Code => "Monospace font used for code blocks and inline code",
+        }
+    }
+}
+
+/// Global typography store managing active font instances for Ui, Prose, and Code scopes.
+pub struct TypographyStore {
+    settings: crate::infra::config::settings::TypographySettings,
+    cached_ui_font: gpui::Font,
+    cached_prose_font: gpui::Font,
+    cached_code_font: gpui::Font,
+}
+
+impl gpui::Global for TypographyStore {}
+
+impl TypographyStore {
+    pub fn init(cx: &mut gpui::App, settings: crate::infra::config::settings::TypographySettings) {
+        let (ui, prose, code) = Self::resolve_fonts(&settings);
+        cx.set_global(Self {
+            settings,
+            cached_ui_font: ui,
+            cached_prose_font: prose,
+            cached_code_font: code,
+        });
+    }
+
+    pub fn update(cx: &mut gpui::App, settings: crate::infra::config::settings::TypographySettings) {
+        let (ui, prose, code) = Self::resolve_fonts(&settings);
+        cx.set_global(Self {
+            settings,
+            cached_ui_font: ui,
+            cached_prose_font: prose,
+            cached_code_font: code,
+        });
+        cx.refresh_windows();
+    }
+
+    pub fn settings(cx: &gpui::App) -> crate::infra::config::settings::TypographySettings {
+        cx.try_global::<Self>()
+            .map(|store| store.settings.clone())
+            .unwrap_or_default()
+    }
+
+    pub fn font(cx: &gpui::App, scope: TypographyScope) -> gpui::Font {
+        if let Some(store) = cx.try_global::<Self>() {
+            match scope {
+                TypographyScope::Ui => store.cached_ui_font.clone(),
+                TypographyScope::Prose => store.cached_prose_font.clone(),
+                TypographyScope::Code => store.cached_code_font.clone(),
+            }
+        } else {
+            Self::default_font(scope)
+        }
+    }
+
+    #[inline]
+    pub fn ui_font(cx: &gpui::App) -> gpui::Font {
+        Self::font(cx, TypographyScope::Ui)
+    }
+
+    #[inline]
+    pub fn prose_font(cx: &gpui::App) -> gpui::Font {
+        Self::font(cx, TypographyScope::Prose)
+    }
+
+    #[inline]
+    pub fn code_font(cx: &gpui::App) -> gpui::Font {
+        Self::font(cx, TypographyScope::Code)
+    }
+
+    pub fn default_font(scope: TypographyScope) -> gpui::Font {
+        let (ui, prose, code) = Self::resolve_fonts(&crate::infra::config::settings::TypographySettings::default());
+        match scope {
+            TypographyScope::Ui => ui,
+            TypographyScope::Prose => prose,
+            TypographyScope::Code => code,
+        }
+    }
+
+    fn resolve_fonts(
+        settings: &crate::infra::config::settings::TypographySettings,
+    ) -> (gpui::Font, gpui::Font, gpui::Font) {
+        let ui_family = settings
+            .ui_font_family
+            .as_deref()
+            .unwrap_or("Encode Sans Semi Expanded");
+        let prose_family = settings
+            .prose_font_family
+            .as_deref()
+            .unwrap_or("Encode Sans Semi Expanded");
+        let code_family = settings.code_font_family.as_deref().unwrap_or_else(|| {
+            if cfg!(target_os = "windows") {
+                "Consolas"
+            } else if cfg!(target_os = "macos") {
+                "Menlo"
+            } else {
+                "monospace"
+            }
+        });
+
+        (
+            gpui::font(ui_family),
+            gpui::font(prose_family),
+            gpui::font(code_family),
+        )
+    }
+}
+
+/// Global cache of all installed and available font families on the system.
+///
+/// Enumerating fonts from the OS text system is done via `cx.text_system().all_font_names()`
+/// and cached using `OnceLock` to provide instant searching and rendering in settings.
+pub struct FontFamilyCache;
+
+impl FontFamilyCache {
+    pub fn list_font_families(cx: &gpui::App) -> Vec<gpui::SharedString> {
+        static CACHED: std::sync::OnceLock<Vec<gpui::SharedString>> = std::sync::OnceLock::new();
+        CACHED
+            .get_or_init(|| {
+                let mut font_names: Vec<String> = cx.text_system().all_font_names();
+                font_names.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+                font_names.dedup();
+                font_names
+                    .into_iter()
+                    .map(gpui::SharedString::from)
+                    .collect()
+            })
+            .clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_typography_scope_properties() {
+        assert_eq!(TypographyScope::ALL.len(), 3);
+        assert_eq!(TypographyScope::Ui.display_label(), "Interface Font");
+        assert_eq!(TypographyScope::Prose.display_label(), "Prose Text Font");
+        assert_eq!(TypographyScope::Code.display_label(), "Code Block Font");
+    }
+}
