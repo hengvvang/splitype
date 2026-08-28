@@ -141,18 +141,15 @@ impl Editor {
         let selection_snapshot = self.capture_source_selection_snapshot_global(cx);
         self.clear_cross_block_selection(cx);
         self.active_pane_state().selection.clear_all();
-        match self.tab().mode {
-            EditorPaneKind::Wysiwyg => {
-                let markdown = self.doc().serialize_markdown(cx);
-                self.tab_mut().mode = EditorPaneKind::SourceCode;
-                self.rebuild_document_from_markdown(&markdown, cx);
-            }
+        let active_pane = self.active_pane_id();
+        let current_kind = self.active_pane_kind();
+        let next_kind = match current_kind {
+            EditorPaneKind::Wysiwyg => EditorPaneKind::SourceCode,
             EditorPaneKind::SourceCode | EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                let source = self.doc().serialize_source_text(cx);
-                self.tab_mut().mode = EditorPaneKind::Wysiwyg;
-                self.rebuild_document_from_markdown(&source, cx);
+                EditorPaneKind::Wysiwyg
             }
-        }
+        };
+        self.change_pane_kind(active_pane, next_kind);
 
         self.apply_selection_snapshot_in_current_mode(&selection_snapshot, cx);
         {

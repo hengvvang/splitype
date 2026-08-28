@@ -1,4 +1,4 @@
-﻿//! External file drops: clean replace and dirty-drop decisions.
+//! External file drops: clean replace and dirty-drop decisions.
 
 use std::fs;
 
@@ -28,7 +28,7 @@ async fn dropped_markdown_replaces_clean_editor_in_current_window(cx: &mut TestA
 
     editor.update(cx, |editor, cx| {
         editor.toggle_pane_kind(cx);
-        assert!(editor.tab().mode == EditorPaneKind::SourceCode);
+        assert!(editor.active_pane_kind() == EditorPaneKind::SourceCode);
     });
 
     cx.update(|window, cx| {
@@ -40,7 +40,7 @@ async fn dropped_markdown_replaces_clean_editor_in_current_window(cx: &mut TestA
 
     editor.read_with(cx, |editor, cx| {
         assert_eq!(editor.tab().file.path.as_ref(), Some(&dropped_path));
-        assert!(editor.tab().mode == EditorPaneKind::Wysiwyg);
+        assert!(editor.active_pane_kind() == EditorPaneKind::SourceCode);
         assert!(!editor.tab().file.dirty);
         assert!(!editor.tab().file.show_drop_replace_dialog);
         assert_eq!(editor.doc().root_count(), 3);

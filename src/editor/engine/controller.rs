@@ -233,8 +233,6 @@ pub(crate) struct DocumentTab {
     /// Bumped whenever the document text may have changed; derived views
     /// (preview, source panes) compare against this to skip re-syncing.
     pub(crate) document_revision: u64,
-    /// Which view this tab is currently presenting.
-    pub(crate) mode: EditorPaneKind,
     pub(crate) file: FileState,
     pub(crate) kind: TabKind,
     pub(crate) undo: UndoHistory,
@@ -514,21 +512,6 @@ pub(crate) enum InfoDialogKind {
 
 impl DocumentTab {
     #[inline]
-    pub fn is_wysiwyg(&self) -> bool {
-        self.mode.is_wysiwyg()
-    }
-
-    #[inline]
-    pub fn is_source_code(&self) -> bool {
-        self.mode.is_source_code()
-    }
-
-    #[inline]
-    pub fn is_preview(&self) -> bool {
-        self.mode.is_preview()
-    }
-
-    #[inline]
     pub fn is_transient(&self) -> bool {
         self.kind == TabKind::Transient
     }
@@ -655,7 +638,6 @@ impl Editor {
         DocumentTab {
             document,
             document_revision: 0,
-            mode: EditorPaneKind::Wysiwyg,
             file: FileState {
                 path: file_path,
                 ..FileState::default()
@@ -1008,29 +990,35 @@ impl Editor {
         cx.notify();
     }
 
-    /// The active document tab.
+    /// Query the pane kind of a specific pane.
+    #[inline]
+    pub fn pane_kind(&self, pane_id: PaneId) -> Option<EditorPaneKind> {
+        self.session.root.tree.find_leaf(pane_id.0).map(|l| l.kind)
+    }
+
+    /// The active pane's kind.
+    #[inline]
+    pub fn active_pane_kind(&self) -> EditorPaneKind {
+        self.pane_kind(self.active_pane_id())
+            .unwrap_or(EditorPaneKind::Wysiwyg)
+    }
+
+    /// True if the active pane is in WYSIWYG mode.
     #[inline]
     pub fn is_wysiwyg(&self) -> bool {
-        self.session
-            .active_tab()
-            .map(|t| t.is_wysiwyg())
-            .unwrap_or(true)
+        self.active_pane_kind().is_wysiwyg()
     }
 
+    /// True if the active pane is in Source Code mode.
     #[inline]
     pub fn is_source_code(&self) -> bool {
-        self.session
-            .active_tab()
-            .map(|t| t.is_source_code())
-            .unwrap_or(false)
+        self.active_pane_kind().is_source_code()
     }
 
+    /// True if the active pane is in Preview mode.
     #[inline]
     pub fn is_preview(&self) -> bool {
-        self.session
-            .active_tab()
-            .map(|t| t.is_preview())
-            .unwrap_or(false)
+        self.active_pane_kind().is_preview()
     }
 
     #[inline]
@@ -1106,13 +1094,8 @@ impl Editor {
 
         let mut list = EditorTabList::new();
         for tab in self.session.tabs() {
-            let text = if tab.mode == EditorPaneKind::SourceCode {
-                tab.document.serialize_source_text(cx)
-            } else {
-                tab.document.serialize_markdown(cx)
-            };
+            let text = tab.document.serialize_markdown(cx);
             let mut copy = Self::new_tab_from_markdown(cx, text, tab.file.path.clone());
-            copy.mode = tab.mode;
             copy.file.dirty = tab.file.dirty;
             copy.kind = tab.kind;
             list.push(copy);

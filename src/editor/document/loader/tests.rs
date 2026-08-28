@@ -1690,12 +1690,12 @@ use gpui::{AppContext, TestAppContext};
         editor.update(cx, |editor, cx| {
             editor.toggle_pane_kind(cx);
             assert!(matches!(
-                editor.tab().mode,
+                editor.active_pane_kind(),
                 crate::editor::engine::controller::EditorPaneKind::SourceCode
             ));
             editor.toggle_pane_kind(cx);
             assert!(matches!(
-                editor.tab().mode,
+                editor.active_pane_kind(),
                 crate::editor::engine::controller::EditorPaneKind::Wysiwyg
             ));
 
@@ -1852,12 +1852,12 @@ use gpui::{AppContext, TestAppContext};
         editor.update(cx, |editor, cx| {
             editor.toggle_pane_kind(cx);
             assert!(matches!(
-                editor.tab().mode,
+                editor.active_pane_kind(),
                 crate::editor::engine::controller::EditorPaneKind::SourceCode
             ));
             editor.toggle_pane_kind(cx);
             assert!(matches!(
-                editor.tab().mode,
+                editor.active_pane_kind(),
                 crate::editor::engine::controller::EditorPaneKind::Wysiwyg
             ));
 

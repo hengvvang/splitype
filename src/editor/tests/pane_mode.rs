@@ -1,4 +1,4 @@
-﻿//! View-mode toggling: preserved image handles and positions.
+//! View-mode toggling: preserved image handles and positions.
 
 use gpui::{AppContext, TestAppContext};
 
@@ -11,9 +11,9 @@ async fn toggling_source_mode_preserves_root_image_handle(cx: &mut TestAppContex
 
     editor.update(cx, |editor, cx| {
         editor.toggle_pane_kind(cx);
-        assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
         editor.toggle_pane_kind(cx);
-        assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::Wysiwyg));
     });
 
     editor.read_with(cx, |editor, cx| {
@@ -29,9 +29,9 @@ async fn toggling_source_mode_preserves_reference_style_root_image_handle(cx: &m
 
     editor.update(cx, |editor, cx| {
         editor.toggle_pane_kind(cx);
-        assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
         editor.toggle_pane_kind(cx);
-        assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::Wysiwyg));
     });
 
     editor.read_with(cx, |editor, cx| {
@@ -48,9 +48,9 @@ async fn toggling_source_mode_preserves_quote_child_image_handle(cx: &mut TestAp
 
     editor.update(cx, |editor, cx| {
         editor.toggle_pane_kind(cx);
-        assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
         editor.toggle_pane_kind(cx);
-        assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::Wysiwyg));
     });
 
     editor.read_with(cx, |editor, cx| {
@@ -72,9 +72,9 @@ async fn toggling_source_mode_preserves_list_item_image_handle(cx: &mut TestAppC
 
     editor.update(cx, |editor, cx| {
         editor.toggle_pane_kind(cx);
-        assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
         editor.toggle_pane_kind(cx);
-        assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::Wysiwyg));
     });
 
     editor.read_with(cx, |editor, cx| {
@@ -90,9 +90,9 @@ async fn toggling_source_mode_preserves_list_child_image_handle(cx: &mut TestApp
 
     editor.update(cx, |editor, cx| {
         editor.toggle_pane_kind(cx);
-        assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
         editor.toggle_pane_kind(cx);
-        assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::Wysiwyg));
     });
 
     editor.read_with(cx, |editor, cx| {

@@ -20,13 +20,13 @@ async fn toggle_pane_kind_preserves_paragraph_caret_position(cx: &mut TestAppCon
         editor.active_pane_state().focus.active_entity = Some(target.entity_id());
 
         editor.toggle_pane_kind(cx);
-        assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
         let source = editor.doc().first_root().expect("source root").clone();
         assert_eq!(source.read(cx).selected_range, 9..9);
         assert!(source.read(cx).show_source_line_numbers());
 
         editor.toggle_pane_kind(cx);
-        assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::Wysiwyg));
         let entries = editor.doc().blocks();
         assert_eq!(entries.len(), 3);
         assert!(
@@ -59,7 +59,7 @@ async fn toggle_pane_kind_ends_stale_code_block_pointer_selection(cx: &mut TestA
 
         editor.toggle_pane_kind(cx);
 
-        assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
         target.read_with(cx, |block, _cx| {
             assert!(!block.is_selecting);
             assert!(!block.code_toolbar.picker.is_selecting);
@@ -79,14 +79,14 @@ async fn ctrl_tab_toggles_pane_kind(cx: &mut TestAppContext) {
     redraw(cx);
 
     editor.update(cx, |editor, _cx| {
-        assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
     });
 
     cx.simulate_keystrokes("ctrl-tab");
     redraw(cx);
 
     editor.update(cx, |editor, _cx| {
-        assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::Wysiwyg));
     });
 }
 
@@ -99,7 +99,7 @@ async fn ctrl_a_selects_entire_source_document_in_source_mode(cx: &mut TestAppCo
 
     let source = editor.update(cx, |editor, cx| {
         editor.toggle_pane_kind(cx);
-        assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
         let source = editor.doc().blocks()[0].entity.clone();
         source.update(cx, |block, _cx| {
             block.selected_range = 1..3;
@@ -769,10 +769,10 @@ async fn toggle_pane_kind_preserves_table_cell_position(cx: &mut TestAppContext)
         editor.active_pane_state().focus.active_entity = Some(cell.entity_id());
 
         editor.toggle_pane_kind(cx);
-        assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
 
         editor.toggle_pane_kind(cx);
-        assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::Wysiwyg));
         let restored_table = editor.doc().first_root().expect("restored table").clone();
         let restored_cell = restored_table
             .read(cx)
@@ -817,10 +817,10 @@ async fn toggle_pane_kind_preserves_callout_table_cell_position(cx: &mut TestApp
         editor.active_pane_state().focus.active_entity = Some(cell.entity_id());
 
         editor.toggle_pane_kind(cx);
-        assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
 
         editor.toggle_pane_kind(cx);
-        assert!(matches!(editor.tab().mode, EditorPaneKind::Wysiwyg));
+        assert!(matches!(editor.active_pane_kind(), EditorPaneKind::Wysiwyg));
         let restored_callout = editor.doc().first_root().expect("restored callout").clone();
         let restored_table = restored_callout
             .read(cx)

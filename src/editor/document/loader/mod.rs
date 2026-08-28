@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use gpui::*;
 
-use crate::editor::engine::controller::{Editor, EditorPaneKind};
+use crate::editor::engine::controller::Editor;
 use crate::editor::document::block::Block;
 use crate::model::parse::BlockData;
 
@@ -41,40 +41,18 @@ impl Editor {
 
     /// Replace the whole document with a fresh parse of `markdown`,
     /// rebuilding table/image handles and bumping the document revision.
-    ///
-    /// Mode-dependent: Wysiwyg parses 1:1 line blocks; Preview parses CommonMark AST;
-    /// SourceCode rebuilds a single raw block.
     pub(crate) fn rebuild_document_from_markdown(
         &mut self,
         markdown: &str,
         cx: &mut Context<Self>,
     ) {
-        match self.tab().mode {
-            EditorPaneKind::Wysiwyg => {
-                let mut roots = Self::parse_wysiwyg_document(cx, markdown);
-                if roots.is_empty() {
-                    roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
-                }
-                self.doc_mut().replace_blocks(roots, cx);
-                self.rebuild_table_grids(cx);
-                self.rebuild_reference_registries(cx);
-            }
-            EditorPaneKind::Preview | EditorPaneKind::Outline => {
-                let mut roots = Self::parse_preview_document(cx, markdown);
-                if roots.is_empty() {
-                    roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
-                }
-                self.doc_mut().replace_blocks(roots, cx);
-                self.rebuild_table_grids(cx);
-                self.rebuild_reference_registries(cx);
-            }
-            EditorPaneKind::SourceCode => {
-                let block = Self::new_block(cx, BlockData::paragraph(markdown.to_string()));
-                block.update(cx, |block, _cx| block.set_source_document_mode());
-                self.doc_mut().replace_blocks(vec![block], cx);
-                self.tab_mut().tables.cells.clear();
-            }
+        let mut roots = Self::parse_wysiwyg_document(cx, markdown);
+        if roots.is_empty() {
+            roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
         }
+        self.doc_mut().replace_blocks(roots, cx);
+        self.rebuild_table_grids(cx);
+        self.rebuild_reference_registries(cx);
         self.bump_document_revision();
     }
 }

@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context as AnyhowContext, Result};
 use gpui::*;
 
-use crate::editor::engine::controller::{Editor, EditorPaneKind, PaneId};
+use crate::editor::engine::controller::{Editor, PaneId};
 
 /// Returns true when `path` exists and has a `.md` or `.markdown` extension.
 pub(crate) fn is_markdown_file_path(path: &Path) -> bool {
@@ -51,7 +51,6 @@ impl Editor {
         let normalized = markdown.replace("\r\n", "\n").replace('\r', "\n");
 
         self.tab_mut().file.path = file_path;
-        self.tab_mut().mode = EditorPaneKind::Wysiwyg;
         self.tab_mut().persist();
         self.rebuild_document_from_markdown(&normalized, cx);
 

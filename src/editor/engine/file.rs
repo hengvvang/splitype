@@ -206,11 +206,7 @@ impl Editor {
             return true;
         }
         if let Some(path) = tab.file.path.clone() {
-            let text = if tab.mode.is_source_code() {
-                tab.document.serialize_source_text(cx)
-            } else {
-                tab.document.serialize_markdown(cx)
-            };
+            let text = tab.document.serialize_markdown(cx);
             if std::fs::write(&path, text).is_ok() {
                 if let Some(tab) = self.session.tab_mut(index) {
                     tab.file.dirty = false;

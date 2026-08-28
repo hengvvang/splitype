@@ -995,7 +995,7 @@ mod tests {
 
         editor.update(cx, |editor, cx| {
             editor.toggle_pane_kind(cx);
-            assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
+            assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
 
             let pane_id = editor.active_pane_id();
             editor.sync_source_pane(pane_id, cx);
@@ -1080,7 +1080,7 @@ mod tests {
 
         editor.update(cx, |editor, cx| {
             editor.toggle_pane_kind(cx);
-            assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
+            assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
 
             let pane_id = editor.active_pane_id();
             editor.sync_source_pane(pane_id, cx);
@@ -1169,7 +1169,7 @@ mod tests {
 
         editor.update(cx, |editor, cx| {
             editor.toggle_pane_kind(cx);
-            assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
+            assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
 
             let pane_id = editor.active_pane_id();
             editor.sync_source_pane(pane_id, cx);
@@ -1264,7 +1264,7 @@ mod tests {
         // 2. Source Code mode test
         editor.update(cx, |editor, cx| {
             editor.toggle_pane_kind(cx);
-            assert!(matches!(editor.tab().mode, EditorPaneKind::SourceCode));
+            assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
             let pane_id = editor.active_pane_id();
             editor.sync_source_pane(pane_id, cx);
         });

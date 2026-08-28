@@ -1,4 +1,4 @@
-﻿//! Selection snapshot capture, tree-path resolution, and multi-mode caret restoration.
+//! Selection snapshot capture, tree-path resolution, and multi-mode caret restoration.
 
 use std::time::Instant;
 
@@ -153,7 +153,7 @@ impl Editor {
         snapshot: &UndoSelectionSnapshot,
         cx: &mut Context<Self>,
     ) {
-        match self.tab().mode {
+        match self.active_pane_kind() {
             EditorPaneKind::SourceCode => {
                 let Some(block) = self.doc().first_root().cloned() else {
                     return;

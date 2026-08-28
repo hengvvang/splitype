@@ -253,6 +253,7 @@ debug = true
 # MSVC PDB limit (LNK1140) and makes rustc stack-overflow while compiling
 # the giant --test target on Windows. Strip it for tests only.
 debug = false
+opt-level = 1
 
 [profile.release]
 codegen-units = 1

@@ -360,8 +360,7 @@ impl Editor {
             crate::editor::document::protocol::UndoCaptureKind::NonCoalescible,
             cx,
         );
-        let can_insert_image_block = self.tab().mode
-            == crate::editor::engine::controller::EditorPaneKind::Wysiwyg
+        let can_insert_image_block = self.is_wysiwyg()
             && block.read(cx).kind() == BlockKind::Paragraph
             && self.table_cell_binding(block.entity_id()).is_none()
             && !block.read(cx).edits_verbatim_text();
