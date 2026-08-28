@@ -6,7 +6,6 @@ use crate::editor::engine::controller::Editor;
 use crate::editor::search::input_element::SearchInputElement;
 use crate::editor::search::state::{SearchActiveField, SearchScope};
 use crate::infra::theme::{Theme, TypographyScope, TypographyStore};
-use crate::ui::popover::overlay;
 
 impl Editor {
     /// Renders the floating Search and Replace overlay panel in the top-right corner.
@@ -292,29 +291,6 @@ impl Editor {
                 });
             });
 
-        let close_editor = editor.clone();
-        let close_btn = div()
-            .size(px(20.0))
-            .flex()
-            .items_center()
-            .justify_center()
-            .rounded(px(d.icon_button_radius))
-            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-            .cursor_pointer()
-            .child(
-                svg()
-                    .path("icons/editor/topbar/close.svg")
-                    .size(px(10.0))
-                    .text_color(c.dialog_muted),
-            )
-            .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                let _ = close_editor.update(cx, |ed, cx| {
-                    ed.search.visible = false;
-                    ed.clear_search_highlights_from_document(cx);
-                    cx.notify();
-                });
-            });
-
         // ── 1. Independent Search Strip Card ─────────────────────────────
         let search_top_row = div()
             .flex()
@@ -326,11 +302,10 @@ impl Editor {
                 div()
                     .flex()
                     .items_center()
-                    .gap(px(2.0))
+                    .gap(px(1.0))
                     .child(prev_btn)
                     .child(next_btn)
-                    .child(explorer_search_btn)
-                    .child(close_btn),
+                    .child(explorer_search_btn),
             );
 
         // ── Replace Row (When Expanded) ──────────────────────────────────
@@ -467,11 +442,11 @@ impl Editor {
                         div()
                             .flex()
                             .items_center()
-                            .gap(px(2.0))
+                            .gap(px(1.0))
                             .child(replace_single_btn)
                             .child(replace_all_btn)
-                            // Spacer to align with the 4 right buttons on search card (44px)
-                            .child(div().w(px(44.0)).flex_shrink_0()),
+                            // Spacer to align with the 3 right buttons on search card (21px)
+                            .child(div().w(px(21.0)).flex_shrink_0()),
                     ),
             )
         } else {
@@ -804,10 +779,11 @@ impl Editor {
             None
         };
 
-        // ── Root Overlay Container (Positions top card and separated results card) ─
+        // ── Root Floating Container (Positions top card and separated results card) ─
         let panel_top = d.topbar_height + 4.0;
         let mut container = div()
             .id("editor-search-overlay-container")
+            .occlude()
             .absolute()
             .top(px(panel_top))
             .right(px(12.0))
@@ -821,14 +797,6 @@ impl Editor {
             container = container.child(results);
         }
 
-        Some(
-            deferred(
-                overlay()
-                    .id("editor-search-overlay")
-                    .occlude()
-                    .child(container),
-            )
-            .into_any_element(),
-        )
+        Some(deferred(container.into_any_element()).into_any_element())
     }
 }

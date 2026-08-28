@@ -1,4 +1,4 @@
-﻿//! Preview blockquote rendering — quoted text color.
+//! Preview blockquote rendering — quoted text color.
 
 use gpui::*;
 
@@ -20,12 +20,13 @@ pub(crate) fn render_preview_blockquote(
     base.text_size(px(t.text_size))
         .text_color(c.text_quote)
         .line_height(rems(t.text_line_height))
-        .child(inline::render_preview_inline(
+        .child(inline::render_preview_inline_with_matches(
             &block.data.text,
             c.text_quote,
             t.text_size,
             FontWeight::NORMAL,
             theme,
+            &block.search_matches,
         ))
         .into_any_element()
 }

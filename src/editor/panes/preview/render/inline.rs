@@ -13,6 +13,8 @@ use crate::model::inline::render_cache::InlineSpan;
 use crate::model::inline::style::InlineScript;
 use crate::model::inline::text::BlockText;
 
+use std::ops::Range;
+
 /// Renders the inline content of `text` with `base_color` and `font_size`,
 /// mirroring the WYSIWYG inline segment styling without any editing state.
 pub(crate) fn render_preview_inline(
@@ -22,23 +24,129 @@ pub(crate) fn render_preview_inline(
     font_weight: FontWeight,
     theme: &Theme,
 ) -> AnyElement {
+    render_preview_inline_with_matches(text, base_color, font_size, font_weight, theme, &[])
+}
+
+#[inline]
+fn safe_str_slice<'a>(s: &'a str, start: usize, end: usize) -> &'a str {
+    if start >= end || start >= s.len() {
+        return "";
+    }
+    let end = end.min(s.len());
+    let mut s_idx = start;
+    while s_idx > 0 && !s.is_char_boundary(s_idx) {
+        s_idx -= 1;
+    }
+    let mut e_idx = end;
+    while e_idx > s_idx && !s.is_char_boundary(e_idx) {
+        e_idx -= 1;
+    }
+    if s_idx >= e_idx {
+        return "";
+    }
+    &s[s_idx..e_idx]
+}
+
+/// Renders preview inline content with search highlights applied across spans.
+pub(crate) fn render_preview_inline_with_matches(
+    text: &BlockText,
+    base_color: Hsla,
+    font_size: f32,
+    font_weight: FontWeight,
+    theme: &Theme,
+    search_matches: &[(Range<usize>, bool)],
+) -> AnyElement {
     let cache = text.render_cache();
     let plain = cache.text();
 
     let mut elements: Vec<AnyElement> = Vec::new();
     for span in cache.spans() {
-        let segment = &plain[span.range.clone()];
-        if segment.is_empty() {
+        let span_start = span.range.start;
+        let span_end = span.range.end;
+        if span_start >= span_end || span_start >= plain.len() {
             continue;
         }
-        elements.push(render_preview_span(
-            segment,
-            span,
-            base_color,
-            font_size,
-            font_weight,
-            theme,
-        ));
+
+        let mut relevant_matches: Vec<(Range<usize>, bool)> = Vec::new();
+        for (m_range, is_active) in search_matches {
+            let overlap_start = m_range.start.max(span_start);
+            let overlap_end = m_range.end.min(span_end);
+            if overlap_start < overlap_end {
+                relevant_matches.push((overlap_start..overlap_end, *is_active));
+            }
+        }
+
+        if relevant_matches.is_empty() {
+            let segment = safe_str_slice(plain, span_start, span_end);
+            if !segment.is_empty() {
+                elements.push(render_preview_span(
+                    segment,
+                    span,
+                    base_color,
+                    font_size,
+                    font_weight,
+                    theme,
+                ));
+            }
+        } else {
+            let mut curr = span_start;
+            for (m_range, is_active) in relevant_matches {
+                if curr < m_range.start {
+                    let seg = safe_str_slice(plain, curr, m_range.start);
+                    if !seg.is_empty() {
+                        elements.push(render_preview_span(
+                            seg,
+                            span,
+                            base_color,
+                            font_size,
+                            font_weight,
+                            theme,
+                        ));
+                    }
+                }
+                let match_seg = safe_str_slice(plain, m_range.start, m_range.end);
+                if !match_seg.is_empty() {
+                    let match_el = render_preview_span(
+                        match_seg,
+                        span,
+                        base_color,
+                        font_size,
+                        font_weight,
+                        theme,
+                    );
+                    let bg_color = if is_active {
+                        theme.colors.app_menu_active.opacity(0.65)
+                    } else {
+                        theme.colors.app_menu_active.opacity(0.25)
+                    };
+                    let mut wrapped = div()
+                        .bg(bg_color)
+                        .rounded(px(theme.dimensions.code_bg_radius))
+                        .px(px(2.0))
+                        .child(match_el);
+                    if is_active {
+                        wrapped = wrapped
+                            .border_1()
+                            .border_color(theme.colors.app_menu_active);
+                    }
+                    elements.push(wrapped.into_any_element());
+                }
+                curr = m_range.end;
+            }
+            if curr < span_end {
+                let seg = safe_str_slice(plain, curr, span_end);
+                if !seg.is_empty() {
+                    elements.push(render_preview_span(
+                        seg,
+                        span,
+                        base_color,
+                        font_size,
+                        font_weight,
+                        theme,
+                    ));
+                }
+            }
+        }
     }
     if elements.is_empty() {
         elements.push(div().into_any_element());

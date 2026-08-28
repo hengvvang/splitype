@@ -865,9 +865,15 @@ impl Editor {
         tab.panes.entry(pane_id).or_default()
     }
 
+    /// The view state of the pane with `pane_id`, creating it lazily if an active tab exists.
+    pub(crate) fn pane_state_mut(&mut self, pane_id: PaneId) -> Option<&mut PaneState> {
+        let tab = self.session.active_tab_mut()?;
+        Some(tab.panes.entry(pane_id).or_default())
+    }
+
     /// The view state of the pane with `pane_id`, if it exists.
     pub(crate) fn pane_state_ref(&self, pane_id: PaneId) -> Option<&PaneState> {
-        let tab = self.tab();
+        let tab = self.active_tab()?;
         tab.panes.get(&pane_id)
     }
 
@@ -1008,6 +1014,11 @@ impl Editor {
     #[inline]
     pub(crate) fn active_tab(&self) -> Option<&DocumentTab> {
         self.session.active_tab()
+    }
+
+    #[inline]
+    pub(crate) fn active_tab_mut(&mut self) -> Option<&mut DocumentTab> {
+        self.session.active_tab_mut()
     }
 
     #[inline]

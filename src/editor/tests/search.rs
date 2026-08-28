@@ -325,5 +325,134 @@ fn test_search_action_dispatch_and_lifecycle(cx: &mut TestAppContext) {
     }).unwrap();
 }
 
+#[gpui::test]
+fn test_search_navigation_in_source_code_and_preview(cx: &mut TestAppContext) {
+    super::init_editor_test_app(cx);
+
+    let editor = cx.new(|cx| {
+        Editor::from_markdown(
+            cx,
+            "First target line\nSecond target line\nThird target line".to_string(),
+            None,
+        )
+    });
+
+    let window = cx
+        .update(|cx| {
+            cx.open_window(gpui::WindowOptions::default(), |_window, _cx| {
+                editor.clone()
+            })
+        })
+        .unwrap();
+
+    window
+        .update(cx, |ed, window, cx| {
+            let active_pane = ed.active_pane_id();
+
+            // 1. Switch active pane to SourceCode mode
+            ed.change_pane_kind(active_pane, crate::editor::engine::controller::EditorPaneKind::SourceCode);
+            ed.sync_source_pane(active_pane, cx);
+
+            ed.toggle_search(window, cx);
+            ed.search.search_input.set_text("target".to_string());
+            ed.execute_search(cx);
+
+            assert_eq!(ed.search.matches.len(), 3);
+            assert_eq!(ed.search.active_match_index, Some(0));
+
+            // In SourceCode mode, source_block should have search highlights and selection
+            let source_block = ed
+                .pane_state_ref(active_pane)
+                .unwrap()
+                .source_block
+                .as_ref()
+                .unwrap()
+                .clone();
+            let matches = source_block.read(cx).search_matches.clone();
+            assert_eq!(matches.len(), 3);
+            assert_eq!(matches[0].1, true); // Active match
+            assert_eq!(matches[1].1, false);
+
+            // Find next in SourceCode mode
+            ed.find_next(window, cx);
+            assert_eq!(ed.search.active_match_index, Some(1));
+            let matches_after_next = source_block.read(cx).search_matches.clone();
+            assert_eq!(matches_after_next[0].1, false);
+            assert_eq!(matches_after_next[1].1, true); // Second match is now active
+
+            // 2. Switch active pane to Preview mode
+            ed.change_pane_kind(
+                active_pane,
+                crate::editor::engine::controller::EditorPaneKind::Preview,
+            );
+            ed.refresh_preview_blocks(active_pane, cx);
+            ed.sync_search_highlights_to_document(cx);
+
+            let preview_blocks = ed
+                .pane_state_ref(active_pane)
+                .unwrap()
+                .preview
+                .blocks
+                .clone();
+            assert!(!preview_blocks.is_empty());
+
+            // Jump to previous match in Preview mode
+            ed.find_previous(window, cx);
+            assert_eq!(ed.search.active_match_index, Some(0));
+            let first_preview_block = preview_blocks[0].read(cx);
+            assert_eq!(first_preview_block.search_matches.len(), 3);
+            assert_eq!(first_preview_block.search_matches[0].1, true);
+            assert_eq!(first_preview_block.search_matches[1].1, false);
+        })
+        .unwrap();
+}
+
+#[gpui::test]
+fn test_search_multibyte_chinese_characters_in_preview_rendering(cx: &mut TestAppContext) {
+    super::init_editor_test_app(cx);
+
+    let editor = cx.new(|cx| {
+        Editor::from_markdown(
+            cx,
+            "**第一列内容**\n\n*第二列说明* [链接列](https://example.com)\n\n| 表头1 | 表头2 |\n|---|---|\n| 第3列 | 目标列 |".to_string(),
+            None,
+        )
+    });
+
+    let window = cx
+        .update(|cx| {
+            cx.open_window(gpui::WindowOptions::default(), |_window, _cx| {
+                editor.clone()
+            })
+        })
+        .unwrap();
+
+    window
+        .update(cx, |ed, window, cx| {
+            let active_pane = ed.active_pane_id();
+            ed.change_pane_kind(
+                active_pane,
+                crate::editor::engine::controller::EditorPaneKind::Preview,
+            );
+            ed.refresh_preview_blocks(active_pane, cx);
+
+            ed.toggle_search(window, cx);
+            ed.search.search_input.set_text("列".to_string());
+            ed.execute_search(cx);
+
+            assert!(!ed.search.matches.is_empty());
+
+            // Next / Prev jumping in Preview mode with Chinese multi-byte characters
+            for _ in 0..ed.search.matches.len() {
+                ed.find_next(window, cx);
+            }
+            for _ in 0..ed.search.matches.len() {
+                ed.find_previous(window, cx);
+            }
+        })
+        .unwrap();
+}
+
+
 
 

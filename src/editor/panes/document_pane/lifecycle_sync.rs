@@ -16,11 +16,13 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let Some(entity_id) = self.pane_state(pane_id).focus.pending.take()
-            && let Some(block) = self.focusable_entity_by_id(entity_id)
-        {
-            let focus_handle = block.read(cx).focus_handle.clone();
-            focus_handle.focus(window, cx);
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            if let Some(entity_id) = state.focus.pending.take()
+                && let Some(block) = self.focusable_entity_by_id(entity_id)
+            {
+                let focus_handle = block.read(cx).focus_handle.clone();
+                focus_handle.focus(window, cx);
+            }
         }
     }
 
@@ -38,10 +40,8 @@ impl Editor {
         }
 
         let strategy = self
-            .pane_state(pane_id)
-            .scroll
-            .pending_autoscroll
-            .take();
+            .pane_state_mut(pane_id)
+            .and_then(|s| s.scroll.pending_autoscroll.take());
 
         if let Some(strategy) = strategy {
             self.execute_autoscroll(pane_id, strategy, window, cx);
@@ -55,14 +55,59 @@ impl Editor {
         window: &Window,
         cx: &App,
     ) -> bool {
-        use crate::editor::engine::controller::AutoscrollStrategy;
+        use crate::editor::engine::controller::{AutoscrollStrategy, EditorPaneKind};
 
-        let Some(focused_block) = self.focused_edit_target(window, cx) else {
-            return false;
-        };
-        let Some(active_bounds) =
-            focused_block.read_with(cx, |block, _cx| block.active_range_or_cursor_bounds())
-        else {
+        let kind = self
+            .session
+            .root
+            .tree
+            .find_leaf_kind(pane_id.0)
+            .unwrap_or(EditorPaneKind::Wysiwyg);
+
+        let active_bounds: Option<Bounds<Pixels>> = (|| {
+            match kind {
+                EditorPaneKind::Wysiwyg => {
+                    let target_block = self
+                        .focused_edit_target(window, cx)
+                        .or_else(|| {
+                            let active_entity_id =
+                                self.pane_state_ref(pane_id)?.focus.active_entity?;
+                            self.focusable_entity_by_id(active_entity_id)
+                        })
+                        .or_else(|| {
+                            let doc = self.active_doc()?;
+                            doc.blocks().iter().find_map(|entry| {
+                                let block = entry.entity.read(cx);
+                                if block.search_matches.iter().any(|(_, is_active)| *is_active) {
+                                    Some(entry.entity.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                        })?;
+                    target_block.read_with(cx, |block, _cx| block.active_range_or_cursor_bounds())
+                }
+                EditorPaneKind::SourceCode => {
+                    let pane_state = self.pane_state_ref(pane_id)?;
+                    let source_block = pane_state.source_block.as_ref()?;
+                    source_block.read_with(cx, |block, _cx| block.active_range_or_cursor_bounds())
+                }
+                EditorPaneKind::Preview => {
+                    let pane_state = self.pane_state_ref(pane_id)?;
+                    let active_block = pane_state.preview.blocks.iter().find(|b| {
+                        b.read(cx).search_matches.iter().any(|(_, is_active)| *is_active)
+                    })?;
+                    active_block.read_with(cx, |block, _cx| {
+                        block
+                            .active_range_or_cursor_bounds()
+                            .or_else(|| block.last_paint().map(|p| p.bounds))
+                    })
+                }
+                EditorPaneKind::Outline => None,
+            }
+        })();
+
+        let Some(active_bounds) = active_bounds else {
             return false;
         };
 
@@ -107,30 +152,34 @@ impl Editor {
         if changed {
             let max_offset_y = scroll.handle.max_offset().y.max(px(0.0));
             offset.y = offset.y.min(px(0.0)).max(-max_offset_y);
-            let scroll = &mut self.pane_state(pane_id).scroll;
-            scroll.handle.set_offset(offset);
+            if let Some(state) = self.pane_state_mut(pane_id) {
+                state.scroll.handle.set_offset(offset);
+            }
         }
 
         true
     }
 
-
     pub(crate) fn sync_pending_save(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.tab().file.pending_save {
-            self.tab_mut().file.pending_save = false;
+        if self.active_tab().is_some_and(|t| t.file.pending_save) {
+            if let Some(tab) = self.active_tab_mut() {
+                tab.file.pending_save = false;
+            }
             self.save_document(window, cx);
         }
     }
 
     pub(crate) fn sync_pending_save_as(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if self.tab().file.pending_save_as {
-            self.tab_mut().file.pending_save_as = false;
+        if self.active_tab().is_some_and(|t| t.file.pending_save_as) {
+            if let Some(tab) = self.active_tab_mut() {
+                tab.file.pending_save_as = false;
+            }
             self.save_document_as(window, cx);
         }
     }
 
     pub(crate) fn sync_pending_open_link(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        let Some(link) = self.tab_mut().file.pending_open_link.take() else {
+        let Some(link) = self.active_tab_mut().and_then(|t| t.file.pending_open_link.take()) else {
             return;
         };
 
@@ -161,8 +210,10 @@ impl Editor {
     }
 
     pub(crate) fn sync_window_edited_state(&mut self, window: &mut Window) {
-        if self.tab().file.pending_window_edited {
-            self.tab_mut().file.pending_window_edited = false;
+        if self.active_tab().is_some_and(|t| t.file.pending_window_edited) {
+            if let Some(tab) = self.active_tab_mut() {
+                tab.file.pending_window_edited = false;
+            }
             window.set_window_edited(true);
         }
     }
@@ -178,23 +229,30 @@ impl Editor {
             .and_then(|state| state.scroll.last_viewport_size);
         match previous {
             Some(previous) if Self::viewport_size_changed(previous, viewport_size) => {
-                let state = self.pane_state(pane_id);
-                state.scroll.last_viewport_size = Some(viewport_size);
+                if let Some(state) = self.pane_state_mut(pane_id) {
+                    state.scroll.last_viewport_size = Some(viewport_size);
+                }
             }
             Some(_) => {}
             None => {
-                let state = self.pane_state(pane_id);
-                state.scroll.last_viewport_size = Some(viewport_size);
+                if let Some(state) = self.pane_state_mut(pane_id) {
+                    state.scroll.last_viewport_size = Some(viewport_size);
+                }
             }
         }
     }
 
     pub(crate) fn sync_window_title(&mut self, window: &mut Window, strings: &I18nStrings) {
-        if self.tab().file.pending_window_title_refresh {
-            self.tab_mut().file.pending_window_title_refresh = false;
+        if self.active_tab().is_some_and(|t| t.file.pending_window_title_refresh) {
+            let (path, dirty) = if let Some(tab) = self.active_tab_mut() {
+                tab.file.pending_window_title_refresh = false;
+                (tab.file.path.clone(), tab.file.dirty)
+            } else {
+                (None, false)
+            };
             let title = Self::window_title(
-                self.tab().file.path.as_deref(),
-                self.tab().file.dirty,
+                path.as_deref(),
+                dirty,
                 strings,
             );
             window.set_window_title(&title);

@@ -1,4 +1,4 @@
-﻿//! Preview paragraph rendering — plain text with inline styles.
+//! Preview paragraph rendering — plain text with inline styles.
 
 use gpui::*;
 
@@ -14,12 +14,13 @@ pub(crate) fn render_preview_paragraph(block: &Block, base: Div, theme: &Theme) 
     base.text_size(px(t.text_size))
         .text_color(c.text_default)
         .line_height(rems(t.text_line_height))
-        .child(inline::render_preview_inline(
+        .child(inline::render_preview_inline_with_matches(
             &block.data.text,
             c.text_default,
             t.text_size,
             FontWeight::NORMAL,
             theme,
+            &block.search_matches,
         ))
         .into_any_element()
 }

@@ -1,4 +1,4 @@
-﻿use gpui::*;
+use gpui::*;
 
 use crate::editor::panes::preview::render::inline;
 use crate::editor::document::block::Block;
@@ -36,12 +36,13 @@ pub(crate) fn render_preview_bulleted_list_item(
             div()
                 .min_w(px(0.0))
                 .flex_grow(1.0)
-                .child(inline::render_preview_inline(
+                .child(inline::render_preview_inline_with_matches(
                     &block.data.text,
                     c.text_default,
                     t.text_size,
                     FontWeight::NORMAL,
                     theme,
+                    &block.search_matches,
                 )),
         ])
         .into_any_element()
@@ -98,12 +99,13 @@ pub(crate) fn render_preview_task_list_item(
             div()
                 .min_w(px(0.0))
                 .flex_grow(1.0)
-                .child(inline::render_preview_inline(
+                .child(inline::render_preview_inline_with_matches(
                     &block.data.text,
                     text_color,
                     t.text_size,
                     FontWeight::NORMAL,
                     theme,
+                    &block.search_matches,
                 )),
         ])
         .into_any_element()
@@ -138,12 +140,13 @@ pub(crate) fn render_preview_numbered_list_item(
             div()
                 .min_w(px(0.0))
                 .flex_grow(1.0)
-                .child(inline::render_preview_inline(
+                .child(inline::render_preview_inline_with_matches(
                     &block.data.text,
                     c.text_default,
                     t.text_size,
                     FontWeight::NORMAL,
                     theme,
+                    &block.search_matches,
                 )),
         ])
         .into_any_element()

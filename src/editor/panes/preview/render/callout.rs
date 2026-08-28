@@ -1,4 +1,4 @@
-﻿//! Preview callout rendering — read-only mirror of the WYSIWYG callout
+//! Preview callout rendering — read-only mirror of the WYSIWYG callout
 //! styles.
 
 use gpui::*;
@@ -35,12 +35,13 @@ pub(crate) fn render_preview_callout(
             .text_size(px(theme.typography.text_size))
             .font_weight(FontWeight::NORMAL)
             .text_color(accent)
-            .child(inline::render_preview_inline(
+            .child(inline::render_preview_inline_with_matches(
                 &block.data.text,
                 accent,
                 theme.typography.text_size,
                 FontWeight::NORMAL,
                 theme,
+                &block.search_matches,
             ))
             .into_any_element()
     };

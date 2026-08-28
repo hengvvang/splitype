@@ -182,7 +182,7 @@ impl Editor {
 
         let active_match = self.search.current_match();
 
-        // Group matches by block entity_id
+        // 1. Group matches by block entity_id for WYSIWYG
         let mut matches_by_entity: std::collections::HashMap<EntityId, Vec<(Range<usize>, bool)>> =
             std::collections::HashMap::new();
 
@@ -211,21 +211,119 @@ impl Editor {
                 }
             });
         }
+
+        // 2. Sync SourceCode and Preview panes for the active tab
+        if let Some(tab) = self.active_tab() {
+            for pane_state in tab.panes.values() {
+                if let Some(source_block) = &pane_state.source_block {
+                    let raw_text = source_block.read(cx).display_text().to_string();
+                    let mut source_matches = Vec::new();
+                    let mut cur_line = 1usize;
+                    let mut cur_byte = 0usize;
+                    for line in raw_text.split_inclusive('\n') {
+                        for m in &self.search.matches {
+                            if m.line_number == cur_line {
+                                let mut cur_col = 1usize;
+                                for (ch_idx, _) in line.char_indices() {
+                                    if cur_col == m.column_number {
+                                        let match_len = m.preview_match.len();
+                                        let r = (cur_byte + ch_idx)..(cur_byte + ch_idx + match_len);
+                                        let is_active = if let Some(curr) = active_match {
+                                            curr.line_number == m.line_number
+                                                && curr.column_number == m.column_number
+                                        } else {
+                                            false
+                                        };
+                                        source_matches.push((r, is_active));
+                                        break;
+                                    }
+                                    cur_col += 1;
+                                }
+                            }
+                        }
+                        cur_byte += line.len();
+                        cur_line += 1;
+                    }
+                    source_block.update(cx, |block, cx| {
+                        if block.search_matches != source_matches {
+                            block.search_matches = source_matches;
+                            cx.notify();
+                        }
+                    });
+                }
+
+                if !pane_state.preview.blocks.is_empty() {
+                    let preview_query = SearchQuery::new(
+                        &self.search.search_input.text,
+                        self.search.match_case,
+                        self.search.whole_word,
+                        self.search.use_regex,
+                    );
+                    for (b_idx, preview_block) in pane_state.preview.blocks.iter().enumerate() {
+                        let mut preview_matches = Vec::new();
+                        let rendered_text =
+                            preview_block.read(cx).data.text.render_cache().text().to_string();
+                        let doc_entity_id = doc.blocks().get(b_idx).map(|e| e.entity.entity_id());
+                        let entity_matches: Vec<(usize, &SearchMatch)> = self
+                            .search
+                            .matches
+                            .iter()
+                            .enumerate()
+                            .filter(|(_, m)| m.entity_id == doc_entity_id)
+                            .collect();
+
+                        for (raw_idx, raw) in
+                            preview_query.find_matches(&rendered_text, 1).into_iter().enumerate()
+                        {
+                            let is_active =
+                                entity_matches.get(raw_idx).is_some_and(|(global_idx, _)| {
+                                    self.search.active_match_index == Some(*global_idx)
+                                });
+                            preview_matches.push((raw.byte_range, is_active));
+                        }
+                        preview_block.update(cx, |block, cx| {
+                            if block.search_matches != preview_matches {
+                                block.search_matches = preview_matches;
+                                cx.notify();
+                            }
+                        });
+                    }
+                }
+            }
+        }
     }
 
-    /// Clears search highlights from all block entities in the active document.
+    /// Clears search highlights from all block entities in the active document and all pane views.
     pub fn clear_search_highlights_from_document(&self, cx: &mut App) {
-        let Some(doc) = self.active_doc() else {
-            return;
-        };
-
-        for entry in doc.blocks() {
-            entry.entity.update(cx, |block, cx| {
-                if !block.search_matches.is_empty() {
-                    block.search_matches.clear();
-                    cx.notify();
+        if let Some(doc) = self.active_doc() {
+            for entry in doc.blocks() {
+                entry.entity.update(cx, |block, cx| {
+                    if !block.search_matches.is_empty() {
+                        block.search_matches.clear();
+                        cx.notify();
+                    }
+                });
+            }
+        }
+        if let Some(tab) = self.active_tab() {
+            for pane_state in tab.panes.values() {
+                if let Some(source_block) = &pane_state.source_block {
+                    source_block.update(cx, |block, cx| {
+                        if !block.search_matches.is_empty() {
+                            block.search_matches.clear();
+                            cx.notify();
+                        }
+                    });
                 }
-            });
+                for preview_block in &pane_state.preview.blocks {
+                    preview_block.update(cx, |block, cx| {
+                        if !block.search_matches.is_empty() {
+                            block.search_matches.clear();
+                            cx.notify();
+                        }
+                    });
+                }
+            }
         }
     }
 
@@ -487,7 +585,7 @@ impl Editor {
         }
     }
 
-    /// Jumps to the currently selected search match.
+    /// Jumps to the currently selected search match in the active pane.
     pub fn jump_to_active_search_match(&mut self, window: &mut gpui::Window, cx: &mut Context<Self>) {
         let Some(active_idx) = self.search.active_match_index else {
             return;
@@ -496,26 +594,76 @@ impl Editor {
             return;
         };
 
+        let active_pane = self.active_pane_id();
+        let pane_kind = self
+            .session
+            .root
+            .tree
+            .find_leaf_kind(active_pane.0)
+            .unwrap_or(crate::editor::engine::controller::EditorPaneKind::Wysiwyg);
+
         if let Some(entity_id) = match_item.entity_id {
-            self.focus_block(entity_id);
-            if let Some(doc) = self.active_doc() {
-                if let Some(block) = doc.block_entity_by_id(entity_id) {
-                    let range = match_item.byte_range.clone();
-                    block.update(cx, |block, cx| {
-                        block.selected_range = range;
-                        block.selection_reversed = false;
-                        block.start_cursor_blink(cx);
-                        cx.notify();
-                    });
+            match pane_kind {
+                crate::editor::engine::controller::EditorPaneKind::Wysiwyg => {
+                    self.focus_block(entity_id);
+                    if let Some(doc) = self.active_doc() {
+                        if let Some(block) = doc.block_entity_by_id(entity_id) {
+                            let range = match_item.byte_range.clone();
+                            block.update(cx, |block, cx| {
+                                block.selected_range = range;
+                                block.selection_reversed = false;
+                                block.start_cursor_blink(cx);
+                                cx.notify();
+                            });
+                        }
+                    }
                 }
+                crate::editor::engine::controller::EditorPaneKind::SourceCode => {
+                    self.sync_source_pane(active_pane, cx);
+                    if let Some(state) = self.pane_state_ref(active_pane) {
+                        if let Some(source_block) = state.source_block.clone() {
+                            let raw_text = source_block.read(cx).display_text().to_string();
+                            let mut target_range = 0..0;
+                            let mut cur_line = 1usize;
+                            let mut cur_byte = 0usize;
+                            for line in raw_text.split_inclusive('\n') {
+                                if cur_line == match_item.line_number {
+                                    let mut cur_col = 1usize;
+                                    for (ch_idx, _) in line.char_indices() {
+                                        if cur_col == match_item.column_number {
+                                            let match_len = match_item.preview_match.len();
+                                            target_range = (cur_byte + ch_idx)..(cur_byte + ch_idx + match_len);
+                                            break;
+                                        }
+                                        cur_col += 1;
+                                    }
+                                    break;
+                                }
+                                cur_byte += line.len();
+                                cur_line += 1;
+                            }
+                            source_block.update(cx, |block, cx| {
+                                block.selected_range = target_range;
+                                block.selection_reversed = false;
+                                block.start_cursor_blink(cx);
+                                cx.notify();
+                            });
+                        }
+                    }
+                }
+                crate::editor::engine::controller::EditorPaneKind::Preview => {
+                    self.refresh_preview_blocks(active_pane, cx);
+                }
+                crate::editor::engine::controller::EditorPaneKind::Outline => {}
             }
-            let active_pane = self.active_pane_id();
+
+            self.sync_search_highlights_to_document(cx);
             self.request_autoscroll(
                 active_pane,
                 crate::editor::engine::controller::AutoscrollStrategy::Center,
                 cx,
             );
-            self.sync_search_highlights_to_document(cx);
+            window.refresh();
             cx.notify();
         } else if let Some(file_path) = match_item.file_path {
             self.open_file_in_panel(
@@ -524,7 +672,90 @@ impl Editor {
                 window,
                 cx,
             );
+
+            let active_pane = self.active_pane_id();
+            let pane_kind = self
+                .session
+                .root
+                .tree
+                .find_leaf_kind(active_pane.0)
+                .unwrap_or(crate::editor::engine::controller::EditorPaneKind::Wysiwyg);
+
+            match pane_kind {
+                crate::editor::engine::controller::EditorPaneKind::Wysiwyg => {
+                    let mut found_target = None;
+                    if let Some(doc) = self.active_doc() {
+                        let mut line_counter = 1usize;
+                        for entry in doc.blocks() {
+                            let block_text = entry.entity.read(cx).display_text().to_string();
+                            let block_lines = block_text.lines().count().max(1);
+                            if match_item.line_number >= line_counter
+                                && match_item.line_number < line_counter + block_lines
+                            {
+                                found_target = Some((entry.entity.clone(), entry.entity.entity_id()));
+                                break;
+                            }
+                            line_counter += block_lines;
+                        }
+                    }
+                    if let Some((target_entity, entity_id)) = found_target {
+                        self.focus_block(entity_id);
+                        let range = match_item.byte_range.clone();
+                        target_entity.update(cx, |block, cx| {
+                            block.selected_range = range;
+                            block.selection_reversed = false;
+                            block.start_cursor_blink(cx);
+                            cx.notify();
+                        });
+                    }
+                }
+                crate::editor::engine::controller::EditorPaneKind::SourceCode => {
+                    self.sync_source_pane(active_pane, cx);
+                    if let Some(state) = self.pane_state_ref(active_pane) {
+                        if let Some(source_block) = state.source_block.clone() {
+                            let raw_text = source_block.read(cx).display_text().to_string();
+                            let mut target_range = 0..0;
+                            let mut cur_line = 1usize;
+                            let mut cur_byte = 0usize;
+                            for line in raw_text.split_inclusive('\n') {
+                                if cur_line == match_item.line_number {
+                                    let mut cur_col = 1usize;
+                                    for (ch_idx, _) in line.char_indices() {
+                                        if cur_col == match_item.column_number {
+                                            let match_len = match_item.preview_match.len();
+                                            target_range = (cur_byte + ch_idx)..(cur_byte + ch_idx + match_len);
+                                            break;
+                                        }
+                                        cur_col += 1;
+                                    }
+                                    break;
+                                }
+                                cur_byte += line.len();
+                                cur_line += 1;
+                            }
+                            source_block.update(cx, |block, cx| {
+                                block.selected_range = target_range;
+                                block.selection_reversed = false;
+                                block.start_cursor_blink(cx);
+                                cx.notify();
+                            });
+                        }
+                    }
+                }
+                crate::editor::engine::controller::EditorPaneKind::Preview => {
+                    self.refresh_preview_blocks(active_pane, cx);
+                }
+                crate::editor::engine::controller::EditorPaneKind::Outline => {}
+            }
+
             self.sync_search_highlights_to_document(cx);
+            self.request_autoscroll(
+                active_pane,
+                crate::editor::engine::controller::AutoscrollStrategy::Center,
+                cx,
+            );
+            window.refresh();
+            cx.notify();
         }
     }
 

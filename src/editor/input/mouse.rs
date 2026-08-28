@@ -16,22 +16,25 @@ impl Editor {
         // pane's own document view. The fade task captures the pane id so it
         // clears the right fade task later.
         let duration = Duration::from_millis(900);
-        {
-            let state = self.pane_state(pane_id);
-            state.scroll.scrollbar_visible_until = Instant::now() + duration;
-        }
+        let Some(state) = self.pane_state_mut(pane_id) else {
+            return;
+        };
+        state.scroll.scrollbar_visible_until = Instant::now() + duration;
 
         let weak_editor = cx.entity().downgrade();
-        let state = self.pane_state(pane_id);
+        let Some(state) = self.pane_state_mut(pane_id) else {
+            return;
+        };
         state.scroll.scrollbar_fade_task = Some(cx.spawn(
             async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
                 cx.background_executor()
                     .timer(duration + Duration::from_millis(50))
                     .await;
                 let _ = weak_editor.update(cx, |this, cx| {
-                    let state = this.pane_state(pane_id);
-                    state.scroll.scrollbar_fade_task = None;
-                    cx.notify();
+                    if let Some(state) = this.pane_state_mut(pane_id) {
+                        state.scroll.scrollbar_fade_task = None;
+                        cx.notify();
+                    }
                 });
             },
         ));
@@ -46,15 +49,16 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let state = self.pane_state(pane_id);
-        state.scroll.scrollbar_hovered = *hovered;
-        if *hovered {
-            self.bump_scrollbar_visibility(pane_id, cx);
-        } else {
-            // Pointer left the editor: dismiss the footnote tooltip so it does
-            // not linger when there is no further mouse-move to clear it.
-            self.footnote_tooltip = None;
-            cx.notify();
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            state.scroll.scrollbar_hovered = *hovered;
+            if *hovered {
+                self.bump_scrollbar_visibility(pane_id, cx);
+            } else {
+                // Pointer left the editor: dismiss the footnote tooltip so it does
+                // not linger when there is no further mouse-move to clear it.
+                self.footnote_tooltip = None;
+                cx.notify();
+            }
         }
     }
 
@@ -78,7 +82,9 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         // User scroll input has absolute priority: cancel any pending autoscroll.
-        self.pane_state(pane_id).scroll.pending_autoscroll = None;
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            state.scroll.pending_autoscroll = None;
+        }
         self.bump_scrollbar_visibility(pane_id, cx);
     }
 
@@ -91,8 +97,7 @@ impl Editor {
         max_scroll_y: f32,
         cx: &mut Context<Self>,
     ) {
-        {
-            let state = self.pane_state(pane_id);
+        if let Some(state) = self.pane_state_mut(pane_id) {
             state.scroll.pending_autoscroll = None;
             state.scroll.scrollbar_drag = Some(crate::editor::engine::controller::ScrollbarDragSession {
                 pointer_offset_y: pointer_offset_y.clamp(0.0, thumb_height.max(0.0)),
@@ -100,9 +105,9 @@ impl Editor {
                 thumb_height,
                 max_scroll_y,
             });
+            self.bump_scrollbar_visibility(pane_id, cx);
+            cx.notify();
         }
-        self.bump_scrollbar_visibility(pane_id, cx);
-        cx.notify();
     }
 
     pub(crate) fn update_scrollbar_drag(
@@ -132,19 +137,19 @@ impl Editor {
             .map(|state| state.scroll.handle.offset())
             .unwrap_or_default();
         offset.y = -px(scroll_y);
-        {
-            let state = self.pane_state(pane_id);
+        if let Some(state) = self.pane_state_mut(pane_id) {
             state.scroll.handle.set_offset(offset);
+            self.bump_scrollbar_visibility(pane_id, cx);
+            cx.notify();
         }
-        self.bump_scrollbar_visibility(pane_id, cx);
-        cx.notify();
     }
 
     pub(crate) fn end_scrollbar_drag(&mut self, pane_id: PaneId, cx: &mut Context<Self>) {
-        let state = self.pane_state(pane_id);
-        if state.scroll.scrollbar_drag.take().is_some() {
-            self.bump_scrollbar_visibility(pane_id, cx);
-            cx.notify();
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            if state.scroll.scrollbar_drag.take().is_some() {
+                self.bump_scrollbar_visibility(pane_id, cx);
+                cx.notify();
+            }
         }
     }
 }

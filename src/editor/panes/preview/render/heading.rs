@@ -35,12 +35,13 @@ pub(crate) fn render_preview_heading(
         inner = inner.border_color(border_color);
     }
 
-    let text_content = inline::render_preview_inline(
+    let text_content = inline::render_preview_inline_with_matches(
         &block.data.text,
         style.text_color,
         style.font_size,
         style.font_weight,
         theme,
+        &block.search_matches,
     );
 
     element.child(inner.child(text_content)).into_any_element()

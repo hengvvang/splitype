@@ -49,7 +49,7 @@ impl Editor {
                         // event.
                         EditorPaneKind::SourceCode => {
                             self.sync_source_pane(pane_id, cx);
-                            self.render_source_pane(pane_id, theme, cx)
+                            self.render_source_pane(pane_id, theme, window, cx)
                         }
                         EditorPaneKind::Preview => {
                             self.render_preview_pane(pane_id, theme, strings, window, cx)

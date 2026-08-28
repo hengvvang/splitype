@@ -1,4 +1,4 @@
-﻿//! Source code panel — the raw Markdown buffer as a standalone block.
+//! Source code panel — the raw Markdown buffer as a standalone block.
 
 pub(crate) mod render;
 
@@ -21,8 +21,11 @@ impl Editor {
     /// multiple source panels edit independently; the document content
     /// itself stays shared.
     pub(crate) fn sync_source_pane(&mut self, pane_id: PaneId, cx: &mut Context<Self>) {
+        let Some(tab) = self.active_tab() else {
+            return;
+        };
         let tab_index = self.session.active_tab_index();
-        let revision = self.tab().document_revision;
+        let revision = tab.document_revision;
         let needs_sync = match self.pane_state_ref(pane_id) {
             Some(state) => {
                 state.synced_tab_index != Some(tab_index)
@@ -34,24 +37,28 @@ impl Editor {
         if !needs_sync {
             return;
         }
-        let doc_text = self.doc().serialize_markdown(cx);
+        let Some(doc) = self.active_doc() else {
+            return;
+        };
+        let doc_text = doc.serialize_markdown(cx);
         let doc_hash = Self::hash_str(&doc_text);
 
-        let state = self.pane_state(pane_id);
-        if state.source_block.is_none() || doc_hash != state.synced_doc_hash {
-            state.source_block = None;
-            let block = Self::new_standalone_block(cx, BlockData::paragraph(doc_text));
-            block.update(cx, |block, _cx| block.set_source_document_mode());
-            let panel = pane_id;
-            cx.subscribe(&block, move |this, block, event, cx| {
-                this.on_source_pane_changed(panel, block, event, cx);
-            })
-            .detach();
-            state.source_block = Some(block);
-            state.synced_doc_hash = doc_hash;
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            if state.source_block.is_none() || doc_hash != state.synced_doc_hash {
+                state.source_block = None;
+                let block = Self::new_standalone_block(cx, BlockData::paragraph(doc_text));
+                block.update(cx, |block, _cx| block.set_source_document_mode());
+                let panel = pane_id;
+                cx.subscribe(&block, move |this, block, event, cx| {
+                    this.on_source_pane_changed(panel, block, event, cx);
+                })
+                .detach();
+                state.source_block = Some(block);
+                state.synced_doc_hash = doc_hash;
+            }
+            state.synced_revision = Some(revision);
+            state.synced_tab_index = Some(tab_index);
         }
-        state.synced_revision = Some(revision);
-        state.synced_tab_index = Some(tab_index);
     }
 
     /// Minimal event handler for a Source pane block. Only syncs text
@@ -79,8 +86,11 @@ impl Editor {
             return;
         }
         let text = block.read(cx).display_text().to_string();
-        let doc = self.doc().serialize_markdown(cx);
-        if text == doc {
+        let Some(doc) = self.active_doc() else {
+            return;
+        };
+        let doc_str = doc.serialize_markdown(cx);
+        if text == doc_str {
             return;
         }
         self.rebuild_document_from_markdown(&text, cx);
@@ -91,12 +101,13 @@ impl Editor {
         // hashing the raw bytes here would make the next render rebuild the
         // block and drop the user's trailing newline. The block keeps the
         // user's bytes; the document is the parsed form.
-        let synced_hash = Self::hash_str(&self.doc().serialize_markdown(cx));
-        let revision = self.tab().document_revision;
+        let synced_hash = self.active_doc().map(|d| Self::hash_str(&d.serialize_markdown(cx))).unwrap_or_default();
+        let revision = self.active_tab().map(|t| t.document_revision).unwrap_or(0);
         let tab_index = self.session.active_tab_index();
-        let state = self.pane_state(pane_id);
-        state.synced_doc_hash = synced_hash;
-        state.synced_revision = Some(revision);
-        state.synced_tab_index = Some(tab_index);
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            state.synced_doc_hash = synced_hash;
+            state.synced_revision = Some(revision);
+            state.synced_tab_index = Some(tab_index);
+        }
     }
 }

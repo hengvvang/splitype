@@ -43,6 +43,16 @@ impl Editor {
 
         self.refresh_preview_blocks(pane_id, cx);
 
+        if pane_id == self.active_pane_id() {
+            self.apply_pending_focus(pane_id, window, cx);
+            self.apply_pending_autoscroll(pane_id, window, cx);
+        }
+
+        let scroll_handle = self
+            .pane_state_ref(pane_id)
+            .map(|state| state.scroll.handle.clone())
+            .unwrap_or_default();
+
         // Render each snapshot root through the dedicated read-only preview
         // renderers. No GPUI view mounting, no event suppression needed: the
         // preview elements carry no interaction handlers at all.
@@ -88,6 +98,7 @@ impl Editor {
                     .flex_col()
                     .items_center()
                     .overflow_y_scroll()
+                    .track_scroll(&scroll_handle)
                     .p(px(d.editor_padding))
                     .children(block_elements),
             )

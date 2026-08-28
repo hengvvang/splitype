@@ -35,7 +35,10 @@ impl Editor {
     /// serialization: it only runs after an edit bumped the revision, never
     /// on unchanged frames.
     pub(crate) fn refresh_preview_blocks(&mut self, pane_id: PaneId, cx: &mut Context<Self>) {
-        let revision = self.tab().document_revision;
+        let Some(tab) = self.active_tab() else {
+            return;
+        };
+        let revision = tab.document_revision;
         let synced = self
             .pane_state_ref(pane_id)
             .and_then(|state| state.preview.synced_revision);
@@ -45,7 +48,10 @@ impl Editor {
         if synced == Some(revision) && !blocks_empty {
             return;
         }
-        let source = self.doc().serialize_markdown(cx);
+        let Some(doc) = self.active_doc() else {
+            return;
+        };
+        let source = doc.serialize_markdown(cx);
         let hash = Self::hash_str(&source);
         let needs_rebuild = self.pane_state_ref(pane_id).is_none_or(|state| {
             state.preview.source_hash != hash || state.preview.blocks.is_empty()
@@ -60,8 +66,8 @@ impl Editor {
             // against that tree, then pushed onto every preview block so they
             // resolve exactly like the editable blocks.
             let footnote_registry = Arc::new(Self::build_preview_footnote_registry(&roots, cx));
-            let image_registry = self.tab().references.image.clone();
-            let link_registry = self.tab().references.link.clone();
+            let image_registry = tab.references.image.clone();
+            let link_registry = tab.references.link.clone();
             let base_dir = self.image_base_dir();
             Self::sync_preview_block_context(
                 &roots,
@@ -71,11 +77,14 @@ impl Editor {
                 &footnote_registry,
                 cx,
             );
-            let state = self.pane_state(pane_id);
-            state.preview.blocks = roots;
-            state.preview.source_hash = hash;
+            if let Some(state) = self.pane_state_mut(pane_id) {
+                state.preview.blocks = roots;
+                state.preview.source_hash = hash;
+            }
         }
-        self.pane_state(pane_id).preview.synced_revision = Some(revision);
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            state.preview.synced_revision = Some(revision);
+        }
     }
 
     /// Builds a footnote registry for the preview tree, mirroring

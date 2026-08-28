@@ -1,4 +1,4 @@
-﻿use gpui::*;
+use gpui::*;
 
 use crate::editor::engine::controller::{
     CrossBlockDrag, CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, PaneId,
@@ -20,9 +20,10 @@ impl Editor {
         let drag = self
             .cross_block_endpoint_for_point(position, cx)
             .map(|anchor| CrossBlockDrag { anchor });
-        let selection = &mut self.pane_state(pane_id).selection;
-        selection.cross_block = None;
-        selection.cross_block_drag = drag;
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            state.selection.cross_block = None;
+            state.selection.cross_block_drag = drag;
+        }
         if changed {
             cx.notify();
         }
@@ -45,8 +46,9 @@ impl Editor {
             return;
         }
 
-        let state = self.pane_state(pane_id);
-        state.selection.select_all_cycle = None;
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            state.selection.select_all_cycle = None;
+        }
         self.begin_cross_block_drag_at_point(pane_id, event.position, cx);
         cx.propagate();
     }
@@ -85,11 +87,12 @@ impl Editor {
             focus,
         };
         let is_empty = self.is_cross_block_selection_empty(selection);
-        let state = self.pane_state(pane_id);
-        if is_empty {
-            state.selection.cross_block = None;
-        } else {
-            state.selection.cross_block = Some(selection);
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            if is_empty {
+                state.selection.cross_block = None;
+            } else {
+                state.selection.cross_block = Some(selection);
+            }
         }
         self.sync_cross_block_selection_visuals(cx);
         cx.notify();
@@ -102,8 +105,7 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        {
-            let state = self.pane_state(pane_id);
+        if let Some(state) = self.pane_state_mut(pane_id) {
             state.selection.cross_block_drag = None;
         }
         self.end_block_pointer_selection_sessions(cx);

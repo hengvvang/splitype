@@ -183,3 +183,21 @@ async fn test_reopening_existing_tab_as_persistent_promotes_it(cx: &mut TestAppC
 
     let _ = fs::remove_file(&path_a);
 }
+
+#[gpui::test]
+async fn test_empty_editor_mouse_events_do_not_panic(cx: &mut TestAppContext) {
+    init_editor_test_app(cx);
+
+    let (editor, cx) = cx.add_window_view(|_window, cx| Editor::empty(cx));
+
+    cx.update(|_window, cx| {
+        editor.update(cx, |editor, cx| {
+            let active_pane = editor.active_pane_id();
+            // Mouse events and scrollbar drag end on an empty editor with 0 tabs
+            editor.end_scrollbar_drag(active_pane, cx);
+            editor.bump_scrollbar_visibility(active_pane, cx);
+            editor.update_scrollbar_drag(active_pane, 100.0, cx);
+        });
+    });
+}
+
