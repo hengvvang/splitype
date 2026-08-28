@@ -125,6 +125,7 @@ impl Editor {
 
     /// Executes search with the current query, scope, and filter settings.
     pub fn execute_search(&mut self, cx: &mut Context<Self>) {
+        self.search.search_generation = self.search.search_generation.wrapping_add(1);
         let raw_query = self.search.query().to_string();
         if raw_query.is_empty() {
             self.search.matches.clear();
@@ -133,6 +134,8 @@ impl Editor {
             cx.notify();
             return;
         }
+
+        self.search.search_input.push_history(&raw_query);
 
         let search_query = SearchQuery::new(
             &raw_query,
@@ -166,6 +169,17 @@ impl Editor {
             self.sync_search_highlights_to_document(cx);
         }
 
+        cx.notify();
+    }
+
+    /// Tears down the search subsystem on this editor, clearing all highlights,
+    /// cancelling matches, and hiding the panel.
+    pub fn teardown_search(&mut self, cx: &mut Context<Self>) {
+        self.search.visible = false;
+        self.search.matches.clear();
+        self.search.active_match_index = None;
+        self.search.expanded_match_indices.clear();
+        self.clear_search_highlights_from_document(cx);
         cx.notify();
     }
 
@@ -396,6 +410,20 @@ impl Editor {
         };
 
         match keystroke.key.as_str() {
+            "up" if is_query_field => {
+                if input.history_prev() {
+                    self.execute_search(cx);
+                }
+                cx.stop_propagation();
+                return;
+            }
+            "down" if is_query_field => {
+                if input.history_next() {
+                    self.execute_search(cx);
+                }
+                cx.stop_propagation();
+                return;
+            }
             "backspace" => {
                 input.delete_backward();
             }

@@ -695,6 +695,9 @@ impl Editor {
         let pane_id = self.active_pane_id();
         self.refresh_preview_blocks(pane_id, cx);
         self.refresh_stable_document_snapshot(cx);
+        if self.search.visible {
+            self.execute_search(cx);
+        }
         cx.notify();
     }
 
@@ -822,6 +825,9 @@ impl Editor {
             // Last tab: back to the welcome mode. The pane tree keeps its
             // kinds, so the layout is restored unchanged when editing
             // resumes.
+            self.clear_search_highlights_from_document(cx);
+            self.search.matches.clear();
+            self.search.active_match_index = None;
             cx.notify();
             return;
         }
@@ -832,6 +838,9 @@ impl Editor {
         if let Some(tab) = self.session.active_tab_mut() {
             tab.file.pending_window_title_refresh = true;
             tab.file.pending_window_edited = true;
+        }
+        if self.search.visible {
+            self.execute_search(cx);
         }
         cx.notify();
     }

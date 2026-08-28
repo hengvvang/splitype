@@ -56,6 +56,8 @@ pub struct SearchTextInput {
     pub reversed: bool,
     pub marked_range: Option<Range<usize>>,
     pub last_bounds: Option<Bounds<Pixels>>,
+    pub history: Vec<String>,
+    pub history_index: Option<usize>,
 }
 
 impl SearchTextInput {
@@ -68,6 +70,8 @@ impl SearchTextInput {
             reversed: false,
             marked_range: None,
             last_bounds: None,
+            history: Vec::new(),
+            history_index: None,
         }
     }
 
@@ -248,6 +252,66 @@ impl SearchTextInput {
         self.selection = 0..self.text.len();
         self.reversed = false;
     }
+
+    pub fn push_history(&mut self, text: &str) {
+        let trimmed = text.trim();
+        if trimmed.is_empty() {
+            return;
+        }
+        if self.history.last().map(|s| s.as_str()) != Some(trimmed) {
+            self.history.push(trimmed.to_string());
+        }
+        self.history_index = None;
+    }
+
+    pub fn history_prev(&mut self) -> bool {
+        if self.history.is_empty() {
+            return false;
+        }
+        let next_idx = match self.history_index {
+            Some(idx) => {
+                if idx == 0 {
+                    0
+                } else {
+                    idx - 1
+                }
+            }
+            None => self.history.len().saturating_sub(1),
+        };
+        self.history_index = Some(next_idx);
+        if let Some(entry) = self.history.get(next_idx).cloned() {
+            self.set_text(entry);
+            self.select_all();
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn history_next(&mut self) -> bool {
+        if self.history.is_empty() {
+            return false;
+        }
+        match self.history_index {
+            Some(idx) => {
+                if idx + 1 < self.history.len() {
+                    let next_idx = idx + 1;
+                    self.history_index = Some(next_idx);
+                    if let Some(entry) = self.history.get(next_idx).cloned() {
+                        self.set_text(entry);
+                        self.select_all();
+                        return true;
+                    }
+                } else {
+                    self.history_index = None;
+                    self.set_text(String::new());
+                    return true;
+                }
+            }
+            None => {}
+        }
+        false
+    }
 }
 
 /// One search match item within a document or worktree file.
@@ -309,6 +373,8 @@ pub struct SearchPanelState {
     pub search_focus_handle: FocusHandle,
     /// Focus handle for the replace text input.
     pub replace_focus_handle: FocusHandle,
+    /// Monotonic generation counter to invalidate outdated asynchronous searches.
+    pub search_generation: u64,
 }
 
 impl SearchPanelState {
@@ -331,6 +397,7 @@ impl SearchPanelState {
             expanded_match_indices: std::collections::HashSet::new(),
             search_focus_handle: cx.focus_handle(),
             replace_focus_handle: cx.focus_handle(),
+            search_generation: 0,
         }
     }
 

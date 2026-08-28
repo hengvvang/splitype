@@ -453,6 +453,224 @@ fn test_search_multibyte_chinese_characters_in_preview_rendering(cx: &mut TestAp
         .unwrap();
 }
 
+#[gpui::test]
+fn test_search_tab_switch_reactivity(cx: &mut TestAppContext) {
+    super::init_editor_test_app(cx);
 
+    let editor = cx.new(|cx| {
+        Editor::from_markdown(
+            cx,
+            "Document One containing alpha keyword".to_string(),
+            None,
+        )
+    });
 
+    let window = cx
+        .update(|cx| {
+            cx.open_window(gpui::WindowOptions::default(), |_window, _cx| {
+                editor.clone()
+            })
+        })
+        .unwrap();
 
+    window
+        .update(cx, |ed, window, cx| {
+            // Open a second tab with different content
+            let tab2 = Editor::new_tab_from_markdown(
+                cx,
+                "Document Two containing beta keyword and alpha keyword".to_string(),
+                None,
+            );
+            ed.session.push_tab(tab2);
+
+            // Open search and search for "beta" on Tab 1 (active)
+            ed.toggle_search(window, cx);
+            ed.search.search_input.set_text("beta".to_string());
+            ed.execute_search(cx);
+            assert_eq!(ed.search.matches.len(), 0);
+
+            // Switch to Tab 2: search should reactively re-run on Tab 2
+            ed.activate_tab(1, cx);
+            assert_eq!(ed.search.matches.len(), 1);
+            assert_eq!(ed.search.matches[0].preview_match, "beta");
+
+            // Switch back to Tab 1: search should reactively re-run on Tab 1
+            ed.activate_tab(0, cx);
+            assert_eq!(ed.search.matches.len(), 0);
+
+            // Close Tab 1, now Tab 2 is active
+            ed.close_tab(0, cx);
+            assert_eq!(ed.search.matches.len(), 1);
+        })
+        .unwrap();
+}
+
+#[gpui::test]
+fn test_search_history_navigation_and_stack(cx: &mut TestAppContext) {
+    super::init_editor_test_app(cx);
+
+    let editor = cx.new(|cx| {
+        Editor::from_markdown(
+            cx,
+            "One Two Three Four".to_string(),
+            None,
+        )
+    });
+
+    let window = cx
+        .update(|cx| {
+            cx.open_window(gpui::WindowOptions::default(), |_window, _cx| {
+                editor.clone()
+            })
+        })
+        .unwrap();
+
+    window
+        .update(cx, |ed, window, cx| {
+            ed.toggle_search(window, cx);
+
+            // Search query 1
+            ed.search.search_input.set_text("One".to_string());
+            ed.execute_search(cx);
+
+            // Search query 2
+            ed.search.search_input.set_text("Two".to_string());
+            ed.execute_search(cx);
+
+            // Search query 3
+            ed.search.search_input.set_text("Three".to_string());
+            ed.execute_search(cx);
+
+            // History should contain "One", "Two", "Three"
+            assert_eq!(ed.search.search_input.history, vec!["One", "Two", "Three"]);
+
+            // Navigate back in history (Up arrow)
+            assert!(ed.search.search_input.history_prev());
+            assert_eq!(ed.search.search_input.text, "Three");
+
+            assert!(ed.search.search_input.history_prev());
+            assert_eq!(ed.search.search_input.text, "Two");
+
+            assert!(ed.search.search_input.history_prev());
+            assert_eq!(ed.search.search_input.text, "One");
+
+            // At the top of history, stays at "One"
+            assert!(ed.search.search_input.history_prev());
+            assert_eq!(ed.search.search_input.text, "One");
+
+            // Navigate forward (Down arrow)
+            assert!(ed.search.search_input.history_next());
+            assert_eq!(ed.search.search_input.text, "Two");
+
+            assert!(ed.search.search_input.history_next());
+            assert_eq!(ed.search.search_input.text, "Three");
+
+            assert!(ed.search.search_input.history_next());
+            assert_eq!(ed.search.search_input.text, "");
+        })
+        .unwrap();
+}
+
+#[gpui::test]
+fn test_search_worktree_open_persistent_tab(cx: &mut TestAppContext) {
+    super::init_editor_test_app(cx);
+
+    let temp_dir = std::env::temp_dir().join(format!("splitype-test-search-open-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&temp_dir);
+    let file_a = temp_dir.join("a.md");
+    let file_b = temp_dir.join("b.md");
+
+    std::fs::write(&file_a, "Alpha content in file A").unwrap();
+    std::fs::write(&file_b, "UniqueTargetKey in file B").unwrap();
+
+    let editor = cx.new(|cx| {
+        Editor::from_markdown(
+            cx,
+            "Alpha content in file A".to_string(),
+            Some(file_a.clone()),
+        )
+    });
+
+    let window = cx
+        .update(|cx| {
+            cx.open_window(gpui::WindowOptions::default(), |_window, _cx| {
+                editor.clone()
+            })
+        })
+        .unwrap();
+
+    window
+        .update(cx, |ed, window, cx| {
+            assert_eq!(ed.session.tab_count(), 1);
+
+            ed.toggle_search(window, cx);
+            ed.search.scope = SearchScope::Worktree;
+            ed.search.search_input.set_text("UniqueTargetKey".to_string());
+            ed.execute_search(cx);
+
+            assert_eq!(ed.search.matches.len(), 1);
+            assert_eq!(ed.search.matches[0].file_path, Some(file_b.clone()));
+
+            // Jumping to match should open file_b in this editor as a persistent tab
+            ed.jump_to_active_search_match(window, cx);
+
+            assert_eq!(ed.session.tab_count(), 2);
+            assert_eq!(ed.session.active_tab().unwrap().file.path, Some(file_b.clone()));
+            assert!(!ed.session.active_tab().unwrap().is_transient());
+        })
+        .unwrap();
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[gpui::test]
+fn test_search_teardown_clears_highlights_and_state(cx: &mut TestAppContext) {
+    super::init_editor_test_app(cx);
+
+    let editor = cx.new(|cx| {
+        Editor::from_markdown(
+            cx,
+            "Paragraph with target match".to_string(),
+            None,
+        )
+    });
+
+    let window = cx
+        .update(|cx| {
+            cx.open_window(gpui::WindowOptions::default(), |_window, _cx| {
+                editor.clone()
+            })
+        })
+        .unwrap();
+
+    window
+        .update(cx, |ed, window, cx| {
+            ed.toggle_search(window, cx);
+            ed.search.search_input.set_text("target".to_string());
+            ed.execute_search(cx);
+
+            assert_eq!(ed.search.matches.len(), 1);
+            let target_entity_id = ed.search.matches[0].entity_id.unwrap();
+            let matched_block = ed
+                .active_doc()
+                .unwrap()
+                .block_entity_by_id(target_entity_id)
+                .unwrap()
+                .read(cx);
+            assert!(!matched_block.search_matches.is_empty());
+
+            // Teardown search
+            ed.teardown_search(cx);
+            assert!(!ed.search.visible);
+            assert!(ed.search.matches.is_empty());
+
+            let matched_block_after = ed
+                .active_doc()
+                .unwrap()
+                .block_entity_by_id(target_entity_id)
+                .unwrap()
+                .read(cx);
+            assert!(matched_block_after.search_matches.is_empty());
+        })
+        .unwrap();
+}

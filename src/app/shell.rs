@@ -487,7 +487,10 @@ impl Shell {
             PanelContent::Editor(entity) => entity,
             _ => return None,
         };
-        Some(entity.update(cx, |editor, _cx| {
+        Some(entity.update(cx, |editor, cx| {
+            editor.clear_search_highlights_from_document(cx);
+            editor.search.visible = false;
+            editor.search.matches.clear();
             std::mem::replace(&mut editor.session, EditorSession::welcome())
         }))
     }
