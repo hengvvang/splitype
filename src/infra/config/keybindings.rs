@@ -64,6 +64,10 @@ pub enum ShortcutCommand {
     ToggleExplorer,
     ToggleMaximizeArea,
     ToggleMaximizePane,
+    ToggleSearch,
+    ToggleReplace,
+    FindNext,
+    FindPrevious,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -391,6 +395,30 @@ pub const SHORTCUT_DEFINITIONS: &[ShortcutDefinition] = &[
         command: ShortcutCommand::ToggleMaximizePane,
         id: "toggle_maximize_pane",
         default_keys: &["ctrl-shift-m", "cmd-shift-m"],
+        context: None,
+    },
+    ShortcutDefinition {
+        command: ShortcutCommand::ToggleSearch,
+        id: "toggle_search",
+        default_keys: &["cmd-f", "ctrl-f"],
+        context: None,
+    },
+    ShortcutDefinition {
+        command: ShortcutCommand::ToggleReplace,
+        id: "toggle_replace",
+        default_keys: &["cmd-h", "ctrl-h"],
+        context: None,
+    },
+    ShortcutDefinition {
+        command: ShortcutCommand::FindNext,
+        id: "find_next",
+        default_keys: &["f3"],
+        context: None,
+    },
+    ShortcutDefinition {
+        command: ShortcutCommand::FindPrevious,
+        id: "find_previous",
+        default_keys: &["shift-f3"],
         context: None,
     },
 ];

@@ -16,5 +16,11 @@ actions!(
         ExportPdf,
         TogglePaneKind,
         ToggleMaximizePane,
+        ToggleSearch,
+        ToggleReplace,
+        FindNext,
+        FindPrevious,
+        ReplaceCurrent,
+        ReplaceAll,
     ]
 );

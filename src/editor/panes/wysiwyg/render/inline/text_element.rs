@@ -530,7 +530,9 @@ mod tests {
                     px(16.0),
                     &[TextRun {
                         len: text.len(),
-                        font: crate::editor::panes::wysiwyg::render::layout::editor_text_font(),
+                        font: crate::infra::theme::TypographyStore::default_font(
+                            crate::infra::theme::TypographyScope::Prose,
+                        ),
                         color: Hsla::from(rgba(0xffffffff)),
                         background_color: None,
                         underline: None,
@@ -761,7 +763,9 @@ mod tests {
             let display_text: SharedString = block.display_text().to_string().into();
             let base_run = TextRun {
                 len: display_text.len(),
-                font: crate::editor::panes::wysiwyg::render::layout::editor_text_font(),
+                font: crate::infra::theme::TypographyStore::default_font(
+                            crate::infra::theme::TypographyScope::Prose,
+                        ),
                 color: Hsla::from(rgba(0xffffffff)),
                 background_color: None,
                 underline: None,
@@ -810,7 +814,9 @@ mod tests {
             let display_text: SharedString = block.display_text().to_string().into();
             let base_run = TextRun {
                 len: display_text.len(),
-                font: crate::editor::panes::wysiwyg::render::layout::editor_text_font(),
+                font: crate::infra::theme::TypographyStore::default_font(
+                            crate::infra::theme::TypographyScope::Prose,
+                        ),
                 color: Hsla::from(rgba(0xffffffff)),
                 background_color: None,
                 underline: None,
@@ -864,7 +870,9 @@ mod tests {
             assert_eq!(display_text.as_ref(), "引用[^note]");
             let base_run = TextRun {
                 len: display_text.len(),
-                font: crate::editor::panes::wysiwyg::render::layout::editor_text_font(),
+                font: crate::infra::theme::TypographyStore::default_font(
+                            crate::infra::theme::TypographyScope::Prose,
+                        ),
                 color: Hsla::from(rgba(0xffffffff)),
                 background_color: None,
                 underline: None,
@@ -919,7 +927,9 @@ mod tests {
             let display_text: SharedString = block.display_text().to_string().into();
             let base_run = TextRun {
                 len: display_text.len(),
-                font: crate::editor::panes::wysiwyg::render::layout::editor_text_font(),
+                font: crate::infra::theme::TypographyStore::default_font(
+                            crate::infra::theme::TypographyScope::Prose,
+                        ),
                 color: Hsla::from(rgba(0xffffffff)),
                 background_color: None,
                 underline: None,

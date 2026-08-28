@@ -5,17 +5,128 @@ use std::ops::Range;
 use std::path::{Path, PathBuf};
 
 use gpui::{App, Context, EntityId, KeyDownEvent, Window};
-use regex::RegexBuilder;
 
 use crate::editor::engine::controller::Editor;
+use crate::editor::search::query::SearchQuery;
 use crate::editor::search::state::{SearchActiveField, SearchMatch, SearchScope};
-use crate::model::parse::BlockId;
 
 impl Editor {
+    /// Toggles visibility of the Search and Replace overlay panel.
+    pub fn toggle_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.search.visible = !self.search.visible;
+        if self.search.visible {
+            self.search.active_field = SearchActiveField::Query;
+            window.focus(&self.search.search_focus_handle, cx);
+            self.search.search_input.select_all();
+            self.execute_search(cx);
+        } else {
+            self.clear_search_highlights_from_document(cx);
+        }
+        cx.notify();
+    }
+
+    /// Toggles the replace input row and opens search panel if closed.
+    pub fn toggle_replace(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.search.visible {
+            self.search.visible = true;
+            self.search.show_replace = true;
+            self.search.active_field = SearchActiveField::Replace;
+            window.focus(&self.search.replace_focus_handle, cx);
+            self.search.replace_input.select_all();
+            self.execute_search(cx);
+        } else if !self.search.show_replace {
+            self.search.show_replace = true;
+            self.search.active_field = SearchActiveField::Replace;
+            window.focus(&self.search.replace_focus_handle, cx);
+            self.search.replace_input.select_all();
+        } else {
+            self.search.show_replace = false;
+            self.search.active_field = SearchActiveField::Query;
+            window.focus(&self.search.search_focus_handle, cx);
+        }
+        cx.notify();
+    }
+
+    /// Navigates to the next search match and centers it.
+    pub fn find_next(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.search.visible {
+            self.toggle_search(window, cx);
+            return;
+        }
+        self.search.next_match();
+        self.jump_to_active_search_match(window, cx);
+        cx.notify();
+    }
+
+    /// Navigates to the previous search match and centers it.
+    pub fn find_previous(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if !self.search.visible {
+            self.toggle_search(window, cx);
+            return;
+        }
+        self.search.prev_match();
+        self.jump_to_active_search_match(window, cx);
+        cx.notify();
+    }
+
+    pub(crate) fn on_toggle_search(
+        &mut self,
+        _: &crate::editor::actions::ToggleSearch,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.toggle_search(window, cx);
+    }
+
+    pub(crate) fn on_toggle_replace(
+        &mut self,
+        _: &crate::editor::actions::ToggleReplace,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.toggle_replace(window, cx);
+    }
+
+    pub(crate) fn on_find_next(
+        &mut self,
+        _: &crate::editor::actions::FindNext,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.find_next(window, cx);
+    }
+
+    pub(crate) fn on_find_previous(
+        &mut self,
+        _: &crate::editor::actions::FindPrevious,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.find_previous(window, cx);
+    }
+
+    pub(crate) fn on_replace_current(
+        &mut self,
+        _: &crate::editor::actions::ReplaceCurrent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.replace_current_search_match(window, cx);
+    }
+
+    pub(crate) fn on_replace_all(
+        &mut self,
+        _: &crate::editor::actions::ReplaceAll,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.replace_all_search_matches(cx);
+    }
+
     /// Executes search with the current query, scope, and filter settings.
     pub fn execute_search(&mut self, cx: &mut Context<Self>) {
-        let query = self.search.query().to_string();
-        if query.is_empty() {
+        let raw_query = self.search.query().to_string();
+        if raw_query.is_empty() {
             self.search.matches.clear();
             self.search.active_match_index = None;
             self.clear_search_highlights_from_document(cx);
@@ -23,14 +134,21 @@ impl Editor {
             return;
         }
 
+        let search_query = SearchQuery::new(
+            &raw_query,
+            self.search.match_case,
+            self.search.whole_word,
+            self.search.use_regex,
+        );
+
         let mut matches = Vec::new();
 
         match self.search.scope {
             SearchScope::CurrentTab => {
-                self.search_in_current_document(&query, &mut matches, cx);
+                self.search_in_current_document(&search_query, &mut matches, cx);
             }
             SearchScope::Worktree => {
-                self.search_in_worktree_files(&query, &mut matches, cx);
+                self.search_in_worktree_files(&search_query, &mut matches, cx);
             }
         }
 
@@ -214,7 +332,7 @@ impl Editor {
     /// Searches inside the currently active document's blocks.
     fn search_in_current_document(
         &self,
-        query: &str,
+        query: &SearchQuery,
         matches: &mut Vec<SearchMatch>,
         cx: &App,
     ) {
@@ -239,16 +357,20 @@ impl Editor {
             let block_id = entity.read_with(cx, |b, _| b.data.id);
             let text = entity.read_with(cx, |b, _| b.display_text().to_string());
 
-            self.find_matches_in_text(
-                &text,
-                query,
-                active_file_path.clone(),
-                file_name.clone(),
-                Some(block_id),
-                Some(entity_id),
-                line_counter,
-                matches,
-            );
+            for raw in query.find_matches(&text, line_counter) {
+                matches.push(SearchMatch {
+                    file_path: active_file_path.clone(),
+                    file_name: file_name.clone(),
+                    block_id: Some(block_id),
+                    entity_id: Some(entity_id),
+                    line_number: raw.line_number,
+                    column_number: raw.column_number,
+                    byte_range: raw.byte_range,
+                    preview_prefix: raw.preview_prefix,
+                    preview_match: raw.preview_match,
+                    preview_suffix: raw.preview_suffix,
+                });
+            }
 
             let block_lines = text.lines().count().max(1);
             line_counter += block_lines;
@@ -258,7 +380,7 @@ impl Editor {
     /// Searches inside all files belonging to open worktree directories.
     fn search_in_worktree_files(
         &self,
-        query: &str,
+        query: &SearchQuery,
         matches: &mut Vec<SearchMatch>,
         _cx: &App,
     ) {
@@ -289,7 +411,7 @@ impl Editor {
     fn collect_worktree_matches(
         &self,
         dir: &Path,
-        query: &str,
+        query: &SearchQuery,
         depth: usize,
         visited: &mut std::collections::HashSet<PathBuf>,
         matches: &mut Vec<SearchMatch>,
@@ -344,101 +466,24 @@ impl Editor {
                             if matches.len() >= 500 {
                                 break;
                             }
-                            self.find_matches_in_text(
-                                line,
-                                query,
-                                Some(path.clone()),
-                                file_name.clone(),
-                                None,
-                                None,
-                                line_idx + 1,
-                                matches,
-                            );
+                            for raw in query.find_matches(line, line_idx + 1) {
+                                matches.push(SearchMatch {
+                                    file_path: Some(path.clone()),
+                                    file_name: file_name.clone(),
+                                    block_id: None,
+                                    entity_id: None,
+                                    line_number: raw.line_number,
+                                    column_number: raw.column_number,
+                                    byte_range: raw.byte_range,
+                                    preview_prefix: raw.preview_prefix,
+                                    preview_match: raw.preview_match,
+                                    preview_suffix: raw.preview_suffix,
+                                });
+                            }
                         }
                     }
                 }
             }
-        }
-    }
-
-    /// Scans text line or block string for matches matching state filters with full UTF-8 Unicode safety.
-    fn find_matches_in_text(
-        &self,
-        text: &str,
-        query: &str,
-        file_path: Option<PathBuf>,
-        file_name: String,
-        block_id: Option<BlockId>,
-        entity_id: Option<EntityId>,
-        line_number: usize,
-        matches: &mut Vec<SearchMatch>,
-    ) {
-        if text.is_empty() || query.is_empty() {
-            return;
-        }
-
-        let pattern = if self.search.use_regex {
-            query.to_string()
-        } else {
-            let escaped = regex::escape(query);
-            if self.search.whole_word {
-                format!(r"\b{}\b", escaped)
-            } else {
-                escaped
-            }
-        };
-
-        let mut builder = RegexBuilder::new(&pattern);
-        builder.case_insensitive(!self.search.match_case);
-
-        let Ok(regex) = builder.build() else {
-            return;
-        };
-
-        for mat in regex.find_iter(text) {
-            let range = mat.range();
-            let matched_slice = &text[range.clone()];
-
-            let prefix_text = &text[..range.start];
-            let relative_line = prefix_text.matches('\n').count();
-            let actual_line = line_number + relative_line;
-
-            let last_nl = prefix_text.rfind('\n').map(|p| p + 1).unwrap_or(0);
-            let same_line_prefix = &prefix_text[last_nl..];
-            let column_number = same_line_prefix.chars().count() + 1;
-
-            let suffix_text = &text[range.end..];
-            let next_nl = suffix_text.find('\n').unwrap_or(suffix_text.len());
-            let same_line_suffix = &suffix_text[..next_nl];
-
-            // Safe char-based prefix extraction on the same line (up to 20 Unicode chars)
-            let preview_prefix: String = same_line_prefix
-                .chars()
-                .rev()
-                .take(20)
-                .collect::<Vec<_>>()
-                .into_iter()
-                .rev()
-                .collect();
-
-            // Safe char-based suffix extraction on the same line (up to 20 Unicode chars)
-            let preview_suffix: String = same_line_suffix
-                .chars()
-                .take(20)
-                .collect();
-
-            matches.push(SearchMatch {
-                file_path: file_path.clone(),
-                file_name: file_name.clone(),
-                block_id,
-                entity_id,
-                line_number: actual_line,
-                column_number,
-                byte_range: range.clone(),
-                preview_prefix,
-                preview_match: matched_slice.replace(['\r', '\n'], " "),
-                preview_suffix,
-            });
         }
     }
 

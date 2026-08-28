@@ -3,10 +3,9 @@
 use gpui::*;
 
 use crate::editor::engine::controller::Editor;
-use crate::editor::panes::wysiwyg::render::layout::editor_text_font;
 use crate::editor::search::input_element::SearchInputElement;
 use crate::editor::search::state::{SearchActiveField, SearchScope};
-use crate::infra::theme::Theme;
+use crate::infra::theme::{Theme, TypographyScope, TypographyStore};
 use crate::ui::popover::overlay;
 
 impl Editor {
@@ -641,7 +640,7 @@ impl Editor {
                                     .p(px(6.0))
                                     .rounded(px(d.code_bg_radius))
                                     .bg(c.dialog_secondary_button_bg)
-                                    .font(editor_text_font())
+                                    .font(TypographyStore::default_font(TypographyScope::Code))
                                     .text_size(px(11.0))
                                     .text_color(c.text_default)
                                     .flex()

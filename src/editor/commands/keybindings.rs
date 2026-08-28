@@ -12,7 +12,10 @@ use gpui::*;
 use crate::app::actions::{
     CloseWindow, NewWindow, OpenFile, QuitApplication, ToggleExplorer, ToggleMaximizeArea,
 };
-use crate::editor::actions::{SaveDocument, SaveDocumentAs, ToggleMaximizePane, TogglePaneKind};
+use crate::editor::actions::{
+    FindNext, FindPrevious, SaveDocument, SaveDocumentAs, ToggleMaximizePane, TogglePaneKind,
+    ToggleReplace, ToggleSearch,
+};
 use crate::editor::input::actions::{
     BlockDown, BlockUp, BoldSelection, CodeSelection, Copy, Cut, Delete, DeleteBackward,
     DismissTransientUi, End, ExitCodeBlock, FocusNext, FocusPrevious, Home, IndentBlock,
@@ -83,6 +86,10 @@ fn key_binding_for(
         ShortcutCommand::ToggleExplorer => KeyBinding::new(key, ToggleExplorer, context),
         ShortcutCommand::ToggleMaximizeArea => KeyBinding::new(key, ToggleMaximizeArea, context),
         ShortcutCommand::ToggleMaximizePane => KeyBinding::new(key, ToggleMaximizePane, context),
+        ShortcutCommand::ToggleSearch => KeyBinding::new(key, ToggleSearch, context),
+        ShortcutCommand::ToggleReplace => KeyBinding::new(key, ToggleReplace, context),
+        ShortcutCommand::FindNext => KeyBinding::new(key, FindNext, context),
+        ShortcutCommand::FindPrevious => KeyBinding::new(key, FindPrevious, context),
     }
 }
 

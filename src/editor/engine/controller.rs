@@ -108,7 +108,6 @@ pub(crate) struct FileState {
 }
 
 /// Algebraic autoscroll intent (mirrors Zed's AutoscrollStrategy).
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum AutoscrollStrategy {
     /// Scroll the minimal amount necessary to bring the active block / caret into view (with safe margin).
@@ -118,15 +117,8 @@ pub(crate) enum AutoscrollStrategy {
     /// Align the target block near the top of the viewport.
     Top { margin: Pixels },
     /// Align the target block near the bottom of the viewport.
+    #[allow(dead_code)]
     Bottom { margin: Pixels },
-}
-
-/// Layout-stable anchor for scroll offset preservation (Zero Layout Shift).
-#[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct ScrollAnchor {
-    pub(crate) block_id: Option<crate::model::parse::BlockId>,
-    pub(crate) offset_in_block: Pixels,
 }
 
 /// Focus routing and deferred focus targets.
@@ -209,8 +201,6 @@ pub(crate) struct TableGrids {
 /// Scroll handle, layout anchoring, and autoscroll interaction state.
 pub(crate) struct ScrollState {
     pub(crate) handle: ScrollHandle,
-    #[allow(dead_code)]
-    pub(crate) anchor: Option<ScrollAnchor>,
     pub(crate) pending_autoscroll: Option<AutoscrollStrategy>,
     pub(crate) last_viewport_size: Option<Size<Pixels>>,
     pub(crate) scrollbar_hovered: bool,
@@ -223,7 +213,6 @@ impl Default for ScrollState {
     fn default() -> Self {
         Self {
             handle: ScrollHandle::new(),
-            anchor: None,
             pending_autoscroll: None,
             last_viewport_size: None,
             scrollbar_hovered: false,
@@ -537,12 +526,6 @@ impl DocumentTab {
     #[inline]
     pub fn is_transient(&self) -> bool {
         self.kind == TabKind::Transient
-    }
-
-    #[inline]
-    #[allow(dead_code)]
-    pub fn is_persistent(&self) -> bool {
-        self.kind == TabKind::Persistent
     }
 
     #[inline]
@@ -1028,20 +1011,8 @@ impl Editor {
     }
 
     #[inline]
-    #[allow(dead_code)]
-    pub(crate) fn active_tab_mut(&mut self) -> Option<&mut DocumentTab> {
-        self.session.active_tab_mut()
-    }
-
-    #[inline]
     pub(crate) fn active_doc(&self) -> Option<&Document> {
         self.session.active_tab().map(|t| &t.document)
-    }
-
-    #[inline]
-    #[allow(dead_code)]
-    pub(crate) fn active_doc_mut(&mut self) -> Option<&mut Document> {
-        self.session.active_tab_mut().map(|t| &mut t.document)
     }
 
     #[inline]

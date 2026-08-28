@@ -105,28 +105,15 @@ pub fn callout_colors(variant: crate::model::block::CalloutKind, theme: &Theme) 
     (style.border_color, style.background_color)
 }
 
-// ── Font helpers ────────────────────────────────────────────────────────
 
-/// The document prose text font (defaults to Lexend unless configured).
-#[inline]
-#[allow(dead_code)]
-pub fn document_prose_font(cx: &App) -> Font {
-    crate::infra::theme::TypographyStore::prose_font(cx)
-}
-
-/// Backward-compatible helper returning the default prose font without requiring a Context.
-#[inline]
-pub fn editor_text_font() -> Font {
-    crate::infra::theme::TypographyStore::default_font(crate::infra::theme::TypographyScope::Prose)
-}
 
 #[cfg(test)]
 mod tests {
     use super::{
-        RowSpacingInfo, callout_row_top_gap, editor_text_font,
+        RowSpacingInfo, callout_row_top_gap,
         row_top_gap,
     };
-    use crate::infra::theme::Theme;
+    use crate::infra::theme::{Theme, TypographyScope, TypographyStore};
     use crate::model::parse::BlockId;
     use uuid::Uuid;
 
@@ -148,8 +135,8 @@ mod tests {
     }
 
     #[test]
-    fn editor_text_font_keeps_lexend_as_primary_family() {
-        let f = editor_text_font();
+    fn default_prose_font_keeps_lexend_as_primary_family() {
+        let f = TypographyStore::default_font(TypographyScope::Prose);
         assert_eq!(f.family.to_string(), "Lexend");
         assert!(f.fallbacks.is_none(), "fallbacks should be None to rely on native OS glyph cascading");
     }

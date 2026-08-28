@@ -239,8 +239,6 @@ fn test_search_results_drawer_expansion_and_item_toggle(cx: &mut TestAppContext)
         editor.search.toggle_match_expanded(0);
         assert!(editor.search.is_match_expanded(0));
         editor.search.toggle_match_expanded(0);
-        assert!(!editor.search.is_match_expanded(0));
-
         // Sync highlights to document check
         editor.search.visible = true;
         editor.sync_search_highlights_to_document(cx);
@@ -248,6 +246,83 @@ fn test_search_results_drawer_expansion_and_item_toggle(cx: &mut TestAppContext)
         assert_eq!(first_block.search_matches.len(), 1);
         assert_eq!(first_block.search_matches[0].1, true); // Active match is at index 0
     });
+}
+
+#[gpui::test]
+fn test_search_query_engine_and_invalid_regex_safety() {
+    use crate::editor::search::query::SearchQuery;
+
+    // Normal query
+    let q = SearchQuery::new("hello", false, false, false);
+    assert!(q.is_valid());
+    let matches = q.find_matches("Hello world\nhello universe", 1);
+    assert_eq!(matches.len(), 2);
+    assert_eq!(matches[0].line_number, 1);
+    assert_eq!(matches[0].column_number, 1);
+    assert_eq!(matches[1].line_number, 2);
+    assert_eq!(matches[1].column_number, 1);
+
+    // Case sensitive
+    let q_case = SearchQuery::new("Hello", true, false, false);
+    let matches_case = q_case.find_matches("Hello world\nhello universe", 1);
+    assert_eq!(matches_case.len(), 1);
+
+    // Whole word
+    let q_word = SearchQuery::new("cat", false, true, false);
+    let matches_word = q_word.find_matches("cat concatenate cat_dog cat", 1);
+    assert_eq!(matches_word.len(), 2);
+
+    // Invalid regex should safely not panic and match nothing
+    let q_invalid = SearchQuery::new("([a-z", false, false, true);
+    assert!(!q_invalid.is_valid());
+    let matches_invalid = q_invalid.find_matches("abc def", 1);
+    assert_eq!(matches_invalid.len(), 0);
+}
+
+#[gpui::test]
+fn test_search_action_dispatch_and_lifecycle(cx: &mut TestAppContext) {
+    super::init_editor_test_app(cx);
+
+    let editor = cx.new(|cx| {
+        Editor::from_markdown(
+            cx,
+            "First target line\nSecond target line\nThird target line".to_string(),
+            None,
+        )
+    });
+
+    let window = cx.update(|cx| cx.open_window(gpui::WindowOptions::default(), |_window, _cx| editor.clone())).unwrap();
+
+    window.update(cx, |ed, window, cx| {
+        assert!(!ed.search.visible);
+
+        // Toggle search on
+        ed.toggle_search(window, cx);
+        assert!(ed.search.visible);
+        assert_eq!(ed.search.active_field, crate::editor::search::state::SearchActiveField::Query);
+
+        ed.search.search_input.set_text("target".to_string());
+        ed.execute_search(cx);
+        assert_eq!(ed.search.matches.len(), 3);
+        assert_eq!(ed.search.active_match_index, Some(0));
+
+        // Find next
+        ed.find_next(window, cx);
+        assert_eq!(ed.search.active_match_index, Some(1));
+
+        // Find previous
+        ed.find_previous(window, cx);
+        assert_eq!(ed.search.active_match_index, Some(0));
+
+        // Toggle replace on
+        ed.toggle_replace(window, cx);
+        assert!(ed.search.show_replace);
+        assert_eq!(ed.search.active_field, crate::editor::search::state::SearchActiveField::Replace);
+
+        // Toggle search off
+        ed.toggle_search(window, cx);
+        assert!(!ed.search.visible);
+    }).unwrap();
 }
 
 

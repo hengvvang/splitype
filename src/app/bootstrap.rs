@@ -127,7 +127,9 @@ pub fn run(args: Args) {
             .name("splitype-prewarm".to_string())
             .spawn(|| {
                 crate::editor::plugins::code_highlight::highlight::prewarm_code_highlight_registry();
-                let _ = crate::editor::panes::wysiwyg::render::layout::editor_text_font();
+                let _ = crate::infra::theme::TypographyStore::default_font(
+                    crate::infra::theme::TypographyScope::Prose,
+                );
             })
             .ok();
 

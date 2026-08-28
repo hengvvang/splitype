@@ -1,7 +1,6 @@
 use gpui::*;
 
-use crate::editor::panes::wysiwyg::render::layout::editor_text_font;
-use crate::infra::theme::Theme;
+use crate::infra::theme::{Theme, TypographyScope, TypographyStore};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum GraphicKind {
@@ -95,7 +94,7 @@ pub(crate) fn render_graphic_error_card(
                 .pl(px(16.0))
                 .text_size(px(t.code_size))
                 .font_weight(FontWeight::NORMAL)
-                .font_family(editor_text_font().family)
+                .font_family(TypographyStore::default_font(TypographyScope::Prose).family)
                 .text_color(c.text_default)
                 .child(SharedString::from(cleaned_error)),
         )
