@@ -180,9 +180,13 @@ impl Editor {
     }
 
     /// Marks the document dirty and schedules window-title and edited-state
-    /// refresh for the next render frame.
+    /// refresh for the next render frame. If the active tab was in transient mode,
+    /// it is automatically persisted to a persistent resident tab.
     pub(crate) fn mark_dirty(&mut self, cx: &mut Context<Self>) {
         self.bump_document_revision();
+        if self.tab().is_transient() {
+            self.tab_mut().persist();
+        }
         if !self.tab().file.dirty {
             self.tab_mut().file.dirty = true;
             self.tab_mut().file.pending_window_edited = true;

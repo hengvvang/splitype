@@ -273,6 +273,7 @@ impl Shell {
                 let shift = event.modifiers().shift;
                 let alt = event.modifiers().alt;
                 let secondary = event.modifiers().secondary();
+                let click_count = event.click_count();
                 let _ = click_shell.update(cx, |shell, cx| {
                     if shift {
                         shell.select_explorer_range(id, cx);
@@ -285,7 +286,12 @@ impl Shell {
                     shell.panels.explorer.marked.clear();
                     if root_is_file {
                         // A file-rooted worktree opens its file on click.
-                        shell.open_explorer_file_click(click_path.clone(), false, window, cx);
+                        shell.open_explorer_file_click(
+                            click_path.clone(),
+                            click_count > 1,
+                            window,
+                            cx,
+                        );
                     } else if alt {
                         shell.toggle_explorer_subtree(id, cx);
                     } else {

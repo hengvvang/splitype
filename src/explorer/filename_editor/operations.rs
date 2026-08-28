@@ -441,7 +441,12 @@ impl Shell {
                             let path_for_open = new_path_for_update.clone();
                             let _ = cx.update_window(window_handle, move |_, window, cx| {
                                 let _ = weak_shell_for_open.update(cx, |shell, cx| {
-                                    shell.open_explorer_file(path_for_open, window, cx);
+                                    shell.open_explorer_file(
+                                        path_for_open,
+                                        crate::editor::engine::controller::OpenFileMode::Persistent,
+                                        window,
+                                        cx,
+                                    );
                                 });
                             });
                         }

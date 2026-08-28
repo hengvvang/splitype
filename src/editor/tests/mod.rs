@@ -27,6 +27,7 @@ mod save_export;
 mod table_ops;
 mod undo;
 mod search;
+mod tab_lifecycle;
 mod window_flows;
 
 fn init_editor_test_app(cx: &mut TestAppContext) {

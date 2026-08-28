@@ -184,19 +184,21 @@ impl crate::editor::engine::controller::Editor {
             // panic on a missing session.
             let list = self.tab_list_mut();
             let active_tab = list.active_index();
-            let tab_names: Vec<String> = list
+            let tab_infos: Vec<(String, bool, bool)> = list
                 .iter()
                 .map(|tab| {
-                    tab.file
+                    let name = tab
+                        .file
                         .path
                         .as_ref()
                         .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
-                        .unwrap_or_else(|| "Untitled".to_string())
+                        .unwrap_or_else(|| "Untitled".to_string());
+                    (name, tab.is_transient(), tab.file.dirty)
                 })
                 .collect();
 
             let mut tab_elements: Vec<AnyElement> = Vec::new();
-            for (index, file_name) in tab_names.iter().enumerate() {
+            for (index, (file_name, is_transient, _is_dirty)) in tab_infos.iter().enumerate() {
                 let is_active = index == active_tab;
 
                 let tab_bg = if is_active {
@@ -213,25 +215,37 @@ impl crate::editor::engine::controller::Editor {
                 let tab_editor = editor.clone();
                 let close_editor = editor.clone();
 
+                let mut title_div = div()
+                    .text_color(tab_text)
+                    .cursor_pointer()
+                    .child(file_name.clone());
+
+                if *is_transient {
+                    title_div = title_div.italic();
+                }
+
                 tab_elements.push(
                     small_pill_button(c, d)
                         .px(px(6.0))
                         .bg(tab_bg)
                         .text_size(px(11.0))
                         .child(
-                            // Switch area: clicking the file name switches to this tab.
-                            div()
-                                .text_color(tab_text)
-                                .child(file_name.clone())
-                                .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                                    let _ = tab_editor.update(cx, |ed, cx| {
-                                        ed.defer_shell_action(cx, move |shell, cx| {
-                                            shell.activate_panel(panel_id, cx);
-                                        });
-                                        ed.activate_tab(index, cx);
-                                        cx.notify();
+                            // Switch area: clicking the file name switches to this tab; double-clicking persists transient tab to persistent.
+                            title_div.on_mouse_down(MouseButton::Left, move |event, _window, cx| {
+                                let is_double = event.click_count > 1;
+                                let _ = tab_editor.update(cx, |ed, cx| {
+                                    ed.defer_shell_action(cx, move |shell, cx| {
+                                        shell.activate_panel(panel_id, cx);
                                     });
-                                }),
+                                    if is_double {
+                                        if let Some(tab) = ed.session.tab_mut(index) {
+                                            tab.persist();
+                                        }
+                                    }
+                                    ed.activate_tab(index, cx);
+                                    cx.notify();
+                                });
+                            }),
                         )
                         .child(
                             // Close button: separate click area.

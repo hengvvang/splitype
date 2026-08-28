@@ -1,4 +1,4 @@
-﻿use std::path::PathBuf;
+use std::path::PathBuf;
 
 use gpui::*;
 
@@ -49,7 +49,12 @@ impl Shell {
                     if path.is_dir() {
                         shell.open_explorer_folder_path(path.clone(), cx);
                     } else {
-                        shell.open_explorer_file(path.clone(), window, cx);
+                        shell.open_explorer_file(
+                            path.clone(),
+                            crate::editor::engine::controller::OpenFileMode::Persistent,
+                            window,
+                            cx,
+                        );
                     }
                 }
             }))
@@ -216,7 +221,12 @@ impl Shell {
                                 )
                                 .on_click(move |_event, window, cx| {
                                     let _ = item_shell.update(cx, |shell, cx| {
-                                        shell.open_explorer_file(path.clone(), window, cx);
+                                        shell.open_explorer_file(
+                                            path.clone(),
+                                            crate::editor::engine::controller::OpenFileMode::Persistent,
+                                            window,
+                                            cx,
+                                        );
                                     });
                                 })
                         }))

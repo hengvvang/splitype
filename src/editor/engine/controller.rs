@@ -22,7 +22,9 @@ pub(crate) use crate::app::window::panels::WindowPanelKind;
 pub(crate) use crate::editor::PreviewState;
 pub(crate) use crate::editor::document::protocol::UndoCaptureKind;
 pub(crate) use crate::editor::panes::outline::state::OutlinePaneState;
-pub use crate::editor::engine::session::{EditorPaneKind, EditorSession, EditorTabList};
+pub use crate::editor::engine::session::{
+    EditorPaneKind, EditorSession, EditorTabList, OpenFileMode, TabKind,
+};
 pub(crate) use crate::editor::document::block::Block;
 pub(crate) use crate::editor::document::Document;
 pub(crate) use crate::editor::document::block::footnotes::{
@@ -245,6 +247,7 @@ pub(crate) struct DocumentTab {
     /// Which view this tab is currently presenting.
     pub(crate) mode: EditorPaneKind,
     pub(crate) file: FileState,
+    pub(crate) kind: TabKind,
     pub(crate) undo: UndoHistory,
     pub(crate) references: ReferenceRegistries,
     pub(crate) tables: TableGrids,
@@ -530,6 +533,22 @@ impl DocumentTab {
     pub fn is_source_code(&self) -> bool {
         self.mode.is_source_code()
     }
+
+    #[inline]
+    pub fn is_transient(&self) -> bool {
+        self.kind == TabKind::Transient
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub fn is_persistent(&self) -> bool {
+        self.kind == TabKind::Persistent
+    }
+
+    #[inline]
+    pub fn persist(&mut self) {
+        self.kind = TabKind::Persistent;
+    }
 }
 
 impl Editor {
@@ -653,6 +672,7 @@ impl Editor {
                 path: file_path,
                 ..FileState::default()
             },
+            kind: TabKind::Persistent,
             undo: UndoHistory::default(),
             references: ReferenceRegistries::default(),
             tables: TableGrids::default(),
@@ -697,9 +717,13 @@ impl Editor {
 
     /// Opens a file in this editor's tab list: activates its tab if
     /// already open, otherwise loads a new tab from disk.
+    ///
+    /// If `mode == OpenFileMode::Transient`, reuses/replaces any existing
+    /// non-dirty transient tab in this editor pane.
     pub(crate) fn open_file_in_panel(
         &mut self,
         path: &std::path::Path,
+        mode: OpenFileMode,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -709,6 +733,11 @@ impl Editor {
             .iter()
             .position(|t| t.file.path.as_deref() == Some(path));
         if let Some(index) = already_open {
+            if mode == OpenFileMode::Persistent {
+                if let Some(tab) = self.session.tab_mut(index) {
+                    tab.persist();
+                }
+            }
             self.activate_tab(index, cx);
             return;
         }
@@ -725,11 +754,31 @@ impl Editor {
             }
         };
         let markdown = String::from_utf8_lossy(&bytes).to_string();
-        let last = self.session.push_tab(Self::new_tab_from_markdown(
+        let mut tab = Self::new_tab_from_markdown(
             cx,
             markdown,
             Some(path.to_path_buf()),
-        ));
+        );
+        tab.kind = match mode {
+            OpenFileMode::Transient => TabKind::Transient,
+            OpenFileMode::Persistent => TabKind::Persistent,
+        };
+
+        if mode == OpenFileMode::Transient {
+            let clean_transient_idx = self
+                .session
+                .tab_list
+                .iter()
+                .position(|t| t.is_transient() && !t.file.dirty);
+            if let Some(idx) = clean_transient_idx {
+                self.session.tab_list.replace(idx, tab);
+                self.activate_tab(idx, cx);
+                crate::app::menus::record_recent_file_from_editor(path, cx);
+                return;
+            }
+        }
+
+        let last = self.session.push_tab(tab);
         self.activate_tab(last, cx);
         crate::app::menus::record_recent_file_from_editor(path, cx);
     }
@@ -740,6 +789,7 @@ impl Editor {
     pub(crate) fn open_file_in_active_editor(
         &mut self,
         path: &std::path::Path,
+        mode: OpenFileMode,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
@@ -748,7 +798,7 @@ impl Editor {
         };
         shell
             .update(cx, |shell, cx| {
-                shell.open_file_in_active_editor(path, window, cx)
+                shell.open_file_in_active_editor(path, mode, window, cx)
             })
             .unwrap_or(false)
     }
@@ -973,18 +1023,32 @@ impl Editor {
     }
 
     #[inline]
-    pub(crate) fn tab_opt(&self) -> Option<&DocumentTab> {
-        self.session.active_tab().or_else(|| self.session.tab(0))
+    pub(crate) fn active_tab(&self) -> Option<&DocumentTab> {
+        self.session.active_tab()
     }
 
     #[inline]
-    pub(crate) fn doc_opt(&self) -> Option<&Document> {
-        self.tab_opt().map(|t| &t.document)
+    #[allow(dead_code)]
+    pub(crate) fn active_tab_mut(&mut self) -> Option<&mut DocumentTab> {
+        self.session.active_tab_mut()
+    }
+
+    #[inline]
+    pub(crate) fn active_doc(&self) -> Option<&Document> {
+        self.session.active_tab().map(|t| &t.document)
+    }
+
+    #[inline]
+    #[allow(dead_code)]
+    pub(crate) fn active_doc_mut(&mut self) -> Option<&mut Document> {
+        self.session.active_tab_mut().map(|t| &mut t.document)
     }
 
     #[inline]
     pub(crate) fn tab(&self) -> &DocumentTab {
-        self.tab_opt().expect("active tab requested on empty editor")
+        self.session
+            .active_tab()
+            .expect("active tab requested on empty editor")
     }
 
     /// The active document tab, mutably.
@@ -1020,12 +1084,6 @@ impl Editor {
         &mut self.session.tab_list
     }
 
-    /// The active tab of this editor, if any.
-    #[inline]
-    pub(crate) fn active_tab(&self) -> Option<&DocumentTab> {
-        self.session.active_tab()
-    }
-
     /// Split `panel_id` with a same-kind sibling and seed the new Editor
     /// area per `copy_content`: `true` deep-copies the source session
     /// (tab list re-materialized from its serialized document, pane
@@ -1052,6 +1110,7 @@ impl Editor {
             let mut copy = Self::new_tab_from_markdown(cx, text, tab.file.path.clone());
             copy.mode = tab.mode;
             copy.file.dirty = tab.file.dirty;
+            copy.kind = tab.kind;
             list.push(copy);
         }
         list.set_active_tab(self.session.active_tab_index());

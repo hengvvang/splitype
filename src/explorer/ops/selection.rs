@@ -563,7 +563,12 @@ impl Shell {
         if kind == ExplorerEntryKind::Directory {
             self.toggle_explorer_node(entry_id, cx);
         } else {
-            self.open_explorer_file(path, window, cx);
+            self.open_explorer_file(
+                path,
+                crate::editor::engine::controller::OpenFileMode::Persistent,
+                window,
+                cx,
+            );
         }
     }
 

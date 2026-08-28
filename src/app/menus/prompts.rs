@@ -99,7 +99,12 @@ pub(super) fn prompt_and_open_files_with_error_window(
 /// recent-file entry either way.
 pub(super) fn open_file_in_editor_or_new_window(cx: &mut App, path: &Path) {
     let opened_in_editor = with_active_window(cx, |editor, window, cx| {
-        editor.open_file_in_active_editor(path, window, cx)
+        editor.open_file_in_active_editor(
+            path,
+            crate::editor::engine::controller::OpenFileMode::Persistent,
+            window,
+            cx,
+        )
     })
     .is_some_and(|opened| opened);
     if !opened_in_editor {

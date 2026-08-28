@@ -52,6 +52,7 @@ impl Editor {
 
         self.tab_mut().file.path = file_path;
         self.tab_mut().mode = EditorPaneKind::Wysiwyg;
+        self.tab_mut().persist();
         self.rebuild_document_from_markdown(&normalized, cx);
 
         self.tab_mut().file.dirty = false;

@@ -14,7 +14,7 @@ use gpui::*;
 use crate::app::actions::{InstallCliTool, QuitApplication, UninstallCliTool};
 use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::{PanelId, WindowPanelKind, WindowPanels};
-use crate::editor::engine::controller::{DocumentTab, Editor, InfoDialogKind};
+use crate::editor::engine::controller::{DocumentTab, Editor, InfoDialogKind, OpenFileMode};
 use crate::editor::engine::session::EditorSession;
 use crate::infra::i18n::I18nManager;
 use crate::infra::theme::ThemeManager;
@@ -403,6 +403,7 @@ impl Shell {
     pub(crate) fn open_file_in_active_editor(
         &mut self,
         path: &std::path::Path,
+        mode: OpenFileMode,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
@@ -413,7 +414,7 @@ impl Shell {
         let Some(editor) = self.editor_for(panel_id) else {
             return false;
         };
-        editor.update(cx, |editor, cx| editor.open_file_in_panel(path, window, cx));
+        editor.update(cx, |editor, cx| editor.open_file_in_panel(path, mode, window, cx));
         true
     }
     /// Creates a fresh Editor entity serving `panel_id` and registers it in

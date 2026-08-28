@@ -7,6 +7,26 @@
 
 use splitype_splitter::root::SplitterRoot;
 
+/// Lifecycle retention kind of a document tab in an editor pane.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum TabKind {
+    /// Transient temporary tab: replaced in-place when another file is clicked.
+    #[default]
+    Transient,
+    /// Persistent resident tab: pinned to the tab bar until explicitly closed.
+    Persistent,
+}
+
+/// Requested mode when opening a file into an editor pane.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum OpenFileMode {
+    /// Open as transient tab (replaces existing clean transient tab if present).
+    #[default]
+    Transient,
+    /// Open as persistent tab (or promotes existing tab to persistent).
+    Persistent,
+}
+
 /// The document tabs owned by one Editor area.
 ///
 /// Every Editor area keeps its own ordered tab list; tabs are deep-copied
@@ -21,11 +41,8 @@ pub struct EditorTabList<T> {
 }
 
 impl<T> EditorTabList<T> {
+    #[inline]
     pub fn new() -> Self {
-        Self::empty()
-    }
-
-    pub fn empty() -> Self {
         Self {
             tabs: Vec::new(),
             active_tab: 0,
@@ -48,10 +65,20 @@ impl<T> EditorTabList<T> {
     }
 
     /// Pushes a new tab to the list and returns its index.
+    #[inline]
     pub fn push(&mut self, tab: T) -> usize {
         let index = self.tabs.len();
         self.tabs.push(tab);
         index
+    }
+
+    /// Replaces the tab at `index` with `new_tab`, preserving the current active index.
+    pub fn replace(&mut self, index: usize, new_tab: T) -> Option<T> {
+        if index < self.tabs.len() {
+            Some(std::mem::replace(&mut self.tabs[index], new_tab))
+        } else {
+            None
+        }
     }
 
     /// Safely gets a reference to the tab at `index`.
@@ -105,6 +132,7 @@ impl<T> EditorTabList<T> {
         Some(removed)
     }
 
+    #[inline]
     pub fn clear(&mut self) {
         self.tabs.clear();
         self.active_tab = 0;
@@ -134,6 +162,22 @@ impl<T> EditorTabList<T> {
     #[inline]
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, T> {
         self.tabs.iter_mut()
+    }
+}
+
+impl<T> std::ops::Index<usize> for EditorTabList<T> {
+    type Output = T;
+
+    #[inline]
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.tabs[index]
+    }
+}
+
+impl<T> std::ops::IndexMut<usize> for EditorTabList<T> {
+    #[inline]
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.tabs[index]
     }
 }
 
@@ -177,7 +221,7 @@ impl EditorSession {
     /// nested roots never share state with the outer layout.
     pub(crate) fn welcome() -> Self {
         Self {
-            tab_list: EditorTabList::empty(),
+            tab_list: EditorTabList::new(),
             root: SplitterRoot::single_leaf(1, EditorPaneKind::SourceCode),
         }
     }

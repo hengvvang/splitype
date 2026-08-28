@@ -18,7 +18,6 @@ impl Editor {
         if query.is_empty() {
             self.search.matches.clear();
             self.search.active_match_index = None;
-            self.search.results_expanded = false;
             self.clear_search_highlights_from_document(cx);
             cx.notify();
             return;
@@ -38,7 +37,6 @@ impl Editor {
         self.search.matches = matches;
         if self.search.matches.is_empty() {
             self.search.active_match_index = None;
-            self.search.results_expanded = false;
             self.clear_search_highlights_from_document(cx);
         } else {
             self.search.active_match_index = Some(
@@ -47,8 +45,6 @@ impl Editor {
                     .map(|idx| idx.min(self.search.matches.len() - 1))
                     .unwrap_or(0),
             );
-            // Automatically expand results drawer below search input
-            self.search.results_expanded = true;
             self.sync_search_highlights_to_document(cx);
         }
 
@@ -57,7 +53,7 @@ impl Editor {
 
     /// Synchronizes search match highlights to all block entities in the active document.
     pub fn sync_search_highlights_to_document(&self, cx: &mut App) {
-        let Some(doc) = self.doc_opt() else {
+        let Some(doc) = self.active_doc() else {
             return;
         };
 
@@ -101,7 +97,7 @@ impl Editor {
 
     /// Clears search highlights from all block entities in the active document.
     pub fn clear_search_highlights_from_document(&self, cx: &mut App) {
-        let Some(doc) = self.doc_opt() else {
+        let Some(doc) = self.active_doc() else {
             return;
         };
 
@@ -222,7 +218,7 @@ impl Editor {
         matches: &mut Vec<SearchMatch>,
         cx: &App,
     ) {
-        let Some(tab) = self.tab_opt() else {
+        let Some(tab) = self.active_tab() else {
             return;
         };
         let active_file_path = tab.file.path.clone();
@@ -231,7 +227,7 @@ impl Editor {
             .and_then(|p| p.file_name().map(|n| n.to_string_lossy().to_string()))
             .unwrap_or_else(|| "Untitled".to_string());
 
-        let Some(doc) = self.doc_opt() else {
+        let Some(doc) = self.active_doc() else {
             return;
         };
         let blocks = doc.blocks();
@@ -267,7 +263,7 @@ impl Editor {
         _cx: &App,
     ) {
         let mut search_dirs = Vec::new();
-        if let Some(tab) = self.tab_opt() {
+        if let Some(tab) = self.active_tab() {
             if let Some(ref path) = tab.file.path {
                 if let Some(parent) = path.parent() {
                     search_dirs.push(parent.to_path_buf());
@@ -457,7 +453,7 @@ impl Editor {
 
         if let Some(entity_id) = match_item.entity_id {
             self.focus_block(entity_id);
-            if let Some(doc) = self.doc_opt() {
+            if let Some(doc) = self.active_doc() {
                 if let Some(block) = doc.block_entity_by_id(entity_id) {
                     let range = match_item.byte_range.clone();
                     block.update(cx, |block, cx| {
@@ -477,30 +473,13 @@ impl Editor {
             self.sync_search_highlights_to_document(cx);
             cx.notify();
         } else if let Some(file_path) = match_item.file_path {
-            self.open_file_in_tab(file_path, window, cx);
+            self.open_file_in_panel(
+                &file_path,
+                crate::editor::engine::controller::OpenFileMode::Persistent,
+                window,
+                cx,
+            );
             self.sync_search_highlights_to_document(cx);
-        }
-    }
-
-    /// Opens a file in the active editor tab set or switches to it if already open.
-    pub fn open_file_in_tab(&mut self, path: PathBuf, _window: &mut gpui::Window, cx: &mut Context<Self>) {
-        if let Some(existing_idx) = self
-            .tab_list_mut()
-            .iter()
-            .position(|tab| tab.file.path.as_ref() == Some(&path))
-        {
-            self.activate_tab(existing_idx, cx);
-            cx.notify();
-            return;
-        }
-
-        if let Ok(content) = fs::read_to_string(&path) {
-            self.new_untitled_tab(cx);
-            let active_idx = self.tab_list_mut().active_index();
-            self.tab_mut().file.path = Some(path);
-            self.rebuild_document_from_markdown(&content, cx);
-            self.activate_tab(active_idx, cx);
-            cx.notify();
         }
     }
 
@@ -515,7 +494,7 @@ impl Editor {
         let Some(entity_id) = match_item.entity_id else {
             return;
         };
-        let Some(doc) = self.doc_opt() else {
+        let Some(doc) = self.active_doc() else {
             return;
         };
         let Some(block) = doc.block_entity_by_id(entity_id) else {
@@ -580,7 +559,7 @@ impl Editor {
             }
         }
 
-        let Some(doc) = self.doc_opt() else {
+        let Some(doc) = self.active_doc() else {
             return;
         };
 

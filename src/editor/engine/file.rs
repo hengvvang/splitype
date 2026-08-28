@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use gpui::*;
 
-use crate::editor::engine::controller::Editor;
+use crate::editor::engine::controller::{Editor, OpenFileMode};
 use crate::infra::i18n::I18nManager;
 
 impl Editor {
@@ -289,7 +289,7 @@ impl Editor {
         // Welcome state (no tabs): open the file in a fresh tab instead of
         // replacing the current document.
         if !self.has_active_tab() {
-            self.open_file_in_active_editor(&path, window, cx);
+            self.open_file_in_active_editor(&path, OpenFileMode::Persistent, window, cx);
             return;
         }
 

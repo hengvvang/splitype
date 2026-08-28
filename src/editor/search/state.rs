@@ -327,7 +327,7 @@ impl SearchPanelState {
             scope: SearchScope::CurrentTab,
             matches: Vec::new(),
             active_match_index: None,
-            results_expanded: false,
+            results_expanded: true,
             expanded_match_indices: std::collections::HashSet::new(),
             search_focus_handle: cx.focus_handle(),
             replace_focus_handle: cx.focus_handle(),

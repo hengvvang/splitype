@@ -26,7 +26,6 @@ impl Editor {
         let editor = cx.entity().downgrade();
 
         let show_replace = self.search.show_replace;
-        let match_count_label = self.search.match_status_label();
         let scope = self.search.scope;
         let results_expanded = self.search.results_expanded;
         let match_case = self.search.match_case;
@@ -47,7 +46,7 @@ impl Editor {
             .flex()
             .items_center()
             .justify_center()
-            .rounded(px(3.0))
+            .rounded(px(d.icon_button_radius))
             .cursor_pointer()
             .hover(|this| this.bg(c.dialog_secondary_button_hover))
             .child(
@@ -69,7 +68,7 @@ impl Editor {
             .id("search-filter-case")
             .px(px(4.0))
             .py(px(1.0))
-            .rounded(px(3.0))
+            .rounded(px(d.icon_button_radius))
             .bg(if match_case {
                 c.panel_row_selected
             } else {
@@ -96,7 +95,7 @@ impl Editor {
             .id("search-filter-word")
             .px(px(4.0))
             .py(px(1.0))
-            .rounded(px(3.0))
+            .rounded(px(d.icon_button_radius))
             .bg(if whole_word {
                 c.panel_row_selected
             } else {
@@ -139,7 +138,7 @@ impl Editor {
             .id("search-filter-regex")
             .px(px(4.0))
             .py(px(1.0))
-            .rounded(px(3.0))
+            .rounded(px(d.icon_button_radius))
             .bg(if use_regex {
                 c.panel_row_selected
             } else {
@@ -182,7 +181,7 @@ impl Editor {
             } else {
                 c.dialog_border
             })
-            .rounded(px(4.0))
+            .rounded(px(d.select_trigger_radius))
             .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
                 let _ = search_box_editor.update(cx, |ed, cx| {
                     ed.search.active_field = SearchActiveField::Query;
@@ -211,28 +210,14 @@ impl Editor {
                     .child(regex_toggle),
             );
 
-        // ── Search Right Actions (Counter, Prev, Next, Close) ────────────
-        let count_editor = editor.clone();
-        let count_badge = div()
-            .text_size(px(11.0))
-            .text_color(c.dialog_muted)
-            .cursor_pointer()
-            .hover(|this| this.text_color(c.text_default))
-            .child(match_count_label)
-            .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                let _ = count_editor.update(cx, |ed, cx| {
-                    ed.search.results_expanded = !ed.search.results_expanded;
-                    cx.notify();
-                });
-            });
-
+        // ── Search Right Actions (Prev, Next, Scope, Close) ────────────
         let prev_editor = editor.clone();
         let prev_btn = div()
             .size(px(20.0))
             .flex()
             .items_center()
             .justify_center()
-            .rounded(px(3.0))
+            .rounded(px(d.icon_button_radius))
             .hover(|this| this.bg(c.dialog_secondary_button_hover))
             .cursor_pointer()
             .child(
@@ -255,7 +240,7 @@ impl Editor {
             .flex()
             .items_center()
             .justify_center()
-            .rounded(px(3.0))
+            .rounded(px(d.icon_button_radius))
             .hover(|this| this.bg(c.dialog_secondary_button_hover))
             .cursor_pointer()
             .child(
@@ -279,7 +264,7 @@ impl Editor {
             .flex()
             .items_center()
             .justify_center()
-            .rounded(px(3.0))
+            .rounded(px(d.icon_button_radius))
             .bg(if scope == SearchScope::Worktree {
                 c.panel_row_selected
             } else {
@@ -314,7 +299,7 @@ impl Editor {
             .flex()
             .items_center()
             .justify_center()
-            .rounded(px(3.0))
+            .rounded(px(d.icon_button_radius))
             .hover(|this| this.bg(c.dialog_secondary_button_hover))
             .cursor_pointer()
             .child(
@@ -331,13 +316,13 @@ impl Editor {
                 });
             });
 
+        // ── 1. Independent Search Strip Card ─────────────────────────────
         let search_top_row = div()
             .flex()
             .items_center()
             .gap(px(4.0))
             .child(chevron_btn)
             .child(search_input_box)
-            .child(count_badge)
             .child(
                 div()
                     .flex()
@@ -359,7 +344,7 @@ impl Editor {
                 .id("replace-filter-preserve-case")
                 .px(px(4.0))
                 .py(px(1.0))
-                .rounded(px(3.0))
+                .rounded(px(d.icon_button_radius))
                 .bg(if preserve_case {
                     c.panel_row_selected
                 } else {
@@ -398,7 +383,7 @@ impl Editor {
                 } else {
                     c.dialog_border
                 })
-                .rounded(px(4.0))
+                .rounded(px(d.select_trigger_radius))
                 .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
                     let _ = replace_box_editor.update(cx, |ed, cx| {
                         ed.search.active_field = SearchActiveField::Replace;
@@ -432,7 +417,7 @@ impl Editor {
                 .flex()
                 .items_center()
                 .justify_center()
-                .rounded(px(3.0))
+                .rounded(px(d.icon_button_radius))
                 .hover(|this| this.bg(c.dialog_secondary_button_hover))
                 .cursor_pointer()
                 .child(
@@ -454,7 +439,7 @@ impl Editor {
                 .flex()
                 .items_center()
                 .justify_center()
-                .rounded(px(3.0))
+                .rounded(px(d.icon_button_radius))
                 .hover(|this| this.bg(c.dialog_secondary_button_hover))
                 .cursor_pointer()
                 .child(
@@ -486,15 +471,15 @@ impl Editor {
                             .gap(px(2.0))
                             .child(replace_single_btn)
                             .child(replace_all_btn)
-                            // Align with search explorer + close width
-                            .child(div().w(px(42.0)).flex_shrink_0()),
+                            // Spacer to align with the 4 right buttons on search card (44px)
+                            .child(div().w(px(44.0)).flex_shrink_0()),
                     ),
             )
         } else {
             None
         };
 
-        // ── Top Search Controls Card ─────────────────────────────────────
+        // ── Top Search Controls Card (Integrated Search & Replace) ─────────
         let mut top_card = div()
             .id("editor-search-panel-floating-card")
             .w_full()
@@ -503,7 +488,7 @@ impl Editor {
             .border_color(c.dialog_border)
             .rounded(px(d.menu_panel_radius))
             .shadow_lg()
-            .p(px(8.0))
+            .p(px(6.0))
             .flex()
             .flex_col()
             .gap(px(6.0))
@@ -516,8 +501,8 @@ impl Editor {
             top_card = top_card.child(replace);
         }
 
-        // ── Separated Match Results Floating Card (with gap) ─────────────
-        let results_card = if results_expanded && !self.search.matches.is_empty() {
+        // ── 3. Separated Match Results Floating Card (with gap) ──────────
+        let results_card = if results_expanded {
             let active_idx = self.search.active_match_index;
             let mut match_elements = Vec::new();
 
@@ -576,7 +561,7 @@ impl Editor {
                                         div()
                                             .bg(c.app_menu_active.opacity(0.35))
                                             .text_color(c.app_menu_active)
-                                            .rounded(px(2.0))
+                                            .rounded(px(d.tab_close_button_radius))
                                             .px(px(2.0))
                                             .flex_shrink_0()
                                             .child(m.preview_match.clone()),
@@ -606,7 +591,7 @@ impl Editor {
                             .flex()
                             .items_center()
                             .justify_center()
-                            .rounded(px(3.0))
+                            .rounded(px(d.icon_button_radius))
                             .cursor_pointer()
                             .hover(|this| this.bg(c.dialog_secondary_button_hover))
                             .child(
@@ -654,7 +639,7 @@ impl Editor {
                             .child(
                                 div()
                                     .p(px(6.0))
-                                    .rounded(px(3.0))
+                                    .rounded(px(d.code_bg_radius))
                                     .bg(c.dialog_secondary_button_bg)
                                     .font(editor_text_font())
                                     .text_size(px(11.0))
@@ -666,7 +651,7 @@ impl Editor {
                                         div()
                                             .bg(c.app_menu_active.opacity(0.4))
                                             .text_color(c.app_menu_active)
-                                            .rounded(px(2.0))
+                                            .rounded(px(d.tab_close_button_radius))
                                             .px(px(2.0))
                                             .child(m.preview_match.clone()),
                                     )
@@ -678,7 +663,7 @@ impl Editor {
                 };
 
                 let mut item_card = div()
-                    .rounded(px(4.0))
+                    .rounded(px(d.menu_item_radius))
                     .border_1()
                     .border_color(if is_active {
                         c.app_menu_active
@@ -701,6 +686,72 @@ impl Editor {
             }
 
             let collapse_drawer_editor = editor.clone();
+
+            let (header_left, results_body) = if self.search.matches.is_empty() {
+                let msg = if self.search.query().is_empty() {
+                    "Type to search in document"
+                } else {
+                    "No matches found"
+                };
+                let title = if self.search.query().is_empty() {
+                    "MATCHES (0)".to_string()
+                } else {
+                    "NO RESULTS".to_string()
+                };
+
+                let header_left = div()
+                    .text_size(px(10.0))
+                    .text_color(c.dialog_muted)
+                    .font_weight(gpui::FontWeight::SEMIBOLD)
+                    .child(title);
+
+                let empty_row = div()
+                    .w_full()
+                    .py(px(12.0))
+                    .px(px(8.0))
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .text_size(px(11.0))
+                    .text_color(c.dialog_muted)
+                    .child(msg);
+
+                (header_left, empty_row.into_any_element())
+            } else {
+                let active_num = active_idx.map(|i| i + 1).unwrap_or(1);
+                let total_num = self.search.matches.len();
+
+                let header_left = div()
+                    .flex()
+                    .items_center()
+                    .gap(px(6.0))
+                    .child(
+                        div()
+                            .text_size(px(10.0))
+                            .text_color(c.dialog_muted)
+                            .font_weight(gpui::FontWeight::SEMIBOLD)
+                            .child(format!("MATCHES ({})", total_num)),
+                    )
+                    .child(
+                        div()
+                            .text_size(px(10.0))
+                            .text_color(c.app_menu_active)
+                            .child(format!("{}/{}", active_num, total_num)),
+                    );
+
+                let list_view = div()
+                    .id("search-results-drawer-scroll-container")
+                    .w_full()
+                    .max_h(px(240.0))
+                    .overflow_y_scroll()
+                    .flex()
+                    .flex_col()
+                    .gap(px(2.0))
+                    .children(match_elements);
+
+                (header_left, list_view.into_any_element())
+            };
+
             Some(
                 div()
                     .id("editor-search-results-floating-card")
@@ -724,19 +775,14 @@ impl Editor {
                             .flex()
                             .items_center()
                             .justify_between()
-                            .child(
-                                div()
-                                    .text_size(px(10.0))
-                                    .text_color(c.dialog_muted)
-                                    .child(format!("MATCHES ({})", self.search.matches.len())),
-                            )
+                            .child(header_left)
                             .child(
                                 div()
                                     .size(px(16.0))
                                     .flex()
                                     .items_center()
                                     .justify_center()
-                                    .rounded(px(2.0))
+                                    .rounded(px(d.tab_close_button_radius))
                                     .cursor_pointer()
                                     .hover(|this| this.bg(c.dialog_secondary_button_hover))
                                     .child(
@@ -753,17 +799,7 @@ impl Editor {
                                     }),
                             ),
                     )
-                    .child(
-                        div()
-                            .id("search-results-drawer-scroll-container")
-                            .w_full()
-                            .max_h(px(240.0))
-                            .overflow_y_scroll()
-                            .flex()
-                            .flex_col()
-                            .gap(px(2.0))
-                            .children(match_elements),
-                    ),
+                    .child(results_body),
             )
         } else {
             None
@@ -779,7 +815,7 @@ impl Editor {
             .w(px(420.0))
             .flex()
             .flex_col()
-            .gap(px(8.0)) // Clear 8px gap separating search input card and results card
+            .gap(px(6.0))
             .child(top_card);
 
         if let Some(results) = results_card {

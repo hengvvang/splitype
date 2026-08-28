@@ -1,16 +1,18 @@
-//! Opening files from the explorer: single click, double click (focus the
-//! editor), and Ctrl/Cmd+double-click (open in a freshly split area).
+//! Opening files from the explorer: single click (preview tab), double click (permanent tab + focus editor),
+//! and Ctrl/Cmd+double-click (open in a freshly split area).
 
 use std::path::PathBuf;
 
 use gpui::*;
 
 use crate::app::shell::Shell;
+use crate::editor::engine::controller::OpenFileMode;
 
 impl Shell {
     pub(crate) fn open_explorer_file(
         &mut self,
         path: PathBuf,
+        mode: OpenFileMode,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -25,20 +27,25 @@ impl Shell {
         if self.active_editor_panel().is_none() {
             return;
         }
-        self.open_file_in_active_editor(&path, window, cx);
+        self.open_file_in_active_editor(&path, mode, window, cx);
     }
 
-    /// Open a file from a row click: single click keeps panel focus, double
-    /// click also moves keyboard focus into the editor (mirrors Zed).
+    /// Open a file from a row click: single click opens a transient temporary tab,
+    /// double click promotes/opens as persistent resident tab and moves focus into the editor.
     pub(crate) fn open_explorer_file_click(
         &mut self,
         path: PathBuf,
-        focus_editor: bool,
+        is_double_click: bool,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.open_explorer_file(path, window, cx);
-        if focus_editor {
+        let mode = if is_double_click {
+            OpenFileMode::Persistent
+        } else {
+            OpenFileMode::Transient
+        };
+        self.open_explorer_file(path, mode, window, cx);
+        if is_double_click {
             let area = self.panels.layout.active_leaf;
             let focused_panel = self
                 .active_editor()
@@ -76,7 +83,7 @@ impl Shell {
         self.panels.layout.activate_leaf(new_id.0);
         if let Some(editor) = self.editor_for(new_id) {
             editor.update(cx, |editor, cx| {
-                editor.open_file_in_panel(&path, window, cx);
+                editor.open_file_in_panel(&path, OpenFileMode::Persistent, window, cx);
             });
         }
         cx.notify();
