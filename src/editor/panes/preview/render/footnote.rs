@@ -1,4 +1,4 @@
-﻿//! Preview footnote definition rendering — real-id text plus content.
+//! Preview footnote definition rendering — real-id text plus content.
 
 use gpui::*;
 
@@ -53,6 +53,10 @@ pub(crate) fn render_preview_footnote_definition(
                 .text_color(c.footnote_backref)
                 .hover(|this| this.underline().text_color(c.text_link))
                 .cursor_pointer()
+                .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                .on_mouse_up(MouseButton::Left, move |_event, _window, cx| {
+                    cx.stop_propagation();
+                })
                 .child("\u{21A9}"),
         );
     }
@@ -60,10 +64,14 @@ pub(crate) fn render_preview_footnote_definition(
     header.into_any_element()
 }
 
+use crate::editor::engine::controller::{Editor, PaneId};
+
 /// Renders the collected GitHub-style footnotes section: a top divider line
 /// followed by every footnote definition in document order.
 pub(crate) fn render_preview_footnotes_section(
     footnotes: &[Entity<Block>],
+    pane_id: PaneId,
+    editor_handle: &Entity<Editor>,
     theme: &Theme,
     window: &mut Window,
     cx: &App,
@@ -73,7 +81,21 @@ pub(crate) fn render_preview_footnotes_section(
 
     let rows: Vec<AnyElement> = footnotes
         .iter()
-        .map(|entity| super::render_preview_block(entity.read(cx), 0, 0, theme, window, cx))
+        .enumerate()
+        .map(|(idx, entity)| {
+            super::render_preview_block(
+                entity.read(cx),
+                idx,
+                None,
+                0,
+                0,
+                pane_id,
+                editor_handle,
+                theme,
+                window,
+                cx,
+            )
+        })
         .collect();
 
     div()

@@ -322,6 +322,11 @@ impl EditorPaneKind {
         matches!(self, Self::SourceCode)
     }
 
+    #[inline]
+    pub fn is_preview(&self) -> bool {
+        matches!(self, Self::Preview)
+    }
+
     pub fn name(&self) -> &'static str {
         match self {
             Self::SourceCode => "Source Code",

@@ -244,66 +244,15 @@ impl Editor {
     }
 
     fn execute_cut(&mut self, cx: &mut Context<Self>) {
-        if self.is_source_code() {
-            if let Some(block) = self.ensure_source_editor_block(cx) {
-                block.update(cx, |block, cx| {
-                    if !block.selected_range.is_empty() {
-                        let text = block.selected_text();
-                        cx.write_to_clipboard(ClipboardItem::new_string(text));
-                        block.replace_text_in_display_range(
-                            block.selected_range.clone(),
-                            "",
-                            Some(0..0),
-                            false,
-                            cx,
-                        );
-                    }
-                });
-            }
-        } else if let Some(markdown) = self.cross_block_selected_markdown(cx) {
-            cx.write_to_clipboard(ClipboardItem::new_string(markdown));
-            self.delete_cross_block_selection(cx);
-        } else if let Some(active_id) = self.active_pane_state().focus.active_entity {
-            if let Some(block) = self.focusable_entity_by_id(active_id) {
-                block.update(cx, |block, cx| {
-                    if !block.selected_range.is_empty() {
-                        let text = block.selected_text();
-                        cx.write_to_clipboard(ClipboardItem::new_string(text));
-                        block.replace_text_in_display_range(
-                            block.selected_range.clone(),
-                            "",
-                            Some(0..0),
-                            false,
-                            cx,
-                        );
-                    }
-                });
-            }
+        if let Some(text) = self.selected_markdown_text(cx) {
+            cx.write_to_clipboard(ClipboardItem::new_string(text));
+            self.delete_active_selection(cx);
         }
-        self.mark_dirty(cx);
-        cx.notify();
     }
 
     fn execute_copy(&mut self, cx: &mut Context<Self>) {
-        if self.is_source_code() {
-            if let Some(block) = self.ensure_source_editor_block(cx) {
-                let text = block.read(cx).selected_text();
-                if !text.is_empty() {
-                    cx.write_to_clipboard(ClipboardItem::new_string(text));
-                }
-            }
-        } else if let Some(markdown) = self.cross_block_selected_markdown(cx) {
-            cx.write_to_clipboard(ClipboardItem::new_string(markdown));
-        } else {
-            let pane_id = self.active_pane_id();
-            if let Some(active_id) = self.pane_state_ref(pane_id).and_then(|p| p.focus.active_entity) {
-                if let Some(block) = self.focusable_entity_by_id(active_id) {
-                    let text = block.read(cx).selected_text();
-                    if !text.is_empty() {
-                        cx.write_to_clipboard(ClipboardItem::new_string(text));
-                    }
-                }
-            }
+        if let Some(text) = self.selected_markdown_text(cx) {
+            cx.write_to_clipboard(ClipboardItem::new_string(text));
         }
     }
 

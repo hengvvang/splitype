@@ -24,7 +24,7 @@ pub(crate) fn render_preview_inline(
     font_weight: FontWeight,
     theme: &Theme,
 ) -> AnyElement {
-    render_preview_inline_with_matches(text, base_color, font_size, font_weight, theme, &[])
+    render_preview_inline_with_selection(text, base_color, font_size, font_weight, theme, &[], None)
 }
 
 #[inline]
@@ -47,14 +47,17 @@ fn safe_str_slice<'a>(s: &'a str, start: usize, end: usize) -> &'a str {
     &s[s_idx..e_idx]
 }
 
-/// Renders preview inline content with search highlights applied across spans.
-pub(crate) fn render_preview_inline_with_matches(
+
+
+/// Renders preview inline content with search matches and selection range applied.
+pub(crate) fn render_preview_inline_with_selection(
     text: &BlockText,
     base_color: Hsla,
     font_size: f32,
     font_weight: FontWeight,
     theme: &Theme,
     search_matches: &[(Range<usize>, bool)],
+    selection_range: Option<Range<usize>>,
 ) -> AnyElement {
     let cache = text.render_cache();
     let plain = cache.text();
@@ -67,16 +70,35 @@ pub(crate) fn render_preview_inline_with_matches(
             continue;
         }
 
-        let mut relevant_matches: Vec<(Range<usize>, bool)> = Vec::new();
+        let mut relevant_highlights: Vec<(Range<usize>, Hsla, Option<Hsla>)> = Vec::new();
+
+        if let Some(sel) = &selection_range {
+            let s_start = sel.start.max(span_start);
+            let s_end = sel.end.min(span_end);
+            if s_start < s_end {
+                relevant_highlights.push((s_start..s_end, theme.colors.selection, None));
+            }
+        }
+
         for (m_range, is_active) in search_matches {
             let overlap_start = m_range.start.max(span_start);
             let overlap_end = m_range.end.min(span_end);
             if overlap_start < overlap_end {
-                relevant_matches.push((overlap_start..overlap_end, *is_active));
+                let bg_color = if *is_active {
+                    theme.colors.app_menu_active.opacity(0.65)
+                } else {
+                    theme.colors.app_menu_active.opacity(0.25)
+                };
+                let border = if *is_active {
+                    Some(theme.colors.app_menu_active)
+                } else {
+                    None
+                };
+                relevant_highlights.push((overlap_start..overlap_end, bg_color, border));
             }
         }
 
-        if relevant_matches.is_empty() {
+        if relevant_highlights.is_empty() {
             let segment = safe_str_slice(plain, span_start, span_end);
             if !segment.is_empty() {
                 elements.push(render_preview_span(
@@ -86,13 +108,14 @@ pub(crate) fn render_preview_inline_with_matches(
                     font_size,
                     font_weight,
                     theme,
+                    None,
                 ));
             }
         } else {
             let mut curr = span_start;
-            for (m_range, is_active) in relevant_matches {
-                if curr < m_range.start {
-                    let seg = safe_str_slice(plain, curr, m_range.start);
+            for (range, bg_color, _border) in relevant_highlights {
+                if curr < range.start {
+                    let seg = safe_str_slice(plain, curr, range.start);
                     if !seg.is_empty() {
                         elements.push(render_preview_span(
                             seg,
@@ -101,37 +124,24 @@ pub(crate) fn render_preview_inline_with_matches(
                             font_size,
                             font_weight,
                             theme,
+                            None,
                         ));
                     }
                 }
-                let match_seg = safe_str_slice(plain, m_range.start, m_range.end);
-                if !match_seg.is_empty() {
-                    let match_el = render_preview_span(
-                        match_seg,
+                let seg = safe_str_slice(plain, range.start, range.end);
+                if !seg.is_empty() {
+                    let span_el = render_preview_span(
+                        seg,
                         span,
                         base_color,
                         font_size,
                         font_weight,
                         theme,
+                        Some(bg_color),
                     );
-                    let bg_color = if is_active {
-                        theme.colors.app_menu_active.opacity(0.65)
-                    } else {
-                        theme.colors.app_menu_active.opacity(0.25)
-                    };
-                    let mut wrapped = div()
-                        .bg(bg_color)
-                        .rounded(px(theme.dimensions.code_bg_radius))
-                        .px(px(2.0))
-                        .child(match_el);
-                    if is_active {
-                        wrapped = wrapped
-                            .border_1()
-                            .border_color(theme.colors.app_menu_active);
-                    }
-                    elements.push(wrapped.into_any_element());
+                    elements.push(span_el);
                 }
-                curr = m_range.end;
+                curr = range.end;
             }
             if curr < span_end {
                 let seg = safe_str_slice(plain, curr, span_end);
@@ -143,18 +153,20 @@ pub(crate) fn render_preview_inline_with_matches(
                         font_size,
                         font_weight,
                         theme,
+                        None,
                     ));
                 }
             }
         }
     }
-    if elements.is_empty() {
-        elements.push(div().into_any_element());
-    }
 
     div()
+        .w_full()
+        .min_w(px(0.0))
         .flex()
         .flex_wrap()
+        .items_center()
+        .gap(px(0.0))
         .children(elements)
         .into_any_element()
 }
@@ -167,6 +179,7 @@ pub(crate) fn render_preview_span(
     font_size: f32,
     font_weight: FontWeight,
     theme: &Theme,
+    bg_override: Option<Hsla>,
 ) -> AnyElement {
     let mut color = if span.link.is_some() {
         theme.colors.text_link
@@ -219,7 +232,10 @@ pub(crate) fn render_preview_span(
     if span.style.strikethrough {
         element = element.line_through();
     }
-    if span.style.code {
+
+    if let Some(bg) = bg_override {
+        element = element.bg(bg);
+    } else if span.style.code {
         element = element
             .font(crate::infra::theme::TypographyStore::default_font(
                 crate::infra::theme::TypographyScope::Code,
@@ -228,19 +244,46 @@ pub(crate) fn render_preview_span(
             .px(px(theme.dimensions.code_bg_pad_x))
             .py(px(theme.dimensions.code_bg_pad_y))
             .bg(theme.colors.code_bg);
-    }
-    if span.style.highlight {
+    } else if span.style.highlight {
         element = element
             .rounded(px(theme.dimensions.code_bg_radius))
             .px(px(2.0))
             .bg(theme.colors.text_highlight_bg);
-    }
-    if let Some(style) = span.html_style
+    } else if let Some(style) = span.html_style
         && let Some(bg_color) = style.background_color
     {
         element = element.bg(
             crate::editor::panes::wysiwyg::render::html_document::html_css_color_to_hsla(bg_color, color),
         );
+    }
+
+    if let Some(link) = &span.link {
+        let open_target = link.open_target.clone();
+        element = element
+            .cursor_pointer()
+            .hover(|style| style.underline().text_color(theme.colors.text_link))
+            .on_mouse_down(MouseButton::Left, |_, _, cx| {
+                cx.stop_propagation();
+            })
+            .on_mouse_up(MouseButton::Left, move |_event, _window, cx| {
+                if !open_target.is_empty() {
+                    cx.open_url(&open_target);
+                }
+                cx.stop_propagation();
+            });
+    }
+
+    if let Some(footnote) = &span.footnote {
+        let _footnote_id = footnote.id.clone();
+        element = element
+            .cursor_pointer()
+            .hover(|style| style.underline().text_color(theme.colors.text_link))
+            .on_mouse_down(MouseButton::Left, |_, _, cx| {
+                cx.stop_propagation();
+            })
+            .on_mouse_up(MouseButton::Left, move |_event, _window, cx| {
+                cx.stop_propagation();
+            });
     }
 
     // Inline math renders as a small SVG replacing the math span.

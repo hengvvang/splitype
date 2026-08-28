@@ -31,7 +31,11 @@ impl Block {
         // Mixed inline visuals are display-only. Once focused, the text element
         // takes over so caret movement, projection markers, and IME ranges stay
         // anchored to editable text rather than rendered SVG/script offsets.
-        if focused || is_placeholder || !self.has_mixed_inline_visuals() {
+        if focused
+            || is_placeholder
+            || self.editor_selection_range.is_some()
+            || !self.has_mixed_inline_visuals()
+        {
             return BlockTextElement::new(cx.entity(), is_placeholder).into_any_element();
         }
 

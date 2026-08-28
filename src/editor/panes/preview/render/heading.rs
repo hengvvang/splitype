@@ -7,10 +7,13 @@ use crate::editor::panes::preview::render::inline;
 use crate::editor::document::block::Block;
 use crate::infra::theme::Theme;
 
+use std::ops::Range;
+
 /// Renders a heading block at the given level (1–6).
 pub(crate) fn render_preview_heading(
     block: &Block,
     level: u8,
+    selection_range: Option<Range<usize>>,
     base: Div,
     theme: &Theme,
 ) -> AnyElement {
@@ -35,13 +38,14 @@ pub(crate) fn render_preview_heading(
         inner = inner.border_color(border_color);
     }
 
-    let text_content = inline::render_preview_inline_with_matches(
+    let text_content = inline::render_preview_inline_with_selection(
         &block.data.text,
         style.text_color,
         style.font_size,
         style.font_weight,
         theme,
         &block.search_matches,
+        selection_range,
     );
 
     element.child(inner.child(text_content)).into_any_element()

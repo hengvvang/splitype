@@ -1,4 +1,4 @@
-﻿//! Pointer interaction handlers on a focused block: mouse-down/up/move,
+//! Pointer interaction handlers on a focused block: mouse-down/up/move,
 //! rendered-link hits, footnote backrefs, and task checkboxes.
 
 use gpui::*;
@@ -23,16 +23,14 @@ impl Block {
             return;
         }
 
-        if was_focused {
-            self.is_selecting = true;
-            if event.modifiers.shift {
-                self.select_to(offset, cx);
-            } else {
-                self.move_to(offset, cx);
-            }
+        self.is_selecting = true;
+        if was_focused && event.modifiers.shift {
+            self.select_to(offset, cx);
         } else {
-            self.is_selecting = false;
             self.move_to(offset, cx);
+        }
+
+        if !was_focused {
             cx.emit(BlockEvent::RequestFocus);
         }
     }
@@ -94,8 +92,7 @@ impl Block {
     ) {
         self.is_selecting = false;
 
-        // Cmd/Ctrl+click follows a rendered link, using the same open-link
-        // prompt as the double-click gesture below.
+        // Cmd/Ctrl+click follows a rendered link.
         if event.modifiers.secondary()
             && let Some(link) = self.pointer_link_hit(event.position)
         {
@@ -103,28 +100,18 @@ impl Block {
             return;
         }
 
-        if event.click_count >= 2 {
-            let footnote = self
-                .last_paint_at(event.position)
-                .and_then(|paint| {
-                    crate::editor::geometry::text_layout::footnote_at_position(
-                        self,
-                        &paint.layout,
-                        paint.bounds,
-                        paint.line_height,
-                        event.position,
-                    )
-                })
-                .map(|(footnote, _)| footnote.clone());
-            if let Some(footnote) = footnote {
-                cx.stop_propagation();
-                cx.emit(BlockEvent::RequestJumpToFootnoteDefinition { id: footnote.id });
-                return;
-            }
-
-            if let Some(link) = self.pointer_link_hit(event.position) {
-                self.open_wysiwyg_link(&link, cx);
-            }
+        // Footnote reference click jumps to definition directly.
+        if let Some((footnote, _)) = self.last_paint_at(event.position).and_then(|paint| {
+            crate::editor::geometry::text_layout::footnote_at_position(
+                self,
+                &paint.layout,
+                paint.bounds,
+                paint.line_height,
+                event.position,
+            )
+        }) {
+            cx.stop_propagation();
+            cx.emit(BlockEvent::RequestJumpToFootnoteDefinition { id: footnote.id.clone() });
         }
     }
 

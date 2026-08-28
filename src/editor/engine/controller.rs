@@ -524,6 +524,11 @@ impl DocumentTab {
     }
 
     #[inline]
+    pub fn is_preview(&self) -> bool {
+        self.mode.is_preview()
+    }
+
+    #[inline]
     pub fn is_transient(&self) -> bool {
         self.kind == TabKind::Transient
     }
@@ -1017,6 +1022,14 @@ impl Editor {
         self.session
             .active_tab()
             .map(|t| t.is_source_code())
+            .unwrap_or(false)
+    }
+
+    #[inline]
+    pub fn is_preview(&self) -> bool {
+        self.session
+            .active_tab()
+            .map(|t| t.is_preview())
             .unwrap_or(false)
     }
 

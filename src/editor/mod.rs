@@ -8,6 +8,7 @@ pub mod export;
 pub mod geometry;
 pub mod history;
 pub mod input;
+pub mod navigation;
 pub mod panes;
 pub mod plugins;
 pub mod projection;
@@ -19,6 +20,9 @@ pub use commands::registry as command_registry;
 pub use document::Block;
 pub use document::protocol::BlockEvent;
 pub use engine::{Editor, EditorSession};
+pub use navigation::{
+    NavigationExecutionPlan, NavigationIntent, NavigationMode, NavigationTarget,
+};
 pub(crate) use panes::PreviewState;
 
 #[cfg(test)]

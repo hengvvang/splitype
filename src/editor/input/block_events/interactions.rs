@@ -1,4 +1,4 @@
-﻿//! Interaction events handler: selection sync, link click dispatch, and footnote popups.
+//! Interaction events handler: selection sync, link click dispatch, and footnote popups.
 
 use gpui::*;
 
@@ -58,15 +58,40 @@ impl Editor {
                 prompt_target,
                 open_target,
             } => {
-                self.request_open_link_prompt(prompt_target.clone(), open_target.clone(), cx);
+                let mut modifiers = Modifiers::default();
+                #[cfg(target_os = "macos")]
+                {
+                    modifiers.command = true;
+                }
+                #[cfg(not(target_os = "macos"))]
+                {
+                    modifiers.control = true;
+                }
+                let intent = crate::editor::navigation::NavigationIntent::new(
+                    crate::editor::navigation::NavigationTarget::External {
+                        raw: prompt_target.clone(),
+                        resolved: open_target.clone(),
+                    },
+                    crate::editor::navigation::NavigationMode::Wysiwyg,
+                    modifiers,
+                );
+                self.execute_navigation(intent, cx);
             }
             BlockEvent::RequestJumpToFootnoteDefinition { id, .. } => {
-                let _ = self.jump_to_footnote_definition(id, cx);
-                cx.notify();
+                let intent = crate::editor::navigation::NavigationIntent::new(
+                    crate::editor::navigation::NavigationTarget::FootnoteDefinition { id: id.clone() },
+                    crate::editor::navigation::NavigationMode::Wysiwyg,
+                    Modifiers::default(),
+                );
+                self.execute_navigation(intent, cx);
             }
             BlockEvent::RequestJumpToFootnoteBackref { id } => {
-                let _ = self.jump_to_footnote_backref(id, cx);
-                cx.notify();
+                let intent = crate::editor::navigation::NavigationIntent::new(
+                    crate::editor::navigation::NavigationTarget::FootnoteReference { id: id.clone() },
+                    crate::editor::navigation::NavigationMode::Wysiwyg,
+                    Modifiers::default(),
+                );
+                self.execute_navigation(intent, cx);
             }
             BlockEvent::RequestFootnoteTooltip {
                 id,

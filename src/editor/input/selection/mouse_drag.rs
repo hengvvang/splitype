@@ -121,7 +121,7 @@ impl Editor {
             let entity = entries.entity.clone();
             let Some(bounds) = entity
                 .read(cx)
-                .last_paint_at(position)
+                .last_paint()
                 .map(|paint| paint.bounds)
             else {
                 continue;

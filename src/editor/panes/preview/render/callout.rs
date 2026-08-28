@@ -8,11 +8,14 @@ use crate::editor::document::block::Block;
 use crate::infra::theme::Theme;
 use crate::model::block::CalloutKind;
 
+use std::ops::Range;
+
 /// Renders a callout (admonition) block read-only.
 pub(crate) fn render_preview_callout(
     block: &Block,
     variant: CalloutKind,
     _depth: usize,
+    selection_range: Option<Range<usize>>,
     base: Div,
     theme: &Theme,
 ) -> AnyElement {
@@ -35,13 +38,14 @@ pub(crate) fn render_preview_callout(
             .text_size(px(theme.typography.text_size))
             .font_weight(FontWeight::NORMAL)
             .text_color(accent)
-            .child(inline::render_preview_inline_with_matches(
+            .child(inline::render_preview_inline_with_selection(
                 &block.data.text,
                 accent,
                 theme.typography.text_size,
                 FontWeight::NORMAL,
                 theme,
                 &block.search_matches,
+                selection_range,
             ))
             .into_any_element()
     };

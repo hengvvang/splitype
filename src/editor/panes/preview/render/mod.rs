@@ -21,6 +21,8 @@ pub(crate) mod paragraph;
 pub(crate) mod table_block;
 pub(crate) mod thematic_break;
 
+use std::ops::Range;
+
 use gpui::*;
 
 use crate::editor::engine::controller::*;
@@ -48,14 +50,16 @@ impl Editor {
             self.apply_pending_autoscroll(pane_id, window, cx);
         }
 
+        let preview_selection = self
+            .pane_state_ref(pane_id)
+            .and_then(|state| state.preview.selection);
+
         let scroll_handle = self
             .pane_state_ref(pane_id)
             .map(|state| state.scroll.handle.clone())
             .unwrap_or_default();
 
-        // Render each snapshot root through the dedicated read-only preview
-        // renderers. No GPUI view mounting, no event suppression needed: the
-        // preview elements carry no interaction handlers at all.
+        let editor_handle = cx.entity().clone();
         let block_elements: Vec<AnyElement> = self
             .pane_state_ref(pane_id)
             .map(|state| {
@@ -63,10 +67,27 @@ impl Editor {
                     .preview
                     .blocks
                     .iter()
-                    .filter(|entity| {
+                    .enumerate()
+                    .filter(|(_, entity)| {
                         !matches!(entity.read(cx).kind(), BlockKind::FootnoteDefinition)
                     })
-                    .map(|entity| render_preview_block(entity.read(cx), 0, 0, theme, window, cx))
+                    .map(|(block_index, entity)| {
+                        let block = entity.read(cx);
+                        let selection_range = preview_selection
+                            .and_then(|sel| sel.range_for_block(block_index, block.display_len()));
+                        render_preview_block(
+                            block,
+                            block_index,
+                            selection_range,
+                            0,
+                            0,
+                            pane_id,
+                            &editor_handle,
+                            theme,
+                            window,
+                            cx,
+                        )
+                    })
                     .collect();
                 // Footnote definitions are collected out of the body flow and
                 // rendered as one GitHub-style section at the bottom, behind a
@@ -75,7 +96,7 @@ impl Editor {
                 collect_preview_footnote_definitions(&state.preview.blocks, &mut footnotes, cx);
                 if !footnotes.is_empty() {
                     elements.push(footnote::render_preview_footnotes_section(
-                        &footnotes, theme, window, cx,
+                        &footnotes, pane_id, &editor_handle, theme, window, cx,
                     ));
                 }
                 elements
@@ -113,13 +134,21 @@ impl Editor {
 /// the quote guide lines. Container blocks recurse into their children.
 pub(crate) fn render_preview_block(
     block: &Block,
+    block_index: usize,
+    selection_range: Option<Range<usize>>,
     depth: usize,
     quote_depth: usize,
+    pane_id: PaneId,
+    editor_handle: &Entity<Editor>,
     theme: &Theme,
     window: &mut Window,
     cx: &App,
 ) -> AnyElement {
     let d = &theme.dimensions;
+
+    let editor_down = editor_handle.clone();
+    let editor_move = editor_handle.clone();
+    let editor_up = editor_handle.clone();
 
     let depth_padding = d.block_padding_x + d.nested_block_indent * depth as f32;
     let base = div()
@@ -129,7 +158,30 @@ pub(crate) fn render_preview_block(
         .min_h(px(d.block_min_height))
         .py(px(d.block_padding_y))
         .pl(px(depth_padding))
-        .pr(px(d.block_padding_x));
+        .pr(px(d.block_padding_x))
+        .on_mouse_down(
+            MouseButton::Left,
+            move |event, _window, cx| {
+                editor_down.update(cx, |editor, cx| {
+                    editor.on_preview_mouse_down(pane_id, block_index, event.position, cx);
+                });
+            },
+        )
+        .on_mouse_move(move |event, _window, cx| {
+            if event.dragging() {
+                editor_move.update(cx, |editor, cx| {
+                    editor.on_preview_mouse_move(pane_id, block_index, event.position, cx);
+                });
+            }
+        })
+        .on_mouse_up(
+            MouseButton::Left,
+            move |_event, _window, cx| {
+                editor_up.update(cx, |editor, cx| {
+                    editor.on_preview_mouse_up(pane_id, cx);
+                });
+            },
+        );
 
     // Blockquote rows and everything inside them sit one quote level deeper.
     let effective_quote_depth = if matches!(block.kind(), BlockKind::Blockquote) {
@@ -140,19 +192,23 @@ pub(crate) fn render_preview_block(
 
     let content = match block.kind() {
         BlockKind::ThematicBreak => thematic_break::render_preview_thematic_break(theme),
-        BlockKind::Heading { level } => heading::render_preview_heading(block, level, base, theme),
+        BlockKind::Heading { level } => {
+            heading::render_preview_heading(block, level, selection_range.clone(), base, theme)
+        }
         BlockKind::BulletListItem => {
-            list_item::render_preview_bulleted_list_item(block, depth, base, theme)
+            list_item::render_preview_bulleted_list_item(block, depth, selection_range.clone(), base, theme)
         }
         BlockKind::TaskListItem { checked } => {
-            list_item::render_preview_task_list_item(block, checked, depth, base, theme)
+            list_item::render_preview_task_list_item(block, checked, depth, selection_range.clone(), base, theme)
         }
         BlockKind::NumberedListItem => {
-            list_item::render_preview_numbered_list_item(block, depth, base, theme)
+            list_item::render_preview_numbered_list_item(block, depth, selection_range.clone(), base, theme)
         }
-        BlockKind::Blockquote => blockquote::render_preview_blockquote(block, depth, base, theme),
+        BlockKind::Blockquote => {
+            blockquote::render_preview_blockquote(block, depth, selection_range.clone(), base, theme)
+        }
         BlockKind::Callout(variant) => {
-            callout::render_preview_callout(block, variant, depth, base, theme)
+            callout::render_preview_callout(block, variant, depth, selection_range.clone(), base, theme)
         }
         BlockKind::FootnoteDefinition => {
             footnote::render_preview_footnote_definition(block, depth, base, theme)
@@ -174,12 +230,14 @@ pub(crate) fn render_preview_block(
         BlockKind::MermaidBlock => {
             mermaid_diagram::render_preview_mermaid_diagram(block, base, theme, window)
         }
-        BlockKind::RawMarkdown => paragraph::render_preview_raw_markdown(block, base, theme),
+        BlockKind::RawMarkdown => {
+            paragraph::render_preview_raw_markdown(block, selection_range.clone(), base, theme)
+        }
         BlockKind::Paragraph | BlockKind::HtmlComment => {
             if block.is_standalone_image() {
                 image::render_preview_image(block, base, theme, window)
             } else {
-                paragraph::render_preview_paragraph(block, base, theme)
+                paragraph::render_preview_paragraph(block, selection_range.clone(), base, theme)
             }
         }
     };
@@ -195,8 +253,12 @@ pub(crate) fn render_preview_block(
         .map(|child| {
             render_preview_block(
                 child.read(cx),
+                block_index,
+                selection_range.clone(),
                 depth + 1,
                 effective_quote_depth,
+                pane_id,
+                editor_handle,
                 theme,
                 window,
                 cx,

@@ -1,6 +1,9 @@
 //! Preview panel — read-only rendered snapshot of the document.
 
 pub(crate) mod render;
+pub(crate) mod selection;
+
+pub(crate) use selection::{PreviewEndpoint, PreviewSelectionRange};
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -21,6 +24,8 @@ use crate::model::parse::{BlockData, BlockId, BlockKind};
 #[derive(Default)]
 pub(crate) struct PreviewState {
     pub(crate) blocks: Vec<Entity<Block>>,
+    pub(crate) selection: Option<PreviewSelectionRange>,
+    pub(crate) drag_anchor: Option<PreviewEndpoint>,
     pub(crate) source_hash: u64,
     /// Document revision the preview tree was last synced at; `None` until
     /// the first build.

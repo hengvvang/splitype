@@ -7,8 +7,8 @@ use gpui::*;
 
 use crate::editor::document::protocol::UndoCaptureKind;
 use crate::editor::engine::controller::{
-    CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, SourceTargetMapping,
-    UndoSelectionSnapshot,
+    CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, EditorSelection,
+    SourceTargetMapping, UndoSelectionSnapshot,
 };
 use crate::editor::input::selection::state::NormalizedCrossBlockSelection;
 use crate::editor::document::block::Block;
@@ -478,43 +478,101 @@ impl Editor {
         true
     }
 
-    /// Returns the markdown text of the current selection, whether cross-block
-    /// or within a single block. Returns `None` when nothing is selected.
+    /// Returns the markdown text of the current selection, whether cross-block,
+    /// intra-block, or source mode. Returns `None` when nothing is selected.
     pub(crate) fn selected_markdown_text(&self, cx: &App) -> Option<String> {
-        // Prefer cross-block selection when present.
-        if let Some(text) = self.cross_block_selected_markdown(cx) {
-            if !text.is_empty() {
-                return Some(text);
+        if self.is_source_code() {
+            let pane_id = self.active_pane_id();
+            let block = self.pane_state_ref(pane_id)?.source_block.as_ref()?.read(cx);
+            if !block.selected_range.is_empty() {
+                let text = block.selected_text();
+                if !text.is_empty() {
+                    return Some(text);
+                }
             }
+            return None;
         }
 
-        // Fall back to a single block with a non-collapsed selection range.
-        for entries in self.doc().blocks() {
-            let block = entries.entity.read(cx);
-            if block.selected_range.is_empty() {
-                continue;
-            }
-            let source_range = block.display_range_to_source_range(block.selected_range.clone());
-            let full_markdown = block.data.text.serialize_markdown();
-            let start = source_range.start.min(full_markdown.len());
-            let end = source_range.end.min(full_markdown.len());
-            // Clamp to nearest valid UTF-8 char boundaries to avoid panicking
-            // on multi-byte characters (e.g. CJK text).
-            let start = if full_markdown.is_char_boundary(start) {
-                start
-            } else {
-                full_markdown.floor_char_boundary(start)
-            };
-            let end = if full_markdown.is_char_boundary(end) {
-                end
-            } else {
-                full_markdown.ceil_char_boundary(end)
-            };
-            if start < end {
-                return Some(full_markdown[start..end].to_owned());
-            }
+        if self.is_preview() {
+            return self.preview_selected_text(cx);
         }
 
-        None
+        match self.active_selection(cx) {
+            EditorSelection::CrossBlock(_) => self.cross_block_selected_markdown(cx),
+            EditorSelection::IntraBlock { block_id, range, .. } => {
+                let block = self.doc().block_entity_by_id(block_id)?.read(cx);
+                let source_range = block.display_range_to_source_range(range);
+                let full_markdown = block.data.text.serialize_markdown();
+                let start = source_range.start.min(full_markdown.len());
+                let end = source_range.end.min(full_markdown.len());
+                let start = if full_markdown.is_char_boundary(start) {
+                    start
+                } else {
+                    full_markdown.floor_char_boundary(start)
+                };
+                let end = if full_markdown.is_char_boundary(end) {
+                    end
+                } else {
+                    full_markdown.ceil_char_boundary(end)
+                };
+                if start < end {
+                    Some(full_markdown[start..end].to_owned())
+                } else {
+                    None
+                }
+            }
+            EditorSelection::TableAxis(_) | EditorSelection::None => None,
+        }
+    }
+
+    /// Deletes the current active selection across WYSIWYG and Source Code modes.
+    pub(crate) fn delete_active_selection(&mut self, cx: &mut Context<Self>) -> bool {
+        if self.is_source_code() {
+            if let Some(block) = self.ensure_source_editor_block(cx) {
+                let mut deleted = false;
+                block.update(cx, |b, cx| {
+                    if !b.selected_range.is_empty() {
+                        b.replace_text_in_display_range(
+                            b.selected_range.clone(),
+                            "",
+                            Some(0..0),
+                            false,
+                            cx,
+                        );
+                        deleted = true;
+                    }
+                });
+                if deleted {
+                    self.mark_dirty(cx);
+                    cx.notify();
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        match self.active_selection(cx) {
+            EditorSelection::CrossBlock(_) => self.delete_cross_block_selection(cx),
+            EditorSelection::IntraBlock { block_id, range, .. } => {
+                let Some(block) = self.focusable_entity_by_id(block_id) else {
+                    return false;
+                };
+                self.prepare_undo_capture(UndoCaptureKind::NonCoalescible, cx);
+                block.update(cx, |b, cx| {
+                    b.replace_text_in_display_range(
+                        range,
+                        "",
+                        Some(0..0),
+                        false,
+                        cx,
+                    );
+                });
+                self.mark_dirty(cx);
+                self.finalize_pending_undo_capture(cx);
+                cx.notify();
+                true
+            }
+            EditorSelection::TableAxis(_) | EditorSelection::None => false,
+        }
     }
 }
