@@ -27,31 +27,50 @@
 
 ### Split editing
 > Splitype's split layout lets you build your own dedicated workspace exactly the way you like it.
-
-|       SPLIT                     |
-| -------------------------------- |
-| ![Preview](./assets/showcase/split.png) | 
+>
+> |       SPLIT                     |
+> | -------------------------------- |
+> | ![Preview](./assets/showcase/split.png) |
 
 ### Multi-modal editing
 > Splitype offers two workflows: split-preview editing and live WYSIWYG editing.
+>
+> | Source editing                   | WYSIWYG editing                   |
+> | -------------------------------- | --------------------------------- |
+> | ![Preview](./assets/showcase/workflow_source-preview.png) | ![Preview](./assets/showcase/workflow_wysiwyg.png) |
 
-| Source editing                   | WYSIWYG editing                   |
-| -------------------------------- | --------------------------------- |
-| ![Preview](./assets/showcase/workflow_source-preview.png) | ![Preview](./assets/showcase/workflow_wysiwyg.png) |
 
 
+## Installation
 
-## Quick Start
+Download the latest release for your platform from the [Releases](https://github.com/hengvvang/splitype/releases) page.
 
-### Download a prebuilt release
-Grab the build for your platform from the [Releases](https://github.com/hengvvang/splitype/releases) page:
-- **macOS**: a `.app` bundle or a `.pkg` installer (the installer also sets up the `splitype` CLI command).
-- **Windows**: download the archive for your platform and run it directly after extracting.
-- **Linux**: download the archive for your platform and run it directly after extracting.
+### macOS
+
+| Format | Description |
+| ------ | ----------- |
+| `.app` | Standalone application bundle. Drag to `/Applications` to install. |
+| `.pkg` | System installer. Installs the app and registers the `splitype` CLI command in your `PATH`. |
+| `.dmg` | Disk image containing the `.app` bundle. Open, drag to `/Applications`, then eject. |
+
+### Windows
+
+| Format | Description |
+| ------ | ----------- |
+| `.zip` | Portable archive. Extract to any folder and run `splitype.exe` directly — no installation required. |
+| `.msi` | Windows Installer package. Double-click to install with Start Menu shortcuts and optional `PATH` registration. |
+
+### Linux
+
+| Format | Description |
+| ------ | ----------- |
+| `.tar.gz` | Portable archive. Extract and run `./splitype` directly — no installation required. |
+| `.deb` | Debian/Ubuntu package. Install via `sudo dpkg -i splitype_*.deb`. |
+| `.AppImage` | Single-file portable executable. `chmod +x` and run — no extraction needed. |
 
 ### Build from source
 
-Make sure the Rust toolchain (Edition 2024) is installed, then run:
+Requires [Rust](https://rustup.rs/) (Edition 2024).
 
 ```bash
 git clone https://github.com/hengvvang/splitype.git
@@ -59,22 +78,27 @@ cd splitype
 cargo build --release
 ```
 
-The compiled binary is located at `./target/release/splitype`.
+The output binary is at `./target/release/splitype`.
 
 
 
 ## Acknowledgements
 
-- Special thanks to the [velotype](https://github.com/manyougz/velotype) project and its author for the original codebase that made this project possible.
-- Special thanks to the [zed](https://github.com/zed-industries/zed) project and its authors for the base codebase — splitype largely ports zed's explorer design.
-- Special thanks to the [blender](https://github.com/blender/blender) project and its authors for the base codebase — splitype's split layout design is inspired by blender.
-- Special thanks to [dreamstale](https://www.flaticon.com/authors/dreamstale) for designing the icons; splitype is licensed to use them from [flaticon](https://www.flaticon.com/). Any individual or organization is strictly prohibited from downloading or using them without a proper license!
-- Special thanks to [Thomas Jockin](https://github.com/ThomasJockin) and the [Lexend](https://github.com/googlefonts/lexend) project for the [Lexend](https://fonts.google.com/specimen/Lexend) font family, licensed under the [SIL Open Font License 1.1](http://scripts.sil.org/OFL).
+Splitype is built on the shoulders of these outstanding open-source projects:
+
+- [velotype](https://github.com/manyougz/velotype) — the original codebase that made this project possible.
+- [zed](https://github.com/zed-industries/zed) — splitype's file explorer is largely ported from zed's design.
+- [blender](https://github.com/blender/blender) — the split-panel layout system is inspired by blender's workspace model.
+
+**Assets & Resources**
+
+- Icons by [dreamstale](https://www.flaticon.com/authors/dreamstale), licensed from [Flaticon](https://www.flaticon.com/). Redistribution without a valid license is strictly prohibited.
+- [Lexend](https://fonts.google.com/specimen/Lexend) typeface by [Thomas Jockin](https://github.com/ThomasJockin), licensed under the [SIL Open Font License 1.1](http://scripts.sil.org/OFL).
 
 ## License
- 
-Splitype is licensed under any of the following (at your option):
 
-- [GNU General Public License v3.0 or later](LICENSE-GPL) ([GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0.html))
-- [MIT License](LICENSE-MIT) ([MIT](https://opensource.org/licenses/MIT))
-- [Apache License, Version 2.0](LICENSE-APACHE) ([Apache-2.0](http://www.apache.org/licenses/LICENSE-2.0))
+Splitype is licensed under the [GNU General Public License v3.0 or later](LICENSE-GPL) ([GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0.html)).
+
+Certain bundled assets are covered by their own licenses:
+- Icons: licensed from [Flaticon](https://www.flaticon.com/) — see [Acknowledgements](#acknowledgements).
+- Lexend font: [SIL Open Font License 1.1](http://scripts.sil.org/OFL).
