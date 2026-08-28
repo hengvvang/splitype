@@ -69,6 +69,7 @@ The compiled binary is located at `./target/release/splitype`.
 - Special thanks to the [zed](https://github.com/zed-industries/zed) project and its authors for the base codebase — splitype largely ports zed's explorer design.
 - Special thanks to the [blender](https://github.com/blender/blender) project and its authors for the base codebase — splitype's split layout design is inspired by blender.
 - Special thanks to [dreamstale](https://www.flaticon.com/authors/dreamstale) for designing the icons; splitype is licensed to use them from [flaticon](https://www.flaticon.com/). Any individual or organization is strictly prohibited from downloading or using them without a proper license!
+- Special thanks to [Thomas Jockin](https://github.com/ThomasJockin) and the [Lexend](https://github.com/googlefonts/lexend) project for the [Lexend](https://fonts.google.com/specimen/Lexend) font family, licensed under the [SIL Open Font License 1.1](http://scripts.sil.org/OFL).
 
 ## License
  

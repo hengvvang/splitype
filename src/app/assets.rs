@@ -365,7 +365,7 @@ impl AssetSource for SplitypeAssets {
             // ── GPUI SVG renderer bundled font requests ──────────────────
             "fonts/ibm-plex-sans/IBMPlexSans-Regular.ttf" | "fonts/lilex/Lilex-Regular.ttf" => {
                 Ok(Some(Cow::Borrowed(include_bytes!(
-                    "../../assets/fonts/EncodeSansSemiExpanded-Regular.ttf"
+                    "../../assets/fonts/Lexend-Regular.ttf"
                 ))))
             }
 
@@ -379,35 +379,35 @@ impl AssetSource for SplitypeAssets {
 }
 
 impl SplitypeAssets {
-    /// Populate the [`TextSystem`] with all 9 embedded Encode Sans Semi Expanded font variants.
+    /// Populate the [`TextSystem`] with all 9 embedded Lexend font variants.
     pub fn load_fonts(cx: &App) -> gpui::Result<()> {
         let fonts: Vec<Cow<'static, [u8]>> = vec![
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/EncodeSansSemiExpanded-Thin.ttf"
+                "../../assets/fonts/Lexend-Thin.ttf"
             )),
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/EncodeSansSemiExpanded-ExtraLight.ttf"
+                "../../assets/fonts/Lexend-ExtraLight.ttf"
             )),
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/EncodeSansSemiExpanded-Light.ttf"
+                "../../assets/fonts/Lexend-Light.ttf"
             )),
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/EncodeSansSemiExpanded-Regular.ttf"
+                "../../assets/fonts/Lexend-Regular.ttf"
             )),
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/EncodeSansSemiExpanded-Medium.ttf"
+                "../../assets/fonts/Lexend-Medium.ttf"
             )),
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/EncodeSansSemiExpanded-SemiBold.ttf"
+                "../../assets/fonts/Lexend-SemiBold.ttf"
             )),
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/EncodeSansSemiExpanded-Bold.ttf"
+                "../../assets/fonts/Lexend-Bold.ttf"
             )),
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/EncodeSansSemiExpanded-ExtraBold.ttf"
+                "../../assets/fonts/Lexend-ExtraBold.ttf"
             )),
             Cow::Borrowed(include_bytes!(
-                "../../assets/fonts/EncodeSansSemiExpanded-Black.ttf"
+                "../../assets/fonts/Lexend-Black.ttf"
             )),
         ];
         cx.text_system().add_fonts(fonts)

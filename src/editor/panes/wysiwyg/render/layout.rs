@@ -107,7 +107,7 @@ pub fn callout_colors(variant: crate::model::block::CalloutKind, theme: &Theme) 
 
 // ── Font helpers ────────────────────────────────────────────────────────
 
-/// The document prose text font (defaults to Encode Sans Semi Expanded unless configured).
+/// The document prose text font (defaults to Lexend unless configured).
 #[inline]
 #[allow(dead_code)]
 pub fn document_prose_font(cx: &App) -> Font {
@@ -148,9 +148,9 @@ mod tests {
     }
 
     #[test]
-    fn editor_text_font_keeps_encode_sans_semi_expanded_as_primary_family() {
+    fn editor_text_font_keeps_lexend_as_primary_family() {
         let f = editor_text_font();
-        assert_eq!(f.family.to_string(), "Encode Sans Semi Expanded");
+        assert_eq!(f.family.to_string(), "Lexend");
         assert!(f.fallbacks.is_none(), "fallbacks should be None to rely on native OS glyph cascading");
     }
 

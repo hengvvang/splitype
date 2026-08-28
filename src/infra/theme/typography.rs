@@ -215,11 +215,11 @@ impl TypographyStore {
         let ui_family = settings
             .ui_font_family
             .as_deref()
-            .unwrap_or("Encode Sans Semi Expanded");
+            .unwrap_or("Lexend");
         let prose_family = settings
             .prose_font_family
             .as_deref()
-            .unwrap_or("Encode Sans Semi Expanded");
+            .unwrap_or("Lexend");
         let code_family = settings.code_font_family.as_deref().unwrap_or_else(|| {
             if cfg!(target_os = "windows") {
                 "Consolas"

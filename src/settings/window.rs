@@ -319,11 +319,11 @@ impl SettingsWindow {
         let ui_font_name = self
             .ui_font_family
             .clone()
-            .unwrap_or_else(|| "Default (Encode Sans)".to_string());
+            .unwrap_or_else(|| "Default (Lexend)".to_string());
         let prose_font_name = self
             .prose_font_family
             .clone()
-            .unwrap_or_else(|| "Default (Encode Sans)".to_string());
+            .unwrap_or_else(|| "Default (Lexend)".to_string());
         let code_font_name = self
             .code_font_family
             .clone()

@@ -69,6 +69,7 @@ cargo build --release
 - 特别感谢 [zed](https://github.com/zed-industries/zed) 项目及作者提供的基础代码库，splitype 基本上移植了zed 的 explorer 设计。
 - 特别感谢 [blender](https://github.com/blender/blender) 项目及作者提供的基础代码库，splitype 的分屏设计灵感源自 blender。
 - 特别感谢 [dreamstale](https://www.flaticon.com/authors/dreamstale) 设计的icons，splitype 在 [flaticon](https://www.flaticon.com/) 上获得授权并使用，任何个人或者组织严禁在没有授权许可的情况下私自下载使用！
+- 特别感谢 [Thomas Jockin](https://github.com/ThomasJockin) 以及 [Lexend](https://github.com/googlefonts/lexend) 开源字体项目提供的 [Lexend](https://fonts.google.com/specimen/Lexend) 字体，该字体基于 [SIL Open Font License 1.1](http://scripts.sil.org/OFL) 许可发布。
 
 
 

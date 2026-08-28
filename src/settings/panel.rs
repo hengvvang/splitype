@@ -301,11 +301,11 @@ impl Shell {
         let ui_font_name = current_typo
             .ui_font_family
             .clone()
-            .unwrap_or_else(|| "Default (Encode Sans)".to_string());
+            .unwrap_or_else(|| "Default (Lexend)".to_string());
         let prose_font_name = current_typo
             .prose_font_family
             .clone()
-            .unwrap_or_else(|| "Default (Encode Sans)".to_string());
+            .unwrap_or_else(|| "Default (Lexend)".to_string());
         let code_font_name = current_typo
             .code_font_family
             .clone()
