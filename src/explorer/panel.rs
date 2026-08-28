@@ -10,7 +10,7 @@ use crate::app::shell::Shell;
 use crate::app::actions::{CloseExplorerFolder, ToggleExplorer};
 use crate::explorer::state::state::*;
 use crate::explorer::state::worktree::Worktree;
-use crate::infra::config::settings::ExplorerSettingsStore;
+use crate::infra::config::settings::SettingsStore;
 
 impl Shell {
     pub(crate) fn toggle_explorer_drawer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
@@ -77,7 +77,7 @@ impl Shell {
         }
         explorer.is_open = true;
         let worktree_id = WorktreeId(explorer.worktrees.len());
-        let hide_hidden = ExplorerSettingsStore::settings(cx).hide_hidden;
+        let hide_hidden = SettingsStore::settings(cx).explorer.hide_hidden;
         let worktree = Worktree::new(
             worktree_id,
             path.clone(),
@@ -265,10 +265,10 @@ impl Shell {
 
     /// Toggle dotfile visibility. Persists to settings and rescans.
     pub(crate) fn toggle_explorer_hidden(&mut self, cx: &mut Context<Self>) {
-        let mut settings = ExplorerSettingsStore::settings(cx);
-        settings.hide_hidden = !settings.hide_hidden;
-        ExplorerSettingsStore::set(cx, settings);
-        let hide_hidden = ExplorerSettingsStore::settings(cx).hide_hidden;
+        let _ = SettingsStore::update(cx, |s| {
+            s.explorer.hide_hidden = !s.explorer.hide_hidden;
+        });
+        let hide_hidden = SettingsStore::settings(cx).explorer.hide_hidden;
         let worktrees = self.panels.explorer.worktrees.clone();
         for worktree in worktrees {
             worktree.update(cx, |worktree, cx| {

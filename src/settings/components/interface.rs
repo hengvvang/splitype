@@ -1,4 +1,4 @@
-﻿//! Interface settings components: Theme, Language, and Status Bar.
+//! Interface settings components: Theme, Language, and Status Bar.
 
 use gpui::*;
 
@@ -194,6 +194,10 @@ pub(crate) struct StatusBarProps {
     pub on_toggle_word_count: SettingsClickHandler,
     pub show_cursor_pos: bool,
     pub on_toggle_cursor_pos: SettingsClickHandler,
+    pub show_character_count: bool,
+    pub on_toggle_character_count: SettingsClickHandler,
+    pub show_reading_time: bool,
+    pub on_toggle_reading_time: SettingsClickHandler,
 }
 
 pub(crate) fn render_status_bar_section(
@@ -251,7 +255,36 @@ pub(crate) fn render_status_bar_section(
             "Display line and column coordinates in status bar",
             ctrl_sb_pos,
         ));
+
+        let ctrl_sb_chars = Switch::new("switch-sb-chars")
+            .checked(props.show_character_count)
+            .on_click(props.on_toggle_character_count)
+            .into_any_element();
+
+        rows.push(make_row(
+            inner_border_color,
+            c,
+            d,
+            "Character Count Badge",
+            "Display total character count in status bar",
+            ctrl_sb_chars,
+        ));
+
+        let ctrl_sb_time = Switch::new("switch-sb-time")
+            .checked(props.show_reading_time)
+            .on_click(props.on_toggle_reading_time)
+            .into_any_element();
+
+        rows.push(make_row(
+            inner_border_color,
+            c,
+            d,
+            "Estimated Reading Time",
+            "Display estimated reading duration in status bar",
+            ctrl_sb_time,
+        ));
     }
 
     make_section(c, d, id, "Status Bar Options", expanded, toggle_fn, rows)
 }
+

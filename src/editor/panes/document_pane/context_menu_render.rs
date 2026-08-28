@@ -622,9 +622,9 @@ impl Editor {
                         // menu, with its Header Row styling toggle added on top.
                         if selection.index == 0 {
                             let headers_shown =
-                                crate::infra::config::settings::EditorSettings::show_table_headers(
-                                    cx,
-                                );
+                                crate::infra::config::settings::SettingsStore::get(cx)
+                                    .markdown
+                                    .show_table_headers;
                             items.push(
                                 menu_item("table-header-toggle", c, d)
                                     .justify_between()

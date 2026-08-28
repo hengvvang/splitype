@@ -43,7 +43,7 @@ impl ThemeManager {
     /// Test-only: installs the configured theme into GPUI's global state.
     pub fn init(cx: &mut App) {
         let theme_id = crate::infra::config::settings::read_app_settings()
-            .map(|preferences| preferences.default_theme_id)
+            .map(|preferences| preferences.interface.theme_id)
             .unwrap_or_else(|_| BUILTIN_THEME_SPLITYPE_ID.into());
         Self::init_with_theme_id(cx, &theme_id);
     }

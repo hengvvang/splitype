@@ -1,4 +1,4 @@
-//! Persistent app settings and the settings window.
+//! Persistent application settings, domain models, and centralized reactive store.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -13,35 +13,19 @@ use crate::infra::config::recent::read_recent_files;
 use crate::infra::i18n::manager::I18nManager;
 use crate::infra::i18n::packs::language_id_for_locale_settings;
 use crate::infra::theme::ThemeManager;
+use crate::infra::theme::typography::TypographyStore;
 
 pub const DEFAULT_THEME_ID: &str = "splitype";
-const DEFAULT_LANGUAGE_ID: &str = "en-US";
+pub const DEFAULT_LANGUAGE_ID: &str = "en-US";
 
-/// Status bar visibility and component toggles.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct StatusBarSettings {
-    pub enabled: bool,
-    pub show_word_count: bool,
-    pub show_cursor_position: bool,
-}
-
-impl Default for StatusBarSettings {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            show_word_count: true,
-            show_cursor_position: true,
-        }
-    }
-}
-
-/// Startup document selection stored in `config.toml`.
+/// Document selection behavior when launching the application.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StartupOpenSetting {
     #[default]
     NewFile,
     LastOpenedFile,
+    Empty,
 }
 
 impl StartupOpenSetting {
@@ -49,7 +33,20 @@ impl StartupOpenSetting {
         match self {
             Self::NewFile => "new_file",
             Self::LastOpenedFile => "last_opened_file",
+            Self::Empty => "empty",
         }
+    }
+
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::NewFile => "Open New Document",
+            Self::LastOpenedFile => "Open Last Active Document",
+            Self::Empty => "Open Empty Workspace",
+        }
+    }
+
+    pub fn all() -> &'static [Self] {
+        &[Self::NewFile, Self::LastOpenedFile, Self::Empty]
     }
 }
 
@@ -65,176 +62,110 @@ impl std::str::FromStr for StartupOpenSetting {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         match value {
             "last_opened_file" => Ok(Self::LastOpenedFile),
+            "empty" => Ok(Self::Empty),
             _ => Ok(Self::NewFile),
         }
     }
 }
 
-/// Explorer tree sorting mode (mirrors Zed's `ProjectPanelSortMode`).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ExplorerSortMode {
-    #[default]
-    DirectoriesFirst,
-    FilesFirst,
-    Mixed,
+/// Startup and general lifecycle configuration.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StartupSettings {
+    #[serde(default)]
+    pub open: StartupOpenSetting,
+    #[serde(default = "default_true")]
+    pub restore_window_state: bool,
 }
 
-impl ExplorerSortMode {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::DirectoriesFirst => "directories_first",
-            Self::FilesFirst => "files_first",
-            Self::Mixed => "mixed",
-        }
-    }
-}
-
-impl std::fmt::Display for ExplorerSortMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl std::str::FromStr for ExplorerSortMode {
-    type Err = std::convert::Infallible;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "files_first" => Ok(Self::FilesFirst),
-            "mixed" => Ok(Self::Mixed),
-            _ => Ok(Self::DirectoriesFirst),
-        }
-    }
-}
-
-/// Explorer tree sort order.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ExplorerSortOrder {
-    #[default]
-    Ascending,
-    Descending,
-}
-
-impl ExplorerSortOrder {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Ascending => "ascending",
-            Self::Descending => "descending",
-        }
-    }
-}
-
-impl std::fmt::Display for ExplorerSortOrder {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-impl std::str::FromStr for ExplorerSortOrder {
-    type Err = std::convert::Infallible;
-
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "descending" => Ok(Self::Descending),
-            _ => Ok(Self::Ascending),
-        }
-    }
-}
-
-/// Explorer sidebar settings persisted in `config.toml`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ExplorerSettings {
-    pub hide_hidden: bool,
-    pub sort_mode: ExplorerSortMode,
-    pub sort_order: ExplorerSortOrder,
-}
-
-impl Default for ExplorerSettings {
+impl Default for StartupSettings {
     fn default() -> Self {
         Self {
-            hide_hidden: false,
-            sort_mode: ExplorerSortMode::DirectoriesFirst,
-            sort_order: ExplorerSortOrder::Ascending,
+            open: StartupOpenSetting::NewFile,
+            restore_window_state: true,
         }
     }
 }
 
-/// Runtime mirror of [`ExplorerSettings`] so the scan path reads them
-/// without touching disk; toggles persist back to the settings file.
-pub struct ExplorerSettingsStore {
-    pub settings: ExplorerSettings,
+/// Interface appearance, theme, and language configuration.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct InterfaceSettings {
+    #[serde(default = "default_theme_id_string")]
+    pub theme_id: String,
+    #[serde(default = "default_language_id_string")]
+    pub language_id: String,
 }
 
-impl Global for ExplorerSettingsStore {}
-
-impl ExplorerSettingsStore {
-    pub fn init(cx: &mut App) {
-        let settings = read_app_settings()
-            .ok()
-            .map(|settings| settings.explorer)
-            .unwrap_or_default();
-        cx.set_global(Self { settings });
-    }
-
-    pub fn settings(cx: &App) -> ExplorerSettings {
-        cx.try_global::<Self>()
-            .map(|store| store.settings)
-            .unwrap_or_default()
-    }
-
-    pub fn set(cx: &mut App, settings: ExplorerSettings) {
-        cx.set_global(Self { settings });
-        match read_app_settings() {
-            Ok(mut app_settings) => {
-                app_settings.explorer = settings;
-                if let Err(err) = save_app_settings(&app_settings) {
-                    tracing::warn!(error = %err, "failed to save explorer settings");
-                }
-            }
-            Err(err) => tracing::warn!(error = %err, "failed to read explorer settings"),
+impl Default for InterfaceSettings {
+    fn default() -> Self {
+        Self {
+            theme_id: DEFAULT_THEME_ID.to_string(),
+            language_id: DEFAULT_LANGUAGE_ID.to_string(),
         }
     }
 }
 
-/// Where pasted clipboard images should be stored before inserting Markdown.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ImagePasteBehavior {
-    #[default]
-    None,
-    CopyToDocumentFolder,
-    CopyToAssetsFolder,
-    CopyToNamedAssetsFolder,
+fn default_theme_id_string() -> String {
+    DEFAULT_THEME_ID.to_string()
 }
 
-impl ImagePasteBehavior {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::None => "none",
-            Self::CopyToDocumentFolder => "copy_to_document_folder",
-            Self::CopyToAssetsFolder => "copy_to_assets_folder",
-            Self::CopyToNamedAssetsFolder => "copy_to_named_assets_folder",
+fn default_language_id_string() -> String {
+    DEFAULT_LANGUAGE_ID.to_string()
+}
+
+/// Status bar visibility and granular metrics toggles.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StatusBarSettings {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_true")]
+    pub show_word_count: bool,
+    #[serde(default = "default_true")]
+    pub show_cursor_position: bool,
+    #[serde(default = "default_true")]
+    pub show_character_count: bool,
+    #[serde(default = "default_true")]
+    pub show_reading_time: bool,
+}
+
+impl Default for StatusBarSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            show_word_count: true,
+            show_cursor_position: true,
+            show_character_count: true,
+            show_reading_time: true,
         }
     }
 }
 
-impl std::fmt::Display for ImagePasteBehavior {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
+/// Core editor behavior settings (line numbers, wrapping, indentation, active line).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EditorBehaviorSettings {
+    #[serde(default = "default_true")]
+    pub line_numbers: bool,
+    #[serde(default = "default_true")]
+    pub word_wrap: bool,
+    #[serde(default = "default_tab_size")]
+    pub tab_size: u32,
+    #[serde(default = "default_true")]
+    pub insert_spaces: bool,
+    #[serde(default = "default_true")]
+    pub highlight_active_line: bool,
 }
 
-impl std::str::FromStr for ImagePasteBehavior {
-    type Err = std::convert::Infallible;
+fn default_tab_size() -> u32 {
+    4
+}
 
-    fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "copy_to_document_folder" => Ok(Self::CopyToDocumentFolder),
-            "copy_to_assets_folder" => Ok(Self::CopyToAssetsFolder),
-            "copy_to_named_assets_folder" => Ok(Self::CopyToNamedAssetsFolder),
-            _ => Ok(Self::None),
+impl Default for EditorBehaviorSettings {
+    fn default() -> Self {
+        Self {
+            line_numbers: true,
+            word_wrap: true,
+            tab_size: 4,
+            insert_spaces: true,
+            highlight_active_line: true,
         }
     }
 }
@@ -274,145 +205,205 @@ impl Default for TypographySettings {
     }
 }
 
-/// User settings persisted under the app config directory.
-#[derive(Clone, Debug, PartialEq)]
-pub struct AppSettings {
-    pub startup_open: StartupOpenSetting,
-    pub default_language_id: String,
-    pub default_theme_id: String,
-    pub show_table_headers: bool,
-    pub image_paste_behavior: ImagePasteBehavior,
-    pub keybindings: BTreeMap<String, Vec<String>>,
-    pub status_bar: StatusBarSettings,
-    pub explorer: ExplorerSettings,
-    pub typography: TypographySettings,
+/// Where pasted clipboard images should be stored before inserting Markdown.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ImagePasteBehavior {
+    #[default]
+    None,
+    CopyToDocumentFolder,
+    CopyToAssetsFolder,
+    CopyToNamedAssetsFolder,
 }
 
-impl Default for AppSettings {
+impl ImagePasteBehavior {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::CopyToDocumentFolder => "copy_to_document_folder",
+            Self::CopyToAssetsFolder => "copy_to_assets_folder",
+            Self::CopyToNamedAssetsFolder => "copy_to_named_assets_folder",
+        }
+    }
+
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::None => "No local copy (standard insertion)",
+            Self::CopyToDocumentFolder => "Copy image to document folder (./)",
+            Self::CopyToAssetsFolder => "Copy image to assets folder (./assets/)",
+            Self::CopyToNamedAssetsFolder => "Copy image to named assets folder (./.assets/)",
+        }
+    }
+
+    pub fn all() -> &'static [Self] {
+        &[
+            Self::None,
+            Self::CopyToDocumentFolder,
+            Self::CopyToAssetsFolder,
+            Self::CopyToNamedAssetsFolder,
+        ]
+    }
+}
+
+impl std::fmt::Display for ImagePasteBehavior {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl std::str::FromStr for ImagePasteBehavior {
+    type Err = std::convert::Infallible;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "copy_to_document_folder" => Ok(Self::CopyToDocumentFolder),
+            "copy_to_assets_folder" => Ok(Self::CopyToAssetsFolder),
+            "copy_to_named_assets_folder" => Ok(Self::CopyToNamedAssetsFolder),
+            _ => Ok(Self::None),
+        }
+    }
+}
+
+/// Markdown rendering and assets configuration.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MarkdownSettings {
+    #[serde(default = "default_true")]
+    pub show_table_headers: bool,
+    #[serde(default)]
+    pub image_paste_behavior: ImagePasteBehavior,
+    #[serde(default = "default_true")]
+    pub render_math: bool,
+    #[serde(default = "default_true")]
+    pub render_diagrams: bool,
+}
+
+impl Default for MarkdownSettings {
     fn default() -> Self {
         Self {
-            startup_open: StartupOpenSetting::NewFile,
-            default_language_id: DEFAULT_LANGUAGE_ID.into(),
-            default_theme_id: DEFAULT_THEME_ID.into(),
             show_table_headers: true,
             image_paste_behavior: ImagePasteBehavior::None,
-            keybindings: BTreeMap::new(),
-            status_bar: StatusBarSettings::default(),
-            explorer: ExplorerSettings::default(),
-            typography: TypographySettings::default(),
+            render_math: true,
+            render_diagrams: true,
         }
     }
 }
 
-/// Runtime-accessible editor settings mirrored from [`AppSettings`] so the
-/// render path can read them without touching disk. Toggling persists the new
-/// value back to the settings file.
-pub struct EditorSettings {
-    show_table_headers: bool,
-    pub status_bar_settings: StatusBarSettings,
+/// Explorer tree sorting mode.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExplorerSortMode {
+    #[default]
+    DirectoriesFirst,
+    FilesFirst,
+    Mixed,
 }
 
-impl Global for EditorSettings {}
-
-impl EditorSettings {
-    pub fn init(cx: &mut App, show_table_headers: bool) {
-        let status_bar = read_app_settings()
-            .ok()
-            .map(|p| p.status_bar)
-            .unwrap_or_default();
-        Self::set_global(cx, show_table_headers, &status_bar);
-    }
-
-    fn set_global(cx: &mut App, show_table_headers: bool, status_bar: &StatusBarSettings) {
-        cx.set_global(Self {
-            show_table_headers,
-            status_bar_settings: StatusBarSettings {
-                enabled: status_bar.enabled,
-                show_word_count: status_bar.show_word_count,
-                show_cursor_position: status_bar.show_cursor_position,
-            },
-        });
-    }
-
-    /// Whether table top rows are styled as headers. Defaults to `true` when
-    /// the global has not been installed (e.g. in unit tests).
-    pub fn show_table_headers(cx: &App) -> bool {
-        cx.try_global::<Self>()
-            .map(|settings| settings.show_table_headers)
-            .unwrap_or(true)
-    }
-
-    pub fn set_show_table_headers(cx: &mut App, show_table_headers: bool) {
-        let status_bar = cx
-            .try_global::<Self>()
-            .map(|s| StatusBarSettings {
-                enabled: s.status_bar_settings.enabled,
-                show_word_count: s.status_bar_settings.show_word_count,
-                show_cursor_position: s.status_bar_settings.show_cursor_position,
-            })
-            .unwrap_or_default();
-        Self::set_global(cx, show_table_headers, &status_bar);
-        match read_app_settings() {
-            Ok(mut settings) => {
-                settings.show_table_headers = show_table_headers;
-                if let Err(err) = save_app_settings(&settings) {
-                    tracing::warn!(error = %err, "failed to save table header setting");
-                }
-            }
-            Err(err) => tracing::warn!(error = %err, "failed to read table header setting"),
+impl ExplorerSortMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::DirectoriesFirst => "directories_first",
+            Self::FilesFirst => "files_first",
+            Self::Mixed => "mixed",
         }
     }
 
-    pub fn status_bar_settings(cx: &App) -> StatusBarSettings {
-        cx.try_global::<Self>()
-            .map(|s| StatusBarSettings {
-                enabled: s.status_bar_settings.enabled,
-                show_word_count: s.status_bar_settings.show_word_count,
-                show_cursor_position: s.status_bar_settings.show_cursor_position,
-            })
-            .unwrap_or_default()
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::DirectoriesFirst => "Directories First",
+            Self::FilesFirst => "Files First",
+            Self::Mixed => "Mixed (Alphabetical)",
+        }
+    }
+
+    pub fn all() -> &'static [Self] {
+        &[Self::DirectoriesFirst, Self::FilesFirst, Self::Mixed]
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-struct SettingsFile {
-    #[serde(default)]
-    startup: StartupSettingsFile,
-    #[serde(default)]
-    language: LanguageSettingsFile,
-    #[serde(default)]
-    theme: ThemeSettingsFile,
-    #[serde(default)]
-    editor: EditorSettingsFile,
-    #[serde(default)]
-    status_bar: StatusBarSettingsFile,
-    #[serde(default)]
-    keybindings: BTreeMap<String, Vec<String>>,
-    #[serde(default)]
-    explorer: ExplorerSettingsFile,
-    #[serde(default)]
-    typography: TypographySettings,
+impl std::fmt::Display for ExplorerSortMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-struct StartupSettingsFile {
-    #[serde(default)]
-    open: StartupOpenSetting,
+impl std::str::FromStr for ExplorerSortMode {
+    type Err = std::convert::Infallible;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "files_first" => Ok(Self::FilesFirst),
+            "mixed" => Ok(Self::Mixed),
+            _ => Ok(Self::DirectoriesFirst),
+        }
+    }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct EditorSettingsFile {
+/// Explorer tree sort order.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExplorerSortOrder {
+    #[default]
+    Ascending,
+    Descending,
+}
+
+impl ExplorerSortOrder {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Ascending => "ascending",
+            Self::Descending => "descending",
+        }
+    }
+
+    pub fn display_name(self) -> &'static str {
+        match self {
+            Self::Ascending => "Ascending (A to Z)",
+            Self::Descending => "Descending (Z to A)",
+        }
+    }
+
+    pub fn all() -> &'static [Self] {
+        &[Self::Ascending, Self::Descending]
+    }
+}
+
+impl std::fmt::Display for ExplorerSortOrder {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl std::str::FromStr for ExplorerSortOrder {
+    type Err = std::convert::Infallible;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "descending" => Ok(Self::Descending),
+            _ => Ok(Self::Ascending),
+        }
+    }
+}
+
+/// Explorer sidebar settings.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExplorerSettings {
     #[serde(default = "default_true")]
-    show_table_headers: bool,
+    pub hide_hidden: bool,
     #[serde(default)]
-    image_paste_behavior: ImagePasteBehavior,
+    pub sort_mode: ExplorerSortMode,
+    #[serde(default)]
+    pub sort_order: ExplorerSortOrder,
+    #[serde(default = "default_true")]
+    pub auto_reveal: bool,
 }
 
-impl Default for EditorSettingsFile {
+impl Default for ExplorerSettings {
     fn default() -> Self {
         Self {
-            show_table_headers: true,
-            image_paste_behavior: ImagePasteBehavior::default(),
+            hide_hidden: true,
+            sort_mode: ExplorerSortMode::DirectoriesFirst,
+            sort_order: ExplorerSortOrder::Ascending,
+            auto_reveal: true,
         }
     }
 }
@@ -421,132 +412,137 @@ fn default_true() -> bool {
     true
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct LanguageSettingsFile {
-    #[serde(default = "default_language_id_str")]
-    default_language_id: String,
-}
-
-impl Default for LanguageSettingsFile {
-    fn default() -> Self {
-        Self {
-            default_language_id: default_language_id_str(),
-        }
-    }
-}
-
-fn default_language_id_str() -> String {
-    DEFAULT_LANGUAGE_ID.to_string()
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct ThemeSettingsFile {
-    #[serde(default = "default_theme_id_str")]
-    default_theme_id: String,
-}
-
-impl Default for ThemeSettingsFile {
-    fn default() -> Self {
-        Self {
-            default_theme_id: default_theme_id_str(),
-        }
-    }
-}
-
-fn default_theme_id_str() -> String {
-    DEFAULT_THEME_ID.to_string()
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct StatusBarSettingsFile {
-    #[serde(default = "default_true")]
-    enabled: bool,
-    #[serde(default = "default_true")]
-    show_word_count: bool,
-    #[serde(default = "default_true")]
-    show_cursor_position: bool,
-}
-
-impl Default for StatusBarSettingsFile {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            show_word_count: true,
-            show_cursor_position: true,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-struct ExplorerSettingsFile {
+/// Unified, canonical user settings persisted under `config.toml`.
+///
+/// Zero redundant DTOs or compatibility shims — serializes and deserializes
+/// directly to/from disk.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+pub struct AppSettings {
     #[serde(default)]
-    hide_hidden: bool,
+    pub startup: StartupSettings,
     #[serde(default)]
-    sort_mode: ExplorerSortMode,
+    pub interface: InterfaceSettings,
     #[serde(default)]
-    sort_order: ExplorerSortOrder,
+    pub status_bar: StatusBarSettings,
+    #[serde(default)]
+    pub editor: EditorBehaviorSettings,
+    #[serde(default)]
+    pub typography: TypographySettings,
+    #[serde(default)]
+    pub markdown: MarkdownSettings,
+    #[serde(default)]
+    pub explorer: ExplorerSettings,
+    #[serde(default)]
+    pub keybindings: BTreeMap<String, Vec<String>>,
 }
 
-impl From<SettingsFile> for AppSettings {
-    fn from(file: SettingsFile) -> Self {
-        Self {
-            startup_open: file.startup.open,
-            default_language_id: file.language.default_language_id,
-            default_theme_id: file.theme.default_theme_id,
-            show_table_headers: file.editor.show_table_headers,
-            image_paste_behavior: file.editor.image_paste_behavior,
-            keybindings: normalize_shortcut_config(&file.keybindings),
-            status_bar: StatusBarSettings {
-                enabled: file.status_bar.enabled,
-                show_word_count: file.status_bar.show_word_count,
-                show_cursor_position: file.status_bar.show_cursor_position,
-            },
-            explorer: ExplorerSettings {
-                hide_hidden: file.explorer.hide_hidden,
-                sort_mode: file.explorer.sort_mode,
-                sort_order: file.explorer.sort_order,
-            },
-            typography: file.typography,
+/// Central reactive in-memory GPUI Global store for [`AppSettings`].
+///
+/// All mutations must go through [`SettingsStore::update`] to guarantee:
+/// 1. Instant in-memory synchronization.
+/// 2. Subsystem updates (Theme, Typography, I18n, Keybindings).
+/// 3. Atomic disk persistence to `config.toml`.
+/// 4. Global window repaint notification via `cx.refresh_windows()`.
+pub struct SettingsStore {
+    pub settings: AppSettings,
+}
+
+impl Global for SettingsStore {}
+
+impl SettingsStore {
+    /// Initialize the global settings store in GPUI context.
+    pub fn init(cx: &mut App, settings: AppSettings) {
+        cx.set_global(Self { settings });
+    }
+
+    /// Initialize default settings store in test environments.
+    pub fn init_default(cx: &mut App) {
+        Self::init(cx, AppSettings::default());
+    }
+
+    /// Read the active global settings by reference.
+    pub fn get(cx: &App) -> &AppSettings {
+        cx.try_global::<Self>()
+            .map(|store| &store.settings)
+            .unwrap_or_else(|| {
+                // Static fallback in uninitialized contexts / tests
+                static DEFAULT: std::sync::OnceLock<AppSettings> = std::sync::OnceLock::new();
+                DEFAULT.get_or_init(AppSettings::default)
+            })
+    }
+
+    /// Read a cloned copy of the active global settings.
+    pub fn settings(cx: &App) -> AppSettings {
+        Self::get(cx).clone()
+    }
+
+    /// Mutate settings in-place, persist to disk, sync subsystems, and refresh windows.
+    pub fn update<R>(cx: &mut App, mutate: impl FnOnce(&mut AppSettings) -> R) -> anyhow::Result<R> {
+        let (result, new_settings) = {
+            let store = cx.try_global::<Self>().context("SettingsStore global not initialized")?;
+            let mut updated = store.settings.clone();
+            let res = mutate(&mut updated);
+            (res, updated)
+        };
+
+        // Update global store
+        cx.set_global(Self {
+            settings: new_settings.clone(),
+        });
+
+        // Persist to disk
+        if let Err(err) = save_app_settings(&new_settings) {
+            tracing::warn!(error = %err, "failed to persist settings to disk");
+        }
+
+        // Synchronize subsystems
+        Self::sync_subsystems(cx, &new_settings);
+
+        // Refresh all application windows
+        cx.refresh_windows();
+
+        Ok(result)
+    }
+
+    /// Replace the entire settings configuration.
+    pub fn set(cx: &mut App, new_settings: AppSettings) -> anyhow::Result<()> {
+        Self::update(cx, |settings| {
+            *settings = new_settings;
+        })
+    }
+
+    fn sync_subsystems(cx: &mut App, settings: &AppSettings) {
+        // Sync Theme
+        if cx.has_global::<ThemeManager>() {
+            let target_theme = settings.interface.theme_id.clone();
+            cx.update_global::<ThemeManager, _>(|tm, _cx| {
+                if tm.current_theme_id() != target_theme {
+                    let _ = tm.set_theme_by_id(&target_theme);
+                }
+            });
+        }
+
+        // Sync Typography
+        TypographyStore::update(cx, settings.typography.clone());
+
+        // Sync I18n
+        if cx.has_global::<I18nManager>() {
+            let target_lang = settings.interface.language_id.clone();
+            cx.update_global::<I18nManager, _>(|im, _cx| {
+                if im.current_language_id() != target_lang {
+                    let _ = im.set_language_by_id(&target_lang);
+                }
+            });
         }
     }
 }
 
-impl From<&AppSettings> for SettingsFile {
-    fn from(value: &AppSettings) -> Self {
-        Self {
-            startup: StartupSettingsFile {
-                open: value.startup_open,
-            },
-            language: LanguageSettingsFile {
-                default_language_id: value.default_language_id.clone(),
-            },
-            theme: ThemeSettingsFile {
-                default_theme_id: value.default_theme_id.clone(),
-            },
-            editor: EditorSettingsFile {
-                show_table_headers: value.show_table_headers,
-                image_paste_behavior: value.image_paste_behavior,
-            },
-            status_bar: StatusBarSettingsFile {
-                enabled: value.status_bar.enabled,
-                show_word_count: value.status_bar.show_word_count,
-                show_cursor_position: value.status_bar.show_cursor_position,
-            },
-            keybindings: normalize_shortcut_config(&value.keybindings),
-            explorer: ExplorerSettingsFile {
-                hide_hidden: value.explorer.hide_hidden,
-                sort_mode: value.explorer.sort_mode,
-                sort_order: value.explorer.sort_order,
-            },
-            typography: value.typography.clone(),
-        }
-    }
-}
-
+/// Read configuration from disk using system configuration directories.
 pub fn read_app_settings() -> anyhow::Result<AppSettings> {
     read_app_settings_with_dirs(&SplitypeConfigDirs::from_system()?)
 }
 
+/// Read configuration from disk using the specified configuration directories.
 pub fn read_app_settings_with_dirs(dirs: &SplitypeConfigDirs) -> anyhow::Result<AppSettings> {
     let path = dirs.app_config_file();
     let text = match std::fs::read_to_string(&path) {
@@ -558,10 +554,12 @@ pub fn read_app_settings_with_dirs(dirs: &SplitypeConfigDirs) -> anyhow::Result<
             return Err(err).with_context(|| format!("failed to read '{}'", path.display()));
         }
     };
-    let file: SettingsFile = toml::from_str(&text).unwrap_or_default();
-    Ok(AppSettings::from(file))
+    let mut settings: AppSettings = toml::from_str(&text).unwrap_or_default();
+    settings.keybindings = normalize_shortcut_config(&settings.keybindings);
+    Ok(settings)
 }
 
+/// Load configuration or create initial settings file with locale detection.
 pub fn load_or_create_app_settings() -> anyhow::Result<AppSettings> {
     let dirs = SplitypeConfigDirs::from_system()?;
     load_or_create_app_settings_with_dirs_and_locales(&dirs, sys_locale::get_locales())
@@ -575,7 +573,7 @@ where
     language_id_for_locale_settings(locales)
 }
 
-fn load_or_create_app_settings_with_dirs_and_locales<I, S>(
+pub fn load_or_create_app_settings_with_dirs_and_locales<I, S>(
     dirs: &SplitypeConfigDirs,
     locales: I,
 ) -> anyhow::Result<AppSettings>
@@ -586,17 +584,22 @@ where
     let detected_language_id = detected_language_id_from_locales(locales);
     let path = dirs.app_config_file();
     let settings = match std::fs::read_to_string(&path) {
-        Ok(text) => match toml::from_str::<SettingsFile>(&text) {
-            Ok(file) => AppSettings::from(file),
-            Err(_) => AppSettings {
-                default_language_id: detected_language_id.into(),
-                ..AppSettings::default()
-            },
+        Ok(text) => match toml::from_str::<AppSettings>(&text) {
+            Ok(mut settings) => {
+                settings.keybindings = normalize_shortcut_config(&settings.keybindings);
+                settings
+            }
+            Err(_) => {
+                let mut def = AppSettings::default();
+                def.interface.language_id = detected_language_id.into();
+                def
+            }
         },
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => AppSettings {
-            default_language_id: detected_language_id.into(),
-            ..AppSettings::default()
-        },
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            let mut def = AppSettings::default();
+            def.interface.language_id = detected_language_id.into();
+            def
+        }
         Err(err) => {
             return Err(err).with_context(|| format!("failed to read '{}'", path.display()));
         }
@@ -605,10 +608,12 @@ where
     Ok(settings)
 }
 
+/// Save configuration to disk using system configuration directories.
 pub fn save_app_settings(settings: &AppSettings) -> anyhow::Result<()> {
     save_app_settings_with_dirs(settings, &SplitypeConfigDirs::from_system()?)
 }
 
+/// Save configuration to disk using the specified configuration directories.
 pub fn save_app_settings_with_dirs(
     settings: &AppSettings,
     dirs: &SplitypeConfigDirs,
@@ -618,15 +623,17 @@ pub fn save_app_settings_with_dirs(
         std::fs::create_dir_all(parent)
             .with_context(|| format!("failed to create '{}'", parent.display()))?;
     }
-    let text = toml::to_string_pretty(&SettingsFile::from(settings))?;
+    let text = toml::to_string_pretty(settings)?;
     std::fs::write(&path, text).with_context(|| format!("failed to write '{}'", path.display()))
 }
 
+/// First existing recent markdown file for startup opening.
 pub fn first_existing_recent_markdown_file() -> Option<PathBuf> {
     let recent_files = read_recent_files().ok()?;
     recent_files.into_iter().find(|path| path.is_file())
 }
 
+/// Apply configured language live and persist in `SettingsStore`.
 pub fn apply_configured_language(cx: &mut App, language_id: &str) -> anyhow::Result<bool> {
     let mut applied = false;
     let changed = cx.update_global::<I18nManager, _>(|i18n_manager, _cx| {
@@ -637,12 +644,15 @@ pub fn apply_configured_language(cx: &mut App, language_id: &str) -> anyhow::Res
     if !applied {
         return Ok(false);
     }
-    update_app_settings(|settings| {
-        settings.default_language_id = language_id.into();
-    })?;
+    if cx.has_global::<SettingsStore>() {
+        let _ = SettingsStore::update(cx, |settings| {
+            settings.interface.language_id = language_id.to_string();
+        });
+    }
     Ok(changed)
 }
 
+/// Apply configured theme live and persist in `SettingsStore`.
 pub fn apply_configured_theme(cx: &mut App, theme_id: &str) -> anyhow::Result<bool> {
     let mut applied = false;
     let changed = cx.update_global::<ThemeManager, _>(|theme_manager, _cx| {
@@ -653,12 +663,15 @@ pub fn apply_configured_theme(cx: &mut App, theme_id: &str) -> anyhow::Result<bo
     if !applied {
         return Ok(false);
     }
-    update_app_settings(|settings| {
-        settings.default_theme_id = theme_id.into();
-    })?;
+    if cx.has_global::<SettingsStore>() {
+        let _ = SettingsStore::update(cx, |settings| {
+            settings.interface.theme_id = theme_id.to_string();
+        });
+    }
     Ok(changed)
 }
 
+/// Import a custom language pack JSON file and select it.
 pub fn import_language_config_and_select(
     cx: &mut App,
     path: impl AsRef<std::path::Path>,
@@ -666,12 +679,15 @@ pub fn import_language_config_and_select(
     let imported_id = cx.update_global::<I18nManager, _>(|i18n_manager, _cx| {
         i18n_manager.import_language_config(path)
     })?;
-    update_app_settings(|settings| {
-        settings.default_language_id = imported_id.clone();
-    })?;
+    if cx.has_global::<SettingsStore>() {
+        let _ = SettingsStore::update(cx, |settings| {
+            settings.interface.language_id = imported_id.clone();
+        });
+    }
     Ok(imported_id)
 }
 
+/// Import a custom theme JSON file and select it.
 pub fn import_theme_config_and_select(
     cx: &mut App,
     path: impl AsRef<std::path::Path>,
@@ -679,56 +695,11 @@ pub fn import_theme_config_and_select(
     let imported_id = cx.update_global::<ThemeManager, _>(|theme_manager, _cx| {
         theme_manager.import_theme_config(path)
     })?;
-    update_app_settings(|settings| {
-        settings.default_theme_id = imported_id.clone();
-    })?;
+    if cx.has_global::<SettingsStore>() {
+        let _ = SettingsStore::update(cx, |settings| {
+            settings.interface.theme_id = imported_id.clone();
+        });
+    }
     Ok(imported_id)
 }
 
-pub fn save_settings_from_window(
-    startup_open: StartupOpenSetting,
-    default_theme_id: &str,
-    image_paste_behavior: ImagePasteBehavior,
-    keybindings: BTreeMap<String, Vec<String>>,
-    status_bar: &StatusBarSettings,
-    typography: &TypographySettings,
-) -> anyhow::Result<AppSettings> {
-    let dirs = SplitypeConfigDirs::from_system()?;
-    save_settings_from_window_with_dirs(
-        startup_open,
-        default_theme_id,
-        image_paste_behavior,
-        keybindings,
-        status_bar,
-        typography,
-        &dirs,
-    )
-}
-
-pub fn save_settings_from_window_with_dirs(
-    startup_open: StartupOpenSetting,
-    default_theme_id: &str,
-    image_paste_behavior: ImagePasteBehavior,
-    keybindings: BTreeMap<String, Vec<String>>,
-    status_bar: &StatusBarSettings,
-    typography: &TypographySettings,
-    dirs: &SplitypeConfigDirs,
-) -> anyhow::Result<AppSettings> {
-    let mut settings =
-        load_or_create_app_settings_with_dirs_and_locales(dirs, sys_locale::get_locales())?;
-    settings.startup_open = startup_open;
-    settings.default_theme_id = default_theme_id.into();
-    settings.image_paste_behavior = image_paste_behavior;
-    settings.keybindings = normalize_shortcut_config(&keybindings);
-    settings.status_bar = status_bar.clone();
-    settings.typography = typography.clone();
-    save_app_settings_with_dirs(&settings, dirs)?;
-    Ok(settings)
-}
-
-fn update_app_settings(update: impl FnOnce(&mut AppSettings)) -> anyhow::Result<AppSettings> {
-    let mut settings = load_or_create_app_settings()?;
-    update(&mut settings);
-    save_app_settings(&settings)?;
-    Ok(settings)
-}

@@ -4,9 +4,8 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 use crate::app::window::panels::PanelId;
-use crate::infra::config::settings::apply_configured_language;
+use crate::infra::config::settings::*;
 use crate::infra::i18n::I18nStrings;
-use crate::infra::i18n::manager::I18nManager;
 use crate::infra::theme::{Theme, ThemeManager};
 use crate::settings::components::*;
 use crate::settings::state::SettingsTab;
@@ -88,8 +87,11 @@ impl Shell {
         // Right Content Area composed from domain components
         let sections = match active_tab {
             SettingsTab::Interface => self.render_panel_interface_tab(panel_id, theme, cx),
-            SettingsTab::Editing => self.render_panel_editing_tab(panel_id, theme, cx),
-            SettingsTab::Keymap => self.render_panel_shortcuts_tab(panel_id, theme, cx),
+            SettingsTab::Editor => self.render_panel_editor_tab(panel_id, theme, cx),
+            SettingsTab::Markdown => self.render_panel_markdown_tab(panel_id, theme, cx),
+            SettingsTab::Explorer => self.render_panel_explorer_tab(panel_id, theme, cx),
+            SettingsTab::Startup => self.render_panel_startup_tab(panel_id, theme, cx),
+            SettingsTab::Keymap => self.render_panel_keymap_tab(panel_id, theme, cx),
         };
 
         let right_content = div()
@@ -142,6 +144,7 @@ impl Shell {
         let c = &theme.colors;
         let d = &theme.dimensions;
         let mut sections = Vec::new();
+        let app_settings = SettingsStore::get(cx).clone();
 
         // 1. Theme & Language Section
         let sec1_key = "theme";
@@ -158,8 +161,8 @@ impl Shell {
             .map(|t| (t.id.clone(), t.name.clone()))
             .collect();
 
-        let current_lang_name = match cx.try_global::<I18nManager>().map(|m| m.current_language_id()) {
-            Some("zh-CN") => "简体中文 (zh-CN)".to_string(),
+        let current_lang_name = match app_settings.interface.language_id.as_str() {
+            "zh-CN" => "简体中文 (zh-CN)".to_string(),
             _ => "English (en-US)".to_string(),
         };
 
@@ -180,15 +183,11 @@ impl Shell {
             on_select_theme: Box::new(move |theme_id| {
                 let shell = select_theme_shell.clone();
                 Box::new(move |_event, _window, cx| {
-                    let tid = theme_id.clone();
-                    cx.update_global::<ThemeManager, _>(|tm, _cx| {
-                        tm.set_theme_by_id(&tid);
-                    });
+                    let _ = apply_configured_theme(cx, &theme_id);
                     let _ = shell.update(cx, |shell, cx| {
                         shell.panels.settings.open_dropdown = None;
                         cx.notify();
                     });
-                    cx.refresh_windows();
                 })
             }),
             current_lang_name,
@@ -203,10 +202,7 @@ impl Shell {
                     cx.notify();
                 });
             }),
-            lang_options: vec![
-                ("en-US", "English (en-US)"),
-                ("zh-CN", "简体中文 (zh-CN)"),
-            ],
+            lang_options: vec![("en-US", "English (en-US)"), ("zh-CN", "简体中文 (zh-CN)")],
             on_select_lang: Box::new(move |lang_code| {
                 let shell = select_lang_shell.clone();
                 Box::new(move |_event, _window, cx| {
@@ -215,7 +211,6 @@ impl Shell {
                         shell.panels.settings.open_dropdown = None;
                         cx.notify();
                     });
-                    cx.refresh_windows();
                 })
             }),
         };
@@ -232,30 +227,36 @@ impl Shell {
         // 2. Status Bar Section
         let sec2_key = "status_bar";
         let is_sec2_expanded = self.panels.settings.expanded_sections.contains(sec2_key);
-        let toggle_sb = cx.entity().downgrade();
-        let toggle_wc = cx.entity().downgrade();
-        let toggle_cp = cx.entity().downgrade();
 
         let status_bar_props = StatusBarProps {
-            show_status_bar: self.panels.settings.pref_show_status_bar,
+            show_status_bar: app_settings.status_bar.enabled,
             on_toggle_status_bar: Box::new(move |_event, _window, cx| {
-                let _ = toggle_sb.update(cx, |shell, cx| {
-                    shell.panels.settings.pref_show_status_bar = !shell.panels.settings.pref_show_status_bar;
-                    cx.notify();
+                let _ = SettingsStore::update(cx, |s| {
+                    s.status_bar.enabled = !s.status_bar.enabled;
                 });
             }),
-            show_word_count: self.panels.settings.pref_show_word_count,
+            show_word_count: app_settings.status_bar.show_word_count,
             on_toggle_word_count: Box::new(move |_event, _window, cx| {
-                let _ = toggle_wc.update(cx, |shell, cx| {
-                    shell.panels.settings.pref_show_word_count = !shell.panels.settings.pref_show_word_count;
-                    cx.notify();
+                let _ = SettingsStore::update(cx, |s| {
+                    s.status_bar.show_word_count = !s.status_bar.show_word_count;
                 });
             }),
-            show_cursor_pos: self.panels.settings.pref_show_cursor_pos,
+            show_cursor_pos: app_settings.status_bar.show_cursor_position,
             on_toggle_cursor_pos: Box::new(move |_event, _window, cx| {
-                let _ = toggle_cp.update(cx, |shell, cx| {
-                    shell.panels.settings.pref_show_cursor_pos = !shell.panels.settings.pref_show_cursor_pos;
-                    cx.notify();
+                let _ = SettingsStore::update(cx, |s| {
+                    s.status_bar.show_cursor_position = !s.status_bar.show_cursor_position;
+                });
+            }),
+            show_character_count: app_settings.status_bar.show_character_count,
+            on_toggle_character_count: Box::new(move |_event, _window, cx| {
+                let _ = SettingsStore::update(cx, |s| {
+                    s.status_bar.show_character_count = !s.status_bar.show_character_count;
+                });
+            }),
+            show_reading_time: app_settings.status_bar.show_reading_time,
+            on_toggle_reading_time: Box::new(move |_event, _window, cx| {
+                let _ = SettingsStore::update(cx, |s| {
+                    s.status_bar.show_reading_time = !s.status_bar.show_reading_time;
                 });
             }),
         };
@@ -263,7 +264,7 @@ impl Shell {
         sections.push(render_status_bar_section(
             c,
             d,
-            ("pref-sec-sb", panel_id.0),
+            ("pref-sec-status-bar", panel_id.0),
             is_sec2_expanded,
             self.toggle_settings_section_handler(cx, sec2_key),
             status_bar_props,
@@ -272,7 +273,7 @@ impl Shell {
         sections
     }
 
-    fn render_panel_editing_tab(
+    fn render_panel_editor_tab(
         &mut self,
         panel_id: PanelId,
         theme: &Theme,
@@ -281,65 +282,50 @@ impl Shell {
         let c = &theme.colors;
         let d = &theme.dimensions;
         let mut sections = Vec::new();
+        let app_settings = SettingsStore::get(cx).clone();
 
-        // 1. Typography Section
+        // 1. Typography & Fonts Section
         let sec1_key = "typography";
         let is_sec1_expanded = self.panels.settings.expanded_sections.contains(sec1_key);
-        let font_dec = cx.entity().downgrade();
-        let font_inc = cx.entity().downgrade();
-        let lh_dec = cx.entity().downgrade();
-        let lh_inc = cx.entity().downgrade();
 
-        let current_typo = crate::infra::theme::TypographyStore::settings(cx);
         let toggle_ui_font_shell = cx.entity().downgrade();
         let toggle_prose_font_shell = cx.entity().downgrade();
         let toggle_code_font_shell = cx.entity().downgrade();
+        let search_ui_shell = cx.entity().downgrade();
+        let search_prose_shell = cx.entity().downgrade();
+        let search_code_shell = cx.entity().downgrade();
         let select_ui_font_shell = cx.entity().downgrade();
         let select_prose_font_shell = cx.entity().downgrade();
         let select_code_font_shell = cx.entity().downgrade();
 
-        let ui_font_name = current_typo
-            .ui_font_family
-            .clone()
-            .unwrap_or_else(|| "Lexend (default)".to_string());
-        let prose_font_name = current_typo
-            .prose_font_family
-            .clone()
-            .unwrap_or_else(|| "Lexend (default)".to_string());
-        let code_font_name = current_typo
-            .code_font_family
-            .clone()
-            .unwrap_or_else(|| {
-                if cfg!(target_os = "windows") {
-                    "Consolas (default)".to_string()
-                } else if cfg!(target_os = "macos") {
-                    "Menlo (default)".to_string()
-                } else {
-                    "monospace (default)".to_string()
-                }
-            });
+        let available_fonts: Vec<SharedString> = cx
+            .text_system()
+            .all_font_names()
+            .into_iter()
+            .map(SharedString::from)
+            .collect();
 
         let is_ui_font_open = self.panels.settings.open_dropdown.as_deref() == Some("ui_font");
         let is_prose_font_open = self.panels.settings.open_dropdown.as_deref() == Some("prose_font");
         let is_code_font_open = self.panels.settings.open_dropdown.as_deref() == Some("code_font");
 
-        let available_fonts = crate::infra::theme::FontFamilyCache::list_font_families(cx);
+        let ui_font_name = app_settings.typography.ui_font_family.clone().unwrap_or_else(|| "Lexend (default)".to_string());
+        let prose_font_name = app_settings.typography.prose_font_family.clone().unwrap_or_else(|| "Lexend (default)".to_string());
+        let code_font_name = app_settings.typography.code_font_family.clone().unwrap_or_else(|| {
+            if cfg!(target_os = "windows") {
+                "Consolas (default)".to_string()
+            } else if cfg!(target_os = "macos") {
+                "Menlo (default)".to_string()
+            } else {
+                "monospace (default)".to_string()
+            }
+        });
 
-        let search_ui_shell = cx.entity().downgrade();
-        let search_prose_shell = cx.entity().downgrade();
-        let search_code_shell = cx.entity().downgrade();
-
-        let reset_ui_shell = cx.entity().downgrade();
-        let reset_prose_shell = cx.entity().downgrade();
-        let reset_code_shell = cx.entity().downgrade();
-        let reset_fs_shell = cx.entity().downgrade();
-        let reset_lh_shell = cx.entity().downgrade();
-
-        let has_custom_ui = current_typo.ui_font_family.is_some();
-        let has_custom_prose = current_typo.prose_font_family.is_some();
-        let has_custom_code = current_typo.code_font_family.is_some();
-        let has_custom_fs = self.panels.settings.pref_font_size != 16;
-        let has_custom_lh = (self.panels.settings.pref_line_height - 1.6).abs() > 0.01;
+        let has_custom_ui = app_settings.typography.ui_font_family.is_some();
+        let has_custom_prose = app_settings.typography.prose_font_family.is_some();
+        let has_custom_code = app_settings.typography.code_font_family.is_some();
+        let has_custom_fs = app_settings.typography.font_size != 16;
+        let has_custom_lh = (app_settings.typography.line_height - 1.6).abs() > 0.001;
 
         let fs_focus = self
             .panels
@@ -354,13 +340,12 @@ impl Shell {
             .get_or_insert_with(|| cx.focus_handle())
             .clone();
 
-        let start_fs_shell = cx.entity().downgrade();
-        let key_fs_shell = cx.entity().downgrade();
         let fs_focus_clone = fs_focus.clone();
-
-        let start_lh_shell = cx.entity().downgrade();
-        let key_lh_shell = cx.entity().downgrade();
         let lh_focus_clone = lh_focus.clone();
+        let start_fs_shell = cx.entity().downgrade();
+        let start_lh_shell = cx.entity().downgrade();
+        let key_fs_shell = cx.entity().downgrade();
+        let key_lh_shell = cx.entity().downgrade();
 
         let typography_props = TypographyProps {
             ui_font_name,
@@ -386,12 +371,8 @@ impl Shell {
             on_select_ui_font: Box::new(move |font_name| {
                 let shell = select_ui_font_shell.clone();
                 Box::new(move |_event, _window, cx| {
-                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
-                    typo.ui_font_family = if font_name == "default" { None } else { Some(font_name.clone()) };
-                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
-                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
-                        s.typography = typo;
-                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    let _ = SettingsStore::update(cx, |s| {
+                        s.typography.ui_font_family = if font_name == "default" { None } else { Some(font_name.clone()) };
                     });
                     let _ = shell.update(cx, |shell, cx| {
                         shell.panels.settings.open_dropdown = None;
@@ -401,14 +382,9 @@ impl Shell {
             }),
             on_reset_ui_font: if has_custom_ui {
                 Some(Box::new(move |_event, _window, cx| {
-                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
-                    typo.ui_font_family = None;
-                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
-                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
-                        s.typography = typo;
-                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    let _ = SettingsStore::update(cx, |s| {
+                        s.typography.ui_font_family = None;
                     });
-                    let _ = reset_ui_shell.update(cx, |_shell, cx| cx.notify());
                 }))
             } else {
                 None
@@ -437,12 +413,8 @@ impl Shell {
             on_select_prose_font: Box::new(move |font_name| {
                 let shell = select_prose_font_shell.clone();
                 Box::new(move |_event, _window, cx| {
-                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
-                    typo.prose_font_family = if font_name == "default" { None } else { Some(font_name.clone()) };
-                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
-                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
-                        s.typography = typo;
-                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    let _ = SettingsStore::update(cx, |s| {
+                        s.typography.prose_font_family = if font_name == "default" { None } else { Some(font_name.clone()) };
                     });
                     let _ = shell.update(cx, |shell, cx| {
                         shell.panels.settings.open_dropdown = None;
@@ -452,14 +424,9 @@ impl Shell {
             }),
             on_reset_prose_font: if has_custom_prose {
                 Some(Box::new(move |_event, _window, cx| {
-                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
-                    typo.prose_font_family = None;
-                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
-                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
-                        s.typography = typo;
-                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    let _ = SettingsStore::update(cx, |s| {
+                        s.typography.prose_font_family = None;
                     });
-                    let _ = reset_prose_shell.update(cx, |_shell, cx| cx.notify());
                 }))
             } else {
                 None
@@ -488,12 +455,8 @@ impl Shell {
             on_select_code_font: Box::new(move |font_name| {
                 let shell = select_code_font_shell.clone();
                 Box::new(move |_event, _window, cx| {
-                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
-                    typo.code_font_family = if font_name == "default" { None } else { Some(font_name.clone()) };
-                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
-                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
-                        s.typography = typo;
-                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    let _ = SettingsStore::update(cx, |s| {
+                        s.typography.code_font_family = if font_name == "default" { None } else { Some(font_name.clone()) };
                     });
                     let _ = shell.update(cx, |shell, cx| {
                         shell.panels.settings.open_dropdown = None;
@@ -503,14 +466,9 @@ impl Shell {
             }),
             on_reset_code_font: if has_custom_code {
                 Some(Box::new(move |_event, _window, cx| {
-                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
-                    typo.code_font_family = None;
-                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
-                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
-                        s.typography = typo;
-                        let _ = crate::infra::config::settings::save_app_settings(&s);
+                    let _ = SettingsStore::update(cx, |s| {
+                        s.typography.code_font_family = None;
                     });
-                    let _ = reset_code_shell.update(cx, |_shell, cx| cx.notify());
                 }))
             } else {
                 None
@@ -518,56 +476,27 @@ impl Shell {
 
             available_fonts,
 
-            font_size: self.panels.settings.pref_font_size,
+            font_size: app_settings.typography.font_size,
             is_editing_font_size: self.panels.settings.editing_font_size.is_some(),
             edit_buffer_font_size: self.panels.settings.editing_font_size.clone(),
             font_size_focus_handle: fs_focus,
             on_font_dec: Box::new(move |event, _window, cx| {
                 let step = if event.modifiers().shift { 4 } else { 1 };
-                let _ = font_dec.update(cx, |shell, cx| {
-                    if shell.panels.settings.pref_font_size > (8 + step) {
-                        shell.panels.settings.pref_font_size -= step;
-                    } else {
-                        shell.panels.settings.pref_font_size = 8;
-                    }
-                    if shell.panels.settings.editing_font_size.is_some() {
-                        shell.panels.settings.editing_font_size = Some(format!("{}", shell.panels.settings.pref_font_size));
-                    }
-                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
-                    typo.font_size = shell.panels.settings.pref_font_size;
-                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
-                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
-                        s.typography = typo;
-                        let _ = crate::infra::config::settings::save_app_settings(&s);
-                    });
-                    cx.notify();
+                let _ = SettingsStore::update(cx, |s| {
+                    s.typography.font_size = if s.typography.font_size > 8 + step { s.typography.font_size - step } else { 8 };
                 });
             }),
             on_font_inc: Box::new(move |event, _window, cx| {
                 let step = if event.modifiers().shift { 4 } else { 1 };
-                let _ = font_inc.update(cx, |shell, cx| {
-                    if shell.panels.settings.pref_font_size + step <= 72 {
-                        shell.panels.settings.pref_font_size += step;
-                    } else {
-                        shell.panels.settings.pref_font_size = 72;
-                    }
-                    if shell.panels.settings.editing_font_size.is_some() {
-                        shell.panels.settings.editing_font_size = Some(format!("{}", shell.panels.settings.pref_font_size));
-                    }
-                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
-                    typo.font_size = shell.panels.settings.pref_font_size;
-                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
-                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
-                        s.typography = typo;
-                        let _ = crate::infra::config::settings::save_app_settings(&s);
-                    });
-                    cx.notify();
+                let _ = SettingsStore::update(cx, |s| {
+                    s.typography.font_size = (s.typography.font_size + step).min(72);
                 });
             }),
             on_start_edit_font_size: Box::new(move |_event, window, cx| {
                 window.focus(&fs_focus_clone, cx);
+                let current_val = SettingsStore::get(cx).typography.font_size;
                 let _ = start_fs_shell.update(cx, |shell, cx| {
-                    shell.panels.settings.editing_font_size = Some(format!("{}", shell.panels.settings.pref_font_size));
+                    shell.panels.settings.editing_font_size = Some(format!("{}", current_val));
                     shell.panels.settings.editing_line_height = None;
                     cx.notify();
                 });
@@ -587,23 +516,19 @@ impl Shell {
                                     cancel = true;
                                 }
                             }
-                            "escape" => {
-                                cancel = true;
-                            }
+                            "escape" => cancel = true,
                             "backspace" => {
                                 buf.pop();
                             }
                             "up" => {
-                                let step = if event.keystroke.modifiers.shift { 4 } else { 1 };
-                                let curr = buf.parse::<u32>().unwrap_or(shell.panels.settings.pref_font_size);
-                                let new_v = (curr + step).min(72);
+                                let curr = buf.parse::<u32>().unwrap_or(16);
+                                let new_v = (curr + 1).min(72);
                                 *buf = format!("{}", new_v);
                                 commit_val = Some(new_v);
                             }
                             "down" => {
-                                let step = if event.keystroke.modifiers.shift { 4 } else { 1 };
-                                let curr = buf.parse::<u32>().unwrap_or(shell.panels.settings.pref_font_size);
-                                let new_v = if curr > 8 + step { curr - step } else { 8 };
+                                let curr = buf.parse::<u32>().unwrap_or(16);
+                                let new_v = if curr > 9 { curr - 1 } else { 8 };
                                 *buf = format!("{}", new_v);
                                 commit_val = Some(new_v);
                             }
@@ -617,93 +542,51 @@ impl Shell {
                     }
 
                     if let Some(v) = commit_val {
-                        shell.panels.settings.pref_font_size = v;
                         if key == "enter" {
                             shell.panels.settings.editing_font_size = None;
                         }
-                        let mut typo = crate::infra::theme::TypographyStore::settings(cx);
-                        typo.font_size = v;
-                        crate::infra::theme::TypographyStore::update(cx, typo.clone());
-                        let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
-                            s.typography = typo;
-                            let _ = crate::infra::config::settings::save_app_settings(&s);
-                        });
+                        let _ = SettingsStore::update(cx, |s| s.typography.font_size = v);
                     } else if cancel {
                         shell.panels.settings.editing_font_size = None;
                     }
-
                     cx.notify();
                 });
             }),
             on_reset_font_size: if has_custom_fs {
                 Some(Box::new(move |_event, _window, cx| {
-                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
-                    typo.font_size = 16;
-                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
-                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
-                        s.typography = typo;
-                        let _ = crate::infra::config::settings::save_app_settings(&s);
-                    });
-                    let _ = reset_fs_shell.update(cx, |shell, cx| {
-                        shell.panels.settings.pref_font_size = 16;
-                        shell.panels.settings.editing_font_size = None;
-                        cx.notify();
-                    });
+                    let _ = SettingsStore::update(cx, |s| s.typography.font_size = 16);
                 }))
             } else {
                 None
             },
 
-            line_height: self.panels.settings.pref_line_height,
+            line_height: app_settings.typography.line_height,
             is_editing_line_height: self.panels.settings.editing_line_height.is_some(),
             edit_buffer_line_height: self.panels.settings.editing_line_height.clone(),
             line_height_focus_handle: lh_focus,
             on_lh_dec: Box::new(move |event, _window, cx| {
-                let step = if event.modifiers().shift { 0.5 } else if event.modifiers().alt { 0.05 } else { 0.1 };
-                let _ = lh_dec.update(cx, |shell, cx| {
-                    if shell.panels.settings.pref_line_height > (1.0 + step) {
-                        shell.panels.settings.pref_line_height -= step;
-                    } else {
-                        shell.panels.settings.pref_line_height = 1.0;
+                let step = if event.modifiers().shift { 0.2 } else { 0.05 };
+                let _ = SettingsStore::update(cx, |s| {
+                    s.typography.line_height = ((s.typography.line_height - step) * 100.0).round() / 100.0;
+                    if s.typography.line_height < 1.0 {
+                        s.typography.line_height = 1.0;
                     }
-                    if shell.panels.settings.editing_line_height.is_some() {
-                        shell.panels.settings.editing_line_height = Some(format!("{:.2}", shell.panels.settings.pref_line_height));
-                    }
-                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
-                    typo.line_height = shell.panels.settings.pref_line_height;
-                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
-                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
-                        s.typography = typo;
-                        let _ = crate::infra::config::settings::save_app_settings(&s);
-                    });
-                    cx.notify();
                 });
             }),
             on_lh_inc: Box::new(move |event, _window, cx| {
-                let step = if event.modifiers().shift { 0.5 } else if event.modifiers().alt { 0.05 } else { 0.1 };
-                let _ = lh_inc.update(cx, |shell, cx| {
-                    if shell.panels.settings.pref_line_height + step <= 3.0 {
-                        shell.panels.settings.pref_line_height += step;
-                    } else {
-                        shell.panels.settings.pref_line_height = 3.0;
+                let step = if event.modifiers().shift { 0.2 } else { 0.05 };
+                let _ = SettingsStore::update(cx, |s| {
+                    s.typography.line_height = ((s.typography.line_height + step) * 100.0).round() / 100.0;
+                    if s.typography.line_height > 3.0 {
+                        s.typography.line_height = 3.0;
                     }
-                    if shell.panels.settings.editing_line_height.is_some() {
-                        shell.panels.settings.editing_line_height = Some(format!("{:.2}", shell.panels.settings.pref_line_height));
-                    }
-                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
-                    typo.line_height = shell.panels.settings.pref_line_height;
-                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
-                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
-                        s.typography = typo;
-                        let _ = crate::infra::config::settings::save_app_settings(&s);
-                    });
-                    cx.notify();
                 });
             }),
             on_start_edit_line_height: Box::new(move |_event, window, cx| {
                 window.focus(&lh_focus_clone, cx);
+                let current_val = SettingsStore::get(cx).typography.line_height;
                 let _ = start_lh_shell.update(cx, |shell, cx| {
-                    shell.panels.settings.editing_line_height = Some(format!("{:.2}", shell.panels.settings.pref_line_height));
+                    shell.panels.settings.editing_line_height = Some(format!("{:.2}", current_val));
                     shell.panels.settings.editing_font_size = None;
                     cx.notify();
                 });
@@ -723,31 +606,13 @@ impl Shell {
                                     cancel = true;
                                 }
                             }
-                            "escape" => {
-                                cancel = true;
-                            }
+                            "escape" => cancel = true,
                             "backspace" => {
                                 buf.pop();
                             }
-                            "up" => {
-                                let step = if event.keystroke.modifiers.shift { 0.5 } else if event.keystroke.modifiers.alt { 0.05 } else { 0.1 };
-                                let curr = buf.parse::<f32>().unwrap_or(shell.panels.settings.pref_line_height);
-                                let new_v = (curr + step).min(3.0);
-                                *buf = format!("{:.2}", new_v);
-                                commit_val = Some(new_v);
-                            }
-                            "down" => {
-                                let step = if event.keystroke.modifiers.shift { 0.5 } else if event.keystroke.modifiers.alt { 0.05 } else { 0.1 };
-                                let curr = buf.parse::<f32>().unwrap_or(shell.panels.settings.pref_line_height);
-                                let new_v = if curr > 1.0 + step { curr - step } else { 1.0 };
-                                *buf = format!("{:.2}", new_v);
-                                commit_val = Some(new_v);
-                            }
-                            k if (k.len() == 1 && k.chars().all(|c| c.is_ascii_digit())) || k == "." => {
+                            k if k.len() == 1 && (k.chars().all(|c| c.is_ascii_digit()) || (k == "." && !buf.contains('.'))) => {
                                 if buf.len() < 4 {
-                                    if k != "." || !buf.contains('.') {
-                                        buf.push_str(k);
-                                    }
+                                    buf.push_str(k);
                                 }
                             }
                             _ => {}
@@ -755,38 +620,19 @@ impl Shell {
                     }
 
                     if let Some(v) = commit_val {
-                        shell.panels.settings.pref_line_height = v;
                         if key == "enter" {
                             shell.panels.settings.editing_line_height = None;
                         }
-                        let mut typo = crate::infra::theme::TypographyStore::settings(cx);
-                        typo.line_height = v;
-                        crate::infra::theme::TypographyStore::update(cx, typo.clone());
-                        let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
-                            s.typography = typo;
-                            let _ = crate::infra::config::settings::save_app_settings(&s);
-                        });
+                        let _ = SettingsStore::update(cx, |s| s.typography.line_height = v);
                     } else if cancel {
                         shell.panels.settings.editing_line_height = None;
                     }
-
                     cx.notify();
                 });
             }),
             on_reset_line_height: if has_custom_lh {
                 Some(Box::new(move |_event, _window, cx| {
-                    let mut typo = crate::infra::theme::TypographyStore::settings(cx);
-                    typo.line_height = 1.6;
-                    crate::infra::theme::TypographyStore::update(cx, typo.clone());
-                    let _ = crate::infra::config::settings::read_app_settings().map(|mut s| {
-                        s.typography = typo;
-                        let _ = crate::infra::config::settings::save_app_settings(&s);
-                    });
-                    let _ = reset_lh_shell.update(cx, |shell, cx| {
-                        shell.panels.settings.pref_line_height = 1.6;
-                        shell.panels.settings.editing_line_height = None;
-                        cx.notify();
-                    });
+                    let _ = SettingsStore::update(cx, |s| s.typography.line_height = 1.6);
                 }))
             } else {
                 None
@@ -796,28 +642,145 @@ impl Shell {
         sections.push(render_typography_section(
             c,
             d,
-            ("pref-sec-typo", panel_id.0),
+            ("pref-sec-typography", panel_id.0),
             is_sec1_expanded,
             self.toggle_settings_section_handler(cx, sec1_key),
             typography_props,
         ));
 
-        // 2. Markdown Section
-        let sec2_key = "markdown";
+        // 2. Editor Behavior Section
+        let sec2_key = "editor_behavior";
         let is_sec2_expanded = self.panels.settings.expanded_sections.contains(sec2_key);
-        let toggle_tbl = cx.entity().downgrade();
+
+        let tab_size_focus = self
+            .panels
+            .settings
+            .tab_size_focus_handle
+            .get_or_insert_with(|| cx.focus_handle())
+            .clone();
+        let tab_size_focus_clone = tab_size_focus.clone();
+        let start_ts_shell = cx.entity().downgrade();
+        let key_ts_shell = cx.entity().downgrade();
+
+        let has_custom_ts = app_settings.editor.tab_size != 4;
+
+        let editor_behavior_props = EditorBehaviorProps {
+            line_numbers: app_settings.editor.line_numbers,
+            on_toggle_line_numbers: Box::new(move |_event, _window, cx| {
+                let _ = SettingsStore::update(cx, |s| s.editor.line_numbers = !s.editor.line_numbers);
+            }),
+            word_wrap: app_settings.editor.word_wrap,
+            on_toggle_word_wrap: Box::new(move |_event, _window, cx| {
+                let _ = SettingsStore::update(cx, |s| s.editor.word_wrap = !s.editor.word_wrap);
+            }),
+            tab_size: app_settings.editor.tab_size,
+            is_editing_tab_size: self.panels.settings.editing_tab_size.is_some(),
+            edit_buffer_tab_size: self.panels.settings.editing_tab_size.clone(),
+            tab_size_focus_handle: tab_size_focus,
+            on_tab_size_dec: Box::new(move |_event, _window, cx| {
+                let _ = SettingsStore::update(cx, |s| {
+                    s.editor.tab_size = if s.editor.tab_size > 2 { s.editor.tab_size - 2 } else { 2 };
+                });
+            }),
+            on_tab_size_inc: Box::new(move |_event, _window, cx| {
+                let _ = SettingsStore::update(cx, |s| {
+                    s.editor.tab_size = (s.editor.tab_size + 2).min(8);
+                });
+            }),
+            on_start_edit_tab_size: Box::new(move |_event, window, cx| {
+                window.focus(&tab_size_focus_clone, cx);
+                let current_val = SettingsStore::get(cx).editor.tab_size;
+                let _ = start_ts_shell.update(cx, |shell, cx| {
+                    shell.panels.settings.editing_tab_size = Some(format!("{}", current_val));
+                    cx.notify();
+                });
+            }),
+            on_key_down_tab_size: Box::new(move |event, _window, cx| {
+                let key = event.keystroke.key.as_str();
+                let _ = key_ts_shell.update(cx, |shell, cx| {
+                    let mut commit_val = None;
+                    let mut cancel = false;
+
+                    if let Some(buf) = &mut shell.panels.settings.editing_tab_size {
+                        match key {
+                            "enter" => {
+                                if let Ok(v) = buf.parse::<u32>() {
+                                    commit_val = Some(v.clamp(2, 8));
+                                } else {
+                                    cancel = true;
+                                }
+                            }
+                            "escape" => cancel = true,
+                            "backspace" => { buf.pop(); }
+                            k if k.len() == 1 && k.chars().all(|c| c.is_ascii_digit()) => {
+                                if buf.len() < 1 { buf.push_str(k); }
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    if let Some(v) = commit_val {
+                        if key == "enter" {
+                            shell.panels.settings.editing_tab_size = None;
+                        }
+                        let _ = SettingsStore::update(cx, |s| s.editor.tab_size = v);
+                    } else if cancel {
+                        shell.panels.settings.editing_tab_size = None;
+                    }
+                    cx.notify();
+                });
+            }),
+            on_reset_tab_size: if has_custom_ts {
+                Some(Box::new(move |_event, _window, cx| {
+                    let _ = SettingsStore::update(cx, |s| s.editor.tab_size = 4);
+                }))
+            } else {
+                None
+            },
+            insert_spaces: app_settings.editor.insert_spaces,
+            on_toggle_insert_spaces: Box::new(move |_event, _window, cx| {
+                let _ = SettingsStore::update(cx, |s| s.editor.insert_spaces = !s.editor.insert_spaces);
+            }),
+            highlight_active_line: app_settings.editor.highlight_active_line,
+            on_toggle_highlight_active_line: Box::new(move |_event, _window, cx| {
+                let _ = SettingsStore::update(cx, |s| s.editor.highlight_active_line = !s.editor.highlight_active_line);
+            }),
+        };
+
+        sections.push(render_editor_behavior_section(
+            c,
+            d,
+            ("pref-sec-editor-behavior", panel_id.0),
+            is_sec2_expanded,
+            self.toggle_settings_section_handler(cx, sec2_key),
+            editor_behavior_props,
+        ));
+
+        sections
+    }
+
+    fn render_panel_markdown_tab(
+        &mut self,
+        panel_id: PanelId,
+        theme: &Theme,
+        cx: &mut Context<Self>,
+    ) -> Vec<AnyElement> {
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        let mut sections = Vec::new();
+        let app_settings = SettingsStore::get(cx).clone();
+
+        let sec_key = "markdown";
+        let is_sec_expanded = self.panels.settings.expanded_sections.contains(sec_key);
         let toggle_paste_dd = cx.entity().downgrade();
         let select_paste_shell = cx.entity().downgrade();
 
         let markdown_props = MarkdownProps {
-            show_table_headers: self.panels.settings.pref_show_table_headers,
+            show_table_headers: app_settings.markdown.show_table_headers,
             on_toggle_table_headers: Box::new(move |_event, _window, cx| {
-                let _ = toggle_tbl.update(cx, |shell, cx| {
-                    shell.panels.settings.pref_show_table_headers = !shell.panels.settings.pref_show_table_headers;
-                    cx.notify();
-                });
+                let _ = SettingsStore::update(cx, |s| s.markdown.show_table_headers = !s.markdown.show_table_headers);
             }),
-            image_paste_action: self.panels.settings.pref_image_paste_action,
+            image_paste_behavior: app_settings.markdown.image_paste_behavior,
             is_image_paste_open: self.panels.settings.open_dropdown.as_deref() == Some("image_paste"),
             on_toggle_image_paste: Box::new(move |_event, _window, cx| {
                 let _ = toggle_paste_dd.update(cx, |shell, cx| {
@@ -829,15 +792,23 @@ impl Shell {
                     cx.notify();
                 });
             }),
-            on_select_image_paste: Box::new(move |idx| {
+            on_select_image_paste: Box::new(move |behavior| {
                 let shell = select_paste_shell.clone();
                 Box::new(move |_event, _window, cx| {
+                    let _ = SettingsStore::update(cx, |s| s.markdown.image_paste_behavior = behavior);
                     let _ = shell.update(cx, |shell, cx| {
-                        shell.panels.settings.pref_image_paste_action = idx;
                         shell.panels.settings.open_dropdown = None;
                         cx.notify();
                     });
                 })
+            }),
+            render_math: app_settings.markdown.render_math,
+            on_toggle_render_math: Box::new(move |_event, _window, cx| {
+                let _ = SettingsStore::update(cx, |s| s.markdown.render_math = !s.markdown.render_math);
+            }),
+            render_diagrams: app_settings.markdown.render_diagrams,
+            on_toggle_render_diagrams: Box::new(move |_event, _window, cx| {
+                let _ = SettingsStore::update(cx, |s| s.markdown.render_diagrams = !s.markdown.render_diagrams);
             }),
         };
 
@@ -845,19 +816,117 @@ impl Shell {
             c,
             d,
             ("pref-sec-md", panel_id.0),
-            is_sec2_expanded,
-            self.toggle_settings_section_handler(cx, sec2_key),
+            is_sec_expanded,
+            self.toggle_settings_section_handler(cx, sec_key),
             markdown_props,
         ));
 
-        // 3. Startup Section
-        let sec3_key = "startup";
-        let is_sec3_expanded = self.panels.settings.expanded_sections.contains(sec3_key);
+        sections
+    }
+
+    fn render_panel_explorer_tab(
+        &mut self,
+        panel_id: PanelId,
+        theme: &Theme,
+        cx: &mut Context<Self>,
+    ) -> Vec<AnyElement> {
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        let mut sections = Vec::new();
+        let app_settings = SettingsStore::get(cx).clone();
+
+        let sec_key = "explorer";
+        let is_sec_expanded = self.panels.settings.expanded_sections.contains(sec_key);
+        let toggle_sort_mode_dd = cx.entity().downgrade();
+        let toggle_sort_order_dd = cx.entity().downgrade();
+        let select_sort_mode_shell = cx.entity().downgrade();
+        let select_sort_order_shell = cx.entity().downgrade();
+
+        let explorer_props = ExplorerProps {
+            hide_hidden: app_settings.explorer.hide_hidden,
+            on_toggle_hide_hidden: Box::new(move |_event, _window, cx| {
+                let _ = SettingsStore::update(cx, |s| s.explorer.hide_hidden = !s.explorer.hide_hidden);
+            }),
+            sort_mode: app_settings.explorer.sort_mode,
+            is_sort_mode_open: self.panels.settings.open_dropdown.as_deref() == Some("exp_sort_mode"),
+            on_toggle_sort_mode: Box::new(move |_event, _window, cx| {
+                let _ = toggle_sort_mode_dd.update(cx, |shell, cx| {
+                    if shell.panels.settings.open_dropdown.as_deref() == Some("exp_sort_mode") {
+                        shell.panels.settings.open_dropdown = None;
+                    } else {
+                        shell.panels.settings.open_dropdown = Some("exp_sort_mode".to_string());
+                    }
+                    cx.notify();
+                });
+            }),
+            on_select_sort_mode: Box::new(move |mode| {
+                let shell = select_sort_mode_shell.clone();
+                Box::new(move |_event, _window, cx| {
+                    let _ = SettingsStore::update(cx, |s| s.explorer.sort_mode = mode);
+                    let _ = shell.update(cx, |shell, cx| {
+                        shell.panels.settings.open_dropdown = None;
+                        cx.notify();
+                    });
+                })
+            }),
+            sort_order: app_settings.explorer.sort_order,
+            is_sort_order_open: self.panels.settings.open_dropdown.as_deref() == Some("exp_sort_order"),
+            on_toggle_sort_order: Box::new(move |_event, _window, cx| {
+                let _ = toggle_sort_order_dd.update(cx, |shell, cx| {
+                    if shell.panels.settings.open_dropdown.as_deref() == Some("exp_sort_order") {
+                        shell.panels.settings.open_dropdown = None;
+                    } else {
+                        shell.panels.settings.open_dropdown = Some("exp_sort_order".to_string());
+                    }
+                    cx.notify();
+                });
+            }),
+            on_select_sort_order: Box::new(move |order| {
+                let shell = select_sort_order_shell.clone();
+                Box::new(move |_event, _window, cx| {
+                    let _ = SettingsStore::update(cx, |s| s.explorer.sort_order = order);
+                    let _ = shell.update(cx, |shell, cx| {
+                        shell.panels.settings.open_dropdown = None;
+                        cx.notify();
+                    });
+                })
+            }),
+            auto_reveal: app_settings.explorer.auto_reveal,
+            on_toggle_auto_reveal: Box::new(move |_event, _window, cx| {
+                let _ = SettingsStore::update(cx, |s| s.explorer.auto_reveal = !s.explorer.auto_reveal);
+            }),
+        };
+
+        sections.push(render_explorer_section(
+            c,
+            d,
+            ("pref-sec-explorer", panel_id.0),
+            is_sec_expanded,
+            self.toggle_settings_section_handler(cx, sec_key),
+            explorer_props,
+        ));
+
+        sections
+    }
+
+    fn render_panel_startup_tab(
+        &mut self,
+        panel_id: PanelId,
+        theme: &Theme,
+        cx: &mut Context<Self>,
+    ) -> Vec<AnyElement> {
+        let c = &theme.colors;
+        let d = &theme.dimensions;
+        let mut sections = Vec::new();
+        let app_settings = SettingsStore::get(cx).clone();
+
+        let sec_key = "startup";
+        let is_sec_expanded = self.panels.settings.expanded_sections.contains(sec_key);
         let toggle_startup_dd = cx.entity().downgrade();
         let select_startup_shell = cx.entity().downgrade();
 
         let startup_props = StartupProps {
-            startup_option: self.panels.settings.pref_startup_option,
+            startup_open: app_settings.startup.open,
             is_startup_open: self.panels.settings.open_dropdown.as_deref() == Some("startup"),
             on_toggle_startup: Box::new(move |_event, _window, cx| {
                 let _ = toggle_startup_dd.update(cx, |shell, cx| {
@@ -869,15 +938,19 @@ impl Shell {
                     cx.notify();
                 });
             }),
-            on_select_startup: Box::new(move |idx| {
+            on_select_startup: Box::new(move |open_setting| {
                 let shell = select_startup_shell.clone();
                 Box::new(move |_event, _window, cx| {
+                    let _ = SettingsStore::update(cx, |s| s.startup.open = open_setting);
                     let _ = shell.update(cx, |shell, cx| {
-                        shell.panels.settings.pref_startup_option = idx;
                         shell.panels.settings.open_dropdown = None;
                         cx.notify();
                     });
                 })
+            }),
+            restore_window_state: app_settings.startup.restore_window_state,
+            on_toggle_restore_window_state: Box::new(move |_event, _window, cx| {
+                let _ = SettingsStore::update(cx, |s| s.startup.restore_window_state = !s.startup.restore_window_state);
             }),
         };
 
@@ -885,15 +958,15 @@ impl Shell {
             c,
             d,
             ("pref-sec-startup", panel_id.0),
-            is_sec3_expanded,
-            self.toggle_settings_section_handler(cx, sec3_key),
+            is_sec_expanded,
+            self.toggle_settings_section_handler(cx, sec_key),
             startup_props,
         ));
 
         sections
     }
 
-    fn render_panel_shortcuts_tab(
+    fn render_panel_keymap_tab(
         &mut self,
         panel_id: PanelId,
         theme: &Theme,
@@ -925,6 +998,18 @@ impl Shell {
             is_sec2_expanded,
             self.toggle_settings_section_handler(cx, sec2_key),
             crate::settings::components::shortcuts_data::interface_view_shortcuts(),
+        ));
+
+        let sec3_key = "editor_shortcuts";
+        let is_sec3_expanded = self.panels.settings.expanded_sections.contains(sec3_key);
+        sections.push(render_shortcuts_section(
+            c,
+            d,
+            ("pref-sec-editor-shortcuts", panel_id.0),
+            "Text Editing & Formatting",
+            is_sec3_expanded,
+            self.toggle_settings_section_handler(cx, sec3_key),
+            crate::settings::components::shortcuts_data::editor_editing_shortcuts(),
         ));
 
         sections

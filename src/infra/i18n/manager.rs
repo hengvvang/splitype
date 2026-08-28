@@ -33,7 +33,7 @@ impl I18nManager {
     #[cfg(test)]
     pub fn init(cx: &mut App) {
         let language_id = crate::infra::config::settings::read_app_settings()
-            .map(|settings| settings.default_language_id)
+            .map(|settings| settings.interface.language_id)
             .unwrap_or_else(|_| BUILTIN_LANGUAGE_EN_US_ID.into());
         Self::init_with_language_id(cx, &language_id);
     }

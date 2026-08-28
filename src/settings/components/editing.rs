@@ -1,4 +1,4 @@
-//! Editing settings components: Typography, Markdown & Assets, Startup.
+//! Editing settings components: Typography & Fonts, Editor Behavior.
 
 use gpui::*;
 
@@ -8,7 +8,6 @@ use crate::settings::components::number_field::{NumberFieldProps, render_number_
 use crate::settings::ui_helpers::{
     SettingsClickHandler, make_row, make_row_with_reset, make_section,
 };
-use crate::ui::select::{select_option, select_panel, select_trigger};
 use crate::ui::switch::Switch;
 
 pub(crate) struct TypographyProps {
@@ -213,26 +212,40 @@ pub(crate) fn render_typography_section(
         ));
     }
 
-    make_section(c, d, id, "Typography & Formatting", expanded, toggle_fn, rows)
+    make_section(c, d, id, "Typography & Fonts", expanded, toggle_fn, rows)
 }
 
-pub(crate) struct MarkdownProps {
-    pub show_table_headers: bool,
-    pub on_toggle_table_headers: SettingsClickHandler,
+pub(crate) struct EditorBehaviorProps {
+    pub line_numbers: bool,
+    pub on_toggle_line_numbers: SettingsClickHandler,
 
-    pub image_paste_action: usize,
-    pub is_image_paste_open: bool,
-    pub on_toggle_image_paste: SettingsClickHandler,
-    pub on_select_image_paste: Box<dyn Fn(usize) -> SettingsClickHandler>,
+    pub word_wrap: bool,
+    pub on_toggle_word_wrap: SettingsClickHandler,
+
+    pub tab_size: u32,
+    pub is_editing_tab_size: bool,
+    pub edit_buffer_tab_size: Option<String>,
+    pub tab_size_focus_handle: FocusHandle,
+    pub on_tab_size_dec: SettingsClickHandler,
+    pub on_tab_size_inc: SettingsClickHandler,
+    pub on_start_edit_tab_size: Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>,
+    pub on_key_down_tab_size: Box<dyn Fn(&KeyDownEvent, &mut Window, &mut App) + 'static>,
+    pub on_reset_tab_size: Option<SettingsClickHandler>,
+
+    pub insert_spaces: bool,
+    pub on_toggle_insert_spaces: SettingsClickHandler,
+
+    pub highlight_active_line: bool,
+    pub on_toggle_highlight_active_line: SettingsClickHandler,
 }
 
-pub(crate) fn render_markdown_section(
+pub(crate) fn render_editor_behavior_section(
     c: &ThemeColors,
     d: &ThemeDimensions,
     id: impl Into<ElementId>,
     expanded: bool,
     toggle_fn: SettingsClickHandler,
-    props: MarkdownProps,
+    props: EditorBehaviorProps,
 ) -> AnyElement {
     let mut inner_border_color = c.dialog_border;
     inner_border_color.a *= 0.4;
@@ -240,190 +253,94 @@ pub(crate) fn render_markdown_section(
     let mut rows = Vec::new();
 
     if expanded {
-        let ctrl_tbl = Switch::new("switch-tbl-headers")
-            .checked(props.show_table_headers)
-            .on_click(props.on_toggle_table_headers)
+        // 1. Line Numbers Toggle
+        let ctrl_lines = Switch::new("switch-ed-linenums")
+            .checked(props.line_numbers)
+            .on_click(props.on_toggle_line_numbers)
             .into_any_element();
 
         rows.push(make_row(
             inner_border_color,
             c,
             d,
-            "Persistent Table Headers",
-            "Keep table column headers visible when editing table blocks",
-            ctrl_tbl,
+            "Line Numbers",
+            "Show line numbers in editor gutter and code blocks",
+            ctrl_lines,
         ));
 
-        let paste_options = [
-            "Save image to local .assets/ folder",
-            "Embed inline as Base64 data URI",
-            "Upload to remote cloud storage",
-        ];
-        let current_paste_label = paste_options
-            .get(props.image_paste_action)
-            .copied()
-            .unwrap_or(paste_options[0]);
-
-        let mut paste_btn_wrap = div().relative().child(
-            select_trigger("pref-btn-img-paste", c, d)
-                .text_size(px(12.0))
-                .text_color(c.text_default)
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w(px(0.0))
-                        .truncate()
-                        .child(current_paste_label),
-                )
-                .child(
-                    div().flex_shrink_0().pl(px(4.0)).child(
-                        svg()
-                            .path("icons/settings/select-chevron.svg")
-                            .size(px(16.0))
-                            .text_color(c.dialog_muted),
-                    ),
-                )
-                .on_click(props.on_toggle_image_paste),
-        );
-
-        if props.is_image_paste_open {
-            let mut menu_items = Vec::new();
-            for (idx, opt_label) in paste_options.iter().enumerate() {
-                let is_selected = idx == props.image_paste_action;
-                menu_items.push(
-                    select_option(ElementId::Name(format!("paste-item-{}", idx).into()), c, d)
-                        .bg(if is_selected {
-                            c.panel_row_selected
-                        } else {
-                            c.dialog_surface
-                        })
-                        .text_size(px(12.0))
-                        .text_color(c.text_default)
-                        .child(*opt_label)
-                        .child(if is_selected {
-                            svg()
-                                .path("icons/settings/checkmark.svg")
-                                .size(px(15.0))
-                                .text_color(c.dialog_primary_button_bg)
-                                .into_any_element()
-                        } else {
-                            div().w(px(13.0)).into_any_element()
-                        })
-                        .on_click((props.on_select_image_paste)(idx))
-                        .into_any_element(),
-                );
-            }
-
-            paste_btn_wrap =
-                paste_btn_wrap.child(gpui::deferred(select_panel(c, d).children(menu_items)));
-        }
+        // 2. Word Wrap Toggle
+        let ctrl_wrap = Switch::new("switch-ed-wordwrap")
+            .checked(props.word_wrap)
+            .on_click(props.on_toggle_word_wrap)
+            .into_any_element();
 
         rows.push(make_row(
             inner_border_color,
             c,
             d,
-            "Clipboard Image Paste Action",
-            "Target location and format when pasting images into editor",
-            paste_btn_wrap.into_any_element(),
+            "Soft Word Wrapping",
+            "Wrap long lines to fit the current window editor viewport width",
+            ctrl_wrap,
         ));
-    }
 
-    make_section(c, d, id, "Markdown & Document Elements", expanded, toggle_fn, rows)
-}
-
-pub(crate) struct StartupProps {
-    pub startup_option: usize,
-    pub is_startup_open: bool,
-    pub on_toggle_startup: SettingsClickHandler,
-    pub on_select_startup: Box<dyn Fn(usize) -> SettingsClickHandler>,
-}
-
-pub(crate) fn render_startup_section(
-    c: &ThemeColors,
-    d: &ThemeDimensions,
-    id: impl Into<ElementId>,
-    expanded: bool,
-    toggle_fn: SettingsClickHandler,
-    props: StartupProps,
-) -> AnyElement {
-    let mut inner_border_color = c.dialog_border;
-    inner_border_color.a *= 0.4;
-
-    let mut rows = Vec::new();
-
-    if expanded {
-        let startup_options = [
-            "Open New Blank Document",
-            "Reopen Last Opened Files",
-        ];
-        let current_startup_label = startup_options
-            .get(props.startup_option)
-            .copied()
-            .unwrap_or(startup_options[0]);
-
-        let mut startup_btn_wrap = div().relative().child(
-            select_trigger("pref-btn-startup", c, d)
-                .text_size(px(12.0))
-                .text_color(c.text_default)
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w(px(0.0))
-                        .truncate()
-                        .child(current_startup_label),
-                )
-                .child(
-                    div().flex_shrink_0().pl(px(4.0)).child(
-                        svg()
-                            .path("icons/settings/select-chevron.svg")
-                            .size(px(16.0))
-                            .text_color(c.dialog_muted),
-                    ),
-                )
-                .on_click(props.on_toggle_startup),
+        // 3. Tab Size
+        let ctrl_tab_size = render_number_field(
+            c,
+            d,
+            NumberFieldProps {
+                id_prefix: "pref-tab-size",
+                value_text: format!("{}", props.tab_size),
+                is_editing: props.is_editing_tab_size,
+                edit_buffer: props.edit_buffer_tab_size,
+                focus_handle: props.tab_size_focus_handle,
+                on_dec: props.on_tab_size_dec,
+                on_inc: props.on_tab_size_inc,
+                on_start_edit: props.on_start_edit_tab_size,
+                on_key_down: props.on_key_down_tab_size,
+            },
         );
 
-        if props.is_startup_open {
-            let mut menu_items = Vec::new();
-            for (idx, opt_label) in startup_options.iter().enumerate() {
-                let is_selected = idx == props.startup_option;
-                menu_items.push(
-                    select_option(ElementId::Name(format!("startup-item-{}", idx).into()), c, d)
-                        .bg(if is_selected {
-                            c.panel_row_selected
-                        } else {
-                            c.dialog_surface
-                        })
-                        .text_size(px(12.0))
-                        .text_color(c.text_default)
-                        .child(*opt_label)
-                        .child(if is_selected {
-                            svg()
-                                .path("icons/settings/checkmark.svg")
-                                .size(px(15.0))
-                                .text_color(c.dialog_primary_button_bg)
-                                .into_any_element()
-                        } else {
-                            div().w(px(13.0)).into_any_element()
-                        })
-                        .on_click((props.on_select_startup)(idx))
-                        .into_any_element(),
-                );
-            }
+        rows.push(make_row_with_reset(
+            inner_border_color,
+            c,
+            d,
+            "Tab Indentation Width",
+            "The number of spaces a tab character equals (2, 4, or 8 spaces)",
+            props.on_reset_tab_size,
+            ctrl_tab_size,
+        ));
 
-            startup_btn_wrap =
-                startup_btn_wrap.child(gpui::deferred(select_panel(c, d).children(menu_items)));
-        }
+        // 4. Insert Spaces for Tabs
+        let ctrl_spaces = Switch::new("switch-ed-spaces")
+            .checked(props.insert_spaces)
+            .on_click(props.on_toggle_insert_spaces)
+            .into_any_element();
 
         rows.push(make_row(
             inner_border_color,
             c,
             d,
-            "App Startup Behavior",
-            "Default workspace and document state upon launching Splitype",
-            startup_btn_wrap.into_any_element(),
+            "Insert Spaces on Tab",
+            "Pressing Tab key inserts spaces instead of literal tab characters",
+            ctrl_spaces,
+        ));
+
+        // 5. Highlight Active Line
+        let ctrl_active_line = Switch::new("switch-ed-active-line")
+            .checked(props.highlight_active_line)
+            .on_click(props.on_toggle_highlight_active_line)
+            .into_any_element();
+
+        rows.push(make_row(
+            inner_border_color,
+            c,
+            d,
+            "Highlight Active Line",
+            "Subtly highlight the background of the line containing text cursor",
+            ctrl_active_line,
         ));
     }
 
-    make_section(c, d, id, "Application Startup", expanded, toggle_fn, rows)
+    make_section(c, d, id, "Editor Behaviors & Indentation", expanded, toggle_fn, rows)
 }
+

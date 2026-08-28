@@ -20,7 +20,7 @@ use crate::app::window::open_editor_window;
 use crate::app::window::open_file_in_new_window;
 use crate::editor::keybindings::init_with_keybindings as init_editor;
 use crate::infra::config::settings::{
-    EditorSettings, ExplorerSettingsStore, StartupOpenSetting, first_existing_recent_markdown_file,
+    SettingsStore, StartupOpenSetting, first_existing_recent_markdown_file,
     load_or_create_app_settings,
 };
 use crate::infra::i18n::I18nManager;
@@ -38,14 +38,17 @@ fn relaunch_detached() {
     let exe_path = std::env::current_exe().expect("Failed to get executable path");
     let non_detach_args: Vec<String> = args
         .iter()
-        .filter(|arg| *arg != "--detach" && *arg != "-d")
+        .skip(1)
+        .filter(|arg| *arg != "--relaunch-detached")
         .cloned()
         .collect();
 
-    Command::new(exe_path)
-        .args(&non_detach_args[1..])
-        .spawn()
-        .expect("Failed to detach process");
+    let mut command = Command::new(exe_path);
+    command.args(non_detach_args);
+    if let Ok(mut child) = command.spawn() {
+        std::mem::forget(child);
+        std::process::exit(0);
+    }
 }
 
 fn open_startup_window(cx: &mut App, startup_open: StartupOpenSetting) {
@@ -88,6 +91,7 @@ pub fn run(args: Args) {
 
     let app = gpui_platform::application().with_assets(crate::app::assets::SplitypeAssets);
 
+
     #[cfg(target_os = "macos")]
     {
         let open_file_requested_for_callback = open_file_requested.clone();
@@ -111,11 +115,10 @@ pub fn run(args: Args) {
             tracing::warn!(error = %err, "failed to initialize app settings, falling back to default");
             Default::default()
         });
-        I18nManager::init_with_language_id(cx, &settings.default_language_id);
-        ThemeManager::init_with_theme_id(cx, &settings.default_theme_id);
+        SettingsStore::init(cx, settings.clone());
+        I18nManager::init_with_language_id(cx, &settings.interface.language_id);
+        ThemeManager::init_with_theme_id(cx, &settings.interface.theme_id);
         crate::infra::theme::TypographyStore::init(cx, settings.typography.clone());
-        EditorSettings::init(cx, settings.show_table_headers);
-        ExplorerSettingsStore::init(cx);
         install_http_client(cx);
         init_editor(cx, &settings.keybindings);
         init_app_menu(cx);
@@ -148,7 +151,7 @@ pub fn run(args: Args) {
         if args.input_paths.is_empty() {
             #[cfg(target_os = "macos")]
             {
-                let startup_open = settings.startup_open;
+                let startup_open = settings.startup.open;
                 let open_file_requested = open_file_requested.clone();
                 cx.spawn(async move |cx| {
                     cx.background_executor()
@@ -162,7 +165,7 @@ pub fn run(args: Args) {
             }
 
             #[cfg(not(target_os = "macos"))]
-            open_startup_window(cx, settings.startup_open);
+            open_startup_window(cx, settings.startup.open);
 
             return;
         }

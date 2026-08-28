@@ -1,4 +1,4 @@
-﻿//! Bottom status bar of an Editor area: mode pill, cursor position, word
+//! Bottom status bar of an Editor area: mode pill, cursor position, word
 //! count, and split/close controls.
 //!
 //! The pure word counter lives in [`words`]. The shared bar container comes
@@ -14,7 +14,7 @@ use gpui::prelude::*;
 use gpui::*;
 
 use crate::editor::engine::controller::Editor;
-use crate::infra::config::settings::{EditorSettings, StatusBarSettings};
+use crate::infra::config::settings::{SettingsStore, StatusBarSettings};
 use crate::infra::i18n::I18nStrings;
 use crate::infra::theme::Theme;
 use crate::splitter::SplitAxis;
@@ -283,7 +283,7 @@ impl Editor {
     }
 
     pub(crate) fn bottombar_settings(&self, cx: &App) -> StatusBarSettings {
-        EditorSettings::status_bar_settings(cx)
+        SettingsStore::settings(cx).status_bar
     }
 
     /// Returns (line, col), both 1-based, for the current caret.

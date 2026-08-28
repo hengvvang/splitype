@@ -48,9 +48,14 @@ pub fn interface_view_shortcuts() -> &'static [ShortcutItem] {
             shortcut: "Ctrl + Shift + M",
         },
         ShortcutItem {
-            name: "Toggle ExplorerState Tree",
+            name: "Toggle Explorer Tree",
             description: "Show or collapse the left file navigation sidebar",
             shortcut: "Ctrl + E",
+        },
+        ShortcutItem {
+            name: "Open Settings",
+            description: "Open the application configuration and settings",
+            shortcut: "Ctrl + ,",
         },
         ShortcutItem {
             name: "Quit Application",
@@ -59,3 +64,35 @@ pub fn interface_view_shortcuts() -> &'static [ShortcutItem] {
         },
     ]
 }
+
+/// Returns standard text editing and Markdown formatting shortcuts.
+pub fn editor_editing_shortcuts() -> &'static [ShortcutItem] {
+    &[
+        ShortcutItem {
+            name: "Bold Formatting",
+            description: "Toggle bold text formatting on selection",
+            shortcut: "Ctrl + B",
+        },
+        ShortcutItem {
+            name: "Italic Formatting",
+            description: "Toggle italic text formatting on selection",
+            shortcut: "Ctrl + I",
+        },
+        ShortcutItem {
+            name: "Insert Link",
+            description: "Insert or edit a Markdown hyperlink",
+            shortcut: "Ctrl + K",
+        },
+        ShortcutItem {
+            name: "Undo",
+            description: "Undo previous editor mutation",
+            shortcut: "Ctrl + Z",
+        },
+        ShortcutItem {
+            name: "Redo",
+            description: "Redo previously undone editor mutation",
+            shortcut: "Ctrl + Y / Ctrl + Shift + Z",
+        },
+    ]
+}
+

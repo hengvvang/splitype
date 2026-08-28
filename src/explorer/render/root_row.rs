@@ -105,7 +105,7 @@ impl Shell {
         let shell_hidden = shell.clone();
         let worktree_id = entry.worktree_id;
         let hide_hidden =
-            crate::infra::config::settings::ExplorerSettingsStore::settings(cx).hide_hidden;
+            crate::infra::config::settings::SettingsStore::get(cx).explorer.hide_hidden;
 
         // Title buttons: visible only while the root row is expanded. The
         // set mirrors the panel toolbar: replace folder, toggle hidden

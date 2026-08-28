@@ -1,4 +1,4 @@
-﻿//! Clipboard image paste flow: storage resolution, file materialization,
+//! Clipboard image paste flow: storage resolution, file materialization,
 //! and markdown insertion.
 
 use std::fs;
@@ -15,7 +15,7 @@ use crate::model::parse::BlockKind;
 impl Editor {
     pub(crate) fn current_image_paste_behavior() -> ImagePasteBehavior {
         read_app_settings()
-            .map(|preferences| preferences.image_paste_behavior)
+            .map(|preferences| preferences.markdown.image_paste_behavior)
             .unwrap_or(ImagePasteBehavior::None)
     }
 

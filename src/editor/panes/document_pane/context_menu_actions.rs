@@ -1,4 +1,4 @@
-﻿//! Table manipulation actions triggered from the table-axis context
+//! Table manipulation actions triggered from the table-axis context
 //! menu: alignment, row/column moves, inserts, duplicates, deletes, and
 //! header toggling.
 
@@ -315,8 +315,9 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let next = !crate::infra::config::settings::EditorSettings::show_table_headers(cx);
-        crate::infra::config::settings::EditorSettings::set_show_table_headers(cx, next);
+        let _ = crate::infra::config::settings::SettingsStore::update(cx, |s| {
+            s.markdown.show_table_headers = !s.markdown.show_table_headers;
+        });
         self.close_context_menu(cx);
         // The preference is read while rendering table cells; re-render the
         // editor (and with it every table) to reflect the new styling.

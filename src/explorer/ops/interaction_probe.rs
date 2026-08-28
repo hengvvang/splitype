@@ -28,7 +28,7 @@ fn init_explorer_test_app(cx: &mut TestAppContext) {
         crate::infra::i18n::I18nManager::init(cx);
         crate::infra::theme::ThemeManager::init(cx);
         crate::editor::keybindings::init(cx);
-        crate::infra::config::settings::ExplorerSettingsStore::init(cx);
+        crate::infra::config::settings::SettingsStore::init_default(cx);
     });
 }
 
