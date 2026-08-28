@@ -3,6 +3,7 @@
 pub(crate) mod editing;
 pub(crate) mod font_picker;
 pub(crate) mod interface;
+pub(crate) mod number_field;
 pub(crate) mod shortcuts;
 pub(crate) mod shortcuts_data;
 

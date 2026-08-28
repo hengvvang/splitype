@@ -52,7 +52,10 @@ pub(crate) struct SettingsWindow {
     pub(crate) search_query_ui_font: String,
     pub(crate) search_query_prose_font: String,
     pub(crate) search_query_code_font: String,
-    pub(crate) editing_stepper: Option<String>,
+    pub(crate) editing_font_size: Option<String>,
+    pub(crate) editing_line_height: Option<String>,
+    pub(crate) font_size_focus_handle: Option<FocusHandle>,
+    pub(crate) line_height_focus_handle: Option<FocusHandle>,
     pub(crate) status_bar_enabled: bool,
     pub(crate) status_bar_show_word_count: bool,
     pub(crate) status_bar_show_cursor_position: bool,
@@ -128,7 +131,10 @@ impl SettingsWindow {
             line_height,
             saved_font_size: font_size,
             saved_line_height: line_height,
-            editing_stepper: None,
+            editing_font_size: None,
+            editing_line_height: None,
+            font_size_focus_handle: None,
+            line_height_focus_handle: None,
             status_bar_enabled: settings.status_bar.enabled,
             status_bar_show_word_count: settings.status_bar.show_word_count,
             status_bar_show_cursor_position: settings.status_bar.show_cursor_position,
@@ -300,10 +306,8 @@ impl SettingsWindow {
         let is_sec1_expanded = self.expanded_sections.contains(sec1_key);
         let font_dec = cx.entity().downgrade();
         let font_inc = cx.entity().downgrade();
-        let font_ctr = cx.entity().downgrade();
         let lh_dec = cx.entity().downgrade();
         let lh_inc = cx.entity().downgrade();
-        let lh_ctr = cx.entity().downgrade();
 
         let toggle_ui_font = cx.entity().downgrade();
         let toggle_prose_font = cx.entity().downgrade();
@@ -342,6 +346,23 @@ impl SettingsWindow {
         let has_custom_code = self.code_font_family.is_some();
         let has_custom_fs = self.font_size != 16;
         let has_custom_lh = (self.line_height - 1.6).abs() > 0.01;
+
+        let fs_focus = self
+            .font_size_focus_handle
+            .get_or_insert_with(|| cx.focus_handle())
+            .clone();
+        let lh_focus = self
+            .line_height_focus_handle
+            .get_or_insert_with(|| cx.focus_handle())
+            .clone();
+
+        let start_fs_win = cx.entity().downgrade();
+        let key_fs_win = cx.entity().downgrade();
+        let fs_focus_clone = fs_focus.clone();
+
+        let start_lh_win = cx.entity().downgrade();
+        let key_lh_win = cx.entity().downgrade();
+        let lh_focus_clone = lh_focus.clone();
 
         let typography_props = TypographyProps {
             ui_font_name,
@@ -464,15 +485,19 @@ impl SettingsWindow {
             available_fonts,
 
             font_size: self.font_size,
-            is_editing_font: self.editing_stepper.as_deref() == Some("font"),
+            is_editing_font_size: self.editing_font_size.is_some(),
+            edit_buffer_font_size: self.editing_font_size.clone(),
+            font_size_focus_handle: fs_focus,
             on_font_dec: Box::new(move |event, _window, cx| {
                 let step = if event.modifiers().shift { 4 } else { 1 };
                 let _ = font_dec.update(cx, |this, cx| {
-                    this.editing_stepper = None;
                     if this.font_size > (8 + step) {
                         this.font_size -= step;
                     } else {
                         this.font_size = 8;
+                    }
+                    if this.editing_font_size.is_some() {
+                        this.editing_font_size = Some(format!("{}", this.font_size));
                     }
                     cx.notify();
                 });
@@ -480,27 +505,78 @@ impl SettingsWindow {
             on_font_inc: Box::new(move |event, _window, cx| {
                 let step = if event.modifiers().shift { 4 } else { 1 };
                 let _ = font_inc.update(cx, |this, cx| {
-                    this.editing_stepper = None;
                     if this.font_size + step <= 72 {
                         this.font_size += step;
                     } else {
                         this.font_size = 72;
                     }
+                    if this.editing_font_size.is_some() {
+                        this.editing_font_size = Some(format!("{}", this.font_size));
+                    }
                     cx.notify();
                 });
             }),
-            on_font_cycle: Box::new(move |_event, _window, cx| {
-                let _ = font_ctr.update(cx, |this, cx| {
-                    this.editing_stepper = Some("font".to_string());
-                    this.font_size = match this.font_size {
-                        12 => 14,
-                        14 => 16,
-                        16 => 18,
-                        18 => 20,
-                        20 => 24,
-                        24 => 12,
-                        _ => 16,
-                    };
+            on_start_edit_font_size: Box::new(move |_event, window, cx| {
+                window.focus(&fs_focus_clone, cx);
+                let _ = start_fs_win.update(cx, |this, cx| {
+                    this.editing_font_size = Some(format!("{}", this.font_size));
+                    this.editing_line_height = None;
+                    cx.notify();
+                });
+            }),
+            on_key_down_font_size: Box::new(move |event, _window, cx| {
+                let key = event.keystroke.key.as_str();
+                let _ = key_fs_win.update(cx, |this, cx| {
+                    let mut commit_val = None;
+                    let mut cancel = false;
+
+                    if let Some(buf) = &mut this.editing_font_size {
+                        match key {
+                            "enter" => {
+                                if let Ok(v) = buf.parse::<u32>() {
+                                    commit_val = Some(v.clamp(8, 72));
+                                } else {
+                                    cancel = true;
+                                }
+                            }
+                            "escape" => {
+                                cancel = true;
+                            }
+                            "backspace" => {
+                                buf.pop();
+                            }
+                            "up" => {
+                                let step = if event.keystroke.modifiers.shift { 4 } else { 1 };
+                                let curr = buf.parse::<u32>().unwrap_or(this.font_size);
+                                let new_v = (curr + step).min(72);
+                                *buf = format!("{}", new_v);
+                                commit_val = Some(new_v);
+                            }
+                            "down" => {
+                                let step = if event.keystroke.modifiers.shift { 4 } else { 1 };
+                                let curr = buf.parse::<u32>().unwrap_or(this.font_size);
+                                let new_v = if curr > 8 + step { curr - step } else { 8 };
+                                *buf = format!("{}", new_v);
+                                commit_val = Some(new_v);
+                            }
+                            k if k.len() == 1 && k.chars().all(|c| c.is_ascii_digit()) => {
+                                if buf.len() < 2 {
+                                    buf.push_str(k);
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    if let Some(v) = commit_val {
+                        this.font_size = v;
+                        if key == "enter" {
+                            this.editing_font_size = None;
+                        }
+                    } else if cancel {
+                        this.editing_font_size = None;
+                    }
+
                     cx.notify();
                 });
             }),
@@ -508,6 +584,7 @@ impl SettingsWindow {
                 Some(Box::new(move |_event, _window, cx| {
                     let _ = reset_fs_win.update(cx, |this, cx| {
                         this.font_size = 16;
+                        this.editing_font_size = None;
                         cx.notify();
                     });
                 }))
@@ -516,15 +593,19 @@ impl SettingsWindow {
             },
 
             line_height: self.line_height,
-            is_editing_lh: self.editing_stepper.as_deref() == Some("line_height"),
+            is_editing_line_height: self.editing_line_height.is_some(),
+            edit_buffer_line_height: self.editing_line_height.clone(),
+            line_height_focus_handle: lh_focus,
             on_lh_dec: Box::new(move |event, _window, cx| {
                 let step = if event.modifiers().shift { 0.5 } else if event.modifiers().alt { 0.05 } else { 0.1 };
                 let _ = lh_dec.update(cx, |this, cx| {
-                    this.editing_stepper = None;
                     if this.line_height > (1.0 + step) {
                         this.line_height -= step;
                     } else {
                         this.line_height = 1.0;
+                    }
+                    if this.editing_line_height.is_some() {
+                        this.editing_line_height = Some(format!("{:.2}", this.line_height));
                     }
                     cx.notify();
                 });
@@ -532,27 +613,80 @@ impl SettingsWindow {
             on_lh_inc: Box::new(move |event, _window, cx| {
                 let step = if event.modifiers().shift { 0.5 } else if event.modifiers().alt { 0.05 } else { 0.1 };
                 let _ = lh_inc.update(cx, |this, cx| {
-                    this.editing_stepper = None;
                     if this.line_height + step <= 3.0 {
                         this.line_height += step;
                     } else {
                         this.line_height = 3.0;
                     }
+                    if this.editing_line_height.is_some() {
+                        this.editing_line_height = Some(format!("{:.2}", this.line_height));
+                    }
                     cx.notify();
                 });
             }),
-            on_lh_cycle: Box::new(move |_event, _window, cx| {
-                let _ = lh_ctr.update(cx, |this, cx| {
-                    this.editing_stepper = Some("line_height".to_string());
-                    this.line_height = if (this.line_height - 1.6).abs() < 0.05 {
-                        1.8
-                    } else if (this.line_height - 1.8).abs() < 0.05 {
-                        2.0
-                    } else if (this.line_height - 2.0).abs() < 0.05 {
-                        1.4
-                    } else {
-                        1.6
-                    };
+            on_start_edit_line_height: Box::new(move |_event, window, cx| {
+                window.focus(&lh_focus_clone, cx);
+                let _ = start_lh_win.update(cx, |this, cx| {
+                    this.editing_line_height = Some(format!("{:.2}", this.line_height));
+                    this.editing_font_size = None;
+                    cx.notify();
+                });
+            }),
+            on_key_down_line_height: Box::new(move |event, _window, cx| {
+                let key = event.keystroke.key.as_str();
+                let _ = key_lh_win.update(cx, |this, cx| {
+                    let mut commit_val = None;
+                    let mut cancel = false;
+
+                    if let Some(buf) = &mut this.editing_line_height {
+                        match key {
+                            "enter" => {
+                                if let Ok(v) = buf.parse::<f32>() {
+                                    commit_val = Some(v.clamp(1.0, 3.0));
+                                } else {
+                                    cancel = true;
+                                }
+                            }
+                            "escape" => {
+                                cancel = true;
+                            }
+                            "backspace" => {
+                                buf.pop();
+                            }
+                            "up" => {
+                                let step = if event.keystroke.modifiers.shift { 0.5 } else if event.keystroke.modifiers.alt { 0.05 } else { 0.1 };
+                                let curr = buf.parse::<f32>().unwrap_or(this.line_height);
+                                let new_v = (curr + step).min(3.0);
+                                *buf = format!("{:.2}", new_v);
+                                commit_val = Some(new_v);
+                            }
+                            "down" => {
+                                let step = if event.keystroke.modifiers.shift { 0.5 } else if event.keystroke.modifiers.alt { 0.05 } else { 0.1 };
+                                let curr = buf.parse::<f32>().unwrap_or(this.line_height);
+                                let new_v = if curr > 1.0 + step { curr - step } else { 1.0 };
+                                *buf = format!("{:.2}", new_v);
+                                commit_val = Some(new_v);
+                            }
+                            k if (k.len() == 1 && k.chars().all(|c| c.is_ascii_digit())) || k == "." => {
+                                if buf.len() < 4 {
+                                    if k != "." || !buf.contains('.') {
+                                        buf.push_str(k);
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    if let Some(v) = commit_val {
+                        this.line_height = v;
+                        if key == "enter" {
+                            this.editing_line_height = None;
+                        }
+                    } else if cancel {
+                        this.editing_line_height = None;
+                    }
+
                     cx.notify();
                 });
             }),
@@ -560,6 +694,7 @@ impl SettingsWindow {
                 Some(Box::new(move |_event, _window, cx| {
                     let _ = reset_lh_win.update(cx, |this, cx| {
                         this.line_height = 1.6;
+                        this.editing_line_height = None;
                         cx.notify();
                     });
                 }))

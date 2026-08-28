@@ -43,10 +43,13 @@ pub struct SettingsUiState {
     pub pref_image_paste_action: usize,
     pub pref_startup_option: usize,
     pub open_dropdown: Option<String>,
-    pub editing_stepper: Option<String>,
     pub search_query_ui_font: String,
     pub search_query_prose_font: String,
     pub search_query_code_font: String,
+    pub editing_font_size: Option<String>,
+    pub editing_line_height: Option<String>,
+    pub font_size_focus_handle: Option<gpui::FocusHandle>,
+    pub line_height_focus_handle: Option<gpui::FocusHandle>,
 }
 
 impl Default for SettingsUiState {
@@ -79,10 +82,13 @@ impl SettingsUiState {
             pref_image_paste_action: 0,
             pref_startup_option: 0,
             open_dropdown: None,
-            editing_stepper: None,
             search_query_ui_font: String::new(),
             search_query_prose_font: String::new(),
             search_query_code_font: String::new(),
+            editing_font_size: None,
+            editing_line_height: None,
+            font_size_focus_handle: None,
+            line_height_focus_handle: None,
         }
     }
 }

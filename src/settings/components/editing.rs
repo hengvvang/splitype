@@ -4,8 +4,9 @@ use gpui::*;
 
 use crate::infra::theme::{ThemeColors, ThemeDimensions};
 use crate::settings::components::font_picker::{SearchableFontPickerProps, render_searchable_font_picker};
+use crate::settings::components::number_field::{NumberFieldProps, render_number_field};
 use crate::settings::ui_helpers::{
-    SettingsClickHandler, make_row, make_row_with_reset, make_section, render_zed_stepper,
+    SettingsClickHandler, make_row, make_row_with_reset, make_section,
 };
 use crate::ui::select::{select_option, select_panel, select_trigger};
 use crate::ui::switch::Switch;
@@ -38,17 +39,23 @@ pub(crate) struct TypographyProps {
     pub available_fonts: Vec<SharedString>,
 
     pub font_size: u32,
-    pub is_editing_font: bool,
+    pub is_editing_font_size: bool,
+    pub edit_buffer_font_size: Option<String>,
+    pub font_size_focus_handle: FocusHandle,
     pub on_font_dec: SettingsClickHandler,
     pub on_font_inc: SettingsClickHandler,
-    pub on_font_cycle: SettingsClickHandler,
+    pub on_start_edit_font_size: Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>,
+    pub on_key_down_font_size: Box<dyn Fn(&KeyDownEvent, &mut Window, &mut App) + 'static>,
     pub on_reset_font_size: Option<SettingsClickHandler>,
 
     pub line_height: f32,
-    pub is_editing_lh: bool,
+    pub is_editing_line_height: bool,
+    pub edit_buffer_line_height: Option<String>,
+    pub line_height_focus_handle: FocusHandle,
     pub on_lh_dec: SettingsClickHandler,
     pub on_lh_inc: SettingsClickHandler,
-    pub on_lh_cycle: SettingsClickHandler,
+    pub on_start_edit_line_height: Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>,
+    pub on_key_down_line_height: Box<dyn Fn(&KeyDownEvent, &mut Window, &mut App) + 'static>,
     pub on_reset_line_height: Option<SettingsClickHandler>,
 }
 
@@ -142,17 +149,20 @@ pub(crate) fn render_typography_section(
         ));
 
         // 4. Document Font Size Row
-        let ctrl_font = render_zed_stepper(
+        let ctrl_font = render_number_field(
             c,
             d,
-            "pref-font-dec",
-            "pref-font-inc",
-            format!("{}", props.font_size),
-            "px",
-            props.is_editing_font,
-            props.on_font_dec,
-            props.on_font_inc,
-            props.on_font_cycle,
+            NumberFieldProps {
+                id_prefix: "pref-font-size",
+                value_text: format!("{}", props.font_size),
+                is_editing: props.is_editing_font_size,
+                edit_buffer: props.edit_buffer_font_size,
+                focus_handle: props.font_size_focus_handle,
+                on_dec: props.on_font_dec,
+                on_inc: props.on_font_inc,
+                on_start_edit: props.on_start_edit_font_size,
+                on_key_down: props.on_key_down_font_size,
+            },
         );
 
         rows.push(make_row_with_reset(
@@ -166,17 +176,20 @@ pub(crate) fn render_typography_section(
         ));
 
         // 5. Line Spacing Multiplier Row
-        let ctrl_lh = render_zed_stepper(
+        let ctrl_lh = render_number_field(
             c,
             d,
-            "pref-lh-dec",
-            "pref-lh-inc",
-            format!("{:.2}", props.line_height),
-            "",
-            props.is_editing_lh,
-            props.on_lh_dec,
-            props.on_lh_inc,
-            props.on_lh_cycle,
+            NumberFieldProps {
+                id_prefix: "pref-line-height",
+                value_text: format!("{:.2}", props.line_height),
+                is_editing: props.is_editing_line_height,
+                edit_buffer: props.edit_buffer_line_height,
+                focus_handle: props.line_height_focus_handle,
+                on_dec: props.on_lh_dec,
+                on_inc: props.on_lh_inc,
+                on_start_edit: props.on_start_edit_line_height,
+                on_key_down: props.on_key_down_line_height,
+            },
         );
 
         rows.push(make_row_with_reset(

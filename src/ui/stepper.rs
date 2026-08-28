@@ -16,6 +16,7 @@ pub fn stepper_container(c: &ThemeColors, d: &ThemeDimensions) -> Div {
         .border_1()
         .border_color(c.dialog_border)
         .bg(c.dialog_secondary_button_bg)
+        .overflow_hidden()
 }
 
 /// Stepper increment/decrement button.
@@ -24,7 +25,8 @@ pub fn stepper_step_button(id: impl Into<ElementId>, c: &ThemeColors) -> Statefu
         .id(id)
         .cursor_pointer()
         .h_full()
-        .w(px(32.0))
+        .w(px(28.0))
+        .flex_shrink_0()
         .flex()
         .items_center()
         .justify_center()
@@ -36,17 +38,16 @@ pub fn stepper_step_button(id: impl Into<ElementId>, c: &ThemeColors) -> Statefu
 
 /// Thin divider between stepper sections.
 pub fn stepper_divider(c: &ThemeColors) -> Div {
-    div().w(px(1.0)).h_full().bg(c.dialog_border)
+    div().w(px(1.0)).h_full().flex_shrink_0().bg(c.dialog_border)
 }
 
 /// Stepper value display (editing background stays at call sites).
 pub fn stepper_value() -> Div {
     div()
-        .cursor_pointer()
         .h_full()
         .flex_1()
         .min_w(px(0.0))
-        .px(px(4.0))
+        .px(px(6.0))
         .flex()
         .items_center()
         .justify_center()
