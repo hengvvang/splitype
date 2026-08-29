@@ -16,7 +16,7 @@ impl ExplorerState {
         &self,
         panel_id: PanelId,
         theme: &Theme,
-        cx: &mut App,
+        _cx: &mut App,
     ) -> AnyElement {
         let Some(edit) = self.edit.as_ref() else {
             return div().into_any_element();

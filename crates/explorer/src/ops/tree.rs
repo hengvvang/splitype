@@ -182,7 +182,7 @@ impl ExplorerState {
     /// Follow the active document (or a pending inline-create target) in the
     /// tree. With `reveal`, ancestor directories are expanded so the entry
     /// becomes visible.
-    pub(crate) fn select_active_file_in_tree(&mut self, reveal: bool, cx: &App) {
+    pub(crate) fn select_active_file_in_tree(&mut self, reveal: bool, _cx: &App) {
         if self.worktrees.is_empty() {
             return;
         }

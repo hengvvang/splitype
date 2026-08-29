@@ -354,7 +354,7 @@ fn build_config_for(key: CodeLanguageKey) -> Option<HighlightConfiguration> {
     }
 }
 
-#[cfg(feature = "code-highlight-core")]
+#[cfg(all(feature = "code-highlight-core", feature = "code-highlight-official"))]
 fn configure_highlights(
     language: tree_sitter::Language,
     name: &'static str,

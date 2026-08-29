@@ -19,7 +19,7 @@ impl ExplorerState {
         strings: &I18nStrings,
         recent_folders: &[PathBuf],
         recent_files: &[PathBuf],
-        cx: &mut App,
+        _cx: &mut App,
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;

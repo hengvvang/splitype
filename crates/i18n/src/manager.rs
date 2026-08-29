@@ -228,12 +228,6 @@ pub fn import_language_config_and_select(
 }
 
 mod tests {
-    use super::{I18nLanguagePack, I18nManager, I18nStrings};
-    use config::dirs::SplitypeConfigDirs;
-    use crate::packs::language_id_for_locale_settings;
-
-    use theme::ThemeManager;
-
     #[test]
     fn built_in_chinese_strings_are_utf8() {
         let strings = I18nStrings::zh_cn();

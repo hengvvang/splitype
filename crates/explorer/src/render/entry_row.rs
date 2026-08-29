@@ -53,7 +53,7 @@ impl ExplorerState {
         panel_id: PanelId,
         drag_highlight: Option<&Path>,
         theme: &Theme,
-        cx: &mut App,
+        _cx: &mut App,
     ) -> AnyElement {
         let c = &theme.colors;
         let t = &theme.typography;

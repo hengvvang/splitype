@@ -251,13 +251,21 @@ impl Worktree {
                         cx.emit(WorktreeEvent::UpdatedEntries);
                         // Refresh the explorer's visible tree from the new
                         // snapshot (the explorer owns no subscription).
+                        //
+                        // This must be deferred past the end of this update:
+                        // `on_explorer_worktree_event` re-reads every
+                        // worktree snapshot — including this one, which is
+                        // mid-update right now — and GPUI panics when an
+                        // entity is read while it is being updated.
                         let worktree_entity = cx.entity();
-                        ExplorerState::update(cx, |explorer, cx| {
-                            explorer.on_explorer_worktree_event(
-                                worktree_entity,
-                                &WorktreeEvent::UpdatedEntries,
-                                cx,
-                            );
+                        cx.defer(move |cx| {
+                            ExplorerState::update(cx, |explorer, cx| {
+                                explorer.on_explorer_worktree_event(
+                                    worktree_entity,
+                                    &WorktreeEvent::UpdatedEntries,
+                                    cx,
+                                );
+                            });
                         });
                     }
                     Ok(_) | Err(_) => {

@@ -28,7 +28,7 @@ impl ExplorerState {
         &self,
         panel_id: PanelId,
         theme: &Theme,
-        cx: &mut App,
+        _cx: &mut App,
     ) -> AnyElement {
         let c = &theme.colors;
         let d = &theme.dimensions;
