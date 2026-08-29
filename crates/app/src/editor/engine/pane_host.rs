@@ -73,6 +73,42 @@ impl EditorSourceIme {
     }
 }
 
+/// Outline HUD host: navigation and hover re-enter the editor entity,
+/// carrying the pane kind and theme captured at render time.
+pub(crate) struct EditorOutlineHost {
+    editor: WeakEntity<Editor>,
+    kind: editor_core::EditorPaneKind,
+    theme: theme::Theme,
+}
+
+impl EditorOutlineHost {
+    pub(crate) fn new(
+        editor: WeakEntity<Editor>,
+        kind: editor_core::EditorPaneKind,
+        theme: theme::Theme,
+    ) -> Arc<Self> {
+        Arc::new(Self { editor, kind, theme })
+    }
+}
+
+impl editor_outline::OutlineHost for EditorOutlineHost {
+    fn navigate_to(&self, index: usize, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let kind = self.kind;
+            let theme = self.theme.clone();
+            let _ = editor.update(cx, |editor, cx| {
+                editor.navigate_to_outline_index(index, kind, &theme, cx)
+            });
+        }
+    }
+
+    fn set_hovered(&self, hovered: bool, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| editor.set_outline_hovered(hovered, cx));
+        }
+    }
+}
+
 impl editor_source_code::SourceIme for EditorSourceIme {
     fn handle_input(
         &self,

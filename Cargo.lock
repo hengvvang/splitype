@@ -1736,6 +1736,8 @@ name = "editor_outline"
 version = "0.0.1"
 dependencies = [
  "editor",
+ "gpui",
+ "theme",
 ]
 
 [[package]]
