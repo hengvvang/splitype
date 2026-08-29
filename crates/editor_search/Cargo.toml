@@ -15,7 +15,4 @@ workspace = true
 [dependencies]
 gpui = { workspace = true }
 regex = "1.10"
-# Migration-only dependency: BlockId lives in the markdown world until
-# stage 3h dissolves it into editor_wysiwyg; the search engine itself is
-# pure (F7: cross-mode match data is plain (Range<usize>, bool) ranges).
-markdown = { path = "../markdown" }
+editor_wysiwyg = { path = "../editor_wysiwyg" }

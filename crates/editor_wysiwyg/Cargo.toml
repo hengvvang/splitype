@@ -9,23 +9,44 @@ rust-version.workspace = true
 [lib]
 path = "src/wysiwyg.rs"
 
+[features]
+default = ["html-native"]
+html-native = []
+
 [lints]
 workspace = true
 
 [dependencies]
 gpui = { workspace = true }
-markdown = { path = "../markdown" }
-sum_tree = { path = "../sum_tree" }
 primitives = { path = "../primitives" }
 theme = { path = "../theme" }
 editor = { path = "../editor" }
-# Migration-only dependencies (stage 3h folds these into this crate).
-syntax = { path = "../syntax" }
-mermaid = { path = "../mermaid" }
+workspace = { path = "../workspace" }
+config = { path = "../config" }
 i18n = { path = "../i18n" }
 ui = { path = "../ui" }
-latex = { path = "../latex" }
-config = { path = "../config" }
-workspace = { path = "../workspace" }
+# Migration-only dependency (stage 3h splits it: wysiwyg highlight + source highlight).
+syntax = { path = "../syntax" }
 url = "2"
 unicode-segmentation = "1.13"
+regex = "1.10"
+uuid = { workspace = true }
+serde = { workspace = true }
+taffy = "0.7"
+smallvec = { version = "1", features = ["serde"] }
+cssparser = "0.37"
+ratex-parser = "0.1.13"
+ratex-layout = "0.1.13"
+ratex-svg = "0.1.13"
+directories = "6"
+anyhow = { workspace = true }
+mermaid-rs-renderer = "0.3"
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+chromiumoxide = { version = "0.9.1", default-features = false, features = ["bytes"] }
+tokio = { workspace = true }
+futures = "0.3"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
+base64 = "0.22"
+thiserror = { workspace = true }
+tree-sitter = { workspace = true }
+tree-sitter-html = { workspace = true }

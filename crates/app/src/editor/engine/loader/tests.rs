@@ -7,8 +7,8 @@ use gpui::{AppContext, TestAppContext};
 
     use crate::editor::engine::controller::Editor;
     use primitives::CalloutKind;
-    use markdown::inline::html::HtmlCssColor;
-    use markdown::parse::BlockKind;
+    use editor_wysiwyg::markdown::inline::html::HtmlCssColor;
+    use editor_wysiwyg::markdown::parse::BlockKind;
 
     #[gpui::test]
     async fn imports_setext_headings_and_grouped_paragraphs(cx: &mut TestAppContext) {

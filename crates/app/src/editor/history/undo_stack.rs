@@ -23,8 +23,8 @@ impl Editor {
     pub(crate) fn prepare_undo_capture_with_snapshot(
         &mut self,
         kind: UndoCaptureKind,
-        target_block_id: Option<markdown::parse::BlockId>,
-        initial_text: Option<markdown::inline::text::BlockText>,
+        target_block_id: Option<editor_wysiwyg::markdown::parse::BlockId>,
+        initial_text: Option<editor_wysiwyg::markdown::inline::text::BlockText>,
         cx: &mut Context<Self>,
     ) {
         if self.tab().undo.restore_in_progress || self.tab().undo.pending_capture.is_some() {
@@ -61,7 +61,7 @@ impl Editor {
 
         // If roots changed structurally, generate fine-grained SpliceRoots delta
         if let Some(old_roots) = pending.initial_roots {
-            let current_roots: Vec<markdown::parse::BlockData> =
+            let current_roots: Vec<editor_wysiwyg::markdown::parse::BlockData> =
                 self.doc().root_blocks().iter().map(|r| r.read(cx).data.clone()).collect();
             if current_roots != old_roots {
                 let prefix_len = old_roots

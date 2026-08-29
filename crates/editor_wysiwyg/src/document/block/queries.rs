@@ -7,12 +7,12 @@ use gpui::*;
 use super::Block;
 use super::state::CollapsedCaretAffinity;
 use crate::document::block::footnotes::FootnoteMap;
-use markdown::block::link::LinkReferenceDefinitions;
-use markdown::inline::render_cache::{InlineRenderCache, InlineSpan};
+use crate::markdown::block::link::LinkReferenceDefinitions;
+use crate::markdown::inline::render_cache::{InlineRenderCache, InlineSpan};
 #[cfg(test)]
-use markdown::inline::style::InlineStyle;
-use markdown::inline::text::BlockText;
-use markdown::parse::BlockKind;
+use crate::markdown::inline::style::InlineStyle;
+use crate::markdown::inline::text::BlockText;
+use crate::markdown::parse::BlockKind;
 use std::sync::Arc;
 
 impl Block {
@@ -26,8 +26,8 @@ impl Block {
         if self.selected_range.is_empty() {
             return String::new();
         }
-        let start = markdown::inline::serialize::clamp_to_char_boundary(text, self.selected_range.start);
-        let end = markdown::inline::serialize::clamp_to_char_boundary(text, self.selected_range.end.max(start));
+        let start = crate::markdown::inline::serialize::clamp_to_char_boundary(text, self.selected_range.start);
+        let end = crate::markdown::inline::serialize::clamp_to_char_boundary(text, self.selected_range.end.max(start));
         text[start..end].to_string()
     }
 
@@ -63,7 +63,7 @@ impl Block {
     pub fn inline_html_style_at(
         &self,
         offset: usize,
-    ) -> Option<markdown::inline::html::HtmlInlineStyle> {
+    ) -> Option<crate::markdown::inline::html::HtmlInlineStyle> {
         self.display_cache().html_style_at(offset)
     }
 
@@ -78,7 +78,7 @@ impl Block {
 
     pub fn footnote_definition_id(&self) -> Option<String> {
         self.kind().is_footnote_definition().then(|| {
-            markdown::block::footnote::split_footnote_definition_text(
+            crate::markdown::block::footnote::split_footnote_definition_text(
                 &self.data.text.plain_text(),
             )
             .0

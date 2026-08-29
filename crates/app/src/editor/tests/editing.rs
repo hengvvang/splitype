@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use crate::editor::engine::controller::{Editor, EditorPaneKind};
 use editor_wysiwyg::actions::{FocusNext, Newline};
 use crate::editor::panes::document_pane::dialogs::TableInsertDialogState;
-use markdown::parse::BlockKind;
+use editor_wysiwyg::markdown::parse::BlockKind;
 
 use super::*;
 
@@ -442,12 +442,12 @@ async fn newline_at_start_of_heading_moves_entire_heading_down(cx: &mut TestAppC
         let blocks = editor.doc().blocks();
         assert_eq!(
             blocks[0].entity.read(cx).kind(),
-            markdown::parse::BlockKind::Paragraph
+            editor_wysiwyg::markdown::parse::BlockKind::Paragraph
         );
         assert_eq!(blocks[0].entity.read(cx).display_text(), "");
         assert_eq!(
             blocks[1].entity.read(cx).kind(),
-            markdown::parse::BlockKind::Heading { level: 2 }
+            editor_wysiwyg::markdown::parse::BlockKind::Heading { level: 2 }
         );
         assert_eq!(blocks[1].entity.read(cx).display_text(), "1111");
     });

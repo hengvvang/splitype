@@ -17,11 +17,11 @@ use gpui::{Entity, EntityId, Point, Pixels};
 use crate::document::block::{Block, footnotes::FootnoteMap};
 use crate::history::delta::Transaction;
 use crate::document::protocol::UndoCaptureKind;
-use markdown::block::image::ImageReferenceDefinitions;
-use markdown::block::link::LinkReferenceDefinitions;
-use markdown::block::table::{TableCellPosition, TableAxis};
-use markdown::inline::text::BlockText;
-use markdown::parse::{BlockData, BlockId};
+use crate::markdown::block::image::ImageReferenceDefinitions;
+use crate::markdown::block::link::LinkReferenceDefinitions;
+use crate::markdown::block::table::{TableCellPosition, TableAxis};
+use crate::markdown::inline::text::BlockText;
+use crate::markdown::parse::{BlockData, BlockId};
 
 /// Algebraic autoscroll intent (mirrors Zed's AutoscrollStrategy).
 #[derive(Debug, Clone, Copy, PartialEq)]

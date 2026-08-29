@@ -7,8 +7,8 @@ use crate::document::block::{Block, ImageHandle};
 use crate::render::visible_quote_guides;
 use i18n::I18nStrings;
 use theme::{Theme, ThemeDimensions};
-use markdown::block::image::ImageResolvedSource;
-use markdown::parse::BlockKind;
+use crate::markdown::block::image::ImageResolvedSource;
+use crate::markdown::parse::BlockKind;
 
 pub fn render_image_placeholder(
     runtime: &ImageHandle,

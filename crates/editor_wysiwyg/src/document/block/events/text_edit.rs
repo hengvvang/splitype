@@ -13,8 +13,8 @@ use crate::actions::{
     WordDeleteForward,
 };
 use crate::document::block::{Block, CollapsedCaretAffinity};
-use markdown::inline::text::BlockText;
-use markdown::parse::BlockKind;
+use crate::markdown::inline::text::BlockText;
+use crate::markdown::parse::BlockKind;
 impl Block {
     pub fn is_leaf_quote(&self) -> bool {
         self.kind() == BlockKind::Blockquote
@@ -459,8 +459,8 @@ impl Block {
 #[cfg(test)]
 mod tests {
     use super::Block;
-    use markdown::inline::text::BlockText;
-    use markdown::parse::{BlockData, BlockKind};
+    use crate::markdown::inline::text::BlockText;
+    use crate::markdown::parse::{BlockData, BlockKind};
     use gpui::{AppContext, TestAppContext};
 
     #[gpui::test]

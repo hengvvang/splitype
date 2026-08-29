@@ -273,14 +273,14 @@ impl Block {
     }
 
     pub fn range_to_utf16(&self, range: &Range<usize>) -> Range<usize> {
-        markdown::inline::offsets::ImeConverter::utf8_range_to_utf16_in(
+        crate::markdown::inline::offsets::ImeConverter::utf8_range_to_utf16_in(
             self.display_text(),
             range,
         )
     }
 
     pub fn range_from_utf16(&self, range_utf16: &Range<usize>) -> Range<usize> {
-        markdown::inline::offsets::ImeConverter::utf16_range_to_utf8_in(
+        crate::markdown::inline::offsets::ImeConverter::utf16_range_to_utf8_in(
             self.display_text(),
             range_utf16,
         )

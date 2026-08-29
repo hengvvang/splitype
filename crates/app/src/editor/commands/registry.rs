@@ -115,7 +115,7 @@ impl Editor {
             return;
         }
         self.export_document_via_prompt(
-            export::ExportFormat::Html,
+            editor_wysiwyg::export::ExportFormat::Html,
             window,
             cx,
         );
@@ -131,7 +131,7 @@ impl Editor {
             return;
         }
         self.export_document_via_prompt(
-            export::ExportFormat::Pdf,
+            editor_wysiwyg::export::ExportFormat::Pdf,
             window,
             cx,
         );

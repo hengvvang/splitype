@@ -23,7 +23,7 @@ use gpui::*;
 #[derive(Clone)]
 pub struct Document {
     pub roots: Vec<Entity<Block>>,
-    pub tree: sum_tree::SumTree<markdown::parse::BlockData>,
+    pub tree: crate::tree::SumTree<crate::markdown::parse::BlockData>,
     pub index: BlockIndex,
     pub structure_version: u64,
     pub metadata_rebuild_version: u64,

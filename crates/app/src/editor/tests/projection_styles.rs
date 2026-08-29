@@ -3,8 +3,8 @@
 use gpui::{AppContext, TestAppContext};
 
 use crate::editor::engine::controller::Editor;
-use markdown::inline::style::InlineScript;
-use markdown::parse::BlockKind;
+use editor_wysiwyg::markdown::inline::style::InlineScript;
+use editor_wysiwyg::markdown::parse::BlockKind;
 
 #[gpui::test]
 async fn script_delimiters_keep_script_style_while_editing(cx: &mut TestAppContext) {

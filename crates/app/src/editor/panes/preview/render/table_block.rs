@@ -90,7 +90,7 @@ pub(crate) fn render_preview_table(
 
 /// Renders one table cell with the header/body background styles.
 fn render_preview_table_cell(
-    cell: &markdown::inline::text::BlockText,
+    cell: &editor_wysiwyg::markdown::inline::text::BlockText,
     is_header: bool,
     fraction: f32,
     theme: &Theme,

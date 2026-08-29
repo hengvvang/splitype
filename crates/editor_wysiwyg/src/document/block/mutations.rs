@@ -8,8 +8,8 @@ use gpui::*;
 use super::Block;
 use super::state::{CollapsedCaretAffinity, InlineFormat};
 use crate::document::protocol::{BlockEvent, UndoCaptureKind};
-use markdown::inline::text::BlockText;
-use markdown::parse::BlockKind;
+use crate::markdown::inline::text::BlockText;
+use crate::markdown::parse::BlockKind;
 
 impl Block {
     pub fn apply_source_space_text_edit(
@@ -24,8 +24,8 @@ impl Block {
         let source_range = self.display_range_to_source_range(display_range.clone());
         let mut markdown = self.data.text.serialize_markdown();
         let start =
-            markdown::inline::serialize::clamp_to_char_boundary(&markdown, source_range.start);
-        let end = markdown::inline::serialize::clamp_to_char_boundary(
+            crate::markdown::inline::serialize::clamp_to_char_boundary(&markdown, source_range.start);
+        let end = crate::markdown::inline::serialize::clamp_to_char_boundary(
             &markdown,
             source_range.end.max(start),
         );

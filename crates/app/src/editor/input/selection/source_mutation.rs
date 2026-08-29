@@ -12,8 +12,8 @@ use crate::editor::engine::controller::{
 };
 use crate::editor::input::selection::state::NormalizedCrossBlockSelection;
 use editor_wysiwyg::document::block::Block;
-use markdown::block::table::serialize_table_markdown_lines;
-use markdown::parse::BlockKind;
+use editor_wysiwyg::markdown::block::table::serialize_table_markdown_lines;
+use editor_wysiwyg::markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn cross_block_source_selection_snapshot(

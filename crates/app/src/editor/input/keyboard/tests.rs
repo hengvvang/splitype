@@ -9,8 +9,8 @@ use editor_wysiwyg::actions::ExitCodeBlock;
 use editor_wysiwyg::actions::{Delete, DeleteBackward, Newline};
 use editor_wysiwyg::document::block::Block;
 use primitives::CalloutKind;
-use markdown::inline::text::BlockText;
-use markdown::parse::{BlockData, BlockKind};
+use editor_wysiwyg::markdown::inline::text::BlockText;
+use editor_wysiwyg::markdown::parse::{BlockData, BlockKind};
 use gpui::{App, AppContext, Entity, EntityInputHandler, TestAppContext};
 
 #[gpui::test]

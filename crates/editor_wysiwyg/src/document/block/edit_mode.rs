@@ -4,7 +4,7 @@
 //! code block text. Splitting from `block.rs` keeps the block entity
 //! file focused on data and behavior.
 
-use markdown::parse::BlockKind;
+use crate::markdown::parse::BlockKind;
 
 /// Editing semantics for the current block.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

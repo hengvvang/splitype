@@ -5,8 +5,8 @@ use gpui::{AppContext, TestAppContext, VisualTestContext};
 
 use crate::editor::engine::controller::{Editor, PaneId};
 use crate::editor::engine::session::EditorPaneKind;
-use markdown::inline::text::BlockText;
-use markdown::parse::BlockKind;
+use editor_wysiwyg::markdown::inline::text::BlockText;
+use editor_wysiwyg::markdown::parse::BlockKind;
 
 use super::*;
 

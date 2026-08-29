@@ -29,15 +29,15 @@ use gpui::*;
 use crate::document::protocol::BlockEvent;
 use crate::table_grid::TableGrid;
 use syntax::highlight::CodeHighlightResult;
-use mermaid::MermaidSvgRender;
+use crate::mermaid::MermaidSvgRender;
 use crate::projection::ExpandedInlineProjection;
 use primitives::CalloutKind;
-use markdown::block::image::ImageReferenceDefinitions;
-use markdown::block::link::LinkReferenceDefinitions;
-use markdown::block::table::{TableAxisMarker, TableCellPosition, TableColumnAlignment};
-use markdown::inline::render_cache::InlineRenderCache;
-use markdown::parse::BlockId;
-use markdown::parse::{BlockData, BlockKind};
+use crate::markdown::block::image::ImageReferenceDefinitions;
+use crate::markdown::block::link::LinkReferenceDefinitions;
+use crate::markdown::block::table::{TableAxisMarker, TableCellPosition, TableColumnAlignment};
+use crate::markdown::inline::render_cache::InlineRenderCache;
+use crate::markdown::parse::BlockId;
+use crate::markdown::parse::{BlockData, BlockKind};
 
 impl EventEmitter<BlockEvent> for Block {}
 

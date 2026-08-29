@@ -41,7 +41,7 @@ impl Block {
     pub fn pointer_link_hit(
         &self,
         position: Point<Pixels>,
-    ) -> Option<markdown::inline::link::InlineLinkHit> {
+    ) -> Option<crate::markdown::inline::link::InlineLinkHit> {
         self.last_paint_at(position)
             .and_then(|paint| {
                 crate::text_layout::link_at_position(
@@ -74,7 +74,7 @@ impl Block {
     /// Open a rendered inline link's destination through the editor prompt.
     pub fn open_wysiwyg_link(
         &mut self,
-        link: &markdown::inline::link::InlineLinkHit,
+        link: &crate::markdown::inline::link::InlineLinkHit,
         cx: &mut Context<Self>,
     ) {
         cx.stop_propagation();

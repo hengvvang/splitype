@@ -3,10 +3,10 @@
 
 use gpui::*;
 
-use latex::{display_math_font_size, render_display_math_svg};
+use editor_wysiwyg::latex::{display_math_font_size, render_display_math_svg};
 use editor_preview::node::PreviewBlock;
 use theme::Theme;
-use markdown::block::math::parse_display_math_source;
+use editor_wysiwyg::markdown::block::math::parse_display_math_source;
 
 /// Renders a LaTeX math block read-only.
 pub(crate) fn render_preview_latex_math(block: &PreviewBlock, base: Div, theme: &Theme) -> AnyElement {
@@ -31,7 +31,7 @@ pub(crate) fn render_preview_latex_math(block: &PreviewBlock, base: Div, theme: 
             .unwrap_or(raw.trim())
             .trim()
             .to_string();
-        markdown::block::math::DisplayMathSource {
+        editor_wysiwyg::markdown::block::math::DisplayMathSource {
             source: raw.to_string(),
             body,
         }

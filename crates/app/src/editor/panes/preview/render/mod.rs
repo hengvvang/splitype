@@ -29,7 +29,7 @@ use crate::editor::engine::controller::*;
 use editor_preview::node::PreviewBlock;
 use i18n::I18nStrings;
 use theme::Theme;
-use markdown::parse::BlockKind;
+use editor_wysiwyg::markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn render_preview_pane(
@@ -214,7 +214,7 @@ pub(crate) fn render_preview_block(
             footnote::render_preview_footnote_definition(block, depth, base, theme)
         }
         BlockKind::CodeBlock { ref language } => {
-            if markdown::block::mermaid::is_mermaid_info_string(language.as_deref()) {
+            if editor_wysiwyg::markdown::block::mermaid::is_mermaid_info_string(language.as_deref()) {
                 mermaid_diagram::render_preview_mermaid_diagram(block, base, theme, window)
             } else if language.as_deref().map_or(false, |l| {
                 l.eq_ignore_ascii_case("math") || l.eq_ignore_ascii_case("latex")

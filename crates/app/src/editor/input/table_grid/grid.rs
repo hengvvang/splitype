@@ -5,8 +5,8 @@ use gpui::*;
 use crate::editor::engine::controller::{Editor, TableCellBinding};
 use editor_wysiwyg::document::block::Block;
 use editor_wysiwyg::table_grid::TableGrid;
-use markdown::block::table::{TableCellPosition, TableColumnAlignment, TableData};
-use markdown::parse::{BlockData, BlockKind};
+use editor_wysiwyg::markdown::block::table::{TableCellPosition, TableColumnAlignment, TableData};
+use editor_wysiwyg::markdown::parse::{BlockData, BlockKind};
 
 
 

@@ -5,7 +5,7 @@ use gpui::*;
 
 use crate::editor::engine::controller::Editor;
 use editor_search::state::{ceil_char_boundary, floor_char_boundary};
-use markdown::inline::offsets::ImeConverter;
+use editor_wysiwyg::markdown::inline::offsets::ImeConverter;
 
 impl Editor {
     /// Returns the PaneId of the currently focused Source Code pane, if any.

@@ -11,7 +11,7 @@ default-run = "app"
 workspace = true
 
 [features]
-default = ["syntax/default", "markdown/default"]
+default = ["syntax/default", "editor_wysiwyg/html-native"]
 code-highlight-core = ["syntax/code-highlight-core"]
 
 [[bin]]
@@ -20,17 +20,12 @@ path = "src/main.rs"
 
 [dependencies]
 primitives = { path = "../primitives" }
-sum_tree = { path = "../sum_tree" }
-markdown = { path = "../markdown" }
 splitter = { path = "../splitter" }
 theme = { path = "../theme" }
 i18n = { path = "../i18n" }
 config = { path = "../config" }
 net = { path = "../net" }
 syntax = { path = "../syntax" }
-latex = { path = "../latex" }
-mermaid = { path = "../mermaid" }
-export = { path = "../export" }
 ui = { path = "../ui" }
 explorer_fs = { path = "../explorer_fs" }
 workspace = { path = "../workspace" }

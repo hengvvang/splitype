@@ -3,7 +3,7 @@
 use gpui::{AppContext, Point, TestAppContext, px};
 
 use crate::editor::engine::controller::Editor;
-use markdown::parse::BlockKind;
+use editor_wysiwyg::markdown::parse::BlockKind;
 
 #[gpui::test]
 async fn footnote_tooltip_resolves_definition_content_only_when_bound(cx: &mut TestAppContext) {

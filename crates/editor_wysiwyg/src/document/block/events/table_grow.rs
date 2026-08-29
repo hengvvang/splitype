@@ -7,7 +7,7 @@ use gpui::*;
 
 use crate::document::protocol::BlockEvent;
 use crate::document::block::{Block, TableHoverRegion};
-use markdown::parse::BlockKind;
+use crate::markdown::parse::BlockKind;
 
 impl Block {
     pub fn schedule_table_append_column_close(&mut self, cx: &mut Context<Self>) {
@@ -179,7 +179,7 @@ impl Block {
 mod tests {
     use super::Block;
     use crate::document::block::TableHoverRegion;
-    use markdown::parse::BlockData;
+    use crate::markdown::parse::BlockData;
     use gpui::{AppContext, TestAppContext};
 
     #[gpui::test]

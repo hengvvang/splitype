@@ -10,8 +10,8 @@ mod tests {
     use editor_wysiwyg::actions::ExitCodeBlock;
     use editor_wysiwyg::actions::{DeleteBackward, Newline};
     use primitives::CalloutKind;
-    use markdown::inline::text::BlockText;
-    use markdown::parse::{BlockData, BlockKind};
+    use editor_wysiwyg::markdown::inline::text::BlockText;
+    use editor_wysiwyg::markdown::parse::{BlockData, BlockKind};
     use gpui::{AppContext, TestAppContext};
 
     #[gpui::test]

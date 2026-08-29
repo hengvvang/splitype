@@ -4,7 +4,7 @@ use gpui::*;
 
 use crate::editor::engine::controller::{Editor, TableAxisSelection};
 use editor_wysiwyg::document::block::Block;
-use markdown::block::table::{TableAxis, TableCellPosition, TableColumnAlignment};
+use editor_wysiwyg::markdown::block::table::{TableAxis, TableCellPosition, TableColumnAlignment};
 
 impl Editor {
     pub(crate) fn append_table_column(

@@ -4,7 +4,7 @@
 //! orchestration itself lives in `crate::editor::panes::wysiwyg::render`.
 
 use gpui::*;
-use markdown::parse::BlockId;
+use crate::markdown::parse::BlockId;
 
 
 use ::theme::*;
@@ -38,7 +38,7 @@ impl RowSpacingInfo {
             is_callout_header: block.kind().is_callout(),
             footnote_group_id: block.footnote_group_id,
             is_footnote_header: block.kind().is_footnote_definition(),
-            is_empty_paragraph: block.kind() == markdown::parse::BlockKind::Paragraph
+            is_empty_paragraph: block.kind() == crate::markdown::parse::BlockKind::Paragraph
                 && block.data.text.plain_text().is_empty()
                 && block.children.is_empty(),
         }
@@ -115,7 +115,7 @@ mod tests {
         row_top_gap,
     };
     use theme::{Theme, TypographyScope, TypographyStore};
-    use markdown::parse::BlockId;
+    use crate::markdown::parse::BlockId;
     use uuid::Uuid;
 
     #[test]

@@ -12,7 +12,7 @@ use gpui::*;
 use crate::document::protocol::{BlockEvent, UndoCaptureKind};
 use crate::text_layout as element;
 use crate::document::block::Block;
-use markdown::inline::offsets::ImeConverter;
+use crate::markdown::inline::offsets::ImeConverter;
 
 impl EntityInputHandler for Block {
     fn text_for_range(

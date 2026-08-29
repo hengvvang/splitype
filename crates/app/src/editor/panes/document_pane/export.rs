@@ -5,8 +5,8 @@ use futures::channel::oneshot;
 use gpui::*;
 
 use crate::editor::engine::controller::Editor;
-use export::{self as document_export, ExportFormat};
-use export::ExportError;
+use editor_wysiwyg::export::{self as document_export, ExportFormat};
+use editor_wysiwyg::export::ExportError;
 use i18n::I18nManager;
 use theme::{Theme, ThemeManager};
 

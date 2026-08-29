@@ -5,7 +5,7 @@ use crate::table_measure::measure_table_column_layout;
 use crate::document::block::Block;
 use crate::render::effective_table_width;
 use theme::Theme;
-use markdown::block::table::{TableAxis, TableAxisMarker, TableColumnLayout};
+use crate::markdown::block::table::{TableAxis, TableAxisMarker, TableColumnLayout};
 
 /// Visual highlight priority state for table row and column axes: Dragging > Selected > Hovered > Editing > None.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

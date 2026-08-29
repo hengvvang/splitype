@@ -5,10 +5,10 @@ use gpui::*;
 use super::Document;
 use crate::document::block::Block;
 use primitives::CalloutKind;
-use markdown::block::image::parse_standalone_image;
-use markdown::block::table::serialize_table_markdown_lines;
-use markdown::parse::BlockKind;
-pub use markdown::parse::fence::safe_code_fence_with_info;
+use crate::markdown::block::image::parse_standalone_image;
+use crate::markdown::block::table::serialize_table_markdown_lines;
+use crate::markdown::parse::BlockKind;
+pub use crate::markdown::parse::fence::safe_code_fence_with_info;
 
 impl Document {
     pub fn serialize_markdown(&self, cx: &App) -> String {
@@ -120,7 +120,7 @@ impl Document {
                 let indentation = "  ".repeat(list_depth);
                 let full_text = block_ref.data.text_markdown();
                 let (id, first_line) =
-                    markdown::block::footnote::split_footnote_definition_text(&full_text);
+                    crate::markdown::block::footnote::split_footnote_definition_text(&full_text);
                 if first_line.is_empty() && block_ref.children.is_empty() {
                     lines.push(format!("{indentation}[^{id}]:"));
                     return;

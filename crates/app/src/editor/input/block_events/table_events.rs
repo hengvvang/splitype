@@ -4,7 +4,7 @@ use gpui::*;
 
 use editor_wysiwyg::document::protocol::BlockEvent;
 use crate::editor::engine::controller::*;
-use markdown::parse::BlockKind;
+use editor_wysiwyg::markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn on_table_event(
@@ -58,10 +58,10 @@ impl Editor {
                 self.reorder_table_axis(block, *kind, *from, *to, cx);
             }
             BlockEvent::RequestInsertTableAxisAt { kind, index } => match kind {
-                markdown::block::table::TableAxis::Column => {
+                editor_wysiwyg::markdown::block::table::TableAxis::Column => {
                     self.insert_table_column_at(block, *index, cx);
                 }
-                markdown::block::table::TableAxis::Row => {
+                editor_wysiwyg::markdown::block::table::TableAxis::Row => {
                     self.insert_table_row_at(block, *index, cx);
                 }
             },

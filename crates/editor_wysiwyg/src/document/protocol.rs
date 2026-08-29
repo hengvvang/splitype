@@ -9,8 +9,8 @@ use std::path::PathBuf;
 
 use gpui::{Image, Pixels, Point, SharedString};
 
-use markdown::block::table::TableAxis;
-use markdown::inline::text::BlockText;
+use crate::markdown::block::table::TableAxis;
+use crate::markdown::inline::text::BlockText;
 
 /// Image payload extracted from GPUI's clipboard abstraction.
 ///
@@ -29,8 +29,8 @@ pub enum BlockEvent {
     /// Capture the current document state before an upcoming mutation.
     PrepareUndo {
         kind: UndoCaptureKind,
-        target_block_id: Option<markdown::parse::BlockId>,
-        initial_text: Option<markdown::inline::text::BlockText>,
+        target_block_id: Option<crate::markdown::parse::BlockId>,
+        initial_text: Option<crate::markdown::inline::text::BlockText>,
     },
     /// The block's content or kind changed; the editor should mark the
     /// document dirty and optionally scroll to keep the block visible.

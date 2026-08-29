@@ -7,8 +7,8 @@ use crate::projection::{
     ProjectedLinkSelectionSnapshot,
 };
 use crate::document::block::{Block, CollapsedCaretAffinity};
-use markdown::inline::render_cache::InlineRenderCache;
-use markdown::parse::BlockKind;
+use crate::markdown::inline::render_cache::InlineRenderCache;
+use crate::markdown::parse::BlockKind;
 use gpui::Pixels;
 
 impl Block {

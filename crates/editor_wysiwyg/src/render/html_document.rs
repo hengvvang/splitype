@@ -5,11 +5,11 @@ use gpui::*;
 use crate::document::block::{Block, ImageHandle};
 use i18n::I18nManager;
 use theme::Theme;
-use markdown::block::html::{
+use crate::markdown::block::html::{
     HtmlDocument, HtmlNode, HtmlNodeKind, attr_value, parse_html_image_block, style_for_node,
 };
-use markdown::block::image::resolve_image_source;
-use markdown::inline::html::HtmlCssColor;
+use crate::markdown::block::image::resolve_image_source;
+use crate::markdown::inline::html::HtmlCssColor;
 
 /// Convert an HTML/CSS color to GPUI's `Hsla`, following `currentColor`.
 pub fn html_css_color_to_hsla(color: HtmlCssColor, current_color: Hsla) -> Hsla {

@@ -808,7 +808,7 @@ impl Editor {
                 let mut new_text = current_text[..range.start].to_string();
                 new_text.push_str(&replace_str);
                 new_text.push_str(&current_text[range.end..]);
-                block.data.text = markdown::inline::text::BlockText::plain(new_text);
+                block.data.text = editor_wysiwyg::markdown::inline::text::BlockText::plain(new_text);
                 block.selected_range = range.start..(range.start + replace_str.len());
                 block.refresh_cached_display_text();
                 block.sync_render_cache();
@@ -870,7 +870,7 @@ impl Editor {
                             current_text = new_text;
                         }
                     }
-                    block.data.text = markdown::inline::text::BlockText::plain(current_text);
+                    block.data.text = editor_wysiwyg::markdown::inline::text::BlockText::plain(current_text);
                     block.refresh_cached_display_text();
                     block.sync_render_cache();
                     cx.notify();

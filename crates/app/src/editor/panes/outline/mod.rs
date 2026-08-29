@@ -10,7 +10,7 @@ use gpui::App;
 
 use editor_wysiwyg::document::Document;
 use crate::editor::engine::controller::Editor;
-use markdown::parse::BlockKind;
+use editor_wysiwyg::markdown::parse::BlockKind;
 use editor_core::{EditorDocument, OutlineNode};
 
 /// The editor entity implements the minimal document view the modes read.

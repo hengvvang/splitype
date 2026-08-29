@@ -8,7 +8,7 @@ use gpui::*;
 
 use crate::editor::engine::controller::Editor;
 use editor_wysiwyg::document::block::Block;
-use markdown::block::table::TableData;
+use editor_wysiwyg::markdown::block::table::TableData;
 
 /// Inline markup formatting variants.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -399,7 +399,7 @@ impl Editor {
         self.focus_block(block.entity_id());
         block.update(cx, |block, cx| {
             if !block.edits_verbatim_text() {
-                block.data.kind = markdown::parse::BlockKind::Paragraph;
+                block.data.kind = editor_wysiwyg::markdown::parse::BlockKind::Paragraph;
             }
             let cursor = block.cursor_offset();
             let text = block.display_text();

@@ -11,7 +11,7 @@ use crate::editor::engine::controller::Editor;
 use crate::editor::panes::document_pane::context_menu::ContextMenuState;
 use i18n::I18nManager;
 use theme::Theme;
-use markdown::block::table::TableAxis;
+use editor_wysiwyg::markdown::block::table::TableAxis;
 impl Editor {
     pub(crate) fn render_axis_menu_item(
         theme: &Theme,
@@ -282,13 +282,13 @@ impl Editor {
                     let p = !h1 && !h2 && !h3 && !h4 && !h5 && !h6;
                     (h1, h2, h3, h4, h5, h6, p)
                 } else {
-                    let h1 = matches!(active_kind, Some(markdown::parse::BlockKind::Heading { level: 1 }));
-                    let h2 = matches!(active_kind, Some(markdown::parse::BlockKind::Heading { level: 2 }));
-                    let h3 = matches!(active_kind, Some(markdown::parse::BlockKind::Heading { level: 3 }));
-                    let h4 = matches!(active_kind, Some(markdown::parse::BlockKind::Heading { level: 4 }));
-                    let h5 = matches!(active_kind, Some(markdown::parse::BlockKind::Heading { level: 5 }));
-                    let h6 = matches!(active_kind, Some(markdown::parse::BlockKind::Heading { level: 6 }));
-                    let p = matches!(active_kind, Some(markdown::parse::BlockKind::Paragraph)) || active_kind.is_none();
+                    let h1 = matches!(active_kind, Some(editor_wysiwyg::markdown::parse::BlockKind::Heading { level: 1 }));
+                    let h2 = matches!(active_kind, Some(editor_wysiwyg::markdown::parse::BlockKind::Heading { level: 2 }));
+                    let h3 = matches!(active_kind, Some(editor_wysiwyg::markdown::parse::BlockKind::Heading { level: 3 }));
+                    let h4 = matches!(active_kind, Some(editor_wysiwyg::markdown::parse::BlockKind::Heading { level: 4 }));
+                    let h5 = matches!(active_kind, Some(editor_wysiwyg::markdown::parse::BlockKind::Heading { level: 5 }));
+                    let h6 = matches!(active_kind, Some(editor_wysiwyg::markdown::parse::BlockKind::Heading { level: 6 }));
+                    let p = matches!(active_kind, Some(editor_wysiwyg::markdown::parse::BlockKind::Paragraph)) || active_kind.is_none();
                     (h1, h2, h3, h4, h5, h6, p)
                 };
 

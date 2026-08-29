@@ -13,8 +13,8 @@ use gpui::{AppContext, Context, Entity};
 
 use crate::editor::engine::controller::Editor;
 use editor_wysiwyg::document::block::Block;
-use markdown::inline::text::BlockText;
-use markdown::parse::{BlockData, BlockKind};
+use editor_wysiwyg::markdown::inline::text::BlockText;
+use editor_wysiwyg::markdown::parse::{BlockData, BlockKind};
 
 impl Editor {
     /// Build one paragraph block per non-empty physical line, with a single

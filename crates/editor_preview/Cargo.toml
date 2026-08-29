@@ -14,7 +14,6 @@ workspace = true
 
 [dependencies]
 gpui = { workspace = true }
-markdown = { path = "../markdown" }
 editor = { path = "../editor" }
 # The read-only render world consumes the WYSIWYG world's public
 # services: block data types, footnote registry and image handles.

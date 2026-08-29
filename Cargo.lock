@@ -242,14 +242,10 @@ dependencies = [
  "embed-resource",
  "explorer",
  "explorer_fs",
- "export",
  "futures",
  "gpui",
  "gpui_platform",
  "i18n",
- "latex",
- "markdown",
- "mermaid",
  "net",
  "notify",
  "primitives",
@@ -259,7 +255,6 @@ dependencies = [
  "serde_json",
  "settings",
  "splitter",
- "sum_tree 0.0.1",
  "syntax",
  "theme",
  "thiserror 2.0.18",
@@ -1751,7 +1746,6 @@ dependencies = [
  "editor",
  "editor_wysiwyg",
  "gpui",
- "markdown",
  "uuid",
 ]
 
@@ -1759,8 +1753,8 @@ dependencies = [
 name = "editor_search"
 version = "0.0.1"
 dependencies = [
+ "editor_wysiwyg",
  "gpui",
- "markdown",
  "regex",
 ]
 
@@ -1778,20 +1772,37 @@ dependencies = [
 name = "editor_wysiwyg"
 version = "0.0.1"
 dependencies = [
+ "anyhow",
+ "base64",
+ "chromiumoxide",
  "config",
+ "cssparser",
+ "directories",
  "editor",
+ "futures",
  "gpui",
  "i18n",
- "latex",
- "markdown",
- "mermaid",
+ "image",
+ "mermaid-rs-renderer",
  "primitives",
- "sum_tree 0.0.1",
+ "pulldown-cmark",
+ "ratex-layout",
+ "ratex-parser",
+ "ratex-svg",
+ "regex",
+ "serde",
+ "smallvec",
  "syntax",
+ "taffy 0.7.7",
  "theme",
+ "thiserror 2.0.18",
+ "tokio",
+ "tree-sitter",
+ "tree-sitter-html",
  "ui",
  "unicode-segmentation",
  "url",
+ "uuid",
  "workspace",
 ]
 
@@ -1966,28 +1977,6 @@ version = "0.0.1"
 dependencies = [
  "thiserror 2.0.18",
  "trash",
-]
-
-[[package]]
-name = "export"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "base64",
- "chromiumoxide",
- "futures",
- "gpui",
- "image",
- "latex",
- "markdown",
- "mermaid",
- "primitives",
- "pulldown-cmark",
- "theme",
- "thiserror 2.0.18",
- "tokio",
- "url",
- "uuid",
 ]
 
 [[package]]
@@ -2527,7 +2516,7 @@ dependencies = [
  "spin 0.10.1",
  "stacksafe",
  "strum",
- "sum_tree 0.1.0",
+ "sum_tree",
  "taffy 0.13.0",
  "thiserror 2.0.18",
  "tracing",
@@ -3451,20 +3440,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "latex"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "directories",
- "gpui",
- "markdown",
- "primitives",
- "ratex-layout",
- "ratex-parser",
- "ratex-svg",
-]
-
-[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3699,23 +3674,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "markdown"
-version = "0.0.1"
-dependencies = [
- "cssparser",
- "primitives",
- "regex",
- "serde",
- "smallvec",
- "sum_tree 0.0.1",
- "taffy 0.7.7",
- "tree-sitter",
- "tree-sitter-html",
- "unicode-segmentation",
- "uuid",
-]
-
-[[package]]
 name = "matchers"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3780,18 +3738,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "488016bfae457b036d996092f6cb448677611ce4449e970ceaf42695203f218a"
 dependencies = [
  "autocfg",
-]
-
-[[package]]
-name = "mermaid"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "directories",
- "gpui",
- "markdown",
- "mermaid-rs-renderer",
- "primitives",
 ]
 
 [[package]]
@@ -6241,10 +6187,6 @@ name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
-
-[[package]]
-name = "sum_tree"
-version = "0.0.1"
 
 [[package]]
 name = "sum_tree"

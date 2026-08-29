@@ -5,8 +5,8 @@ use gpui::*;
 use editor_wysiwyg::document::protocol::UndoCaptureKind;
 use crate::editor::engine::controller::{Editor, TableAxisSelection};
 use editor_wysiwyg::document::block::Block;
-use markdown::block::table::{TableAxis, TableCellPosition};
-use markdown::parse::BlockData;
+use editor_wysiwyg::markdown::block::table::{TableAxis, TableCellPosition};
+use editor_wysiwyg::markdown::parse::BlockData;
 
 impl Editor {
     pub(crate) fn append_table_row(&mut self, table_block: &Entity<Block>, cx: &mut Context<Self>) {

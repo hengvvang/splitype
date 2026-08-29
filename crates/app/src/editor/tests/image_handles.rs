@@ -4,11 +4,11 @@
 use gpui::{AppContext, TestAppContext};
 
 use crate::editor::engine::controller::Editor;
-use markdown::block::image::{
+use editor_wysiwyg::markdown::block::image::{
     ImageReferenceDefinitions, ImageResolvedSource, TableCellInlineImageSegment,
     parse_table_cell_inline_images,
 };
-use markdown::parse::BlockKind;
+use editor_wysiwyg::markdown::parse::BlockKind;
 use std::path::PathBuf;
 
 #[gpui::test]

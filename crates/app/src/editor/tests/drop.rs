@@ -3,8 +3,8 @@
 use std::fs;
 
 use crate::editor::engine::controller::{Editor, EditorPaneKind};
-use markdown::inline::text::BlockText;
-use markdown::parse::BlockKind;
+use editor_wysiwyg::markdown::inline::text::BlockText;
+use editor_wysiwyg::markdown::parse::BlockKind;
 
 use super::*;
 

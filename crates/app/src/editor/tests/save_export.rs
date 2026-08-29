@@ -5,8 +5,8 @@ use std::fs;
 use crate::editor::commands::actions::SaveDocument;
 
 use crate::editor::engine::controller::Editor;
-use export::ExportFormat;
-use markdown::inline::text::BlockText;
+use editor_wysiwyg::export::ExportFormat;
+use editor_wysiwyg::markdown::inline::text::BlockText;
 
 use super::*;
 

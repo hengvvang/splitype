@@ -3,8 +3,8 @@
 use gpui::{AppContext, TestAppContext};
 
 use crate::editor::engine::controller::Editor;
-use markdown::block::table::{TableAxis, TableColumnAlignment};
-use markdown::parse::BlockKind;
+use editor_wysiwyg::markdown::block::table::{TableAxis, TableColumnAlignment};
+use editor_wysiwyg::markdown::parse::BlockKind;
 
 #[gpui::test]
 async fn parsed_table_grid_installs_column_alignment_on_cells(cx: &mut TestAppContext) {
@@ -114,7 +114,7 @@ async fn setting_column_alignment_updates_table_data_and_selection(cx: &mut Test
             editor.tab().tables.axis_selection,
             Some(crate::editor::engine::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: markdown::block::table::TableAxis::Column,
+                kind: editor_wysiwyg::markdown::block::table::TableAxis::Column,
                 index: 1,
             })
         );
@@ -137,7 +137,7 @@ async fn moving_table_row_updates_focus_and_selection(cx: &mut TestAppContext) {
             editor.tab().tables.axis_selection,
             Some(crate::editor::engine::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: markdown::block::table::TableAxis::Row,
+                kind: editor_wysiwyg::markdown::block::table::TableAxis::Row,
                 index: 1,
             })
         );
@@ -167,7 +167,7 @@ async fn moving_first_body_row_up_swaps_with_header(cx: &mut TestAppContext) {
             editor.tab().tables.axis_selection,
             Some(crate::editor::engine::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: markdown::block::table::TableAxis::Row,
+                kind: editor_wysiwyg::markdown::block::table::TableAxis::Row,
                 index: 0,
             })
         );
@@ -191,7 +191,7 @@ async fn moving_header_row_down_swaps_with_first_body(cx: &mut TestAppContext) {
             editor.tab().tables.axis_selection,
             Some(crate::editor::engine::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: markdown::block::table::TableAxis::Row,
+                kind: editor_wysiwyg::markdown::block::table::TableAxis::Row,
                 index: 1,
             })
         );
@@ -200,7 +200,7 @@ async fn moving_header_row_down_swaps_with_first_body(cx: &mut TestAppContext) {
 
 #[gpui::test]
 async fn selecting_first_body_row_does_not_highlight_header(cx: &mut TestAppContext) {
-    use markdown::block::table::{TableAxis, TableAxisMarker};
+    use editor_wysiwyg::markdown::block::table::{TableAxis, TableAxisMarker};
     let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |", "| 3 | 4 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -221,7 +221,7 @@ async fn selecting_first_body_row_does_not_highlight_header(cx: &mut TestAppCont
 
 #[gpui::test]
 async fn selecting_header_row_highlights_only_header(cx: &mut TestAppContext) {
-    use markdown::block::table::{TableAxis, TableAxisMarker};
+    use editor_wysiwyg::markdown::block::table::{TableAxis, TableAxisMarker};
     let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -241,7 +241,7 @@ async fn selecting_header_row_highlights_only_header(cx: &mut TestAppContext) {
 
 #[gpui::test]
 async fn body_row_preview_survives_stale_header_leave(cx: &mut TestAppContext) {
-    use markdown::block::table::TableAxis;
+    use editor_wysiwyg::markdown::block::table::TableAxis;
     let markdown = ["| A | B |", "| --- | --- |", "| 1 | 2 |"].join("\n");
     let editor = cx.new(|cx| Editor::from_markdown(cx, markdown, None));
 
@@ -285,7 +285,7 @@ async fn deleting_table_column_moves_selection_to_nearest_survivor(cx: &mut Test
             editor.tab().tables.axis_selection,
             Some(crate::editor::engine::controller::TableAxisSelection {
                 table_block_id: table.entity_id(),
-                kind: markdown::block::table::TableAxis::Column,
+                kind: editor_wysiwyg::markdown::block::table::TableAxis::Column,
                 index: 1,
             })
         );

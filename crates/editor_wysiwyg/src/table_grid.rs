@@ -7,7 +7,7 @@
 use gpui::Entity;
 
 use crate::document::block::Block;
-use markdown::block::table::TableCellPosition;
+use crate::markdown::block::table::TableCellPosition;
 
 #[derive(Clone)]
 pub struct TableGrid {

@@ -2,12 +2,12 @@
 
 use std::ops::Range;
 
-use markdown::inline::footnote::InlineFootnoteReference;
-use markdown::inline::link::InlineLink;
-use markdown::inline::render_cache::InlineRenderCache;
-use markdown::inline::serialize::can_use_markdown_script_delimiters;
-use markdown::inline::style::{InlineScript, InlineStyle};
-use markdown::inline::text::{BlockText, InlineAttributes, InlineFragment};
+use crate::markdown::inline::footnote::InlineFootnoteReference;
+use crate::markdown::inline::link::InlineLink;
+use crate::markdown::inline::render_cache::InlineRenderCache;
+use crate::markdown::inline::serialize::can_use_markdown_script_delimiters;
+use crate::markdown::inline::style::{InlineScript, InlineStyle};
+use crate::markdown::inline::text::{BlockText, InlineAttributes, InlineFragment};
 
 use crate::document::block::CollapsedCaretAffinity;
 

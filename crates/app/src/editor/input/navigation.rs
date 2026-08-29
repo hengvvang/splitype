@@ -8,8 +8,8 @@ use editor_wysiwyg::actions::{JumpToBottom, JumpToTop, PageDown, PageUp};
 use editor_wysiwyg::document::protocol::BlockEvent;
 use crate::editor::engine::controller::*;
 use editor_wysiwyg::document::block::CollapsedCaretAffinity;
-use markdown::block::table::TableCellPosition;
-use markdown::parse::BlockKind;
+use editor_wysiwyg::markdown::block::table::TableCellPosition;
+use editor_wysiwyg::markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn on_page_up(&mut self, _: &PageUp, _window: &mut Window, cx: &mut Context<Self>) {

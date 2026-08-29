@@ -3,7 +3,7 @@
 use gpui::{AppContext, TestAppContext};
 
 use crate::editor::engine::controller::Editor;
-use markdown::parse::BlockKind;
+use editor_wysiwyg::markdown::parse::BlockKind;
 
 #[gpui::test]
 async fn adjacent_lines_reference_then_definition_both_recognized(cx: &mut TestAppContext) {

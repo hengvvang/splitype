@@ -10,7 +10,7 @@ use gpui::*;
 use editor_wysiwyg::document::protocol::PastedImageSource;
 use crate::editor::engine::controller::*;
 use config::settings::{ImagePasteBehavior, read_app_settings};
-use markdown::parse::BlockKind;
+use editor_wysiwyg::markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn current_image_paste_behavior() -> ImagePasteBehavior {

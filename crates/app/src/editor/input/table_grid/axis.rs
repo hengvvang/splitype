@@ -4,8 +4,8 @@ use gpui::*;
 
 use crate::editor::engine::controller::{Editor, TableAxisSelection};
 use editor_wysiwyg::document::block::Block;
-use markdown::block::table::{TableAxis, TableAxisMarker};
-use markdown::parse::BlockKind;
+use editor_wysiwyg::markdown::block::table::{TableAxis, TableAxisMarker};
+use editor_wysiwyg::markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn preview_table_axis(

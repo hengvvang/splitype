@@ -831,7 +831,7 @@ mod tests {
 
     #[gpui::test]
     async fn context_menu_paragraph_and_quote_kind_switches(cx: &mut TestAppContext) {
-        use markdown::parse::BlockKind;
+        use editor_wysiwyg::markdown::parse::BlockKind;
         let editor = cx.new(|cx| Editor::from_markdown(cx, "my heading".to_string(), None));
 
         editor.update(cx, |editor, cx| {
@@ -1093,7 +1093,7 @@ mod tests {
     #[gpui::test]
     async fn test_wysiwyg_quote_and_guides(cx: &mut TestAppContext) {
         use editor_wysiwyg::render::visible_quote_guides;
-        use markdown::parse::BlockKind;
+        use editor_wysiwyg::markdown::parse::BlockKind;
         cx.update(|cx| {
             i18n::I18nManager::init(cx);
             theme::ThemeManager::init(cx);

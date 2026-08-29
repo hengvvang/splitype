@@ -1,6 +1,6 @@
 //! Markdown-to-editor-tree deserialization.
 //!
-//! Raw Markdown is parsed by `markdown::parse` into `BlockData` records,
+//! Raw Markdown is parsed by `editor_wysiwyg::markdown::parse` into `BlockData` records,
 //! then converted into the runtime tree of GPUI `Entity<Block>` values.
 
 use std::collections::HashMap;
@@ -9,7 +9,7 @@ use gpui::*;
 
 use crate::editor::engine::controller::Editor;
 use editor_wysiwyg::document::block::Block;
-use markdown::parse::BlockData;
+use editor_wysiwyg::markdown::parse::BlockData;
 
 impl Editor {
     /// Parse a Markdown string into a tree of block entities using WYSIWYG (1:1 line) mode.
@@ -17,7 +17,7 @@ impl Editor {
         cx: &mut Context<Self>,
         markdown: &str,
     ) -> Vec<Entity<Block>> {
-        let blocks = markdown::parse::parser::parse_wysiwyg_document(markdown);
+        let blocks = editor_wysiwyg::markdown::parse::parser::parse_wysiwyg_document(markdown);
         blocks_to_entity_tree(blocks, cx)
     }
 
@@ -26,7 +26,7 @@ impl Editor {
         cx: &mut Context<Self>,
         lines: &[String],
     ) -> Vec<Entity<Block>> {
-        let blocks = markdown::parse::parser::build_wysiwyg_blocks_from_lines(lines);
+        let blocks = editor_wysiwyg::markdown::parse::parser::build_wysiwyg_blocks_from_lines(lines);
         blocks_to_entity_tree(blocks, cx)
     }
 

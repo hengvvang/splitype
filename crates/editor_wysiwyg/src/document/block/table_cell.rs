@@ -8,7 +8,7 @@ use gpui::TextAlign;
 
 use crate::document::block::{Block, BlockEditMode};
 use crate::table_grid::TableGrid;
-use markdown::block::table::{TableAxisMarker, TableCellPosition, TableColumnAlignment};
+use crate::markdown::block::table::{TableAxisMarker, TableCellPosition, TableColumnAlignment};
 
 impl Block {
     pub fn is_table_cell(&self) -> bool {

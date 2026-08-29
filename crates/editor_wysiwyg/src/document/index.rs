@@ -6,7 +6,7 @@ use gpui::*;
 
 use crate::document::block::Block;
 use primitives::CalloutKind;
-use markdown::parse::{BlockId, BlockKind};
+use crate::markdown::parse::{BlockId, BlockKind};
 
 /// A block together with its position in the flattened document (DFS) order.
 #[derive(Clone)]

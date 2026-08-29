@@ -27,7 +27,7 @@ use gpui::*;
 
 use editor_wysiwyg::actions::{IndentBlock, OutdentBlock};
 use crate::editor::engine::controller::Editor;
-use markdown::parse::BlockKind;
+use editor_wysiwyg::markdown::parse::BlockKind;
 
 impl Editor {
     pub(crate) fn focused_block_for_tab_key(

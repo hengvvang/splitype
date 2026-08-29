@@ -17,10 +17,10 @@ use crate::document::block::footnotes::{
 use crate::document::block::Block;
 use crate::document::Document;
 use crate::state::TableGrids;
-use markdown::block::footnote::split_footnote_definition_text;
-use markdown::block::image::ImageReferenceDefinitions;
-use markdown::block::link::LinkReferenceDefinitions;
-use markdown::parse::{BlockId, BlockKind};
+use crate::markdown::block::footnote::split_footnote_definition_text;
+use crate::markdown::block::image::ImageReferenceDefinitions;
+use crate::markdown::block::link::LinkReferenceDefinitions;
+use crate::markdown::parse::{BlockId, BlockKind};
 
 /// Rebuild the document-wide footnote registry (definitions bound to
 /// their first inline reference, plus per-block occurrence lists).

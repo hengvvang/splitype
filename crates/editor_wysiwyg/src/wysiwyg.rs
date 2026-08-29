@@ -14,6 +14,11 @@
 
 pub mod actions;
 pub mod document;
+pub mod markdown;
+pub mod tree;
+pub mod latex;
+pub mod mermaid;
+pub mod export;
 pub mod history;
 pub mod pane;
 pub mod paste_plain;

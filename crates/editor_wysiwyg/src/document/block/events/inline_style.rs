@@ -9,7 +9,7 @@ use crate::actions::{
     UnderlineSelection,
 };
 use crate::document::block::{Block, InlineFormat};
-use markdown::inline::text::BlockText;
+use crate::markdown::inline::text::BlockText;
 impl Block {
     pub fn on_bold_selection(
         &mut self,

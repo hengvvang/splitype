@@ -33,8 +33,8 @@ pub fn build_text_runs(
         boundaries.push(span.range.end);
         if let Some(math) = span.math.as_ref() {
             let delim_len = match math.delimiter {
-                markdown::inline::latex::InlineLatexDelimiter::Dollar => 1,
-                markdown::inline::latex::InlineLatexDelimiter::Paren => 2,
+                crate::markdown::inline::latex::InlineLatexDelimiter::Dollar => 1,
+                crate::markdown::inline::latex::InlineLatexDelimiter::Paren => 2,
             };
             if span.range.len() >= delim_len * 2 {
                 boundaries.push(span.range.start + delim_len);
@@ -66,7 +66,7 @@ pub fn build_text_runs(
     }
 
     let callout_prefix_ranges =
-        if matches!(input.kind(), markdown::parse::BlockKind::Callout(_)) {
+        if matches!(input.kind(), crate::markdown::parse::BlockKind::Callout(_)) {
             if display_text.starts_with("[!") && let Some(marker_end) = display_text.find(']') {
                 Some((0..2, 2..marker_end, marker_end..marker_end + 1))
             } else {
@@ -121,8 +121,8 @@ pub fn build_text_runs(
             .unwrap_or(false);
         let is_math_delim = if let Some(math) = active_span.and_then(|s| s.math.as_ref()) {
             let delim_len = match math.delimiter {
-                markdown::inline::latex::InlineLatexDelimiter::Dollar => 1,
-                markdown::inline::latex::InlineLatexDelimiter::Paren => 2,
+                crate::markdown::inline::latex::InlineLatexDelimiter::Dollar => 1,
+                crate::markdown::inline::latex::InlineLatexDelimiter::Paren => 2,
             };
             let span_range = &active_span.unwrap().range;
             (start >= span_range.start && end <= span_range.start + delim_len)

@@ -10,8 +10,8 @@ use crate::document::protocol::{BlockEvent, UndoCaptureKind};
 use syntax::highlight::{CodeHighlightResult, highlight_code_block};
 use crate::document::block::Block;
 use crate::document::block::normalize_code_language_input;
-use markdown::inline::offsets::ImeConverter;
-use markdown::parse::BlockKind;
+use crate::markdown::inline::offsets::ImeConverter;
+use crate::markdown::parse::BlockKind;
 
 impl Block {
     pub fn code_highlight_result(&self) -> Option<&CodeHighlightResult> {

@@ -58,7 +58,7 @@ use crate::render::{
 };
 use i18n::I18nManager;
 use theme::{Theme, ThemeDimensions, ThemeManager};
-use markdown::parse::BlockKind;
+use crate::markdown::parse::BlockKind;
 
 fn wrap_with_quote_guides(content: AnyElement, quote_depth: usize, theme: &Theme) -> AnyElement {
     if quote_depth == 0 {
@@ -509,7 +509,7 @@ impl Render for Block {
                 render_footnote_definition(self, focused, is_placeholder, focused_base, &theme, cx)
             }
             BlockKind::CodeBlock { ref language } => {
-                if markdown::block::mermaid::is_mermaid_info_string(language.as_deref()) {
+                if crate::markdown::block::mermaid::is_mermaid_info_string(language.as_deref()) {
                     render_mermaid_diagram(
                         self,
                         focused,
@@ -614,9 +614,9 @@ mod tests {
     };
     use i18n::I18nManager;
     use theme::{Theme, ThemeManager};
-    use markdown::block::html::parse_html_document;
-    use markdown::inline::text::BlockText;
-    use markdown::parse::{BlockData, BlockKind};
+    use crate::markdown::block::html::parse_html_document;
+    use crate::markdown::inline::text::BlockText;
+    use crate::markdown::parse::{BlockData, BlockKind};
     use gpui::{Hsla, Rgba, TestAppContext, px};
 
     fn assert_color_near(color: Hsla, red: u8, green: u8, blue: u8, alpha: u8) {

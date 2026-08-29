@@ -509,9 +509,9 @@ mod tests {
         source_text_bounds, wrapped_line_height,
     };
     use crate::document::block::Block;
-    use markdown::block::table::TableCellPosition;
-    use markdown::inline::text::BlockText;
-    use markdown::parse::{BlockData, BlockKind};
+    use crate::markdown::block::table::TableCellPosition;
+    use crate::markdown::inline::text::BlockText;
+    use crate::markdown::parse::{BlockData, BlockKind};
     use gpui::{
         AppContext, Bounds, Hsla, Modifiers, MouseButton, MouseDownEvent, SharedString,
         TestAppContext, TextAlign, TextRun, VisualTestContext, point, px, rgba, size,
@@ -708,7 +708,7 @@ mod tests {
             );
             block.set_table_cell_mode(
                 TableCellPosition { row: 0, column: 0 },
-                markdown::block::table::TableColumnAlignment::Center,
+                crate::markdown::block::table::TableColumnAlignment::Center,
             );
             block
         });

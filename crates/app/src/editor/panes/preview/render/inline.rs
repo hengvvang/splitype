@@ -7,11 +7,11 @@
 
 use gpui::*;
 
-use latex::{inline_math_font_size, render_inline_math_svg};
+use editor_wysiwyg::latex::{inline_math_font_size, render_inline_math_svg};
 use theme::Theme;
-use markdown::inline::render_cache::InlineSpan;
-use markdown::inline::style::InlineScript;
-use markdown::inline::text::BlockText;
+use editor_wysiwyg::markdown::inline::render_cache::InlineSpan;
+use editor_wysiwyg::markdown::inline::style::InlineScript;
+use editor_wysiwyg::markdown::inline::text::BlockText;
 
 use std::ops::Range;
 

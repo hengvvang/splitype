@@ -2,7 +2,7 @@
 
 use gpui::*;
 
-use latex::{inline_math_font_size, render_inline_math_svg};
+use crate::latex::{inline_math_font_size, render_inline_math_svg};
 use crate::document::block::{Block, ImageHandle};
 use crate::render::LinkFollowCursor;
 use crate::render::html_document::html_css_color_to_hsla;
@@ -12,10 +12,10 @@ use crate::render::render_image_placeholder;
 use crate::render::render_loading_placeholder;
 use i18n::I18nStrings;
 use theme::Theme;
-use markdown::block::image::{
+use crate::markdown::block::image::{
     ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,
 };
-use markdown::inline::style::InlineScript;
+use crate::markdown::inline::style::InlineScript;
 
 impl Block {
     pub fn render_text_or_mixed_inline_visuals(
@@ -62,7 +62,7 @@ impl Block {
 
     pub fn render_inline_tree_runs(
         &self,
-        tree: &markdown::inline::text::BlockText,
+        tree: &crate::markdown::inline::text::BlockText,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -91,7 +91,7 @@ impl Block {
 
     pub fn render_inline_tree_children(
         &self,
-        tree: &markdown::inline::text::BlockText,
+        tree: &crate::markdown::inline::text::BlockText,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -105,9 +105,9 @@ impl Block {
 
         for span in cache.spans() {
             if cursor < span.range.start {
-                let fallback_span = markdown::inline::render_cache::InlineSpan {
+                let fallback_span = crate::markdown::inline::render_cache::InlineSpan {
                     range: cursor..span.range.start,
-                    style: markdown::inline::style::InlineStyle::default(),
+                    style: crate::markdown::inline::style::InlineStyle::default(),
                     html_style: None,
                     link: None,
                     footnote: None,
@@ -144,9 +144,9 @@ impl Block {
         }
 
         if cursor < text.len() {
-            let fallback_span = markdown::inline::render_cache::InlineSpan {
+            let fallback_span = crate::markdown::inline::render_cache::InlineSpan {
                 range: cursor..text.len(),
-                style: markdown::inline::style::InlineStyle::default(),
+                style: crate::markdown::inline::style::InlineStyle::default(),
                 html_style: None,
                 link: None,
                 footnote: None,
@@ -176,7 +176,7 @@ impl Block {
     pub fn render_inline_text_word_segments(
         &self,
         text: &str,
-        span: &markdown::inline::render_cache::InlineSpan,
+        span: &crate::markdown::inline::render_cache::InlineSpan,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -205,7 +205,7 @@ impl Block {
     pub fn render_inline_text_segment(
         &self,
         text: &str,
-        span: &markdown::inline::render_cache::InlineSpan,
+        span: &crate::markdown::inline::render_cache::InlineSpan,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -353,8 +353,8 @@ impl Block {
 
     pub fn render_inline_math_segment(
         &self,
-        math: &markdown::inline::latex::InlineLatex,
-        span: &markdown::inline::render_cache::InlineSpan,
+        math: &crate::markdown::inline::latex::InlineLatex,
+        span: &crate::markdown::inline::render_cache::InlineSpan,
         theme: &Theme,
         base_color: Hsla,
         font_size: f32,
@@ -479,7 +479,7 @@ impl Block {
                     if let Some(runtime) = self.image_handle_for_syntax(syntax) {
                         children.push(self.render_inline_image_content(&runtime, theme, strings));
                     } else {
-                        let tree = markdown::inline::text::BlockText::plain(markdown);
+                        let tree = crate::markdown::inline::text::BlockText::plain(markdown);
                         children.extend(self.render_inline_tree_children(
                             &tree,
                             theme,

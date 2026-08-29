@@ -15,9 +15,9 @@ use crate::editor::engine::controller::{Editor, PaneId};
 use editor_wysiwyg::document::block::footnotes::{
     FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
 };
-use markdown::block::image::ImageReferenceDefinitions;
-use markdown::block::link::LinkReferenceDefinitions;
-use markdown::parse::{BlockData, BlockId, BlockKind};
+use editor_wysiwyg::markdown::block::image::ImageReferenceDefinitions;
+use editor_wysiwyg::markdown::block::link::LinkReferenceDefinitions;
+use editor_wysiwyg::markdown::parse::{BlockData, BlockId, BlockKind};
 
 impl Editor {
     /// Rebuild the preview block tree of ONE pane whenever the document
@@ -52,7 +52,7 @@ impl Editor {
             .and_then(|state| state.as_preview())
             .is_none_or(|p| p.source_hash != hash || p.blocks.is_empty());
         if needs_rebuild {
-            let data = markdown::parse::parser::parse_preview_document(&source);
+            let data = editor_wysiwyg::markdown::parse::parser::parse_preview_document(&source);
             let mut roots = blocks_to_preview_tree(data);
             if roots.is_empty() {
                 roots.push(PreviewBlock::new(BlockData::paragraph(String::new())));
@@ -157,7 +157,7 @@ impl Editor {
             if block.kind() == BlockKind::FootnoteDefinition && allowed {
                 definitions
                     .entry(
-                        markdown::block::footnote::split_footnote_definition_text(
+                        editor_wysiwyg::markdown::block::footnote::split_footnote_definition_text(
                             &block.data.text.plain_text(),
                         )
                         .0

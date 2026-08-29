@@ -104,7 +104,7 @@ impl Editor {
         self.sync_scroll_viewport(pane_id, viewport_size, cx);
 
         if self.doc().blocks().iter().any(|entry| {
-            entry.entity.read(cx).kind() == markdown::parse::BlockKind::Table
+            entry.entity.read(cx).kind() == editor_wysiwyg::markdown::parse::BlockKind::Table
                 && entry.entity.read(cx).table_grid.is_none()
         }) {
             self.rebuild_table_grids(cx);

@@ -5,8 +5,8 @@ use std::ops::Range;
 use gpui::*;
 
 use primitives::CalloutKind;
-use markdown::block::image::ImageResolvedSource;
-use markdown::parse::BlockId;
+use crate::markdown::block::image::ImageResolvedSource;
+use crate::markdown::parse::BlockId;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum InlineFormat {

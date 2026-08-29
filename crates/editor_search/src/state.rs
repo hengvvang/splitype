@@ -4,7 +4,7 @@ use std::ops::Range;
 use std::path::PathBuf;
 use gpui::{Bounds, EntityId, FocusHandle, Pixels};
 
-use markdown::parse::BlockId;
+use editor_wysiwyg::markdown::parse::BlockId;
 
 #[inline]
 pub fn floor_char_boundary(s: &str, index: usize) -> usize {
