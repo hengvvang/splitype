@@ -34,6 +34,7 @@ export = { path = "../export" }
 ui = { path = "../ui" }
 explorer_fs = { path = "../explorer_fs" }
 workspace = { path = "../workspace" }
+editor_core = { package = "editor", path = "../editor" }
 settings = { path = "../settings" }
 explorer = { path = "../explorer" }
 

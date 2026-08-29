@@ -1682,6 +1682,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
+name = "editor"
+version = "0.0.1"
+dependencies = [
+ "gpui",
+ "splitter",
+ "workspace",
+]
+
+[[package]]
 name = "either"
 version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6040,6 +6049,7 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "config",
+ "editor",
  "embed-resource",
  "explorer",
  "explorer_fs",

@@ -4,28 +4,14 @@
 //! The pane layout is a [`SplitterRoot`] — the same generic split root
 //! the window-level panel layout uses — so both levels share one split
 //! model and one set of interactions (see `splitter`).
+//!
+//! The pane-kind vocabulary, tab kinds, open modes and pane ids are
+//! contract types owned by the `editor` crate (migrated here for the
+//! editor-family split; re-exported so existing paths keep working).
+
+pub use editor_core::{EditorPaneKind, OpenFileMode, TabKind};
 
 use splitter::root::SplitterRoot;
-
-/// Lifecycle retention kind of a document tab in an editor pane.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum TabKind {
-    /// Transient temporary tab: replaced in-place when another file is clicked.
-    #[default]
-    Transient,
-    /// Persistent resident tab: pinned to the tab bar until explicitly closed.
-    Persistent,
-}
-
-/// Requested mode when opening a file into an editor pane.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum OpenFileMode {
-    /// Open as transient tab (replaces existing clean transient tab if present).
-    #[default]
-    Transient,
-    /// Open as persistent tab (or promotes existing tab to persistent).
-    Persistent,
-}
 
 /// The document tabs owned by one Editor area.
 ///
@@ -292,53 +278,3 @@ impl EditorSession {
     }
 }
 
-
-
-/// The pane kinds an Editor panel can host: the document views
-/// inside its split tree. The tree holds only real views — the welcome
-/// state is the area's mode (`EditorPanelMode`), not a panel kind — so the
-/// split structure survives tab open/close cycles unchanged and the
-/// remembered panel layout needs no migration.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum EditorPaneKind {
-    /// Raw Markdown source code editor.
-    SourceCode,
-    /// Visual block editor (WYSIWYG rendered view).
-    Wysiwyg,
-    /// Read-only rendered Markdown preview.
-    Preview,
-}
-
-impl EditorPaneKind {
-    #[inline]
-    pub fn is_wysiwyg(&self) -> bool {
-        matches!(self, Self::Wysiwyg)
-    }
-
-    #[inline]
-    pub fn is_source_code(&self) -> bool {
-        matches!(self, Self::SourceCode)
-    }
-
-    #[inline]
-    pub fn is_preview(&self) -> bool {
-        matches!(self, Self::Preview)
-    }
-
-    pub fn name(&self) -> &'static str {
-        match self {
-            Self::SourceCode => "Source Code",
-            Self::Wysiwyg => "Wysiwyg",
-            Self::Preview => "Preview",
-        }
-    }
-
-    /// All editor pane types (status-bar dropdown options).
-    pub fn all() -> &'static [EditorPaneKind] {
-        &[
-            Self::Wysiwyg,
-            Self::Preview,
-            Self::SourceCode,
-        ]
-    }
-}

@@ -13,22 +13,14 @@
 
 use std::ops::Range;
 
-use gpui::{App, EntityId};
+use gpui::App;
 
 use crate::editor::engine::controller::Editor;
 use crate::editor::engine::session::EditorPaneKind;
 
-
-/// A heading node in the outline HUD (pure data; owned by `editor` so both
-/// the outline panel and the modes can name it).
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct OutlineNode {
-    pub id: String,
-    pub label: String,
-    pub level: u8,
-    pub block_index: usize,
-    pub block_id: Option<EntityId>,
-}
+/// A heading node in the outline HUD. Contract type owned by the `editor`
+/// crate.
+pub use editor_core::OutlineNode;
 
 /// The plugin contract implemented by every editor pane kind.
 pub trait Pane {

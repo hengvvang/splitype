@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 pub(crate) use gpui::*;
 
-pub(crate) use crate::editor::engine::host::EditorHost;
+pub(crate) use editor_core::EditorHost;
 pub(crate) use workspace::DEFAULT_EDITOR_PANEL_ID;
 pub(crate) use workspace::WindowPanelKind;
 pub(crate) use crate::editor::document::protocol::UndoCaptureKind;
@@ -43,40 +43,13 @@ pub(crate) use markdown::block::table::{
 };
 pub(crate) use markdown::inline::text::BlockText;
 pub(crate) use markdown::parse::{BlockData, BlockId, BlockKind};
-pub(crate) use splitter::tree::NodeId;
 pub(crate) use splitter::root::SplitterRoot;
 pub use workspace::PanelId;
 
-/// The strongly-typed identifier representing an inner tiled editor pane (WYSIWYG, SourceCode, Preview).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-pub struct PaneId(pub NodeId);
-
-impl From<NodeId> for PaneId {
-    #[inline]
-    fn from(id: NodeId) -> Self {
-        Self(id)
-    }
-}
-
-impl From<PaneId> for NodeId {
-    #[inline]
-    fn from(id: PaneId) -> Self {
-        id.0
-    }
-}
-
-impl From<PaneId> for gpui::ElementId {
-    #[inline]
-    fn from(id: PaneId) -> Self {
-        id.0.into()
-    }
-}
-
-impl std::fmt::Display for PaneId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
+/// The strongly-typed identifier representing an inner tiled editor pane
+/// (WYSIWYG, SourceCode, Preview). Contract type owned by the `editor`
+/// crate.
+pub use editor_core::PaneId;
 
 /// Link navigation request deferred until a `Window` is available.
 #[derive(Clone, Debug, PartialEq, Eq)]
