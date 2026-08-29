@@ -5,5 +5,3 @@ pub(crate) mod outline;
 pub mod preview;
 pub(crate) mod source_code;
 pub mod wysiwyg;
-
-pub(crate) use preview::PreviewState;

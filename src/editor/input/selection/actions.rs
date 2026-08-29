@@ -116,7 +116,9 @@ impl Editor {
             cx.notify();
         });
         let pane = self.active_pane_state();
-        pane.focus.active_entity = Some(block.entity_id());
+        if let Some(wysiwyg) = pane.as_wysiwyg_mut() {
+            wysiwyg.focus.active_entity = Some(block.entity_id());
+        }
         cx.notify();
     }
 
@@ -152,8 +154,7 @@ impl Editor {
             });
         }
 
-        {
-            let selection = &mut self.active_pane_state().selection;
+        if let Some(selection) = self.active_pane_state().selection_mut() {
             selection.cross_block_drag = None;
             selection.cross_block = Some(CrossBlockSelection {
                 anchor: CrossBlockSelectionEndpoint {
@@ -177,7 +178,9 @@ impl Editor {
     ) {
         if !self.is_wysiwyg() {
             let state = self.active_pane_state();
-            state.selection.select_all_cycle = None;
+            if let Some(selection) = state.selection_mut() {
+                selection.select_all_cycle = None;
+            }
             return;
         }
 
@@ -196,11 +199,13 @@ impl Editor {
         .min(3);
 
         let state = self.active_pane_state();
-        state.selection.select_all_cycle = Some(crate::editor::engine::controller::WysiwygSelectAllCycle {
-            entity_id: block_id,
-            count,
-            last_pressed_at: now,
-        });
+        if let Some(selection) = state.selection_mut() {
+            selection.select_all_cycle = Some(crate::editor::engine::controller::WysiwygSelectAllCycle {
+                entity_id: block_id,
+                count,
+                last_pressed_at: now,
+            });
+        }
 
         if count == 1 {
             self.select_focused_block_text_for_wysiwyg_select_all(block, cx);

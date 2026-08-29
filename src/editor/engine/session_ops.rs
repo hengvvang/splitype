@@ -62,6 +62,9 @@ impl Editor {
         self.session.root.activate_leaf(pane_id.0);
         self.session.root.clear_dropdowns();
         self.focused_pane_id = Some(pane_id);
+        if let Some(state) = self.pane_state_mut(pane_id) {
+            state.ensure_kind(kind);
+        }
     }
 
     /// Inner split created via corner drag or divider border menu. The new pane inherits the

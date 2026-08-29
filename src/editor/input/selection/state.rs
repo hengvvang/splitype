@@ -1,4 +1,4 @@
-﻿//! Cross-block selection representation and visual state synchronization.
+//! Cross-block selection representation and visual state synchronization.
 
 use gpui::*;
 
@@ -73,8 +73,11 @@ impl Editor {
     }
 
     pub(crate) fn clear_cross_block_selection(&mut self, cx: &mut Context<Self>) {
-        let selection = &mut self.active_pane_state().selection;
-        let had_selection = selection.clear_cross_block();
+        let had_selection = self
+            .active_pane_state()
+            .selection_mut()
+            .map(|s| s.clear_cross_block())
+            .unwrap_or(false);
         // Visual ranges are only ever written while a cross-block selection
         // (or drag) is active, so when there was none the all-blocks scan
         // below has nothing to clear. Skipping it removes an O(blocks) entity

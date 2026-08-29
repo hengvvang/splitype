@@ -17,13 +17,13 @@ async fn toggle_pane_kind_preserves_paragraph_caret_position(cx: &mut TestAppCon
         target.update(cx, |block, _cx| {
             block.selected_range = 2..2;
         });
-        editor.active_pane_state().focus.active_entity = Some(target.entity_id());
+        editor.active_pane_state().as_wysiwyg_mut().unwrap().focus.active_entity = Some(target.entity_id());
 
         editor.toggle_pane_kind(cx);
         assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
         let pane_id = editor.active_pane_id();
         let state = editor.pane_state_ref(pane_id).unwrap();
-        assert_eq!(state.source_code.text, "alpha\n\nbeta");
+        assert_eq!(state.as_source_code().unwrap().text, "alpha\n\nbeta");
 
         editor.toggle_pane_kind(cx);
         assert!(matches!(editor.active_pane_kind(), EditorPaneKind::Wysiwyg));
@@ -46,7 +46,7 @@ async fn toggle_pane_kind_ends_stale_code_block_pointer_selection(cx: &mut TestA
             block.is_selecting = true;
             block.code_toolbar.picker.is_selecting = true;
         });
-        editor.active_pane_state().focus.active_entity = Some(target.entity_id());
+        editor.active_pane_state().as_wysiwyg_mut().unwrap().focus.active_entity = Some(target.entity_id());
 
         editor.toggle_pane_kind(cx);
 
@@ -93,13 +93,13 @@ async fn ctrl_a_selects_entire_source_document_in_source_mode(cx: &mut TestAppCo
         assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
         let pane_id = editor.active_pane_id();
         editor.sync_source_pane(pane_id, cx);
-        if let Some(state) = editor.pane_state_mut(pane_id) {
-            state.source_code.move_to(1, false);
-            state.source_code.move_to(3, true);
+        if let Some(source) = editor.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+            source.move_to(1, false);
+            source.move_to(3, true);
         }
         editor.execute_edit_command(crate::editor::commands::DocumentEditCommand::SelectAll, None, cx);
-        let state = editor.pane_state_ref(pane_id).unwrap();
-        assert_eq!(state.source_code.selection, Some(0..state.source_code.text.len()));
+        let source = editor.pane_state_ref(pane_id).unwrap().as_source_code().unwrap();
+        assert_eq!(source.selection, Some(0..source.text.len()));
     });
 }
 
@@ -727,7 +727,7 @@ async fn ending_editor_pointer_selection_sessions_keeps_normal_selection(cx: &mu
             block.marked_range = Some(4..6);
             block.is_selecting = true;
         });
-        editor.active_pane_state().focus.active_entity = Some(target.entity_id());
+        editor.active_pane_state().as_wysiwyg_mut().unwrap().focus.active_entity = Some(target.entity_id());
 
         assert!(editor.end_block_pointer_selection_sessions(cx));
         target.read_with(cx, |block, _cx| {
@@ -751,7 +751,7 @@ async fn toggle_pane_kind_preserves_table_cell_position(cx: &mut TestAppContext)
         cell.update(cx, |block, _cx| {
             block.selected_range = 2..2;
         });
-        editor.active_pane_state().focus.active_entity = Some(cell.entity_id());
+        editor.active_pane_state().as_wysiwyg_mut().unwrap().focus.active_entity = Some(cell.entity_id());
 
         editor.toggle_pane_kind(cx);
         assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));
@@ -799,7 +799,7 @@ async fn toggle_pane_kind_preserves_callout_table_cell_position(cx: &mut TestApp
         cell.update(cx, |block, _cx| {
             block.selected_range = 2..2;
         });
-        editor.active_pane_state().focus.active_entity = Some(cell.entity_id());
+        editor.active_pane_state().as_wysiwyg_mut().unwrap().focus.active_entity = Some(cell.entity_id());
 
         editor.toggle_pane_kind(cx);
         assert!(matches!(editor.active_pane_kind(), EditorPaneKind::SourceCode));

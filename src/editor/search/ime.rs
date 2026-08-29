@@ -1,4 +1,4 @@
-//! GPUI IME and text input bridge (EntityInputHandler) for Search & Replace inputs.
+//! GPUI IME and text input bridge (EntityInputHandler) for Search & Replace inputs and Source Code editor.
 
 use std::ops::Range;
 use gpui::*;
@@ -12,7 +12,8 @@ impl Editor {
     pub(crate) fn focused_source_pane_id(&self, window: &Window) -> Option<crate::editor::engine::controller::PaneId> {
         let active_pane_id = self.active_pane_id();
         let state = self.pane_state_ref(active_pane_id)?;
-        if let Some(ref handle) = state.source_code.focus_handle {
+        let source = state.as_source_code()?;
+        if let Some(ref handle) = source.focus_handle {
             if handle.is_focused(window) {
                 return Some(active_pane_id);
             }
@@ -31,7 +32,7 @@ impl EntityInputHandler for Editor {
     ) -> Option<String> {
         if let Some(pane_id) = self.focused_source_pane_id(window) {
             let state = self.pane_state_ref(pane_id)?;
-            let source = &state.source_code;
+            let source = state.as_source_code()?;
             let range = ImeConverter::utf16_range_to_utf8_in(&source.text, &range_utf16);
             *actual_range = Some(ImeConverter::utf8_range_to_utf16_in(&source.text, &range));
             let start = range.start.min(source.text.len());
@@ -66,7 +67,7 @@ impl EntityInputHandler for Editor {
     ) -> Option<UTF16Selection> {
         if let Some(pane_id) = self.focused_source_pane_id(window) {
             let state = self.pane_state_ref(pane_id)?;
-            let source = &state.source_code;
+            let source = state.as_source_code()?;
             let utf8_range = source.selection.clone().unwrap_or(source.cursor..source.cursor);
             let utf16_range = ImeConverter::utf8_range_to_utf16_in(&source.text, &utf8_range);
             return Some(UTF16Selection {
@@ -100,7 +101,7 @@ impl EntityInputHandler for Editor {
     ) -> Option<Range<usize>> {
         if let Some(pane_id) = self.focused_source_pane_id(window) {
             let state = self.pane_state_ref(pane_id)?;
-            let source = &state.source_code;
+            let source = state.as_source_code()?;
             return source
                 .marked_range
                 .as_ref()
@@ -127,8 +128,8 @@ impl EntityInputHandler for Editor {
 
     fn unmark_text(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(pane_id) = self.focused_source_pane_id(window) {
-            if let Some(state) = self.pane_state_mut(pane_id) {
-                state.source_code.marked_range = None;
+            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                source.marked_range = None;
             }
             cx.notify();
             return;
@@ -153,7 +154,7 @@ impl EntityInputHandler for Editor {
         if let Some(pane_id) = self.focused_source_pane_id(window) {
             let current_range = {
                 let state = self.pane_state_ref(pane_id).unwrap();
-                let source = &state.source_code;
+                let source = state.as_source_code().unwrap();
                 range_utf16
                     .as_ref()
                     .map(|r| ImeConverter::utf16_range_to_utf8_in(&source.text, r))
@@ -161,14 +162,14 @@ impl EntityInputHandler for Editor {
                     .or_else(|| source.selection.clone())
                     .unwrap_or(source.cursor..source.cursor)
             };
-            if let Some(state) = self.pane_state_mut(pane_id) {
-                let source = &mut state.source_code;
+            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
                 let start = current_range.start.min(source.text.len());
                 let end = current_range.end.min(source.text.len());
                 source.text.replace_range(start..end, new_text);
                 source.cursor = start + new_text.len();
                 source.selection = None;
                 source.marked_range = None;
+                source.rebuild_lines();
                 source.refresh_highlight();
             }
             self.sync_source_edit_to_document(pane_id, cx);
@@ -217,7 +218,7 @@ impl EntityInputHandler for Editor {
         if let Some(pane_id) = self.focused_source_pane_id(window) {
             let range = {
                 let state = self.pane_state_ref(pane_id).unwrap();
-                let source = &state.source_code;
+                let source = state.as_source_code().unwrap();
                 range_utf16
                     .as_ref()
                     .map(|r| ImeConverter::utf16_range_to_utf8_in(&source.text, r))
@@ -225,8 +226,7 @@ impl EntityInputHandler for Editor {
                     .or_else(|| source.selection.clone())
                     .unwrap_or(source.cursor..source.cursor)
             };
-            if let Some(state) = self.pane_state_mut(pane_id) {
-                let source = &mut state.source_code;
+            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
                 let start = range.start.min(source.text.len());
                 let end = range.end.min(source.text.len());
                 source.text.replace_range(start..end, new_text);
@@ -296,7 +296,8 @@ impl EntityInputHandler for Editor {
     ) -> Option<Bounds<Pixels>> {
         if let Some(pane_id) = self.focused_source_pane_id(window) {
             let state = self.pane_state_ref(pane_id)?;
-            return state.source_code.last_bounds;
+            let source = state.as_source_code()?;
+            return source.last_bounds;
         }
 
         let is_search = self.search.search_focus_handle.is_focused(window);

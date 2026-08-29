@@ -255,7 +255,8 @@ impl Editor {
                     .and_then(|id| self.focusable_entity_by_id(id))
                     .or_else(|| {
                         self.pane_state_ref(pane_id)
-                            .and_then(|p| p.focus.active_entity)
+                            .and_then(|p| p.as_wysiwyg())
+                            .and_then(|w| w.focus.active_entity)
                             .and_then(|id| self.focusable_entity_by_id(id))
                     })
                     .map(|b| b.read(cx).kind().clone());
@@ -263,11 +264,12 @@ impl Editor {
                 let (is_h1, is_h2, is_h3, is_h4, is_h5, is_h6, is_p) = if self.is_source_code() {
                     let source_line = self
                         .pane_state_ref(pane_id)
-                        .map(|p| {
-                            let (cur_line, _) = p.source_code.line_and_column(p.source_code.cursor);
-                            let start = p.source_code.line_start_offset(cur_line);
-                            let end = p.source_code.line_end_offset(cur_line);
-                            p.source_code.text[start..end].trim_start().to_string()
+                        .and_then(|p| p.as_source_code())
+                        .map(|source| {
+                            let (cur_line, _) = source.line_and_column(source.cursor);
+                            let start = source.line_start_offset(cur_line);
+                            let end = source.line_end_offset(cur_line);
+                            source.text[start..end].trim_start().to_string()
                         })
                         .unwrap_or_default();
 

@@ -47,10 +47,12 @@ impl Editor {
         let revision = tab.document_revision;
         let synced = self
             .pane_state_ref(pane_id)
-            .and_then(|state| state.preview.synced_revision);
+            .and_then(|state| state.as_preview())
+            .and_then(|p| p.synced_revision);
         let blocks_empty = self
             .pane_state_ref(pane_id)
-            .is_none_or(|state| state.preview.blocks.is_empty());
+            .and_then(|state| state.as_preview())
+            .is_none_or(|p| p.blocks.is_empty());
         if synced == Some(revision) && !blocks_empty {
             return;
         }
@@ -59,9 +61,10 @@ impl Editor {
         };
         let source = doc.serialize_markdown(cx);
         let hash = Self::hash_str(&source);
-        let needs_rebuild = self.pane_state_ref(pane_id).is_none_or(|state| {
-            state.preview.source_hash != hash || state.preview.blocks.is_empty()
-        });
+        let needs_rebuild = self
+            .pane_state_ref(pane_id)
+            .and_then(|state| state.as_preview())
+            .is_none_or(|p| p.source_hash != hash || p.blocks.is_empty());
         if needs_rebuild {
             let data = crate::model::parse::parser::parse_preview_document(&source);
             let mut roots = blocks_to_preview_tree(data);
@@ -84,12 +87,15 @@ impl Editor {
                 &footnote_registry,
             );
             if let Some(state) = self.pane_state_mut(pane_id) {
-                state.preview.blocks = roots;
-                state.preview.source_hash = hash;
+                state.ensure_kind(crate::editor::engine::controller::EditorPaneKind::Preview);
+                if let Some(preview) = state.as_preview_mut() {
+                    preview.blocks = roots;
+                    preview.source_hash = hash;
+                }
             }
         }
-        if let Some(state) = self.pane_state_mut(pane_id) {
-            state.preview.synced_revision = Some(revision);
+        if let Some(preview) = self.pane_state_mut(pane_id).and_then(|p| p.as_preview_mut()) {
+            preview.synced_revision = Some(revision);
         }
     }
 

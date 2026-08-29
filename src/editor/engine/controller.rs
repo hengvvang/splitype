@@ -19,7 +19,6 @@ pub(crate) use gpui::*;
 pub(crate) use crate::app::shell::Shell;
 pub(crate) use crate::app::window::panels::DEFAULT_EDITOR_PANEL_ID;
 pub(crate) use crate::app::window::panels::WindowPanelKind;
-pub(crate) use crate::editor::PreviewState;
 pub(crate) use crate::editor::document::protocol::UndoCaptureKind;
 pub(crate) use crate::editor::panes::outline::state::OutlinePaneState;
 pub use crate::editor::engine::session::{
@@ -248,6 +247,31 @@ pub(crate) struct DocumentTab {
     pub(crate) cached_word_count: Option<(u64, usize)>,
 }
 
+/// View state specific to a WYSIWYG editor pane.
+#[derive(Default)]
+pub(crate) struct WysiwygPaneState {
+    pub(crate) focus: FocusState,
+    pub(crate) selection: SelectionState,
+}
+
+/// View state specific to an Outline document pane.
+#[derive(Default, Debug)]
+pub(crate) struct OutlineState;
+
+/// Decoupled state variant for each supported editor pane kind.
+pub(crate) enum PaneKindState {
+    Wysiwyg(WysiwygPaneState),
+    SourceCode(crate::editor::panes::source_code::SourceCodeState),
+    Preview(crate::editor::panes::preview::PreviewState),
+    Outline(OutlineState),
+}
+
+impl Default for PaneKindState {
+    fn default() -> Self {
+        Self::Wysiwyg(WysiwygPaneState::default())
+    }
+}
+
 /// The independent view state of one pane inside an editor area.
 ///
 /// Panes share the tab's document (the single source of truth) but nothing
@@ -258,10 +282,152 @@ pub(crate) struct DocumentTab {
 #[derive(Default)]
 pub(crate) struct PaneState {
     pub(crate) scroll: ScrollState,
-    pub(crate) focus: FocusState,
-    pub(crate) selection: SelectionState,
-    pub(crate) preview: PreviewState,
-    pub(crate) source_code: crate::editor::panes::source_code::SourceCodeState,
+    pub(crate) kind_state: PaneKindState,
+}
+
+static EMPTY_FOCUS_STATE: FocusState = FocusState {
+    pending: None,
+    active_entity: None,
+};
+
+static EMPTY_SELECTION_STATE: SelectionState = SelectionState {
+    cross_block: None,
+    cross_block_drag: None,
+    select_all_cycle: None,
+};
+
+#[allow(dead_code)]
+impl PaneState {
+    pub(crate) fn new(kind: EditorPaneKind) -> Self {
+        let kind_state = match kind {
+            EditorPaneKind::Wysiwyg => PaneKindState::Wysiwyg(WysiwygPaneState::default()),
+            EditorPaneKind::SourceCode => {
+                PaneKindState::SourceCode(crate::editor::panes::source_code::SourceCodeState::default())
+            }
+            EditorPaneKind::Preview => {
+                PaneKindState::Preview(crate::editor::panes::preview::PreviewState::default())
+            }
+            EditorPaneKind::Outline => PaneKindState::Outline(OutlineState),
+        };
+        Self {
+            scroll: ScrollState::default(),
+            kind_state,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn kind(&self) -> EditorPaneKind {
+        match &self.kind_state {
+            PaneKindState::Wysiwyg(_) => EditorPaneKind::Wysiwyg,
+            PaneKindState::SourceCode(_) => EditorPaneKind::SourceCode,
+            PaneKindState::Preview(_) => EditorPaneKind::Preview,
+            PaneKindState::Outline(_) => EditorPaneKind::Outline,
+        }
+    }
+
+    pub(crate) fn ensure_kind(&mut self, kind: EditorPaneKind) {
+        if self.kind() == kind {
+            return;
+        }
+        self.kind_state = match kind {
+            EditorPaneKind::Wysiwyg => PaneKindState::Wysiwyg(WysiwygPaneState::default()),
+            EditorPaneKind::SourceCode => {
+                PaneKindState::SourceCode(crate::editor::panes::source_code::SourceCodeState::default())
+            }
+            EditorPaneKind::Preview => {
+                PaneKindState::Preview(crate::editor::panes::preview::PreviewState::default())
+            }
+            EditorPaneKind::Outline => PaneKindState::Outline(OutlineState),
+        };
+    }
+
+    #[inline]
+    pub(crate) fn as_wysiwyg(&self) -> Option<&WysiwygPaneState> {
+        match &self.kind_state {
+            PaneKindState::Wysiwyg(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn as_wysiwyg_mut(&mut self) -> Option<&mut WysiwygPaneState> {
+        match &mut self.kind_state {
+            PaneKindState::Wysiwyg(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn as_source_code(&self) -> Option<&crate::editor::panes::source_code::SourceCodeState> {
+        match &self.kind_state {
+            PaneKindState::SourceCode(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn as_source_code_mut(
+        &mut self,
+    ) -> Option<&mut crate::editor::panes::source_code::SourceCodeState> {
+        match &mut self.kind_state {
+            PaneKindState::SourceCode(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn as_preview(&self) -> Option<&crate::editor::panes::preview::PreviewState> {
+        match &self.kind_state {
+            PaneKindState::Preview(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn as_preview_mut(
+        &mut self,
+    ) -> Option<&mut crate::editor::panes::preview::PreviewState> {
+        match &mut self.kind_state {
+            PaneKindState::Preview(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn as_outline(&self) -> Option<&OutlineState> {
+        match &self.kind_state {
+            PaneKindState::Outline(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn as_outline_mut(&mut self) -> Option<&mut OutlineState> {
+        match &mut self.kind_state {
+            PaneKindState::Outline(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn selection(&self) -> Option<&SelectionState> {
+        self.as_wysiwyg().map(|w| &w.selection)
+    }
+
+    #[inline]
+    pub(crate) fn selection_mut(&mut self) -> Option<&mut SelectionState> {
+        self.as_wysiwyg_mut().map(|w| &mut w.selection)
+    }
+
+    #[inline]
+    pub(crate) fn focus(&self) -> Option<&FocusState> {
+        self.as_wysiwyg().map(|w| &w.focus)
+    }
+
+    #[inline]
+    pub(crate) fn focus_mut(&mut self) -> Option<&mut FocusState> {
+        self.as_wysiwyg_mut().map(|w| &mut w.focus)
+    }
 }
 
 /// Top-level controller that owns editor-wide state and delegates tree
@@ -592,8 +758,10 @@ impl Editor {
         editor.refresh_preview_blocks(pane_id, cx);
         let pending_focus = editor.first_focusable_entity_id(cx);
         let pane = editor.pane_state(pane_id);
-        pane.focus.pending = pending_focus;
-        pane.focus.active_entity = pending_focus;
+        if let Some(w) = pane.as_wysiwyg_mut() {
+            w.focus.pending = pending_focus;
+            w.focus.active_entity = pending_focus;
+        }
         editor.refresh_stable_document_snapshot(cx);
         editor
     }
@@ -616,8 +784,7 @@ impl Editor {
         let mut document = Document::new(roots);
         document.rebuild_metadata_and_snapshot(cx);
 
-        let mut panes = HashMap::new();
-        panes.insert(PaneId(1), PaneState::default());
+        let panes = HashMap::new();
 
         DocumentTab {
             document,
@@ -654,8 +821,10 @@ impl Editor {
         }
         self.session.set_active_tab(index);
         let pane = self.active_pane_state();
-        if pane.focus.pending.is_none() {
-            pane.focus.pending = pane.focus.active_entity;
+        if let Some(w) = pane.as_wysiwyg_mut() {
+            if w.focus.pending.is_none() {
+                w.focus.pending = w.focus.active_entity;
+            }
         }
         if let Some(tab) = self.session.tab_mut(index) {
             tab.file.pending_window_title_refresh = true;
@@ -803,8 +972,10 @@ impl Editor {
             return;
         }
         let pane = self.active_pane_state();
-        if pane.focus.pending.is_none() {
-            pane.focus.pending = pane.focus.active_entity;
+        if let Some(w) = pane.as_wysiwyg_mut() {
+            if w.focus.pending.is_none() {
+                w.focus.pending = w.focus.active_entity;
+            }
         }
         if let Some(tab) = self.session.active_tab_mut() {
             tab.file.pending_window_title_refresh = true;
@@ -841,14 +1012,20 @@ impl Editor {
 
     /// The view state of the pane with `pane_id`, creating it lazily.
     pub(crate) fn pane_state(&mut self, pane_id: PaneId) -> &mut PaneState {
+        let kind = self.pane_kind(pane_id).unwrap_or(EditorPaneKind::Wysiwyg);
         let tab = self.tab_mut();
-        tab.panes.entry(pane_id).or_default()
+        let state = tab.panes.entry(pane_id).or_insert_with(|| PaneState::new(kind));
+        state.ensure_kind(kind);
+        state
     }
 
     /// The view state of the pane with `pane_id`, creating it lazily if an active tab exists.
     pub(crate) fn pane_state_mut(&mut self, pane_id: PaneId) -> Option<&mut PaneState> {
+        let kind = self.pane_kind(pane_id).unwrap_or(EditorPaneKind::Wysiwyg);
         let tab = self.session.active_tab_mut()?;
-        Some(tab.panes.entry(pane_id).or_default())
+        let state = tab.panes.entry(pane_id).or_insert_with(|| PaneState::new(kind));
+        state.ensure_kind(kind);
+        Some(state)
     }
 
     /// The view state of the pane with `pane_id`, if it exists.
@@ -860,20 +1037,34 @@ impl Editor {
     /// The active pane's focus state — the routing target for events
     /// without a pane context.
     pub(crate) fn active_pane_focus(&self) -> &FocusState {
-        &self
-            .pane_state_ref(self.active_pane_id())
-            .or_else(|| self.tab().panes.values().next())
-            .expect("tab always has at least one pane state")
-            .focus
+        self.pane_state_ref(self.active_pane_id())
+            .and_then(|p| p.as_wysiwyg())
+            .map(|w| &w.focus)
+            .unwrap_or(&EMPTY_FOCUS_STATE)
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn active_pane_focus_mut(&mut self) -> Option<&mut FocusState> {
+        let pane_id = self.active_pane_id();
+        self.pane_state_mut(pane_id)
+            .and_then(|p| p.as_wysiwyg_mut())
+            .map(|w| &mut w.focus)
     }
 
     /// The active pane's selection state.
     pub(crate) fn active_pane_selection(&self) -> &SelectionState {
-        &self
-            .pane_state_ref(self.active_pane_id())
-            .or_else(|| self.tab().panes.values().next())
-            .expect("tab always has at least one pane state")
-            .selection
+        self.pane_state_ref(self.active_pane_id())
+            .and_then(|p| p.as_wysiwyg())
+            .map(|w| &w.selection)
+            .unwrap_or(&EMPTY_SELECTION_STATE)
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn active_pane_selection_mut(&mut self) -> Option<&mut SelectionState> {
+        let pane_id = self.active_pane_id();
+        self.pane_state_mut(pane_id)
+            .and_then(|p| p.as_wysiwyg_mut())
+            .map(|w| &mut w.selection)
     }
 
     /// The active pane's scroll state.
@@ -945,11 +1136,11 @@ impl Editor {
                 // The source panel's own buffer becomes the edit target.
                 Some(EditorPaneKind::SourceCode) => {
                     self.sync_source_pane(pane_id, cx);
-                    if let Some(state) = self.pane_state_mut(pane_id) {
-                        if state.source_code.focus_handle.is_none() {
-                            state.source_code.focus_handle = Some(cx.focus_handle());
+                    if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                        if source.focus_handle.is_none() {
+                            source.focus_handle = Some(cx.focus_handle());
                         }
-                        if let Some(ref handle) = state.source_code.focus_handle {
+                        if let Some(ref handle) = source.focus_handle {
                             handle.focus(window, cx);
                         }
                     }
@@ -959,7 +1150,8 @@ impl Editor {
                 Some(EditorPaneKind::Wysiwyg) => {
                     let target = self
                         .pane_state_ref(pane_id)
-                        .and_then(|state| state.focus.active_entity)
+                        .and_then(|state| state.as_wysiwyg())
+                        .and_then(|wysiwyg| wysiwyg.focus.active_entity)
                         .filter(|id| self.focusable_entity_by_id(*id).is_some())
                         .or_else(|| self.first_focusable_entity_id(cx));
                     if let Some(id) = target {

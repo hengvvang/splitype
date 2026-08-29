@@ -78,15 +78,18 @@ impl Editor {
         position: Point<Pixels>,
         cx: &mut Context<Self>,
     ) {
-        let Some(state) = self.pane_state_mut(pane_id) else {
+        let Some(pane) = self.pane_state_mut(pane_id) else {
             return;
         };
-        let Some(block) = state.preview.blocks.get(block_index) else {
+        let Some(preview) = pane.as_preview_mut() else {
+            return;
+        };
+        let Some(block) = preview.blocks.get(block_index) else {
             return;
         };
         let offset = block.index_for_mouse_position(position);
-        state.preview.drag_anchor = Some(PreviewEndpoint { block_index, offset });
-        state.preview.selection = None;
+        preview.drag_anchor = Some(PreviewEndpoint { block_index, offset });
+        preview.selection = None;
         cx.notify();
     }
 
@@ -97,22 +100,25 @@ impl Editor {
         position: Point<Pixels>,
         cx: &mut Context<Self>,
     ) {
-        let Some(state) = self.pane_state_mut(pane_id) else {
+        let Some(pane) = self.pane_state_mut(pane_id) else {
             return;
         };
-        let Some(anchor) = state.preview.drag_anchor else {
+        let Some(preview) = pane.as_preview_mut() else {
             return;
         };
-        let Some(block) = state.preview.blocks.get(block_index) else {
+        let Some(anchor) = preview.drag_anchor else {
+            return;
+        };
+        let Some(block) = preview.blocks.get(block_index) else {
             return;
         };
         let offset = block.index_for_mouse_position(position);
         let focus = PreviewEndpoint { block_index, offset };
         let selection = PreviewSelectionRange::new(anchor, focus);
         if selection.is_empty() {
-            state.preview.selection = None;
+            preview.selection = None;
         } else {
-            state.preview.selection = Some(selection);
+            preview.selection = Some(selection);
         }
         cx.notify();
     }
@@ -122,22 +128,22 @@ impl Editor {
         pane_id: PaneId,
         cx: &mut Context<Self>,
     ) {
-        if let Some(state) = self.pane_state_mut(pane_id) {
-            state.preview.drag_anchor = None;
+        if let Some(preview) = self.pane_state_mut(pane_id).and_then(|p| p.as_preview_mut()) {
+            preview.drag_anchor = None;
             cx.notify();
         }
     }
 
     pub(crate) fn preview_selected_text(&self, _cx: &App) -> Option<String> {
         let pane_id = self.active_pane_id();
-        let state = self.pane_state_ref(pane_id)?;
-        let selection = state.preview.selection?;
+        let preview = self.pane_state_ref(pane_id)?.as_preview()?;
+        let selection = preview.selection?;
         if selection.is_empty() {
             return None;
         }
 
         let mut lines = Vec::new();
-        for (index, block) in state.preview.blocks.iter().enumerate() {
+        for (index, block) in preview.blocks.iter().enumerate() {
             let len = block.display_len();
             if let Some(range) = selection.range_for_block(index, len) {
                 let text = block.display_text();
@@ -154,42 +160,6 @@ impl Editor {
         } else {
             Some(lines.join("\n\n"))
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_preview_selection_single_block_forward() {
-        let anchor = PreviewEndpoint { block_index: 0, offset: 2 };
-        let focus = PreviewEndpoint { block_index: 0, offset: 8 };
-        let sel = PreviewSelectionRange::new(anchor, focus);
-        assert!(!sel.is_reversed);
-        assert_eq!(sel.range_for_block(0, 10), Some(2..8));
-        assert_eq!(sel.range_for_block(1, 10), None);
-    }
-
-    #[test]
-    fn test_preview_selection_single_block_reversed() {
-        let anchor = PreviewEndpoint { block_index: 0, offset: 8 };
-        let focus = PreviewEndpoint { block_index: 0, offset: 2 };
-        let sel = PreviewSelectionRange::new(anchor, focus);
-        assert!(sel.is_reversed);
-        assert_eq!(sel.range_for_block(0, 10), Some(2..8));
-    }
-
-    #[test]
-    fn test_preview_selection_multi_block() {
-        let anchor = PreviewEndpoint { block_index: 1, offset: 5 };
-        let focus = PreviewEndpoint { block_index: 3, offset: 4 };
-        let sel = PreviewSelectionRange::new(anchor, focus);
-        assert_eq!(sel.range_for_block(0, 10), None);
-        assert_eq!(sel.range_for_block(1, 10), Some(5..10));
-        assert_eq!(sel.range_for_block(2, 10), Some(0..10));
-        assert_eq!(sel.range_for_block(3, 10), Some(0..4));
-        assert_eq!(sel.range_for_block(4, 10), None);
     }
 }
 

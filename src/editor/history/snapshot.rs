@@ -155,30 +155,17 @@ impl Editor {
     ) {
         match self.active_pane_kind() {
             EditorPaneKind::SourceCode => {
-                let Some(block) = self.doc().first_root().cloned() else {
-                    return;
-                };
-                let len = block.read(cx).display_len();
-                // Anchored snapshots carry a block-local caret; treat it as a
-                // raw offset into the single source block as a best effort.
-                let cursor = snapshot
-                    .block_anchor
-                    .as_ref()
-                    .map(|anchor| anchor.content_range.end)
-                    .unwrap_or(snapshot.range.end);
-                let selected_range = cursor.min(len)..cursor.min(len);
-                block.update(cx, move |block, cx| {
-                    block.selected_range = selected_range.clone();
-                    block.selection_reversed = snapshot.reversed;
-                    block.marked_range = None;
-                    block.vertical_motion_x = None;
-                    block.cursor_blink_epoch = Instant::now();
-                    cx.notify();
-                });
-                {
-                    let pane = self.active_pane_state();
-                    pane.focus.pending = Some(block.entity_id());
-                    pane.focus.active_entity = Some(block.entity_id());
+                let pane_id = self.active_pane_id();
+                self.sync_source_pane(pane_id, cx);
+                if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                    let len = source.text.len();
+                    let cursor = snapshot
+                        .block_anchor
+                        .as_ref()
+                        .map(|anchor| anchor.content_range.end)
+                        .unwrap_or(snapshot.range.end);
+                    let pos = cursor.min(len);
+                    source.move_to(pos, false);
                 }
             }
             EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
@@ -197,10 +184,9 @@ impl Editor {
                         block.cursor_blink_epoch = Instant::now();
                         cx.notify();
                     });
-                    {
-                        let pane = self.active_pane_state();
-                        pane.focus.pending = Some(entity_id);
-                        pane.focus.active_entity = Some(entity_id);
+                    if let Some(wysiwyg) = self.active_pane_state().as_wysiwyg_mut() {
+                        wysiwyg.focus.pending = Some(entity_id);
+                        wysiwyg.focus.active_entity = Some(entity_id);
                     }
                     return;
                 }
@@ -251,10 +237,9 @@ impl Editor {
                         block.cursor_blink_epoch = Instant::now();
                         cx.notify();
                     });
-                    {
-                        let pane = self.active_pane_state();
-                        pane.focus.pending = Some(mapping.entity.entity_id());
-                        pane.focus.active_entity = Some(mapping.entity.entity_id());
+                    if let Some(wysiwyg) = self.active_pane_state().as_wysiwyg_mut() {
+                        wysiwyg.focus.pending = Some(mapping.entity.entity_id());
+                        wysiwyg.focus.active_entity = Some(mapping.entity.entity_id());
                     }
                     return;
                 }
@@ -265,9 +250,10 @@ impl Editor {
                 });
                 let Some(mapping) = best else {
                     let pending = self.first_focusable_entity_id(cx);
-                    let pane = self.active_pane_state();
-                    pane.focus.pending = pending;
-                    pane.focus.active_entity = pending;
+                    if let Some(wysiwyg) = self.active_pane_state().as_wysiwyg_mut() {
+                        wysiwyg.focus.pending = pending;
+                        wysiwyg.focus.active_entity = pending;
+                    }
                     return;
                 };
                 let local_source = if caret_offset <= mapping.full_source_range.start {
@@ -293,10 +279,9 @@ impl Editor {
                     block.cursor_blink_epoch = Instant::now();
                     cx.notify();
                 });
-                {
-                    let pane = self.active_pane_state();
-                    pane.focus.pending = Some(mapping.entity.entity_id());
-                    pane.focus.active_entity = Some(mapping.entity.entity_id());
+                if let Some(wysiwyg) = self.active_pane_state().as_wysiwyg_mut() {
+                    wysiwyg.focus.pending = Some(mapping.entity.entity_id());
+                    wysiwyg.focus.active_entity = Some(mapping.entity.entity_id());
                 }
             }
         }

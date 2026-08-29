@@ -58,7 +58,9 @@ impl Editor {
         }
         if let Some(restore) = restore_entity {
             let pane = self.active_pane_state();
-            pane.focus.active_entity = Some(restore);
+            if let Some(wysiwyg) = pane.as_wysiwyg_mut() {
+                wysiwyg.focus.active_entity = Some(restore);
+            }
         }
         cx.notify();
     }

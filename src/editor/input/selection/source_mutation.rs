@@ -56,8 +56,7 @@ impl Editor {
             return false;
         }
 
-        {
-            let selection = &mut self.active_pane_state().selection;
+        if let Some(selection) = self.active_pane_state().selection_mut() {
             selection.cross_block = Some(if snapshot.reversed {
                 CrossBlockSelection {
                     anchor: end,
@@ -247,8 +246,7 @@ impl Editor {
         };
         let end = end.min(source.len());
         source.replace_range(start..end, new_text);
-        {
-            let selection = &mut self.active_pane_state().selection;
+        if let Some(selection) = self.active_pane_state().selection_mut() {
             selection.cross_block = None;
             selection.cross_block_drag = None;
         }
@@ -453,8 +451,7 @@ impl Editor {
         };
         let end = end.min(source.len());
         source.replace_range(start..end, "");
-        {
-            let selection = &mut self.active_pane_state().selection;
+        if let Some(selection) = self.active_pane_state().selection_mut() {
             selection.cross_block = None;
             selection.cross_block_drag = None;
         }
@@ -485,7 +482,8 @@ impl Editor {
             let pane_id = self.active_pane_id();
             return self
                 .pane_state_ref(pane_id)
-                .and_then(|p| p.source_code.selected_text().map(String::from));
+                .and_then(|p| p.as_source_code())
+                .and_then(|p| p.selected_text().map(String::from));
         }
 
         if self.is_preview() {
@@ -525,9 +523,9 @@ impl Editor {
         if self.is_source_code() {
             let pane_id = self.active_pane_id();
             let mut deleted = false;
-            if let Some(state) = self.pane_state_mut(pane_id) {
-                if state.source_code.selection.is_some() {
-                    state.source_code.delete_backward();
+            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                if source.selection.is_some() {
+                    source.delete_backward();
                     deleted = true;
                 }
             }

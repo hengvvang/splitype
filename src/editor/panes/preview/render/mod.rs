@@ -52,7 +52,8 @@ impl Editor {
 
         let preview_selection = self
             .pane_state_ref(pane_id)
-            .and_then(|state| state.preview.selection);
+            .and_then(|state| state.as_preview())
+            .and_then(|preview| preview.selection);
 
         let scroll_handle = self
             .pane_state_ref(pane_id)
@@ -62,9 +63,9 @@ impl Editor {
         let editor_handle = cx.entity().clone();
         let block_elements: Vec<AnyElement> = self
             .pane_state_ref(pane_id)
-            .map(|state| {
-                let mut elements: Vec<AnyElement> = state
-                    .preview
+            .and_then(|state| state.as_preview())
+            .map(|preview| {
+                let mut elements: Vec<AnyElement> = preview
                     .blocks
                     .iter()
                     .enumerate()
@@ -92,7 +93,7 @@ impl Editor {
                 // rendered as one GitHub-style section at the bottom, behind a
                 // divider line from the main content.
                 let mut footnotes: Vec<PreviewBlock> = Vec::new();
-                collect_preview_footnote_definitions(&state.preview.blocks, &mut footnotes);
+                collect_preview_footnote_definitions(&preview.blocks, &mut footnotes);
                 if !footnotes.is_empty() {
                     elements.push(footnote::render_preview_footnotes_section(
                         &footnotes, pane_id, &editor_handle, theme, window, cx,

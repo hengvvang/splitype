@@ -55,7 +55,8 @@ async fn rendering_one_editor_panel_keeps_other_panels_source_block(cx: &mut Tes
         editor.read_with(cx, |editor, _cx| {
             editor
                 .pane_state_ref(PaneId(1))
-                .map(|state| state.source_code.text.clone())
+                .and_then(|state| state.as_source_code())
+                .map(|state| state.text.clone())
         })
     }
 
@@ -79,7 +80,8 @@ async fn rendering_one_editor_panel_keeps_other_panels_source_block(cx: &mut Tes
     let second_text = second.read_with(&cx.cx, |second, _cx| {
         second
             .pane_state_ref(PaneId(1))
-            .map(|state| state.source_code.text.clone())
+            .and_then(|state| state.as_source_code())
+            .map(|state| state.text.clone())
     });
     assert!(second_text.is_some(), "second area source buffer should exist");
 }
@@ -106,7 +108,8 @@ async fn switching_tabs_rebuilds_the_source_pane_block(cx: &mut TestAppContext) 
         editor.read_with(cx, |editor, _cx| {
             editor
                 .pane_state_ref(PaneId(1))
-                .map(|state| state.source_code.text.clone())
+                .and_then(|state| state.as_source_code())
+                .map(|state| state.text.clone())
                 .unwrap_or_default()
         })
     }
@@ -152,7 +155,8 @@ async fn stale_source_block_events_do_not_clobber_the_active_tab(cx: &mut TestAp
         .read_with(cx, |editor, _cx| {
             editor
                 .pane_state_ref(PaneId(1))
-                .map(|state| state.source_code.clone())
+                .and_then(|state| state.as_source_code())
+                .cloned()
         })
         .expect("source state must exist");
 
@@ -190,8 +194,8 @@ async fn typing_in_the_source_block_after_a_tab_switch_still_syncs(cx: &mut Test
     editor.update(cx, |editor, cx| {
         editor.activate_tab(1, cx);
         editor.sync_source_pane(PaneId(1), cx);
-        if let Some(state) = editor.pane_state_mut(PaneId(1)) {
-            state.source_code.insert_text("x");
+        if let Some(source) = editor.pane_state_mut(PaneId(1)).and_then(|p| p.as_source_code_mut()) {
+            source.insert_text("x");
         }
         editor.sync_source_edit_to_document(PaneId(1), cx);
     });
@@ -431,6 +435,7 @@ async fn clicking_a_block_in_another_pane_updates_that_panes_focus_target(cx: &m
     let pane1_target_before = editor.read_with(cx, |editor, _cx| {
         editor
             .pane_state_ref(PaneId(1))
+            .and_then(|state| state.as_wysiwyg())
             .and_then(|state| state.focus.active_entity)
     });
 
@@ -461,9 +466,11 @@ async fn clicking_a_block_in_another_pane_updates_that_panes_focus_target(cx: &m
             editor.focused_pane_id,
             editor
                 .pane_state_ref(PaneId(1))
+                .and_then(|state| state.as_wysiwyg())
                 .and_then(|state| state.focus.active_entity),
             editor
                 .pane_state_ref(PaneId(pane_2))
+                .and_then(|state| state.as_wysiwyg())
                 .and_then(|state| state.focus.active_entity),
         )
     });

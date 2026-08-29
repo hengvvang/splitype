@@ -777,6 +777,7 @@ impl Shell {
         let restore_focus = self.active_editor().and_then(|e| {
             let ed = e.read(cx);
             ed.pane_state_ref(ed.active_pane_id())
+                .and_then(|p| p.as_wysiwyg())
                 .and_then(|p| p.focus.active_entity)
         });
 
@@ -803,6 +804,7 @@ impl Shell {
         let restore_focus = self.editor_for(panel_id).and_then(|e| {
             let ed = e.read(cx);
             ed.pane_state_ref(ed.active_pane_id())
+                .and_then(|p| p.as_wysiwyg())
                 .and_then(|p| p.focus.active_entity)
         });
 
@@ -840,6 +842,7 @@ impl Shell {
         let restore_focus = self.editor_for(panel_id).and_then(|e| {
             let ed = e.read(cx);
             ed.pane_state_ref(ed.active_pane_id())
+                .and_then(|p| p.as_wysiwyg())
                 .and_then(|p| p.focus.active_entity)
         });
 

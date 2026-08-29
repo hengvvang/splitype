@@ -81,8 +81,10 @@ impl Editor {
             });
             pane.scroll.last_viewport_size = None;
             pane.scroll.handle.set_offset(point(px(0.0), px(0.0)));
-            pane.focus.pending = pending_focus;
-            pane.focus.active_entity = pending_focus;
+            if let Some(wysiwyg) = pane.as_wysiwyg_mut() {
+                wysiwyg.focus.pending = pending_focus;
+                wysiwyg.focus.active_entity = pending_focus;
+            }
         }
 
         self.tab_mut().undo.undo_entries.clear();

@@ -120,7 +120,9 @@ impl Shell {
                 editor.update(cx, |editor, cx| {
                     if let Some(restore) = dialog.restore_focus {
                         let pane = editor.active_pane_state();
-                        pane.focus.active_entity = Some(restore);
+                        if let Some(wysiwyg) = pane.as_wysiwyg_mut() {
+                            wysiwyg.focus.active_entity = Some(restore);
+                        }
                     }
                     cx.notify();
                 });

@@ -18,10 +18,14 @@ impl Editor {
 
         let focus_handle = {
             let state = self.pane_state(pane_id);
-            if state.source_code.focus_handle.is_none() {
-                state.source_code.focus_handle = Some(cx.focus_handle());
+            if let Some(source) = state.as_source_code_mut() {
+                if source.focus_handle.is_none() {
+                    source.focus_handle = Some(cx.focus_handle());
+                }
+                source.focus_handle.clone().unwrap()
+            } else {
+                cx.focus_handle()
             }
-            state.source_code.focus_handle.clone().unwrap()
         };
 
         if pane_id == self.active_pane_id() {

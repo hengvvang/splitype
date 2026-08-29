@@ -14,8 +14,10 @@ use crate::editor::document::block::Block;
 impl Editor {
     pub(crate) fn focus_block(&mut self, entity_id: EntityId) {
         let pane = self.active_pane_state();
-        pane.focus.pending = Some(entity_id);
-        pane.focus.active_entity = Some(entity_id);
+        if let Some(wysiwyg) = pane.as_wysiwyg_mut() {
+            wysiwyg.focus.pending = Some(entity_id);
+            wysiwyg.focus.active_entity = Some(entity_id);
+        }
         pane.scroll.pending_autoscroll = Some(crate::editor::engine::controller::AutoscrollStrategy::Fit {
             margin: px(20.0),
         });

@@ -140,7 +140,9 @@ impl Editor {
         self.end_block_pointer_selection_sessions(cx);
         let selection_snapshot = self.capture_source_selection_snapshot_global(cx);
         self.clear_cross_block_selection(cx);
-        self.active_pane_state().selection.clear_all();
+        if let Some(selection) = self.active_pane_state().selection_mut() {
+            selection.clear_all();
+        }
         let active_pane = self.active_pane_id();
         let current_kind = self.active_pane_kind();
         let next_kind = match current_kind {

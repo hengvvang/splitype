@@ -313,7 +313,9 @@ impl Editor {
         self.clear_pending_drop_replace_state(cx);
         if let Some(focus_id) = restore_focus {
             let pane = self.active_pane_state();
-            pane.focus.pending = Some(focus_id);
+            if let Some(wysiwyg) = pane.as_wysiwyg_mut() {
+                wysiwyg.focus.pending = Some(focus_id);
+            }
             pane.scroll.pending_autoscroll = Some(crate::editor::engine::controller::AutoscrollStrategy::Fit {
                 margin: px(20.0),
             });
@@ -505,7 +507,9 @@ impl Editor {
         let restore_focus = self.tab_mut().file.drop_replace_restore_focus.take();
         if let Some(focus_id) = restore_focus {
             let pane = self.active_pane_state();
-            pane.focus.pending = Some(focus_id);
+            if let Some(wysiwyg) = pane.as_wysiwyg_mut() {
+                wysiwyg.focus.pending = Some(focus_id);
+            }
             pane.scroll.pending_autoscroll = Some(crate::editor::engine::controller::AutoscrollStrategy::Fit {
                 margin: px(20.0),
             });

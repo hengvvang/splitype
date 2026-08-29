@@ -19,11 +19,11 @@ impl Editor {
         let kind = self.pane_kind(pane_id).unwrap_or(EditorPaneKind::Wysiwyg);
         match kind {
             EditorPaneKind::SourceCode => {
-                if let Some(state) = self.pane_state_mut(pane_id) {
-                    if state.source_code.focus_handle.is_none() {
-                        state.source_code.focus_handle = Some(cx.focus_handle());
+                if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                    if source.focus_handle.is_none() {
+                        source.focus_handle = Some(cx.focus_handle());
                     }
-                    if let Some(ref handle) = state.source_code.focus_handle {
+                    if let Some(ref handle) = source.focus_handle {
                         if !handle.is_focused(window) {
                             handle.focus(window, cx);
                         }
@@ -31,8 +31,8 @@ impl Editor {
                 }
             }
             EditorPaneKind::Wysiwyg => {
-                if let Some(state) = self.pane_state_mut(pane_id) {
-                    if let Some(entity_id) = state.focus.pending.take()
+                if let Some(wysiwyg) = self.pane_state_mut(pane_id).and_then(|p| p.as_wysiwyg_mut()) {
+                    if let Some(entity_id) = wysiwyg.focus.pending.take()
                         && let Some(block) = self.focusable_entity_by_id(entity_id)
                     {
                         let focus_handle = block.read(cx).focus_handle.clone();
@@ -89,7 +89,7 @@ impl Editor {
                         .focused_edit_target(window, cx)
                         .or_else(|| {
                             let active_entity_id =
-                                self.pane_state_ref(pane_id)?.focus.active_entity?;
+                                self.pane_state_ref(pane_id)?.as_wysiwyg()?.focus.active_entity?;
                             self.focusable_entity_by_id(active_entity_id)
                         })
                         .or_else(|| {

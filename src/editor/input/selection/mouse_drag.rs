@@ -14,15 +14,18 @@ impl Editor {
     ) {
         let had_selection = self
             .pane_state_ref(pane_id)
-            .is_some_and(|state| state.selection.has_cross_block());
+            .and_then(|state| state.selection())
+            .is_some_and(|selection| selection.has_cross_block());
         let changed_visuals = self.clear_cross_block_selection_visuals(cx);
         let changed = had_selection || changed_visuals;
         let drag = self
             .cross_block_endpoint_for_point(position, cx)
             .map(|anchor| CrossBlockDrag { anchor });
         if let Some(state) = self.pane_state_mut(pane_id) {
-            state.selection.cross_block = None;
-            state.selection.cross_block_drag = drag;
+            if let Some(selection) = state.selection_mut() {
+                selection.cross_block = None;
+                selection.cross_block_drag = drag;
+            }
         }
         if changed {
             cx.notify();
@@ -47,7 +50,9 @@ impl Editor {
         }
 
         if let Some(state) = self.pane_state_mut(pane_id) {
-            state.selection.select_all_cycle = None;
+            if let Some(selection) = state.selection_mut() {
+                selection.select_all_cycle = None;
+            }
         }
         self.begin_cross_block_drag_at_point(pane_id, event.position, cx);
         cx.propagate();
@@ -65,7 +70,8 @@ impl Editor {
         }
         let Some(drag) = self
             .pane_state_ref(pane_id)
-            .and_then(|state| state.selection.cross_block_drag)
+            .and_then(|state| state.selection())
+            .and_then(|selection| selection.cross_block_drag)
         else {
             return;
         };
@@ -75,7 +81,8 @@ impl Editor {
 
         if self
             .pane_state_ref(pane_id)
-            .and_then(|state| state.selection.cross_block)
+            .and_then(|state| state.selection())
+            .and_then(|selection| selection.cross_block)
             .is_none()
             && drag.anchor.entity_id == focus.entity_id
         {
@@ -88,10 +95,12 @@ impl Editor {
         };
         let is_empty = self.is_cross_block_selection_empty(selection);
         if let Some(state) = self.pane_state_mut(pane_id) {
-            if is_empty {
-                state.selection.cross_block = None;
-            } else {
-                state.selection.cross_block = Some(selection);
+            if let Some(sel) = state.selection_mut() {
+                if is_empty {
+                    sel.cross_block = None;
+                } else {
+                    sel.cross_block = Some(selection);
+                }
             }
         }
         self.sync_cross_block_selection_visuals(cx);
@@ -106,7 +115,9 @@ impl Editor {
         cx: &mut Context<Self>,
     ) {
         if let Some(state) = self.pane_state_mut(pane_id) {
-            state.selection.cross_block_drag = None;
+            if let Some(selection) = state.selection_mut() {
+                selection.cross_block_drag = None;
+            }
         }
         self.end_block_pointer_selection_sessions(cx);
     }

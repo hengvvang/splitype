@@ -239,65 +239,69 @@ impl Editor {
 
         if let Some(tab) = self.active_tab_mut() {
             for pane_state in tab.panes.values_mut() {
-                if !pane_state.source_code.text.is_empty() {
-                    let raw_text = &pane_state.source_code.text;
-                    let mut source_matches = Vec::new();
-                    let mut cur_line = 1usize;
-                    let mut cur_byte = 0usize;
-                    for line in raw_text.split_inclusive('\n') {
-                        for m in &search_matches {
-                            if m.line_number == cur_line {
-                                let mut cur_col = 1usize;
-                                for (ch_idx, _) in line.char_indices() {
-                                    if cur_col == m.column_number {
-                                        let match_len = m.preview_match.len();
-                                        let r = (cur_byte + ch_idx)..(cur_byte + ch_idx + match_len);
-                                        let is_active = if let Some(curr) = active_match.as_ref() {
-                                            curr.line_number == m.line_number
-                                                && curr.column_number == m.column_number
-                                        } else {
-                                            false
-                                        };
-                                        source_matches.push((r, is_active));
-                                        break;
+                if let Some(source) = pane_state.as_source_code_mut() {
+                    if !source.text.is_empty() {
+                        let raw_text = &source.text;
+                        let mut source_matches = Vec::new();
+                        let mut cur_line = 1usize;
+                        let mut cur_byte = 0usize;
+                        for line in raw_text.split_inclusive('\n') {
+                            for m in &search_matches {
+                                if m.line_number == cur_line {
+                                    let mut cur_col = 1usize;
+                                    for (ch_idx, _) in line.char_indices() {
+                                        if cur_col == m.column_number {
+                                            let match_len = m.preview_match.len();
+                                            let r = (cur_byte + ch_idx)..(cur_byte + ch_idx + match_len);
+                                            let is_active = if let Some(curr) = active_match.as_ref() {
+                                                curr.line_number == m.line_number
+                                                    && curr.column_number == m.column_number
+                                            } else {
+                                                false
+                                            };
+                                            source_matches.push((r, is_active));
+                                            break;
+                                        }
+                                        cur_col += 1;
                                     }
-                                    cur_col += 1;
                                 }
                             }
+                            cur_byte += line.len();
+                            cur_line += 1;
                         }
-                        cur_byte += line.len();
-                        cur_line += 1;
+                        source.search_matches = source_matches;
                     }
-                    pane_state.source_code.search_matches = source_matches;
                 }
 
-                if !pane_state.preview.blocks.is_empty() {
-                    let preview_query = SearchQuery::new(
-                        &search_input_text,
-                        match_case,
-                        whole_word,
-                        use_regex,
-                    );
-                    for (b_idx, preview_block) in pane_state.preview.blocks.iter_mut().enumerate() {
-                        let mut preview_matches = Vec::new();
-                        let rendered_text = preview_block.display_text().to_string();
-                        let doc_entity_id = doc_entity_ids.get(b_idx).copied();
-                        let entity_matches: Vec<(usize, &SearchMatch)> = search_matches
-                            .iter()
-                            .enumerate()
-                            .filter(|(_, m)| m.entity_id == doc_entity_id)
-                            .collect();
+                if let Some(preview) = pane_state.as_preview_mut() {
+                    if !preview.blocks.is_empty() {
+                        let preview_query = SearchQuery::new(
+                            &search_input_text,
+                            match_case,
+                            whole_word,
+                            use_regex,
+                        );
+                        for (b_idx, preview_block) in preview.blocks.iter_mut().enumerate() {
+                            let mut preview_matches = Vec::new();
+                            let rendered_text = preview_block.display_text().to_string();
+                            let doc_entity_id = doc_entity_ids.get(b_idx).copied();
+                            let entity_matches: Vec<(usize, &SearchMatch)> = search_matches
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, m)| m.entity_id == doc_entity_id)
+                                .collect();
 
-                        for (raw_idx, raw) in
-                            preview_query.find_matches(&rendered_text, 1).into_iter().enumerate()
-                        {
-                            let is_active =
-                                entity_matches.get(raw_idx).is_some_and(|(global_idx, _)| {
-                                    active_match_index == Some(*global_idx)
-                                });
-                            preview_matches.push((raw.byte_range, is_active));
+                            for (raw_idx, raw) in
+                                preview_query.find_matches(&rendered_text, 1).into_iter().enumerate()
+                            {
+                                let is_active =
+                                    entity_matches.get(raw_idx).is_some_and(|(global_idx, _)| {
+                                        active_match_index == Some(*global_idx)
+                                    });
+                                preview_matches.push((raw.byte_range, is_active));
+                            }
+                            preview_block.search_matches = preview_matches;
                         }
-                        preview_block.search_matches = preview_matches;
                     }
                 }
             }
@@ -318,12 +322,16 @@ impl Editor {
         }
         if let Some(tab) = self.active_tab_mut() {
             for pane_state in tab.panes.values_mut() {
-                if !pane_state.source_code.search_matches.is_empty() {
-                    pane_state.source_code.search_matches.clear();
+                if let Some(source) = pane_state.as_source_code_mut() {
+                    if !source.search_matches.is_empty() {
+                        source.search_matches.clear();
+                    }
                 }
-                for preview_block in &mut pane_state.preview.blocks {
-                    if !preview_block.search_matches.is_empty() {
-                        preview_block.search_matches.clear();
+                if let Some(preview) = pane_state.as_preview_mut() {
+                    for preview_block in &mut preview.blocks {
+                        if !preview_block.search_matches.is_empty() {
+                            preview_block.search_matches.clear();
+                        }
                     }
                 }
             }
@@ -637,8 +645,8 @@ impl Editor {
                 }
                 crate::editor::engine::controller::EditorPaneKind::SourceCode => {
                     self.sync_source_pane(active_pane, cx);
-                    if let Some(state) = self.pane_state_mut(active_pane) {
-                        let raw_text = &state.source_code.text;
+                    if let Some(source) = self.pane_state_mut(active_pane).and_then(|p| p.as_source_code_mut()) {
+                        let raw_text = &source.text;
                         let mut target_range = 0..0;
                         let mut cur_line = 1usize;
                         let mut cur_byte = 0usize;
@@ -658,8 +666,8 @@ impl Editor {
                             cur_byte += line.len();
                             cur_line += 1;
                         }
-                        state.source_code.selection = if target_range.is_empty() { None } else { Some(target_range.clone()) };
-                        state.source_code.cursor = target_range.end;
+                        source.selection = if target_range.is_empty() { None } else { Some(target_range.clone()) };
+                        source.cursor = target_range.end;
                     }
                 }
                 crate::editor::engine::controller::EditorPaneKind::Preview => {
@@ -722,8 +730,8 @@ impl Editor {
                 }
                 crate::editor::engine::controller::EditorPaneKind::SourceCode => {
                     self.sync_source_pane(active_pane, cx);
-                    if let Some(state) = self.pane_state_mut(active_pane) {
-                        let raw_text = &state.source_code.text;
+                    if let Some(source) = self.pane_state_mut(active_pane).and_then(|p| p.as_source_code_mut()) {
+                        let raw_text = &source.text;
                         let mut target_range = 0..0;
                         let mut cur_line = 1usize;
                         let mut cur_byte = 0usize;
@@ -743,8 +751,8 @@ impl Editor {
                             cur_byte += line.len();
                             cur_line += 1;
                         }
-                        state.source_code.selection = if target_range.is_empty() { None } else { Some(target_range.clone()) };
-                        state.source_code.cursor = target_range.end;
+                        source.selection = if target_range.is_empty() { None } else { Some(target_range.clone()) };
+                        source.cursor = target_range.end;
                     }
                 }
                 crate::editor::engine::controller::EditorPaneKind::Preview => {

@@ -287,8 +287,8 @@ impl Editor {
     fn execute_select_all(&mut self, cx: &mut Context<Self>) {
         if self.is_source_code() {
             let pane_id = self.active_pane_id();
-            if let Some(state) = self.pane_state_mut(pane_id) {
-                state.source_code.select_all();
+            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                source.select_all();
             }
         } else {
             self.select_all_wysiwyg_document(cx);
@@ -316,19 +316,19 @@ impl Editor {
         if self.is_source_code() {
             let pane_id = self.active_pane_id();
             self.sync_source_pane(pane_id, cx);
-            if let Some(state) = self.pane_state_mut(pane_id) {
-                if let Some(sel) = state.source_code.selection.take() {
-                    let text = state.source_code.text[sel.start..sel.end].to_string();
+            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                if let Some(sel) = source.selection.take() {
+                    let text = source.text[sel.start..sel.end].to_string();
                     let wrapped = format!("{wrap_prefix}{text}{wrap_suffix}");
-                    state.source_code.text.replace_range(sel.start..sel.end, &wrapped);
-                    state.source_code.selection = Some(sel.start + wrap_prefix.len()..sel.start + wrap_prefix.len() + text.len());
-                    state.source_code.cursor = sel.start + wrap_prefix.len() + text.len();
+                    source.text.replace_range(sel.start..sel.end, &wrapped);
+                    source.selection = Some(sel.start + wrap_prefix.len()..sel.start + wrap_prefix.len() + text.len());
+                    source.cursor = sel.start + wrap_prefix.len() + text.len();
                 } else {
-                    let pos = state.source_code.cursor;
-                    state.source_code.text.insert_str(pos, empty_template);
-                    state.source_code.cursor = pos + caret_offset_in_empty;
+                    let pos = source.cursor;
+                    source.text.insert_str(pos, empty_template);
+                    source.cursor = pos + caret_offset_in_empty;
                 }
-                state.source_code.refresh_highlight();
+                source.refresh_highlight();
             }
             self.sync_source_edit_to_document(pane_id, cx);
             return;
@@ -376,18 +376,18 @@ impl Editor {
         if self.is_source_code() {
             let pane_id = self.active_pane_id();
             self.sync_source_pane(pane_id, cx);
-            if let Some(state) = self.pane_state_mut(pane_id) {
-                let (cur_line, _) = state.source_code.line_and_column(state.source_code.cursor);
-                let start = state.source_code.line_start_offset(cur_line);
-                let end = state.source_code.line_end_offset(cur_line);
-                let line_text = state.source_code.text[start..end].to_string();
+            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                let (cur_line, _) = source.line_and_column(source.cursor);
+                let start = source.line_start_offset(cur_line);
+                let end = source.line_end_offset(cur_line);
+                let line_text = source.text[start..end].to_string();
                 let stripped = strip_markdown_line_prefix(&line_text);
                 let new_line = format!("{prefix}{stripped}");
                 let prefix_len = prefix.len();
-                state.source_code.text.replace_range(start..end, &new_line);
-                state.source_code.cursor = start + prefix_len;
-                state.source_code.selection = None;
-                state.source_code.refresh_highlight();
+                source.text.replace_range(start..end, &new_line);
+                source.cursor = start + prefix_len;
+                source.selection = None;
+                source.refresh_highlight();
             }
             self.sync_source_edit_to_document(pane_id, cx);
             return;
@@ -431,12 +431,12 @@ impl Editor {
         if self.is_source_code() {
             let pane_id = self.active_pane_id();
             self.sync_source_pane(pane_id, cx);
-            if let Some(state) = self.pane_state_mut(pane_id) {
-                let pos = state.source_code.cursor;
-                state.source_code.text.insert_str(pos, snippet);
-                state.source_code.cursor = pos + caret_offset;
-                state.source_code.selection = None;
-                state.source_code.refresh_highlight();
+            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                let pos = source.cursor;
+                source.text.insert_str(pos, snippet);
+                source.cursor = pos + caret_offset;
+                source.selection = None;
+                source.refresh_highlight();
             }
             self.sync_source_edit_to_document(pane_id, cx);
             return;
@@ -481,15 +481,15 @@ impl Editor {
         if self.is_source_code() {
             let pane_id = self.active_pane_id();
             self.sync_source_pane(pane_id, cx);
-            if let Some(state) = self.pane_state_mut(pane_id) {
-                if let Some(sel) = state.source_code.selection.take() {
-                    let selected = &state.source_code.text[sel.start..sel.end];
+            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                if let Some(sel) = source.selection.take() {
+                    let selected = &source.text[sel.start..sel.end];
                     let plain = selected
                         .trim_matches(|c| c == '*' || c == '_' || c == '~' || c == '`' || c == '=' || c == '$')
                         .to_string();
-                    state.source_code.text.replace_range(sel.start..sel.end, &plain);
-                    state.source_code.cursor = sel.start + plain.len();
-                    state.source_code.refresh_highlight();
+                    source.text.replace_range(sel.start..sel.end, &plain);
+                    source.cursor = sel.start + plain.len();
+                    source.refresh_highlight();
                 }
             }
             self.sync_source_edit_to_document(pane_id, cx);

@@ -22,15 +22,15 @@ impl Editor {
         if ctrl && !alt {
             match key {
                 "a" | "A" => {
-                    if let Some(state) = self.pane_state_mut(pane_id) {
-                        state.source_code.select_all();
+                    if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                        source.select_all();
                         cx.notify();
                         return true;
                     }
                 }
                 "c" | "C" => {
-                    if let Some(state) = self.pane_state_ref(pane_id) {
-                        if let Some(selected) = state.source_code.selected_text() {
+                    if let Some(source) = self.pane_state_ref(pane_id).and_then(|p| p.as_source_code()) {
+                        if let Some(selected) = source.selected_text() {
                             cx.write_to_clipboard(ClipboardItem::new_string(selected.to_string()));
                             return true;
                         }
@@ -38,10 +38,10 @@ impl Editor {
                 }
                 "x" | "X" => {
                     let mut text_to_copy = None;
-                    if let Some(state) = self.pane_state_mut(pane_id) {
-                        if let Some(selected) = state.source_code.selected_text() {
+                    if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                        if let Some(selected) = source.selected_text() {
                             text_to_copy = Some(selected.to_string());
-                            state.source_code.delete_backward();
+                            source.delete_backward();
                         }
                     }
                     if let Some(text) = text_to_copy {
@@ -53,8 +53,8 @@ impl Editor {
                 "v" | "V" => {
                     if let Some(clipboard) = cx.read_from_clipboard() {
                         if let Some(text) = clipboard.text() {
-                            if let Some(state) = self.pane_state_mut(pane_id) {
-                                state.source_code.insert_text(&text);
+                            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                                source.insert_text(&text);
                             }
                             self.sync_source_edit_to_document(pane_id, cx);
                             return true;
@@ -74,16 +74,16 @@ impl Editor {
                     return true;
                 }
                 "home" => {
-                    if let Some(state) = self.pane_state_mut(pane_id) {
-                        state.source_code.move_to(0, shift);
+                    if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                        source.move_to(0, shift);
                         cx.notify();
                     }
                     return true;
                 }
                 "end" => {
-                    if let Some(state) = self.pane_state_mut(pane_id) {
-                        let len = state.source_code.text.len();
-                        state.source_code.move_to(len, shift);
+                    if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                        let len = source.text.len();
+                        source.move_to(len, shift);
                         cx.notify();
                     }
                     return true;
@@ -94,95 +94,95 @@ impl Editor {
 
         match key {
             "backspace" => {
-                if let Some(state) = self.pane_state_mut(pane_id) {
-                    state.source_code.delete_backward();
+                if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                    source.delete_backward();
                 }
                 self.sync_source_edit_to_document(pane_id, cx);
                 true
             }
             "delete" => {
-                if let Some(state) = self.pane_state_mut(pane_id) {
-                    state.source_code.delete_forward();
+                if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                    source.delete_forward();
                 }
                 self.sync_source_edit_to_document(pane_id, cx);
                 true
             }
             "enter" => {
-                if let Some(state) = self.pane_state_mut(pane_id) {
-                    state.source_code.insert_text("\n");
+                if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                    source.insert_text("\n");
                 }
                 self.sync_source_edit_to_document(pane_id, cx);
                 true
             }
             "tab" => {
-                if let Some(state) = self.pane_state_mut(pane_id) {
-                    state.source_code.insert_text("    ");
+                if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                    source.insert_text("    ");
                 }
                 self.sync_source_edit_to_document(pane_id, cx);
                 true
             }
             "space" => {
-                if let Some(state) = self.pane_state_mut(pane_id) {
-                    state.source_code.insert_text(" ");
+                if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                    source.insert_text(" ");
                 }
                 self.sync_source_edit_to_document(pane_id, cx);
                 true
             }
             "left" | "arrowleft" => {
-                if let Some(state) = self.pane_state_mut(pane_id) {
-                    state.source_code.move_left(shift);
+                if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                    source.move_left(shift);
                     cx.notify();
                 }
                 true
             }
             "right" | "arrowright" => {
-                if let Some(state) = self.pane_state_mut(pane_id) {
-                    state.source_code.move_right(shift);
+                if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                    source.move_right(shift);
                     cx.notify();
                 }
                 true
             }
             "up" | "arrowup" => {
-                if let Some(state) = self.pane_state_mut(pane_id) {
-                    state.source_code.move_up(shift);
+                if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                    source.move_up(shift);
                     cx.notify();
                 }
                 true
             }
             "down" | "arrowdown" => {
-                if let Some(state) = self.pane_state_mut(pane_id) {
-                    state.source_code.move_down(shift);
+                if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                    source.move_down(shift);
                     cx.notify();
                 }
                 true
             }
             "home" => {
-                if let Some(state) = self.pane_state_mut(pane_id) {
-                    state.source_code.move_to_line_start(shift);
+                if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                    source.move_to_line_start(shift);
                     cx.notify();
                 }
                 true
             }
             "end" => {
-                if let Some(state) = self.pane_state_mut(pane_id) {
-                    state.source_code.move_to_line_end(shift);
+                if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                    source.move_to_line_end(shift);
                     cx.notify();
                 }
                 true
             }
             "pageup" => {
-                if let Some(state) = self.pane_state_mut(pane_id) {
+                if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
                     for _ in 0..10 {
-                        state.source_code.move_up(shift);
+                        source.move_up(shift);
                     }
                     cx.notify();
                 }
                 true
             }
             "pagedown" => {
-                if let Some(state) = self.pane_state_mut(pane_id) {
+                if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
                     for _ in 0..10 {
-                        state.source_code.move_down(shift);
+                        source.move_down(shift);
                     }
                     cx.notify();
                 }
@@ -193,15 +193,15 @@ impl Editor {
                     let mut chars = key.chars();
                     if let Some(first) = chars.next() {
                         if chars.next().is_none() && !first.is_control() {
-                            if let Some(state) = self.pane_state_mut(pane_id) {
-                                state.source_code.insert_text(key);
+                            if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                                source.insert_text(key);
                             }
                             self.sync_source_edit_to_document(pane_id, cx);
                             return true;
                         }
                     } else if !key.starts_with("arrow") && !key.starts_with("f") {
-                        if let Some(state) = self.pane_state_mut(pane_id) {
-                            state.source_code.insert_text(key);
+                        if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                            source.insert_text(key);
                         }
                         self.sync_source_edit_to_document(pane_id, cx);
                         return true;
@@ -223,12 +223,15 @@ impl Editor {
         let shift = event.modifiers.shift;
         let click_count = event.click_count;
 
-        let Some(state) = self.pane_state_ref(pane_id) else {
+        let Some(pane) = self.pane_state_ref(pane_id) else {
+            return;
+        };
+        let Some(source) = pane.as_source_code() else {
             return;
         };
 
-        let last_bounds = state.source_code.last_bounds;
-        let total_lines = state.source_code.line_count();
+        let last_bounds = source.last_bounds;
+        let total_lines = source.line_count();
         let theme = cx.global::<ThemeManager>().current_arc();
         let font_size = theme.typography.code_size.max(12.0);
         let line_height = (font_size * theme.typography.text_line_height).round();
@@ -243,7 +246,7 @@ impl Editor {
         let line_idx = (rel_y / line_height).floor().max(0.0) as usize;
         let line_idx = line_idx.min(total_lines.saturating_sub(1));
 
-        let line_str = state.source_code.line_str(line_idx);
+        let line_str = source.line_str(line_idx);
         let rel_x = f32::from(event.position.x - bounds_origin.x) - gutter_width - 12.0;
 
         let col = if rel_x <= 0.0 || line_str.is_empty() {
@@ -263,17 +266,17 @@ impl Editor {
             shaped.index_for_x(px(rel_x)).unwrap_or(line_str.len())
         };
 
-        let offset = state.source_code.offset_at_line_col(line_idx, col);
+        let offset = source.offset_at_line_col(line_idx, col);
 
-        if let Some(state) = self.pane_state_mut(pane_id) {
+        if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
             if click_count >= 3 {
-                state.source_code.select_line_at(line_idx);
+                source.select_line_at(line_idx);
             } else if click_count == 2 {
-                state.source_code.select_word_at(offset);
+                source.select_word_at(offset);
             } else if shift {
-                state.source_code.move_to(offset, true);
+                source.move_to(offset, true);
             } else {
-                state.source_code.start_drag(offset);
+                source.start_drag(offset);
             }
         }
         cx.notify();
@@ -289,17 +292,21 @@ impl Editor {
     ) {
         let is_dragging = self
             .pane_state_ref(pane_id)
-            .is_some_and(|s| s.source_code.is_dragging);
+            .and_then(|p| p.as_source_code())
+            .is_some_and(|s| s.is_dragging);
         if !is_dragging {
             return;
         }
 
-        let Some(state) = self.pane_state_ref(pane_id) else {
+        let Some(pane) = self.pane_state_ref(pane_id) else {
+            return;
+        };
+        let Some(source) = pane.as_source_code() else {
             return;
         };
 
-        let last_bounds = state.source_code.last_bounds;
-        let total_lines = state.source_code.line_count();
+        let last_bounds = source.last_bounds;
+        let total_lines = source.line_count();
         let theme = cx.global::<ThemeManager>().current_arc();
         let font_size = theme.typography.code_size.max(12.0);
         let line_height = (font_size * theme.typography.text_line_height).round();
@@ -314,7 +321,7 @@ impl Editor {
         let line_idx = (rel_y / line_height).floor().max(0.0) as usize;
         let line_idx = line_idx.min(total_lines.saturating_sub(1));
 
-        let line_str = state.source_code.line_str(line_idx);
+        let line_str = source.line_str(line_idx);
         let rel_x = f32::from(event.position.x - bounds_origin.x) - gutter_width - 12.0;
 
         let col = if rel_x <= 0.0 || line_str.is_empty() {
@@ -334,9 +341,9 @@ impl Editor {
             shaped.index_for_x(px(rel_x)).unwrap_or(line_str.len())
         };
 
-        if let Some(state) = self.pane_state_mut(pane_id) {
-            let offset = state.source_code.offset_at_line_col(line_idx, col);
-            state.source_code.update_drag(offset);
+        if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+            let offset = source.offset_at_line_col(line_idx, col);
+            source.update_drag(offset);
         }
         cx.notify();
     }
@@ -349,8 +356,8 @@ impl Editor {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        if let Some(state) = self.pane_state_mut(pane_id) {
-            state.source_code.end_drag();
+        if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+            source.end_drag();
         }
         cx.notify();
     }
@@ -359,7 +366,8 @@ impl Editor {
     pub(crate) fn sync_source_edit_to_document(&mut self, pane_id: PaneId, cx: &mut Context<Self>) {
         let Some(text) = self
             .pane_state_ref(pane_id)
-            .map(|s| s.source_code.text.clone())
+            .and_then(|s| s.as_source_code())
+            .map(|s| s.text.clone())
         else {
             return;
         };
@@ -374,10 +382,10 @@ impl Editor {
         let revision = self.active_tab().map(|t| t.document_revision).unwrap_or(0);
         let tab_index = self.session.active_tab_index();
 
-        if let Some(state) = self.pane_state_mut(pane_id) {
-            state.source_code.synced_doc_hash = synced_hash;
-            state.source_code.synced_revision = Some(revision);
-            state.source_code.synced_tab_index = Some(tab_index);
+        if let Some(source) = self.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+            source.synced_doc_hash = synced_hash;
+            source.synced_revision = Some(revision);
+            source.synced_tab_index = Some(tab_index);
         }
         cx.notify();
     }

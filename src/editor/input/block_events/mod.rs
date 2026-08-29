@@ -81,7 +81,9 @@ impl Editor {
 
         if event.clears_cross_block_selection() {
             let state = self.active_pane_state();
-            state.selection.select_all_cycle = None;
+            if let Some(selection) = state.selection_mut() {
+                selection.select_all_cycle = None;
+            }
             self.clear_cross_block_selection(cx);
         }
 

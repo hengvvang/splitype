@@ -63,7 +63,8 @@ impl Element for SourceCodeViewElement {
             .editor
             .read(cx)
             .pane_state_ref(self.pane_id)
-            .map(|s| s.source_code.line_count())
+            .and_then(|s| s.as_source_code())
+            .map(|s| s.line_count())
             .unwrap_or(1);
 
         let content_height = (total_lines as f32) * line_height + editor_padding * 2.0;
@@ -94,10 +95,10 @@ impl Element for SourceCodeViewElement {
         let (text, line_ranges, cursor, selection, spans, is_focused) = {
             let editor_ref = self.editor.read(cx);
             let state = editor_ref.pane_state_ref(self.pane_id);
-            let focus_handle = state.and_then(|s| s.source_code.focus_handle.clone());
+            let sc_opt = state.and_then(|s| s.as_source_code());
+            let focus_handle = sc_opt.and_then(|s| s.focus_handle.clone());
             let is_focused = focus_handle.as_ref().map_or(false, |h| h.is_focused(window));
-            if let Some(state) = state {
-                let sc = &state.source_code;
+            if let Some(sc) = sc_opt {
                 (
                     sc.text.clone(),
                     sc.line_ranges.clone(),
@@ -124,8 +125,8 @@ impl Element for SourceCodeViewElement {
         // Record bounds for IME candidate popup window
         let pane_id = self.pane_id;
         self.editor.update(cx, |ed, _cx| {
-            if let Some(state) = ed.pane_state_mut(pane_id) {
-                state.source_code.last_bounds = Some(bounds);
+            if let Some(source) = ed.pane_state_mut(pane_id).and_then(|p| p.as_source_code_mut()) {
+                source.last_bounds = Some(bounds);
             }
         });
 
@@ -301,7 +302,8 @@ impl Element for SourceCodeViewElement {
             .editor
             .read(cx)
             .pane_state_ref(self.pane_id)
-            .and_then(|s| s.source_code.focus_handle.clone());
+            .and_then(|s| s.as_source_code())
+            .and_then(|s| s.focus_handle.clone());
 
         if let Some(ref focus_handle) = focus_handle {
             if focus_handle.is_focused(window) {

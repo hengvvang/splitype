@@ -23,7 +23,6 @@ pub use engine::{Editor, EditorSession};
 pub use navigation::{
     NavigationExecutionPlan, NavigationIntent, NavigationMode, NavigationTarget,
 };
-pub(crate) use panes::PreviewState;
 
 #[cfg(test)]
 mod tests;

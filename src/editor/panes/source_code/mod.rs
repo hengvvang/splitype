@@ -18,11 +18,11 @@ impl Editor {
         };
         let tab_index = self.session.active_tab_index();
         let revision = tab.document_revision;
-        let needs_sync = match self.pane_state_ref(pane_id) {
-            Some(state) => {
-                state.source_code.synced_tab_index != Some(tab_index)
-                    || state.source_code.synced_revision != Some(revision)
-                    || (state.source_code.text.is_empty() && revision > 0)
+        let needs_sync = match self.pane_state_ref(pane_id).and_then(|s| s.as_source_code()) {
+            Some(source) => {
+                source.synced_tab_index != Some(tab_index)
+                    || source.synced_revision != Some(revision)
+                    || (source.text.is_empty() && revision > 0)
             }
             None => true,
         };
@@ -36,14 +36,17 @@ impl Editor {
         let doc_hash = Self::hash_str(&doc_text);
 
         if let Some(state) = self.pane_state_mut(pane_id) {
-            if state.source_code.synced_tab_index != Some(tab_index)
-                || doc_hash != state.source_code.synced_doc_hash
-            {
-                state.source_code.set_text(doc_text);
-                state.source_code.synced_doc_hash = doc_hash;
+            state.ensure_kind(crate::editor::engine::controller::EditorPaneKind::SourceCode);
+            if let Some(source) = state.as_source_code_mut() {
+                if source.synced_tab_index != Some(tab_index)
+                    || doc_hash != source.synced_doc_hash
+                {
+                    source.set_text(doc_text);
+                    source.synced_doc_hash = doc_hash;
+                }
+                source.synced_revision = Some(revision);
+                source.synced_tab_index = Some(tab_index);
             }
-            state.source_code.synced_revision = Some(revision);
-            state.source_code.synced_tab_index = Some(tab_index);
         }
     }
 }
