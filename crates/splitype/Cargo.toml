@@ -1,0 +1,52 @@
+[package]
+name = "splitype"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+default-run = "splitype"
+
+[lints]
+workspace = true
+
+[features]
+default = ["splitype-render/default", "splitype-model/default", "code-highlight-core"]
+code-highlight-core = ["splitype-render/code-highlight-core"]
+
+
+[[bin]]
+name = "splitype"
+path = "src/main.rs"
+
+[dependencies]
+splitype-core = { workspace = true }
+splitype-model = { workspace = true }
+splitype-splitter = { workspace = true }
+splitype-infra = { workspace = true }
+splitype-render = { workspace = true }
+splitype-ui = { workspace = true }
+
+gpui = { workspace = true }
+gpui_platform = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+url = "2"
+unicode-segmentation = "1.13"
+regex = "1.10"
+notify = "8"
+trash = "5"
+futures = "0.3"
+uuid = { workspace = true }
+schemars = "1"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = ["Win32_Storage_FileSystem"] }
+
+[build-dependencies]
+embed-resource = "3"

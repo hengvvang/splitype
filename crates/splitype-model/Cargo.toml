@@ -14,7 +14,11 @@ default = ["html-native"]
 html-native = ["dep:tree-sitter", "dep:tree-sitter-html"]
 
 [dependencies]
+splitype-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 cssparser = { workspace = true }
 uuid = { workspace = true }
 tree-sitter = { workspace = true, optional = true }
 tree-sitter-html = { workspace = true, optional = true }
+

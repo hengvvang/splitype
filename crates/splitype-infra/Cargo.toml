@@ -1,0 +1,33 @@
+[package]
+name = "splitype-infra"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+splitype-core = { workspace = true }
+splitype-model = { workspace = true }
+gpui = { workspace = true }
+gpui_platform = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+schemars = "1"
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+directories = "6"
+sys-locale = "0.3"
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "default-tls"] }
+semver = "1"
+futures = "0.3"
+toml = "1"
+tracing = "0.1"
+uuid = { workspace = true }
+
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = ["Win32_Storage_FileSystem"] }

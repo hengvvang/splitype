@@ -31,3 +31,7 @@ pub use sessions::{
     calculate_dock_target, calculate_join_slice_rect,
 };
 pub use tree::{Direction, LeafRect, NodeId, SplitAxis, SplitTree};
+
+#[cfg(test)]
+mod tests;
+
