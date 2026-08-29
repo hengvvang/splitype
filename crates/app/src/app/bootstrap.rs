@@ -18,7 +18,7 @@ use crate::app::menus::{init as init_app_menu, install_menus};
 use crate::app::window::open_editor_window;
 #[cfg(target_os = "macos")]
 use crate::app::window::open_file_in_new_window;
-use crate::editor_scheduler::keybindings::init_with_keybindings as init_editor;
+use crate::keybindings::init_with_keybindings as init_editor;
 use config::settings::{
     SettingsStore, StartupOpenSetting, first_existing_recent_markdown_file,
     load_or_create_app_settings,
@@ -225,7 +225,7 @@ pub(crate) fn register_pane_factories() {
                     Box::new(editor_source_code::SourceCodeState::default())
                 }
                 EditorPaneKind::Preview => {
-                    Box::new(crate::editor_scheduler::panes::preview::PreviewState::default())
+                    Box::new(editor_scheduler::panes::preview::PreviewState::default())
                 }
             }
         }

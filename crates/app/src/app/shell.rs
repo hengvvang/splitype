@@ -17,9 +17,9 @@ use crate::app::actions::{InstallCliTool, QuitApplication, UninstallCliTool};
 use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::WindowPanels;
 use workspace::{PanelId, WindowPanelKind};
-use crate::editor_scheduler::engine::controller::{
+use editor_scheduler::engine::controller::{
     EditorView,DocumentTab, Editor, InfoDialogKind, OpenFileMode};
-use crate::editor_scheduler::engine::session::EditorSession;
+use editor_scheduler::engine::session::EditorSession;
 use editor_model::EditorHost;
 use i18n::I18nManager;
 use theme::ThemeManager;
@@ -403,7 +403,7 @@ impl Shell {
     ) -> Entity<Editor> {
         let panel_id = panel_id.into();
         let shell = cx.entity().downgrade();
-        let editor = cx.new(|cx| crate::editor_scheduler::Editor::with_session(panel_id, session, cx));
+        let editor = cx.new(|cx| editor_scheduler::Editor::with_session(panel_id, session, cx));
 
         editor.update(cx, |editor, cx| {
             editor.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell)));
@@ -1219,5 +1219,9 @@ impl EditorHost for ShellEditorHost {
         explorer::ExplorerState::update(cx, |state, cx| {
             state.sync_explorer_after_document_path_change(cx);
         });
+    }
+
+    fn record_recent_file(&self, path: &Path, cx: &mut App) {
+        crate::app::menus::record_recent_file_from_editor(path, cx);
     }
 }

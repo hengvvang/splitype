@@ -16,7 +16,7 @@ use crate::app::actions::{
 };
 #[cfg(target_os = "macos")]
 use crate::app::actions::{InstallCliTool, UninstallCliTool};
-use crate::editor_scheduler::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
+use editor_scheduler::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
 use i18n::I18nManager;
 use theme::ThemeManager;
 #[cfg(target_os = "macos")]

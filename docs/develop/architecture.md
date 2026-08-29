@@ -17,17 +17,19 @@ primitives
    ├─ ui ──→ primitives + theme + i18n + config + splitter
    ├─ explorer_fs ──→ primitives
    ├─ workspace ──→ splitter + theme + primitives
-   ├─ editor ──→ primitives + splitter + workspace + gpui      (pure contract)
-   ├─ editor_wysiwyg ──→ editor + theme + i18n + ui + config + workspace + gpui
+   ├─ editor_model ──→ primitives + splitter + workspace + gpui   (pure contract)
+   ├─ editor_wysiwyg ──→ editor_model + theme + i18n + ui + config + workspace + gpui
    │                    (self-hosts markdown/tree/latex/mermaid/export/highlight)
-   ├─ editor_source_code ──→ editor + theme + gpui             (self-hosts tree/highlight)
-   ├─ editor_preview ──→ editor + editor_wysiwyg + theme + i18n + gpui
-   ├─ editor_outline ──→ editor + theme + gpui
+   ├─ editor_source_code ──→ editor_model + theme + gpui        (self-hosts tree/highlight)
+   ├─ editor_preview ──→ editor_model + editor_wysiwyg + theme + i18n + gpui
+   ├─ editor_outline ──→ editor_model + theme + gpui
    ├─ editor_search ──→ editor_wysiwyg + theme + gpui          (matching is wysiwyg-data only)
+   ├─ editor_scheduler ──→ every editor_* crate + theme + i18n + ui + config
+   │                      + splitter + workspace + gpui        (coordination layer)
    ├─ explorer ──→ explorer_fs + theme + i18n + ui + workspace + gpui
    ├─ settings ──→ config + theme + i18n + ui + splitter + workspace + gpui
-   └─ app ──→ everything above (composition root: Shell, Editor entity,
-              bootstrap, CLI, platform glue, export flow)
+   └─ app ──→ everything above (composition root: Shell, keybinding
+              installation, bootstrap, CLI, platform glue, export flow)
 ```
 
 `cargo machete` and `cargo tree` audits in CI keep this graph honest.

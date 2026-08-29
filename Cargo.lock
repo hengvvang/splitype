@@ -236,6 +236,7 @@ dependencies = [
  "editor_model",
  "editor_outline",
  "editor_preview",
+ "editor_scheduler",
  "editor_search",
  "editor_source_code",
  "editor_wysiwyg",
@@ -1750,6 +1751,30 @@ dependencies = [
  "i18n",
  "theme",
  "uuid",
+]
+
+[[package]]
+name = "editor_scheduler"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "config",
+ "editor_model",
+ "editor_outline",
+ "editor_preview",
+ "editor_search",
+ "editor_source_code",
+ "editor_wysiwyg",
+ "futures",
+ "gpui",
+ "i18n",
+ "splitter",
+ "theme",
+ "tracing",
+ "ui",
+ "unicode-segmentation",
+ "uuid",
+ "workspace",
 ]
 
 [[package]]

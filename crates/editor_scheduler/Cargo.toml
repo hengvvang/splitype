@@ -1,0 +1,33 @@
+[package]
+name = "editor_scheduler"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/lib.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+config = { path = "../config" }
+editor_model = { path = "../editor_model" }
+editor_wysiwyg = { path = "../editor_wysiwyg" }
+editor_source_code = { path = "../editor_source_code" }
+editor_preview = { path = "../editor_preview" }
+editor_outline = { path = "../editor_outline" }
+editor_search = { path = "../editor_search" }
+futures = "0.3"
+gpui = { workspace = true }
+i18n = { path = "../i18n" }
+splitter = { path = "../splitter" }
+theme = { path = "../theme" }
+tracing = "0.1"
+ui = { path = "../ui" }
+unicode-segmentation = "1.13"
+uuid = { workspace = true }
+workspace = { path = "../workspace" }

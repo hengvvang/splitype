@@ -29,6 +29,7 @@ ui = { path = "../ui" }
 explorer_fs = { path = "../explorer_fs" }
 workspace = { path = "../workspace" }
 editor_model = { path = "../editor_model" }
+editor_scheduler = { path = "../editor_scheduler" }
 editor_source_code = { path = "../editor_source_code" }
 editor_search = { path = "../editor_search" }
 editor_outline = { path = "../editor_outline" }

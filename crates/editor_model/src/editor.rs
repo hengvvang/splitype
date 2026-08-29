@@ -193,6 +193,10 @@ pub trait EditorHost: Send + Sync + 'static {
     /// Keep the explorer selection in sync after a document path change
     /// (the explorer is a sibling panel; the editor must not name it).
     fn sync_explorer_after_document_path_change(&self, cx: &mut App);
+
+    /// Record a recently opened document path (the app's recent-files
+    /// menu is a window-shell concern; the editor must not name it).
+    fn record_recent_file(&self, path: &Path, cx: &mut App);
 }
 
 // ── Outline heading extraction (Pane contract service) ──────────────────
