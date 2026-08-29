@@ -121,6 +121,7 @@ pub fn run(args: Args) {
         cx.set_global(settings::SettingsUiState::new());
         theme::TypographyStore::init(cx, settings.typography.clone());
         install_http_client(cx);
+        register_pane_factories();
         init_editor(cx, &settings.keybindings);
         init_app_menu(cx);
 
@@ -204,4 +205,34 @@ pub fn run(args: Args) {
         install_menus(cx);
         cx.refresh_windows();
     });
+}
+
+/// Registers one pane factory per editor mode kind. The composition root
+/// is the only place that names the mode crate types; the editor family
+/// creates pane states through the registry.
+pub(crate) fn register_pane_factories() {
+    use editor_core::{EditorPaneKind, Pane, PaneFactory, PaneFactoryRegistry};
+
+    struct ModePaneFactory;
+
+    impl PaneFactory for ModePaneFactory {
+        fn new_pane(&self, kind: EditorPaneKind) -> Box<dyn Pane> {
+            match kind {
+                EditorPaneKind::Wysiwyg => {
+                    Box::new(editor_wysiwyg::WysiwygPaneState::default())
+                }
+                EditorPaneKind::SourceCode => {
+                    Box::new(editor_source_code::SourceCodeState::default())
+                }
+                EditorPaneKind::Preview => {
+                    Box::new(crate::editor::panes::preview::PreviewState::default())
+                }
+            }
+        }
+    }
+
+    let mut registry = editor_core::PaneFactoryRegistry::global().lock().unwrap();
+    for kind in EditorPaneKind::all() {
+        registry.register(*kind, Box::new(ModePaneFactory));
+    }
 }

@@ -14,12 +14,16 @@
 
 pub use gpui;
 
+mod pane_factory;
+
+pub use pane_factory::{PaneFactory, PaneFactoryRegistry};
+
 /// The pane kinds an Editor panel can host: the document views
 /// inside its split tree. The tree holds only real views — the welcome
 /// state is the area's mode, not a panel kind — so the split structure
 /// survives tab open/close cycles unchanged and the remembered panel
 /// layout needs no migration.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum EditorPaneKind {
     /// Raw Markdown source code editor.
     SourceCode,

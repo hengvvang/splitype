@@ -219,19 +219,14 @@ impl PaneState {
     }
 }
 
-/// Creates a fresh pane state for `kind`.
-///
-/// The mode states are registered by the composition root through the
-/// pane factory registry once the mode crates fully own their types;
-/// until then the coordinator crate constructs them directly.
+/// Creates a fresh pane state for `kind` through the app-wide pane
+/// factory registry (the composition root registers one factory per
+/// mode kind at startup).
 pub(crate) fn new_pane_for_kind(kind: EditorPaneKind) -> Box<dyn editor_core::Pane> {
-    match kind {
-        EditorPaneKind::Wysiwyg => {
-            Box::new(editor_wysiwyg::WysiwygPaneState::default())
-        }
-        EditorPaneKind::SourceCode => Box::new(editor_source_code::SourceCodeState::default()),
-        EditorPaneKind::Preview => Box::new(crate::editor::panes::preview::PreviewState::default()),
-    }
+    editor_core::PaneFactoryRegistry::global()
+        .lock()
+        .unwrap()
+        .create(kind)
 }
 
 /// Top-level controller that owns editor-wide state and delegates tree
