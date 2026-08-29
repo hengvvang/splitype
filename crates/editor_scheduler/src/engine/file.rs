@@ -12,7 +12,7 @@ use gpui::*;
 
 use crate::engine::controller::{
     Editor, OpenFileMode};
-use i18n::I18nManager;
+use config::language::I18nManager;
 
 impl Editor {
     /// The active tab's current text, whatever the pane mode: the parsed

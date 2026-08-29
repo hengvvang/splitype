@@ -643,7 +643,7 @@ impl Editor {
                             block.update(cx, |block, cx| {
                                 block.selected_range = range;
                                 block.selection_reversed = false;
-                                block.start_cursor_blink(cx);
+                                block.start_cursor_blink(window, cx);
                                 cx.notify();
                             });
                         }
@@ -728,7 +728,7 @@ impl Editor {
                         target_entity.update(cx, |block, cx| {
                             block.selected_range = range;
                             block.selection_reversed = false;
-                            block.start_cursor_blink(cx);
+                            block.start_cursor_blink(window, cx);
                             cx.notify();
                         });
                     }

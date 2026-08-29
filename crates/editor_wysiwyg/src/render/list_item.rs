@@ -270,8 +270,8 @@ pub fn render_numbered_list_item(
 }
 
 /// Helper to get I18n strings from the global context.
-fn strings_from_context(cx: &mut Context<Block>) -> i18n::I18nStrings {
-    cx.global::<i18n::I18nManager>()
+fn strings_from_context(cx: &mut Context<Block>) -> config::language::I18nStrings {
+    cx.global::<config::language::I18nManager>()
         .strings_arc()
         .as_ref()
         .clone()

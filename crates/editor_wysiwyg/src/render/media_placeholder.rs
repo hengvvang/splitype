@@ -5,7 +5,7 @@ use gpui::*;
 use crate::render::layout::centered_column_width;
 use crate::document::block::{Block, ImageHandle};
 use crate::render::visible_quote_guides;
-use i18n::I18nStrings;
+use config::language::I18nStrings;
 use theme::{Theme, ThemeDimensions};
 use crate::markdown::block::image::ImageResolvedSource;
 use crate::markdown::parse::BlockKind;

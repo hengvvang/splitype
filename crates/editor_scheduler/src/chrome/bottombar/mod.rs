@@ -15,7 +15,7 @@ use gpui::*;
 
 use crate::engine::controller::Editor;
 use config::settings::{SettingsStore, StatusBarSettings};
-use i18n::I18nStrings;
+use config::language::I18nStrings;
 use theme::Theme;
 use splitter::SplitAxis;
 

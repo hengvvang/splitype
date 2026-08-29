@@ -12,43 +12,43 @@ use editor_wysiwyg::markdown::block::table::TableCellPosition;
 use editor_wysiwyg::markdown::parse::BlockKind;
 
 impl Editor {
-    pub(crate) fn on_page_up(&mut self, _: &PageUp, _window: &mut Window, cx: &mut Context<Self>) {
+    pub(crate) fn on_page_up(&mut self, _: &PageUp, window: &mut Window, cx: &mut Context<Self>) {
         if !self.has_active_tab() {
             return;
         }
         let page = self.active_pane_scroll().handle.bounds().size.height;
-        self.scroll_viewport_by(self.active_pane_id(), page, cx);
+        self.scroll_viewport_by(self.active_pane_id(), page, window, cx);
     }
 
     pub(crate) fn on_page_down(
         &mut self,
         _: &PageDown,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if !self.has_active_tab() {
             return;
         }
         let page = self.active_pane_scroll().handle.bounds().size.height;
-        self.scroll_viewport_by(self.active_pane_id(), -page, cx);
+        self.scroll_viewport_by(self.active_pane_id(), -page, window, cx);
     }
 
     pub(crate) fn on_jump_to_top(
         &mut self,
         _: &JumpToTop,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if !self.has_active_tab() {
             return;
         }
-        self.set_vertical_scroll_offset(self.active_pane_id(), px(0.0), cx);
+        self.set_vertical_scroll_offset(self.active_pane_id(), px(0.0), window, cx);
     }
 
     pub(crate) fn on_jump_to_bottom(
         &mut self,
         _: &JumpToBottom,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         if !self.has_active_tab() {
@@ -60,7 +60,7 @@ impl Editor {
             .max_offset()
             .y
             .max(px(0.0));
-        self.set_vertical_scroll_offset(self.active_pane_id(), -max_offset_y, cx);
+        self.set_vertical_scroll_offset(self.active_pane_id(), -max_offset_y, window, cx);
     }
 
     /// Scrolls the viewport vertically by `delta`. A positive `delta` moves
@@ -70,13 +70,14 @@ impl Editor {
         &mut self,
         pane_id: PaneId,
         delta: Pixels,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let target = self
             .pane_state_ref(pane_id)
             .map(|state| state.scroll.handle.offset().y + delta)
             .unwrap_or_default();
-        self.set_vertical_scroll_offset(pane_id, target, cx);
+        self.set_vertical_scroll_offset(pane_id, target, window, cx);
     }
 
     /// Applies an absolute vertical scroll offset, clamped to the scrollable
@@ -85,6 +86,7 @@ impl Editor {
         &mut self,
         pane_id: PaneId,
         target_y: Pixels,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let max_offset_y = self
@@ -101,7 +103,7 @@ impl Editor {
             state.scroll.handle.set_offset(offset);
             state.scroll.pending_autoscroll = None;
         }
-        self.bump_scrollbar_visibility(pane_id, cx);
+        self.bump_scrollbar_visibility(pane_id, window, cx);
         cx.notify();
     }
 

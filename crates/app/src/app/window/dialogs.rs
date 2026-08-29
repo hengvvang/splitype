@@ -16,8 +16,8 @@ use futures::channel::oneshot;
 use crate::app::shell::Shell;
 use editor_scheduler::engine::controller::{Editor, InfoDialogKind};
 use editor_scheduler::document::{SPLITYPE_RELEASES_URL, SPLITYPE_REPOSITORY_URL, SPLITYPE_WIKI_URL};
-use i18n::{I18nManager, I18nStrings};
-use net::update_checker::{
+use config::language::{I18nManager, I18nStrings};
+use splitype_installer::update_checker::{
     self as update_check, UpdateCheckResult, UpdateVersionInfo,
 };
 use theme::Theme;

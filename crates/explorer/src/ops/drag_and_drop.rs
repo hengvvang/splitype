@@ -78,7 +78,7 @@ impl ExplorerState {
             self.clear_explorer_drag(cx);
             return false;
         }
-        self.start_explorer_hover_scroll(event.event.position, event.bounds, cx);
+        self.start_explorer_hover_scroll(event.event.position, event.bounds, window, cx);
         true
     }
 
@@ -90,6 +90,7 @@ impl ExplorerState {
         &mut self,
         position: Point<Pixels>,
         bounds: Bounds<Pixels>,
+        window: &mut Window,
         cx: &mut App,
     ) {
         let panel_height = bounds.size.height;
@@ -117,28 +118,34 @@ impl ExplorerState {
             explorer.hover_scroll_generation += 1;
             explorer.hover_scroll_generation
         };
+        let window_handle = window.window_handle();
         let task = cx.spawn(async move |cx: &mut AsyncApp| {
             loop {
-                let keep_scrolling = cx.update(|cx| {
-                    ExplorerState::update(cx, |state, cx| {
-                        // The drag ended (mouse released outside the panel,
-                        // cancelled, dropped elsewhere): stop scrolling and
-                        // clear the leftover drag state so no stale
-                        // highlight or task survives.
-                        if !cx.has_active_drag() {
-                            state.clear_explorer_drag(cx);
-                            return false;
-                        }
-                        if state.hover_scroll_generation != generation {
-                            return false; // replaced by a newer move
-                        }
-                        let handle = state.scroll_handle.0.borrow_mut();
-                        let offset = handle.base_handle.offset();
-                        handle.base_handle.set_offset(offset + adjustment);
-                        cx.refresh_windows();
-                        true
+                // `AnyWindowHandle::update` uses try_borrow_mut: a scroll
+                // tick that lands mid-render is skipped (the next mouse
+                // move restarts the loop).
+                let keep_scrolling = window_handle
+                    .update(cx, |_view, _window, cx| {
+                        ExplorerState::update(cx, |state, cx| {
+                            // The drag ended (mouse released outside the panel,
+                            // cancelled, dropped elsewhere): stop scrolling and
+                            // clear the leftover drag state so no stale
+                            // highlight or task survives.
+                            if !cx.has_active_drag() {
+                                state.clear_explorer_drag(cx);
+                                return false;
+                            }
+                            if state.hover_scroll_generation != generation {
+                                return false; // replaced by a newer move
+                            }
+                            let handle = state.scroll_handle.0.borrow_mut();
+                            let offset = handle.base_handle.offset();
+                            handle.base_handle.set_offset(offset + adjustment);
+                            cx.refresh_windows();
+                            true
+                        })
                     })
-                });
+                    .unwrap_or(false);
                 if !keep_scrolling {
                     return;
                 }

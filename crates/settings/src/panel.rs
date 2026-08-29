@@ -4,7 +4,7 @@ use gpui::*;
 
 use workspace::PanelId;
 use config::settings::*;
-use i18n::{apply_configured_language, I18nStrings};
+use config::language::{apply_configured_language, I18nStrings};
 use theme::{apply_configured_theme, Theme, ThemeManager};
 use crate::components::*;
 

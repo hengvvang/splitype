@@ -12,7 +12,7 @@ use gpui::*;
 
 use workspace::PanelId;
 use crate::state::state::{DragExplorerTarget, DraggedExplorerSelection, ExplorerState};
-use i18n::I18nStrings;
+use config::language::I18nStrings;
 use theme::Theme;
 
 /// Free-function entry point: renders the explorer body (file tree or

@@ -102,9 +102,9 @@ impl editor_outline::OutlineHost for EditorOutlineHost {
         }
     }
 
-    fn set_hovered(&self, hovered: bool, cx: &mut App) {
+    fn set_hovered(&self, hovered: bool, window: &mut Window, cx: &mut App) {
         if let Some(editor) = self.editor.upgrade() {
-            let _ = editor.update(cx, |editor, cx| editor.set_outline_hovered(hovered, cx));
+            let _ = editor.update(cx, |editor, cx| editor.set_outline_hovered(hovered, window, cx));
         }
     }
 }

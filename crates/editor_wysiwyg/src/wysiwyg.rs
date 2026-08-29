@@ -31,6 +31,7 @@ pub mod projection;
 pub mod table_grid;
 pub mod text_layout;
 pub mod table_measure;
+pub mod http_client;
 
 pub mod state;
 

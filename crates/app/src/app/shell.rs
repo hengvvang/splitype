@@ -16,12 +16,13 @@ use gpui::*;
 use crate::app::actions::{InstallCliTool, QuitApplication, UninstallCliTool};
 use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::WindowPanels;
+use workspace::actions::{OpenInEditor, OpenInSplit};
 use workspace::{PanelId, WindowPanelKind};
 use editor_scheduler::engine::controller::{
     EditorView,DocumentTab, Editor, InfoDialogKind, OpenFileMode};
 use editor_scheduler::engine::session::EditorSession;
 use editor_model::EditorHost;
-use i18n::I18nManager;
+use config::language::I18nManager;
 use theme::ThemeManager;
 use splitter::NodeId;
 use splitter::tree::SplitAxis;
@@ -464,6 +465,55 @@ impl Shell {
             },
             cx,
         );
+    }
+
+    /// Opens a file in the active editor area (single click → transient
+    /// preview tab, double click → persistent tab). Dispatched by the
+    /// explorer; this is the shell-side handler.
+    pub(crate) fn on_open_in_editor(
+        &mut self,
+        action: &OpenInEditor,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let path = std::path::PathBuf::from(&action.path);
+        let mode = if action.persistent {
+            OpenFileMode::Persistent
+        } else {
+            OpenFileMode::Transient
+        };
+        self.open_file_in_active_editor(&path, mode, window, cx);
+    }
+
+    /// Ctrl/Cmd+double-click from the explorer: split the active editor
+    /// area and open the file in the fresh area (persistent tab).
+    pub(crate) fn on_open_in_split(
+        &mut self,
+        action: &OpenInSplit,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        let path = std::path::PathBuf::from(&action.path);
+        let open_in_active = |shell: &mut Self, window: &mut Window, cx: &mut Context<Self>| {
+            shell.open_file_in_active_editor(&path, OpenFileMode::Persistent, window, cx);
+        };
+        let Some(active) = self.active_editor_panel() else {
+            open_in_active(self, window, cx);
+            return;
+        };
+        let Some(new_panel) = self.split_panel(PanelId(active), SplitAxis::Horizontal, 0.5, false, cx)
+        else {
+            open_in_active(self, window, cx);
+            return;
+        };
+        let Some(editor) = self.editor_for(new_panel).cloned() else {
+            open_in_active(self, window, cx);
+            return;
+        };
+        self.panels.layout.activate_leaf(new_panel.0);
+        editor.update(cx, |editor, cx| {
+            editor.open_file_in_panel(&path, OpenFileMode::Persistent, window, cx)
+        });
     }
 
     /// Removes the content entity of `panel_id` (if any) and returns its
@@ -963,7 +1013,7 @@ impl Shell {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        crate::app::cli::install::install_cli_tool(cx);
+        splitype_installer::install_cli_tool(cx);
     }
 
     pub(crate) fn on_uninstall_cli_tool(
@@ -972,7 +1022,7 @@ impl Shell {
         _window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        crate::app::cli::install::uninstall_cli_tool(cx);
+        splitype_installer::uninstall_cli_tool(cx);
     }
 
     pub(crate) fn on_toggle_maximize_area_action(
@@ -1084,6 +1134,8 @@ impl Render for Shell {
             .on_action(cx.listener(Self::on_toggle_panel_maximized))
             .on_action(cx.listener(Self::on_close_panel))
             .on_action(cx.listener(Self::on_update_open_tab_paths))
+            .on_action(cx.listener(Self::on_open_in_editor))
+            .on_action(cx.listener(Self::on_open_in_split))
             // A mouse-down anywhere in the window body closes an open
             // menu; titlebar and menu panels are siblings of the body
             // container, so their clicks never reach this listener.

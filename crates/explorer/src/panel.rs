@@ -46,7 +46,7 @@ impl ExplorerState {
 
     /// Add a project root as a new worktree (mirrors Zed's
     /// `WorktreeStore::create_worktree`). The root row starts expanded.
-    pub(crate) fn add_explorer_worktree(&mut self, path: PathBuf, cx: &mut App) {
+    pub(crate) fn add_explorer_worktree(&mut self, path: PathBuf, window: &mut Window, cx: &mut App) {
         let explorer = &mut *self;
         if explorer
             .worktrees
@@ -63,6 +63,7 @@ impl ExplorerState {
             path.clone(),
             explorer.next_entry_id.clone(),
             hide_hidden,
+            Some(window.window_handle()),
             cx,
         );
         // The root row starts expanded (VSCode-style title row visible).
@@ -174,8 +175,8 @@ impl ExplorerState {
         cx.refresh_windows();
     }
 
-    pub(crate) fn open_explorer_folder_path(&mut self, path: PathBuf, cx: &mut App) {
-        self.add_explorer_worktree(path, cx);
+    pub(crate) fn open_explorer_folder_path(&mut self, path: PathBuf, window: &mut Window, cx: &mut App) {
+        self.add_explorer_worktree(path, window, cx);
     }
     pub fn sync_explorer_after_document_path_change(&mut self, cx: &mut App) {
         if self.is_open && !self.worktrees.is_empty() {
@@ -199,6 +200,7 @@ impl ExplorerState {
             multiple: false,
             prompt: None,
         });
+        let window_handle = _window.window_handle();
         cx.spawn(async move |cx: &mut AsyncApp| {
             let paths = match prompt.await {
                 Ok(Ok(Some(paths))) => paths,
@@ -216,9 +218,11 @@ impl ExplorerState {
             {
                 tracing::warn!(path = %path.display(), error = %err, "failed to update recent folder history");
             }
-            let _ = cx.update(|cx| {
+            // `AnyWindowHandle::update` uses try_borrow_mut: the dialog
+            // completion may land while a frame is mid-render.
+            let _ = window_handle.update(cx, |_view, _window, cx| {
                 ExplorerState::update(cx, |state, cx| {
-                    state.open_explorer_folder_path(path, cx);
+                    state.open_explorer_folder_path(path, _window, cx);
                     cx.refresh_windows();
                 });
             });
@@ -263,7 +267,7 @@ impl ExplorerState {
     pub(crate) fn replace_explorer_worktree(
         &mut self,
         index: usize,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut App,
     ) {
         let prompt = cx.prompt_for_paths(PathPromptOptions {
@@ -272,6 +276,7 @@ impl ExplorerState {
             multiple: false,
             prompt: None,
         });
+        let window_handle = window.window_handle();
         cx.spawn(async move |cx: &mut AsyncApp| {
             let paths = match prompt.await {
                 Ok(Ok(Some(paths))) => paths,
@@ -284,12 +289,12 @@ impl ExplorerState {
             let Some(path) = paths.into_iter().next() else {
                 return;
             };
-            let _ = cx.update(|cx| {
+            let _ = window_handle.update(cx, |_view, _window, cx| {
                 ExplorerState::update(cx, |state, cx| {
                     if index < state.worktrees.len() {
                         state.remove_explorer_worktree(index, cx);
                     }
-                    state.add_explorer_worktree(path, cx);
+                    state.add_explorer_worktree(path, _window, cx);
                     cx.refresh_windows();
                 });
             });

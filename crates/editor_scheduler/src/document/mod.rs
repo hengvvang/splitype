@@ -22,7 +22,7 @@ pub mod viewport;
 use gpui::*;
 
 use crate::engine::controller::*;
-use i18n::I18nManager;
+use config::language::I18nManager;
 use theme::ThemeManager;
 
 pub const SPLITYPE_REPOSITORY_URL: &str = "https://github.com/hengvvang/splitype";

@@ -1,23 +1,21 @@
 [package]
-name = "net"
+name = "splitype_installer"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+[lib]
+path = "src/lib.rs"
+
 [lints]
 workspace = true
 
 [dependencies]
-primitives = { path = "../primitives" }
+config = { path = "../config" }
 gpui = { workspace = true }
-futures = "0.3"
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "default-tls"] }
 semver = "1"
-serde = { workspace = true }
-serde_json = { workspace = true }
 toml = "1"
 tracing = "0.1"
-anyhow = { workspace = true }
-thiserror = { workspace = true }

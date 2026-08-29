@@ -1,9 +1,5 @@
-//! Platform-specific adapters — app identity, macOS file associations, and
-//! macOS CLI tool installation.
-
-pub mod app_identity;
-
-pub mod cli_tool;
+//! Platform-specific adapters — macOS file associations and other OS
+//! glue. The CLI-tool installation wizard lives in splitype_installer.
 
 #[cfg(any(target_os = "macos", test))]
 pub mod file_url;

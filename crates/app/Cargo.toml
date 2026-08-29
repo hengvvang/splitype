@@ -22,9 +22,8 @@ path = "src/main.rs"
 primitives = { path = "../primitives" }
 splitter = { path = "../splitter" }
 theme = { path = "../theme" }
-i18n = { path = "../i18n" }
 config = { path = "../config" }
-net = { path = "../net" }
+splitype_installer = { path = "../splitype_installer" }
 ui = { path = "../ui" }
 explorer_fs = { path = "../explorer_fs" }
 workspace = { path = "../workspace" }
@@ -36,6 +35,7 @@ editor_outline = { path = "../editor_outline" }
 editor_wysiwyg = { path = "../editor_wysiwyg" }
 editor_preview = { path = "../editor_preview" }
 settings = { path = "../settings" }
+splitype_cli = { path = "../splitype_cli" }
 explorer = { path = "../explorer" }
 
 gpui = { workspace = true }

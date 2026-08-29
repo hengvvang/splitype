@@ -13,7 +13,7 @@ use std::sync::{
 use futures::{StreamExt, channel::mpsc};
 use gpui::*;
 
-use crate::app::cli::Args;
+use splitype_cli::Args;
 use crate::app::menus::{init as init_app_menu, install_menus};
 use crate::app::window::open_editor_window;
 #[cfg(target_os = "macos")]
@@ -23,8 +23,8 @@ use config::settings::{
     SettingsStore, StartupOpenSetting, first_existing_recent_markdown_file,
     load_or_create_app_settings,
 };
-use i18n::I18nManager;
-use net::http_client::install_http_client;
+use config::language::I18nManager;
+use editor_wysiwyg::http_client::install_http_client;
 use theme::ThemeManager;
 #[cfg(target_os = "macos")]
 use crate::platform::file_url::parse_file_url;

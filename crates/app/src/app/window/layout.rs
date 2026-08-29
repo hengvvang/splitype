@@ -15,7 +15,7 @@ use crate::app::shell::Shell;
 
 use workspace::{WindowPanelKind, panel_topbar_icon};
 use ui::corner_drag_preview::render_corner_drag_preview;
-use i18n::I18nStrings;
+use config::language::I18nStrings;
 use theme::{Theme, ThemeManager};
 use splitter::policy::CornerDragResult;
 use splitter::sessions::CornerDragModifier;

@@ -83,12 +83,17 @@ impl Editor {
         // lightweight post-layout notification to ensure exact convergence on the
         // real measured bounds once layout executes.
         if is_initial_unbound {
+            let window_handle = window.window_handle();
             cx.spawn(async move |this: WeakEntity<Self>, cx: &mut AsyncApp| {
                 cx.background_executor()
                     .timer(std::time::Duration::from_millis(16))
                     .await;
-                let _ = this.update(cx, |_editor, cx| {
-                    cx.notify();
+                // try_borrow-mut path: skip the notify when a frame is
+                // mid-render instead of panicking.
+                let _ = window_handle.update(cx, |_view, _window, cx| {
+                    let _ = this.update(cx, |_editor, cx| {
+                        cx.notify();
+                    });
                 });
             })
             .detach();
@@ -377,7 +382,7 @@ impl Editor {
                     .on_hover(cx.listener(move |this, hovered, window, cx| {
                         this.on_editor_hover(pane_id, hovered, window, cx);
                     }))
-                    .on_mouse_down(MouseButton::Left, move |event, _window, cx| {
+                    .on_mouse_down(MouseButton::Left, move |event, window, cx| {
                         let pointer_offset_y =
                             f32::from(event.position.y) - track_origin_y - thumb_top;
                         let _ = scrollbar_editor.update(cx, |editor, cx| {
@@ -392,6 +397,7 @@ impl Editor {
                                     track_height,
                                     thumb_height,
                                     max_scroll_y,
+                                    window,
                                     cx,
                                 );
                             }
@@ -403,19 +409,19 @@ impl Editor {
                             move |_thumb_bounds, _, window, _| {
                                 window.on_mouse_event({
                                     let editor = editor.clone();
-                                    move |_event: &MouseUpEvent, phase, _window, cx| {
+                                    move |_event: &MouseUpEvent, phase, window, cx| {
                                         if !phase.bubble() {
                                             return;
                                         }
                                         let _ = editor.update(cx, |editor, cx| {
-                                            editor.end_scrollbar_drag(pane_id, cx);
+                                            editor.end_scrollbar_drag(pane_id, window, cx);
                                         });
                                     }
                                 });
 
                                 window.on_mouse_event({
                                     let editor = editor.clone();
-                                    move |event: &MouseMoveEvent, phase, _window, cx| {
+                                    move |event: &MouseMoveEvent, phase, window, cx| {
                                         if !phase.bubble() || !event.dragging() {
                                             return;
                                         }
@@ -426,6 +432,7 @@ impl Editor {
                                             editor.update_scrollbar_drag(
                                                 pane_id,
                                                 pointer_y_in_track,
+                                                window,
                                                 cx,
                                             );
                                         });

@@ -9,7 +9,7 @@ use gpui::*;
 
 use crate::engine::controller::{Editor, PaneId};
 use editor_model::PaneRenderContext;
-use i18n::I18nStrings;
+use config::language::I18nStrings;
 use theme::Theme;
 
 impl Editor {

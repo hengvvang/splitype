@@ -302,7 +302,10 @@ impl Editor {
         window: &Window,
         cx: &App,
     ) -> Option<EntityId> {
-        self.doc().focused_block_entity_id(window, cx).or_else(|| {
+        // Model C: an unparsed tab (parse-free open in Source mode) has no
+        // block tree yet, so there is no edit target to derive from.
+        let doc = self.active_doc()?;
+        doc.focused_block_entity_id(window, cx).or_else(|| {
             self.tab()
                 .tables
                 .cells

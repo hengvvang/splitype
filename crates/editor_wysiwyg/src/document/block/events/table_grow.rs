@@ -10,43 +10,51 @@ use crate::document::block::{Block, TableHoverRegion};
 use crate::markdown::parse::BlockKind;
 
 impl Block {
-    pub fn schedule_table_append_column_close(&mut self, cx: &mut Context<Self>) {
+    pub fn schedule_table_append_column_close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if !self.table_interaction.column_append.is_active {
             return;
         }
 
+        let window_handle = window.window_handle();
         self.table_interaction.column_append.dismiss_task = Some(cx.spawn(
-            async |this: WeakEntity<Block>, cx: &mut AsyncApp| {
+            async move |this: WeakEntity<Block>, cx: &mut AsyncApp| {
                 cx.background_executor()
                     .timer(Duration::from_millis(120))
                     .await;
-                let _ = this.update(cx, |block, cx| {
-                    block.table_interaction.column_append.dismiss_task = None;
-                    if !block.table_interaction.column_append.is_cursor_inside() {
-                        block.table_interaction.column_append.is_active = false;
-                        cx.notify();
-                    }
+                // try-borrow path: a tick landing mid-render is skipped.
+                let _ = window_handle.update(cx, |_view, _window, cx| {
+                    let _ = this.update(cx, |block, cx| {
+                        block.table_interaction.column_append.dismiss_task = None;
+                        if !block.table_interaction.column_append.is_cursor_inside() {
+                            block.table_interaction.column_append.is_active = false;
+                            cx.notify();
+                        }
+                    });
                 });
             },
         ));
     }
 
-    pub fn schedule_table_append_row_close(&mut self, cx: &mut Context<Self>) {
+    pub fn schedule_table_append_row_close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if !self.table_interaction.row_append.is_active {
             return;
         }
 
+        let window_handle = window.window_handle();
         self.table_interaction.row_append.dismiss_task = Some(cx.spawn(
-            async |this: WeakEntity<Block>, cx: &mut AsyncApp| {
+            async move |this: WeakEntity<Block>, cx: &mut AsyncApp| {
                 cx.background_executor()
                     .timer(Duration::from_millis(120))
                     .await;
-                let _ = this.update(cx, |block, cx| {
-                    block.table_interaction.row_append.dismiss_task = None;
-                    if !block.table_interaction.row_append.is_cursor_inside() {
-                        block.table_interaction.row_append.is_active = false;
-                        cx.notify();
-                    }
+                // try-borrow path: a tick landing mid-render is skipped.
+                let _ = window_handle.update(cx, |_view, _window, cx| {
+                    let _ = this.update(cx, |block, cx| {
+                        block.table_interaction.row_append.dismiss_task = None;
+                        if !block.table_interaction.row_append.is_cursor_inside() {
+                            block.table_interaction.row_append.is_active = false;
+                            cx.notify();
+                        }
+                    });
                 });
             },
         ));
@@ -56,6 +64,7 @@ impl Block {
         &mut self,
         region: TableHoverRegion,
         hovered: bool,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let changed = self
@@ -67,7 +76,7 @@ impl Block {
             && self.table_interaction.column_append.is_active
             && self.table_interaction.column_append.dismiss_task.is_none()
         {
-            self.schedule_table_append_column_close(cx);
+            self.schedule_table_append_column_close(window, cx);
         }
 
         if changed {
@@ -79,6 +88,7 @@ impl Block {
         &mut self,
         region: TableHoverRegion,
         hovered: bool,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let changed = self
@@ -90,7 +100,7 @@ impl Block {
             && self.table_interaction.row_append.is_active
             && self.table_interaction.row_append.dismiss_task.is_none()
         {
-            self.schedule_table_append_row_close(cx);
+            self.schedule_table_append_row_close(window, cx);
         }
 
         if changed {
@@ -101,55 +111,55 @@ impl Block {
     pub fn on_table_append_column_zone_hover(
         &mut self,
         hovered: &bool,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.set_table_column_hover_region(TableHoverRegion::BufferZone, *hovered, cx);
+        self.set_table_column_hover_region(TableHoverRegion::BufferZone, *hovered, window, cx);
     }
 
     pub fn on_table_append_column_button_hover(
         &mut self,
         hovered: &bool,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.set_table_column_hover_region(TableHoverRegion::AppendButton, *hovered, cx);
+        self.set_table_column_hover_region(TableHoverRegion::AppendButton, *hovered, window, cx);
     }
 
     pub fn on_table_append_row_zone_hover(
         &mut self,
         hovered: &bool,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.set_table_row_hover_region(TableHoverRegion::BufferZone, *hovered, cx);
+        self.set_table_row_hover_region(TableHoverRegion::BufferZone, *hovered, window, cx);
     }
 
     pub fn on_table_append_row_button_hover(
         &mut self,
         hovered: &bool,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.set_table_row_hover_region(TableHoverRegion::AppendButton, *hovered, cx);
+        self.set_table_row_hover_region(TableHoverRegion::AppendButton, *hovered, window, cx);
     }
 
     pub fn on_table_append_column_edge_hover(
         &mut self,
         hovered: &bool,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.set_table_column_hover_region(TableHoverRegion::Edge, *hovered, cx);
+        self.set_table_column_hover_region(TableHoverRegion::Edge, *hovered, window, cx);
     }
 
     pub fn on_table_append_row_edge_hover(
         &mut self,
         hovered: &bool,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.set_table_row_hover_region(TableHoverRegion::Edge, *hovered, cx);
+        self.set_table_row_hover_region(TableHoverRegion::Edge, *hovered, window, cx);
     }
 
     pub fn on_append_table_column(

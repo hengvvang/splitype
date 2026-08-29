@@ -17,10 +17,10 @@ use crate::app::actions::{
 #[cfg(target_os = "macos")]
 use crate::app::actions::{InstallCliTool, UninstallCliTool};
 use editor_scheduler::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
-use i18n::I18nManager;
+use config::language::I18nManager;
 use theme::ThemeManager;
 #[cfg(target_os = "macos")]
-use crate::platform::cli_tool::is_cli_symlink_current_app;
+use splitype_installer::cli_tool::is_cli_symlink_current_app;
 
 pub(super) fn build_menus(
     theme_manager: &ThemeManager,

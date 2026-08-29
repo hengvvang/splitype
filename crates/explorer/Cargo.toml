@@ -16,7 +16,6 @@ workspace = true
 config = { path = "../config" }
 explorer_fs = { path = "../explorer_fs" }
 theme = { path = "../theme" }
-i18n = { path = "../i18n" }
 ui = { path = "../ui" }
 workspace = { path = "../workspace" }
 splitter = { path = "../splitter" }

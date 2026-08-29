@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::document::block::{Block, ImageHandle};
-use i18n::I18nManager;
+use config::language::I18nManager;
 use theme::Theme;
 use crate::markdown::block::html::{
     HtmlDocument, HtmlNode, HtmlNodeKind, attr_value, parse_html_image_block, style_for_node,

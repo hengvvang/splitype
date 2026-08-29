@@ -115,7 +115,11 @@ impl Editor {
     }
 
     /// Schedules smooth submenu closing with a short debounce window.
-    pub fn schedule_context_menu_submenu_close(&mut self, cx: &mut Context<Self>) {
+    pub fn schedule_context_menu_submenu_close(
+        &mut self,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         if !matches!(self.context_menu, Some(ContextMenuState::Edit { .. })) {
             return;
         }
@@ -123,29 +127,36 @@ impl Editor {
         self.context_menu_submenu_close_token = self.context_menu_submenu_close_token.wrapping_add(1);
         let token = self.context_menu_submenu_close_token;
         let weak_editor = cx.entity().downgrade();
+        let window_handle = window.window_handle();
         self.context_menu_submenu_close_task = Some(cx.spawn(
             async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
                 cx.background_executor()
                     .timer(Duration::from_millis(250))
                     .await;
-                let _ = weak_editor.update(cx, |editor, cx| {
-                    if editor.context_menu_submenu_close_token != token {
-                        return;
-                    }
-                    editor.context_menu_submenu_close_task = None;
-                    let Some(ContextMenuState::Edit {
-                        active_submenu,
-                        submenu_hovered,
-                        menu_hovered_submenu,
-                        ..
-                    }) = editor.context_menu.as_mut()
-                    else {
-                        return;
-                    };
-                    if menu_hovered_submenu.is_none() && !*submenu_hovered && active_submenu.is_some() {
-                        *active_submenu = None;
-                        cx.notify();
-                    }
+                // try_borrow-mut path: a tick landing mid-render is skipped.
+                let _ = window_handle.update(cx, |_view, _window, cx| {
+                    let _ = weak_editor.update(cx, |editor, cx| {
+                        if editor.context_menu_submenu_close_token != token {
+                            return;
+                        }
+                        editor.context_menu_submenu_close_task = None;
+                        let Some(ContextMenuState::Edit {
+                            active_submenu,
+                            submenu_hovered,
+                            menu_hovered_submenu,
+                            ..
+                        }) = editor.context_menu.as_mut()
+                        else {
+                            return;
+                        };
+                        if menu_hovered_submenu.is_none()
+                            && !*submenu_hovered
+                            && active_submenu.is_some()
+                        {
+                            *active_submenu = None;
+                            cx.notify();
+                        }
+                    });
                 });
             },
         ));
@@ -156,6 +167,7 @@ impl Editor {
         &mut self,
         submenu: Option<ContextSubmenu>,
         is_submenu_body: bool,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         let mut changed = false;
@@ -200,7 +212,7 @@ impl Editor {
             self.context_menu_submenu_close_task = None;
         }
         if should_schedule_close {
-            self.schedule_context_menu_submenu_close(cx);
+            self.schedule_context_menu_submenu_close(window, cx);
         }
         if changed {
             cx.notify();

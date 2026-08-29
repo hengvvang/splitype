@@ -4,7 +4,7 @@ use gpui::*;
 
 use crate::document::block::Block;
 use crate::render::embedded_preview::render_graphic_preview_box;
-use i18n::I18nStrings;
+use config::language::I18nStrings;
 use theme::Theme;
 
 /// Render a LaTeX math block.

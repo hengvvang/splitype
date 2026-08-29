@@ -4,7 +4,7 @@ use gpui::*;
 
 use crate::engine::controller::*;
 use crate::engine::session::EditorPaneKind;
-use i18n::I18nStrings;
+use config::language::I18nStrings;
 use theme::Theme;
 use splitter::SplitAxis;
 use splitter::tree::SplitTree;

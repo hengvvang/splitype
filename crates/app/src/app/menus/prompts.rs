@@ -12,7 +12,7 @@ use gpui::*;
 use super::{install_menus, show_window_prompt, with_active_window};
 use crate::app::window::{open_file_in_new_window, record_recent_file_and_refresh};
 use config::recent::{read_recent_files, remove_recent_file};
-use i18n::{import_language_config_and_select, I18nManager};
+use config::language::{import_language_config_and_select, I18nManager};
 use theme::import_theme_config_and_select;
 
 

@@ -19,9 +19,9 @@ use crate::app::actions::{
     SelectLanguage, SelectTheme, ShowAbout, ToggleExplorer, UninstallCliTool,
 };
 #[cfg(target_os = "macos")]
-use crate::app::cli::install::{install_cli_tool, uninstall_cli_tool};
+use splitype_installer::{install_cli_tool, uninstall_cli_tool};
 #[cfg(not(target_os = "macos"))]
-use crate::app::cli::install::{install_cli_tool, uninstall_cli_tool};
+use splitype_installer::{install_cli_tool, uninstall_cli_tool};
 use crate::app::shell::Shell;
 use crate::app::window::{open_editor_window, record_recent_file_and_refresh};
 use editor_scheduler::actions::{ExportHtml, ExportPdf, SaveDocument, SaveDocumentAs};
@@ -30,7 +30,7 @@ use editor_wysiwyg::export::ExportFormat;
 use editor_scheduler::document::{
     open_bug_report, open_discussions, open_feature_request, open_splitype_repository,
 };
-use i18n::{apply_configured_language, I18nManager};
+use config::language::{apply_configured_language, I18nManager};
 use theme::{apply_configured_theme, ThemeManager};
 use settings::open_settings_window;
 
@@ -70,6 +70,24 @@ fn with_active_window<R>(
     window.update(cx, update).ok()
 }
 
+/// Runs `update` against the first Shell-rooted window, falling back from
+/// the active window to every other window. Menu actions must not silently
+/// no-op just because the active window is a non-Shell window (settings),
+/// so native-menu dispatch walks the window candidates.
+fn with_shell_window<R>(
+    cx: &mut App,
+    update: impl Fn(&mut Shell, &mut Window, &mut Context<Shell>) -> R,
+) -> Option<R> {
+    for window in current_window_candidates(cx) {
+        if let Some(shell) = window.downcast::<Shell>() {
+            if let Ok(result) = shell.update(cx, |shell, window, cx| update(shell, window, cx)) {
+                return Some(result);
+            }
+        }
+    }
+    None
+}
+
 fn with_primary_editor<R>(
     cx: &mut App,
     update: impl FnOnce(&mut Editor, &mut Window, &mut Context<Editor>) -> R,
@@ -85,13 +103,13 @@ fn with_primary_editor<R>(
 }
 
 fn show_info_dialog_on_active_window(cx: &mut App, kind: InfoDialogKind) {
-    let _ = with_active_window(cx, move |shell, _window, cx| {
+    let _ = with_shell_window(cx, move |shell, _window, cx| {
         shell.show_info_dialog(kind, cx);
     });
 }
 
 fn request_update_check_on_active_window(cx: &mut App) {
-    let _ = with_active_window(cx, |shell, window, cx| {
+    let _ = with_shell_window(cx, |shell, window, cx| {
         shell.request_check_updates(window, cx);
     });
 }
@@ -272,13 +290,13 @@ pub(crate) fn dispatch_menu_action(action: &dyn Action, cx: &mut App) {
         uninstall_cli_tool(cx);
         install_menus(cx);
     } else if action.as_any().is::<ToggleExplorer>() {
-        let _ = with_active_window(cx, |_shell, window, cx| {
+        let _ = with_shell_window(cx, |_shell, window, cx| {
             explorer::ExplorerState::update(cx, |state, cx| {
                 state.toggle_explorer_drawer(window, cx);
             });
         });
     } else if action.as_any().is::<CloseExplorerFolder>() {
-        let _ = with_active_window(cx, |_shell, _window, cx| {
+        let _ = with_shell_window(cx, |_shell, _window, cx| {
             explorer::ExplorerState::update(cx, |state, cx| {
                 state.close_explorer_folder(cx);
             });

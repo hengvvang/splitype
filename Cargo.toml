@@ -3,10 +3,10 @@ resolver = "2"
 members = [
     "crates/primitives",
     "crates/splitter",
+    "crates/splitype_installer",
+    "crates/splitype_cli",
     "crates/theme",
-    "crates/i18n",
     "crates/config",
-    "crates/net",
     "crates/ui",
     "crates/explorer_fs",
     "crates/workspace",
@@ -35,10 +35,10 @@ rust-version = "1.91"
 # Member crates
 primitives = { path = "crates/primitives" }
 splitter = { path = "crates/splitter" }
+splitype_installer = { path = "crates/splitype_installer" }
+splitype_cli = { path = "crates/splitype_cli" }
 theme = { path = "crates/theme" }
-i18n = { path = "crates/i18n" }
 config = { path = "crates/config" }
-net = { path = "crates/net" }
 syntax = { path = "crates/syntax" }
 ui = { path = "crates/ui" }
 explorer_fs = { path = "crates/explorer_fs" }

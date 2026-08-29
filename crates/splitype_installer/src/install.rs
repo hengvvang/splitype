@@ -6,17 +6,17 @@
 
 use gpui::*;
 
-use i18n::I18nManager;
+use config::language::I18nManager;
 #[cfg(target_os = "macos")]
-use crate::platform::cli_tool::applescript_string_literal;
+use crate::cli_tool::applescript_string_literal;
 #[cfg(target_os = "macos")]
-use crate::platform::cli_tool::{is_cli_symlink_current_app, run_osascript};
+use crate::cli_tool::{is_cli_symlink_current_app, run_osascript};
 
 #[cfg(target_os = "macos")]
 const CLI_BIN_LINK: &str = "/usr/local/bin/splitype";
 
 #[cfg(target_os = "macos")]
-pub(crate) fn install_cli_tool(cx: &mut App) {
+pub fn install_cli_tool(cx: &mut App) {
     let strings = cx.global::<I18nManager>().strings();
 
     let current_exe = match std::env::current_exe() {
@@ -93,7 +93,7 @@ do shell script "rm -f " & quoted form of linkPath & linefeed & "ln -s " & quote
 }
 
 #[cfg(target_os = "macos")]
-pub(crate) fn uninstall_cli_tool(cx: &mut App) {
+pub fn uninstall_cli_tool(cx: &mut App) {
     let strings = cx.global::<I18nManager>().strings();
 
     if !is_cli_symlink_current_app() {
@@ -141,7 +141,7 @@ do shell script "rm -f " & quoted form of linkPath with administrator privileges
 }
 
 #[cfg(not(target_os = "macos"))]
-pub(crate) fn install_cli_tool(cx: &mut App) {
+pub fn install_cli_tool(cx: &mut App) {
     show_install_cli_error(
         cx,
         "Command-line tool installation is only available on macOS.",
@@ -149,7 +149,7 @@ pub(crate) fn install_cli_tool(cx: &mut App) {
 }
 
 #[cfg(not(target_os = "macos"))]
-pub(crate) fn uninstall_cli_tool(cx: &mut App) {
+pub fn uninstall_cli_tool(cx: &mut App) {
     show_install_cli_error(
         cx,
         "Command-line tool uninstallation is only available on macOS.",

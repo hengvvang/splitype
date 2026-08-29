@@ -246,8 +246,6 @@ dependencies = [
  "futures",
  "gpui",
  "gpui_platform",
- "i18n",
- "net",
  "notify",
  "primitives",
  "regex",
@@ -256,6 +254,8 @@ dependencies = [
  "serde_json",
  "settings",
  "splitter",
+ "splitype_cli",
+ "splitype_installer",
  "theme",
  "thiserror 2.0.18",
  "tokio",
@@ -1745,10 +1745,10 @@ dependencies = [
 name = "editor_preview"
 version = "0.0.1"
 dependencies = [
+ "config",
  "editor_model",
  "editor_wysiwyg",
  "gpui",
- "i18n",
  "theme",
  "uuid",
 ]
@@ -1767,7 +1767,6 @@ dependencies = [
  "editor_wysiwyg",
  "futures",
  "gpui",
- "i18n",
  "splitter",
  "theme",
  "tracing",
@@ -1825,7 +1824,6 @@ dependencies = [
  "editor_model",
  "futures",
  "gpui",
- "i18n",
  "image",
  "lazy_static",
  "mermaid-rs-renderer",
@@ -1835,12 +1833,14 @@ dependencies = [
  "ratex-parser",
  "ratex-svg",
  "regex",
+ "reqwest",
  "serde",
  "smallvec",
  "taffy 0.7.7",
  "theme",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
  "tree-sitter",
  "tree-sitter-c",
  "tree-sitter-c-sharp",
@@ -2016,7 +2016,6 @@ dependencies = [
  "explorer_fs",
  "futures",
  "gpui",
- "i18n",
  "notify",
  "schemars",
  "serde",
@@ -3058,25 +3057,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "i18n"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "config",
- "directories",
- "gpui",
- "gpui_platform",
- "primitives",
- "serde",
- "serde_json",
- "sys-locale",
- "theme",
- "thiserror 2.0.18",
- "tracing",
- "uuid",
-]
-
-[[package]]
 name = "iana-time-zone"
 version = "0.1.65"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3903,23 +3883,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee6cda3051665f1fb8d9e08fc35c96d5a244fb1be711a03b71118828afc9a873"
 dependencies = [
  "jni-sys 0.3.1",
-]
-
-[[package]]
-name = "net"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "futures",
- "gpui",
- "primitives",
- "reqwest",
- "semver",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "toml 1.1.2+spec-1.1.0",
- "tracing",
 ]
 
 [[package]]
@@ -5918,7 +5881,6 @@ version = "0.0.1"
 dependencies = [
  "config",
  "gpui",
- "i18n",
  "schemars",
  "serde",
  "splitter",
@@ -6149,6 +6111,22 @@ dependencies = [
  "primitives",
  "schemars",
  "serde",
+]
+
+[[package]]
+name = "splitype_cli"
+version = "0.0.1"
+
+[[package]]
+name = "splitype_installer"
+version = "0.0.1"
+dependencies = [
+ "config",
+ "gpui",
+ "reqwest",
+ "semver",
+ "toml 1.1.2+spec-1.1.0",
+ "tracing",
 ]
 
 [[package]]
@@ -7156,7 +7134,6 @@ version = "0.0.1"
 dependencies = [
  "config",
  "gpui",
- "i18n",
  "primitives",
  "splitter",
  "theme",

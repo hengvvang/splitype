@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::document::block::Block;
-use i18n::I18nStrings;
+use config::language::I18nStrings;
 use theme::Theme;
 
 /// Render a fenced code block with optional toolbar and language picker.

@@ -31,7 +31,7 @@ use std::sync::Arc;
 use gpui::*;
 
 use editor_model::{PaneHost, PaneId, PaneRenderContext};
-use i18n::I18nStrings;
+use config::language::I18nStrings;
 use theme::Theme;
 use editor_wysiwyg::markdown::parse::BlockKind;
 

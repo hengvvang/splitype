@@ -23,7 +23,6 @@ editor_outline = { path = "../editor_outline" }
 editor_search = { path = "../editor_search" }
 futures = "0.3"
 gpui = { workspace = true }
-i18n = { path = "../i18n" }
 splitter = { path = "../splitter" }
 theme = { path = "../theme" }
 tracing = "0.1"

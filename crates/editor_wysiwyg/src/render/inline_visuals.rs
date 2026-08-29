@@ -10,7 +10,7 @@ use crate::render::inline::text_element::BlockTextElement;
 use crate::render::inline_word_chunks;
 use crate::render::render_image_placeholder;
 use crate::render::render_loading_placeholder;
-use i18n::I18nStrings;
+use config::language::I18nStrings;
 use theme::Theme;
 use crate::markdown::block::image::{
     ImageResolvedSource, TableCellInlineImageSegment, parse_table_cell_inline_images,

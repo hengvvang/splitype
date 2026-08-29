@@ -13,6 +13,6 @@ fn main() {
         .with_env_filter(env_filter)
         .try_init();
 
-    let args = app::app::cli::parse();
+    let args = splitype_cli::parse();
     app::app::bootstrap::run(args);
 }

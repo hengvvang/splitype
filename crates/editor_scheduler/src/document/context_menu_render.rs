@@ -9,7 +9,7 @@ use gpui::*;
 
 use crate::engine::controller::Editor;
 use crate::document::context_menu::ContextMenuState;
-use i18n::I18nManager;
+use config::language::I18nManager;
 use theme::Theme;
 use editor_wysiwyg::markdown::block::table::TableAxis;
 impl Editor {
@@ -124,9 +124,9 @@ impl Editor {
                 .text_color(c.dialog_secondary_button_text)
                 .child(label)
                 .on_click(cx.listener(on_click))
-                .on_hover(cx.listener(|this, hovered, _window, cx| {
+                .on_hover(cx.listener(|this, hovered, window, cx| {
                     if *hovered {
-                        this.set_context_menu_submenu_hover(None, false, cx);
+                        this.set_context_menu_submenu_hover(None, false, window, cx);
                     }
                 }))
                 .into_any_element()
@@ -213,14 +213,14 @@ impl Editor {
                     .size(px(14.0))
                     .text_color(c.dialog_muted),
             )
-            .on_click(cx.listener(move |this, _event, _window, cx| {
-                this.set_context_menu_submenu_hover(Some(submenu_kind), false, cx);
+            .on_click(cx.listener(move |this, _event, window, cx| {
+                this.set_context_menu_submenu_hover(Some(submenu_kind), false, window, cx);
             }))
-            .on_hover(cx.listener(move |this, hovered, _window, cx| {
+            .on_hover(cx.listener(move |this, hovered, window, cx| {
                 if *hovered {
-                    this.set_context_menu_submenu_hover(Some(submenu_kind), false, cx);
+                    this.set_context_menu_submenu_hover(Some(submenu_kind), false, window, cx);
                 } else {
-                    this.set_context_menu_submenu_hover(None, false, cx);
+                    this.set_context_menu_submenu_hover(None, false, window, cx);
                 }
             }))
             .into_any_element()
@@ -352,11 +352,11 @@ impl Editor {
                         .on_mouse_down(MouseButton::Left, |_event, _window, cx| {
                             cx.stop_propagation()
                         })
-                        .on_hover(cx.listener(move |this, hovered, _window, cx| {
+                        .on_hover(cx.listener(move |this, hovered, window, cx| {
                             if *hovered {
-                                this.set_context_menu_submenu_hover(Some(sub), true, cx);
+                                this.set_context_menu_submenu_hover(Some(sub), true, window, cx);
                             } else {
-                                this.set_context_menu_submenu_hover(None, true, cx);
+                                this.set_context_menu_submenu_hover(None, true, window, cx);
                             }
                         }))
                         .children(submenu_items);
@@ -368,9 +368,9 @@ impl Editor {
                         .top(panel_y)
                         .w(px(d.context_menu_submenu_gap + 8.0))
                         .h(px(320.0))
-                        .on_hover(cx.listener(move |this, hovered, _window, cx| {
+                        .on_hover(cx.listener(move |this, hovered, window, cx| {
                             if *hovered {
-                                this.set_context_menu_submenu_hover(Some(sub), true, cx);
+                                this.set_context_menu_submenu_hover(Some(sub), true, window, cx);
                             }
                         }));
 

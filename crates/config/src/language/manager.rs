@@ -11,8 +11,8 @@ use super::packs::{
     custom_language_pack_from_value,
 };
 use super::strings::I18nStrings;
-use config::dirs::SplitypeConfigDirs;
-use config::jsonc::{read_json_or_jsonc, sanitize_config_file_stem};
+use crate::dirs::SplitypeConfigDirs;
+use crate::jsonc::{read_json_or_jsonc, sanitize_config_file_stem};
 
 pub struct I18nManager {
     current_language_id: String,
@@ -33,7 +33,7 @@ impl I18nManager {
     /// Test-only: installs the configured UI language into GPUI's global state.
     #[cfg(test)]
     pub fn init(cx: &mut App) {
-        let language_id = config::settings::read_app_settings()
+        let language_id = crate::settings::read_app_settings()
             .map(|settings| settings.interface.language_id)
             .unwrap_or_else(|_| BUILTIN_LANGUAGE_EN_US_ID.into());
         Self::init_with_language_id(cx, &language_id);
@@ -203,8 +203,8 @@ pub fn apply_configured_language(cx: &mut gpui::App, language_id: &str) -> anyho
     if !applied {
         return Ok(false);
     }
-    if cx.has_global::<config::settings::SettingsStore>() {
-        let _ = config::settings::SettingsStore::update(cx, |settings| {
+    if cx.has_global::<crate::settings::SettingsStore>() {
+        let _ = crate::settings::SettingsStore::update(cx, |settings| {
             settings.interface.language_id = language_id.to_string();
         });
     }
@@ -219,8 +219,8 @@ pub fn import_language_config_and_select(
     let imported_id = cx.update_global::<I18nManager, _>(|i18n_manager, _cx| {
         i18n_manager.import_language_config(path)
     })?;
-    if cx.has_global::<config::settings::SettingsStore>() {
-        let _ = config::settings::SettingsStore::update(cx, |settings| {
+    if cx.has_global::<crate::settings::SettingsStore>() {
+        let _ = crate::settings::SettingsStore::update(cx, |settings| {
             settings.interface.language_id = imported_id.clone();
         });
     }
@@ -230,10 +230,8 @@ pub fn import_language_config_and_select(
 #[cfg(test)]
 mod tests {
     use super::{I18nLanguagePack, I18nManager, I18nStrings};
-    use config::dirs::SplitypeConfigDirs;
-    use crate::packs::language_id_for_locale_settings;
-
-    use theme::ThemeManager;
+    use crate::dirs::SplitypeConfigDirs;
+    use crate::language::packs::language_id_for_locale_settings;
 
     #[test]
     fn built_in_chinese_strings_are_utf8() {
@@ -297,14 +295,11 @@ mod tests {
     }
 
     #[test]
-    fn theme_switch_does_not_modify_selected_language() {
-        let mut theme_manager = ThemeManager::default();
+    fn language_selection_is_independent() {
         let mut i18n_manager = I18nManager::new_with_language_id("zh-CN");
 
-        assert!(theme_manager.set_theme_by_id("splitype"));
         assert!(!i18n_manager.set_language_by_id("missing"));
 
-        assert_eq!(theme_manager.current_theme_id(), "splitype");
         assert_eq!(i18n_manager.current_language_id(), "zh-CN");
         assert_eq!(i18n_manager.strings().menu_file, "文件");
     }

@@ -221,7 +221,7 @@ impl Editor {
 
     pub(crate) fn show_image_paste_error(&self, err: anyhow::Error, cx: &mut Context<Self>) {
         let strings = cx
-            .global::<i18n::I18nManager>()
+            .global::<config::language::I18nManager>()
             .strings()
             .clone();
         if let Some(window) = cx.active_window() {

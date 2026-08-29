@@ -162,22 +162,32 @@ impl Block {
     ///
     /// The blink task is automatically cancelled when the block loses focus
     /// (the task handle is dropped in [`Block::render`]).
-    pub fn start_cursor_blink(&mut self, cx: &mut Context<Self>) {
+    ///
+    /// Repaints go through `window_handle.update` (`AnyWindowHandle::update`
+    /// uses `try_borrow_mut`): a tick that lands while a frame is being
+    /// rendered is skipped instead of panicking with "RefCell already
+    /// borrowed".
+    pub fn start_cursor_blink(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.cursor_blink_epoch = Instant::now();
+        let window_handle = window.window_handle();
         self.cursor_blink_task = Some(cx.spawn(
-            async |this: WeakEntity<Block>, cx: &mut AsyncApp| loop {
-                cx.background_executor()
-                    .timer(Duration::from_millis(33))
-                    .await;
-                if this
-                    .update(cx, |this: &mut Block, cx: &mut Context<Block>| {
-                        if this.cursor_blink_epoch.elapsed().as_secs_f32() >= 0.5 {
-                            cx.notify();
+            async move |this: WeakEntity<Block>, cx: &mut AsyncApp| {
+                loop {
+                    cx.background_executor()
+                        .timer(Duration::from_millis(33))
+                        .await;
+                    if this.upgrade().is_none() {
+                        break;
+                    }
+                    let _ = window_handle.update(cx, |_view, _window, cx| {
+                        if let Some(block) = this.upgrade() {
+                            let _ = block.update(cx, |this, cx| {
+                                if this.cursor_blink_epoch.elapsed().as_secs_f32() >= 0.5 {
+                                    cx.notify();
+                                }
+                            });
                         }
-                    })
-                    .is_err()
-                {
-                    break;
+                    });
                 }
             },
         ));

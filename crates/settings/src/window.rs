@@ -5,7 +5,7 @@ use std::collections::HashSet;
 use gpui::*;
 
 use config::settings::*;
-use i18n::{apply_configured_language, manager::I18nManager};
+use config::language::{apply_configured_language, manager::I18nManager};
 use theme::{apply_configured_theme, Theme, ThemeManager};
 use crate::components::*;
 

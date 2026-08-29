@@ -20,7 +20,7 @@ impl Editor {
     pub fn window_title(
         file_path: Option<&Path>,
         is_dirty: bool,
-        strings: &i18n::I18nStrings,
+        strings: &config::language::I18nStrings,
     ) -> String {
         let base_title = file_path
             .and_then(|p| p.file_name())

@@ -13,7 +13,7 @@ use crate::document::block::Block;
 use crate::render::inline::text_element::{
     BlockTextElement, CodeLanguageInputElement,
 };
-use i18n::I18nStrings;
+use config::language::I18nStrings;
 use theme::Theme;
 
 impl Block {

@@ -22,7 +22,7 @@ use crate::app::actions::{
 use crate::app::menus::dispatch_menu_action_for_editor;
 use crate::app::shell::Shell;
 use editor_scheduler::engine::controller::Editor;
-use i18n::I18nManager;
+use config::language::I18nManager;
 use theme::{Theme, ThemeManager};
 use ui::button::menu_bar_button;
 use ui::custom_titlebar::{custom_titlebar_height, render_custom_titlebar};
@@ -68,28 +68,28 @@ impl Shell {
     pub(crate) fn on_menu_panel_hover(
         &mut self,
         hovered: &bool,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.set_menu_panel_hovered(*hovered, cx);
+        self.set_menu_panel_hovered(*hovered, window, cx);
     }
 
     pub(crate) fn on_menu_submenu_panel_hover(
         &mut self,
         hovered: &bool,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.set_menu_submenu_panel_hovered(*hovered, cx);
+        self.set_menu_submenu_panel_hovered(*hovered, window, cx);
     }
 
     pub(crate) fn on_menu_submenu_bridge_hover(
         &mut self,
         hovered: &bool,
-        _window: &mut Window,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        self.set_menu_submenu_bridge_hovered(*hovered, cx);
+        self.set_menu_submenu_bridge_hovered(*hovered, window, cx);
     }
 
     pub(crate) fn open_menu_bar(&mut self, index: usize, cx: &mut Context<Self>) {
@@ -122,45 +122,49 @@ impl Shell {
         }
     }
 
-    pub(crate) fn schedule_menu_bar_close(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn schedule_menu_bar_close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.menu_bar.open.is_none() {
             return;
         }
 
         let weak_shell = cx.entity().downgrade();
+        let window_handle = window.window_handle();
         self.menu_bar.close_task = Some(cx.spawn(
             async move |_this: WeakEntity<Shell>, cx: &mut AsyncApp| {
                 cx.background_executor()
                     .timer(Duration::from_millis(120))
                     .await;
-                let _ = weak_shell.update(cx, |shell, cx| {
-                    shell.menu_bar.close_task = None;
-                    if !shell.menu_bar.panel_hovered
-                        && !shell.menu_bar.submenu_panel_hovered
-                        && !shell.menu_bar.submenu_bridge_hovered
-                    {
-                        shell.close_menu_bar(cx);
-                    }
+                // try-borrow path: a tick landing mid-render is skipped.
+                let _ = window_handle.update(cx, |_view, _window, cx| {
+                    let _ = weak_shell.update(cx, |shell, cx| {
+                        shell.menu_bar.close_task = None;
+                        if !shell.menu_bar.panel_hovered
+                            && !shell.menu_bar.submenu_panel_hovered
+                            && !shell.menu_bar.submenu_bridge_hovered
+                        {
+                            shell.close_menu_bar(cx);
+                        }
+                    });
                 });
             },
         ));
     }
 
-    pub(crate) fn set_menu_panel_hovered(&mut self, hovered: bool, cx: &mut Context<Self>) {
+    pub(crate) fn set_menu_panel_hovered(&mut self, hovered: bool, window: &mut Window, cx: &mut Context<Self>) {
         self.menu_bar.panel_hovered = hovered;
         if hovered {
             self.menu_bar.close_task = None;
         } else if !self.menu_bar.submenu_panel_hovered && !self.menu_bar.submenu_bridge_hovered {
-            self.schedule_menu_bar_close(cx);
+            self.schedule_menu_bar_close(window, cx);
         }
     }
 
-    pub(crate) fn set_menu_submenu_panel_hovered(&mut self, hovered: bool, cx: &mut Context<Self>) {
+    pub(crate) fn set_menu_submenu_panel_hovered(&mut self, hovered: bool, window: &mut Window, cx: &mut Context<Self>) {
         self.menu_bar.submenu_panel_hovered = hovered;
         if hovered {
             self.menu_bar.close_task = None;
         } else if !self.menu_bar.panel_hovered && !self.menu_bar.submenu_bridge_hovered {
-            self.schedule_menu_bar_close(cx);
+            self.schedule_menu_bar_close(window, cx);
         }
     }
 
@@ -172,13 +176,14 @@ impl Shell {
     pub(crate) fn set_menu_submenu_bridge_hovered(
         &mut self,
         hovered: bool,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) {
         self.menu_bar.submenu_bridge_hovered = hovered;
         if hovered {
             self.menu_bar.close_task = None;
         } else if !self.menu_bar.panel_hovered && !self.menu_bar.submenu_panel_hovered {
-            self.schedule_menu_bar_close(cx);
+            self.schedule_menu_bar_close(window, cx);
         }
     }
 

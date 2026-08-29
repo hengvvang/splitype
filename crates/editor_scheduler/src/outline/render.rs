@@ -96,7 +96,12 @@ impl Editor {
     }
 
     /// Sets whether the outline HUD popover is hovered with a debounce on exit.
-    pub(crate) fn set_outline_hovered(&mut self, hovered: bool, cx: &mut Context<Self>) {
+    pub(crate) fn set_outline_hovered(
+        &mut self,
+        hovered: bool,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
         self.outline.close_token = self.outline.close_token.wrapping_add(1);
         if hovered {
             if !self.outline.is_hovered {
@@ -106,15 +111,19 @@ impl Editor {
         } else {
             let token = self.outline.close_token;
             let weak_editor = cx.entity().downgrade();
+            let window_handle = window.window_handle();
             cx.spawn(async move |_this: WeakEntity<Self>, cx: &mut AsyncApp| {
                 cx.background_executor()
                     .timer(Duration::from_millis(200))
                     .await;
-                let _ = weak_editor.update(cx, |editor, cx| {
-                    if editor.outline.close_token == token && editor.outline.is_hovered {
-                        editor.outline.is_hovered = false;
-                        cx.notify();
-                    }
+                // try-borrow path: a tick landing mid-render is skipped.
+                let _ = window_handle.update(cx, |_view, _window, cx| {
+                    let _ = weak_editor.update(cx, |editor, cx| {
+                        if editor.outline.close_token == token && editor.outline.is_hovered {
+                            editor.outline.is_hovered = false;
+                            cx.notify();
+                        }
+                    });
                 });
             })
             .detach();

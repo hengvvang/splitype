@@ -5,7 +5,7 @@ use anyhow::bail;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use config::jsonc::{
+use crate::jsonc::{
     merge_non_empty_json_values, object_without_empty_values, prune_empty_json_values,
 };
 

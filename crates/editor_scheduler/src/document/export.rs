@@ -7,7 +7,7 @@ use gpui::*;
 use crate::engine::controller::Editor;
 use editor_wysiwyg::export::{self as document_export, ExportFormat};
 use editor_wysiwyg::export::ExportError;
-use i18n::I18nManager;
+use config::language::I18nManager;
 use theme::{Theme, ThemeManager};
 
 impl Editor {

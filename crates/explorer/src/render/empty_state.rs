@@ -5,7 +5,7 @@ use gpui::*;
 use crate::state::state::ExplorerState;
 
 use workspace::PanelId;
-use i18n::I18nStrings;
+use config::language::I18nStrings;
 use theme::Theme;
 use ui::empty_state::empty_state_container;
 
@@ -49,7 +49,7 @@ impl ExplorerState {
                 ExplorerState::update(cx, |state, cx| {
                     for path in paths {
                         if path.is_dir() {
-                            state.open_explorer_folder_path(path.clone(), cx);
+                            state.open_explorer_folder_path(path.clone(), window, cx);
                         } else {
                             state.open_explorer_file(path.clone(), true, window, cx);
                         }
@@ -175,9 +175,9 @@ impl ExplorerState {
                                         .hover(|this| this.text_color(c.text_default))
                                         .child(folder_name),
                                 )
-                                .on_click(move |_event, _window, cx| {
+                                .on_click(move |_event, window, cx| {
                                     ExplorerState::update(cx, |state, cx| {
-                                        state.open_explorer_folder_path(path.clone(), cx);
+                                        state.open_explorer_folder_path(path.clone(), window, cx);
                                     });
                                 })
                         }))

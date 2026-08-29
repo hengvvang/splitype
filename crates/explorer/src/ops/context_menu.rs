@@ -10,7 +10,7 @@ use gpui::*;
 
 use crate::state::state::{ExplorerFileMenuState, ExplorerState};
 
-use i18n::I18nManager;
+use config::language::I18nManager;
 use theme::Theme;
 use ui::menu_item::{menu_item, menu_item_row};
 use ui::popover::overlay;

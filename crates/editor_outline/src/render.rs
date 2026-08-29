@@ -15,8 +15,10 @@ pub trait OutlineHost: Send + Sync + 'static {
     /// Navigate to the heading at `index`.
     fn navigate_to(&self, index: usize, cx: &mut App);
 
-    /// Report popover hover-state changes (debounced by the host).
-    fn set_hovered(&self, hovered: bool, cx: &mut App);
+    /// Report popover hover-state changes (debounced by the host). The
+    /// window is passed so the host can schedule its debounce through a
+    /// try-borrow-safe handle.
+    fn set_hovered(&self, hovered: bool, window: &mut Window, cx: &mut App);
 }
 
 /// Renders the floating outline HUD (equal-length micro-ticks rail plus
@@ -178,8 +180,8 @@ pub fn render_floating_outline_hud(
         .flex()
         .flex_row()
         .items_start()
-        .on_hover(move |hovered: &bool, _window, cx| {
-            host_hover.set_hovered(*hovered, cx);
+        .on_hover(move |hovered: &bool, window, cx| {
+            host_hover.set_hovered(*hovered, window, cx);
         })
         .children(popover_el)
         .child(rail_el)

@@ -141,6 +141,10 @@ pub struct Worktree {
     /// tasks can wake and re-enter the worktree (the explorer global
     /// owns no `Context` to derive it from).
     self_weak: WeakEntity<Worktree>,
+    /// Window handle for try-borrow-safe re-entry from background tasks:
+    /// `AnyWindowHandle::update` skips a wake-up that lands mid-render
+    /// instead of panicking ("RefCell already borrowed"). `None` in tests.
+    window_handle: Option<AnyWindowHandle>,
     #[cfg_attr(test, allow(dead_code))]
     fs_watch_task: Option<Task<()>>,
     scan_task: Option<Task<()>>,
@@ -157,6 +161,7 @@ impl Worktree {
         root: PathBuf,
         next_entry_id: Arc<AtomicU64>,
         hide_hidden: bool,
+        window_handle: Option<AnyWindowHandle>,
         cx: &mut App,
     ) -> Entity<Self> {
         let root_id = ExplorerEntryId(next_entry_id.fetch_add(1, Ordering::SeqCst));
@@ -171,6 +176,7 @@ impl Worktree {
                 next_entry_id,
                 hide_hidden,
                 self_weak: cx.weak_entity(),
+                window_handle,
                 fs_watch_task: None,
                 scan_task: None,
                 fs_refresh_task: None,
@@ -228,12 +234,16 @@ impl Worktree {
         let hide_hidden = self.hide_hidden;
         let root_id = self.root_id;
         let weak = self.self_weak.clone();
+        let window_handle = self.window_handle.clone();
         let task = cx.spawn(async move |cx: &mut AsyncApp| {
             let scanned = cx
                 .background_executor()
                 .spawn(async move { scan_worktree_dir(&root_for_scan, hide_hidden) })
                 .await;
-            let _ = weak.update(cx, |this, cx| {
+            // Re-enter through the window handle when available
+            // (`AnyWindowHandle::update` uses try_borrow_mut, so a scan that
+            // completes mid-render is skipped instead of panicking).
+            let run = |this: &mut Worktree, cx: &mut Context<Worktree>| {
                 this.scan_task = None;
                 match scanned {
                     Ok(mut entries) if !entries.is_empty() => {
@@ -278,7 +288,17 @@ impl Worktree {
                 if this.needs_rescan {
                     this.rescan(cx);
                 }
-            });
+            };
+            match &window_handle {
+                Some(handle) => {
+                    let _ = handle.update(cx, |_view, _window, cx| {
+                        let _ = weak.update(cx, |this, cx| run(this, cx));
+                    });
+                }
+                None => {
+                    let _ = weak.update(cx, |this, cx| run(this, cx));
+                }
+            }
         });
         self.scan_task = Some(task);
     }
@@ -292,6 +312,7 @@ impl Worktree {
         {
             let root = self.root.clone();
             let weak = self.self_weak.clone();
+            let window_handle = self.window_handle.clone();
             let task = cx.spawn(async move |cx: &mut AsyncApp| {
                 let (tx, mut rx) = futures::channel::mpsc::unbounded::<notify::Event>();
                 let mut watcher =
@@ -311,7 +332,16 @@ impl Worktree {
                     return;
                 }
                 while rx.next().await.is_some() {
-                    let _ = weak.update(cx, |this, cx| this.on_fs_event(cx));
+                    match &window_handle {
+                        Some(handle) => {
+                            let _ = handle.update(cx, |_view, _window, cx| {
+                                let _ = weak.update(cx, |this, cx| this.on_fs_event(cx));
+                            });
+                        }
+                        None => {
+                            let _ = weak.update(cx, |this, cx| this.on_fs_event(cx));
+                        }
+                    }
                 }
             });
             self.fs_watch_task = Some(task);
@@ -325,14 +355,27 @@ impl Worktree {
             return;
         }
         let weak = self.self_weak.clone();
+        let window_handle = self.window_handle.clone();
         let task = cx.spawn(async move |cx: &mut AsyncApp| {
             cx.background_executor()
                 .timer(std::time::Duration::from_millis(250))
                 .await;
-            let _ = weak.update(cx, |this, cx| {
+            // try-borrow path: skip the rescan request when it lands
+            // mid-render (the fs watcher will fire again).
+            let finish = |this: &mut Worktree, cx: &mut Context<Worktree>| {
                 this.fs_refresh_task = None;
                 this.rescan(cx);
-            });
+            };
+            match &window_handle {
+                Some(handle) => {
+                    let _ = handle.update(cx, |_view, _window, cx| {
+                        let _ = weak.update(cx, |this, cx| finish(this, cx));
+                    });
+                }
+                None => {
+                    let _ = weak.update(cx, |this, cx| finish(this, cx));
+                }
+            }
         });
         self.fs_refresh_task = Some(task);
     }

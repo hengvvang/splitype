@@ -56,7 +56,7 @@ use crate::render::{
     table_block::render_table,
     thematic_break::{render_thematic_break_focused, render_thematic_break_unfocused},
 };
-use i18n::I18nManager;
+use config::language::I18nManager;
 use theme::{Theme, ThemeDimensions, ThemeManager};
 use crate::markdown::parse::BlockKind;
 
@@ -204,7 +204,7 @@ impl Render for Block {
         self.sync_inline_projection_for_focus(focused);
 
         if input_active && self.cursor_blink_task.is_none() {
-            self.start_cursor_blink(cx);
+            self.start_cursor_blink(window, cx);
         } else if !input_active && self.cursor_blink_task.is_some() {
             self.cursor_blink_task = None;
         }
@@ -334,7 +334,7 @@ impl Render for Block {
             && !matches!(self.kind(), BlockKind::MathBlock | BlockKind::MermaidBlock)
         {
             if focused && self.cursor_blink_task.is_none() {
-                self.start_cursor_blink(cx);
+                self.start_cursor_blink(window, cx);
             } else if !focused && self.cursor_blink_task.is_some() {
                 self.cursor_blink_task = None;
             }
