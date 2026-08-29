@@ -404,17 +404,15 @@ fn clamp_to_char_boundary(s: &str, mut idx: usize) -> usize {
 
 use gpui::App;
 
-use crate::editor::engine::controller::Editor;
 use crate::editor::engine::session::EditorPaneKind;
-use crate::editor::panes::outline::build_outline_headings_from_markdown;
-use crate::editor::panes::pane::{OutlineNode, Pane};
+use editor_core::{outline_headings_from_markdown, EditorDocument, OutlineNode, Pane};
 
 impl Pane for SourceCodeState {
     fn kind(&self) -> EditorPaneKind {
         EditorPaneKind::SourceCode
     }
 
-    fn document_source(&self, _editor: &Editor, _cx: &App) -> String {
+    fn document_source(&self, _doc: &dyn EditorDocument, _cx: &App) -> String {
         self.text.clone()
     }
 
@@ -422,14 +420,14 @@ impl Pane for SourceCodeState {
         self.search_matches = matches.to_vec();
     }
 
-    fn outline_items(&self, editor: &Editor, cx: &App) -> Vec<OutlineNode> {
+    fn outline_items(&self, doc: &dyn EditorDocument, cx: &App) -> Vec<OutlineNode> {
         // The source buffer is authoritative while it holds text; fall
         // back to the shared document when the pane was never synced.
         let text = if self.text.is_empty() {
-            editor.doc().serialize_markdown(cx)
+            doc.serialize_markdown(cx)
         } else {
             self.text.clone()
         };
-        build_outline_headings_from_markdown(&text)
+        outline_headings_from_markdown(&text)
     }
 }

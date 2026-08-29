@@ -5,9 +5,8 @@ use std::time::Duration;
 use gpui::*;
 
 use crate::editor::engine::controller::{Editor, EditorPaneKind, PaneId};
-use crate::editor::panes::outline::{
-    build_outline_headings_from_doc, build_outline_headings_from_markdown,
-};
+use crate::editor::panes::outline::build_outline_headings_from_doc;
+use editor_core::outline_headings_from_markdown;
 use theme::Theme;
 
 impl Editor {
@@ -51,7 +50,7 @@ impl Editor {
                     return;
                 }
 
-                self.outline.headings = build_outline_headings_from_markdown(&text_to_parse);
+                self.outline.headings = outline_headings_from_markdown(&text_to_parse);
                 self.outline.synced_tab_index = Some(tab_idx);
                 self.outline.synced_file_path = file_path;
                 self.outline.synced_revision = Some(revision);
@@ -67,7 +66,7 @@ impl Editor {
 
                 let mut headings = build_outline_headings_from_doc(self.doc(), cx);
                 if headings.is_empty() {
-                    headings = build_outline_headings_from_markdown(&self.doc().serialize_markdown(cx));
+                    headings = outline_headings_from_markdown(&self.doc().serialize_markdown(cx));
                 }
 
                 self.outline.headings = headings;
@@ -87,7 +86,7 @@ impl Editor {
                     return;
                 }
 
-                self.outline.headings = build_outline_headings_from_markdown(&text);
+                self.outline.headings = outline_headings_from_markdown(&text);
                 self.outline.synced_tab_index = Some(tab_idx);
                 self.outline.synced_file_path = file_path;
                 self.outline.synced_revision = Some(revision);

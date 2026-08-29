@@ -12,10 +12,7 @@ use gpui::*;
 
 use crate::editor::engine::controller::{Editor, FocusState, SelectionState};
 use crate::editor::engine::session::EditorPaneKind;
-use crate::editor::panes::outline::{
-    build_outline_headings_from_doc, build_outline_headings_from_markdown,
-};
-use crate::editor::panes::pane::{OutlineNode, Pane};
+use editor_core::{outline_headings_from_markdown, EditorDocument, OutlineNode, Pane};
 
 /// View state specific to a WYSIWYG editor pane.
 #[derive(Default)]
@@ -29,8 +26,8 @@ impl Pane for WysiwygPaneState {
         EditorPaneKind::Wysiwyg
     }
 
-    fn document_source(&self, editor: &Editor, cx: &App) -> String {
-        editor.doc().serialize_markdown(cx)
+    fn document_source(&self, doc: &dyn EditorDocument, cx: &App) -> String {
+        doc.serialize_markdown(cx)
     }
 
     fn set_search_matches(&mut self, _matches: &[(Range<usize>, bool)]) {
@@ -39,11 +36,10 @@ impl Pane for WysiwygPaneState {
         // the pane state carries nothing.
     }
 
-    fn outline_items(&self, editor: &Editor, cx: &App) -> Vec<OutlineNode> {
-        let mut headings = build_outline_headings_from_doc(editor.doc(), cx);
+    fn outline_items(&self, doc: &dyn EditorDocument, cx: &App) -> Vec<OutlineNode> {
+        let mut headings = doc.outline_headings(cx);
         if headings.is_empty() {
-            headings =
-                build_outline_headings_from_markdown(&editor.doc().serialize_markdown(cx));
+            headings = outline_headings_from_markdown(&doc.serialize_markdown(cx));
         }
         headings
     }

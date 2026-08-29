@@ -186,3 +186,189 @@ pub trait EditorHost: Send + Sync + 'static {
     /// (the explorer is a sibling panel; the editor must not name it).
     fn sync_explorer_after_document_path_change(&self, cx: &mut App);
 }
+
+// ── Outline heading extraction (Pane contract service) ──────────────────
+
+/// Parse an ATX heading line (`### Title`) into (level, content).
+///
+/// Lightweight extraction for outline consumers; the full markdown
+/// parser in the WYSIWYG world has its own richer block grammar. This is
+/// deliberately a small, self-contained recognizer so every mode can
+/// answer "what are my headings" without depending on a parser crate.
+pub fn parse_atx_heading_line(line: &str) -> Option<(u8, String)> {
+    let trimmed_end = line.trim_end();
+    let leading_spaces = trimmed_end.bytes().take_while(|b| *b == b' ').count();
+    if leading_spaces > 3 {
+        return None;
+    }
+    let rest = &trimmed_end[leading_spaces..];
+    let level = rest.bytes().take_while(|b| *b == b'#').count();
+    if !(1..=6).contains(&level) {
+        return None;
+    }
+    let after_hashes = &rest[level..];
+    let content = if after_hashes.is_empty() {
+        ""
+    } else if let Some(stripped) = after_hashes.strip_prefix(' ') {
+        stripped
+    } else if let Some(stripped) = after_hashes.strip_prefix('\t') {
+        stripped
+    } else {
+        return None;
+    };
+    let mut content = content.trim_end().to_string();
+    if let Some(closing_hash_start) = content.rfind(' ')
+        && content[closing_hash_start + 1..]
+            .chars()
+            .all(|ch| ch == '#')
+    {
+        content.truncate(closing_hash_start);
+        content = content.trim_end().to_string();
+    } else if !content.is_empty() && content.chars().all(|ch| ch == '#') {
+        content.clear();
+    }
+    Some((level as u8, content))
+}
+
+/// Parse a Setext underline (`=` or `-` sequence) into the heading level.
+pub fn parse_setext_underline(line: &str) -> Option<u8> {
+    let trimmed_end = line.trim_end();
+    let leading_spaces = trimmed_end.bytes().take_while(|b| *b == b' ').count();
+    if leading_spaces > 3 {
+        return None;
+    }
+    let rest = &trimmed_end[leading_spaces..];
+    if rest.is_empty() {
+        return None;
+    }
+    if rest.bytes().all(|b| b == b'=') {
+        Some(1)
+    } else if rest.bytes().all(|b| b == b'-') {
+        Some(2)
+    } else {
+        None
+    }
+}
+
+/// Extract all heading items from raw Markdown text (ATX + Setext
+/// headings; fenced code blocks are skipped so `#` inside ``` isn't
+/// treated as a heading).
+pub fn outline_headings_from_markdown(markdown: &str) -> Vec<OutlineNode> {
+    let mut list = Vec::new();
+    let lines: Vec<&str> = markdown.lines().collect();
+    let mut in_fence = false;
+    let mut fence_char = '`';
+    let mut fence_len = 3;
+
+    let mut line_idx = 0;
+    while line_idx < lines.len() {
+        let line = lines[line_idx];
+        let trimmed = line.trim_start();
+
+        if in_fence {
+            if trimmed.starts_with(fence_char) {
+                let count = trimmed.chars().take_while(|&c| c == fence_char).count();
+                if count >= fence_len && trimmed[count..].trim().is_empty() {
+                    in_fence = false;
+                }
+            }
+            line_idx += 1;
+            continue;
+        } else if trimmed.starts_with("```") || trimmed.starts_with("~~~") {
+            fence_char = trimmed.chars().next().unwrap_or('`');
+            fence_len = trimmed.chars().take_while(|&c| c == fence_char).count();
+            in_fence = true;
+            line_idx += 1;
+            continue;
+        }
+
+        // ATX heading: `# Heading`
+        if let Some((level, raw_text)) = parse_atx_heading_line(line) {
+            let label = raw_text.trim().to_string();
+            list.push(OutlineNode {
+                id: format!("outline:line:{line_idx}"),
+                label: if label.is_empty() {
+                    format!("Heading {level}")
+                } else {
+                    label
+                },
+                level,
+                block_index: line_idx,
+                block_id: None,
+            });
+            line_idx += 1;
+            continue;
+        }
+
+        // Setext heading: `Heading Line\n===` or `Heading Line\n---`
+        if line_idx + 1 < lines.len() && !trimmed.is_empty() {
+            let next_line = lines[line_idx + 1].trim_start();
+            if let Some(level) = parse_setext_underline(next_line) {
+                let label = trimmed.to_string();
+                list.push(OutlineNode {
+                    id: format!("outline:line:{line_idx}"),
+                    label: if label.is_empty() {
+                        format!("Heading {level}")
+                    } else {
+                        label
+                    },
+                    level,
+                    block_index: line_idx,
+                    block_id: None,
+                });
+                line_idx += 2;
+                continue;
+            }
+        }
+
+        line_idx += 1;
+    }
+    list
+}
+
+/// Minimal document view the editor modes may read.
+///
+/// Implemented by the `Editor` entity (and by test doubles). The modes
+/// use it for cross-mode data (serialized markdown, outline headings)
+/// without naming the entity type, keeping the Pane contract free of a
+/// concrete editor.
+pub trait EditorDocument {
+    /// Serialize the active document to markdown.
+    fn serialize_markdown(&self, cx: &App) -> String;
+
+    /// Outline headings parsed from the document's block structure.
+    fn outline_headings(&self, cx: &App) -> Vec<OutlineNode>;
+}
+
+use std::ops::Range;
+
+/// The plugin contract implemented by every editor pane kind.
+///
+/// Every view mode (WYSIWYG, Source Code, Preview) implements [`Pane`];
+/// the editor holds one pane state per split leaf and talks to the modes
+/// only through this trait. Cross-mode consumers (export, search,
+/// outline) read *pure data* through [`Pane::document_source`] /
+/// [`Pane::outline_items`] and push *pure ranges* through
+/// [`Pane::set_search_matches`] — no mode internals ever cross a crate
+/// boundary.
+pub trait Pane {
+    /// Which pane kind this state belongs to.
+    fn kind(&self) -> EditorPaneKind;
+
+    /// Pure markdown source of the active tab, as this mode sees it.
+    ///
+    /// Export, search and outline consume this; the mode decides what
+    /// "source" means (WYSIWYG serializes the block tree, Source Code
+    /// returns its raw buffer, Preview serializes the shared document).
+    fn document_source(&self, doc: &dyn EditorDocument, cx: &App) -> String;
+
+    /// Push in-pane search matches as pure byte ranges (range, is-active).
+    ///
+    /// Modes highlight these in their own rendering. WYSIWYG highlights at
+    /// the block level (the editor syncs `block.search_matches`) and
+    /// Preview is read-only, so both are no-ops by design.
+    fn set_search_matches(&mut self, matches: &[(Range<usize>, bool)]);
+
+    /// Heading items for the outline HUD (pure data).
+    fn outline_items(&self, doc: &dyn EditorDocument, cx: &App) -> Vec<OutlineNode>;
+}
