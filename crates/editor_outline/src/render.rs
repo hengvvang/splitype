@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use gpui::*;
 
-use editor::{EditorPaneKind, OutlineNode, PaneId};
+use editor::{OutlineNode, PaneId};
 use theme::Theme;
 
 /// Navigation seam: clicking a heading in the HUD asks the coordinating

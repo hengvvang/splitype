@@ -21,7 +21,7 @@ pub fn render_search_panel_overlay(
     host: &Arc<dyn SearchHost>,
     theme: &Theme,
     _window: &mut Window,
-    cx: &mut App,
+    _cx: &mut App,
 ) -> Option<AnyElement> {
     if !state.visible {
         return None;
@@ -37,8 +37,6 @@ pub fn render_search_panel_overlay(
     let whole_word = state.whole_word;
     let use_regex = state.use_regex;
     let preserve_case = state.preserve_case;
-
-    let host_key_down = host.clone();
 
     // ── Expand/Collapse Chevron (Left Column) ───────────────────────
     let chevron_editor = host.clone();
