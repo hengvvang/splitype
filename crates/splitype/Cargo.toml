@@ -37,6 +37,7 @@ workspace = { path = "../workspace" }
 editor_core = { package = "editor", path = "../editor" }
 editor_source_code = { path = "../editor_source_code" }
 editor_search = { path = "../editor_search" }
+editor_outline = { path = "../editor_outline" }
 settings = { path = "../settings" }
 explorer = { path = "../explorer" }
 

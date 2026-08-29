@@ -20,7 +20,7 @@ pub(crate) use editor_core::EditorHost;
 pub(crate) use workspace::DEFAULT_EDITOR_PANEL_ID;
 pub(crate) use workspace::WindowPanelKind;
 pub(crate) use crate::editor::document::protocol::UndoCaptureKind;
-pub(crate) use crate::editor::panes::outline::state::OutlineHudState;
+pub(crate) use editor_outline::OutlineHudState;
 pub use crate::editor::engine::session::{
     EditorPaneKind, EditorSession, EditorTabList, OpenFileMode, TabKind,
 };

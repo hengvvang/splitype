@@ -1691,6 +1691,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "editor_outline"
+version = "0.0.1"
+dependencies = [
+ "editor",
+]
+
+[[package]]
 name = "editor_search"
 version = "0.0.1"
 dependencies = [
@@ -6069,6 +6076,7 @@ dependencies = [
  "anyhow",
  "config",
  "editor",
+ "editor_outline",
  "editor_search",
  "editor_source_code",
  "embed-resource",

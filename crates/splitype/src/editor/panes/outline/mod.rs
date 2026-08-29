@@ -5,7 +5,6 @@
 //! document-block-level parser and the `EditorDocument` implementation.
 
 pub(crate) mod render;
-pub(crate) mod state;
 
 use gpui::App;
 
