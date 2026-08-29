@@ -6,7 +6,7 @@ use std::fs;
 use gpui::{px, AppContext, MouseButton, TestAppContext};
 
 use crate::app::actions::{CloseWindow, QuitApplication};
-use crate::app::window::panels::{DEFAULT_EDITOR_PANEL_ID, WindowPanelKind};
+use workspace::{DEFAULT_EDITOR_PANEL_ID, WindowPanelKind};
 use crate::editor::engine::controller::Editor;
 
 use super::*;
@@ -814,7 +814,7 @@ fn test_unsaved_dialog_tab_discard_and_close(cx: &mut TestAppContext) {
             assert_eq!(
                 dialog.scope,
                 crate::app::shell::UnsavedDialogScope::Tab {
-                    panel_id: crate::app::window::panels::PanelId(DEFAULT_EDITOR_PANEL_ID),
+                    panel_id: workspace::PanelId(DEFAULT_EDITOR_PANEL_ID),
                     index: 1,
                 }
             );

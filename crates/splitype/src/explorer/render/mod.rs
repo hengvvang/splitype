@@ -10,7 +10,7 @@ use std::ops::Range;
 use gpui::*;
 
 use crate::app::shell::Shell;
-use crate::app::window::panels::PanelId;
+use workspace::PanelId;
 use crate::explorer::state::state::{
     DragExplorerTarget, DraggedExplorerSelection,
 };

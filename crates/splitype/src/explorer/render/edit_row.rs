@@ -1,7 +1,7 @@
 use gpui::*;
 
 use crate::app::shell::Shell;
-use crate::app::window::panels::PanelId;
+use workspace::PanelId;
 use crate::explorer::filename_editor::ExplorerFilenameInputElement;
 use crate::explorer::state::state::{
     EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerValidation, FILE_ICON, FOLDER_ICON,

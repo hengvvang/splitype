@@ -5776,6 +5776,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "settings"
+version = "0.0.1"
+dependencies = [
+ "config",
+ "gpui",
+ "i18n",
+ "schemars",
+ "serde",
+ "splitter",
+ "theme",
+ "tracing",
+ "ui",
+ "workspace",
+]
+
+[[package]]
 name = "sha1"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5994,6 +6010,8 @@ version = "0.0.1"
 dependencies = [
  "gpui",
  "primitives",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
@@ -6019,6 +6037,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "settings",
  "splitter",
  "sum_tree 0.0.1",
  "syntax",
@@ -6032,6 +6051,7 @@ dependencies = [
  "url",
  "uuid",
  "windows 0.61.3",
+ "workspace",
 ]
 
 [[package]]
@@ -8246,6 +8266,17 @@ name = "wit-bindgen"
 version = "0.57.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
+
+[[package]]
+name = "workspace"
+version = "0.0.1"
+dependencies = [
+ "gpui",
+ "schemars",
+ "serde",
+ "splitter",
+ "theme",
+]
 
 [[package]]
 name = "writeable"

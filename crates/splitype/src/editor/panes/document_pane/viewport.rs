@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use gpui::*;
 
-use crate::app::window::panels::PanelId;
+use workspace::PanelId;
 use crate::editor::engine::controller::*;
 use crate::editor::document::BlockEntry;
 use crate::editor::panes::wysiwyg::render::layout::{

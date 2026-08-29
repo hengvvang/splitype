@@ -32,7 +32,7 @@ use crate::editor::panes::document_pane::{
 };
 use i18n::{apply_configured_language, I18nManager};
 use theme::{apply_configured_theme, ThemeManager};
-use crate::settings::open_settings_window;
+use settings::open_settings_window;
 
 
 pub(crate) mod build;

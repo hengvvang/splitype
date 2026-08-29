@@ -10,14 +10,20 @@ use crate::container::SplitterContainer;
 pub type NodeId = usize;
 
 /// Split orientation between adjacent leaves in the layout tree.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
+    schemars::JsonSchema,
+)]
 pub enum SplitAxis {
     Horizontal, // Splits left and right (vertical divider)
     Vertical,   // Splits top and bottom (horizontal divider)
 }
 
 /// Cardinal direction used for corner-drag gesture routing.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
+    schemars::JsonSchema,
+)]
 pub enum Direction {
     Up,
     Down,

@@ -6,7 +6,7 @@
 use gpui::*;
 
 use theme::{ThemeColors, ThemeDimensions};
-use crate::settings::ui_helpers::SettingsClickHandler;
+use crate::ui_helpers::SettingsClickHandler;
 use ui::select::{select_option, select_panel, select_trigger};
 
 pub(crate) struct SearchableFontPickerProps {

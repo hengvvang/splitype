@@ -7,7 +7,7 @@ use gpui::prelude::FluentBuilder;
 use gpui::*;
 
 use theme::{ThemeColors, ThemeDimensions};
-use crate::settings::ui_helpers::SettingsClickHandler;
+use crate::ui_helpers::SettingsClickHandler;
 use ui::stepper::{stepper_container, stepper_divider, stepper_step_button};
 
 pub struct NumberFieldProps {

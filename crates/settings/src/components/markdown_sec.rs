@@ -4,7 +4,7 @@ use gpui::*;
 
 use config::settings::ImagePasteBehavior;
 use theme::{ThemeColors, ThemeDimensions};
-use crate::settings::ui_helpers::{SettingsClickHandler, make_row, make_section};
+use crate::ui_helpers::{SettingsClickHandler, make_row, make_section};
 use ui::select::{select_option, select_panel, select_trigger};
 use ui::switch::Switch;
 

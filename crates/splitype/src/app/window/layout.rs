@@ -13,7 +13,7 @@ use gpui::*;
 
 use crate::app::shell::Shell;
 
-use crate::app::window::panels::WindowPanelKind;
+use workspace::{WindowPanelKind, panel_topbar_icon};
 use ui::corner_drag_preview::render_corner_drag_preview;
 use i18n::I18nStrings;
 use theme::{Theme, ThemeManager};
@@ -21,48 +21,6 @@ use splitter::policy::CornerDragResult;
 use splitter::sessions::CornerDragModifier;
 use splitter::tree::{NodeId, SplitAxis, SplitTree};
 
-/// Icon path for a window-panel top-bar button, per panel kind.
-///
-/// Every `WindowPanelKind` owns its own copies of the top-bar icons
-/// (decoupling — see `assets/icons/README.md`), so a button's asset
-/// path depends on the kind of the area it renders in.
-pub(crate) fn panel_topbar_icon(kind: WindowPanelKind, name: &str) -> SharedString {
-    let dir = match kind {
-        WindowPanelKind::Explorer => "explorer",
-        WindowPanelKind::Editor => "editor",
-        WindowPanelKind::Settings => "settings",
-    };
-    format!("icons/{dir}/topbar/{name}.svg").into()
-}
-
-/// Map a theme to the layout crate's border-menu style parameters.
-///
-/// Shared by the outer window-panel border menu and the editor.s pane
-/// border menu so both render identically.
-pub(crate) fn border_menu_style(theme: &Theme) -> splitter::interaction::MenuStyle {
-    let c = &theme.colors;
-    let d = &theme.dimensions;
-    let t = &theme.typography;
-    splitter::interaction::MenuStyle {
-        surface: c.dialog_surface,
-        border: c.dialog_border,
-        border_width: d.dialog_border_width,
-        radius: d.menu_panel_radius,
-        width: d.menu_panel_width,
-        padding: d.menu_panel_padding,
-        gap: d.menu_panel_gap,
-        text: c.dialog_secondary_button_text,
-        text_size: d.menu_text_size,
-        text_weight: t.dialog_body_weight.to_font_weight(),
-        item_height: d.menu_item_height,
-        item_padding_x: d.menu_item_padding_x,
-        item_radius: d.menu_item_radius,
-        item_hover: c.panel_row_hover,
-        separator_margin_x: d.menu_separator_margin_x,
-        separator_margin_y: d.menu_separator_margin_y,
-        separator_height: d.menu_separator_height,
-    }
-}
 impl Shell {
     pub(crate) fn render_tiled_layout(
         &mut self,
@@ -238,7 +196,7 @@ impl Shell {
 
     pub(crate) fn render_window_panel_node(
         &mut self,
-        node: &splitter::SplitTree<crate::app::window::panels::WindowPanelKind>,
+        node: &splitter::SplitTree<workspace::WindowPanelKind>,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -454,7 +412,7 @@ impl Shell {
     pub(crate) fn render_window_panel_tile(
         &mut self,
         leaf_id: NodeId,
-        kind: crate::app::window::panels::WindowPanelKind,
+        kind: workspace::WindowPanelKind,
         theme: &Theme,
         strings: &I18nStrings,
         leaf_count: usize,
@@ -472,7 +430,7 @@ impl Shell {
         // are assembled by the Shell. Either way the panel gets the same
         // wrapper below — uniform gap padding, corner drag handles, and
         // the type dropdown.
-        let panel_card: AnyElement = if kind == crate::app::window::panels::WindowPanelKind::Editor {
+        let panel_card: AnyElement = if kind == workspace::WindowPanelKind::Editor {
             let entity = match self.editor_for(leaf_id) {
                 Some(entity) => entity.clone(),
                 None => {
@@ -483,7 +441,7 @@ impl Shell {
             };
             entity.into_any_element()
         } else {
-            let panel_id = crate::app::window::panels::PanelId(leaf_id);
+            let panel_id = workspace::PanelId(leaf_id);
             let topbar = match kind {
                 WindowPanelKind::Editor => {
                     unreachable!("editor leaf without an entity is rendered by its entity")
@@ -492,7 +450,7 @@ impl Shell {
                     self.render_explorer_topbar(panel_id, kind, theme, leaf_count, is_maximized, cx)
                 }
                 WindowPanelKind::Settings => {
-                    self.render_settings_topbar(panel_id, kind, theme, leaf_count, is_maximized, cx)
+                    settings::render_settings_topbar(panel_id, kind, theme, leaf_count, is_maximized, cx)
                 }
             };
 
@@ -501,7 +459,7 @@ impl Shell {
                     unreachable!("editor leaf without an entity is rendered by its entity")
                 }
                 WindowPanelKind::Explorer => self.render_explorer_body(panel_id, theme, strings, cx),
-                WindowPanelKind::Settings => self.render_settings_body(panel_id, theme, strings, cx),
+                WindowPanelKind::Settings => settings::render_settings_body(panel_id, theme, strings, cx),
             };
 
             let bottombar = match kind {
@@ -512,7 +470,7 @@ impl Shell {
                     Some(self.render_explorer_bottombar(panel_id, theme, cx))
                 }
                 WindowPanelKind::Settings => {
-                    Some(self.render_settings_bottombar(panel_id, theme, cx))
+                    Some(settings::render_settings_bottombar(panel_id, theme, cx))
                 }
             };
 
@@ -563,7 +521,7 @@ impl Shell {
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                 let _ = tile_focus.update(cx, |shell, cx| {
                     shell.panels.layout.focused_leaf = Some(leaf_id);
-                    if kind == crate::app::window::panels::WindowPanelKind::Editor {
+                    if kind == workspace::WindowPanelKind::Editor {
                         shell.panels.layout.activate_leaf(leaf_id);
                     }
                     cx.notify();
@@ -617,7 +575,7 @@ impl Shell {
     pub(crate) fn render_panel_type_dropdown_menu(
         &mut self,
         leaf_id: NodeId,
-        current_kind: crate::app::window::panels::WindowPanelKind,
+        current_kind: workspace::WindowPanelKind,
         theme: &Theme,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -679,7 +637,7 @@ impl Shell {
         let shell = cx.entity().downgrade();
         let split_id = border_menu.split_id;
 
-        let menu_style = border_menu_style(theme);
+        let menu_style = workspace::border_menu_style(theme);
 
         let split_h_shell = shell.clone();
         let split_h: Box<dyn Fn(&mut App)> = Box::new(move |app| {

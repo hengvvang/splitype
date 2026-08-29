@@ -1,11 +1,15 @@
-//! Settings panel UI state — transient view state of settings interfaces.
+//! Settings panel UI state — transient view state of the settings UI.
 //!
-//! Owned by the Editor entity (`WindowPanels::settings`) and shared with
-//! the standalone settings window. Pure view state only (active tab, expanded
-//! sections, dropdown states, search queries, inline editing buffers).
-//! Canonical configuration lives in `SettingsStore` (`config::settings`).
+//! A gpui `Global` (like `ThemeManager` / `SettingsStore`): the in-window
+//! settings panel reads and mutates it through [`SettingsUiState::global`]
+//! / [`SettingsUiState::update`], so the panel code never touches the
+//! window shell. Pure view state only (active tab, expanded sections,
+//! dropdown states, search queries, inline editing buffers). Canonical
+//! configuration lives in `SettingsStore` (`config::settings`).
 
 use std::collections::HashSet;
+
+use gpui::{BorrowAppContext, Global};
 
 /// Expanded, categorized settings navigation tabs.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -59,6 +63,8 @@ pub struct SettingsUiState {
     pub tab_size_focus_handle: Option<gpui::FocusHandle>,
 }
 
+impl Global for SettingsUiState {}
+
 impl Default for SettingsUiState {
     fn default() -> Self {
         Self::new()
@@ -95,5 +101,39 @@ impl SettingsUiState {
             tab_size_focus_handle: None,
         }
     }
-}
 
+    /// The app-wide settings UI state; panics when not installed by the
+    /// app bootstrap.
+    pub fn global(cx: &gpui::App) -> &Self {
+        cx.global::<Self>()
+    }
+
+    /// Mutate the app-wide settings UI state and notify all windows.
+    ///
+    /// The closure receives the state and the app context (for nested
+    /// global access such as `SettingsStore::update`).
+    pub fn update<R>(
+        cx: &mut gpui::App,
+        f: impl FnOnce(&mut Self, &mut gpui::App) -> R,
+    ) -> R {
+        let result = cx.update_global::<Self, R>(f);
+        cx.refresh_windows();
+        result
+    }
+
+    /// Return the cached focus handle for `slot`, lazily creating and
+    /// storing one when the settings UI has not used it yet.
+    pub fn cached_focus_handle(
+        cx: &mut gpui::App,
+        slot: fn(&mut Self) -> &mut Option<gpui::FocusHandle>,
+    ) -> gpui::FocusHandle {
+        let existing =
+            cx.update_global::<Self, Option<gpui::FocusHandle>>(|s, _cx| slot(s).clone());
+        if let Some(handle) = existing {
+            return handle;
+        }
+        let handle = cx.focus_handle();
+        cx.update_global::<Self, _>(|s, _cx| *slot(s) = Some(handle.clone()));
+        handle
+    }
+}

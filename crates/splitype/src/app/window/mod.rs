@@ -12,9 +12,8 @@ use gpui::*;
 use crate::app::menus::install_menus;
 use crate::app::shell::{PanelContent, Shell};
 use crate::app::window::chrome::MenuBarState;
-use crate::app::window::panels::{
-    PanelId, DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowPanelKind, WindowPanels,
-};
+use crate::app::window::panels::WindowPanels;
+use workspace::{PanelId, DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowPanelKind};
 use crate::editor::engine::controller::Editor;
 use crate::editor::engine::session::EditorSession;
 

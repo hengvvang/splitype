@@ -14,7 +14,7 @@ use super::*;
 async fn rendering_one_editor_panel_keeps_other_panels_source_block(cx: &mut TestAppContext) {
     init_editor_test_app(cx);
 
-    use crate::app::window::panels::DEFAULT_EDITOR_PANEL_ID;
+    use workspace::DEFAULT_EDITOR_PANEL_ID;
     use crate::editor::engine::session::{EditorPaneKind, EditorSession};
 
     let (editor, cx) = cx.add_window_view({
@@ -50,7 +50,7 @@ async fn rendering_one_editor_panel_keeps_other_panels_source_block(cx: &mut Tes
     fn source_text(
         editor: &gpui::Entity<Editor>,
         cx: &mut gpui::VisualTestContext,
-        _panel_id: crate::app::window::panels::PanelId,
+        _panel_id: workspace::PanelId,
     ) -> Option<String> {
         editor.read_with(cx, |editor, _cx| {
             editor
@@ -63,13 +63,13 @@ async fn rendering_one_editor_panel_keeps_other_panels_source_block(cx: &mut Tes
     // The first frame materializes the panel's buffer; every following
     // frame keeps it alive.
     redraw(cx);
-    let before = source_text(&editor, cx, crate::app::window::panels::PanelId(DEFAULT_EDITOR_PANEL_ID));
+    let before = source_text(&editor, cx, workspace::PanelId(DEFAULT_EDITOR_PANEL_ID));
     assert!(before.is_some(), "first area source buffer should exist");
     for _ in 0..3 {
         redraw(cx);
         assert_eq!(
             before,
-            source_text(&editor, cx, crate::app::window::panels::PanelId(DEFAULT_EDITOR_PANEL_ID)),
+            source_text(&editor, cx, workspace::PanelId(DEFAULT_EDITOR_PANEL_ID)),
             "source buffer must survive other render passes"
         );
     }

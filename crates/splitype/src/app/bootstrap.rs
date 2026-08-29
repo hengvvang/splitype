@@ -118,6 +118,7 @@ pub fn run(args: Args) {
         SettingsStore::init(cx, settings.clone());
         I18nManager::init_with_language_id(cx, &settings.interface.language_id);
         ThemeManager::init_with_theme_id(cx, &settings.interface.theme_id);
+        cx.set_global(settings::SettingsUiState::new());
         theme::TypographyStore::init(cx, settings.typography.clone());
         install_http_client(cx);
         init_editor(cx, &settings.keybindings);

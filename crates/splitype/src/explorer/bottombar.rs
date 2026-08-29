@@ -1,7 +1,7 @@
 use gpui::*;
 
 use crate::app::shell::Shell;
-use crate::app::window::panels::PanelId;
+use workspace::PanelId;
 use theme::Theme;
 use ui::bottombar::bottombar_container;
 use ui::button::{icon_chip_button, toolbar_icon_size};

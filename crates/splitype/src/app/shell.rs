@@ -13,7 +13,8 @@ use gpui::*;
 
 use crate::app::actions::{InstallCliTool, QuitApplication, UninstallCliTool};
 use crate::app::window::chrome::MenuBarState;
-use crate::app::window::panels::{PanelId, WindowPanelKind, WindowPanels};
+use crate::app::window::panels::WindowPanels;
+use workspace::{PanelId, WindowPanelKind};
 use crate::editor::engine::controller::{DocumentTab, Editor, InfoDialogKind, OpenFileMode};
 use crate::editor::engine::session::EditorSession;
 use i18n::I18nManager;
@@ -669,7 +670,7 @@ impl Shell {
     pub(crate) fn clone_container_into_new_window(
         &mut self,
         cloned: splitter::policy::ClonedContainer<
-            crate::app::window::panels::WindowPanelKind,
+            workspace::WindowPanelKind,
         >,
         cx: &mut Context<Self>,
     ) {
@@ -677,18 +678,18 @@ impl Shell {
         let mut cloned_explorer = None;
         for (old_id, new_id) in &cloned.id_map {
             match cloned.tree.find_leaf_kind(*new_id) {
-                Some(crate::app::window::panels::WindowPanelKind::Editor) => {
+                Some(workspace::WindowPanelKind::Editor) => {
                     if let Some(editor) = self.editor_for(*old_id) {
                         let session = editor.update(cx, |editor, cx| editor.clone_session(cx));
                         sessions.insert(PanelId(*new_id), session);
                     }
                 }
-                Some(crate::app::window::panels::WindowPanelKind::Explorer) => {
+                Some(workspace::WindowPanelKind::Explorer) => {
                     // The explorer model is window-global: deep-copy it so
                     // the new window shows the same file tree.
                     cloned_explorer = Some(self.panels.explorer.clone_for_new_window());
                 }
-                Some(crate::app::window::panels::WindowPanelKind::Settings) | None => {}
+                Some(workspace::WindowPanelKind::Settings) | None => {}
             }
         }
         crate::app::window::open_cloned_window(
@@ -996,6 +997,46 @@ impl Shell {
             cx.notify();
         }
     }
+
+    // ── workspace layout actions (dispatched by panel topbars) ──────────
+
+    fn on_toggle_kind_dropdown(
+        &mut self,
+        action: &workspace::actions::ToggleKindDropdown,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.panels.layout.toggle_dropdown(action.panel);
+        cx.notify();
+    }
+
+    fn on_split_panel(
+        &mut self,
+        action: &workspace::actions::SplitPanel,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.split_panel(PanelId(action.panel), action.axis, 0.5, true, cx);
+    }
+
+    fn on_toggle_panel_maximized(
+        &mut self,
+        action: &workspace::actions::TogglePanelMaximized,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.panels.layout.toggle_maximize(action.panel);
+        cx.notify();
+    }
+
+    fn on_close_panel(
+        &mut self,
+        action: &workspace::actions::ClosePanel,
+        _window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        self.close_panel(PanelId(action.panel), cx);
+    }
 }
 
 impl Render for Shell {
@@ -1025,6 +1066,10 @@ impl Render for Shell {
             .on_action(cx.listener(Self::on_quit_application))
             .on_action(cx.listener(Self::on_install_cli_tool))
             .on_action(cx.listener(Self::on_uninstall_cli_tool))
+            .on_action(cx.listener(Self::on_toggle_kind_dropdown))
+            .on_action(cx.listener(Self::on_split_panel))
+            .on_action(cx.listener(Self::on_toggle_panel_maximized))
+            .on_action(cx.listener(Self::on_close_panel))
             // A mouse-down anywhere in the window body closes an open
             // menu; titlebar and menu panels are siblings of the body
             // container, so their clicks never reach this listener.

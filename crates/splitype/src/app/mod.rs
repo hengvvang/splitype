@@ -9,4 +9,4 @@ pub mod menus;
 pub(crate) mod shell;
 pub mod window;
 
-pub use window::panels::WindowPanelKind;
+pub use workspace::WindowPanelKind;

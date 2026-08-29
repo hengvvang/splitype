@@ -4,8 +4,8 @@
 use gpui::prelude::FluentBuilder;
 use gpui::*;
 
-use crate::app::window::layout::panel_topbar_icon;
-use crate::app::window::panels::WindowPanelKind;
+use workspace::panel_topbar_icon;
+use workspace::WindowPanelKind;
 use theme::Theme;
 use splitter::SplitAxis;
 use ui::button::{
@@ -18,7 +18,7 @@ impl crate::editor::engine::controller::Editor {
     /// plus the Editor-specific tab bar.
     pub(crate) fn render_editor_topbar(
         &mut self,
-        kind: crate::app::window::panels::WindowPanelKind,
+        kind: workspace::WindowPanelKind,
         theme: &Theme,
         leaf_count: usize,
         is_maximized: bool,

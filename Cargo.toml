@@ -15,6 +15,8 @@ members = [
     "crates/export",
     "crates/ui",
     "crates/explorer_fs",
+    "crates/workspace",
+    "crates/settings",
     "crates/splitype",
     "xtask",
 ]
@@ -43,6 +45,8 @@ mermaid = { path = "crates/mermaid" }
 export = { path = "crates/export" }
 ui = { path = "crates/ui" }
 explorer_fs = { path = "crates/explorer_fs" }
+workspace = { path = "crates/workspace" }
+settings = { path = "crates/settings" }
 splitype = { path = "crates/splitype" }
 
 # Third-party shared dependencies

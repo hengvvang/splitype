@@ -1,16 +1,25 @@
 [package]
-name = "splitter"
+name = "settings"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 
+[lib]
+path = "src/settings.rs"
+
 [lints]
 workspace = true
 
 [dependencies]
-primitives = { path = "../primitives" }
+config = { path = "../config" }
+theme = { path = "../theme" }
+i18n = { path = "../i18n" }
+ui = { path = "../ui" }
+workspace = { path = "../workspace" }
+splitter = { path = "../splitter" }
 gpui = { workspace = true }
 serde = { workspace = true }
 schemars = "1"
+tracing = "0.1"

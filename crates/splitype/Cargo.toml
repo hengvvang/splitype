@@ -33,6 +33,8 @@ mermaid = { path = "../mermaid" }
 export = { path = "../export" }
 ui = { path = "../ui" }
 explorer_fs = { path = "../explorer_fs" }
+workspace = { path = "../workspace" }
+settings = { path = "../settings" }
 
 gpui = { workspace = true }
 gpui_platform = { workspace = true }

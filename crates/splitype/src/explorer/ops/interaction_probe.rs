@@ -19,7 +19,8 @@ use gpui::{AppContext, TestAppContext};
 
 use crate::app::shell::{PanelContent, Shell};
 use crate::app::window::chrome::MenuBarState;
-use crate::app::window::panels::{PanelId, DEFAULT_EDITOR_PANEL_ID, WindowPanels};
+use crate::app::window::panels::WindowPanels;
+use workspace::{PanelId, DEFAULT_EDITOR_PANEL_ID};
 use crate::editor::engine::controller::Editor;
 use crate::explorer::state::state::*;
 

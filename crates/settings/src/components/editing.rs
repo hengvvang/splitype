@@ -3,9 +3,9 @@
 use gpui::*;
 
 use theme::{ThemeColors, ThemeDimensions};
-use crate::settings::components::font_picker::{SearchableFontPickerProps, render_searchable_font_picker};
-use crate::settings::components::number_field::{NumberFieldProps, render_number_field};
-use crate::settings::ui_helpers::{
+use crate::components::font_picker::{SearchableFontPickerProps, render_searchable_font_picker};
+use crate::components::number_field::{NumberFieldProps, render_number_field};
+use crate::ui_helpers::{
     SettingsClickHandler, make_row, make_row_with_reset, make_section,
 };
 use ui::switch::Switch;

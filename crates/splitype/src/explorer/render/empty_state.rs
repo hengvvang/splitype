@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use gpui::*;
 
 use crate::app::shell::Shell;
-use crate::app::window::panels::PanelId;
+use workspace::PanelId;
 use i18n::I18nStrings;
 use theme::Theme;
 use ui::empty_state::empty_state_container;

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use gpui::*;
 
 use crate::app::shell::Shell;
-use crate::app::window::panels::PanelId;
+use workspace::PanelId;
 use crate::explorer::ops::drag_and_drop::DraggedExplorerEntryView;
 use crate::explorer::state::state::{
     DraggedExplorerSelection, EXPLORER_NODE_HEIGHT, EXPLORER_NODE_INDENT, ExplorerEntryKind,
