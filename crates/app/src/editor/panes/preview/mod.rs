@@ -1,23 +1,20 @@
 //! Preview panel — read-only rendered snapshot of the document.
+//!
+//! The coordinating crate refreshes the preview tree from the session
+//! text (model C) and routes focus/scroll; the presentation and input
+//! live in `editor_preview`.
 
 pub(crate) mod render;
 pub(crate) mod selection;
 
 pub(crate) use editor_preview::{PreviewBlock, PreviewState, blocks_to_preview_tree};
 
-use std::collections::HashMap;
-use std::path::Path;
 use std::sync::Arc;
 
 use gpui::*;
 
 use crate::editor::engine::controller::{Editor, PaneId};
-use editor_wysiwyg::document::block::footnotes::{
-    FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
-};
-use editor_wysiwyg::markdown::block::image::ImageReferenceDefinitions;
-use editor_wysiwyg::markdown::block::link::LinkReferenceDefinitions;
-use editor_wysiwyg::markdown::parse::{BlockData, BlockId, BlockKind};
+use editor_wysiwyg::markdown::parse::BlockData;
 
 impl Editor {
     /// Rebuild the preview block tree of ONE pane whenever the document
@@ -61,11 +58,12 @@ impl Editor {
             // footnote bindings and first-reference locations are recomputed
             // against that tree, then pushed onto every preview block so they
             // resolve exactly like the editable blocks.
-            let footnote_registry = Arc::new(Self::build_preview_footnote_registry(&roots));
+            let footnote_registry =
+                Arc::new(editor_preview::build_preview_footnote_registry(&roots));
             let image_registry = tab.references.image.clone();
             let link_registry = tab.references.link.clone();
             let base_dir = self.image_base_dir();
-            Self::sync_preview_block_context(
+            editor_preview::sync_preview_block_context(
                 &mut roots,
                 base_dir.as_deref(),
                 &image_registry,
@@ -85,123 +83,6 @@ impl Editor {
         }
     }
 
-    /// Builds a footnote registry for the preview tree, mirroring
-    /// [`Self::rebuild_footnote_registry`] but walking the preview snapshot
-    /// blocks (whose entity and block ids differ from the document tree).
-    fn build_preview_footnote_registry(roots: &[PreviewBlock]) -> FootnoteMap {
-        let mut definitions: HashMap<String, BlockId> = HashMap::new();
-        let mut ordered: Vec<PreviewBlock> = Vec::new();
-        Self::walk_preview_blocks(roots, None, &mut definitions, &mut ordered);
-
-        let mut bindings: HashMap<String, FootnoteDefinitionBinding> = definitions
-            .into_iter()
-            .map(|(id, _definition_block_id)| {
-                (
-                    id,
-                    FootnoteDefinitionBinding {
-                        definition_entity_id: EntityId::default(),
-                        first_reference: None,
-                    },
-                )
-            })
-            .collect();
-
-        let mut occurrence_index = 0usize;
-        let mut block_occurrences: HashMap<BlockId, Vec<FootnoteResolvedOccurrence>> =
-            HashMap::new();
-        for block in &ordered {
-            let block_id = block.data.id;
-            let mut occurrences = Vec::new();
-            for fragment in &block.data.text.fragments {
-                let Some(footnote) = fragment.footnote() else {
-                    continue;
-                };
-                if let Some(binding) = bindings.get_mut(&footnote.id)
-                    && binding.first_reference.is_none()
-                {
-                    binding.first_reference = Some(FootnoteReferenceLocation {
-                        entity_id: EntityId::default(),
-                        occurrence_index,
-                    });
-                }
-                occurrences.push(FootnoteResolvedOccurrence {
-                    id: footnote.id.clone(),
-                    occurrence_index,
-                });
-                occurrence_index += 1;
-            }
-            if !occurrences.is_empty() {
-                block_occurrences.insert(block_id, occurrences);
-            }
-        }
-
-        FootnoteMap {
-            bindings,
-            block_occurrences,
-        }
-    }
-
-    /// Pre-order walk of the preview tree feeding the footnote registry build.
-    /// Definitions are accepted at the root or directly under a quote
-    /// container, matching the document registry's rules.
-    fn walk_preview_blocks(
-        roots: &[PreviewBlock],
-        parent_kind: Option<BlockKind>,
-        definitions: &mut HashMap<String, BlockId>,
-        ordered: &mut Vec<PreviewBlock>,
-    ) {
-        for block in roots {
-            let allowed = parent_kind
-                .as_ref()
-                .is_none_or(|kind| kind.is_quote_container());
-            if block.kind() == BlockKind::FootnoteDefinition && allowed {
-                definitions
-                    .entry(
-                        editor_wysiwyg::markdown::block::footnote::split_footnote_definition_text(
-                            &block.data.text.plain_text(),
-                        )
-                        .0
-                        .to_string(),
-                    )
-                    .or_insert(block.id());
-            }
-            ordered.push(block.clone());
-            Self::walk_preview_blocks(
-                &block.children,
-                Some(block.kind()),
-                definitions,
-                ordered,
-            );
-        }
-    }
-
-    /// Pushes the editor's reference context (images, links, footnotes) onto
-    /// every preview snapshot block so ordinals, back-references, links, and
-    /// image sources resolve exactly like the editable blocks.
-    fn sync_preview_block_context(
-        roots: &mut [PreviewBlock],
-        base_dir: Option<&Path>,
-        image_registry: &Arc<ImageReferenceDefinitions>,
-        link_registry: &Arc<LinkReferenceDefinitions>,
-        footnote_registry: &Arc<FootnoteMap>,
-    ) {
-        for block in roots {
-            block.set_reference_context(
-                base_dir.map(Path::to_path_buf),
-                image_registry.clone(),
-                link_registry.clone(),
-                footnote_registry.clone(),
-            );
-            Self::sync_preview_block_context(
-                &mut block.children,
-                base_dir,
-                image_registry,
-                link_registry,
-                footnote_registry,
-            );
-        }
-    }
-
     pub(crate) fn hash_str(s: &str) -> u64 {
         use std::hash::{Hash, Hasher};
         let mut h = std::collections::hash_map::DefaultHasher::new();
@@ -209,4 +90,3 @@ impl Editor {
         h.finish()
     }
 }
-

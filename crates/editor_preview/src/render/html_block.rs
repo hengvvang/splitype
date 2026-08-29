@@ -5,7 +5,7 @@
 
 use gpui::*;
 
-use editor_preview::node::PreviewBlock;
+use crate::node::PreviewBlock;
 use editor_wysiwyg::presentation::{
     HtmlComputedStyle, HtmlNodeVisualStyle, html_children_text, html_node_visual_style,
 };

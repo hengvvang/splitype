@@ -3,8 +3,8 @@
 
 use gpui::*;
 
-use editor_preview::node::PreviewBlock;
-use crate::editor::panes::preview::render::preview_centered_column_width;
+use crate::node::PreviewBlock;
+use crate::render::preview_centered_column_width;
 use editor_wysiwyg::mermaid::render_mermaid_svg_for_display;
 use theme::Theme;
 use editor_wysiwyg::markdown::block::mermaid::parse_mermaid_fence_source;

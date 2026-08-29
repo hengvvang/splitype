@@ -1745,6 +1745,8 @@ dependencies = [
  "editor",
  "editor_wysiwyg",
  "gpui",
+ "i18n",
+ "theme",
  "uuid",
 ]
 

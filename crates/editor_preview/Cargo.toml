@@ -18,4 +18,6 @@ editor = { path = "../editor" }
 # The read-only render world consumes the WYSIWYG world's public
 # services: block data types, footnote registry and image handles.
 editor_wysiwyg = { path = "../editor_wysiwyg" }
+theme = { path = "../theme" }
+i18n = { path = "../i18n" }
 uuid = { workspace = true }

@@ -6,7 +6,7 @@ use gpui::*;
 use editor_wysiwyg::highlight::{
     code_highlight_color, highlight_code_block,
 };
-use editor_preview::node::PreviewBlock;
+use crate::node::PreviewBlock;
 use theme::Theme;
 
 /// Extracts the fence language tag from the raw source (e.g. `rust` from

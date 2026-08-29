@@ -1,7 +1,7 @@
 use gpui::*;
 
-use crate::editor::panes::preview::render::inline;
-use editor_preview::node::PreviewBlock;
+use crate::render::inline;
+use crate::node::PreviewBlock;
 use editor_wysiwyg::presentation::{numbered_list_marker, render_custom_bullet_marker};
 use theme::Theme;
 

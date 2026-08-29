@@ -3,8 +3,8 @@
 
 use gpui::*;
 
-use editor_preview::node::PreviewBlock;
-use crate::editor::panes::preview::render::{paragraph, preview_centered_column_width};
+use crate::node::PreviewBlock;
+use crate::render::{paragraph, preview_centered_column_width};
 use theme::Theme;
 use editor_wysiwyg::markdown::block::image::{ImageResolvedSource, parse_standalone_image};
 

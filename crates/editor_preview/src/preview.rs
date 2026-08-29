@@ -5,14 +5,22 @@
 //! styles come from `editor_wysiwyg`'s public presentation services;
 //! the preview never touches WYSIWYG editing internals.
 //!
-//! The pane state implements [`editor::Pane`]. Editor-facing glue
-//! (refresh scheduling, mouse handling) stays in the coordinating crate
-//! until the `Editor` entity converges.
+//! The pane state implements [`editor::Pane`]. The crate owns its full
+//! presentation (block renderers, footnote section, quote guides) and
+//! input handling (drag selection); the coordinating crate only refreshes
+//! the tree, routes focus and hands over the scroll shell through
+//! [`editor::PaneRenderContext`].
 
 pub mod node;
+pub mod render;
+mod context;
+mod input;
 mod selection;
 mod state;
 
+pub use context::{build_preview_footnote_registry, sync_preview_block_context};
+pub use input::{handle_mouse_down, handle_mouse_move, handle_mouse_up, selected_text};
 pub use node::{PreviewBlock, blocks_to_preview_tree};
+pub use render::render_preview_pane;
 pub use selection::{PreviewEndpoint, PreviewSelectionRange};
 pub use state::PreviewState;

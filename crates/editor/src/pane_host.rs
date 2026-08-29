@@ -8,6 +8,8 @@
 //! the `Editor` through its weak handle, so the mode crates depend only
 //! on this contract — mirroring the existing `EditorHost` shell seam.
 
+use std::sync::Arc;
+
 use gpui::{App, Point, Pixels, ScrollHandle, Window};
 
 use crate::{AutoscrollStrategy, PaneId};
@@ -17,7 +19,9 @@ use crate::{AutoscrollStrategy, PaneId};
 pub struct PaneRenderContext<'a> {
     pub pane_id: PaneId,
     pub scroll: &'a ScrollHandle,
-    pub host: &'a dyn PaneHost,
+    /// The host proxy; mode renderers clone the `Arc` into interaction
+    /// callbacks, so the shared handle outlives the frame.
+    pub host: &'a Arc<dyn PaneHost>,
 }
 
 /// Coordination-layer capabilities a pane mode may request while

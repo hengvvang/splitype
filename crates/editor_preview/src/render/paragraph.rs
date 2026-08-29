@@ -2,8 +2,8 @@
 
 use gpui::*;
 
-use editor_preview::node::PreviewBlock;
-use crate::editor::panes::preview::render::inline;
+use crate::node::PreviewBlock;
+use crate::render::inline;
 use theme::Theme;
 
 use std::ops::Range;

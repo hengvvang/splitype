@@ -1,9 +1,13 @@
 //! Preview footnote definition rendering — real-id text plus content.
 
+use std::sync::Arc;
+
 use gpui::*;
 
-use editor_preview::node::PreviewBlock;
+use editor::PaneHost;
 use theme::Theme;
+
+use crate::node::PreviewBlock;
 
 /// Renders a footnote definition block read-only.
 pub(crate) fn render_preview_footnote_definition(
@@ -64,14 +68,14 @@ pub(crate) fn render_preview_footnote_definition(
     header.into_any_element()
 }
 
-use crate::editor::engine::controller::{Editor, PaneId};
+use editor::PaneId;
 
 /// Renders the collected GitHub-style footnotes section: a top divider line
 /// followed by every footnote definition in document order.
 pub(crate) fn render_preview_footnotes_section(
     footnotes: &[PreviewBlock],
     pane_id: PaneId,
-    editor_handle: &Entity<Editor>,
+    host: &Arc<dyn PaneHost>,
     theme: &Theme,
     window: &mut Window,
     cx: &App,
@@ -90,7 +94,7 @@ pub(crate) fn render_preview_footnotes_section(
                 0,
                 0,
                 pane_id,
-                editor_handle,
+                host,
                 theme,
                 window,
                 cx,

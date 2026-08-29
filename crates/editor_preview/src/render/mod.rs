@@ -4,7 +4,11 @@
 //! block renderers (one module per block kind), deliberately separate from
 //! the WYSIWYG editing renderers so preview styling and interactions can
 //! diverge independently. Current styles intentionally mirror the WYSIWYG
-//! renderers (`crate::editor::panes::wysiwyg::render`).
+//! renderers.
+//!
+//! This module owns the full preview presentation; the coordinating crate
+//! (app) only refreshes the preview tree, routes focus and hands over the
+//! scroll shell.
 
 pub(crate) mod blockquote;
 pub(crate) mod callout;
@@ -22,109 +26,89 @@ pub(crate) mod table_block;
 pub(crate) mod thematic_break;
 
 use std::ops::Range;
+use std::sync::Arc;
 
 use gpui::*;
 
-use crate::editor::engine::controller::*;
-use editor_preview::node::PreviewBlock;
+use editor::{PaneHost, PaneId, PaneRenderContext};
 use i18n::I18nStrings;
 use theme::Theme;
 use editor_wysiwyg::markdown::parse::BlockKind;
 
-impl Editor {
-    pub(crate) fn render_preview_pane(
-        &mut self,
-        pane_id: PaneId,
-        theme: &Theme,
-        _strings: &I18nStrings,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
-        let c = &theme.colors;
-        let d = &theme.dimensions;
+use crate::node::PreviewBlock;
+use crate::state::PreviewState;
 
-        self.refresh_preview_blocks(pane_id, cx);
+/// Renders the preview pane for `state` inside the view shell described by
+/// `view` (pane id, scroll handle, host proxy). The coordinating crate
+/// refreshes the preview tree and applies pending focus/autoscroll before
+/// calling this.
+pub fn render_preview_pane(
+    state: &PreviewState,
+    view: &PaneRenderContext,
+    theme: &Theme,
+    _strings: &I18nStrings,
+    window: &mut Window,
+    cx: &App,
+) -> AnyElement {
+    let c = &theme.colors;
+    let d = &theme.dimensions;
 
-        if pane_id == self.active_pane_id() {
-            self.apply_pending_focus(pane_id, window, cx);
-            self.apply_pending_autoscroll(pane_id, window, cx);
-        }
+    let preview_selection = state.selection;
 
-        let preview_selection = self
-            .pane_state_ref(pane_id)
-            .and_then(|state| state.as_preview())
-            .and_then(|preview| preview.selection);
-
-        let scroll_handle = self
-            .pane_state_ref(pane_id)
-            .map(|state| state.scroll.handle.clone())
-            .unwrap_or_default();
-
-        let editor_handle = cx.entity().clone();
-        let block_elements: Vec<AnyElement> = self
-            .pane_state_ref(pane_id)
-            .and_then(|state| state.as_preview())
-            .map(|preview| {
-                let mut elements: Vec<AnyElement> = preview
-                    .blocks
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, block)| {
-                        !matches!(block.kind(), BlockKind::FootnoteDefinition)
-                    })
-                    .map(|(block_index, block)| {
-                        let selection_range = preview_selection
-                            .and_then(|sel| sel.range_for_block(block_index, block.display_len()));
-                        render_preview_block(
-                            block,
-                            block_index,
-                            selection_range,
-                            0,
-                            0,
-                            pane_id,
-                            &editor_handle,
-                            theme,
-                            window,
-                            cx,
-                        )
-                    })
-                    .collect();
-                // Footnote definitions are collected out of the body flow and
-                // rendered as one GitHub-style section at the bottom, behind a
-                // divider line from the main content.
-                let mut footnotes: Vec<PreviewBlock> = Vec::new();
-                collect_preview_footnote_definitions(&preview.blocks, &mut footnotes);
-                if !footnotes.is_empty() {
-                    elements.push(footnote::render_preview_footnotes_section(
-                        &footnotes, pane_id, &editor_handle, theme, window, cx,
-                    ));
-                }
-                elements
-            })
-            .unwrap_or_default();
-
-        div()
-            .w_full()
-            .h_full()
-            .relative()
-            .bg(c.editor_background)
-            .child(
-                div()
-                    .id(ElementId::Name(
-                        format!("tiled-preview-scroll-{pane_id}").into(),
-                    ))
-                    .w_full()
-                    .h_full()
-                    .flex()
-                    .flex_col()
-                    .items_center()
-                    .overflow_y_scroll()
-                    .track_scroll(&scroll_handle)
-                    .p(px(d.editor_padding))
-                    .children(block_elements),
+    let mut block_elements: Vec<AnyElement> = state
+        .blocks
+        .iter()
+        .enumerate()
+        .filter(|(_, block)| !matches!(block.kind(), BlockKind::FootnoteDefinition))
+        .map(|(block_index, block)| {
+            let selection_range = preview_selection
+                .and_then(|sel| sel.range_for_block(block_index, block.display_len()));
+            render_preview_block(
+                block,
+                block_index,
+                selection_range,
+                0,
+                0,
+                view.pane_id,
+                &view.host,
+                theme,
+                window,
+                cx,
             )
-            .into_any_element()
+        })
+        .collect();
+    // Footnote definitions are collected out of the body flow and
+    // rendered as one GitHub-style section at the bottom, behind a
+    // divider line from the main content.
+    let mut footnotes: Vec<PreviewBlock> = Vec::new();
+    collect_preview_footnote_definitions(&state.blocks, &mut footnotes);
+    if !footnotes.is_empty() {
+        block_elements.push(footnote::render_preview_footnotes_section(
+            &footnotes, view.pane_id, &view.host, theme, window, cx,
+        ));
     }
+
+    div()
+        .w_full()
+        .h_full()
+        .relative()
+        .bg(c.editor_background)
+        .child(
+            div()
+                .id(ElementId::Name(
+                    format!("tiled-preview-scroll-{}", view.pane_id).into(),
+                ))
+                .w_full()
+                .h_full()
+                .flex()
+                .flex_col()
+                .items_center()
+                .overflow_y_scroll()
+                .track_scroll(view.scroll)
+                .p(px(d.editor_padding))
+                .children(block_elements),
+        )
+        .into_any_element()
 }
 
 /// Renders one snapshot block with the read-only preview presentation.
@@ -139,16 +123,16 @@ pub(crate) fn render_preview_block(
     depth: usize,
     quote_depth: usize,
     pane_id: PaneId,
-    editor_handle: &Entity<Editor>,
+    host: &Arc<dyn PaneHost>,
     theme: &Theme,
     window: &mut Window,
     cx: &App,
 ) -> AnyElement {
     let d = &theme.dimensions;
 
-    let editor_down = editor_handle.clone();
-    let editor_move = editor_handle.clone();
-    let editor_up = editor_handle.clone();
+    let host_down = host.clone();
+    let host_move = host.clone();
+    let host_up = host.clone();
 
     let depth_padding = d.block_padding_x + d.nested_block_indent * depth as f32;
     let base = div()
@@ -162,24 +146,18 @@ pub(crate) fn render_preview_block(
         .on_mouse_down(
             MouseButton::Left,
             move |event, _window, cx| {
-                editor_down.update(cx, |editor, cx| {
-                    editor.on_preview_mouse_down(pane_id, block_index, event.position, cx);
-                });
+                host_down.preview_mouse_down(pane_id, block_index, event.position, cx);
             },
         )
         .on_mouse_move(move |event, _window, cx| {
             if event.dragging() {
-                editor_move.update(cx, |editor, cx| {
-                    editor.on_preview_mouse_move(pane_id, block_index, event.position, cx);
-                });
+                host_move.preview_mouse_move(pane_id, block_index, event.position, cx);
             }
         })
         .on_mouse_up(
             MouseButton::Left,
             move |_event, _window, cx| {
-                editor_up.update(cx, |editor, cx| {
-                    editor.on_preview_mouse_up(pane_id, cx);
-                });
+                host_up.preview_mouse_up(pane_id, cx);
             },
         );
 
@@ -258,7 +236,7 @@ pub(crate) fn render_preview_block(
                 depth + 1,
                 effective_quote_depth,
                 pane_id,
-                editor_handle,
+                host,
                 theme,
                 window,
                 cx,
@@ -320,7 +298,7 @@ pub(crate) fn preview_centered_column_width(
 /// Collects every footnote definition block in the preview tree in document
 /// order — including definitions nested inside quotes, callouts, or lists — so
 /// the preview can render them in a single bottom section.
-fn collect_preview_footnote_definitions(
+pub(crate) fn collect_preview_footnote_definitions(
     roots: &[PreviewBlock],
     out: &mut Vec<PreviewBlock>,
 ) {
@@ -334,7 +312,7 @@ fn collect_preview_footnote_definitions(
 
 /// Wraps content with the quote guide lines at the given depth, mirroring
 /// the WYSIWYG quote guides.
-fn wrap_with_preview_quote_guides(
+pub(crate) fn wrap_with_preview_quote_guides(
     content: AnyElement,
     quote_depth: usize,
     theme: &Theme,
