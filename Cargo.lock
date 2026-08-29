@@ -1759,6 +1759,7 @@ dependencies = [
  "editor_wysiwyg",
  "gpui",
  "regex",
+ "theme",
 ]
 
 [[package]]

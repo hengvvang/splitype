@@ -297,6 +297,10 @@ pub struct Editor {
     pub(crate) source_view: Arc<dyn editor_source_code::SourceStateView>,
     /// Source-pane IME registration proxy.
     pub(crate) source_ime: Arc<dyn editor_source_code::SourceIme>,
+    /// Search input field snapshots for the panel's input elements.
+    pub(crate) search_view: Arc<dyn editor_search::SearchStateView>,
+    /// Search input IME registration proxy.
+    pub(crate) search_ime: Arc<dyn editor_search::SearchIme>,
     /// This editor panel's session: its document tabs and pane split
     /// root. One Editor entity owns exactly one session.
     pub(crate) session: EditorSession,
@@ -423,6 +427,8 @@ impl Editor {
             pane_host: crate::editor::engine::pane_host::EditorPaneHost::new(cx.weak_entity()),
             source_view: crate::editor::engine::pane_host::EditorSourceView::new(cx.weak_entity()),
             source_ime: crate::editor::engine::pane_host::EditorSourceIme::new(cx.weak_entity()),
+            search_view: crate::editor::engine::pane_host::EditorSearchView::new(cx.weak_entity()),
+            search_ime: crate::editor::engine::pane_host::EditorSearchIme::new(cx.weak_entity()),
             session,
             panel_rect: None,
             is_active_panel: false,
@@ -461,6 +467,8 @@ impl Editor {
             pane_host: crate::editor::engine::pane_host::EditorPaneHost::new(cx.weak_entity()),
             source_view: crate::editor::engine::pane_host::EditorSourceView::new(cx.weak_entity()),
             source_ime: crate::editor::engine::pane_host::EditorSourceIme::new(cx.weak_entity()),
+            search_view: crate::editor::engine::pane_host::EditorSearchView::new(cx.weak_entity()),
+            search_ime: crate::editor::engine::pane_host::EditorSearchIme::new(cx.weak_entity()),
             session: EditorSession::welcome(),
             panel_rect: None,
             is_active_panel: false,

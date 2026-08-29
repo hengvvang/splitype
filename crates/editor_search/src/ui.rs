@@ -1,67 +1,73 @@
 //! Search and replace floating overlay panel UI (VS Code / Zed inspired layout with separated results card).
+//!
+//! Pure presentation over [`SearchPanelState`]; coordination actions
+//! re-enter the editor through [`SearchHost`].
+
+use std::sync::Arc;
 
 use gpui::*;
 
-use crate::editor::engine::controller::Editor;
-use crate::editor::search::input_element::SearchInputElement;
-use editor_search::{SearchActiveField, SearchScope};
+use crate::host::{SearchHost, SearchIme, SearchStateView};
+use crate::input_element::SearchInputElement;
+use crate::state::{SearchActiveField, SearchPanelState, SearchScope};
 use theme::{Theme, TypographyScope, TypographyStore};
 
-impl Editor {
-    /// Renders the floating Search and Replace overlay panel in the top-right corner.
-    pub(crate) fn render_search_panel_overlay(
-        &mut self,
-        theme: &Theme,
-        _window: &mut Window,
-        cx: &mut Context<Self>,
-    ) -> Option<AnyElement> {
-        if !self.search.visible {
-            return None;
-        }
+/// Renders the floating Search and Replace overlay panel in the top-right
+/// corner, or `None` when the panel is hidden.
+pub fn render_search_panel_overlay(
+    state: &SearchPanelState,
+    view: &Arc<dyn SearchStateView>,
+    ime: &Arc<dyn SearchIme>,
+    host: &Arc<dyn SearchHost>,
+    theme: &Theme,
+    _window: &mut Window,
+    cx: &mut App,
+) -> Option<AnyElement> {
+    if !state.visible {
+        return None;
+    }
 
-        let c = &theme.colors;
-        let d = &theme.dimensions;
-        let editor = cx.entity().downgrade();
+    let c = &theme.colors;
+    let d = &theme.dimensions;
 
-        let show_replace = self.search.show_replace;
-        let scope = self.search.scope;
-        let results_expanded = self.search.results_expanded;
-        let match_case = self.search.match_case;
-        let whole_word = self.search.whole_word;
-        let use_regex = self.search.use_regex;
-        let preserve_case = self.search.preserve_case;
+    let show_replace = state.show_replace;
+    let scope = state.scope;
+    let results_expanded = state.results_expanded;
+    let match_case = state.match_case;
+    let whole_word = state.whole_word;
+    let use_regex = state.use_regex;
+    let preserve_case = state.preserve_case;
 
-        // ── Expand/Collapse Chevron (Left Column) ───────────────────────
-        let chevron_editor = editor.clone();
-        let chevron_icon = if show_replace {
-            "icons/explorer/worktree/chevron-down.svg"
-        } else {
-            "icons/explorer/worktree/chevron-right.svg"
-        };
-        let chevron_btn = div()
-            .id("search-replace-expand-toggle")
-            .size(px(20.0))
-            .flex()
-            .items_center()
-            .justify_center()
-            .rounded(px(d.icon_button_radius))
-            .cursor_pointer()
-            .hover(|this| this.bg(c.dialog_secondary_button_hover))
-            .child(
-                svg()
-                    .path(chevron_icon)
-                    .size(px(11.0))
-                    .text_color(c.dialog_muted),
-            )
-            .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                let _ = chevron_editor.update(cx, |ed, cx| {
-                    ed.search.show_replace = !ed.search.show_replace;
-                    cx.notify();
-                });
-            });
+    let host_key_down = host.clone();
+
+    // ── Expand/Collapse Chevron (Left Column) ───────────────────────
+    let chevron_editor = host.clone();
+    let chevron_icon = if show_replace {
+        "icons/explorer/worktree/chevron-down.svg"
+    } else {
+        "icons/explorer/worktree/chevron-right.svg"
+    };
+    let chevron_btn = div()
+        .id("search-replace-expand-toggle")
+        .size(px(20.0))
+        .flex()
+        .items_center()
+        .justify_center()
+        .rounded(px(d.icon_button_radius))
+        .cursor_pointer()
+        .hover(|this| this.bg(c.dialog_secondary_button_hover))
+        .child(
+            svg()
+                .path(chevron_icon)
+                .size(px(11.0))
+                .text_color(c.dialog_muted),
+        )
+        .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
+            chevron_editor.toggle_show_replace(cx);
+        });
 
         // ── Search Input Inline Filter Buttons ──────────────────────────
-        let case_editor = editor.clone();
+        let case_editor = host.clone();
         let case_toggle = div()
             .id("search-filter-case")
             .px(px(4.0))
@@ -82,13 +88,10 @@ impl Editor {
             .hover(|this| this.bg(c.panel_row_hover))
             .child("Aa")
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                let _ = case_editor.update(cx, |ed, cx| {
-                    ed.search.match_case = !ed.search.match_case;
-                    ed.execute_search(cx);
-                });
+                case_editor.toggle_match_case(cx);
             });
 
-        let word_editor = editor.clone();
+        let word_editor = host.clone();
         let word_toggle = div()
             .id("search-filter-word")
             .px(px(4.0))
@@ -125,13 +128,10 @@ impl Editor {
                     ),
             )
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                let _ = word_editor.update(cx, |ed, cx| {
-                    ed.search.whole_word = !ed.search.whole_word;
-                    ed.execute_search(cx);
-                });
+                word_editor.toggle_whole_word(cx);
             });
 
-        let regex_editor = editor.clone();
+        let regex_editor = host.clone();
         let regex_toggle = div()
             .id("search-filter-regex")
             .px(px(4.0))
@@ -152,15 +152,12 @@ impl Editor {
             .hover(|this| this.bg(c.panel_row_hover))
             .child(".*")
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                let _ = regex_editor.update(cx, |ed, cx| {
-                    ed.search.use_regex = !ed.search.use_regex;
-                    ed.execute_search(cx);
-                });
+                regex_editor.toggle_use_regex(cx);
             });
 
         // ── Search Input Box Container ──────────────────────────────────
-        let search_focus = self.search.search_focus_handle.clone();
-        let search_box_editor = editor.clone();
+        let search_focus = state.search_focus_handle.clone();
+        let search_box_editor = host.clone();
 
         let search_input_box = div()
             .id("editor-search-input-box")
@@ -174,26 +171,29 @@ impl Editor {
             .gap(px(4.0))
             .bg(c.dialog_surface)
             .border_1()
-            .border_color(if self.search.active_field == SearchActiveField::Query {
+            .border_color(if state.active_field == SearchActiveField::Query {
                 c.app_menu_active
             } else {
                 c.dialog_border
             })
             .rounded(px(d.select_trigger_radius))
             .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
-                let _ = search_box_editor.update(cx, |ed, cx| {
-                    ed.search.active_field = SearchActiveField::Query;
-                    window.focus(&ed.search.search_focus_handle, cx);
-                    cx.notify();
-                });
+                search_box_editor.focus_query(window, cx);
             })
-            .on_key_down(cx.listener(Self::handle_search_key_down))
+            .on_key_down({
+                let host_key_down = host.clone();
+                move |event, window, cx| {
+                    host_key_down.handle_key_down(event, window, cx);
+                }
+            })
             .child(
                 div()
                     .flex_1()
                     .min_w(px(0.0))
                     .child(SearchInputElement {
-                        editor: cx.entity(),
+                        view: view.clone(),
+                        ime: ime.clone(),
+                        host: host.clone(),
                         field: SearchActiveField::Query,
                         placeholder: "Search".into(),
                     }),
@@ -209,7 +209,7 @@ impl Editor {
             );
 
         // ── Search Right Actions (Prev, Next, Scope, Close) ────────────
-        let prev_editor = editor.clone();
+        let prev_editor = host.clone();
         let prev_btn = div()
             .size(px(20.0))
             .flex()
@@ -225,14 +225,10 @@ impl Editor {
                     .text_color(c.dialog_muted),
             )
             .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
-                let _ = prev_editor.update(cx, |ed, cx| {
-                    ed.search.prev_match();
-                    ed.jump_to_active_search_match(window, cx);
-                    cx.notify();
-                });
+                prev_editor.prev_match(window, cx);
             });
 
-        let next_editor = editor.clone();
+        let next_editor = host.clone();
         let next_btn = div()
             .size(px(20.0))
             .flex()
@@ -248,14 +244,10 @@ impl Editor {
                     .text_color(c.dialog_muted),
             )
             .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
-                let _ = next_editor.update(cx, |ed, cx| {
-                    ed.search.next_match();
-                    ed.jump_to_active_search_match(window, cx);
-                    cx.notify();
-                });
+                next_editor.next_match(window, cx);
             });
 
-        let explorer_editor = editor.clone();
+        let explorer_editor = host.clone();
         let explorer_search_btn = div()
             .id("search-scope-explorer-toggle")
             .size(px(20.0))
@@ -281,14 +273,7 @@ impl Editor {
                     }),
             )
             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                let _ = explorer_editor.update(cx, |ed, cx| {
-                    ed.search.scope = if ed.search.scope == SearchScope::Worktree {
-                        SearchScope::CurrentTab
-                    } else {
-                        SearchScope::Worktree
-                    };
-                    ed.execute_search(cx);
-                });
+                explorer_editor.toggle_scope(cx);
             });
 
         // ── 1. Independent Search Strip Card ─────────────────────────────
@@ -310,10 +295,10 @@ impl Editor {
 
         // ── Replace Row (When Expanded) ──────────────────────────────────
         let replace_row = if show_replace {
-            let replace_focus = self.search.replace_focus_handle.clone();
-            let replace_box_editor = editor.clone();
+            let replace_focus = state.replace_focus_handle.clone();
+            let replace_box_editor = host.clone();
 
-            let preserve_editor = editor.clone();
+            let preserve_editor = host.clone();
             let preserve_toggle = div()
                 .id("replace-filter-preserve-case")
                 .px(px(4.0))
@@ -334,10 +319,7 @@ impl Editor {
                 .hover(|this| this.bg(c.panel_row_hover))
                 .child("AB")
                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                    let _ = preserve_editor.update(cx, |ed, cx| {
-                        ed.search.preserve_case = !ed.search.preserve_case;
-                        cx.notify();
-                    });
+                    preserve_editor.toggle_preserve_case(cx);
                 });
 
             let replace_input_box = div()
@@ -352,26 +334,29 @@ impl Editor {
                 .gap(px(4.0))
                 .bg(c.dialog_surface)
                 .border_1()
-                .border_color(if self.search.active_field == SearchActiveField::Replace {
+                .border_color(if state.active_field == SearchActiveField::Replace {
                     c.app_menu_active
                 } else {
                     c.dialog_border
                 })
                 .rounded(px(d.select_trigger_radius))
                 .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
-                    let _ = replace_box_editor.update(cx, |ed, cx| {
-                        ed.search.active_field = SearchActiveField::Replace;
-                        window.focus(&ed.search.replace_focus_handle, cx);
-                        cx.notify();
-                    });
+                    replace_box_editor.focus_replace(window, cx);
                 })
-                .on_key_down(cx.listener(Self::handle_search_key_down))
+                .on_key_down({
+                    let host_key_down = host.clone();
+                    move |event, window, cx| {
+                        host_key_down.handle_key_down(event, window, cx);
+                    }
+                })
                 .child(
                     div()
                         .flex_1()
                         .min_w(px(0.0))
                         .child(SearchInputElement {
-                            editor: cx.entity(),
+                            view: view.clone(),
+                        ime: ime.clone(),
+                        host: host.clone(),
                             field: SearchActiveField::Replace,
                             placeholder: "Replace".into(),
                         }),
@@ -384,7 +369,7 @@ impl Editor {
                         .child(preserve_toggle),
                 );
 
-            let replace_single_editor = editor.clone();
+            let replace_single_editor = host.clone();
             let replace_single_btn = div()
                 .id("search-replace-single-btn")
                 .size(px(20.0))
@@ -401,12 +386,10 @@ impl Editor {
                         .text_color(c.dialog_muted),
                 )
                 .on_mouse_down(MouseButton::Left, move |_event, window, cx| {
-                    let _ = replace_single_editor.update(cx, |ed, cx| {
-                        ed.replace_current_search_match(window, cx);
-                    });
+                    replace_single_editor.replace_current(window, cx);
                 });
 
-            let replace_all_editor = editor.clone();
+            let replace_all_editor = host.clone();
             let replace_all_btn = div()
                 .id("search-replace-all-btn")
                 .size(px(20.0))
@@ -423,9 +406,7 @@ impl Editor {
                         .text_color(c.dialog_muted),
                 )
                 .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                    let _ = replace_all_editor.update(cx, |ed, cx| {
-                        ed.replace_all_search_matches(cx);
-                    });
+                    replace_all_editor.replace_all(cx);
                 });
 
             Some(
@@ -477,14 +458,14 @@ impl Editor {
 
         // ── 3. Separated Match Results Floating Card (with gap) ──────────
         let results_card = if results_expanded {
-            let active_idx = self.search.active_match_index;
+            let active_idx = state.active_match_index;
             let mut match_elements = Vec::new();
 
-            for (idx, m) in self.search.matches.iter().enumerate() {
+            for (idx, m) in state.matches.iter().enumerate() {
                 let is_active = Some(idx) == active_idx;
-                let is_expanded = self.search.is_match_expanded(idx);
-                let item_editor = editor.clone();
-                let toggle_editor = editor.clone();
+                let is_expanded = state.is_match_expanded(idx);
+                let item_editor = host.clone();
+                let toggle_editor = host.clone();
 
                 // ── Compact Single-line Header Row ───────────────────────
                 let row_header = div()
@@ -549,11 +530,7 @@ impl Editor {
                             .on_mouse_down(MouseButton::Left, {
                                 let item_editor = item_editor.clone();
                                 move |_event, window, cx| {
-                                    let _ = item_editor.update(cx, |ed, cx| {
-                                        ed.search.active_match_index = Some(idx);
-                                        ed.jump_to_active_search_match(window, cx);
-                                        cx.notify();
-                                    });
+                                    item_editor.activate_match(idx, window, cx);
                                 }
                             }),
                     )
@@ -579,10 +556,7 @@ impl Editor {
                                     .text_color(c.dialog_muted),
                             )
                             .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                                let _ = toggle_editor.update(cx, |ed, cx| {
-                                    ed.search.toggle_match_expanded(idx);
-                                    cx.notify();
-                                });
+                                toggle_editor.toggle_match_expanded(idx, cx);
                             }),
                     );
 
@@ -659,15 +633,15 @@ impl Editor {
                 match_elements.push(item_card.into_any_element());
             }
 
-            let collapse_drawer_editor = editor.clone();
+            let collapse_drawer_editor = host.clone();
 
-            let (header_left, results_body) = if self.search.matches.is_empty() {
-                let msg = if self.search.query().is_empty() {
+            let (header_left, results_body) = if state.matches.is_empty() {
+                let msg = if state.query().is_empty() {
                     "Type to search in document"
                 } else {
                     "No matches found"
                 };
-                let title = if self.search.query().is_empty() {
+                let title = if state.query().is_empty() {
                     "MATCHES (0)".to_string()
                 } else {
                     "NO RESULTS".to_string()
@@ -693,7 +667,7 @@ impl Editor {
                 (header_left, empty_row.into_any_element())
             } else {
                 let active_num = active_idx.map(|i| i + 1).unwrap_or(1);
-                let total_num = self.search.matches.len();
+                let total_num = state.matches.len();
 
                 let header_left = div()
                     .flex()
@@ -766,10 +740,7 @@ impl Editor {
                                             .text_color(c.dialog_muted),
                                     )
                                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
-                                        let _ = collapse_drawer_editor.update(cx, |ed, cx| {
-                                            ed.search.results_expanded = false;
-                                            cx.notify();
-                                        });
+                                        collapse_drawer_editor.collapse_results(cx);
                                     }),
                             ),
                     )
@@ -799,4 +770,3 @@ impl Editor {
 
         Some(deferred(container.into_any_element()).into_any_element())
     }
-}

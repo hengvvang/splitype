@@ -8,7 +8,7 @@
 
 use std::sync::Arc;
 
-use gpui::{App, Bounds, Point, Pixels, WeakEntity, Window};
+use gpui::{App, Bounds, KeyDownEvent, Point, Pixels, WeakEntity, Window};
 
 use editor_core::{AutoscrollStrategy, PaneHost, PaneId};
 
@@ -106,6 +106,276 @@ impl editor_outline::OutlineHost for EditorOutlineHost {
         if let Some(editor) = self.editor.upgrade() {
             let _ = editor.update(cx, |editor, cx| editor.set_outline_hovered(hovered, cx));
         }
+    }
+}
+
+/// Search panel host: every coordination action re-enters the editor
+/// entity.
+pub(crate) struct EditorSearchHost {
+    editor: WeakEntity<Editor>,
+}
+
+impl EditorSearchHost {
+    pub(crate) fn new(editor: WeakEntity<Editor>) -> Arc<Self> {
+        Arc::new(Self { editor })
+    }
+}
+
+impl editor_search::SearchHost for EditorSearchHost {
+    fn execute_search(&self, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| editor.execute_search(cx));
+        }
+    }
+
+    fn notify(&self, cx: &mut App) {
+        cx.notify(self.editor.entity_id());
+    }
+
+    fn toggle_show_replace(&self, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.search.show_replace = !editor.search.show_replace;
+                cx.notify();
+            });
+        }
+    }
+
+    fn toggle_match_case(&self, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.search.match_case = !editor.search.match_case;
+                editor.execute_search(cx);
+            });
+        }
+    }
+
+    fn toggle_whole_word(&self, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.search.whole_word = !editor.search.whole_word;
+                editor.execute_search(cx);
+            });
+        }
+    }
+
+    fn toggle_use_regex(&self, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.search.use_regex = !editor.search.use_regex;
+                editor.execute_search(cx);
+            });
+        }
+    }
+
+    fn toggle_preserve_case(&self, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.search.preserve_case = !editor.search.preserve_case;
+                cx.notify();
+            });
+        }
+    }
+
+    fn toggle_scope(&self, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.search.scope = if editor.search.scope == editor_search::SearchScope::Worktree
+                {
+                    editor_search::SearchScope::CurrentTab
+                } else {
+                    editor_search::SearchScope::Worktree
+                };
+                editor.execute_search(cx);
+            });
+        }
+    }
+
+    fn focus_query(&self, window: &mut Window, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.search.active_field = editor_search::SearchActiveField::Query;
+                window.focus(&editor.search.search_focus_handle, cx);
+                cx.notify();
+            });
+        }
+    }
+
+    fn focus_replace(&self, window: &mut Window, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.search.active_field = editor_search::SearchActiveField::Replace;
+                window.focus(&editor.search.replace_focus_handle, cx);
+                cx.notify();
+            });
+        }
+    }
+
+    fn handle_key_down(&self, event: &KeyDownEvent, window: &mut Window, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.handle_search_key_down(event, window, cx)
+            });
+        }
+    }
+
+    fn prev_match(&self, window: &mut Window, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.search.prev_match();
+                editor.jump_to_active_search_match(window, cx);
+                cx.notify();
+            });
+        }
+    }
+
+    fn next_match(&self, window: &mut Window, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.search.next_match();
+                editor.jump_to_active_search_match(window, cx);
+                cx.notify();
+            });
+        }
+    }
+
+    fn activate_match(&self, index: usize, window: &mut Window, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.search.active_match_index = Some(index);
+                editor.jump_to_active_search_match(window, cx);
+                cx.notify();
+            });
+        }
+    }
+
+    fn replace_current(&self, window: &mut Window, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.replace_current_search_match(window, cx)
+            });
+        }
+    }
+
+    fn replace_all(&self, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| editor.replace_all_search_matches(cx));
+        }
+    }
+
+    fn toggle_match_expanded(&self, index: usize, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.search.toggle_match_expanded(index);
+                cx.notify();
+            });
+        }
+    }
+
+    fn collapse_results(&self, cx: &mut App) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, cx| {
+                editor.search.results_expanded = false;
+                cx.notify();
+            });
+        }
+    }
+
+    fn set_input_last_bounds(
+        &self,
+        field: editor_search::SearchActiveField,
+        bounds: Bounds<Pixels>,
+        cx: &mut App,
+    ) {
+        if let Some(editor) = self.editor.upgrade() {
+            let _ = editor.update(cx, |editor, _cx| {
+                let input = match field {
+                    editor_search::SearchActiveField::Query => &mut editor.search.search_input,
+                    editor_search::SearchActiveField::Replace => &mut editor.search.replace_input,
+                };
+                input.last_bounds = Some(bounds);
+            });
+        }
+    }
+}
+
+/// Search input field snapshots for the input element.
+pub(crate) struct EditorSearchView {
+    editor: WeakEntity<Editor>,
+}
+
+impl EditorSearchView {
+    pub(crate) fn new(editor: WeakEntity<Editor>) -> Arc<Self> {
+        Arc::new(Self { editor })
+    }
+}
+
+impl editor_search::SearchStateView for EditorSearchView {
+    fn snapshot(
+        &self,
+        field: editor_search::SearchActiveField,
+        cx: &App,
+    ) -> editor_search::SearchInputSnapshot {
+        let editor = self.editor.upgrade();
+        let Some(editor) = editor else {
+            return editor_search::SearchInputSnapshot::default();
+        };
+        let search = &editor.read(cx).search;
+        let (input, focus_handle) = match field {
+            editor_search::SearchActiveField::Query => (
+                &search.search_input,
+                &search.search_focus_handle,
+            ),
+            editor_search::SearchActiveField::Replace => (
+                &search.replace_input,
+                &search.replace_focus_handle,
+            ),
+        };
+        editor_search::SearchInputSnapshot {
+            text: input.text.clone(),
+            marked_range: input.marked_range.clone(),
+            selection_range: input.selection_range(),
+            cursor_offset: input.cursor(),
+            focus_handle: Some(focus_handle.clone()),
+        }
+    }
+}
+
+/// Search input IME registration: binds the platform input handler to the
+/// editor entity (gpui requires a concrete entity type).
+pub(crate) struct EditorSearchIme {
+    editor: WeakEntity<Editor>,
+}
+
+impl EditorSearchIme {
+    pub(crate) fn new(editor: WeakEntity<Editor>) -> Arc<Self> {
+        Arc::new(Self { editor })
+    }
+}
+
+impl editor_search::SearchIme for EditorSearchIme {
+    fn handle_input(
+        &self,
+        field: editor_search::SearchActiveField,
+        bounds: Bounds<Pixels>,
+        window: &mut Window,
+        cx: &mut App,
+    ) {
+        let Some(entity) = self.editor.upgrade() else {
+            return;
+        };
+        let focus_handle = entity.read(cx).search.search_focus_handle.clone();
+        let focus_handle = match field {
+            editor_search::SearchActiveField::Query => focus_handle,
+            editor_search::SearchActiveField::Replace => {
+                entity.read(cx).search.replace_focus_handle.clone()
+            }
+        };
+        window.handle_input(
+            &focus_handle,
+            gpui::ElementInputHandler::new(bounds, entity),
+            cx,
+        );
     }
 }
 

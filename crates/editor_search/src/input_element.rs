@@ -1,10 +1,13 @@
 //! Single-line text input GPUI Element for search & replace fields.
 
+use std::sync::Arc;
+
 use gpui::*;
 
-use crate::editor::engine::controller::Editor;
-use editor_search::SearchActiveField;
 use theme::ThemeManager;
+
+use crate::host::{SearchHost, SearchIme, SearchStateView};
+use crate::state::SearchActiveField;
 
 pub(crate) struct SearchInputPrepaintState {
     line: Option<ShapedLine>,
@@ -14,7 +17,9 @@ pub(crate) struct SearchInputPrepaintState {
 }
 
 pub(crate) struct SearchInputElement {
-    pub(crate) editor: Entity<Editor>,
+    pub(crate) view: Arc<dyn SearchStateView>,
+    pub(crate) ime: Arc<dyn SearchIme>,
+    pub(crate) host: Arc<dyn SearchHost>,
     pub(crate) field: SearchActiveField,
     pub(crate) placeholder: SharedString,
 }
@@ -63,34 +68,19 @@ impl Element for SearchInputElement {
         cx: &mut App,
     ) -> Self::PrepaintState {
         let theme = cx.global::<ThemeManager>().current_arc();
-        let (text, marked_range, selection_range, cursor_offset, is_focused) = {
-            let editor_ref = self.editor.read(cx);
-            let (input, focus_handle) = match self.field {
-                SearchActiveField::Query => (
-                    &editor_ref.search.search_input,
-                    &editor_ref.search.search_focus_handle,
-                ),
-                SearchActiveField::Replace => (
-                    &editor_ref.search.replace_input,
-                    &editor_ref.search.replace_focus_handle,
-                ),
-            };
-            (
-                input.text.clone(),
-                input.marked_range.clone(),
-                input.selection_range(),
-                input.cursor(),
-                focus_handle.is_focused(window),
-            )
-        };
+        let snap = self.view.snapshot(self.field, cx);
+        let (text, marked_range, selection_range, cursor_offset, is_focused) = (
+            snap.text,
+            snap.marked_range,
+            snap.selection_range,
+            snap.cursor_offset,
+            snap.focus_handle
+                .as_ref()
+                .map_or(false, |h| h.is_focused(window)),
+        );
 
         // Remember bounds for IME positioning
-        self.editor.update(cx, |ed, _cx| {
-            match self.field {
-                SearchActiveField::Query => ed.search.search_input.last_bounds = Some(bounds),
-                SearchActiveField::Replace => ed.search.replace_input.last_bounds = Some(bounds),
-            }
-        });
+        self.host.set_input_last_bounds(self.field, bounds, cx);
 
         let display_text: SharedString = if text.is_empty() && !is_focused {
             self.placeholder.clone()
@@ -210,17 +200,12 @@ impl Element for SearchInputElement {
             window.set_cursor_style(CursorStyle::IBeam, hitbox);
         }
 
-        let focus_handle = match self.field {
-            SearchActiveField::Query => self.editor.read(cx).search.search_focus_handle.clone(),
-            SearchActiveField::Replace => self.editor.read(cx).search.replace_focus_handle.clone(),
-        };
+        let focus_handle = self.view.snapshot(self.field, cx).focus_handle;
 
-        if focus_handle.is_focused(window) {
-            window.handle_input(
-                &focus_handle,
-                ElementInputHandler::new(bounds, self.editor.clone()),
-                cx,
-            );
+        if let Some(ref focus_handle) = focus_handle {
+            if focus_handle.is_focused(window) {
+                self.ime.handle_input(self.field, bounds, window, cx);
+            }
         }
 
         if let Some(selection) = prepaint.selection.take() {
