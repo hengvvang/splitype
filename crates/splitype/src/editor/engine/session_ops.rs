@@ -51,8 +51,8 @@ impl Editor {
     pub fn toggle_pane_dropdown(&mut self, pane_id: impl Into<PaneId>, cx: &mut Context<Self>) {
         self.session.root.toggle_dropdown(pane_id.into().0);
         // Opening an inner dropdown closes any outer dropdown.
-        if let Some(shell) = self.shell.clone() {
-            let _ = shell.update(cx, |shell, _cx| shell.panels.layout.clear_dropdowns());
+        if let Some(host) = self.host.clone() {
+            host.clear_outer_dropdowns(cx);
         }
     }
 

@@ -364,35 +364,24 @@ pub(crate) fn dispatch_menu_action_for_editor(
     } else if action.as_any().is::<QuitApplication>() {
         request_quit_application(cx);
     } else if action.as_any().is::<CloseWindow>() {
-        // Read the editor's shell handle instead of updating through it:
-        // the Shell's aggregated dirty check reads every editor entity,
-        // which would collide with an editor currently being updated.
-        let shell = target
-            .read_with(cx, |editor, _cx| editor.shell.clone())
-            .ok()
-            .flatten();
-        if let Some(shell) = shell {
-            let _ = shell.update(cx, |shell, cx| {
+        // Downcast the window's root shell instead of reading it from the
+        // editor: the Shell's aggregated dirty check reads every editor
+        // entity, which would collide with an editor currently being
+        // updated.
+        if let Some(window_shell) = window.window_handle().downcast::<Shell>() {
+            let _ = window_shell.update(cx, |shell, window, cx| {
                 shell.request_close_current_window(window, cx);
             });
         }
     } else if action.as_any().is::<CheckForUpdates>() {
-        let shell = target
-            .read_with(cx, |editor, _cx| editor.shell.clone())
-            .ok()
-            .flatten();
-        if let Some(shell) = shell {
-            let _ = shell.update(cx, |shell, cx| {
+        if let Some(window_shell) = window.window_handle().downcast::<Shell>() {
+            let _ = window_shell.update(cx, |shell, window, cx| {
                 shell.request_check_updates(window, cx);
             });
         }
     } else if action.as_any().is::<ShowAbout>() {
-        let shell = target
-            .read_with(cx, |editor, _cx| editor.shell.clone())
-            .ok()
-            .flatten();
-        if let Some(shell) = shell {
-            let _ = shell.update(cx, |shell, cx| {
+        if let Some(window_shell) = window.window_handle().downcast::<Shell>() {
+            let _ = window_shell.update(cx, |shell, _window, cx| {
                 shell.show_info_dialog(InfoDialogKind::About, cx);
             });
         }

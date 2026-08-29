@@ -84,8 +84,8 @@ impl Editor {
                     .on_mouse_down(
                         MouseButton::Right,
                         cx.listener(move |this, event, window, cx| {
-                            this.defer_shell_action(cx, move |shell, cx| {
-                                shell.activate_panel(pane_id.0, cx)
+                            this.defer_host_action(cx, move |host, cx| {
+                                host.activate_panel(pane_id.0.into(), cx)
                             });
                             this.on_source_context_menu_mouse_down(event, window, cx);
                         }),

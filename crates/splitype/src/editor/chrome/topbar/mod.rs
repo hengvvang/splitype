@@ -49,8 +49,8 @@ impl crate::editor::engine::controller::Editor {
             })
             .on_click(move |_event, _window, cx| {
                 let _ = type_editor.update(cx, |editor, cx| {
-                    editor.defer_shell_action(cx, move |shell, cx| {
-                        shell.toggle_panel_dropdown(panel_id, cx);
+                    editor.defer_host_action(cx, move |host, cx| {
+                        host.toggle_panel_dropdown(panel_id, cx);
                     });
                     cx.notify();
                 });
@@ -70,8 +70,8 @@ impl crate::editor::engine::controller::Editor {
             .on_click(move |_event, _window, cx| {
                 let _ = split_h_editor.update(cx, |editor, cx| {
                     // Same-kind split; Editor panels deep-copy their tabs.
-                    editor.defer_shell_action(cx, move |shell, cx| {
-                        shell.split_panel(panel_id, SplitAxis::Horizontal, 0.5, true, cx);
+                    editor.defer_host_action(cx, move |host, cx| {
+                        host.split_panel(panel_id, SplitAxis::Horizontal, 0.5, true, cx);
                     });
                     cx.notify();
                 });
@@ -89,8 +89,8 @@ impl crate::editor::engine::controller::Editor {
             .on_click(move |_event, _window, cx| {
                 let _ = split_v_editor.update(cx, |editor, cx| {
                     // Same-kind split; Editor panels deep-copy their tabs.
-                    editor.defer_shell_action(cx, move |shell, cx| {
-                        shell.split_panel(panel_id, SplitAxis::Vertical, 0.5, true, cx);
+                    editor.defer_host_action(cx, move |host, cx| {
+                        host.split_panel(panel_id, SplitAxis::Vertical, 0.5, true, cx);
                     });
                     cx.notify();
                 });
@@ -137,8 +137,8 @@ impl crate::editor::engine::controller::Editor {
                 )
                 .on_click(move |_event, _window, cx| {
                     let _ = max_editor.update(cx, |ed, cx| {
-                        ed.defer_shell_action(cx, move |shell, cx| {
-                            shell.toggle_panel_maximize(panel_id, cx);
+                        ed.defer_host_action(cx, move |host, cx| {
+                            host.toggle_panel_maximize(panel_id, cx);
                         });
                         cx.notify();
                     });
@@ -155,8 +155,8 @@ impl crate::editor::engine::controller::Editor {
                 )
                 .on_click(move |_event, _window, cx| {
                     let _ = close_editor.update(cx, |ed, cx| {
-                        ed.defer_shell_action(cx, move |shell, cx| {
-                            shell.request_close_panel(panel_id, cx);
+                        ed.defer_host_action(cx, move |host, cx| {
+                            host.request_close_panel(panel_id, cx);
                         });
                         cx.notify();
                     });
@@ -225,8 +225,8 @@ impl crate::editor::engine::controller::Editor {
                             title_div.on_mouse_down(MouseButton::Left, move |event, _window, cx| {
                                 let is_double = event.click_count > 1;
                                 let _ = tab_editor.update(cx, |ed, cx| {
-                                    ed.defer_shell_action(cx, move |shell, cx| {
-                                        shell.activate_panel(panel_id, cx);
+                                    ed.defer_host_action(cx, move |host, cx| {
+                                        host.activate_panel(panel_id, cx);
                                     });
                                     if is_double {
                                         if let Some(tab) = ed.session.tab_mut(index) {
@@ -285,8 +285,8 @@ impl crate::editor::engine::controller::Editor {
                     )
                     .on_mouse_down(MouseButton::Left, move |_event, _window, cx| {
                         let _ = add_editor.update(cx, |ed, cx| {
-                            ed.defer_shell_action(cx, move |shell, cx| {
-                                shell.activate_panel(panel_id, cx);
+                            ed.defer_host_action(cx, move |host, cx| {
+                                host.activate_panel(panel_id, cx);
                             });
                             ed.new_untitled_tab(cx);
                             cx.notify();

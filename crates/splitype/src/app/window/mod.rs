@@ -10,7 +10,7 @@ use anyhow::Context as _;
 use gpui::*;
 
 use crate::app::menus::install_menus;
-use crate::app::shell::{PanelContent, Shell};
+use crate::app::shell::{PanelContent, Shell, ShellEditorHost};
 use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::WindowPanels;
 use workspace::{PanelId, DEFAULT_EDITOR_PANEL_ID, ROOT_PANEL_ID, WindowPanelKind};
@@ -94,7 +94,9 @@ pub(crate) fn open_editor_window(
                     .filter_map(|content| content.as_editor().cloned())
                     .collect();
                 for editor in editors {
-                    editor.update(cx, |e, _cx| e.shell = Some(shell_weak.clone()));
+                    editor.update(cx, |e, _cx| {
+                        e.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell_weak.clone())));
+                    });
                 }
                 shell
             },
@@ -170,7 +172,9 @@ pub(crate) fn open_cloned_window(
                     .filter_map(|content| content.as_editor().cloned())
                     .collect();
                 for editor in editors {
-                    editor.update(cx, |e, _cx| e.shell = Some(shell_weak.clone()));
+                    editor.update(cx, |e, _cx| {
+                        e.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell_weak.clone())));
+                    });
                 }
                 shell
             },

@@ -286,8 +286,8 @@ impl Editor {
                 // Dropping into this editor activates it and routes the
                 // replace flow to ITS tab set.
                 {
-                    this.defer_shell_action(cx, move |shell, cx| {
-                        shell.activate_panel(panel_id, cx)
+                    this.defer_host_action(cx, move |host, cx| {
+                        host.activate_panel(panel_id, cx)
                     });
                     this.on_external_paths_drop(paths, window, cx);
                 }
@@ -301,8 +301,8 @@ impl Editor {
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(move |this, event, window, cx| {
-                    this.defer_shell_action(cx, move |shell, cx| {
-                        shell.activate_panel(panel_id, cx)
+                    this.defer_host_action(cx, move |host, cx| {
+                        host.activate_panel(panel_id, cx)
                     });
                     this.on_editor_mouse_down(event, window, cx);
                 }),
@@ -332,8 +332,8 @@ impl Editor {
             scroll_content.on_mouse_down(
                 MouseButton::Right,
                 cx.listener(move |this, event, window, cx| {
-                    this.defer_shell_action(cx, move |shell, cx| {
-                        shell.activate_panel(panel_id, cx)
+                    this.defer_host_action(cx, move |host, cx| {
+                        host.activate_panel(panel_id, cx)
                     });
                     this.on_editor_context_menu_mouse_down(event, window, cx);
                 }),
@@ -383,8 +383,8 @@ impl Editor {
                         let _ = scrollbar_editor.update(cx, |editor, cx| {
                             cx.stop_propagation();
                             {
-                                editor.defer_shell_action(cx, move |shell, cx| {
-                                    shell.activate_panel(panel_id, cx);
+                                editor.defer_host_action(cx, move |host, cx| {
+                                    host.activate_panel(panel_id, cx);
                                 });
                                 editor.start_scrollbar_drag(
                                     pane_id,
@@ -481,8 +481,8 @@ impl Editor {
                 let row_editor = editor.clone();
                 row.on_mouse_down(MouseButton::Right, move |event, window, cx| {
                     let _ = row_editor.update(cx, |editor, cx| {
-                        editor.defer_shell_action(cx, move |shell, cx| {
-                            shell.activate_panel(panel_id, cx);
+                        editor.defer_host_action(cx, move |host, cx| {
+                            host.activate_panel(panel_id, cx);
                         });
                         editor.on_block_context_menu_mouse_down(entity_id, event, window, cx);
                     });

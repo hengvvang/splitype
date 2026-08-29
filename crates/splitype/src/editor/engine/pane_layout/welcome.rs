@@ -44,8 +44,8 @@ impl Editor {
                         // The clicked editor becomes the active editor
                         // (deferred: the Shell re-pushes state to every
                         // editor, and this one is mid-update).
-                        ed.defer_shell_action(cx, move |shell, cx| {
-                            shell.activate_panel(panel_id, cx);
+                        ed.defer_host_action(cx, move |host, cx| {
+                            host.activate_panel(panel_id, cx);
                         });
                         ed.new_untitled_tab(cx);
                         // Focus the new source panel so typing works

@@ -7,6 +7,8 @@
 //! layout, overlays) migrates here incrementally; the Editor keeps only
 //! its own editing state.
 
+use std::path::Path;
+
 use std::collections::HashMap;
 
 use gpui::*;
@@ -16,6 +18,7 @@ use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::WindowPanels;
 use workspace::{PanelId, WindowPanelKind};
 use crate::editor::engine::controller::{DocumentTab, Editor, InfoDialogKind, OpenFileMode};
+use crate::editor::engine::host::EditorHost;
 use crate::editor::engine::session::EditorSession;
 use i18n::I18nManager;
 use theme::ThemeManager;
@@ -194,35 +197,6 @@ impl Shell {
     pub(crate) fn activate_panel(&mut self, panel_id: impl Into<PanelId>, cx: &mut Context<Self>) {
         self.panels.layout.activate_leaf(panel_id.into().0);
         self.sync_panel_states(cx);
-    }
-
-    /// Dismisses the primary editor's floating overlays (context menu,
-    /// table-insert dialog). Explorer actions run on the Shell but the
-    /// overlays still live on the editor entity.
-    pub(crate) fn dismiss_contextual_overlays(&mut self, cx: &mut Context<Self>) {
-        if let Some(editor) = self.primary_editor() {
-            editor.update(cx, |editor, cx| editor.dismiss_contextual_overlays(cx));
-        }
-    }
-
-    /// Opens the explorer row context menu at `position` (window
-    /// coordinates). The Shell renders the menu itself, so it floats over
-    /// every area regardless of which tiles are present.
-    pub(crate) fn open_explorer_file_context_menu(
-        &mut self,
-        position: Point<Pixels>,
-        path: std::path::PathBuf,
-        is_dir: bool,
-        cx: &mut Context<Self>,
-    ) {
-        self.dismiss_contextual_overlays(cx);
-        explorer::ExplorerState::update(cx, |state, _cx| {
-            state.file_menu = Some(explorer::ExplorerFileMenuState {
-                position,
-                path,
-                is_dir,
-            });
-        });
     }
 
     /// Closes the explorer row context menu, if open.
@@ -431,7 +405,7 @@ impl Shell {
         let editor = cx.new(|cx| crate::editor::Editor::with_session(panel_id, session, cx));
 
         editor.update(cx, |editor, cx| {
-            editor.shell = Some(shell);
+            editor.host = Some(std::sync::Arc::new(ShellEditorHost::new(shell)));
             if editor.session.has_tabs() {
                 editor.rebuild_table_grids(cx);
                 editor.rebuild_reference_registries(cx);
@@ -1148,5 +1122,98 @@ impl Render for Shell {
         }
 
         base.into_any_element()
+    }
+}
+
+// ── EditorHost implementation ────────────────────────────────────────────
+//
+// The app-side half of the editor↔shell dependency inversion seam: the
+// editor family holds an `Arc<dyn EditorHost>` (never this type) and
+// reaches the window shell through these thin forwarding methods.
+
+/// Bridges the editor family's [`EditorHost`] contract to the window
+/// shell. Constructed by the shell when it spawns an editor entity.
+pub(crate) struct ShellEditorHost {
+    shell: WeakEntity<Shell>,
+}
+
+impl ShellEditorHost {
+    pub(crate) fn new(shell: WeakEntity<Shell>) -> Self {
+        Self { shell }
+    }
+}
+
+impl EditorHost for ShellEditorHost {
+    fn activate_panel(&self, panel_id: PanelId, cx: &mut App) {
+        let _ = self.shell.update(cx, |shell, cx| {
+            shell.activate_panel(panel_id, cx)
+        });
+    }
+
+    fn toggle_panel_dropdown(&self, panel_id: PanelId, cx: &mut App) {
+        let _ = self.shell.update(cx, |shell, cx| {
+            shell.toggle_panel_dropdown(panel_id, cx)
+        });
+    }
+
+    fn split_panel(
+        &self,
+        panel_id: PanelId,
+        axis: SplitAxis,
+        ratio: f32,
+        copy_content: bool,
+        cx: &mut App,
+    ) {
+        let _ = self.shell.update(cx, |shell, cx| {
+            shell.split_panel(panel_id, axis, ratio, copy_content, cx);
+        });
+    }
+
+    fn toggle_panel_maximize(&self, panel_id: PanelId, cx: &mut App) {
+        let _ = self.shell.update(cx, |shell, cx| {
+            shell.toggle_panel_maximize(panel_id, cx)
+        });
+    }
+
+    fn request_close_panel(&self, panel_id: PanelId, cx: &mut App) {
+        let _ = self.shell.update(cx, |shell, cx| {
+            shell.request_close_panel(panel_id, cx)
+        });
+    }
+
+    fn prompt_close_tab(&self, panel_id: PanelId, index: usize, cx: &mut App) {
+        let _ = self.shell.update(cx, |shell, cx| {
+            shell.prompt_close_tab(panel_id, index, cx)
+        });
+    }
+
+    fn open_file_in_active_editor(
+        &self,
+        path: &Path,
+        mode: OpenFileMode,
+        window: &mut Window,
+        cx: &mut App,
+    ) -> bool {
+        self.shell
+            .update(cx, |shell, cx| {
+                shell.open_file_in_active_editor(path, mode, window, cx)
+            })
+            .unwrap_or(false)
+    }
+
+    fn hide_info_dialog(&self, cx: &mut App) {
+        let _ = self.shell.update(cx, |shell, cx| shell.hide_info_dialog(cx));
+    }
+
+    fn clear_outer_dropdowns(&self, cx: &mut App) {
+        let _ = self.shell.update(cx, |shell, _cx| {
+            shell.panels.layout.clear_dropdowns()
+        });
+    }
+
+    fn sync_explorer_after_document_path_change(&self, cx: &mut App) {
+        explorer::ExplorerState::update(cx, |state, cx| {
+            state.sync_explorer_after_document_path_change(cx);
+        });
     }
 }

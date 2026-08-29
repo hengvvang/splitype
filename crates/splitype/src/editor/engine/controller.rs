@@ -16,7 +16,7 @@ use std::sync::Arc;
 
 pub(crate) use gpui::*;
 
-pub(crate) use crate::app::shell::Shell;
+pub(crate) use crate::editor::engine::host::EditorHost;
 pub(crate) use workspace::DEFAULT_EDITOR_PANEL_ID;
 pub(crate) use workspace::WindowPanelKind;
 pub(crate) use crate::editor::document::protocol::UndoCaptureKind;
@@ -421,11 +421,11 @@ pub struct Editor {
     /// serves exactly one area (Shell owns the area layout); window-level
     /// state such as the layout tree and sidebar panels lives on the Shell.
     pub(crate) panel_id: PanelId,
-    /// The Shell that owns this editor.s window panel. Used to request
+    /// The window-shell service this editor talks to. Used to request
     /// window-level operations (splitting an area creates a fresh Editor
-    /// entity on the Shell; closing one removes it). None in tests that
+    /// entity on the shell; closing one removes it). `None` in tests that
     /// create Editor-rooted windows directly.
-    pub(crate) shell: Option<WeakEntity<Shell>>,
+    pub(crate) host: Option<Arc<dyn EditorHost>>,
     /// This editor panel's session: its document tabs and pane split
     /// root. One Editor entity owns exactly one session.
     pub(crate) session: EditorSession,
@@ -670,7 +670,7 @@ impl Editor {
 
     /// Creates an editor serving `panel_id` with the given session (tab
     /// list + pane split root). The Shell uses this to materialize
-    /// split-off and restored editor panel_contents; `shell` is wired in afterwards.
+    /// split-off and restored editor panel_contents; `host` is wired in afterwards.
     pub(crate) fn with_session(
         panel_id: impl Into<PanelId>,
         session: EditorSession,
@@ -678,7 +678,7 @@ impl Editor {
     ) -> Self {
         Self {
             panel_id: panel_id.into(),
-            shell: None,
+            host: None,
             session,
             panel_rect: None,
             is_active_panel: false,
@@ -710,7 +710,7 @@ impl Editor {
         let tab = Self::new_tab_from_markdown(cx, markdown, file_path);
         let mut editor = Self {
             panel_id: PanelId(DEFAULT_EDITOR_PANEL_ID),
-            shell: None,
+            host: None,
             session: EditorSession::welcome(),
             panel_rect: None,
             is_active_panel: false,
@@ -895,14 +895,10 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> bool {
-        let Some(shell) = self.shell.clone() else {
+        let Some(host) = self.host.clone() else {
             return false;
         };
-        shell
-            .update(cx, |shell, cx| {
-                shell.open_file_in_active_editor(path, mode, window, cx)
-            })
-            .unwrap_or(false)
+        host.open_file_in_active_editor(path, mode, window, cx)
     }
 
     /// Opens a fresh untitled tab in this editor.
@@ -923,8 +919,8 @@ impl Editor {
         if tab.file.dirty {
             let panel_id = self.panel_id;
             self.activate_tab(index, cx);
-            self.defer_shell_action(cx, move |shell, cx| {
-                shell.prompt_close_tab(panel_id, index, cx);
+            self.defer_host_action(cx, move |host, cx| {
+                host.prompt_close_tab(panel_id, index, cx);
             });
             return;
         }
@@ -1054,7 +1050,7 @@ impl Editor {
 }
 
 impl Editor {
-    /// Runs `action` on the Shell after the current update cycle ends.
+    /// Defers a window-shell service call until this editor update ends.
     ///
     /// Shell layout operations (`activate_panel`, `split_panel`,
     /// `close_panel`, …) re-push state to every editor entity via
@@ -1062,16 +1058,16 @@ impl Editor {
     /// editor's own handler, the editor is already mid-update and the
     /// re-push would double-lease it (gpui panics on nested
     /// `Entity::update`). Deferring lets the current update finish before
-    /// the Shell touches any editor; the pushed flags still land before
+    /// the shell touches any editor; the pushed flags still land before
     /// the next frame renders.
-    pub(crate) fn defer_shell_action(
+    pub(crate) fn defer_host_action(
         &self,
         cx: &mut Context<Self>,
-        action: impl FnOnce(&mut Shell, &mut Context<Shell>) + 'static,
+        action: impl FnOnce(&dyn EditorHost, &mut App) + 'static,
     ) {
-        if let Some(shell) = self.shell.clone() {
+        if let Some(host) = self.host.clone() {
             cx.defer(move |cx| {
-                let _ = shell.update(cx, action);
+                action(host.as_ref(), cx);
             });
         }
     }
@@ -1099,7 +1095,7 @@ impl Editor {
         self.session.root.activate_leaf(pane_id.0);
         self.session.root.clear_dropdowns();
         let panel_id = self.panel_id;
-        self.defer_shell_action(cx, move |shell, cx| shell.activate_panel(panel_id, cx));
+        self.defer_host_action(cx, move |host, cx| host.activate_panel(panel_id, cx));
         if !self.has_active_tab() {
             // Welcome mode: no document to focus yet; the pane is still
             // selected so the pane body click only marks the panel active.
