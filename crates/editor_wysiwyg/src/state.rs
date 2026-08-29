@@ -23,19 +23,7 @@ use crate::markdown::block::table::{TableCellPosition, TableAxis};
 use crate::markdown::inline::text::BlockText;
 use crate::markdown::parse::{BlockData, BlockId};
 
-/// Algebraic autoscroll intent (mirrors Zed's AutoscrollStrategy).
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum AutoscrollStrategy {
-    /// Scroll the minimal amount necessary to bring the active block / caret into view (with safe margin).
-    Fit { margin: Pixels },
-    /// Vertically center the active block / caret in the viewport.
-    Center,
-    /// Align the target block near the top of the viewport.
-    Top { margin: Pixels },
-    /// Align the target block near the bottom of the viewport.
-    #[allow(dead_code)]
-    Bottom { margin: Pixels },
-}
+pub use editor::AutoscrollStrategy;
 
 /// Focus routing and deferred focus targets.
 #[derive(Default)]

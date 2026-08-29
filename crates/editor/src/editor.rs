@@ -14,9 +14,13 @@
 
 pub use gpui;
 
+mod autoscroll;
 mod pane_factory;
+mod pane_host;
 
+pub use autoscroll::AutoscrollStrategy;
 pub use pane_factory::{PaneFactory, PaneFactoryRegistry};
+pub use pane_host::{PaneHost, PaneRenderContext};
 
 /// The pane kinds an Editor panel can host: the document views
 /// inside its split tree. The tree holds only real views — the welcome

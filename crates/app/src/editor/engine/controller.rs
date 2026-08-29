@@ -18,6 +18,7 @@ pub(crate) use gpui::*;
 
 pub(crate) use editor_core::EditorHost;
 pub(crate) use editor_wysiwyg::editor_view::EditorView;
+pub(crate) use editor_core::AutoscrollStrategy;
 pub(crate) use workspace::DEFAULT_EDITOR_PANEL_ID;
 pub(crate) use workspace::WindowPanelKind;
 pub(crate) use editor_outline::OutlineHudState;
@@ -28,7 +29,7 @@ pub(crate) use editor_wysiwyg::document::block::Block;
 pub(crate) use editor_wysiwyg::document::Document;
 pub(crate) use editor_wysiwyg::document::block::footnotes::FootnoteMap;
 pub(crate) use editor_wysiwyg::state::{
-    AutoscrollStrategy, BlockSelectionAnchor, CrossBlockDrag, CrossBlockSelection,
+    BlockSelectionAnchor, CrossBlockDrag, CrossBlockSelection,
     CrossBlockSelectionEndpoint, EditorSelection, FocusState,
     ReferenceRegistries, SelectionState, SourceTargetMapping, TableAxisSelection,
     TableCellBinding, TableGrids, TableSizePickerState, UndoHistory, UndoSelectionSnapshot,
@@ -287,6 +288,11 @@ pub struct Editor {
     /// entity on the shell; closing one removes it). `None` in tests that
     /// create Editor-rooted windows directly.
     pub(crate) host: Option<Arc<dyn EditorHost>>,
+    /// The pane-mode host seam: a proxy that re-enters this entity so the
+    /// mode crates can request coordination-layer actions (focus routing,
+    /// autoscroll, dirty marking, source sync, undo/redo) while rendering
+    /// and handling input inside their own crates.
+    pub(crate) pane_host: Arc<dyn editor_core::PaneHost>,
     /// This editor panel's session: its document tabs and pane split
     /// root. One Editor entity owns exactly one session.
     pub(crate) session: EditorSession,
@@ -410,6 +416,7 @@ impl Editor {
             entity_id: cx.entity().entity_id(),
             self_weak: cx.weak_entity(),
             host: None,
+            pane_host: crate::editor::engine::pane_host::EditorPaneHost::new(cx.weak_entity()),
             session,
             panel_rect: None,
             is_active_panel: false,
@@ -445,6 +452,7 @@ impl Editor {
             entity_id: cx.entity().entity_id(),
             self_weak: cx.weak_entity(),
             host: None,
+            pane_host: crate::editor::engine::pane_host::EditorPaneHost::new(cx.weak_entity()),
             session: EditorSession::welcome(),
             panel_rect: None,
             is_active_panel: false,
