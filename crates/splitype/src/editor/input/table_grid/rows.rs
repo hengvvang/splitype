@@ -153,7 +153,7 @@ impl Editor {
         };
         // Insert the replacement paragraph after the table first, then remove the
         // table, so the document is never momentarily empty.
-        let paragraph = Self::new_block(cx, BlockData::paragraph(String::new()));
+        let paragraph = self.new_block(cx, BlockData::paragraph(String::new()));
         self.doc_mut().insert_blocks_at(
             location.parent.clone(),
             location.index + 1,

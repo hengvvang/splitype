@@ -296,7 +296,7 @@ impl Editor {
             let image_block = block.clone();
             if !trailing_empty {
                 let trailing_block =
-                    Self::new_block(cx, BlockData::new(BlockKind::Paragraph, trailing.clone()));
+                    self.new_block(cx, BlockData::new(BlockKind::Paragraph, trailing.clone()));
                 self.doc_mut().insert_blocks_at(
                     location.parent,
                     location.index + 1,
@@ -316,10 +316,10 @@ impl Editor {
             leading.plain_len(),
             cx,
         );
-        let image_block = Self::new_block(cx, BlockData::paragraph(markdown.to_string()));
+        let image_block = self.new_block(cx, BlockData::paragraph(markdown.to_string()));
         let mut inserted = vec![image_block.clone()];
         if !trailing_empty {
-            inserted.push(Self::new_block(
+            inserted.push(self.new_block(
                 cx,
                 BlockData::new(BlockKind::Paragraph, trailing.clone()),
             ));

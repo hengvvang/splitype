@@ -10,7 +10,7 @@
 
 pub(crate) use std::time::{Duration, Instant};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -338,6 +338,12 @@ pub struct Editor {
     pub(crate) focused_pane_id: Option<PaneId>,
     /// In-buffer and workspace search and replace state.
     pub(crate) search: crate::editor::search::SearchPanelState,
+    /// Block entities this editor currently subscribes to (block events
+    /// drive undo capture, preview refresh and structural requests).
+    /// Blocks created outside `Editor::new_block` (e.g. by undo restore
+    /// deltas in the WYSIWYG crate) are subscribed lazily via
+    /// `subscribe_document_blocks` after the structure change.
+    pub(crate) subscribed_blocks: HashSet<EntityId>,
 }
 
 /// Pixel geometry for the custom editor scrollbar.
@@ -426,6 +432,7 @@ impl Editor {
             welcome_last_click: None,
             focused_pane_id: None,
             search: crate::editor::search::SearchPanelState::new(cx),
+            subscribed_blocks: HashSet::new(),
         }
     }
 
@@ -458,6 +465,7 @@ impl Editor {
             welcome_last_click: None,
             focused_pane_id: None,
             search: crate::editor::search::SearchPanelState::new(cx),
+            subscribed_blocks: HashSet::new(),
         };
         editor.session.push_tab(tab);
         editor.rebuild_table_grids(cx);
@@ -486,7 +494,12 @@ impl Editor {
         let normalized = markdown.replace("\r\n", "\n").replace('\r', "\n");
         let mut roots = Self::parse_wysiwyg_document(cx, &normalized);
         if roots.is_empty() {
-            roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
+            roots.push(cx.new(|cx| {
+                editor_wysiwyg::document::block::Block::with_data(
+                    cx,
+                    BlockData::paragraph(String::new()),
+                )
+            }));
         }
 
         let mut document = Document::new(roots);
@@ -521,6 +534,7 @@ impl Editor {
         if index == self.session.active_tab_index() {
             self.rebuild_table_grids(cx);
             self.rebuild_reference_registries(cx);
+            self.subscribe_document_blocks(cx);
             let pane_id = self.active_pane_id();
             self.refresh_preview_blocks(pane_id, cx);
             self.refresh_stable_document_snapshot(cx);

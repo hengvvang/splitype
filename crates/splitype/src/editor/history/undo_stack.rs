@@ -210,6 +210,7 @@ impl Editor {
         };
 
         self.doc_mut().apply_transaction(&tx, cx);
+        self.subscribe_document_blocks(cx);
         let selection = if invert {
             &entry.selection_before
         } else {

@@ -46,12 +46,12 @@ impl Editor {
                     cx,
                 );
 
-                let new_quote = Self::new_block(
+                let new_quote = self.new_block(
                     cx,
                     BlockData::new(BlockKind::Blockquote, BlockText::plain(String::new())),
                 );
                 let blocks = vec![
-                    Self::new_block(cx, BlockData::paragraph(String::new())),
+                    self.new_block(cx, BlockData::paragraph(String::new())),
                     new_quote.clone(),
                 ];
                 self.doc_mut()
@@ -73,12 +73,12 @@ impl Editor {
                     editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
-                let plain = Self::new_block(cx, BlockData::paragraph(String::new()));
+                let plain = self.new_block(cx, BlockData::paragraph(String::new()));
                 let blocks = if parent.is_none() {
                     vec![plain.clone()]
                 } else {
                     vec![
-                        Self::new_block(cx, BlockData::paragraph(String::new())),
+                        self.new_block(cx, BlockData::paragraph(String::new())),
                         plain.clone(),
                     ]
                 };

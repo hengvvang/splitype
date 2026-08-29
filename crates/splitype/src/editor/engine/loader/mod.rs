@@ -39,12 +39,13 @@ impl Editor {
     ) {
         let mut roots = Self::parse_wysiwyg_document(cx, markdown);
         if roots.is_empty() {
-            roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
+            roots.push(self.new_block(cx, BlockData::paragraph(String::new())));
         }
         self.doc_mut().replace_blocks(roots, cx);
         self.rebuild_table_grids(cx);
         self.rebuild_reference_registries(cx);
         self.bump_document_revision();
+        self.subscribe_document_blocks(cx);
     }
 }
 
@@ -57,7 +58,7 @@ fn blocks_to_entity_tree(data: Vec<BlockData>, cx: &mut Context<Editor>) -> Vec<
     // Pre-allocate hash map to prevent re-allocations and re-hashing during load.
     let mut entities: HashMap<uuid::Uuid, Entity<Block>> = HashMap::with_capacity(block_count);
     for block in &data {
-        let entity = Editor::new_block(cx, block.clone());
+        let entity = cx.new(|cx| Block::with_data(cx, block.clone()));
         entities.insert(block.id.0, entity);
     }
 

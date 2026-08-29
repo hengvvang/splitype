@@ -72,20 +72,46 @@ impl Editor {
 
     /// Creates a new block entity and subscribes this editor to its
     /// [`BlockEvent`](editor_wysiwyg::document::protocol::BlockEvent) stream.
-    pub(crate) fn new_block(cx: &mut Context<Self>, data: BlockData) -> Entity<Block> {
+    pub(crate) fn new_block(&mut self, cx: &mut Context<Self>, data: BlockData) -> Entity<Block> {
         let block = cx.new(|cx| Block::with_data(cx, data));
         cx.subscribe(&block, Self::on_block_event).detach();
+        self.subscribed_blocks.insert(block.entity_id());
         block
+    }
+
+    /// Subscribes this editor to every document block that is not yet
+    /// subscribed.
+    ///
+    /// Structure mutations that create blocks outside `new_block` (undo
+    /// restore deltas, document rebuilds in the WYSIWYG crate) must call
+    /// this afterwards; without the subscription the block's
+    /// [`BlockEvent`]s (undo capture, structural requests) never reach
+    /// the editor.
+    pub(crate) fn subscribe_document_blocks(&mut self, cx: &mut Context<Self>) {
+        let Some(doc) = self.active_doc() else {
+            return;
+        };
+        let unsubscribed: Vec<(EntityId, Entity<Block>)> = doc
+            .blocks()
+            .iter()
+            .filter(|entry| !self.subscribed_blocks.contains(&entry.entity.entity_id()))
+            .map(|entry| (entry.entity.entity_id(), entry.entity.clone()))
+            .collect();
+        for (entity_id, block) in unsubscribed {
+            self.subscribed_blocks.insert(entity_id);
+            cx.subscribe(&block, Self::on_block_event).detach();
+        }
     }
 
 
     pub(crate) fn new_table_cell_block(
+        &mut self,
         cx: &mut Context<Self>,
         text: BlockText,
         position: TableCellPosition,
         alignment: TableColumnAlignment,
     ) -> Entity<Block> {
-        let block = Self::new_block(cx, BlockData::new(BlockKind::Paragraph, text));
+        let block = self.new_block(cx, BlockData::new(BlockKind::Paragraph, text));
         block.update(cx, |block, _cx| {
             block.set_table_cell_mode(position, alignment);
         });

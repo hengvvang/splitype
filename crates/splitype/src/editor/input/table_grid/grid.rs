@@ -11,8 +11,8 @@ use markdown::parse::{BlockData, BlockKind};
 
 
 impl Editor {
-    pub(crate) fn new_table_block(cx: &mut Context<Self>, table: TableData) -> Entity<Block> {
-        Self::new_block(cx, BlockData::table(table))
+    pub(crate) fn new_table_block(&mut self, cx: &mut Context<Self>, table: TableData) -> Entity<Block> {
+        self.new_block(cx, BlockData::table(table))
     }
 
     pub(crate) fn install_table_grid_for_block(
@@ -33,7 +33,7 @@ impl Editor {
                     .copied()
                     .unwrap_or(TableColumnAlignment::Default);
                 let position = TableCellPosition { row: 0, column };
-                let cell = Self::new_table_cell_block(cx, text, position, alignment);
+                let cell = self.new_table_cell_block(cx, text, position, alignment);
                 self.tab_mut().tables.cells.insert(
                     cell.entity_id(),
                     TableCellBinding {
@@ -64,7 +64,7 @@ impl Editor {
                             row: body_row_index + 1,
                             column,
                         };
-                        let cell = Self::new_table_cell_block(cx, text, position, alignment);
+                        let cell = self.new_table_cell_block(cx, text, position, alignment);
                         self.tab_mut().tables.cells.insert(
                             cell.entity_id(),
                             TableCellBinding {

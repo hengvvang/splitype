@@ -353,7 +353,7 @@ impl Editor {
                     editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
-                let new_block = Self::new_block(cx, BlockData::paragraph(String::new()));
+                let new_block = self.new_block(cx, BlockData::paragraph(String::new()));
                 self.doc_mut().insert_blocks_at(
                     location.parent,
                     location.index + 1,
@@ -473,7 +473,7 @@ impl Editor {
             return Some(first_child);
         }
 
-        let body = Self::new_block(cx, BlockData::paragraph(String::new()));
+        let body = self.new_block(cx, BlockData::paragraph(String::new()));
         self.doc_mut()
             .insert_blocks_at(Some(callout.clone()), 0, vec![body.clone()], cx);
         Some(body)

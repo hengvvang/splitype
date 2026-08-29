@@ -90,7 +90,7 @@ impl Editor {
             return false;
         };
 
-        let separator = Self::new_block(cx, BlockData::paragraph(String::new()));
+        let separator = self.new_block(cx, BlockData::paragraph(String::new()));
         self.doc_mut()
             .insert_blocks_at(location.parent, location.index, vec![separator], cx);
         true
@@ -181,7 +181,7 @@ impl Editor {
             let heading_text = prev.read(cx).data.text.clone();
             let cursor = heading_text.plain_len();
             let removed_id = block.entity_id();
-            let new_paragraph = Self::new_block(cx, BlockData::paragraph(String::new()));
+            let new_paragraph = self.new_block(cx, BlockData::paragraph(String::new()));
 
             Self::set_block_text_and_kind(
                 &prev,
@@ -204,7 +204,7 @@ impl Editor {
             self.focus_block(new_paragraph.entity_id());
         } else {
             block.update(cx, |block, _cx| block.make_separator());
-            let new_paragraph = Self::new_block(cx, BlockData::paragraph(String::new()));
+            let new_paragraph = self.new_block(cx, BlockData::paragraph(String::new()));
             self.doc_mut().insert_blocks_at(
                 location.parent,
                 location.index + 1,
@@ -271,8 +271,8 @@ impl Editor {
         let header_index = location.index - 1;
         let removed_delimiter = block.entity_id();
         let removed_header = prev.entity_id();
-        let table_block = Self::new_table_block(cx, table);
-        let new_paragraph = Self::new_block(cx, BlockData::paragraph(String::new()));
+        let table_block = self.new_table_block(cx, table);
+        let new_paragraph = self.new_block(cx, BlockData::paragraph(String::new()));
         self.doc_mut().with_structure_mutation(cx, |document, cx| {
             let _ = document.remove_block_unindexed(removed_delimiter, cx);
             let _ = document.remove_block_unindexed(removed_header, cx);
@@ -321,7 +321,7 @@ impl Editor {
         self.doc_mut().with_structure_mutation(cx, |document, cx| {
             let _ = document.remove_block_unindexed(removed_id, cx);
         });
-        let new_paragraph = Self::new_block(cx, BlockData::paragraph(String::new()));
+        let new_paragraph = self.new_block(cx, BlockData::paragraph(String::new()));
         if let Some(table_location) = self.doc().find_block_location(table_block.entity_id()) {
             self.doc_mut().insert_blocks_at(
                 table_location.parent,
@@ -371,7 +371,7 @@ impl Editor {
         if location.index + 1 < sibling_count {
             return;
         }
-        let trailing = Self::new_block(cx, BlockData::paragraph(String::new()));
+        let trailing = self.new_block(cx, BlockData::paragraph(String::new()));
         self.doc_mut()
             .insert_blocks_at(location.parent, location.index + 1, vec![trailing], cx);
     }

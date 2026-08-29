@@ -9,8 +9,7 @@ pub mod drop;
 pub mod image;
 pub mod quote;
 
-use gpui::Context;
-use gpui::Entity;
+use gpui::{AppContext, Context, Entity};
 
 use crate::editor::engine::controller::Editor;
 use editor_wysiwyg::document::block::Block;
@@ -29,18 +28,22 @@ impl Editor {
             .iter()
             .filter(|line| !line.trim().is_empty())
             .map(|line| {
-                Self::new_block(
-                    cx,
-                    BlockData::new(BlockKind::Paragraph, BlockText::from_markdown(line)),
-                )
+                cx.new(|cx| {
+                    Block::with_data(
+                        cx,
+                        BlockData::new(BlockKind::Paragraph, BlockText::from_markdown(line)),
+                    )
+                })
             })
             .collect::<Vec<_>>();
 
         if blocks.is_empty() && !lines.is_empty() {
-            blocks.push(Self::new_block(
-                cx,
-                BlockData::new(BlockKind::Paragraph, BlockText::plain(String::new())),
-            ));
+            blocks.push(cx.new(|cx| {
+                Block::with_data(
+                    cx,
+                    BlockData::new(BlockKind::Paragraph, BlockText::plain(String::new())),
+                )
+            }));
         }
 
         blocks

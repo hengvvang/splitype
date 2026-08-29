@@ -40,7 +40,7 @@ impl Editor {
                     );
                 }
                 let current_kind = block.read(cx).kind();
-                let new_block = Self::new_block(
+                let new_block = self.new_block(
                     cx,
                     BlockData::new(current_kind.newline_sibling_kind(), trailing.clone()),
                 );
@@ -70,7 +70,7 @@ impl Editor {
                     editor_wysiwyg::document::protocol::UndoCaptureKind::NonCoalescible,
                     cx,
                 );
-                let new_block = Self::new_block(
+                let new_block = self.new_block(
                     cx,
                     BlockData::new(BlockKind::Paragraph, BlockText::plain(String::new())),
                 );
@@ -215,7 +215,7 @@ impl Editor {
                     Self::build_wysiwyg_blocks_from_lines(cx, &tail_lines)
                 };
                 if structural && trailing.plain_len() > 0 {
-                    inserted_roots.push(Self::new_block(cx, BlockData::paragraph(String::new())));
+                    inserted_roots.push(self.new_block(cx, BlockData::paragraph(String::new())));
                 }
                 self.doc_mut().insert_blocks_at(
                     location.parent,
@@ -223,6 +223,7 @@ impl Editor {
                     inserted_roots.clone(),
                     cx,
                 );
+                self.subscribe_document_blocks(cx);
                 self.rebuild_table_grids(cx);
 
                 // A structural block pasted at the very end of the document leaves
