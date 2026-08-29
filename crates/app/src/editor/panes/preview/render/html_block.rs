@@ -6,7 +6,7 @@
 use gpui::*;
 
 use editor_preview::node::PreviewBlock;
-use editor_wysiwyg::render::html_document::{
+use editor_wysiwyg::presentation::{
     HtmlComputedStyle, HtmlNodeVisualStyle, html_children_text, html_node_visual_style,
 };
 use theme::Theme;

@@ -23,6 +23,7 @@ pub mod mermaid;
 pub mod export;
 pub mod history;
 pub mod pane;
+pub mod presentation;
 pub mod paste_plain;
 pub mod render;
 pub mod projection;
