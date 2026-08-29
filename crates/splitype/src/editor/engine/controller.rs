@@ -247,23 +247,16 @@ pub(crate) struct DocumentTab {
     pub(crate) cached_word_count: Option<(u64, usize)>,
 }
 
-/// View state specific to a WYSIWYG editor pane.
-#[derive(Default)]
-pub(crate) struct WysiwygPaneState {
-    pub(crate) focus: FocusState,
-    pub(crate) selection: SelectionState,
-}
-
 /// Decoupled state variant for each supported editor pane kind.
 pub(crate) enum PaneKindState {
-    Wysiwyg(WysiwygPaneState),
+    Wysiwyg(crate::editor::panes::wysiwyg::WysiwygPaneState),
     SourceCode(crate::editor::panes::source_code::SourceCodeState),
     Preview(crate::editor::panes::preview::PreviewState),
 }
 
 impl Default for PaneKindState {
     fn default() -> Self {
-        Self::Wysiwyg(WysiwygPaneState::default())
+        Self::Wysiwyg(crate::editor::panes::wysiwyg::WysiwygPaneState::default())
     }
 }
 
@@ -295,7 +288,7 @@ static EMPTY_SELECTION_STATE: SelectionState = SelectionState {
 impl PaneState {
     pub(crate) fn new(kind: EditorPaneKind) -> Self {
         let kind_state = match kind {
-            EditorPaneKind::Wysiwyg => PaneKindState::Wysiwyg(WysiwygPaneState::default()),
+            EditorPaneKind::Wysiwyg => PaneKindState::Wysiwyg(crate::editor::panes::wysiwyg::WysiwygPaneState::default()),
             EditorPaneKind::SourceCode => {
                 PaneKindState::SourceCode(crate::editor::panes::source_code::SourceCodeState::default())
             }
@@ -323,7 +316,7 @@ impl PaneState {
             return;
         }
         self.kind_state = match kind {
-            EditorPaneKind::Wysiwyg => PaneKindState::Wysiwyg(WysiwygPaneState::default()),
+            EditorPaneKind::Wysiwyg => PaneKindState::Wysiwyg(crate::editor::panes::wysiwyg::WysiwygPaneState::default()),
             EditorPaneKind::SourceCode => {
                 PaneKindState::SourceCode(crate::editor::panes::source_code::SourceCodeState::default())
             }
@@ -334,7 +327,7 @@ impl PaneState {
     }
 
     #[inline]
-    pub(crate) fn as_wysiwyg(&self) -> Option<&WysiwygPaneState> {
+    pub(crate) fn as_wysiwyg(&self) -> Option<&crate::editor::panes::wysiwyg::WysiwygPaneState> {
         match &self.kind_state {
             PaneKindState::Wysiwyg(s) => Some(s),
             _ => None,
@@ -342,7 +335,7 @@ impl PaneState {
     }
 
     #[inline]
-    pub(crate) fn as_wysiwyg_mut(&mut self) -> Option<&mut WysiwygPaneState> {
+    pub(crate) fn as_wysiwyg_mut(&mut self) -> Option<&mut crate::editor::panes::wysiwyg::WysiwygPaneState> {
         match &mut self.kind_state {
             PaneKindState::Wysiwyg(s) => Some(s),
             _ => None,

@@ -6,9 +6,48 @@
 
 pub(crate) mod render;
 
+use std::ops::Range;
+
 use gpui::*;
 
-use crate::editor::engine::controller::Editor;
+use crate::editor::engine::controller::{Editor, FocusState, SelectionState};
+use crate::editor::engine::session::EditorPaneKind;
+use crate::editor::panes::outline::{
+    build_outline_headings_from_doc, build_outline_headings_from_markdown,
+};
+use crate::editor::panes::pane::{OutlineNode, Pane};
+
+/// View state specific to a WYSIWYG editor pane.
+#[derive(Default)]
+pub(crate) struct WysiwygPaneState {
+    pub(crate) focus: FocusState,
+    pub(crate) selection: SelectionState,
+}
+
+impl Pane for WysiwygPaneState {
+    fn kind(&self) -> EditorPaneKind {
+        EditorPaneKind::Wysiwyg
+    }
+
+    fn document_source(&self, editor: &Editor, cx: &App) -> String {
+        editor.doc().serialize_markdown(cx)
+    }
+
+    fn set_search_matches(&mut self, _matches: &[(Range<usize>, bool)]) {
+        // WYSIWYG highlights search matches at the block level: the editor
+        // syncs `block.search_matches` on the block entities directly, so
+        // the pane state carries nothing.
+    }
+
+    fn outline_items(&self, editor: &Editor, cx: &App) -> Vec<OutlineNode> {
+        let mut headings = build_outline_headings_from_doc(editor.doc(), cx);
+        if headings.is_empty() {
+            headings =
+                build_outline_headings_from_markdown(&editor.doc().serialize_markdown(cx));
+        }
+        headings
+    }
+}
 
 impl Editor {
     /// Re-parse and replace the rendered tree, preserving selection and

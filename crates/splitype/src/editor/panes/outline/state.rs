@@ -1,18 +1,10 @@
 //! Outline HUD state — heading list, hover state, active section tracking, and debounce timer.
 
-use gpui::EntityId;
-
 use std::path::PathBuf;
 
-/// A heading node in the outline.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct OutlineNode {
-    pub id: String,
-    pub label: String,
-    pub level: u8,
-    pub block_index: usize,
-    pub block_id: Option<EntityId>,
-}
+/// The outline heading node type lives with the `Pane` contract so both
+/// the modes and the outline panel can name it.
+pub use crate::editor::panes::pane::OutlineNode;
 
 /// Outline HUD state attached to an Editor.
 #[derive(Clone, Debug, Default)]

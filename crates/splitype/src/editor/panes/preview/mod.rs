@@ -223,3 +223,29 @@ impl Editor {
         h.finish()
     }
 }
+
+// ── Pane plugin contract ─────────────────────────────────────────────────
+
+use std::ops::Range;
+
+use crate::editor::engine::session::EditorPaneKind;
+use crate::editor::panes::outline::build_outline_headings_from_markdown;
+use crate::editor::panes::pane::{OutlineNode, Pane};
+
+impl Pane for PreviewState {
+    fn kind(&self) -> EditorPaneKind {
+        EditorPaneKind::Preview
+    }
+
+    fn document_source(&self, editor: &Editor, cx: &App) -> String {
+        editor.doc().serialize_markdown(cx)
+    }
+
+    fn set_search_matches(&mut self, _matches: &[(Range<usize>, bool)]) {
+        // Preview is a read-only render; there is nothing to highlight.
+    }
+
+    fn outline_items(&self, editor: &Editor, cx: &App) -> Vec<OutlineNode> {
+        build_outline_headings_from_markdown(&editor.doc().serialize_markdown(cx))
+    }
+}
