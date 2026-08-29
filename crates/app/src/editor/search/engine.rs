@@ -884,3 +884,4 @@ impl Editor {
         self.execute_search(cx);
     }
 }
+use crate::editor::engine::controller::EditorView;

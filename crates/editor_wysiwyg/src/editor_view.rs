@@ -54,7 +54,7 @@ pub trait EditorView {
     /// Clear any cross-block selection in the active pane.
     fn clear_cross_block_selection(&mut self, cx: &mut App);
     /// Mark the active tab dirty (unsaved changes).
-    fn mark_dirty(&mut self);
+    fn mark_dirty(&mut self, cx: &mut App);
     /// Resync table axis preview/selection visuals.
     fn sync_table_axis_visuals(&mut self, cx: &mut App);
     /// Dismiss floating overlays (context menu, dialogs).
@@ -302,7 +302,7 @@ pub trait EditorView {
         self.restore_history_entry(&entry, true, cx);
         self.undo_history_mut().restore_in_progress = false;
         self.undo_history_mut().redo_entries.push(entry);
-        self.mark_dirty();
+        self.mark_dirty(cx);
         self.sync_table_axis_visuals(cx);
         self.dismiss_contextual_overlays(cx);
         self.notify_editor(cx);
@@ -320,7 +320,7 @@ pub trait EditorView {
         self.restore_history_entry(&entry, false, cx);
         self.undo_history_mut().restore_in_progress = false;
         self.undo_history_mut().undo_entries.push(entry);
-        self.mark_dirty();
+        self.mark_dirty(cx);
         self.sync_table_axis_visuals(cx);
         self.dismiss_contextual_overlays(cx);
         self.notify_editor(cx);

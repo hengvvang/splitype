@@ -17,6 +17,7 @@ use std::sync::Arc;
 pub(crate) use gpui::*;
 
 pub(crate) use editor_core::EditorHost;
+pub(crate) use editor_wysiwyg::editor_view::EditorView;
 pub(crate) use workspace::DEFAULT_EDITOR_PANEL_ID;
 pub(crate) use workspace::WindowPanelKind;
 pub(crate) use editor_wysiwyg::document::protocol::UndoCaptureKind;
@@ -244,6 +245,13 @@ pub struct Editor {
     /// serves exactly one area (Shell owns the area layout); window-level
     /// state such as the layout tree and sidebar panels lives on the Shell.
     pub(crate) panel_id: PanelId,
+    /// This editor's own entity id (for repaint notifications from
+    /// context-free callbacks).
+    pub(crate) entity_id: EntityId,
+    /// Weak handle to this entity, captured at construction so deferred
+    /// and subscription callbacks can re-enter the editor with a
+    /// `Context` (the `EditorView` seam operates on `&mut App`).
+    pub(crate) self_weak: WeakEntity<Self>,
     /// The window-shell service this editor talks to. Used to request
     /// window-level operations (splitting an area creates a fresh Editor
     /// entity on the shell; closing one removes it). `None` in tests that
@@ -371,6 +379,8 @@ impl Editor {
     ) -> Self {
         Self {
             panel_id: panel_id.into(),
+            entity_id: cx.entity().entity_id(),
+            self_weak: cx.weak_entity(),
             host: None,
             session,
             panel_rect: None,
@@ -404,6 +414,8 @@ impl Editor {
         let tab = Self::new_tab_from_markdown(cx, markdown, file_path);
         let mut editor = Self {
             panel_id: PanelId(DEFAULT_EDITOR_PANEL_ID),
+            entity_id: cx.entity().entity_id(),
+            self_weak: cx.weak_entity(),
             host: None,
             session: EditorSession::welcome(),
             panel_rect: None,

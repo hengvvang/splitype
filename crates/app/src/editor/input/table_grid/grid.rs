@@ -2,7 +2,8 @@
 
 use gpui::*;
 
-use crate::editor::engine::controller::{Editor, TableCellBinding};
+use crate::editor::engine::controller::{
+    EditorView,Editor, TableCellBinding};
 use editor_wysiwyg::document::block::Block;
 use editor_wysiwyg::table_grid::TableGrid;
 use editor_wysiwyg::markdown::block::table::{TableCellPosition, TableColumnAlignment, TableData};

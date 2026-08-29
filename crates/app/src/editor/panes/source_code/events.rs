@@ -2,7 +2,8 @@
 
 use gpui::*;
 
-use crate::editor::engine::controller::{Editor, PaneId};
+use crate::editor::engine::controller::{
+    EditorView,Editor, PaneId};
 use theme::{ThemeManager, TypographyScope, TypographyStore};
 
 impl Editor {

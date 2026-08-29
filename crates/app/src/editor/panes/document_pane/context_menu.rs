@@ -12,7 +12,8 @@ use gpui::*;
 use crate::editor::commands::edit_command::{
     BlockStructureKind, DocumentEditCommand, InlineFormatKind, InsertBlockKind,
 };
-use crate::editor::engine::controller::{Editor, TableAxisSelection};
+use crate::editor::engine::controller::{
+    EditorView,Editor, TableAxisSelection};
 use workspace::actions::DismissTransientUi;
 use crate::editor::panes::document_pane::dialogs::TableInsertDialogState;
 use editor_wysiwyg::document::block::Block;
@@ -103,13 +104,13 @@ impl Editor {
         }
     }
 
-    pub(crate) fn dismiss_contextual_overlays(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn dismiss_contextual_overlays(&mut self, cx: &mut App) {
         let had_menu = self.context_menu.take().is_some();
         let had_dialog = self.table_insert_dialog.take().is_some();
         let had_picker = self.table_size_picker.take().is_some();
         let had_submenu_close = self.context_menu_submenu_close_task.take().is_some();
         if had_menu || had_dialog || had_picker || had_submenu_close {
-            cx.notify();
+            cx.notify(self.entity_id);
         }
     }
 

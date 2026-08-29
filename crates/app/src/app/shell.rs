@@ -17,7 +17,8 @@ use crate::app::actions::{InstallCliTool, QuitApplication, UninstallCliTool};
 use crate::app::window::chrome::MenuBarState;
 use crate::app::window::panels::WindowPanels;
 use workspace::{PanelId, WindowPanelKind};
-use crate::editor::engine::controller::{DocumentTab, Editor, InfoDialogKind, OpenFileMode};
+use crate::editor::engine::controller::{
+    EditorView,DocumentTab, Editor, InfoDialogKind, OpenFileMode};
 use crate::editor::engine::session::EditorSession;
 use editor_core::EditorHost;
 use i18n::I18nManager;

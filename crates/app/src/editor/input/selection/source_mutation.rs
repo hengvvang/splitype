@@ -7,6 +7,7 @@ use gpui::*;
 
 use editor_wysiwyg::document::protocol::UndoCaptureKind;
 use crate::editor::engine::controller::{
+    EditorView,
     CrossBlockSelection, CrossBlockSelectionEndpoint, Editor, EditorSelection,
     SourceTargetMapping, UndoSelectionSnapshot,
 };

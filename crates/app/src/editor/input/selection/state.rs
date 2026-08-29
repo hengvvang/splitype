@@ -59,7 +59,7 @@ impl Editor {
         }
         EditorSelection::None
     }
-    pub(crate) fn clear_cross_block_selection_visuals(&mut self, cx: &mut Context<Self>) -> bool {
+    pub(crate) fn clear_cross_block_selection_visuals(&mut self, cx: &mut App) -> bool {
         let mut changed = false;
         for entries in self.doc().blocks() {
             entries.entity.update(cx, |block, cx| {
@@ -72,7 +72,7 @@ impl Editor {
         changed
     }
 
-    pub(crate) fn clear_cross_block_selection(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn clear_cross_block_selection(&mut self, cx: &mut App) {
         let had_selection = self
             .active_pane_state()
             .selection_mut()
@@ -89,7 +89,7 @@ impl Editor {
         };
         let changed = had_selection || changed_visuals;
         if changed {
-            cx.notify();
+            cx.notify(self.entity_id);
         }
     }
 

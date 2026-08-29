@@ -3,7 +3,8 @@
 use gpui::*;
 
 use editor_wysiwyg::document::protocol::UndoCaptureKind;
-use crate::editor::engine::controller::{Editor, TableAxisSelection};
+use crate::editor::engine::controller::{
+    EditorView,Editor, TableAxisSelection};
 use editor_wysiwyg::document::block::Block;
 use editor_wysiwyg::markdown::block::table::{TableAxis, TableCellPosition};
 use editor_wysiwyg::markdown::parse::BlockData;

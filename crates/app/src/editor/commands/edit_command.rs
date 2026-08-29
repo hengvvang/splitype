@@ -553,3 +553,4 @@ pub(crate) fn strip_markdown_line_prefix(line: &str) -> &str {
 }
 
 
+use crate::editor::engine::controller::EditorView;

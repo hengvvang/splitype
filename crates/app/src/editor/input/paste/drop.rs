@@ -9,7 +9,8 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context as AnyhowContext, Result};
 use gpui::*;
 
-use crate::editor::engine::controller::{Editor, PaneId};
+use crate::editor::engine::controller::{
+    EditorView,Editor, PaneId};
 
 /// Returns true when `path` exists and has a `.md` or `.markdown` extension.
 pub(crate) fn is_markdown_file_path(path: &Path) -> bool {

@@ -2,7 +2,8 @@
 
 use gpui::*;
 
-use crate::editor::engine::controller::{Editor, TableAxisSelection};
+use crate::editor::engine::controller::{
+    EditorView,Editor, TableAxisSelection};
 use editor_wysiwyg::document::block::Block;
 use editor_wysiwyg::markdown::block::table::{TableAxis, TableAxisMarker};
 use editor_wysiwyg::markdown::parse::BlockKind;
@@ -196,7 +197,7 @@ impl Editor {
         }
     }
 
-    pub(crate) fn normalize_table_axis_state(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn normalize_table_axis_state(&mut self, cx: &mut App) {
         if let Some(selection) = self.tab().tables.axis_selection
             && !self.table_axis_selection_valid(selection, cx)
         {
@@ -209,7 +210,7 @@ impl Editor {
         }
     }
 
-    pub(crate) fn sync_table_axis_visuals(&mut self, cx: &mut Context<Self>) {
+    pub(crate) fn sync_table_axis_visuals(&mut self, cx: &mut App) {
         self.normalize_table_axis_state(cx);
 
         let visible_tables = self

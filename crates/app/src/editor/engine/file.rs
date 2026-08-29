@@ -10,7 +10,8 @@ use std::path::{Path, PathBuf};
 use anyhow::Result;
 use gpui::*;
 
-use crate::editor::engine::controller::{Editor, OpenFileMode};
+use crate::editor::engine::controller::{
+    EditorView,Editor, OpenFileMode};
 use i18n::I18nManager;
 
 impl Editor {

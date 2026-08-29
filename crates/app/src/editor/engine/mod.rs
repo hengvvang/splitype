@@ -1,6 +1,7 @@
 //! Editor engine: controller aggregate root, session management, and pane split layout.
 
 pub mod controller;
+pub(crate) mod editor_view_impl;
 pub(crate) mod file;
 pub(crate) mod loader;
 pub(crate) mod pane_layout;
