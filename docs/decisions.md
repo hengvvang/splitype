@@ -108,3 +108,39 @@ the app bootstrap registers one factory per `EditorPaneKind`.
 
 **Consequences.** Adding a mode kind = adding a factory registration in
 one place; the editor crate stays mode-agnostic.
+
+## ADR-06 — Mode presentation and input live in the mode crates
+
+**Status:** accepted (execution ruling, user direction).
+
+**Context.** After the D3 crate split the mode crates held only state;
+every renderer and input handler still lived in `app/editor` as
+`impl Editor` methods (the D7 migration deferred them "until the Editor
+entity converges", which ADR-01 ruled out). `app/editor` carried ≈5500
+lines that were purely Preview/Source/Outline/Search presentation:
+`panes/preview/render/` (15 files), `panes/source_code/element.rs` +
+`events.rs`, the outline HUD, and the search panel UI.
+
+**Decision.** The mode crates now own their full presentation and input
+state transitions. Coordination-layer actions (focus routing, autoscroll,
+dirty marking, source sync, undo/redo, preview selection, outline
+navigation, search execution) are requested through *reverse seams
+defined by the consuming crate*: `editor::PaneHost` (shared, on the
+contract layer) plus mode-specific hosts (`editor_outline::OutlineHost`,
+`editor_search::SearchHost`). Renderers read state through snapshot
+interfaces (`editor_source_code::SourceStateView`,
+`editor_search::SearchStateView`) and register IME through
+`SourceIme`/`SearchIme` proxies — gpui binds platform input handlers to
+concrete entities, so the app implements these by re-entering the
+`Editor` via its weak handle. `AutoscrollStrategy` sank from
+`editor_wysiwyg::state` into the contract crate so `PaneHost` can name
+it. `app/editor` keeps only coordination shells.
+
+**Boundary (orphan rule).** `impl EntityInputHandler for Editor` must
+live next to the `Editor` type (`app/editor/search/ime.rs`), so the
+editor-wide IME bridge — which serves both the Source pane and the search
+inputs — stays in app by Rust's orphan rule, not by choice.
+
+**Consequences.** Mode crates never name the `Editor` type; the
+`Entity<Editor>` dependency disappeared from all mode code. Each crate's
+module docs state its ownership explicitly.

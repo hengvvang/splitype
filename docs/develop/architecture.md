@@ -21,9 +21,9 @@ primitives
    ├─ editor_wysiwyg ──→ editor + theme + i18n + ui + config + workspace + gpui
    │                    (self-hosts markdown/tree/latex/mermaid/export/highlight)
    ├─ editor_source_code ──→ editor + theme + gpui             (self-hosts tree/highlight)
-   ├─ editor_preview ──→ editor + editor_wysiwyg + theme + gpui
-   ├─ editor_outline ──→ editor + theme + i18n + ui + gpui
-   ├─ editor_search ──→ editor + editor_wysiwyg + theme + i18n + ui + config + gpui
+   ├─ editor_preview ──→ editor + editor_wysiwyg + theme + i18n + gpui
+   ├─ editor_outline ──→ editor + theme + gpui
+   ├─ editor_search ──→ editor_wysiwyg + theme + gpui          (matching is wysiwyg-data only)
    ├─ explorer ──→ explorer_fs + theme + i18n + ui + workspace + gpui
    ├─ settings ──→ config + theme + i18n + ui + splitter + workspace + gpui
    └─ app ──→ everything above (composition root: Shell, Editor entity,
@@ -46,10 +46,41 @@ implementation, no syntax highlighter.
   (`highlight/` + `code_language/`).
 - **`editor_source_code`** — the raw source editing world: its own text
   buffer state, its own highlight engine (`highlight/`, a self-hosted
-  copy that evolves independently), and the line text-run builder.
+  copy that evolves independently), the line text-run builder, the
+  virtualized rendering element (`element/`), and the keyboard/mouse
+  input state transitions (`input/`).
 
 Each core implements `editor::Pane`; nothing in either crate references
 the other or the `Editor` entity.
+
+## Mode ownership and the reverse seams (P3.2-3)
+
+Every mode crate owns its full presentation and input handling — the
+renderers, the input state transitions, and (for Preview) the reference
+context building all live with the mode, not in the coordinating crate.
+`app/editor` keeps only coordination shells: tree refresh, focus
+routing, event routing, cross-mode navigation.
+
+When mode code needs something only the `Editor` entity can do, it calls
+a *reverse seam* — a trait defined by the consuming crate and implemented
+by app proxies that re-enter the entity through its weak handle:
+
+- `editor::PaneHost` — shared seam on the contract layer (focus
+  routing, pending focus/autoscroll, dirty marking, source sync,
+  undo/redo, preview selection, IME bounds).
+- `editor_outline::OutlineHost` — HUD navigation and hover.
+- `editor_search::SearchHost` — search execution, jumping, replacing,
+  focus routing.
+- Snapshot interfaces for renderers (`editor_source_code::SourceStateView`,
+  `editor_search::SearchStateView`) and IME registration proxies
+  (`SourceIme`, `SearchIme`) — gpui binds platform input handlers to
+  concrete entities, so the app implements these by re-entering the
+  `Editor` via its weak handle.
+
+One deliberate orphan-rule boundary remains: `impl EntityInputHandler
+for Editor` (the editor-wide IME bridge serving the Source pane and the
+search inputs) lives in `app/editor/search/ime.rs` because Rust requires
+trait impls next to the type.
 
 ## The editor contract crate (P3)
 
