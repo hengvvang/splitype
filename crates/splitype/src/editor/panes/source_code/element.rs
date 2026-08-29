@@ -5,7 +5,7 @@
 use gpui::*;
 
 use crate::editor::engine::controller::{Editor, PaneId};
-use crate::editor::panes::source_code::highlight::build_line_text_runs;
+use editor_source_code::build_line_text_runs;
 use theme::{ThemeManager, TypographyScope, TypographyStore};
 
 pub(crate) struct SourceCodeViewElement {

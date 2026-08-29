@@ -223,7 +223,7 @@ pub(crate) struct DocumentTab {
 /// Decoupled state variant for each supported editor pane kind.
 pub(crate) enum PaneKindState {
     Wysiwyg(crate::editor::panes::wysiwyg::WysiwygPaneState),
-    SourceCode(crate::editor::panes::source_code::SourceCodeState),
+    SourceCode(editor_source_code::SourceCodeState),
     Preview(crate::editor::panes::preview::PreviewState),
 }
 
@@ -263,7 +263,7 @@ impl PaneState {
         let kind_state = match kind {
             EditorPaneKind::Wysiwyg => PaneKindState::Wysiwyg(crate::editor::panes::wysiwyg::WysiwygPaneState::default()),
             EditorPaneKind::SourceCode => {
-                PaneKindState::SourceCode(crate::editor::panes::source_code::SourceCodeState::default())
+                PaneKindState::SourceCode(editor_source_code::SourceCodeState::default())
             }
             EditorPaneKind::Preview => {
                 PaneKindState::Preview(crate::editor::panes::preview::PreviewState::default())
@@ -291,7 +291,7 @@ impl PaneState {
         self.kind_state = match kind {
             EditorPaneKind::Wysiwyg => PaneKindState::Wysiwyg(crate::editor::panes::wysiwyg::WysiwygPaneState::default()),
             EditorPaneKind::SourceCode => {
-                PaneKindState::SourceCode(crate::editor::panes::source_code::SourceCodeState::default())
+                PaneKindState::SourceCode(editor_source_code::SourceCodeState::default())
             }
             EditorPaneKind::Preview => {
                 PaneKindState::Preview(crate::editor::panes::preview::PreviewState::default())
@@ -316,7 +316,7 @@ impl PaneState {
     }
 
     #[inline]
-    pub(crate) fn as_source_code(&self) -> Option<&crate::editor::panes::source_code::SourceCodeState> {
+    pub(crate) fn as_source_code(&self) -> Option<&editor_source_code::SourceCodeState> {
         match &self.kind_state {
             PaneKindState::SourceCode(s) => Some(s),
             _ => None,
@@ -326,7 +326,7 @@ impl PaneState {
     #[inline]
     pub(crate) fn as_source_code_mut(
         &mut self,
-    ) -> Option<&mut crate::editor::panes::source_code::SourceCodeState> {
+    ) -> Option<&mut editor_source_code::SourceCodeState> {
         match &mut self.kind_state {
             PaneKindState::SourceCode(s) => Some(s),
             _ => None,

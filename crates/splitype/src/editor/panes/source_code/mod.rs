@@ -1,10 +1,6 @@
 pub(crate) mod element;
 pub(crate) mod events;
-pub(crate) mod highlight;
 pub(crate) mod render;
-pub(crate) mod state;
-
-pub(crate) use state::SourceCodeState;
 
 use gpui::*;
 

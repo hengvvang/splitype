@@ -8,7 +8,7 @@ use syntax::highlight::{
 use theme::ThemeColors;
 
 /// Builds a sequence of `TextRun`s for a single line using Tree-sitter highlight spans.
-pub(crate) fn build_line_text_runs(
+pub fn build_line_text_runs(
     line_text: &str,
     line_range: Range<usize>,
     spans: &[CodeHighlightSpan],

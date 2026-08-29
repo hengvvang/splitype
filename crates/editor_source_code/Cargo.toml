@@ -1,0 +1,19 @@
+[package]
+name = "editor_source_code"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+path = "src/source_code.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+gpui = { workspace = true }
+editor = { path = "../editor" }
+syntax = { path = "../syntax" }
+theme = { path = "../theme" }

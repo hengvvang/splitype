@@ -8,27 +8,27 @@ use syntax::highlight::{
 
 /// Pure-Rust state for a raw Markdown source code editor pane.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct SourceCodeState {
-    pub(crate) text: String,
-    pub(crate) line_ranges: Vec<Range<usize>>,
-    pub(crate) cursor: usize,
-    pub(crate) selection: Option<Range<usize>>,
-    pub(crate) marked_range: Option<Range<usize>>,
-    pub(crate) last_bounds: Option<Bounds<Pixels>>,
-    pub(crate) search_matches: Vec<(Range<usize>, bool)>,
-    pub(crate) synced_doc_hash: u64,
-    pub(crate) synced_revision: Option<u64>,
-    pub(crate) synced_tab_index: Option<usize>,
-    pub(crate) is_dragging: bool,
-    pub(crate) drag_anchor: Option<usize>,
-    pub(crate) focus_handle: Option<FocusHandle>,
-    pub(crate) highlight_cache: Option<CodeHighlightResult>,
-    pub(crate) highlight_hash: u64,
+pub struct SourceCodeState {
+    pub text: String,
+    pub line_ranges: Vec<Range<usize>>,
+    pub cursor: usize,
+    pub selection: Option<Range<usize>>,
+    pub marked_range: Option<Range<usize>>,
+    pub last_bounds: Option<Bounds<Pixels>>,
+    pub search_matches: Vec<(Range<usize>, bool)>,
+    pub synced_doc_hash: u64,
+    pub synced_revision: Option<u64>,
+    pub synced_tab_index: Option<usize>,
+    pub is_dragging: bool,
+    pub drag_anchor: Option<usize>,
+    pub focus_handle: Option<FocusHandle>,
+    pub highlight_cache: Option<CodeHighlightResult>,
+    pub highlight_hash: u64,
 }
 
 impl SourceCodeState {
     /// Rebuilds cached line byte ranges.
-    pub(crate) fn rebuild_lines(&mut self) {
+    pub fn rebuild_lines(&mut self) {
         let mut lines = Vec::new();
         let mut start = 0;
         for part in self.text.split('\n') {
@@ -43,7 +43,7 @@ impl SourceCodeState {
 
     /// Total number of lines in the buffer.
     #[inline]
-    pub(crate) fn line_count(&self) -> usize {
+    pub fn line_count(&self) -> usize {
         if self.line_ranges.is_empty() {
             1
         } else {
@@ -53,7 +53,7 @@ impl SourceCodeState {
 
     /// Returns the byte range of a given 0-indexed line.
     #[inline]
-    pub(crate) fn line_range(&self, line_index: usize) -> Range<usize> {
+    pub fn line_range(&self, line_index: usize) -> Range<usize> {
         if line_index < self.line_ranges.len() {
             self.line_ranges[line_index].clone()
         } else if let Some(last) = self.line_ranges.last() {
@@ -65,19 +65,19 @@ impl SourceCodeState {
 
     /// Returns start byte offset of a given 0-indexed line.
     #[inline]
-    pub(crate) fn line_start_offset(&self, line_index: usize) -> usize {
+    pub fn line_start_offset(&self, line_index: usize) -> usize {
         self.line_range(line_index).start
     }
 
     /// Returns end byte offset (before '\n') of a given 0-indexed line.
     #[inline]
-    pub(crate) fn line_end_offset(&self, line_index: usize) -> usize {
+    pub fn line_end_offset(&self, line_index: usize) -> usize {
         self.line_range(line_index).end
     }
 
     /// Returns string slice of a given 0-indexed line.
     #[inline]
-    pub(crate) fn line_str(&self, line_index: usize) -> &str {
+    pub fn line_str(&self, line_index: usize) -> &str {
         let range = self.line_range(line_index);
         let start = range.start.min(self.text.len());
         let end = range.end.min(self.text.len());
@@ -85,7 +85,7 @@ impl SourceCodeState {
     }
 
     /// Returns (0-indexed line, 0-indexed byte column within that line).
-    pub(crate) fn line_and_column(&self, offset: usize) -> (usize, usize) {
+    pub fn line_and_column(&self, offset: usize) -> (usize, usize) {
         let clamped = offset.min(self.text.len());
         if self.line_ranges.is_empty() {
             return (0, clamped);
@@ -108,7 +108,7 @@ impl SourceCodeState {
     }
 
     /// Returns the byte offset corresponding to a given (0-indexed line, 0-indexed byte column).
-    pub(crate) fn offset_at_line_col(&self, line_index: usize, col: usize) -> usize {
+    pub fn offset_at_line_col(&self, line_index: usize, col: usize) -> usize {
         let range = self.line_range(line_index);
         let line_len = range.end.saturating_sub(range.start);
         let clamped_col = col.min(line_len);
@@ -117,7 +117,7 @@ impl SourceCodeState {
     }
 
     /// Start a mouse drag selection session.
-    pub(crate) fn start_drag(&mut self, offset: usize) {
+    pub fn start_drag(&mut self, offset: usize) {
         let clamped = offset.min(self.text.len());
         self.cursor = clamped;
         self.selection = None;
@@ -126,7 +126,7 @@ impl SourceCodeState {
     }
 
     /// Update mouse drag selection session with a new target offset.
-    pub(crate) fn update_drag(&mut self, offset: usize) {
+    pub fn update_drag(&mut self, offset: usize) {
         let Some(anchor) = self.drag_anchor else {
             self.cursor = offset.min(self.text.len());
             return;
@@ -143,13 +143,13 @@ impl SourceCodeState {
     }
 
     /// End mouse drag selection session.
-    pub(crate) fn end_drag(&mut self) {
+    pub fn end_drag(&mut self) {
         self.is_dragging = false;
         self.drag_anchor = None;
     }
 
     /// Select word around a given byte offset.
-    pub(crate) fn select_word_at(&mut self, offset: usize) {
+    pub fn select_word_at(&mut self, offset: usize) {
         if self.text.is_empty() {
             return;
         }
@@ -187,14 +187,14 @@ impl SourceCodeState {
     }
 
     /// Select entire line at given line index.
-    pub(crate) fn select_line_at(&mut self, line_index: usize) {
+    pub fn select_line_at(&mut self, line_index: usize) {
         let range = self.line_range(line_index);
         self.selection = Some(range.clone());
         self.cursor = range.end;
     }
 
     /// Update the buffer's full text from an external sync.
-    pub(crate) fn set_text(&mut self, text: String) {
+    pub fn set_text(&mut self, text: String) {
         self.text = text;
         self.rebuild_lines();
         self.cursor = self.cursor.min(self.text.len());
@@ -209,7 +209,7 @@ impl SourceCodeState {
     }
 
     /// Refresh syntax highlighting cache if text has changed.
-    pub(crate) fn refresh_highlight(&mut self) {
+    pub fn refresh_highlight(&mut self) {
         use std::hash::{Hash, Hasher};
         let mut h = std::collections::hash_map::DefaultHasher::new();
         self.text.hash(&mut h);
@@ -221,7 +221,7 @@ impl SourceCodeState {
     }
 
     /// Returns the currently selected text slice, if any.
-    pub(crate) fn selected_text(&self) -> Option<&str> {
+    pub fn selected_text(&self) -> Option<&str> {
         let sel = self.selection.as_ref()?;
         if sel.start < sel.end && sel.end <= self.text.len() {
             Some(&self.text[sel.start..sel.end])
@@ -231,7 +231,7 @@ impl SourceCodeState {
     }
 
     /// Inserts text at the current cursor position, replacing selection if any.
-    pub(crate) fn insert_text(&mut self, inserted: &str) {
+    pub fn insert_text(&mut self, inserted: &str) {
         if let Some(sel) = self.selection.take() {
             let start = sel.start.min(self.text.len());
             let end = sel.end.min(self.text.len());
@@ -247,7 +247,7 @@ impl SourceCodeState {
     }
 
     /// Deletes text backward (Backspace).
-    pub(crate) fn delete_backward(&mut self) {
+    pub fn delete_backward(&mut self) {
         if let Some(sel) = self.selection.take() {
             let start = sel.start.min(self.text.len());
             let end = sel.end.min(self.text.len());
@@ -263,7 +263,7 @@ impl SourceCodeState {
     }
 
     /// Deletes text forward (Delete).
-    pub(crate) fn delete_forward(&mut self) {
+    pub fn delete_forward(&mut self) {
         if let Some(sel) = self.selection.take() {
             let start = sel.start.min(self.text.len());
             let end = sel.end.min(self.text.len());
@@ -278,7 +278,7 @@ impl SourceCodeState {
     }
 
     /// Moves cursor to a specific byte offset.
-    pub(crate) fn move_to(&mut self, offset: usize, extend_selection: bool) {
+    pub fn move_to(&mut self, offset: usize, extend_selection: bool) {
         let target = offset.min(self.text.len());
         if extend_selection {
             let anchor = match self.selection.as_ref() {
@@ -303,7 +303,7 @@ impl SourceCodeState {
         self.cursor = target;
     }
 
-    pub(crate) fn move_left(&mut self, extend_selection: bool) {
+    pub fn move_left(&mut self, extend_selection: bool) {
         if !extend_selection && self.selection.is_some() {
             let start = self.selection.take().unwrap().start;
             self.cursor = start;
@@ -315,7 +315,7 @@ impl SourceCodeState {
         }
     }
 
-    pub(crate) fn move_right(&mut self, extend_selection: bool) {
+    pub fn move_right(&mut self, extend_selection: bool) {
         if !extend_selection && self.selection.is_some() {
             let end = self.selection.take().unwrap().end;
             self.cursor = end;
@@ -327,7 +327,7 @@ impl SourceCodeState {
         }
     }
 
-    pub(crate) fn move_up(&mut self, extend_selection: bool) {
+    pub fn move_up(&mut self, extend_selection: bool) {
         let (cur_line, col) = self.line_and_column(self.cursor);
         if cur_line > 0 {
             let target_line = cur_line - 1;
@@ -338,7 +338,7 @@ impl SourceCodeState {
         }
     }
 
-    pub(crate) fn move_down(&mut self, extend_selection: bool) {
+    pub fn move_down(&mut self, extend_selection: bool) {
         let (cur_line, col) = self.line_and_column(self.cursor);
         let total_lines = self.line_count();
         if cur_line + 1 < total_lines {
@@ -350,19 +350,19 @@ impl SourceCodeState {
         }
     }
 
-    pub(crate) fn move_to_line_start(&mut self, extend_selection: bool) {
+    pub fn move_to_line_start(&mut self, extend_selection: bool) {
         let (cur_line, _) = self.line_and_column(self.cursor);
         let range = self.line_range(cur_line);
         self.move_to(range.start, extend_selection);
     }
 
-    pub(crate) fn move_to_line_end(&mut self, extend_selection: bool) {
+    pub fn move_to_line_end(&mut self, extend_selection: bool) {
         let (cur_line, _) = self.line_and_column(self.cursor);
         let range = self.line_range(cur_line);
         self.move_to(range.end, extend_selection);
     }
 
-    pub(crate) fn select_all(&mut self) {
+    pub fn select_all(&mut self) {
         if !self.text.is_empty() {
             self.selection = Some(0..self.text.len());
             self.cursor = self.text.len();
@@ -404,8 +404,8 @@ fn clamp_to_char_boundary(s: &str, mut idx: usize) -> usize {
 
 use gpui::App;
 
-use crate::editor::engine::session::EditorPaneKind;
-use editor_core::{outline_headings_from_markdown, EditorDocument, OutlineNode, Pane};
+use editor::EditorPaneKind;
+use editor::{outline_headings_from_markdown, EditorDocument, OutlineNode, Pane};
 
 impl Pane for SourceCodeState {
     fn kind(&self) -> EditorPaneKind {

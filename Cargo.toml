@@ -17,6 +17,7 @@ members = [
     "crates/explorer_fs",
     "crates/workspace",
     "crates/editor",
+    "crates/editor_source_code",
     "crates/settings",
     "crates/explorer",
     "crates/splitype",
@@ -49,6 +50,7 @@ ui = { path = "crates/ui" }
 explorer_fs = { path = "crates/explorer_fs" }
 workspace = { path = "crates/workspace" }
 editor = { path = "crates/editor" }
+editor_source_code = { path = "crates/editor_source_code" }
 settings = { path = "crates/settings" }
 explorer = { path = "crates/explorer" }
 splitype = { path = "crates/splitype" }
