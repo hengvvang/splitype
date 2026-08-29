@@ -379,7 +379,7 @@ pub struct SearchPanelState {
 
 impl SearchPanelState {
     /// Creates a new default search panel state.
-    pub fn new(cx: &mut gpui::Context<crate::editor::engine::controller::Editor>) -> Self {
+    pub fn new<T>(cx: &mut gpui::Context<T>) -> Self {
         Self {
             visible: false,
             show_replace: false,

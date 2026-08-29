@@ -6,7 +6,7 @@
 use std::ops::Range;
 use regex::Regex;
 
-use crate::editor::search::state::{ceil_char_boundary, floor_char_boundary};
+use crate::state::{ceil_char_boundary, floor_char_boundary};
 
 /// A single matched substring occurrence with line/column coordinates and context slices.
 #[derive(Clone, Debug, PartialEq, Eq)]

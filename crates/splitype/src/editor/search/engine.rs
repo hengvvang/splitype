@@ -7,8 +7,8 @@ use std::path::{Path, PathBuf};
 use gpui::{App, Context, EntityId, KeyDownEvent, Window};
 
 use crate::editor::engine::controller::Editor;
-use crate::editor::search::query::SearchQuery;
-use crate::editor::search::state::{SearchActiveField, SearchMatch, SearchScope};
+use editor_search::SearchQuery;
+use editor_search::{SearchActiveField, SearchMatch, SearchScope};
 
 impl Editor {
     /// Toggles visibility of the Search and Replace overlay panel.

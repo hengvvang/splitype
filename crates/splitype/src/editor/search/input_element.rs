@@ -3,7 +3,7 @@
 use gpui::*;
 
 use crate::editor::engine::controller::Editor;
-use crate::editor::search::state::SearchActiveField;
+use editor_search::SearchActiveField;
 use theme::ThemeManager;
 
 pub(crate) struct SearchInputPrepaintState {

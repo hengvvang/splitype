@@ -4,7 +4,7 @@ use std::ops::Range;
 use gpui::*;
 
 use crate::editor::engine::controller::Editor;
-use crate::editor::search::state::{ceil_char_boundary, floor_char_boundary};
+use editor_search::state::{ceil_char_boundary, floor_char_boundary};
 use markdown::inline::offsets::ImeConverter;
 
 impl Editor {

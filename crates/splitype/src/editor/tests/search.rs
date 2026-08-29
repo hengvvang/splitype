@@ -3,7 +3,7 @@
 use gpui::{AppContext, TestAppContext};
 
 use crate::editor::engine::controller::Editor;
-use crate::editor::search::state::SearchScope;
+use editor_search::SearchScope;
 
 #[gpui::test]
 fn test_search_in_document_exact_matches(cx: &mut TestAppContext) {
@@ -250,7 +250,7 @@ fn test_search_results_drawer_expansion_and_item_toggle(cx: &mut TestAppContext)
 
 #[gpui::test]
 fn test_search_query_engine_and_invalid_regex_safety() {
-    use crate::editor::search::query::SearchQuery;
+    use editor_search::SearchQuery;
 
     // Normal query
     let q = SearchQuery::new("hello", false, false, false);
@@ -299,7 +299,7 @@ fn test_search_action_dispatch_and_lifecycle(cx: &mut TestAppContext) {
         // Toggle search on
         ed.toggle_search(window, cx);
         assert!(ed.search.visible);
-        assert_eq!(ed.search.active_field, crate::editor::search::state::SearchActiveField::Query);
+        assert_eq!(ed.search.active_field, editor_search::SearchActiveField::Query);
 
         ed.search.search_input.set_text("target".to_string());
         ed.execute_search(cx);
@@ -317,7 +317,7 @@ fn test_search_action_dispatch_and_lifecycle(cx: &mut TestAppContext) {
         // Toggle replace on
         ed.toggle_replace(window, cx);
         assert!(ed.search.show_replace);
-        assert_eq!(ed.search.active_field, crate::editor::search::state::SearchActiveField::Replace);
+        assert_eq!(ed.search.active_field, editor_search::SearchActiveField::Replace);
 
         // Toggle search off
         ed.toggle_search(window, cx);

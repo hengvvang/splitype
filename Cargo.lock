@@ -1691,6 +1691,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "editor_search"
+version = "0.0.1"
+dependencies = [
+ "gpui",
+ "markdown",
+ "regex",
+]
+
+[[package]]
 name = "editor_source_code"
 version = "0.0.1"
 dependencies = [
@@ -6060,6 +6069,7 @@ dependencies = [
  "anyhow",
  "config",
  "editor",
+ "editor_search",
  "editor_source_code",
  "embed-resource",
  "explorer",

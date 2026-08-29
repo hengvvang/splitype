@@ -36,6 +36,7 @@ explorer_fs = { path = "../explorer_fs" }
 workspace = { path = "../workspace" }
 editor_core = { package = "editor", path = "../editor" }
 editor_source_code = { path = "../editor_source_code" }
+editor_search = { path = "../editor_search" }
 settings = { path = "../settings" }
 explorer = { path = "../explorer" }
 

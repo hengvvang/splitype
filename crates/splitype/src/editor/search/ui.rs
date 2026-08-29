@@ -4,7 +4,7 @@ use gpui::*;
 
 use crate::editor::engine::controller::Editor;
 use crate::editor::search::input_element::SearchInputElement;
-use crate::editor::search::state::{SearchActiveField, SearchScope};
+use editor_search::{SearchActiveField, SearchScope};
 use theme::{Theme, TypographyScope, TypographyStore};
 
 impl Editor {
