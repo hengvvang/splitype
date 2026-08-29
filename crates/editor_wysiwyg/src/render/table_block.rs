@@ -1,14 +1,10 @@
 use gpui::*;
 
 use crate::document::protocol::BlockEvent;
-use crate::table_grid::TableGrid;
 use crate::table_measure::measure_table_column_layout;
 use crate::document::block::Block;
-use crate::document::block::edit_mode::BlockEditMode;
 use crate::render::effective_table_width;
 use theme::Theme;
-use markdown::block::table::TableCellPosition;
-use markdown::block::table::TableColumnAlignment;
 use markdown::block::table::{TableAxis, TableAxisMarker, TableColumnLayout};
 
 /// Visual highlight priority state for table row and column axes: Dragging > Selected > Hovered > Editing > None.
