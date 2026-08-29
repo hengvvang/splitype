@@ -6,9 +6,10 @@ concept needs a new name, extend the table instead of inventing a synonym.
 Status legend: **done** = already renamed in the codebase, **planned** = the
 target name for an upcoming rename, **kept** = deliberately left as-is.
 
-## Module layout (`splitype-model`)
+## Module layout (`editor_wysiwyg::markdown`)
 
-Mirrors the CommonMark block-level / inline-level split:
+The dissolved `markdown` crate lives at `crates/editor_wysiwyg/src/markdown/`.
+It mirrors the CommonMark block-level / inline-level split:
 
 - `parse/` — the parsing domain: contract types (`BlockKind`, `BlockData`,
   `BlockId`, `CodeFenceOpening` — fence recognition metadata) plus the

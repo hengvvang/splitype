@@ -383,3 +383,6 @@ pub trait Pane: Any {
     /// Type-erased mutable access for downcasting to the concrete mode state.
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
+
+#[cfg(test)]
+mod editor_tests;

@@ -33,27 +33,27 @@ jobs:
         include:
           - name: Windows x86_64
             os: windows-2025
-            artifact: splitype-windows-x86_64
+            artifact: app-windows-x86_64
             archive_suffix: windows-x86_64.zip
           - name: Windows ARM64
             os: windows-11-arm
-            artifact: splitype-windows-aarch64
+            artifact: app-windows-aarch64
             archive_suffix: windows-aarch64.zip
           - name: Linux x86_64
             os: ubuntu-22.04
-            artifact: splitype-linux-x86_64
+            artifact: app-linux-x86_64
             archive_suffix: linux-x86_64.tar.gz
           - name: Linux ARM64
             os: ubuntu-22.04-arm
-            artifact: splitype-linux-aarch64
+            artifact: app-linux-aarch64
             archive_suffix: linux-aarch64.tar.gz
           - name: macOS x86_64
             os: macos-15-intel
-            artifact: splitype-macos-x86_64
+            artifact: app-macos-x86_64
             archive_suffix: macos-x86_64.zip
           - name: macOS aarch64
             os: macos-15
-            artifact: splitype-macos-aarch64
+            artifact: app-macos-aarch64
             archive_suffix: macos-aarch64.zip
 
     steps:
@@ -88,10 +88,10 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           New-Item -ItemType Directory -Force dist/package | Out-Null
-          Copy-Item target/release/splitype.exe dist/package/splitype.exe
+          Copy-Item target/release/app.exe dist/package/app.exe
           Copy-Item README.md dist/package/README.md
           Copy-Item LICENSE-APACHE dist/package/LICENSE-APACHE
-          $archive = "splitype-${env:RELEASE_TAG}-${{ matrix.archive_suffix }}"
+          $archive = "app-${env:RELEASE_TAG}-${{ matrix.archive_suffix }}"
           Compress-Archive -Path dist/package/* -DestinationPath "dist/$archive" -Force
 
       - name: Package Linux
@@ -103,12 +103,12 @@ jobs:
           mkdir -p dist/package/share/applications
           mkdir -p dist/package/share/icons/hicolor/256x256/apps
           mkdir -p dist/package/share/icons/hicolor/512x512/apps
-          cp target/release/splitype dist/package/splitype
+          cp target/release/app dist/package/app
           cp README.md LICENSE-APACHE dist/package/
           cp resources/linux/com.hengvvang.splitype.desktop dist/package/share/applications/
           cp resources/linux/icons/hicolor/256x256/apps/com.hengvvang.splitype.png dist/package/share/icons/hicolor/256x256/apps/
           cp resources/linux/icons/hicolor/512x512/apps/com.hengvvang.splitype.png dist/package/share/icons/hicolor/512x512/apps/
-          archive="splitype-${RELEASE_TAG}-${{ matrix.archive_suffix }}"
+          archive="app-${RELEASE_TAG}-${{ matrix.archive_suffix }}"
           tar -C dist/package -czf "dist/$archive" .
 
       - name: Package macOS app bundle
@@ -117,14 +117,14 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
-          mkdir -p "dist/splitype.app/Contents/MacOS"
-          mkdir -p "dist/splitype.app/Contents/Resources"
-          cp target/release/splitype "dist/splitype.app/Contents/MacOS/splitype"
-          cp resources/macos/Info.plist "dist/splitype.app/Contents/Info.plist"
-          cp resources/macos/splitype.icns "dist/splitype.app/Contents/Resources/splitype.icns"
-          chmod +x "dist/splitype.app/Contents/MacOS/splitype"
-          archive="splitype-${RELEASE_TAG}-${{ matrix.archive_suffix }}"
-          ditto -c -k --sequesterRsrc --keepParent "dist/splitype.app" "dist/$archive"
+          mkdir -p "dist/app.app/Contents/MacOS"
+          mkdir -p "dist/app.app/Contents/Resources"
+          cp target/release/app "dist/app.app/Contents/MacOS/app"
+          cp resources/macos/Info.plist "dist/app.app/Contents/Info.plist"
+          cp resources/macos/app.icns "dist/app.app/Contents/Resources/app.icns"
+          chmod +x "dist/app.app/Contents/MacOS/app"
+          archive="app-${RELEASE_TAG}-${{ matrix.archive_suffix }}"
+          ditto -c -k --sequesterRsrc --keepParent "dist/app.app" "dist/$archive"
 
       - name: Create macOS PKG installer
         if: runner.os == 'macOS' && matrix.name == 'macOS aarch64'

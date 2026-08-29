@@ -18,3 +18,6 @@ pub use query::{RawMatch, SearchQuery};
 pub use state::{
     SearchActiveField, SearchMatch, SearchPanelState, SearchScope, SearchTextInput,
 };
+
+#[cfg(test)]
+mod query_tests;

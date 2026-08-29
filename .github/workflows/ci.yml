@@ -51,3 +51,25 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Run Tests
         run: cargo test --workspace
+
+  machete:
+    name: Machete (unused deps)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install machete
+        run: cargo install cargo-machete --locked
+      - name: Audit unused dependencies
+        run: cargo machete
+
+  deny:
+    name: Deny (advisories / licenses / bans)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --locked
+      - name: Audit dependencies
+        run: cargo deny --workspace check

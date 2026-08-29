@@ -12,11 +12,15 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Run all workspace checks (format, clippy, check)
+    /// Run all workspace checks (format, check, clippy)
     Check,
     /// Run all tests across the workspace
     Test,
-    /// Build release binary
+    /// Audit unused dependencies (cargo machete)
+    Machete,
+    /// Audit dependencies for advisories/licensing (cargo deny)
+    Deny,
+    /// Build the release binary
     BuildRelease,
 }
 
@@ -32,7 +36,10 @@ fn main() -> anyhow::Result<()> {
             run_cmd("cargo", &["check", "--workspace", "--all-targets"])?;
 
             println!("✨ Running clippy across workspace...");
-            run_cmd("cargo", &["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"])?;
+            run_cmd(
+                "cargo",
+                &["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"],
+            )?;
 
             println!("✅ All workspace checks passed!");
         }
@@ -41,9 +48,19 @@ fn main() -> anyhow::Result<()> {
             run_cmd("cargo", &["test", "--workspace"])?;
             println!("✅ All tests passed!");
         }
+        Commands::Machete => {
+            println!("🔎 Auditing unused dependencies...");
+            run_cmd("cargo", &["machete"])?;
+            println!("✅ No unused dependencies!");
+        }
+        Commands::Deny => {
+            println!("🛡️  Auditing dependencies (advisories, licenses, bans)...");
+            run_cmd("cargo", &["deny", "--workspace", "check"])?;
+            println!("✅ Dependency audit passed!");
+        }
         Commands::BuildRelease => {
             println!("📦 Building release package...");
-            run_cmd("cargo", &["build", "--release", "-p", "splitype"])?;
+            run_cmd("cargo", &["build", "--release", "-p", "app"])?;
             println!("✅ Release build completed!");
         }
     }

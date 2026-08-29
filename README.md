@@ -70,7 +70,7 @@ Download the latest release for your platform from the [Releases](https://github
 
 ### Build from source
 
-Requires [Rust](https://rustup.rs/) (Edition 2024).
+Requires [Rust](https://rustup.rs/) (Edition 2024, MSRV 1.91).
 
 ```bash
 git clone https://github.com/hengvvang/splitype.git
@@ -78,7 +78,20 @@ cd splitype
 cargo build --release
 ```
 
-The output binary is at `./target/release/splitype`.
+The output binary is at `./target/release/app` (the product keeps the
+name Splitype; the crate/binary is `app`).
+
+### Development
+
+- `cargo xtask check` — format, check, clippy (`-D warnings`).
+- `cargo xtask test` — run the workspace test suite.
+- `cargo xtask machete` — unused-dependency audit (CI-enforced).
+- `cargo xtask deny` — dependency advisories / licenses / bans
+  (CI-enforced).
+
+Architecture and design records live in
+[`docs/develop/architecture.md`](docs/develop/architecture.md) and
+[`docs/decisions.md`](docs/decisions.md).
 
 
 
