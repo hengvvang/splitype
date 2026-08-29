@@ -147,7 +147,7 @@ impl Editor {
         let current_kind = self.active_pane_kind();
         let next_kind = match current_kind {
             EditorPaneKind::Wysiwyg => EditorPaneKind::SourceCode,
-            EditorPaneKind::SourceCode | EditorPaneKind::Preview | EditorPaneKind::Outline => {
+            EditorPaneKind::SourceCode | EditorPaneKind::Preview => {
                 EditorPaneKind::Wysiwyg
             }
         };

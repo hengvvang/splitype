@@ -168,7 +168,7 @@ impl Editor {
                     source.move_to(pos, false);
                 }
             }
-            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview | EditorPaneKind::Outline => {
+            EditorPaneKind::Wysiwyg | EditorPaneKind::Preview => {
                 if let Some(anchor) = &snapshot.block_anchor
                     && let Some(block) = self.block_entity_by_path(&anchor.path, cx)
                 {

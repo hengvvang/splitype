@@ -307,8 +307,6 @@ pub enum EditorPaneKind {
     Wysiwyg,
     /// Read-only rendered Markdown preview.
     Preview,
-    /// Document section headings outline.
-    Outline,
 }
 
 impl EditorPaneKind {
@@ -332,7 +330,6 @@ impl EditorPaneKind {
             Self::SourceCode => "Source Code",
             Self::Wysiwyg => "Wysiwyg",
             Self::Preview => "Preview",
-            Self::Outline => "Outline",
         }
     }
 
@@ -342,7 +339,6 @@ impl EditorPaneKind {
             Self::Wysiwyg,
             Self::Preview,
             Self::SourceCode,
-            Self::Outline,
         ]
     }
 }

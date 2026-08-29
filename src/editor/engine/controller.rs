@@ -254,16 +254,11 @@ pub(crate) struct WysiwygPaneState {
     pub(crate) selection: SelectionState,
 }
 
-/// View state specific to an Outline document pane.
-#[derive(Default, Debug)]
-pub(crate) struct OutlineState;
-
 /// Decoupled state variant for each supported editor pane kind.
 pub(crate) enum PaneKindState {
     Wysiwyg(WysiwygPaneState),
     SourceCode(crate::editor::panes::source_code::SourceCodeState),
     Preview(crate::editor::panes::preview::PreviewState),
-    Outline(OutlineState),
 }
 
 impl Default for PaneKindState {
@@ -307,7 +302,6 @@ impl PaneState {
             EditorPaneKind::Preview => {
                 PaneKindState::Preview(crate::editor::panes::preview::PreviewState::default())
             }
-            EditorPaneKind::Outline => PaneKindState::Outline(OutlineState),
         };
         Self {
             scroll: ScrollState::default(),
@@ -321,7 +315,6 @@ impl PaneState {
             PaneKindState::Wysiwyg(_) => EditorPaneKind::Wysiwyg,
             PaneKindState::SourceCode(_) => EditorPaneKind::SourceCode,
             PaneKindState::Preview(_) => EditorPaneKind::Preview,
-            PaneKindState::Outline(_) => EditorPaneKind::Outline,
         }
     }
 
@@ -337,7 +330,6 @@ impl PaneState {
             EditorPaneKind::Preview => {
                 PaneKindState::Preview(crate::editor::panes::preview::PreviewState::default())
             }
-            EditorPaneKind::Outline => PaneKindState::Outline(OutlineState),
         };
     }
 
@@ -389,22 +381,6 @@ impl PaneState {
     ) -> Option<&mut crate::editor::panes::preview::PreviewState> {
         match &mut self.kind_state {
             PaneKindState::Preview(s) => Some(s),
-            _ => None,
-        }
-    }
-
-    #[inline]
-    pub(crate) fn as_outline(&self) -> Option<&OutlineState> {
-        match &self.kind_state {
-            PaneKindState::Outline(s) => Some(s),
-            _ => None,
-        }
-    }
-
-    #[inline]
-    pub(crate) fn as_outline_mut(&mut self) -> Option<&mut OutlineState> {
-        match &mut self.kind_state {
-            PaneKindState::Outline(s) => Some(s),
             _ => None,
         }
     }

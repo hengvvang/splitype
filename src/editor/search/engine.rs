@@ -673,7 +673,6 @@ impl Editor {
                 crate::editor::engine::controller::EditorPaneKind::Preview => {
                     self.refresh_preview_blocks(active_pane, cx);
                 }
-                crate::editor::engine::controller::EditorPaneKind::Outline => {}
             }
 
             self.sync_search_highlights_to_document(cx);
@@ -758,7 +757,6 @@ impl Editor {
                 crate::editor::engine::controller::EditorPaneKind::Preview => {
                     self.refresh_preview_blocks(active_pane, cx);
                 }
-                crate::editor::engine::controller::EditorPaneKind::Outline => {}
             }
 
             self.sync_search_highlights_to_document(cx);

@@ -107,7 +107,6 @@ impl Editor {
                 }
                 EditorPaneKind::SourceCode => None,
                 EditorPaneKind::Preview => None,
-                EditorPaneKind::Outline => None,
             }
         })();
 

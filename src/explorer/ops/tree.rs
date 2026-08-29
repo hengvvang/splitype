@@ -189,13 +189,6 @@ impl Shell {
     /// tree. With `reveal`, ancestor directories are expanded so the entry
     /// becomes visible.
     pub(crate) fn select_active_file_in_tree(&mut self, reveal: bool, cx: &App) {
-        if self
-            .active_editor()
-            .is_some_and(|editor| editor.read(cx).outline.selected.is_some())
-        {
-            self.panels.explorer.pending_select = None;
-            return;
-        }
         if self.panels.explorer.worktrees.is_empty() {
             return;
         }

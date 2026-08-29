@@ -1,56 +1,36 @@
-//! Outline pane state — heading tree, expansion set, and selection.
-//!
-//! The outline is an editor pane; its state lives here on each
-//! Editor entity (Editor::outline) instead of in the explorer sidebar
-//! state, so the editor never depends on the explorer module.
-
-use std::collections::HashSet;
-use std::hash::{Hash, Hasher};
+//! Outline HUD state — heading list, hover state, active section tracking, and debounce timer.
 
 use gpui::EntityId;
 
-/// Uniform row height for outline nodes (the virtualized list requires a
-/// fixed height).
-pub const OUTLINE_NODE_HEIGHT: f32 = 28.0;
-/// Horizontal indent per heading depth.
-pub const OUTLINE_NODE_INDENT: f32 = 14.0;
+use std::path::PathBuf;
 
-/// Stable hash for outline node ids, used to build element ids.
-pub fn outline_node_hash(id: &str) -> u64 {
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    id.hash(&mut hasher);
-    hasher.finish()
-}
-
-/// A node in the outline tree (headings only).
+/// A heading node in the outline.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OutlineNode {
     pub id: String,
     pub label: String,
-    pub kind: OutlineNodeKind,
-    pub children: Vec<OutlineNode>,
+    pub level: u8,
+    pub block_index: usize,
+    pub block_id: Option<EntityId>,
 }
 
-/// Outline node kind.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum OutlineNodeKind {
-    Heading {
-        line: usize,
-        level: u8,
-        block_id: Option<EntityId>,
-    },
-}
-
-/// Combined outline pane state: the parsed tree plus which nodes are
-/// expanded and selected.
+/// Outline HUD state attached to an Editor.
 #[derive(Clone, Debug, Default)]
 pub struct OutlinePaneState {
-    pub tree: Vec<OutlineNode>,
-    /// Markdown source the tree was built from; None until first sync.
-    pub source: Option<String>,
-    /// Last synced document revision for O(1) cache validation.
+    pub headings: Vec<OutlineNode>,
+    /// Last synced tab index for cache validation.
+    pub synced_tab_index: Option<usize>,
+    /// Last synced file path.
+    pub synced_file_path: Option<PathBuf>,
+    /// Last synced document revision for cache validation.
     pub synced_revision: Option<u64>,
-    /// Expanded node ids (outline ids are strings, unlike explorer entries).
-    pub expanded: HashSet<String>,
-    pub selected: Option<String>,
+    /// Last synced content hash.
+    pub synced_hash: u64,
+    /// Whether the hover TOC popover card is currently visible.
+    pub is_hovered: bool,
+    /// Index of the heading currently in the active viewport.
+    pub active_index: Option<usize>,
+    /// Debounce generation token for mouse leave closure.
+    pub close_token: usize,
 }
+
