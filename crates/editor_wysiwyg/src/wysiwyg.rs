@@ -15,6 +15,7 @@
 pub mod actions;
 pub mod code_language;
 pub mod highlight;
+pub mod editor_view;
 pub mod document;
 pub mod markdown;
 pub mod tree;

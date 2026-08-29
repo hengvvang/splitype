@@ -58,6 +58,9 @@ pub(crate) fn open_editor_window(
         .open_window(
             splitype_window_options(title, bounds),
             move |_window, cx| {
+                // The explorer state is app-wide global; install a fresh
+                // one per window (the shell renders it from the global).
+                cx.set_global(explorer::ExplorerState::default());
                 let editor = cx.new(|cx| {
                     // No content and no path → welcome state with zero tabs.
                     if markdown.is_empty() && file_path.is_none() {
@@ -137,13 +140,12 @@ pub(crate) fn open_cloned_window(
                     panel_contents.insert(panel_id, PanelContent::Editor(editor));
                 }
                 // The Shell owns the cloned outer layout; the explorer
-                // state travels as the app-wide global.
+                // state travels as the app-wide global (a fresh state when
+                // the drag carried none).
+                cx.set_global(explorer.unwrap_or_else(explorer::ExplorerState::default));
                 let mut panels = WindowPanels::default();
                 panels.layout.tree = tree;
                 panels.layout.next_node_id = next_node_id;
-                if let Some(explorer) = explorer {
-                    cx.set_global(explorer);
-                }
                 // Activate the first Editor leaf of the cloned layout
                 if let Some(container) = panels.layout.tree.find_first_leaf_by_kind(WindowPanelKind::Editor) {
                     panels.layout.activate_leaf(container.id);
