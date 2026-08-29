@@ -240,7 +240,14 @@ pub fn import_theme_config_and_select(
     Ok(imported_id)
 }
 
+#[cfg(test)]
 mod tests {
+    use super::ThemeManager;
+    use config::dirs::SplitypeConfigDirs;
+    use crate::Theme;
+
+    use gpui::rgba;
+
     #[test]
     fn imports_partial_jsonc_theme_and_persists_normalized_json() {
         let root = std::env::temp_dir().join(format!("splitype-theme-{}", uuid::Uuid::new_v4()));
