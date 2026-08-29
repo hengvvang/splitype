@@ -1,11 +1,11 @@
 [package]
-name = "splitype"
+name = "app"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 rust-version.workspace = true
-default-run = "splitype"
+default-run = "app"
 
 [lints]
 workspace = true
@@ -15,7 +15,7 @@ default = ["syntax/default", "markdown/default"]
 code-highlight-core = ["syntax/code-highlight-core"]
 
 [[bin]]
-name = "splitype"
+name = "app"
 path = "src/main.rs"
 
 [dependencies]

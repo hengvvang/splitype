@@ -228,6 +228,53 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a4385e2e34eb35d6b3efe798b9eb88096925d87726c0798709bf56d9ed84af3"
 
 [[package]]
+name = "app"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "config",
+ "editor",
+ "editor_outline",
+ "editor_preview",
+ "editor_search",
+ "editor_source_code",
+ "editor_wysiwyg",
+ "embed-resource",
+ "explorer",
+ "explorer_fs",
+ "export",
+ "futures",
+ "gpui",
+ "gpui_platform",
+ "i18n",
+ "latex",
+ "markdown",
+ "mermaid",
+ "net",
+ "notify",
+ "primitives",
+ "regex",
+ "schemars",
+ "serde",
+ "serde_json",
+ "settings",
+ "splitter",
+ "sum_tree 0.0.1",
+ "syntax",
+ "theme",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "ui",
+ "unicode-segmentation",
+ "url",
+ "uuid",
+ "windows 0.61.3",
+ "workspace",
+]
+
+[[package]]
 name = "ar_archive_writer"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6099,53 +6146,6 @@ dependencies = [
  "primitives",
  "schemars",
  "serde",
-]
-
-[[package]]
-name = "splitype"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "config",
- "editor",
- "editor_outline",
- "editor_preview",
- "editor_search",
- "editor_source_code",
- "editor_wysiwyg",
- "embed-resource",
- "explorer",
- "explorer_fs",
- "export",
- "futures",
- "gpui",
- "gpui_platform",
- "i18n",
- "latex",
- "markdown",
- "mermaid",
- "net",
- "notify",
- "primitives",
- "regex",
- "schemars",
- "serde",
- "serde_json",
- "settings",
- "splitter",
- "sum_tree 0.0.1",
- "syntax",
- "theme",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "ui",
- "unicode-segmentation",
- "url",
- "uuid",
- "windows 0.61.3",
- "workspace",
 ]
 
 [[package]]
