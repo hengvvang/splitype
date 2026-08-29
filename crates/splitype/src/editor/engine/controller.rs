@@ -26,9 +26,7 @@ pub use crate::editor::engine::session::{
 };
 pub(crate) use editor_wysiwyg::document::block::Block;
 pub(crate) use editor_wysiwyg::document::Document;
-pub(crate) use editor_wysiwyg::document::block::footnotes::{
-    FootnoteDefinitionBinding, FootnoteMap, FootnoteReferenceLocation, FootnoteResolvedOccurrence,
-};
+pub(crate) use editor_wysiwyg::document::block::footnotes::FootnoteMap;
 pub(crate) use editor_wysiwyg::state::{
     AutoscrollStrategy, BlockSelectionAnchor, CrossBlockDrag, CrossBlockSelection,
     CrossBlockSelectionEndpoint, EditorSelection, FocusState, HistoryEntry, PendingUndoCapture,
@@ -45,7 +43,7 @@ pub(crate) use markdown::block::table::{
     TableColumnAlignment, serialize_table_cell_markdown,
 };
 pub(crate) use markdown::inline::text::BlockText;
-pub(crate) use markdown::parse::{BlockData, BlockId, BlockKind};
+pub(crate) use markdown::parse::{BlockData, BlockKind};
 pub(crate) use splitter::root::SplitterRoot;
 pub use workspace::PanelId;
 
@@ -132,19 +130,6 @@ pub(crate) struct DocumentTab {
     pub(crate) cached_word_count: Option<(u64, usize)>,
 }
 
-/// Decoupled state variant for each supported editor pane kind.
-pub(crate) enum PaneKindState {
-    Wysiwyg(crate::editor::panes::wysiwyg::WysiwygPaneState),
-    SourceCode(editor_source_code::SourceCodeState),
-    Preview(crate::editor::panes::preview::PreviewState),
-}
-
-impl Default for PaneKindState {
-    fn default() -> Self {
-        Self::Wysiwyg(crate::editor::panes::wysiwyg::WysiwygPaneState::default())
-    }
-}
-
 /// The independent view state of one pane inside an editor area.
 ///
 /// Panes share the tab's document (the single source of truth) but nothing
@@ -152,105 +137,65 @@ impl Default for PaneKindState {
 /// pane owns its own raw text buffer, and each Preview pane keeps its own
 /// rendered AST. This keeps the model simple — there is no state to
 /// synchronize between panes because there is no shared view state.
-#[derive(Default)]
 pub(crate) struct PaneState {
     pub(crate) scroll: ScrollState,
-    pub(crate) kind_state: PaneKindState,
+    pub(crate) pane: Box<dyn editor_core::Pane>,
 }
 
 
 #[allow(dead_code)]
 impl PaneState {
     pub(crate) fn new(kind: EditorPaneKind) -> Self {
-        let kind_state = match kind {
-            EditorPaneKind::Wysiwyg => PaneKindState::Wysiwyg(crate::editor::panes::wysiwyg::WysiwygPaneState::default()),
-            EditorPaneKind::SourceCode => {
-                PaneKindState::SourceCode(editor_source_code::SourceCodeState::default())
-            }
-            EditorPaneKind::Preview => {
-                PaneKindState::Preview(crate::editor::panes::preview::PreviewState::default())
-            }
-        };
         Self {
             scroll: ScrollState::default(),
-            kind_state,
+            pane: new_pane_for_kind(kind),
         }
     }
 
     #[inline]
     pub(crate) fn kind(&self) -> EditorPaneKind {
-        match &self.kind_state {
-            PaneKindState::Wysiwyg(_) => EditorPaneKind::Wysiwyg,
-            PaneKindState::SourceCode(_) => EditorPaneKind::SourceCode,
-            PaneKindState::Preview(_) => EditorPaneKind::Preview,
-        }
+        self.pane.kind()
     }
 
     pub(crate) fn ensure_kind(&mut self, kind: EditorPaneKind) {
         if self.kind() == kind {
             return;
         }
-        self.kind_state = match kind {
-            EditorPaneKind::Wysiwyg => PaneKindState::Wysiwyg(crate::editor::panes::wysiwyg::WysiwygPaneState::default()),
-            EditorPaneKind::SourceCode => {
-                PaneKindState::SourceCode(editor_source_code::SourceCodeState::default())
-            }
-            EditorPaneKind::Preview => {
-                PaneKindState::Preview(crate::editor::panes::preview::PreviewState::default())
-            }
-        };
+        self.pane = new_pane_for_kind(kind);
     }
 
     #[inline]
     pub(crate) fn as_wysiwyg(&self) -> Option<&crate::editor::panes::wysiwyg::WysiwygPaneState> {
-        match &self.kind_state {
-            PaneKindState::Wysiwyg(s) => Some(s),
-            _ => None,
-        }
+        self.pane.as_any().downcast_ref()
     }
 
     #[inline]
     pub(crate) fn as_wysiwyg_mut(&mut self) -> Option<&mut crate::editor::panes::wysiwyg::WysiwygPaneState> {
-        match &mut self.kind_state {
-            PaneKindState::Wysiwyg(s) => Some(s),
-            _ => None,
-        }
+        self.pane.as_any_mut().downcast_mut()
     }
 
     #[inline]
     pub(crate) fn as_source_code(&self) -> Option<&editor_source_code::SourceCodeState> {
-        match &self.kind_state {
-            PaneKindState::SourceCode(s) => Some(s),
-            _ => None,
-        }
+        self.pane.as_any().downcast_ref()
     }
 
     #[inline]
     pub(crate) fn as_source_code_mut(
         &mut self,
     ) -> Option<&mut editor_source_code::SourceCodeState> {
-        match &mut self.kind_state {
-            PaneKindState::SourceCode(s) => Some(s),
-            _ => None,
-        }
+        self.pane.as_any_mut().downcast_mut()
     }
 
     #[inline]
     pub(crate) fn as_preview(&self) -> Option<&crate::editor::panes::preview::PreviewState> {
-        match &self.kind_state {
-            PaneKindState::Preview(s) => Some(s),
-            _ => None,
-        }
+        self.pane.as_any().downcast_ref()
     }
 
     #[inline]
     pub(crate) fn as_preview_mut(
         &mut self,
     ) -> Option<&mut crate::editor::panes::preview::PreviewState> {
-        match &mut self.kind_state {
-            PaneKindState::Preview(s) => Some(s),
-            _ => None,
-        }
+        self.pane.as_any_mut().downcast_mut()
     }
 
     #[inline]
@@ -271,6 +216,21 @@ impl PaneState {
     #[inline]
     pub(crate) fn focus_mut(&mut self) -> Option<&mut FocusState> {
         self.as_wysiwyg_mut().map(|w| &mut w.focus)
+    }
+}
+
+/// Creates a fresh pane state for `kind`.
+///
+/// The mode states are registered by the composition root through the
+/// pane factory registry once the mode crates fully own their types;
+/// until then the coordinator crate constructs them directly.
+pub(crate) fn new_pane_for_kind(kind: EditorPaneKind) -> Box<dyn editor_core::Pane> {
+    match kind {
+        EditorPaneKind::Wysiwyg => {
+            Box::new(crate::editor::panes::wysiwyg::WysiwygPaneState::default())
+        }
+        EditorPaneKind::SourceCode => Box::new(editor_source_code::SourceCodeState::default()),
+        EditorPaneKind::Preview => Box::new(crate::editor::panes::preview::PreviewState::default()),
     }
 }
 

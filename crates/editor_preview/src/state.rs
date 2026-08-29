@@ -33,6 +33,14 @@ impl Pane for PreviewState {
         // Preview is a read-only render; there is nothing to highlight.
     }
 
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
     fn outline_items(&self, doc: &dyn EditorDocument, cx: &App) -> Vec<OutlineNode> {
         outline_headings_from_markdown(&doc.serialize_markdown(cx))
     }

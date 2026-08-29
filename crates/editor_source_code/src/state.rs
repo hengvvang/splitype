@@ -420,6 +420,14 @@ impl Pane for SourceCodeState {
         self.search_matches = matches.to_vec();
     }
 
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
     fn outline_items(&self, doc: &dyn EditorDocument, cx: &App) -> Vec<OutlineNode> {
         // The source buffer is authoritative while it holds text; fall
         // back to the shared document when the pane was never synced.

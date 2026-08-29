@@ -1,7 +1,7 @@
 //! Editor runtime helpers: block creation, focus queries, and reference
 //! registry rebuilds.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use gpui::*;

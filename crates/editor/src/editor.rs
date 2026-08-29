@@ -340,18 +340,19 @@ pub trait EditorDocument {
     fn outline_headings(&self, cx: &App) -> Vec<OutlineNode>;
 }
 
+use std::any::Any;
 use std::ops::Range;
 
 /// The plugin contract implemented by every editor pane kind.
 ///
 /// Every view mode (WYSIWYG, Source Code, Preview) implements [`Pane`];
-/// the editor holds one pane state per split leaf and talks to the modes
-/// only through this trait. Cross-mode consumers (export, search,
-/// outline) read *pure data* through [`Pane::document_source`] /
-/// [`Pane::outline_items`] and push *pure ranges* through
-/// [`Pane::set_search_matches`] — no mode internals ever cross a crate
-/// boundary.
-pub trait Pane {
+/// the editor holds one pane state per split leaf (`Box<dyn Pane>`) and
+/// talks to the modes only through this trait. Cross-mode consumers
+/// (export, search, outline) read *pure data* through
+/// [`Pane::document_source`] / [`Pane::outline_items`] and push *pure
+/// ranges* through [`Pane::set_search_matches`] — no mode internals ever
+/// cross a crate boundary.
+pub trait Pane: Any {
     /// Which pane kind this state belongs to.
     fn kind(&self) -> EditorPaneKind;
 
@@ -371,4 +372,10 @@ pub trait Pane {
 
     /// Heading items for the outline HUD (pure data).
     fn outline_items(&self, doc: &dyn EditorDocument, cx: &App) -> Vec<OutlineNode>;
+
+    /// Type-erased access for downcasting to the concrete mode state.
+    fn as_any(&self) -> &dyn Any;
+
+    /// Type-erased mutable access for downcasting to the concrete mode state.
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
